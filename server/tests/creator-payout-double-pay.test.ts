@@ -94,32 +94,51 @@ function refFor(collection: string, id: string) {
   };
 }
 
+type QueryFilter = { field: string; op: string; value: unknown };
+
+function matchesFilter(data: StoredDoc, filter: QueryFilter): boolean {
+  if (filter.op === "==") {
+    return data[filter.field] === filter.value;
+  }
+  if (filter.op === "in") {
+    return (
+      Array.isArray(filter.value) &&
+      (filter.value as unknown[]).includes(data[filter.field])
+    );
+  }
+  throw new Error(`Unsupported operator ${filter.op}`);
+}
+
+function makeQuery(collectionName: string, filters: QueryFilter[]) {
+  return {
+    where: (field: string, op: string, value: unknown) =>
+      makeQuery(collectionName, [...filters, { field, op, value }]),
+    get: async () => {
+      const docs = Array.from(state.docs.entries())
+        .filter(([key, data]) => {
+          if (!key.startsWith(`${collectionName}/`)) {
+            return false;
+          }
+          return filters.every((filter) => matchesFilter(data, filter));
+        })
+        .map(([key, data]) => {
+          const id = key.slice(collectionName.length + 1);
+          return {
+            id,
+            data: () => clone(data),
+            ref: refFor(collectionName, id),
+          };
+        });
+      return { docs };
+    },
+  };
+}
+
 function makeCollection(collectionName: string) {
   return {
     doc: (id: string) => refFor(collectionName, id),
-    where: (field: string, op: string, value: unknown) => ({
-      get: async () => {
-        if (op !== "==") {
-          throw new Error(`Unsupported operator ${op}`);
-        }
-        const docs = Array.from(state.docs.entries())
-          .filter(([key, data]) => {
-            if (!key.startsWith(`${collectionName}/`)) {
-              return false;
-            }
-            return data[field] === value;
-          })
-          .map(([key, data]) => {
-            const id = key.slice(collectionName.length + 1);
-            return {
-              id,
-              data: () => clone(data),
-              ref: refFor(collectionName, id),
-            };
-          });
-        return { docs };
-      },
-    }),
+    where: (field: string, op: string, value: unknown) =>
+      makeQuery(collectionName, [{ field, op, value }]),
   };
 }
 

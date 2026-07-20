@@ -140,6 +140,9 @@ describe("creator capture registration contract", () => {
         rights_profile: "commercial_full",
         platform: "ios",
       });
+      // Firestore createdAt hotspot guard: deterministic capture-id hash shard
+      // (sha256("cap-1") % 16 === 10) written alongside created_at.
+      expect(doc.createdAtShard).toBe(10);
     } finally {
       await stopServer(server);
     }

@@ -5,6 +5,8 @@ import { logger } from "../logger";
 import {
   listCreatorPayouts,
   mapCreatorPayoutStatusForLedger,
+  readCreatorEarningsAggregate,
+  summarizeCreatorEarnings,
 } from "../utils/accounting";
 import {
   recordBetaOpsFailureSignal,
@@ -24,11 +26,22 @@ import {
 import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { dispatchCityLaunchCandidatePaperclipHandoff } from "../utils/cityLaunchCandidatePaperclipHandoff";
 import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
+import { deriveCreatedAtShard } from "../utils/captureShard";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
 import { clientVersionSatisfiesMinimum } from "../utils/client-runtime-config";
 import { loadClientRuntimeConfig } from "./client-runtime-config";
 
 const router = Router();
+
+// Bounded read windows for per-creator queries (backed by the creator_id +
+// created_at / updated_at composite indexes in firestore.indexes.json).
+const QC_RECENT_CAPTURE_LIMIT = 500;
+const PAYOUT_LEDGER_FETCH_LIMIT = 200;
+
+const TELEMETRY_RETENTION_DAYS = Math.max(
+  1,
+  Math.trunc(Number(process.env.BLUEPRINT_CREATOR_TELEMETRY_RETENTION_DAYS) || 90),
+);
 
 const DEFAULT_NOTIFICATION_PREFERENCES = {
   nearby_jobs: true,
@@ -256,25 +269,15 @@ router.get("/earnings", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
-  const payouts = await listCreatorPayouts(creatorId);
-  const totalEarnedCents = payouts.reduce((sum, payout) => {
-    return payout.status === "paid"
-      ? sum + payout.approved_amount_cents
-      : sum;
-  }, 0);
-  const pendingPayoutCents = payouts.reduce((sum, payout) => {
-    return ["approved", "in_transit", "review_required"].includes(payout.status)
-      ? sum + payout.approved_amount_cents
-      : sum;
-  }, 0);
-  const scansCompleted = payouts.filter((payout) =>
-    ["approved", "in_transit", "paid"].includes(payout.status),
-  ).length;
+  // Lifetime totals come from the maintained earnings aggregate (lazily
+  // backfilled on first read) instead of scanning the full payout history.
+  const aggregate = await readCreatorEarningsAggregate(creatorId);
+  const earnings = summarizeCreatorEarnings(aggregate);
 
   return res.json({
-    total_earned_cents: totalEarnedCents,
-    pending_payout_cents: pendingPayoutCents,
-    scans_completed: scansCompleted,
+    total_earned_cents: earnings.totalEarnedCents,
+    pending_payout_cents: earnings.pendingPayoutCents,
+    scans_completed: earnings.scansCompleted,
   });
 });
 
@@ -288,14 +291,18 @@ router.get("/captures", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
+  // Bounded, index-backed read (creator_id + created_at composite) instead of
+  // scanning the creator's full capture history per request.
+  const limit = Math.min(Math.max(Math.trunc(toNumber(req.query.limit) ?? 50), 1), 200);
   const snapshot = await db
     .collection("creatorCaptures")
     .where("creator_id", "==", creatorId)
+    .orderBy("created_at", "desc")
+    .limit(limit)
     .get();
   const captures = snapshot.docs
     .map((doc) => serializeCapture(doc))
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
-    .slice(0, 50);
+    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
 
   return res.json(captures);
 });
@@ -494,6 +501,10 @@ router.post("/captures", async (req: Request, res: Response) => {
       { label: "Payout", completed_at: null, state: "pending" },
     ],
     created_at: admin.firestore.FieldValue.serverTimestamp(),
+    // Additive Firestore hotspot-guard field: deterministic capture-id hash
+    // shard (sha256 mod 16) so created_at queries can migrate to the sharded
+    // composite indexes without a write-time hotspot. See captureShard.ts.
+    createdAtShard: deriveCreatedAtShard(captureId),
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -808,6 +819,10 @@ router.post("/client-telemetry", async (req: Request, res: Response) => {
     source: "blueprint_capture_native_client",
     beta_alert_candidate: true,
     received_at: admin.firestore.FieldValue.serverTimestamp(),
+    // Operational exhaust, not capture truth: expires via the Firestore TTL
+    // policy on creatorClientTelemetry.expires_at
+    // (scripts/apply_firestore_ttl_policies.sh).
+    expires_at: new Date(Date.now() + TELEMETRY_RETENTION_DAYS * 24 * 60 * 60 * 1000),
   };
 
   const telemetryRef = db.collection("creatorClientTelemetry").doc(telemetryDocId);
@@ -997,9 +1012,13 @@ router.get("/qc", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
+  // QC stats are advisory: compute them over a bounded recent window instead
+  // of the creator's unbounded capture history.
   const snapshot = await db
     .collection("creatorCaptures")
     .where("creator_id", "==", creatorId)
+    .orderBy("created_at", "desc")
+    .limit(QC_RECENT_CAPTURE_LIMIT)
     .get();
 
   let pendingCount = 0;
@@ -1055,7 +1074,7 @@ router.get("/payouts/ledger", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
-  const entries = (await listCreatorPayouts(creatorId))
+  const entries = (await listCreatorPayouts(creatorId, { limit: PAYOUT_LEDGER_FETCH_LIMIT }))
     .filter((entry) => entry.approved_amount_cents > 0)
     .slice(0, 50)
     .map((entry) => ({

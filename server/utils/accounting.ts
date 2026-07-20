@@ -7,6 +7,7 @@ const BUYER_ORDER_COLLECTION = "buyerOrders";
 const BUYER_ENTITLEMENT_COLLECTION = "marketplaceEntitlements";
 const CREATOR_PAYOUT_COLLECTION = "creatorPayouts";
 const CREATOR_PAYOUT_DISBURSEMENT_COLLECTION = "creatorPayoutDisbursements";
+const CREATOR_EARNINGS_AGGREGATE_COLLECTION = "creatorEarningsAggregates";
 const STRIPE_WEBHOOK_EVENT_COLLECTION = "stripeWebhookEvents";
 const STRIPE_CHECKOUT_LINK_COLLECTION = "stripeCheckoutSessions";
 const STRIPE_PAYMENT_INTENT_LINK_COLLECTION = "stripePaymentIntents";
@@ -213,6 +214,25 @@ export type CreatorPayoutDisbursementRecord = {
   failure_reason: string | null;
   last_webhook_event_id: string | null;
   last_webhook_event_type: string | null;
+};
+
+export type CreatorEarningsStatusTotals = Partial<
+  Record<CreatorPayoutStatus, { count: number; approved_amount_cents: number }>
+>;
+
+/**
+ * Running lifetime totals per payout status for one creator, maintained
+ * transactionally with every creatorPayouts write and lazily backfilled from a
+ * one-time history scan. Earnings/ledger reads use this instead of scanning
+ * the creator's full payout history per request.
+ */
+export type CreatorEarningsAggregateRecord = {
+  creator_id: string;
+  schema: "blueprint/creator-earnings-aggregate/v1";
+  status_totals: CreatorEarningsStatusTotals;
+  entry_count: number;
+  backfilled_at: string;
+  updated_at: string;
 };
 
 type BuyerOrderDraftInput = {
@@ -1061,24 +1081,25 @@ export async function markBuyerOrderDisputedFromCharge(params: {
     "held_for_dispute",
   ]);
 
+  const firestore = db;
   for (const captureId of captureIds) {
-    const payoutSnapshot = await db
-      .collection(CREATOR_PAYOUT_COLLECTION)
-      .doc(captureId)
-      .get();
-    if (!payoutSnapshot.exists) {
-      continue;
-    }
-    const payout = copyCreatorPayout(payoutSnapshot.data() as Record<string, unknown>);
-    if (!holdableStatuses.has(payout.status)) {
-      unresolvedPayoutIds.push(payout.id);
-      continue;
-    }
+    const payoutRef = firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(captureId);
+    const result = await firestore.runTransaction<
+      { outcome: "missing" } | { outcome: "held" | "unresolved"; payoutId: string }
+    >(async (tx) => {
+      const payoutSnapshot = await tx.get(payoutRef);
+      if (!payoutSnapshot.exists) {
+        return { outcome: "missing" };
+      }
+      const payout = copyCreatorPayout(payoutSnapshot.data() as Record<string, unknown>);
+      const aggregateRef = earningsAggregateRef(firestore, payout.creator_id);
+      const aggregateSnapshot = await tx.get(aggregateRef);
+      if (!holdableStatuses.has(payout.status)) {
+        return { outcome: "unresolved", payoutId: payout.id };
+      }
 
-    await db
-      .collection(CREATOR_PAYOUT_COLLECTION)
-      .doc(payout.id)
-      .set(
+      tx.set(
+        firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(payout.id),
         {
           status: "held_for_dispute",
           failure_reason: "Buyer payment dispute opened before payout settlement.",
@@ -1093,7 +1114,29 @@ export async function markBuyerOrderDisputedFromCharge(params: {
         },
         { merge: true },
       );
-    heldPayoutIds.push(payout.id);
+      updateEarningsAggregateInTx({
+        tx,
+        ref: aggregateRef,
+        snapshot: aggregateSnapshot,
+        creatorId: payout.creator_id,
+        changes: [
+          {
+            previous: payoutAggregateSlice(payout),
+            next: {
+              status: "held_for_dispute",
+              approvedAmountCents: payout.approved_amount_cents,
+            },
+          },
+        ],
+      });
+      return { outcome: "held", payoutId: payout.id };
+    });
+
+    if (result.outcome === "held") {
+      heldPayoutIds.push(result.payoutId);
+    } else if (result.outcome === "unresolved") {
+      unresolvedPayoutIds.push(result.payoutId);
+    }
   }
 
   await db
@@ -1456,6 +1499,219 @@ function buildPayoutDisbursementFundingReport(
   };
 }
 
+type PayoutAggregateSlice = {
+  status: CreatorPayoutStatus;
+  approvedAmountCents: number;
+};
+
+function payoutAggregateSlice(entry: CreatorPayoutRecord): PayoutAggregateSlice {
+  return {
+    status: entry.status,
+    approvedAmountCents: entry.approved_amount_cents,
+  };
+}
+
+function emptyCreatorEarningsAggregate(
+  creatorId: string,
+): CreatorEarningsAggregateRecord {
+  const timestamp = nowIso();
+  return {
+    creator_id: creatorId,
+    schema: "blueprint/creator-earnings-aggregate/v1",
+    status_totals: {},
+    entry_count: 0,
+    backfilled_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+function copyCreatorEarningsAggregate(
+  creatorId: string,
+  value: Record<string, unknown> | undefined,
+): CreatorEarningsAggregateRecord {
+  const data = value || {};
+  const statusTotals: CreatorEarningsStatusTotals = {};
+  for (const [status, bucket] of Object.entries(toRecord(data.status_totals))) {
+    const record = toRecord(bucket);
+    statusTotals[status as CreatorPayoutStatus] = {
+      count: Math.max(0, Math.floor(asNumber(record.count))),
+      approved_amount_cents: Math.max(
+        0,
+        Math.floor(asNumber(record.approved_amount_cents)),
+      ),
+    };
+  }
+  return {
+    creator_id: asString(data.creator_id) || creatorId,
+    schema: "blueprint/creator-earnings-aggregate/v1",
+    status_totals: statusTotals,
+    entry_count: Math.max(0, Math.floor(asNumber(data.entry_count))),
+    backfilled_at: asString(data.backfilled_at) || nowIso(),
+    updated_at: asString(data.updated_at) || nowIso(),
+  };
+}
+
+function applyEarningsAggregateChange(
+  aggregate: CreatorEarningsAggregateRecord,
+  previous: PayoutAggregateSlice | null,
+  next: PayoutAggregateSlice | null,
+): CreatorEarningsAggregateRecord {
+  const statusTotals: CreatorEarningsStatusTotals = { ...aggregate.status_totals };
+  const adjust = (slice: PayoutAggregateSlice, direction: 1 | -1) => {
+    const bucket = statusTotals[slice.status] || {
+      count: 0,
+      approved_amount_cents: 0,
+    };
+    statusTotals[slice.status] = {
+      count: Math.max(0, bucket.count + direction),
+      approved_amount_cents: Math.max(
+        0,
+        bucket.approved_amount_cents +
+          direction * Math.max(0, Math.floor(slice.approvedAmountCents)),
+      ),
+    };
+  };
+  if (previous) {
+    adjust(previous, -1);
+  }
+  if (next) {
+    adjust(next, 1);
+  }
+  return {
+    ...aggregate,
+    status_totals: statusTotals,
+    entry_count: Math.max(
+      0,
+      aggregate.entry_count - (previous ? 1 : 0) + (next ? 1 : 0),
+    ),
+    updated_at: nowIso(),
+  };
+}
+
+export function buildCreatorEarningsAggregateFromEntries(
+  creatorId: string,
+  entries: CreatorPayoutRecord[],
+): CreatorEarningsAggregateRecord {
+  return entries.reduce(
+    (aggregate, entry) =>
+      applyEarningsAggregateChange(aggregate, null, payoutAggregateSlice(entry)),
+    emptyCreatorEarningsAggregate(creatorId),
+  );
+}
+
+function earningsAggregateRef(
+  firestore: NonNullable<typeof db>,
+  creatorId: string,
+) {
+  return firestore
+    .collection(CREATOR_EARNINGS_AGGREGATE_COLLECTION)
+    .doc(creatorId);
+}
+
+function updateEarningsAggregateInTx(params: {
+  tx: FirebaseFirestore.Transaction;
+  ref: FirebaseFirestore.DocumentReference;
+  snapshot: FirebaseFirestore.DocumentSnapshot;
+  creatorId: string;
+  changes: Array<{
+    previous: PayoutAggregateSlice | null;
+    next: PayoutAggregateSlice | null;
+  }>;
+}) {
+  // The aggregate is only maintained once the lazy backfill materialized it;
+  // until then the backfill scan will observe these writes directly.
+  if (!params.snapshot.exists || params.changes.length === 0) {
+    return;
+  }
+  let aggregate = copyCreatorEarningsAggregate(
+    params.creatorId,
+    params.snapshot.data() as Record<string, unknown> | undefined,
+  );
+  for (const change of params.changes) {
+    aggregate = applyEarningsAggregateChange(
+      aggregate,
+      change.previous,
+      change.next,
+    );
+  }
+  params.tx.set(params.ref, aggregate);
+}
+
+export async function readCreatorEarningsAggregate(
+  creatorId: string,
+): Promise<CreatorEarningsAggregateRecord> {
+  if (!db || !creatorId) {
+    return emptyCreatorEarningsAggregate(creatorId);
+  }
+  const firestore = db;
+  const ref = earningsAggregateRef(firestore, creatorId);
+
+  const snapshot = await ref.get();
+  if (snapshot.exists) {
+    return copyCreatorEarningsAggregate(
+      creatorId,
+      snapshot.data() as Record<string, unknown> | undefined,
+    );
+  }
+
+  // Lazy backfill: one full history scan inside a transaction; from then on
+  // every payout write maintains the aggregate incrementally.
+  return firestore.runTransaction(async (tx) => {
+    const existing = await tx.get(ref);
+    if (existing.exists) {
+      return copyCreatorEarningsAggregate(
+        creatorId,
+        existing.data() as Record<string, unknown> | undefined,
+      );
+    }
+    const payoutSnapshot = await tx.get(
+      firestore
+        .collection(CREATOR_PAYOUT_COLLECTION)
+        .where("creator_id", "==", creatorId),
+    );
+    const aggregate = buildCreatorEarningsAggregateFromEntries(
+      creatorId,
+      payoutSnapshot.docs.map((doc) =>
+        copyCreatorPayout(doc.data() as Record<string, unknown>),
+      ),
+    );
+    tx.set(ref, aggregate);
+    return aggregate;
+  });
+}
+
+export function summarizeCreatorEarnings(
+  aggregate: CreatorEarningsAggregateRecord,
+): {
+  totalEarnedCents: number;
+  pendingPayoutCents: number;
+  scansCompleted: number;
+} {
+  const bucket = (status: CreatorPayoutStatus) =>
+    aggregate.status_totals[status] || { count: 0, approved_amount_cents: 0 };
+  const pendingStatuses: CreatorPayoutStatus[] = [
+    "approved",
+    "in_transit",
+    "review_required",
+  ];
+  const completedStatuses: CreatorPayoutStatus[] = [
+    "approved",
+    "in_transit",
+    "paid",
+  ];
+  return {
+    totalEarnedCents: bucket("paid").approved_amount_cents,
+    pendingPayoutCents: pendingStatuses.reduce(
+      (sum, status) => sum + bucket(status).approved_amount_cents,
+      0,
+    ),
+    scansCompleted: completedStatuses.reduce(
+      (sum, status) => sum + bucket(status).count,
+      0,
+    ),
+  };
+}
+
 export async function upsertCreatorPayoutFromPipeline(params: {
   captureId: string;
   sceneId: string | null;
@@ -1477,14 +1733,7 @@ export async function upsertCreatorPayoutFromPipeline(params: {
     return null;
   }
 
-  const existingSnapshot = await db
-    .collection(CREATOR_PAYOUT_COLLECTION)
-    .doc(params.captureId)
-    .get();
-  const existing = existingSnapshot.exists
-    ? copyCreatorPayout(existingSnapshot.data() as Record<string, unknown>)
-    : null;
-
+  const firestore = db;
   const recommendationStatus = asString(params.recommendation.status);
   const basePayoutCents = Math.max(
     0,
@@ -1502,81 +1751,110 @@ export async function upsertCreatorPayoutFromPipeline(params: {
     ? verifiedPayoutFundingPolicy(params.recommendation, basePayoutCents)
     : notRequiredPayoutFunding();
 
-  let nextStatus: CreatorPayoutStatus = "pending_qualification";
-  if (!isQualifiedReady) {
-    nextStatus = "pending_qualification";
-  } else if (recommendationStatus === "review_required") {
-    nextStatus = "review_required";
-  } else if (basePayoutCents <= 0) {
-    nextStatus = "ineligible";
-  } else if (funding.status !== "verified") {
-    nextStatus = "review_required";
-  } else {
-    nextStatus = "approved";
-  }
-
-  const preservesSettledStatus = Boolean(
-    existing && ["in_transit", "paid"].includes(existing.status),
-  );
-  if (preservesSettledStatus) {
-    nextStatus = existing!.status;
-  }
-  const payloadFunding = preservesSettledStatus
-    ? {
-        policy: existing!.payout_funding_policy,
-        status: existing!.funding_status,
-        blockers: existing!.funding_blockers,
-        reconciliation: existing!.payout_funding_reconciliation,
-      }
-    : funding;
-
-  const approvedAt =
-    nextStatus === "approved" || nextStatus === "in_transit" || nextStatus === "paid"
-      ? existing?.approved_at || nowIso()
-      : existing?.approved_at || null;
-
-  const payload: CreatorPayoutRecord = {
-    id: params.captureId,
-    creator_id: creatorId,
-    capture_id: params.captureId,
-    scene_id: params.sceneId,
-    capture_job_id: params.captureJobId,
-    buyer_request_id: params.buyerRequestId,
-    site_submission_id: params.siteSubmissionId,
-    qualification_state: params.qualificationState,
-    opportunity_state: params.opportunityState,
-    status: nextStatus,
-    recommended_status: recommendationStatus,
-    base_payout_cents: Math.max(
-      0,
-      Math.floor(asNumber(params.recommendation.base_payout_cents)),
-    ),
-    approved_amount_cents: basePayoutCents,
-    recommendation: params.recommendation,
-    recommendation_uri: params.recommendationUri,
-    payout_funding_policy: payloadFunding.policy,
-    funding_status: payloadFunding.status,
-    funding_blockers: payloadFunding.blockers,
-    payout_funding_reconciliation: payloadFunding.reconciliation,
-    stripe_connect_account_id:
-      params.stripeConnectAccountId || existing?.stripe_connect_account_id || null,
-    disbursement_id: existing?.disbursement_id || null,
-    stripe_payout_id: existing?.stripe_payout_id || null,
-    last_webhook_event_id: existing?.last_webhook_event_id || null,
-    last_webhook_event_type: existing?.last_webhook_event_type || null,
-    failure_reason:
-      payloadFunding.blockers[0] ||
-      (nextStatus === "approved" ? null : existing?.failure_reason || null),
-    created_at: existing?.created_at || nowIso(),
-    updated_at: nowIso(),
-    approved_at: approvedAt,
-    paid_at: existing?.paid_at || null,
-  };
-
-  await db
+  const payoutRef = firestore
     .collection(CREATOR_PAYOUT_COLLECTION)
-    .doc(params.captureId)
-    .set(payload, { merge: true });
+    .doc(params.captureId);
+  const aggregateRef = earningsAggregateRef(firestore, creatorId);
+
+  // The payout entry and the creator earnings aggregate move together in one
+  // transaction so the aggregate can never drift from the ledger.
+  const payload = await firestore.runTransaction<CreatorPayoutRecord>(async (tx) => {
+    const [existingSnapshot, aggregateSnapshot] = await Promise.all([
+      tx.get(payoutRef),
+      tx.get(aggregateRef),
+    ]);
+    const existing = existingSnapshot.exists
+      ? copyCreatorPayout(existingSnapshot.data() as Record<string, unknown>)
+      : null;
+
+    let nextStatus: CreatorPayoutStatus = "pending_qualification";
+    if (!isQualifiedReady) {
+      nextStatus = "pending_qualification";
+    } else if (recommendationStatus === "review_required") {
+      nextStatus = "review_required";
+    } else if (basePayoutCents <= 0) {
+      nextStatus = "ineligible";
+    } else if (funding.status !== "verified") {
+      nextStatus = "review_required";
+    } else {
+      nextStatus = "approved";
+    }
+
+    const preservesSettledStatus = Boolean(
+      existing && ["in_transit", "paid"].includes(existing.status),
+    );
+    if (preservesSettledStatus) {
+      nextStatus = existing!.status;
+    }
+    const payloadFunding = preservesSettledStatus
+      ? {
+          policy: existing!.payout_funding_policy,
+          status: existing!.funding_status,
+          blockers: existing!.funding_blockers,
+          reconciliation: existing!.payout_funding_reconciliation,
+        }
+      : funding;
+
+    const approvedAt =
+      nextStatus === "approved" || nextStatus === "in_transit" || nextStatus === "paid"
+        ? existing?.approved_at || nowIso()
+        : existing?.approved_at || null;
+
+    const nextPayload: CreatorPayoutRecord = {
+      id: params.captureId,
+      creator_id: creatorId,
+      capture_id: params.captureId,
+      scene_id: params.sceneId,
+      capture_job_id: params.captureJobId,
+      buyer_request_id: params.buyerRequestId,
+      site_submission_id: params.siteSubmissionId,
+      qualification_state: params.qualificationState,
+      opportunity_state: params.opportunityState,
+      status: nextStatus,
+      recommended_status: recommendationStatus,
+      base_payout_cents: Math.max(
+        0,
+        Math.floor(asNumber(params.recommendation.base_payout_cents)),
+      ),
+      approved_amount_cents: basePayoutCents,
+      recommendation: params.recommendation,
+      recommendation_uri: params.recommendationUri,
+      payout_funding_policy: payloadFunding.policy,
+      funding_status: payloadFunding.status,
+      funding_blockers: payloadFunding.blockers,
+      payout_funding_reconciliation: payloadFunding.reconciliation,
+      stripe_connect_account_id:
+        params.stripeConnectAccountId || existing?.stripe_connect_account_id || null,
+      disbursement_id: existing?.disbursement_id || null,
+      stripe_payout_id: existing?.stripe_payout_id || null,
+      last_webhook_event_id: existing?.last_webhook_event_id || null,
+      last_webhook_event_type: existing?.last_webhook_event_type || null,
+      failure_reason:
+        payloadFunding.blockers[0] ||
+        (nextStatus === "approved" ? null : existing?.failure_reason || null),
+      created_at: existing?.created_at || nowIso(),
+      updated_at: nowIso(),
+      approved_at: approvedAt,
+      paid_at: existing?.paid_at || null,
+    };
+
+    tx.set(payoutRef, nextPayload, { merge: true });
+    updateEarningsAggregateInTx({
+      tx,
+      ref: aggregateRef,
+      snapshot: aggregateSnapshot,
+      creatorId,
+      changes: [
+        {
+          previous: existing ? payoutAggregateSlice(existing) : null,
+          next: payoutAggregateSlice(nextPayload),
+        },
+      ],
+    });
+    return nextPayload;
+  });
+
+  const nextStatus = payload.status;
 
   if (nextStatus === "approved") {
     await updateCreatorCaptureProjection({
@@ -1590,7 +1868,7 @@ export async function upsertCreatorPayoutFromPipeline(params: {
       creatorId,
       status: "approved",
       payoutCents: basePayoutCents,
-      approvedAt,
+      approvedAt: payload.approved_at,
     });
   } else if (["pending_qualification", "review_required"].includes(nextStatus)) {
     await updateCreatorCaptureProjection({
@@ -1610,7 +1888,45 @@ export async function upsertCreatorPayoutFromPipeline(params: {
   return payload;
 }
 
+function sortCreatorPayoutsByRecency(entries: CreatorPayoutRecord[]) {
+  return entries.sort((a, b) => {
+    const aTime = new Date(a.paid_at || a.approved_at || a.updated_at).getTime();
+    const bTime = new Date(b.paid_at || b.approved_at || b.updated_at).getTime();
+    return bTime - aTime;
+  });
+}
+
 export async function listCreatorPayouts(
+  creatorId: string,
+  options?: { limit?: number },
+): Promise<CreatorPayoutRecord[]> {
+  if (!db || !creatorId) {
+    return [];
+  }
+
+  let query: FirebaseFirestore.Query = db
+    .collection(CREATOR_PAYOUT_COLLECTION)
+    .where("creator_id", "==", creatorId);
+  const limit = Math.trunc(options?.limit ?? 0);
+  if (limit > 0) {
+    // Bounded recency window (creator_id + updated_at composite index) so the
+    // read stops scaling with creator tenure. Every payout write refreshes
+    // updated_at, so the newest entries always land in the window.
+    query = query.orderBy("updated_at", "desc").limit(limit);
+  }
+  const snapshot = await query.get();
+
+  return sortCreatorPayoutsByRecency(
+    snapshot.docs.map((doc) => copyCreatorPayout(doc.data() as Record<string, unknown>)),
+  );
+}
+
+const PAYABLE_PAYOUT_STATUSES: CreatorPayoutStatus[] = [
+  "approved",
+  "disbursement_failed",
+];
+
+async function listPayableCreatorPayouts(
   creatorId: string,
 ): Promise<CreatorPayoutRecord[]> {
   if (!db || !creatorId) {
@@ -1620,15 +1936,12 @@ export async function listCreatorPayouts(
   const snapshot = await db
     .collection(CREATOR_PAYOUT_COLLECTION)
     .where("creator_id", "==", creatorId)
+    .where("status", "in", PAYABLE_PAYOUT_STATUSES)
     .get();
 
-  return snapshot.docs
-    .map((doc) => copyCreatorPayout(doc.data() as Record<string, unknown>))
-    .sort((a, b) => {
-      const aTime = new Date(a.paid_at || a.approved_at || a.updated_at).getTime();
-      const bTime = new Date(b.paid_at || b.approved_at || b.updated_at).getTime();
-      return bTime - aTime;
-    });
+  return sortCreatorPayoutsByRecency(
+    snapshot.docs.map((doc) => copyCreatorPayout(doc.data() as Record<string, unknown>)),
+  );
 }
 
 export function mapCreatorPayoutStatusForLedger(
@@ -1662,6 +1975,7 @@ export async function beginCreatorPayoutDisbursement(params: {
   const existingDisbursementSnapshot = await firestore
     .collection(CREATOR_PAYOUT_DISBURSEMENT_COLLECTION)
     .where("creator_id", "==", params.creatorId)
+    .where("status", "==", "failed")
     .get();
   const retryableDisbursement = existingDisbursementSnapshot.docs
     .map((doc) => copyCreatorPayoutDisbursement(doc.data() as Record<string, unknown>))
@@ -1700,13 +2014,10 @@ export async function beginCreatorPayoutDisbursement(params: {
   // cannot run the collection query itself). Every entry's status is then
   // re-read *inside* the transaction and re-checked before any write, so the
   // read-then-write double-pay race (WEB-01) cannot open a window between
-  // selection and the in_transit flip.
-  const candidateEntryIds = (await listCreatorPayouts(params.creatorId))
-    .filter(
-      (entry) =>
-        ["approved", "disbursement_failed"].includes(entry.status) &&
-        payoutFundingEligibleForDisbursement(entry),
-    )
+  // selection and the in_transit flip. The candidate query is bounded to
+  // payable statuses instead of scanning the creator's full payout history.
+  const candidateEntryIds = (await listPayableCreatorPayouts(params.creatorId))
+    .filter((entry) => payoutFundingEligibleForDisbursement(entry))
     .map((entry) => entry.id);
   if (candidateEntryIds.length === 0) {
     return null;
@@ -1743,6 +2054,8 @@ export async function beginCreatorPayoutDisbursement(params: {
       firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(entryId),
     );
     const snapshots = await Promise.all(refs.map((ref) => tx.get(ref)));
+    const aggregateRef = earningsAggregateRef(firestore, params.creatorId);
+    const aggregateSnapshot = await tx.get(aggregateRef);
 
     const selectedEntries: CreatorPayoutRecord[] = [];
     let runningTotal = 0;
@@ -1822,6 +2135,20 @@ export async function beginCreatorPayoutDisbursement(params: {
         { merge: true },
       );
     }
+
+    updateEarningsAggregateInTx({
+      tx,
+      ref: aggregateRef,
+      snapshot: aggregateSnapshot,
+      creatorId: params.creatorId,
+      changes: selectedEntries.map((entry) => ({
+        previous: payoutAggregateSlice(entry),
+        next: {
+          status: "in_transit" as CreatorPayoutStatus,
+          approvedAmountCents: entry.approved_amount_cents,
+        },
+      })),
+    });
 
     return { disbursement, entries: selectedEntries };
   });
@@ -1952,21 +2279,48 @@ export async function failCreatorPayoutDisbursement(params: {
       { merge: true },
     );
 
-  await Promise.all(
-    disbursement.payout_entry_ids.map((entryId) =>
-      firestore
-        .collection(CREATOR_PAYOUT_COLLECTION)
-        .doc(entryId)
-        .set(
-          {
+  await firestore.runTransaction(async (tx) => {
+    const entryRefs = disbursement.payout_entry_ids.map((entryId) =>
+      firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(entryId),
+    );
+    const entrySnapshots = await Promise.all(entryRefs.map((ref) => tx.get(ref)));
+    const aggregateRef = earningsAggregateRef(firestore, disbursement.creator_id);
+    const aggregateSnapshot = await tx.get(aggregateRef);
+
+    const changes: Array<{
+      previous: PayoutAggregateSlice | null;
+      next: PayoutAggregateSlice | null;
+    }> = [];
+    entrySnapshots.forEach((snapshot, index) => {
+      tx.set(
+        entryRefs[index],
+        {
+          status: "disbursement_failed",
+          updated_at: failedAt,
+          failure_reason: params.reason,
+        },
+        { merge: true },
+      );
+      if (snapshot.exists) {
+        const entry = copyCreatorPayout(snapshot.data() as Record<string, unknown>);
+        changes.push({
+          previous: payoutAggregateSlice(entry),
+          next: {
             status: "disbursement_failed",
-            updated_at: failedAt,
-            failure_reason: params.reason,
+            approvedAmountCents: entry.approved_amount_cents,
           },
-          { merge: true },
-        ),
-    ),
-  );
+        });
+      }
+    });
+
+    updateEarningsAggregateInTx({
+      tx,
+      ref: aggregateRef,
+      snapshot: aggregateSnapshot,
+      creatorId: disbursement.creator_id,
+      changes,
+    });
+  });
 }
 
 export async function findCreatorPayoutDisbursementByStripePayoutId(
@@ -2041,25 +2395,32 @@ export async function applyCreatorPayoutWebhook(params: {
       { merge: true },
     );
 
-  await Promise.all(
-    disbursement.payout_entry_ids.map(async (entryId) => {
-      const payoutSnapshot = await firestore
-        .collection(CREATOR_PAYOUT_COLLECTION)
-        .doc(entryId)
-        .get();
-      if (!payoutSnapshot.exists) {
-        return;
-      }
-      const payout = copyCreatorPayout(
-        payoutSnapshot.data() as Record<string, unknown>,
+  const settledPayouts = await firestore.runTransaction<CreatorPayoutRecord[]>(
+    async (tx) => {
+      const entryRefs = disbursement.payout_entry_ids.map((entryId) =>
+        firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(entryId),
       );
-      const nextStatus: CreatorPayoutStatus =
-        params.status === "paid" ? "paid" : "disbursement_failed";
+      const entrySnapshots = await Promise.all(entryRefs.map((ref) => tx.get(ref)));
+      const aggregateRef = earningsAggregateRef(firestore, disbursement.creator_id);
+      const aggregateSnapshot = await tx.get(aggregateRef);
 
-      await firestore
-        .collection(CREATOR_PAYOUT_COLLECTION)
-        .doc(entryId)
-        .set(
+      const updated: CreatorPayoutRecord[] = [];
+      const changes: Array<{
+        previous: PayoutAggregateSlice | null;
+        next: PayoutAggregateSlice | null;
+      }> = [];
+      entrySnapshots.forEach((payoutSnapshot, index) => {
+        if (!payoutSnapshot.exists) {
+          return;
+        }
+        const payout = copyCreatorPayout(
+          payoutSnapshot.data() as Record<string, unknown>,
+        );
+        const nextStatus: CreatorPayoutStatus =
+          params.status === "paid" ? "paid" : "disbursement_failed";
+
+        tx.set(
+          entryRefs[index],
           {
             status: nextStatus,
             paid_at: params.status === "paid" ? updatedAt : null,
@@ -2071,25 +2432,46 @@ export async function applyCreatorPayoutWebhook(params: {
           },
           { merge: true },
         );
+        changes.push({
+          previous: payoutAggregateSlice(payout),
+          next: {
+            status: nextStatus,
+            approvedAmountCents: payout.approved_amount_cents,
+          },
+        });
+        updated.push(payout);
+      });
 
-      if (params.status === "paid") {
-        await updateCreatorCaptureProjection({
-          captureId: payout.capture_id,
-          creatorId: payout.creator_id,
-          status: "paid",
-          estimatedPayoutCents: payout.approved_amount_cents,
-        });
-        await updateCaptureSubmissionProjection({
-          captureId: payout.capture_id,
-          creatorId: payout.creator_id,
-          status: "paid",
-          payoutCents: payout.approved_amount_cents,
-          approvedAt: payout.approved_at,
-          paidAt: updatedAt,
-        });
-      }
-    }),
+      updateEarningsAggregateInTx({
+        tx,
+        ref: aggregateRef,
+        snapshot: aggregateSnapshot,
+        creatorId: disbursement.creator_id,
+        changes,
+      });
+
+      return updated;
+    },
   );
+
+  if (params.status === "paid") {
+    for (const payout of settledPayouts) {
+      await updateCreatorCaptureProjection({
+        captureId: payout.capture_id,
+        creatorId: payout.creator_id,
+        status: "paid",
+        estimatedPayoutCents: payout.approved_amount_cents,
+      });
+      await updateCaptureSubmissionProjection({
+        captureId: payout.capture_id,
+        creatorId: payout.creator_id,
+        status: "paid",
+        payoutCents: payout.approved_amount_cents,
+        approvedAt: payout.approved_at,
+        paidAt: updatedAt,
+      });
+    }
+  }
 
   return disbursement.id;
 }

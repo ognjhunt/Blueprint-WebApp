@@ -1,4 +1,4 @@
-import { listCityLaunchActivations, listCityLaunchCandidateSignals, listCityLaunchProspects } from "./cityLaunchLedgers";
+import { getCityLaunchSnapshot } from "./cityLaunchSnapshot";
 
 const ACTIVE_ACTIVATION_STATUSES = new Set<string>([
   "activation_ready",
@@ -184,54 +184,48 @@ export async function buildCreatorLaunchStatus(input: {
   resolvedCity?: { city: string; stateCode?: string | null } | null;
 }): Promise<CreatorLaunchStatus> {
   const sourceWarnings: string[] = [];
-  let activations: Awaited<ReturnType<typeof listCityLaunchActivations>> = [];
   let cityLaunchActivations: CreatorLaunchStatus["sourceStatus"]["cityLaunchActivations"] = "available";
   let cityLaunchProspects: CreatorLaunchStatus["sourceStatus"]["cityLaunchProspects"] = "available";
   let cityLaunchCandidateSignals: CreatorLaunchStatus["sourceStatus"]["cityLaunchCandidateSignals"] = "available";
 
-  try {
-    activations = await listCityLaunchActivations();
-  } catch (error) {
+  const snapshot = await getCityLaunchSnapshot();
+  const activations = snapshot.activations;
+  if (snapshot.activationsError) {
     cityLaunchActivations = "unavailable";
     cityLaunchProspects = "unavailable";
-    sourceWarnings.push(ledgerErrorWarning("cityLaunchActivations", error));
+    sourceWarnings.push(ledgerErrorWarning("cityLaunchActivations", snapshot.activationsError));
   }
 
   const activationCoordinates = new Map<string, { latitude: number | null; longitude: number | null }>();
-  await Promise.all(
-    activations.map(async (activation) => {
-      let prospects: Awaited<ReturnType<typeof listCityLaunchProspects>> = [];
-      try {
-        prospects = await listCityLaunchProspects(activation.city);
-      } catch (error) {
-        cityLaunchProspects = cityLaunchProspects === "unavailable" ? "unavailable" : "partial";
-        sourceWarnings.push(ledgerErrorWarning(`cityLaunchProspects:${activation.citySlug}`, error));
-      }
-      activationCoordinates.set(
-        activation.citySlug,
-        averageCoordinates(
-          prospects.map((prospect) => ({
-            lat: prospect.lat,
-            lng: prospect.lng,
-          })),
-        ),
-      );
-    }),
-  );
+  for (const activation of activations) {
+    const prospects = snapshot.prospectsByCitySlug.get(activation.citySlug) || [];
+    const prospectError = snapshot.prospectErrorsByCitySlug.get(activation.citySlug);
+    if (prospectError) {
+      cityLaunchProspects = cityLaunchProspects === "unavailable" ? "unavailable" : "partial";
+      sourceWarnings.push(ledgerErrorWarning(`cityLaunchProspects:${activation.citySlug}`, prospectError));
+    }
+    activationCoordinates.set(
+      activation.citySlug,
+      averageCoordinates(
+        prospects.map((prospect) => ({
+          lat: prospect.lat,
+          lng: prospect.lng,
+        })),
+      ),
+    );
+  }
 
   let underReviewSignals: Array<{
     city: string;
     citySlug: string;
     lat: number;
     lng: number;
-  }> = [];
-  try {
-    underReviewSignals = await listCityLaunchCandidateSignals({
-      statuses: ["queued", "in_review"],
-    });
-  } catch (error) {
+  }> = snapshot.candidateSignals;
+  if (snapshot.candidateSignalsError) {
     cityLaunchCandidateSignals = "unavailable";
-    sourceWarnings.push(ledgerErrorWarning("cityLaunchCandidateSignals", error));
+    sourceWarnings.push(
+      ledgerErrorWarning("cityLaunchCandidateSignals", snapshot.candidateSignalsError),
+    );
     underReviewSignals = [];
   }
 
@@ -369,20 +363,25 @@ export async function buildCityLaunchCaptureTargetFeed(input: {
   radiusMeters: number;
   limit: number;
 }) {
-  const activations = await listCityLaunchActivations();
-  const activeCities = activations.filter((activation) =>
+  const snapshot = await getCityLaunchSnapshot();
+  if (snapshot.activationsError) {
+    throw snapshot.activationsError;
+  }
+  const activeCities = snapshot.activations.filter((activation) =>
     activation.founderApproved
     || ACTIVE_ACTIVATION_STATUSES.has(activation.status),
   );
 
-  const cityResults = await Promise.all(
-    activeCities.map(async (activation) => {
-      const prospects = await listCityLaunchProspects(activation.city, {
-        statuses: ["approved", "onboarded", "capturing"],
-      });
-      return { activation, prospects };
-    }),
-  );
+  const cityResults = activeCities.map((activation) => {
+    const prospectError = snapshot.prospectErrorsByCitySlug.get(activation.citySlug);
+    if (prospectError) {
+      throw prospectError;
+    }
+    return {
+      activation,
+      prospects: snapshot.prospectsByCitySlug.get(activation.citySlug) || [],
+    };
+  });
 
   const targets = cityResults
     .flatMap(({ activation, prospects }) =>
@@ -444,9 +443,11 @@ export async function buildCityLaunchUnderReviewFeed(input: {
   limit: number;
 }) {
   const allowedStatuses = new Set(["queued", "in_review"]);
-  const candidates = await listCityLaunchCandidateSignals({
-    statuses: ["queued", "in_review"],
-  });
+  const snapshot = await getCityLaunchSnapshot();
+  if (snapshot.candidateSignalsError) {
+    throw snapshot.candidateSignalsError;
+  }
+  const candidates = snapshot.candidateSignals;
 
   return {
     generatedAt: new Date().toISOString(),
