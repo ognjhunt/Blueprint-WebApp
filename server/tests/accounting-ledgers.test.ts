@@ -95,30 +95,49 @@ function makeDocRef(collectionName: string, id: string) {
 
 type MockDocRef = ReturnType<typeof makeDocRef>;
 
+type QueryFilter = { field: string; op: string; value: unknown };
+
+function queryMatches(data: StoredDoc, filter: QueryFilter): boolean {
+  if (filter.op === "==") {
+    return data[filter.field] === filter.value;
+  }
+  if (filter.op === "in") {
+    return (
+      Array.isArray(filter.value) &&
+      (filter.value as unknown[]).includes(data[filter.field])
+    );
+  }
+  throw new Error(`Unsupported operator ${filter.op}`);
+}
+
+function makeQuery(collectionName: string, filters: QueryFilter[]) {
+  return {
+    where: (field: string, op: string, value: unknown) =>
+      makeQuery(collectionName, [...filters, { field, op, value }]),
+    get: async () => {
+      const docs = Array.from(state.docs.entries())
+        .filter(([key, data]) => {
+          if (!key.startsWith(`${collectionName}/`)) {
+            return false;
+          }
+          return filters.every((filter) => queryMatches(data, filter));
+        })
+        .map(([key, data]) => {
+          const id = key.slice(collectionName.length + 1);
+          return makeQueryDoc(collectionName, id, data);
+        });
+      return { docs };
+    },
+  };
+}
+
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: {
     collection: (collectionName: string) => ({
       doc: (id: string) => makeDocRef(collectionName, id),
-      where: (field: string, op: string, value: unknown) => ({
-        get: async () => {
-          if (op !== "==") {
-            throw new Error(`Unsupported operator ${op}`);
-          }
-          const docs = Array.from(state.docs.entries())
-            .filter(([key, data]) => {
-              if (!key.startsWith(`${collectionName}/`)) {
-                return false;
-              }
-              return data[field] === value;
-            })
-            .map(([key, data]) => {
-              const id = key.slice(collectionName.length + 1);
-              return makeQueryDoc(collectionName, id, data);
-            });
-          return { docs };
-        },
-      }),
+      where: (field: string, op: string, value: unknown) =>
+        makeQuery(collectionName, [{ field, op, value }]),
     }),
     // Minimal serializable-transaction emulation: reads see live state, writes
     // are buffered and committed atomically once the callback resolves.

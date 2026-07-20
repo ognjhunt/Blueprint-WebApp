@@ -9,8 +9,11 @@ const state = vi.hoisted(() => ({
   betaCohortAdmissions: new Map<string, Record<string, unknown>>(),
 }));
 
-vi.mock("../utils/accounting", () => ({
-  listCreatorPayouts: vi.fn(async (creatorId: string) =>
+vi.mock("../utils/accounting", async () => {
+  const actual = await vi.importActual<typeof import("../utils/accounting")>(
+    "../utils/accounting",
+  );
+  const listCreatorPayouts = vi.fn(async (creatorId: string) =>
     Array.from(state.creatorCaptures.values())
       .filter((payload) => payload.creator_id === creatorId)
       .map((payload) => ({
@@ -23,11 +26,23 @@ vi.mock("../utils/accounting", () => ({
         paid_at: String(payload.status || "") === "paid" ? String(payload.captured_at || "") : null,
         updated_at: String(payload.captured_at || ""),
       })),
-  ),
-  mapCreatorPayoutStatusForLedger: vi.fn((status: string) =>
-    status === "paid" ? "paid" : "pending",
-  ),
-}));
+  );
+  return {
+    listCreatorPayouts,
+    mapCreatorPayoutStatusForLedger: vi.fn((status: string) =>
+      status === "paid" ? "paid" : "pending",
+    ),
+    summarizeCreatorEarnings: actual.summarizeCreatorEarnings,
+    readCreatorEarningsAggregate: vi.fn(async (creatorId: string) =>
+      actual.buildCreatorEarningsAggregateFromEntries(
+        creatorId,
+        (await listCreatorPayouts(creatorId)) as unknown as Parameters<
+          typeof actual.buildCreatorEarningsAggregateFromEntries
+        >[1],
+      ),
+    ),
+  };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const collectionStore = (name: string) => {

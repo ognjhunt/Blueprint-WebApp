@@ -26,6 +26,7 @@ import { runLifecycleCadenceWorker } from "./lifecycle-cadence";
 import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
+import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
 
@@ -363,6 +364,16 @@ const workers: WorkerDefinition[] = [
 export function startOpsAutomationScheduler() {
   const disposers: Array<() => void> = [];
 
+  // Leader election: on multi-instance deployments only the lease holder runs
+  // automation lanes; standby instances keep re-checking so they take over
+  // within one lease TTL. Set BLUEPRINT_OPS_AUTOMATION_FORCE_LEADER=1 to pin
+  // an instance as leader (single-instance escape hatch).
+  const leaderLease = getOpsAutomationLeaderLease();
+  leaderLease.start();
+  disposers.push(() => {
+    void leaderLease.stop();
+  });
+
   for (const worker of workers) {
     if (!isAutomationLaneEnabled(worker.enabledEnv)) {
       void persistWorkerStatus(worker.key, {
@@ -415,6 +426,18 @@ export function startOpsAutomationScheduler() {
         return;
       }
       timeoutId = setTimeout(async () => {
+        if (!leaderLease.isLeader()) {
+          logger.info(
+            attachRequestMeta({
+              route: "ops-automation-scheduler",
+              worker: worker.key,
+              leaseInstanceId: leaderLease.instanceId,
+            }),
+            `Skipping ${worker.key} automation run on non-leader instance`,
+          );
+          scheduleNext(intervalMs);
+          return;
+        }
         runNumber += 1;
         const runStartedAt = Date.now();
         const runStartedAtIso = new Date(runStartedAt).toISOString();

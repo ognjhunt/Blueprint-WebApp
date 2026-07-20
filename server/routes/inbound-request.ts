@@ -15,6 +15,7 @@ import { createRequestReviewToken } from "../utils/request-review-auth";
 import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
+import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
@@ -1451,27 +1452,14 @@ router.post("/", async (req: Request, res: Response) => {
       );
     });
 
-    await db
-      .collection("stats")
-      .doc("inboundRequests")
-      .set(
-        {
-          total: admin.firestore.FieldValue.increment(1),
-          [`byStatus.submitted`]: admin.firestore.FieldValue.increment(1),
-          [`byPriority.${priority}`]: admin.firestore.FieldValue.increment(1),
-          [`byQueue.${routing.queueKey}`]: admin.firestore.FieldValue.increment(1),
-          [`byRequestPath.${commercialRequestPath}`]:
-            admin.firestore.FieldValue.increment(1),
-          ...(routing.growthWedge
-            ? {
-                [`byWedge.${routing.growthWedge}`]:
-                  admin.firestore.FieldValue.increment(1),
-              }
-            : {}),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    await incrementInboundRequestStats(db, {
+      total: 1,
+      [`byStatus.submitted`]: 1,
+      [`byPriority.${priority}`]: 1,
+      [`byQueue.${routing.queueKey}`]: 1,
+      [`byRequestPath.${commercialRequestPath}`]: 1,
+      ...(routing.growthWedge ? { [`byWedge.${routing.growthWedge}`]: 1 } : {}),
+    });
 
     if (buyerType === "robot_team") {
       await emitRobotTeamFitChecked().catch(() => null);

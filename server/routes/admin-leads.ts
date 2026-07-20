@@ -8,6 +8,10 @@ import {
   encryptFieldValue,
 } from "../utils/field-encryption";
 import {
+  incrementInboundRequestStats,
+  readInboundRequestStats,
+} from "../utils/inboundRequestStats";
+import {
   createCaptureHandoffToken,
   verifyCaptureHandoffToken,
 } from "../utils/capture-handoff-token";
@@ -1731,19 +1735,10 @@ router.patch(
       }
 
       if (previousData.status !== qualification_state) {
-        await db
-          .collection("stats")
-          .doc("inboundRequests")
-          .set(
-            {
-              [`byStatus.${previousData.status}`]:
-                admin.firestore.FieldValue.increment(-1),
-              [`byStatus.${qualification_state}`]:
-                admin.firestore.FieldValue.increment(1),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
+        await incrementInboundRequestStats(db, {
+          [`byStatus.${previousData.status}`]: -1,
+          [`byStatus.${qualification_state}`]: 1,
+        });
       }
 
       // Add note if provided
@@ -2334,11 +2329,7 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
       return res.status(500).json({ error: "Database not available" });
     }
 
-    const statsSnapshot = await db
-      .collection("stats")
-      .doc("inboundRequests")
-      .get();
-    const statsData = statsSnapshot.exists ? statsSnapshot.data() ?? {} : {};
+    const statsData = (await readInboundRequestStats(db)) as Record<string, any>;
 
     const statusCounts: Record<string, number> = {
       submitted: statsData.byStatus?.submitted ?? 0,
