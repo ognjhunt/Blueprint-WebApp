@@ -116,7 +116,7 @@ const addOns: AddOn[] = [
     body: "Rendered support clips that help reviewers reason about a run. Always labeled as review support, never as real-world proof of an outcome.",
   },
   {
-    name: "Validated data package",
+    name: "Provenance-checked data export",
     meter: "per_export · +$3k",
     body: "An export-ready data package with provenance, rights packet, and coverage flags attached, scoped to your access window.",
   },

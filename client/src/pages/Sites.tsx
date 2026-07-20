@@ -114,6 +114,7 @@ function SiteCard({ site }: { site: SiteLibrarySite }) {
       </a>
       <div className="p-5">
         <div className="flex flex-wrap gap-2">
+          <Badge label="Sample package" className="border-amber-300 bg-amber-50 text-amber-800" />
           <Badge label={site.readiness} className={readinessTone[site.readiness]} />
           <Badge label={site.access} className={accessTone[site.access]} />
         </div>
@@ -230,6 +231,11 @@ export default function Sites() {
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
                 Every policy runs the same task here.
               </p>
+              <p className="mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">
+                These are sample site packages with representative names and
+                task packs — not live operator supply. Live site inventory,
+                access, and rights are confirmed per request.
+              </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero"
@@ -293,7 +299,7 @@ export default function Sites() {
             </div>
 
             <p className="mt-5 text-sm font-semibold text-slate-600">
-              Showing {filteredSites.length} of {siteLibrarySites.length} sites.
+              Showing {filteredSites.length} of {siteLibrarySites.length} sample site packages.
             </p>
           </div>
         </section>

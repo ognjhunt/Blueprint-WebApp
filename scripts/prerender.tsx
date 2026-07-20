@@ -336,7 +336,6 @@ const captureAliasRoutes = [
 ].map((routePath) => ({ path: routePath, component: Capture }));
 
 const contactAliasRoutes = [
-  "/launch-map",
   "/city/austin",
   "/agents",
   "/contact",

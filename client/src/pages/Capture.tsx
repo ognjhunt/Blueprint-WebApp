@@ -634,16 +634,16 @@ export default function Capture() {
 
                     <div className="mt-5 flex flex-wrap gap-2">
                       <a
-                        href={buildApplyHref(job.id)}
+                        href="/signup/capturer?intent=waitlist&source=capture-jobs"
                         className="inline-flex min-h-10 items-center justify-center border border-slate-950 bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                       >
-                        Apply for this job
+                        Apply for jobs like this
                       </a>
                       <a
-                        href="/signup/capturer?intent=waitlist&source=capture-jobs"
+                        href="/launch-map"
                         className="inline-flex min-h-10 items-center justify-center border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-500"
                       >
-                        Join waitlist
+                        Check city status
                       </a>
                     </div>
                   </div>
@@ -706,6 +706,12 @@ export default function Capture() {
               <h2 className="mt-3 text-4xl font-semibold leading-tight text-slate-950">
                 Start with the capturer application. If your city is not open, join the waitlist.
               </h2>
+              <p className="mt-3 text-sm font-semibold text-slate-600">
+                <a href="/launch-map" className="underline underline-offset-4 hover:text-slate-950">
+                  See live city status
+                </a>{" "}
+                — only live cities imply public capture access.
+              </p>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
                 Approved capturers receive route instructions, accepted device details, QA rules,
                 and payout estimates before work begins.

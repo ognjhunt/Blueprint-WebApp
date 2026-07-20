@@ -40,6 +40,7 @@ function lazyRoute<P = any>(
 }
 
 const Home = lazyRoute(() => import("../pages/Home"));
+const LaunchMap = lazyRoute(() => import("../pages/LaunchMap"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
@@ -205,7 +206,7 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
-  { path: "/launch-map", layout: "public", component: ContactRedirect },
+  { path: "/launch-map", layout: "public", component: LaunchMap },
 
   // Capture / Earn direct flows
   { path: "/capture", layout: "public", component: Capture },
