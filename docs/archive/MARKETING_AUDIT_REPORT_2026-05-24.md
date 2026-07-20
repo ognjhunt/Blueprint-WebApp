@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-07-20.** This audit describes the retired world-model-first public surface (`/world-models`, `/product`) and must not guide current work. See `docs/WEBSITE_REPO_AUDIT_2026-07-20.md` and `PLATFORM_CONTEXT.md` for current positioning.
+
 # Blueprint Public Marketing Audit Report
 
 Date: 2026-05-24
