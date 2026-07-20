@@ -12,11 +12,14 @@
 #   - creatorClientTelemetry.expires_at  (stamped by POST /v1/creator/client-telemetry,
 #     default 90 days, tunable via BLUEPRINT_CREATOR_TELEMETRY_RETENTION_DAYS)
 #   - idempotencyKeys.expiresAt          (already stamped by server/utils/idempotency.ts)
+#   - stripeWebhookEvents.expires_at     (dedupe records only; stamped by
+#     beginStripeWebhookEvent, default 180 days, tunable via
+#     BLUEPRINT_STRIPE_WEBHOOK_EVENT_RETENTION_DAYS)
 #
 # Money-plane ledger collections (creatorPayouts, creatorPayoutDisbursements,
 # buyerOrders) are permanent and must never get a TTL policy.
-# stripeWebhookEvents and sessionEvents do not carry an expiry field yet;
-# they are round-2 follow-ups.
+# sessionEvents (written by the iOS client) does not carry an expiry field
+# yet; it is a follow-up in the BlueprintCapture repo.
 #
 # Usage:
 #   ./scripts/apply_firestore_ttl_policies.sh [--project PROJECT_ID]
@@ -53,6 +56,7 @@ apply_ttl() {
 
 apply_ttl "creatorClientTelemetry" "expires_at"
 apply_ttl "idempotencyKeys" "expiresAt"
+apply_ttl "stripeWebhookEvents" "expires_at"
 
 echo "Done. Verify with:"
 echo "  gcloud firestore fields ttls list --project=${PROJECT_ID}"

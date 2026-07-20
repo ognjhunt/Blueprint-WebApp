@@ -1161,6 +1161,18 @@ export async function markBuyerOrderDisputedFromCharge(params: {
   };
 }
 
+const STRIPE_WEBHOOK_EVENT_RETENTION_DAYS_DEFAULT = 180;
+
+// Dedupe records only (Stripe retries span days, not months); the payout
+// ledger collections are permanent. expires_at feeds the Firestore TTL policy
+// enabled by scripts/apply_firestore_ttl_policies.sh.
+function stripeWebhookEventExpiresAt(): Date {
+  const raw = Number(process.env.BLUEPRINT_STRIPE_WEBHOOK_EVENT_RETENTION_DAYS);
+  const days =
+    Number.isFinite(raw) && raw > 0 ? raw : STRIPE_WEBHOOK_EVENT_RETENTION_DAYS_DEFAULT;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
+
 export async function beginStripeWebhookEvent(
   eventId: string,
   payload: Record<string, unknown>,
@@ -1176,6 +1188,7 @@ export async function beginStripeWebhookEvent(
       status: "processing",
       created_at: nowIso(),
       updated_at: nowIso(),
+      expires_at: stripeWebhookEventExpiresAt(),
     });
     return "new";
   } catch (error) {
