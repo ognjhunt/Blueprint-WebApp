@@ -272,7 +272,7 @@ product (`CreateBlueprint`, `ClaimBlueprint`, `Onboarding`, `Workspace`,
   Onboarding, PilotExchange, PilotExchangeGuide, OutboundSignUpFlow,
   SampleEvaluation, SiteWorlds, SiteWorldDetail, Profile, ReadinessPack,
   SampleDeliverables, Solutions, Support, TeamMembers, WebXR, Workspace,
-  Agents, CityLanding, Careers, ClaimBlueprint, FAQ, Help` — plus dead data
+  CityLanding, Careers, ClaimBlueprint, FAQ, Help` — plus dead data
   (`data/pilotExchange.ts`, fabricated sections components) and
   `AcceptInvite.jsx`, `ManagePlan.jsx`.
 - Entire dead subdirs (12 files): `pages/analytics/` (6),
@@ -281,6 +281,11 @@ product (`CreateBlueprint`, `ClaimBlueprint`, `Onboarding`, `Workspace`,
 \* `LaunchMap` is the exception worth **salvaging, not deleting** — it's the
 one honest API-backed coverage page; re-route it if city status should be
 public, else delete with the rest.
+
+Exclusion: `Agents.tsx` stays even though it is unrouted —
+`scripts/agent-access/agent-access-drift-guard.test.ts` reads it in four
+assertions to keep the agent-access surface aligned with llms/docs. Deleting
+it requires migrating that guard first (flagged by Codex review on PR #417).
 
 Why remove rather than keep "just in case": they contain the worst doctrine
 violations in the repo (fabricated leaderboards, fake success states, world-
