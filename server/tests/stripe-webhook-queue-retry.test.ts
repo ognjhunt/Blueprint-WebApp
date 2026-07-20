@@ -101,11 +101,79 @@ describe("stripe webhook queue retry + dead-letter", () => {
   it("claims transactionally so a job already processing is not double-claimed", async () => {
     seedQueuedEvent("evt_claim_1");
     const job = docs.get("stripeWebhookQueue/evt_claim_1")!;
-    docs.set("stripeWebhookQueue/evt_claim_1", { ...job, status: "processing" });
+    docs.set("stripeWebhookQueue/evt_claim_1", {
+      ...job,
+      status: "processing",
+      processing_started_at: new Date().toISOString(),
+    });
 
     const { drainStripeWebhookQueueOnce } = await import("../utils/stripeWebhookQueue");
     const result = await drainStripeWebhookQueueOnce();
-    expect(result).toMatchObject({ claimed: 0, processed: 0 });
+    expect(result).toMatchObject({ claimed: 0, reclaimed: 0, processed: 0 });
     expect(processStripeWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("reclaims and processes a job abandoned mid-processing past the visibility timeout", async () => {
+    // Worker crashed after claim, before settle: status stuck at
+    // "processing" with a stale claim timestamp. Without reclaim this
+    // acknowledged money-plane event would never be processed.
+    seedQueuedEvent("evt_abandoned_1");
+    const job = docs.get("stripeWebhookQueue/evt_abandoned_1")!;
+    docs.set("stripeWebhookQueue/evt_abandoned_1", {
+      ...job,
+      status: "processing",
+      attempts: 1,
+      processing_started_at: new Date(Date.now() - 30 * 60_000).toISOString(),
+    });
+    docs.set("stripeWebhookEvents/evt_abandoned_1", { status: "processing" });
+    processStripeWebhookEvent.mockResolvedValue({ orderId: null, disbursementId: "disb-1" });
+
+    const { drainStripeWebhookQueueOnce } = await import("../utils/stripeWebhookQueue");
+    const result = await drainStripeWebhookQueueOnce();
+    expect(result).toMatchObject({ claimed: 0, reclaimed: 1, processed: 1 });
+    expect(docs.get("stripeWebhookQueue/evt_abandoned_1")).toMatchObject({
+      status: "processed",
+      attempts: 2,
+    });
+
+    // A second drain finds nothing left to reclaim.
+    const second = await drainStripeWebhookQueueOnce();
+    expect(second).toMatchObject({ claimed: 0, reclaimed: 0 });
+  });
+
+  it("leaves a fresh processing claim alone (visibility timeout respected)", async () => {
+    seedQueuedEvent("evt_active_1");
+    const job = docs.get("stripeWebhookQueue/evt_active_1")!;
+    docs.set("stripeWebhookQueue/evt_active_1", {
+      ...job,
+      status: "processing",
+      processing_started_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    const { drainStripeWebhookQueueOnce } = await import("../utils/stripeWebhookQueue");
+    const result = await drainStripeWebhookQueueOnce();
+    expect(result).toMatchObject({ reclaimed: 0 });
+    expect(processStripeWebhookEvent).not.toHaveBeenCalled();
+    expect(docs.get("stripeWebhookQueue/evt_active_1")).toMatchObject({ status: "processing" });
+  });
+
+  it("dead-letters an abandoned job whose reclaim exhausts the attempt budget", async () => {
+    process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE_MAX_ATTEMPTS = "2";
+    seedQueuedEvent("evt_abandoned_dead_1");
+    const job = docs.get("stripeWebhookQueue/evt_abandoned_dead_1")!;
+    docs.set("stripeWebhookQueue/evt_abandoned_dead_1", {
+      ...job,
+      status: "processing",
+      attempts: 1,
+      processing_started_at: new Date(Date.now() - 30 * 60_000).toISOString(),
+    });
+    docs.set("stripeWebhookEvents/evt_abandoned_dead_1", { status: "processing" });
+    processStripeWebhookEvent.mockRejectedValue(new Error("still broken"));
+
+    const { drainStripeWebhookQueueOnce } = await import("../utils/stripeWebhookQueue");
+    const result = await drainStripeWebhookQueueOnce();
+    expect(result).toMatchObject({ reclaimed: 1, deadLettered: 1 });
+    expect(docs.get("stripeWebhookQueue/evt_abandoned_dead_1")).toMatchObject({ status: "dead" });
+    expect(docs.get("stripeWebhookDeadLetters/evt_abandoned_dead_1")).toBeTruthy();
   });
 });

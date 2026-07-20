@@ -129,6 +129,9 @@ async function handleChargeRefunded(charge: Stripe.Charge, event: Stripe.Event) 
     eventType: event.type,
     reason: "Stripe reported a refund for the marketplace order.",
     refunded: true,
+    refundedAmountCents:
+      typeof charge.amount_refunded === "number" ? charge.amount_refunded : null,
+    refundCurrency: charge.currency || null,
   });
   return order.id;
 }

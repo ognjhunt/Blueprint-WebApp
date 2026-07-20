@@ -112,9 +112,12 @@ type ClaimedJob = {
   event: Stripe.Event;
 };
 
-async function claimQueuedJob(jobId: string): Promise<ClaimedJob | null> {
+function claimJob(
+  jobId: string,
+  options: { expectStatus: StripeWebhookQueueStatus; staleBeforeIso?: string },
+): Promise<ClaimedJob | null> {
   if (!db) {
-    return null;
+    return Promise.resolve(null);
   }
   const firestore = db;
   const ref = firestore.collection(STRIPE_WEBHOOK_QUEUE_COLLECTION).doc(jobId);
@@ -124,8 +127,17 @@ async function claimQueuedJob(jobId: string): Promise<ClaimedJob | null> {
       return null;
     }
     const data = (snapshot.data() || {}) as Record<string, unknown>;
-    if (data.status !== "queued") {
+    if (data.status !== options.expectStatus) {
       return null;
+    }
+    if (options.staleBeforeIso) {
+      // Reclaim path: only take over a `processing` job whose claim is
+      // still stale at transaction time — a live worker that refreshed the
+      // doc since the query keeps its claim.
+      const startedAt = String(data.processing_started_at || "");
+      if (!startedAt || startedAt > options.staleBeforeIso) {
+        return null;
+      }
     }
     const attempts = Number(data.attempts || 0) + 1;
     tx.set(
@@ -232,19 +244,73 @@ async function settleJobFailure(job: ClaimedJob, error: Error) {
 
 export type DrainResult = {
   claimed: number;
+  reclaimed: number;
   processed: number;
   retried: number;
   deadLettered: number;
 };
 
+const DEFAULT_VISIBILITY_TIMEOUT_MS = 10 * 60_000;
+
+function visibilityTimeoutMs(): number {
+  const raw = Number(process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE_VISIBILITY_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw >= 60_000 ? raw : DEFAULT_VISIBILITY_TIMEOUT_MS;
+}
+
+async function processClaimedJob(job: ClaimedJob, result: DrainResult): Promise<void> {
+  try {
+    const { orderId, disbursementId } = await processStripeWebhookEvent(job.event);
+    await completeStripeWebhookEvent({
+      eventId: job.id,
+      orderId,
+      disbursementId,
+      eventType: job.event?.type || "unknown",
+    });
+    await settleJobSuccess(job.id);
+    result.processed += 1;
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    await settleJobFailure(job, failure);
+    if (job.attempts < maxAttempts()) {
+      result.retried += 1;
+    } else {
+      result.deadLettered += 1;
+    }
+    logger.error(
+      attachRequestMeta({
+        route: "stripe-webhook-queue",
+        event_id: job.id,
+        attempts: job.attempts,
+      }),
+      `Stripe webhook queue processing failed: ${failure.message}`,
+    );
+  }
+}
+
 /**
  * Process one batch of due queue jobs. Exposed separately from the poller so
  * tests (and manual ops replays) can drain deterministically.
+ *
+ * Two passes:
+ *  1. due `queued` jobs;
+ *  2. abandoned `processing` jobs whose claim is older than the visibility
+ *     timeout — a worker crash/restart between claim and settle would
+ *     otherwise strand an acknowledged money-plane event forever (Stripe
+ *     redeliveries no-op against the existing queue doc). Reclaims are
+ *     transactional and re-check staleness, so a live worker keeps its
+ *     claim; the event processor is idempotent (deterministic journal ids,
+ *     merge writes), so the rare double-execution race is safe.
  */
 export async function drainStripeWebhookQueueOnce(options?: {
   batchSize?: number;
 }): Promise<DrainResult> {
-  const result: DrainResult = { claimed: 0, processed: 0, retried: 0, deadLettered: 0 };
+  const result: DrainResult = {
+    claimed: 0,
+    reclaimed: 0,
+    processed: 0,
+    retried: 0,
+    deadLettered: 0,
+  };
   if (!db) {
     return result;
   }
@@ -258,38 +324,38 @@ export async function drainStripeWebhookQueueOnce(options?: {
     .get();
 
   for (const doc of snapshot.docs) {
-    const job = await claimQueuedJob(doc.id);
+    const job = await claimJob(doc.id, { expectStatus: "queued" });
     if (!job) {
       continue;
     }
     result.claimed += 1;
-    try {
-      const { orderId, disbursementId } = await processStripeWebhookEvent(job.event);
-      await completeStripeWebhookEvent({
-        eventId: job.id,
-        orderId,
-        disbursementId,
-        eventType: job.event?.type || "unknown",
-      });
-      await settleJobSuccess(job.id);
-      result.processed += 1;
-    } catch (error) {
-      const failure = error instanceof Error ? error : new Error(String(error));
-      await settleJobFailure(job, failure);
-      if (job.attempts < maxAttempts()) {
-        result.retried += 1;
-      } else {
-        result.deadLettered += 1;
-      }
-      logger.error(
-        attachRequestMeta({
-          route: "stripe-webhook-queue",
-          event_id: job.id,
-          attempts: job.attempts,
-        }),
-        `Stripe webhook queue processing failed: ${failure.message}`,
-      );
+    await processClaimedJob(job, result);
+  }
+
+  const staleBeforeIso = new Date(Date.now() - visibilityTimeoutMs()).toISOString();
+  const staleSnapshot = await db
+    .collection(STRIPE_WEBHOOK_QUEUE_COLLECTION)
+    .where("status", "==", "processing")
+    .where("processing_started_at", "<=", staleBeforeIso)
+    .orderBy("processing_started_at", "asc")
+    .limit(batchSize)
+    .get();
+
+  for (const doc of staleSnapshot.docs) {
+    const job = await claimJob(doc.id, { expectStatus: "processing", staleBeforeIso });
+    if (!job) {
+      continue;
     }
+    result.reclaimed += 1;
+    logger.warn(
+      attachRequestMeta({
+        route: "stripe-webhook-queue",
+        event_id: job.id,
+        attempts: job.attempts,
+      }),
+      "Reclaimed abandoned Stripe webhook queue job (stale processing claim)",
+    );
+    await processClaimedJob(job, result);
   }
 
   return result;

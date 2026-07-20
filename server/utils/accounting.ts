@@ -918,6 +918,9 @@ export async function markBuyerOrderPaymentFailure(params: {
   reason: string;
   expired?: boolean;
   refunded?: boolean;
+  /** Stripe's cumulative charge.amount_refunded, when the event carries it. */
+  refundedAmountCents?: number | null;
+  refundCurrency?: string | null;
 }) {
   if (!db) {
     return;
@@ -954,23 +957,60 @@ export async function markBuyerOrderPaymentFailure(params: {
     const orderSnapshot = await tx.get(orderRef);
     const orderData = (orderSnapshot.data() || {}) as Record<string, unknown>;
     const pricing = (orderData.pricing || {}) as Record<string, unknown>;
+    const orderTotalCents =
+      typeof pricing.total_amount_cents === "number"
+        ? (pricing.total_amount_cents as number)
+        : null;
+    // Journal the per-event refund DELTA, not the order total: Stripe's
+    // charge.amount_refunded is cumulative, and partial refunds fire one
+    // event each. Tracking the previously journaled cumulative on the order
+    // makes each event's entry sum correctly in reconciliation. When the
+    // event carries no amount, fall back to the order total (full refund).
+    const previousRefundedCents =
+      typeof orderData.refunded_amount_cents === "number"
+        ? (orderData.refunded_amount_cents as number)
+        : 0;
+    const cumulativeRefundedCents =
+      typeof params.refundedAmountCents === "number" &&
+      Number.isFinite(params.refundedAmountCents)
+        ? Math.max(0, Math.floor(params.refundedAmountCents))
+        : null;
+    const refundDeltaCents =
+      cumulativeRefundedCents !== null
+        ? Math.max(0, cumulativeRefundedCents - previousRefundedCents)
+        : orderTotalCents;
     const journal = stripeLedgerJournalTxWriter(firestore, tx, {
       entryType: "order_refunded",
       discriminator: params.eventId,
-      amountCents:
-        typeof pricing.total_amount_cents === "number"
-          ? (pricing.total_amount_cents as number)
-          : null,
-      currency: typeof orderData.currency === "string" ? orderData.currency : null,
+      amountCents: refundDeltaCents,
+      currency:
+        params.refundCurrency ||
+        (typeof orderData.currency === "string" ? orderData.currency : null),
       direction: "buyer_revenue_in",
       orderId: params.orderId,
       stripeEventId: params.eventId,
       stripeEventType: params.eventType,
       occurredAt: updatedAt,
-      details: { reason: params.reason },
+      details: {
+        reason: params.reason,
+        cumulative_refunded_cents: cumulativeRefundedCents,
+        previously_journaled_refunded_cents: previousRefundedCents,
+        amount_source:
+          cumulativeRefundedCents !== null ? "stripe_charge_amount_refunded" : "order_total_fallback",
+      },
     });
     await journal.read();
-    tx.set(orderRef, failurePayload, { merge: true });
+    tx.set(
+      orderRef,
+      {
+        ...failurePayload,
+        refunded_amount_cents:
+          cumulativeRefundedCents !== null
+            ? cumulativeRefundedCents
+            : Math.max(previousRefundedCents, orderTotalCents ?? 0),
+      },
+      { merge: true },
+    );
     journal.append();
   });
 }

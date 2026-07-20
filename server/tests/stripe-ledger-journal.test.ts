@@ -154,6 +154,66 @@ describe("stripe ledger journal", () => {
     expect(JSON.stringify(docs.get(settledKey))).toBe(settledBefore);
   });
 
+  it("journals per-event refund deltas from Stripe's cumulative amount_refunded", async () => {
+    const { markBuyerOrderPaymentFailure } = await import("../utils/accounting");
+    docs.set("buyerOrders/order-1", {
+      id: "order-1",
+      currency: "usd",
+      pricing: { total_amount_cents: 25_000 },
+      status: "paid",
+    });
+
+    // First partial refund: cumulative 10,000 -> delta 10,000.
+    await markBuyerOrderPaymentFailure({
+      orderId: "order-1",
+      eventId: "evt_refund_1",
+      eventType: "charge.refunded",
+      reason: "partial refund",
+      refunded: true,
+      refundedAmountCents: 10_000,
+      refundCurrency: "usd",
+    });
+    expect(docs.get("stripeLedgerJournal/order_refunded:evt_refund_1")).toMatchObject({
+      entry_type: "order_refunded",
+      amount_cents: 10_000,
+    });
+    expect(docs.get("buyerOrders/order-1")).toMatchObject({ refunded_amount_cents: 10_000 });
+
+    // Second partial refund: cumulative 15,000 -> delta 5,000, not the full
+    // order total and not the cumulative again.
+    await markBuyerOrderPaymentFailure({
+      orderId: "order-1",
+      eventId: "evt_refund_2",
+      eventType: "charge.refunded",
+      reason: "second partial refund",
+      refunded: true,
+      refundedAmountCents: 15_000,
+      refundCurrency: "usd",
+    });
+    expect(docs.get("stripeLedgerJournal/order_refunded:evt_refund_2")).toMatchObject({
+      amount_cents: 5_000,
+    });
+    expect(docs.get("buyerOrders/order-1")).toMatchObject({ refunded_amount_cents: 15_000 });
+
+    // Refund event without an amount (defensive): full-order fallback.
+    docs.set("buyerOrders/order-2", {
+      id: "order-2",
+      currency: "usd",
+      pricing: { total_amount_cents: 8_000 },
+      status: "paid",
+    });
+    await markBuyerOrderPaymentFailure({
+      orderId: "order-2",
+      eventId: "evt_refund_3",
+      eventType: "charge.refunded",
+      reason: "full refund",
+      refunded: true,
+    });
+    expect(docs.get("stripeLedgerJournal/order_refunded:evt_refund_3")).toMatchObject({
+      amount_cents: 8_000,
+    });
+  });
+
   it("detects journal/aggregate drift in the reconciliation report", async () => {
     // Full lifecycle: approve -> disburse -> settle, which also maintains the
     // creatorEarningsAggregates doc transactionally. Materialize the
