@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 /**
  * Firestore createdAt hotspot guard: capture records carry a deterministic
  * `createdAtShard` so high-volume createdAt queries can route through the
- * sharded composite indexes declared in
- * BlueprintCapturePipeline/deploy/terraform/main.tf
- * (captures_status_created_at_shard / captures_user_created_at_shard) instead
- * of a monotonically increasing createdAt index.
+ * sharded composite indexes on `creatorCaptures` declared in this repo's
+ * firestore.indexes.json (creator_id+createdAtShard+created_at and
+ * status+createdAtShard+created_at) instead of a monotonically increasing
+ * createdAt index. (Round 1 mistakenly pointed here at pipeline Terraform
+ * indexes on a `captures` collection nothing writes; those are removed.)
  *
  * Neither the Terraform indexes nor the capacity docs pinned a shard count, so
  * 16 is the canonical choice — pinned alongside the derivation in
