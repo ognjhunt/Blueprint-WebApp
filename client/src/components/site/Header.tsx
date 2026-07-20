@@ -99,7 +99,7 @@ export function Header() {
       return {
         label: "Site operator",
         badge: "Site operator",
-        workspaceHref: userData.finishedOnboarding ? "/dashboard" : "/onboarding",
+        workspaceHref: userData.finishedOnboarding ? "/app" : "/onboarding",
         workspaceLabel: userData.finishedOnboarding ? "Open site workspace" : "Finish site onboarding",
         secondaryHref: "/contact/site-operator",
         secondaryLabel: "Submit another site",

@@ -157,27 +157,6 @@ function MinimalStaticPage({
   );
 }
 
-const PrerenderPortal = () => (
-  <BareStaticPage
-    title="Portal | Blueprint"
-    description="Private operations hub for protected Blueprint requests and review workflows."
-    eyebrow="Private Workspace"
-    heading="Private operations hub"
-    body="The Blueprint portal is invite-only. Sign in to view protected request queues, assignments, evidence packages, and hosted-review workflow state."
-    primaryHref="/sign-in"
-    primaryLabel="Sign in"
-    secondaryHref="/contact?persona=robot-team"
-    secondaryLabel="Request access"
-    rows={[
-      "Protected request and package state stays behind authenticated access.",
-      "Hosted review outputs, exports, and rights context are visible only to approved users.",
-      "New teams should request buyer access before expecting a private portal workspace.",
-    ]}
-    canonical="/portal"
-    noIndex
-  />
-);
-
 const PrerenderBusinessSignup = () => (
   <BareStaticPage
     title="Buyer Access Request | Blueprint"
@@ -447,7 +426,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },
   { path: "/login", component: Login },
-  { path: "/portal", component: PrerenderPortal, shell: "bare" },
   { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/robot-team", component: PrerenderBusinessSignup, shell: "bare" },
