@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 import { validateEnv } from "./config/env";
 import { attachRequestMeta, logger } from "./logger";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
+import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 
 export type WorkerHandle = {
   stop: () => Promise<void>;
@@ -27,14 +28,16 @@ export function startWorker(): WorkerHandle {
 
   logger.info(
     attachRequestMeta({ route: "worker" }),
-    "Blueprint worker starting: ops automation scheduler",
+    "Blueprint worker starting: ops automation scheduler + Stripe webhook queue processor",
   );
   const stopScheduler = startOpsAutomationScheduler();
+  const stopQueueProcessor = startStripeWebhookQueueProcessor();
 
   let stopped = false;
   const stop = async () => {
     if (stopped) return;
     stopped = true;
+    stopQueueProcessor();
     stopScheduler();
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
   };

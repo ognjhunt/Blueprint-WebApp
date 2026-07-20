@@ -11,6 +11,7 @@
     "render:site-motion-loop:poster": "npm exec --package=@remotion/cli@4.0.438 -- remotion still proof-reel/index.ts BlueprintSiteMotionLoop --output client/public/proof/blueprint-site-motion-loop-poster.png --frame=42 --public-dir client/public",
     "start": "NODE_ENV=production node dist/index.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
+    "stripe:reconcile": "tsx scripts/stripe-ledger-reconcile.ts",
     "check": "tsc -p tsconfig.full.json --noEmit",
     "rules:firestore-parity": "bash scripts/check-firestore-rules-parity.sh",
     "rules:storage-parity": "bash scripts/check-storage-rules-parity.sh",

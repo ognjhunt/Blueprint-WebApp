@@ -239,10 +239,15 @@ beforeEach(() => {
   state.docs.clear();
   state.constructEvent.mockReset();
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+  // These tests exercise the synchronous processing path end-to-end; the
+  // queue transport (SCALE2-01) has its own tests in
+  // stripe-webhook-queue.test.ts.
+  process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE = "1";
 });
 
 afterEach(() => {
   delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE;
 });
 
 describe("accounting ledgers", () => {

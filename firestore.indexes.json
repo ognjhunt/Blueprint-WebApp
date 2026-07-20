@@ -241,6 +241,20 @@
       ]
     },
     {
+      "collectionGroup": "stripeWebhookQueue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "next_attempt_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "creatorPayouts",
       "queryScope": "COLLECTION",
       "fields": [

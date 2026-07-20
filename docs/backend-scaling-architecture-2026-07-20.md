@@ -148,21 +148,69 @@ BlueprintCapturePipeline:
 - Canonical bucket lifecycle updated: raw archived at 365d instead of deleted at 180d;
   cost note updated.
 
-## 5. Deliberate follow-ups (not in this change set)
+## 5. Round 2 (2026-07-20, branch `claude/blueprint-scaling-round-2-ii8aik`)
 
-- Move Stripe webhook processing onto a queue with DLQ + append-only journal/BigQuery
-  export for reconciliation (operational shape change — needs ops review).
-- Split automation workers into a dedicated Render background worker service.
-- Frame packing (tar/composite objects) for `extractFrames` output — requires a
-  coordinated pipeline contract rev; per-frame objects are the current contract.
-- CDN in front of buyer delivery downloads (egress $0.12/GiB today).
-- Retire the legacy iOS Backblaze `StorageManager` path and rotate the exposed B2 key
-  (credentials currently hardcoded in the binary — key rotation is an ops action).
-- Warm-pool strategy for GPU privacy services (min-instances vs cold model loads) once
-  sustained load justifies idle spend.
+The seven deferred items from §5 of round 1 landed as follows:
+
+**Dedicated Render worker service (SCALE2-02).** `render.yaml` now declares
+`blueprint-webapp-worker` (`type: worker`, `npm run start:worker` →
+`server/worker.ts`). The worker boots the ops automation scheduler and the
+Stripe webhook queue processor; the web process serves HTTP only and no longer
+starts the scheduler (escape hatch: `BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1`).
+The round-1 leader lease stays active in every configuration, so no rollout
+state can double-run automation. Both services need the same env (see
+render.*.env.example headers).
+
+**Queue-based Stripe webhooks + append-only journal (SCALE2-01).** The webhook
+handler's synchronous job is now: verify signature, dedupe via
+`stripeWebhookEvents` (both unchanged), enqueue to `stripeWebhookQueue`
+(doc id = event id, full verified payload), return 200. The worker drains the
+queue behind the leader lease with transactional claims, bounded exponential
+retry, and a `stripeWebhookDeadLetters` collection + `payment_webhook_dead_letter`
+ops failure signal on exhaustion. `BLUEPRINT_STRIPE_WEBHOOK_INLINE=1` restores
+the synchronous path.
+  Queue-backend evaluation: a Firestore-backed queue (chosen) needs no new
+provider, reuses the lease/alerting patterns, and at 10k payouts/month peaks
+of a few events/second is far below Firestore's limits; Cloud Tasks would add
+managed backoff and per-queue rate limits but introduces a new runtime
+dependency into this repo, per-task payload limits, and push-endpoint auth
+surface. Revisit Cloud Tasks only if sustained event rates approach hundreds
+per second — flagged as a recommendation, not wired up.
+  Every financial state transition (checkout completed, refund, dispute
+opened/resolved, payout approved, disbursement initiated/settled/failed) now
+also writes one immutable `stripeLedgerJournal` document in the same Firestore
+transaction as the corresponding ledger write (additive; the WEB-01 double-pay
+guard is untouched). `npm run stripe:reconcile`
+(scripts/stripe-ledger-reconcile.ts) sums the journal for a period and
+cross-checks creator settlement totals against `creatorEarningsAggregates`,
+flagging drift instead of trusting either source. A BigQuery export stays
+deferred: the journal is the export-ready source when reconciliation needs
+SQL. Note: the journal covers transitions from round 2 onward; pre-journal
+paid history shows as negative drift until a one-time backfill entry is
+recorded.
+
+**Other round-2 items (sibling repos).** BlueprintCapture: deleted the dead
+Backblaze `StorageManager` path with embedded credentials (key rotation is a
+human ops action) + a CI validator preventing recurrence; frame packing for
+`extractFrames` shipped as a `frames_index.v2` contract revision coordinated
+with the pipeline. BlueprintCapturePipeline: phantom `captures` Firestore
+indexes deleted (real `creatorCaptures` shard composites now live in this
+repo's firestore.indexes.json — see §4); GPU warm-pool economics analysis
+(stay scale-to-zero, in-process model cache instead) in
+`docs/GPU_WARM_POOL_ECONOMICS_2026-07-20.md`; CDN-for-delivery design in
+`docs/BUYER_DELIVERY_CDN_DESIGN_2026-07-20.md`.
+
+## 6. Deliberate follow-ups (not in round 2)
+
+- BigQuery export of `stripeLedgerJournal` once reconciliation needs SQL-scale
+  analysis (the journal is already the export-ready source of truth).
+- One-time journal backfill entries for pre-round-2 paid history, so
+  reconciliation drift reads clean without the claim-boundary caveat.
+- Cloud Tasks migration for the webhook queue if sustained event rates ever
+  approach hundreds/second (see evaluation above).
 - k6 load test of the gateway (BLR-041) once leader election lands.
 
-## 6. Invariants preserved
+## 7. Invariants preserved
 
 - Raw capture bundle structure, provenance/rights metadata, `capture_bridge_handoff.v1`,
   webapp sync payload `v1`, robot-eval status projection `v1`, canonical package layout:
