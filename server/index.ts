@@ -42,6 +42,13 @@ const isProduction = process.env.NODE_ENV === "production";
 const disableOpsAutomationScheduler =
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === "1" ||
   process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === "1";
+// SCALE2-02: automation lanes run in the dedicated Render worker service
+// (server/worker.ts, `npm run start:worker`); the web process serves HTTP
+// only. This flag is a transition escape hatch for single-service deploys —
+// the ops automation leader lease still guarantees only one runner even if
+// both the worker service and an opted-in web instance are up.
+const runOpsAutomationInWebProcess =
+  process.env.BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB === "1";
 
 const noIndexPathPatterns = [
   /^\/admin(?:\/|$)/,
@@ -434,10 +441,16 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
-  const stopOpsAutomationScheduler = disableOpsAutomationScheduler
-    ? () => undefined
-    : startOpsAutomationScheduler();
-  if (disableOpsAutomationScheduler) {
+  const stopOpsAutomationScheduler =
+    runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
+      ? startOpsAutomationScheduler()
+      : () => undefined;
+  if (!runOpsAutomationInWebProcess) {
+    logger.info(
+      attachRequestMeta({ route: "ops-automation-scheduler" }),
+      "Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)",
+    );
+  } else if (disableOpsAutomationScheduler) {
     logger.info(
       attachRequestMeta({ route: "ops-automation-scheduler" }),
       "Ops automation scheduler disabled for local QA",
