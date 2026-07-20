@@ -12,3 +12,25 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /health/ready
+
+  # Dedicated background worker (SCALE2-02): runs the ops automation
+  # scheduler (and the Stripe webhook queue processor) out of the web
+  # process so batch work never shares an event loop with live HTTP traffic.
+  # The ops automation leader lease stays active inside the worker, so
+  # scaling this service beyond one instance (or temporarily opting the web
+  # process back in with BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1) can never
+  # double-run automation lanes.
+  #
+  # Env vars: this service needs the same environment as blueprint-webapp
+  # (Firebase service account, Stripe keys, Redis URL, Notion/SendGrid/Slack
+  # tokens — see render.required.env.example / render.optional.env.example).
+  # Env is dashboard-managed for this blueprint; import the same env group
+  # into both services.
+  - type: worker
+    name: blueprint-webapp-worker
+    runtime: node
+    plan: starter
+    region: oregon
+    autoDeploy: false
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:worker

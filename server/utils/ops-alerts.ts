@@ -37,6 +37,7 @@ export type BetaOpsFailureKind =
   | "mobile_capture_client_error"
   | "payout_exception"
   | "payment_dispute"
+  | "payment_webhook_dead_letter"
   | "spend_budget_failure";
 
 type BetaOpsFailureSignal = {
@@ -58,6 +59,7 @@ const DEFAULT_FAILURE_THRESHOLDS: Record<BetaOpsFailureKind, number> = {
   mobile_capture_client_error: 3,
   payout_exception: 1,
   payment_dispute: 1,
+  payment_webhook_dead_letter: 1,
   spend_budget_failure: 1,
 };
 

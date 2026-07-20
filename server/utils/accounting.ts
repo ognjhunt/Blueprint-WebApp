@@ -2,6 +2,7 @@ import crypto from "crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { entitlementTermForOrderItem } from "./entitlementExpiry";
+import { stripeLedgerJournalTxWriter } from "./stripeLedgerJournal";
 
 const BUYER_ORDER_COLLECTION = "buyerOrders";
 const BUYER_ENTITLEMENT_COLLECTION = "marketplaceEntitlements";
@@ -793,10 +794,31 @@ export async function markBuyerOrderPaidFromCheckout(params: {
   }
 
   const paidAt = order.paid_at || nowIso();
-  await db
-    .collection(BUYER_ORDER_COLLECTION)
-    .doc(order.id)
-    .set(
+  const firestore = db;
+  // The paid status flip and its append-only journal entry commit atomically
+  // (SCALE2-01): reconciliation can trust that a `checkout_completed` journal
+  // row exists iff the order was marked paid.
+  await firestore.runTransaction(async (tx) => {
+    const orderRef = firestore.collection(BUYER_ORDER_COLLECTION).doc(order.id);
+    const journal = stripeLedgerJournalTxWriter(firestore, tx, {
+      entryType: "checkout_completed",
+      discriminator: params.eventId,
+      amountCents: order.pricing.total_amount_cents,
+      currency: order.currency,
+      direction: "buyer_revenue_in",
+      orderId: order.id,
+      stripeEventId: params.eventId,
+      stripeEventType: params.eventType,
+      occurredAt: paidAt,
+      details: {
+        checkout_session_id: params.checkoutSessionId,
+        payment_intent_id: params.paymentIntentId,
+        livemode: params.livemode,
+      },
+    });
+    await journal.read();
+    tx.set(
+      orderRef,
       {
         status: "paid",
         payment_status: "paid",
@@ -814,6 +836,8 @@ export async function markBuyerOrderPaidFromCheckout(params: {
       },
       { merge: true },
     );
+    journal.append();
+  });
 
   if (params.paymentIntentId) {
     await db
@@ -894,36 +918,101 @@ export async function markBuyerOrderPaymentFailure(params: {
   reason: string;
   expired?: boolean;
   refunded?: boolean;
+  /** Stripe's cumulative charge.amount_refunded, when the event carries it. */
+  refundedAmountCents?: number | null;
+  refundCurrency?: string | null;
 }) {
   if (!db) {
     return;
   }
 
   const updatedAt = nowIso();
-  await db
-    .collection(BUYER_ORDER_COLLECTION)
-    .doc(params.orderId)
-    .set(
+  const firestore = db;
+  const failurePayload = {
+    status: params.refunded
+      ? "refunded"
+      : params.expired
+        ? "expired"
+        : "payment_failed",
+    payment_status: params.refunded
+      ? "refunded"
+      : params.expired
+        ? "expired"
+        : "failed",
+    refunded_at: params.refunded ? updatedAt : null,
+    expired_at: params.expired ? updatedAt : null,
+    failure_reason: params.reason,
+    updated_at: updatedAt,
+    last_webhook_event_id: params.eventId,
+    last_webhook_event_type: params.eventType,
+  };
+  const orderRef = firestore.collection(BUYER_ORDER_COLLECTION).doc(params.orderId);
+  if (!params.refunded) {
+    await orderRef.set(failurePayload, { merge: true });
+    return;
+  }
+  // Refunds are financial state transitions: the status flip and the journal
+  // entry commit atomically (SCALE2-01).
+  await firestore.runTransaction(async (tx) => {
+    const orderSnapshot = await tx.get(orderRef);
+    const orderData = (orderSnapshot.data() || {}) as Record<string, unknown>;
+    const pricing = (orderData.pricing || {}) as Record<string, unknown>;
+    const orderTotalCents =
+      typeof pricing.total_amount_cents === "number"
+        ? (pricing.total_amount_cents as number)
+        : null;
+    // Journal the per-event refund DELTA, not the order total: Stripe's
+    // charge.amount_refunded is cumulative, and partial refunds fire one
+    // event each. Tracking the previously journaled cumulative on the order
+    // makes each event's entry sum correctly in reconciliation. When the
+    // event carries no amount, fall back to the order total (full refund).
+    const previousRefundedCents =
+      typeof orderData.refunded_amount_cents === "number"
+        ? (orderData.refunded_amount_cents as number)
+        : 0;
+    const cumulativeRefundedCents =
+      typeof params.refundedAmountCents === "number" &&
+      Number.isFinite(params.refundedAmountCents)
+        ? Math.max(0, Math.floor(params.refundedAmountCents))
+        : null;
+    const refundDeltaCents =
+      cumulativeRefundedCents !== null
+        ? Math.max(0, cumulativeRefundedCents - previousRefundedCents)
+        : orderTotalCents;
+    const journal = stripeLedgerJournalTxWriter(firestore, tx, {
+      entryType: "order_refunded",
+      discriminator: params.eventId,
+      amountCents: refundDeltaCents,
+      currency:
+        params.refundCurrency ||
+        (typeof orderData.currency === "string" ? orderData.currency : null),
+      direction: "buyer_revenue_in",
+      orderId: params.orderId,
+      stripeEventId: params.eventId,
+      stripeEventType: params.eventType,
+      occurredAt: updatedAt,
+      details: {
+        reason: params.reason,
+        cumulative_refunded_cents: cumulativeRefundedCents,
+        previously_journaled_refunded_cents: previousRefundedCents,
+        amount_source:
+          cumulativeRefundedCents !== null ? "stripe_charge_amount_refunded" : "order_total_fallback",
+      },
+    });
+    await journal.read();
+    tx.set(
+      orderRef,
       {
-        status: params.refunded
-          ? "refunded"
-          : params.expired
-            ? "expired"
-            : "payment_failed",
-        payment_status: params.refunded
-          ? "refunded"
-          : params.expired
-            ? "expired"
-            : "failed",
-        refunded_at: params.refunded ? updatedAt : null,
-        expired_at: params.expired ? updatedAt : null,
-        failure_reason: params.reason,
-        updated_at: updatedAt,
-        last_webhook_event_id: params.eventId,
-        last_webhook_event_type: params.eventType,
+        ...failurePayload,
+        refunded_amount_cents:
+          cumulativeRefundedCents !== null
+            ? cumulativeRefundedCents
+            : Math.max(previousRefundedCents, orderTotalCents ?? 0),
       },
       { merge: true },
     );
+    journal.append();
+  });
 }
 
 async function fetchCollectionRecord(
@@ -1019,10 +1108,34 @@ export async function markBuyerOrderDisputedFromCharge(params: {
     requires_finance_review: true,
   };
 
-  await db
-    .collection(BUYER_ORDER_COLLECTION)
-    .doc(order.id)
-    .set(
+  const firestore = db;
+  // Dispute open/close transitions journal atomically with the order flip
+  // (SCALE2-01). charge.dispute.created opens; charge.dispute.closed resolves.
+  const disputeEntryType =
+    params.eventType === "charge.dispute.closed" ? "dispute_resolved" : "dispute_opened";
+  await firestore.runTransaction(async (tx) => {
+    const orderRef = firestore.collection(BUYER_ORDER_COLLECTION).doc(order.id);
+    const journal = stripeLedgerJournalTxWriter(firestore, tx, {
+      entryType: disputeEntryType,
+      discriminator: params.eventId,
+      amountCents: params.amountCents,
+      currency: params.currency,
+      direction: "neutral",
+      orderId: order.id,
+      stripeEventId: params.eventId,
+      stripeEventType: params.eventType,
+      occurredAt: updatedAt,
+      details: {
+        dispute_id: params.disputeId,
+        dispute_status: params.disputeStatus,
+        dispute_reason: params.disputeReason,
+        payment_intent_id: params.paymentIntentId,
+        charge_id: params.chargeId,
+      },
+    });
+    await journal.read();
+    tx.set(
+      orderRef,
       {
         status: "disputed",
         payment_status: "disputed",
@@ -1041,6 +1154,8 @@ export async function markBuyerOrderDisputedFromCharge(params: {
       },
       { merge: true },
     );
+    journal.append();
+  });
 
   const entitlementId = order.entitlement_id || order.id;
   const entitlementSnapshot = await db
@@ -1081,7 +1196,6 @@ export async function markBuyerOrderDisputedFromCharge(params: {
     "held_for_dispute",
   ]);
 
-  const firestore = db;
   for (const captureId of captureIds) {
     const payoutRef = firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(captureId);
     const result = await firestore.runTransaction<
@@ -1772,9 +1886,24 @@ export async function upsertCreatorPayoutFromPipeline(params: {
   // The payout entry and the creator earnings aggregate move together in one
   // transaction so the aggregate can never drift from the ledger.
   const payload = await firestore.runTransaction<CreatorPayoutRecord>(async (tx) => {
+    const approvalJournal = stripeLedgerJournalTxWriter(firestore, tx, {
+      entryType: "payout_approved",
+      discriminator: params.captureId,
+      amountCents: basePayoutCents,
+      currency: "usd",
+      direction: "creator_payout_out",
+      creatorId,
+      payoutEntryIds: [params.captureId],
+      occurredAt: null,
+      details: {
+        capture_id: params.captureId,
+        qualification_state: params.qualificationState,
+      },
+    });
     const [existingSnapshot, aggregateSnapshot] = await Promise.all([
       tx.get(payoutRef),
       tx.get(aggregateRef),
+      approvalJournal.read(),
     ]);
     const existing = existingSnapshot.exists
       ? copyCreatorPayout(existingSnapshot.data() as Record<string, unknown>)
@@ -1864,6 +1993,12 @@ export async function upsertCreatorPayoutFromPipeline(params: {
         },
       ],
     });
+    // Journal the first transition into `approved` (SCALE2-01) atomically
+    // with the payout write. The deterministic entry id makes re-upserts
+    // no-ops, so re-qualification churn cannot double-journal an approval.
+    if (nextStatus === "approved" && existing?.status !== "approved") {
+      approvalJournal.append();
+    }
     return nextPayload;
   });
 
@@ -2069,6 +2204,16 @@ export async function beginCreatorPayoutDisbursement(params: {
     const snapshots = await Promise.all(refs.map((ref) => tx.get(ref)));
     const aggregateRef = earningsAggregateRef(firestore, params.creatorId);
     const aggregateSnapshot = await tx.get(aggregateRef);
+    const initiationJournal = stripeLedgerJournalTxWriter(firestore, tx, {
+      entryType: "disbursement_initiated",
+      discriminator: disbursementRef.id,
+      amountCents: null,
+      currency: "usd",
+      direction: "creator_payout_out",
+      creatorId: params.creatorId,
+      disbursementId: disbursementRef.id,
+    });
+    await initiationJournal.read();
 
     const selectedEntries: CreatorPayoutRecord[] = [];
     let runningTotal = 0;
@@ -2134,6 +2279,15 @@ export async function beginCreatorPayoutDisbursement(params: {
     };
 
     tx.set(disbursementRef, disbursement, { merge: true });
+    initiationJournal.append({
+      amountCents: runningTotal,
+      payoutEntryIds: selectedEntries.map((entry) => entry.id),
+      occurredAt: createdAt,
+      details: {
+        stripe_connect_account_id: params.stripeConnectAccountId,
+        requested_amount_cents: requestedAmountCents || runningTotal,
+      },
+    });
 
     for (const entry of selectedEntries) {
       tx.set(
@@ -2416,6 +2570,25 @@ export async function applyCreatorPayoutWebhook(params: {
       const entrySnapshots = await Promise.all(entryRefs.map((ref) => tx.get(ref)));
       const aggregateRef = earningsAggregateRef(firestore, disbursement.creator_id);
       const aggregateSnapshot = await tx.get(aggregateRef);
+      const settlementJournal = stripeLedgerJournalTxWriter(firestore, tx, {
+        entryType: params.status === "paid" ? "disbursement_settled" : "disbursement_failed",
+        discriminator: params.eventId,
+        amountCents: disbursement.disbursed_amount_cents,
+        currency: "usd",
+        direction: "creator_payout_out",
+        creatorId: disbursement.creator_id,
+        disbursementId: disbursement.id,
+        payoutEntryIds: disbursement.payout_entry_ids,
+        stripeEventId: params.eventId,
+        stripeEventType: params.eventType,
+        occurredAt: updatedAt,
+        details: {
+          stripe_payout_id: params.stripePayoutId,
+          settlement_status: params.status,
+          failure_reason: params.failureReason || null,
+        },
+      });
+      await settlementJournal.read();
 
       const updated: CreatorPayoutRecord[] = [];
       const changes: Array<{
@@ -2462,6 +2635,7 @@ export async function applyCreatorPayoutWebhook(params: {
         creatorId: disbursement.creator_id,
         changes,
       });
+      settlementJournal.append();
 
       return updated;
     },

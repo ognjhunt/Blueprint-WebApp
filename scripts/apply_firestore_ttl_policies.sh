@@ -57,6 +57,9 @@ apply_ttl() {
 apply_ttl "creatorClientTelemetry" "expires_at"
 apply_ttl "idempotencyKeys" "expiresAt"
 apply_ttl "stripeWebhookEvents" "expires_at"
+# Queue transport docs only (SCALE2-01): the append-only stripeLedgerJournal
+# and the dead-letter collection are money-plane records and get NO TTL.
+apply_ttl "stripeWebhookQueue" "expires_at"
 
 echo "Done. Verify with:"
 echo "  gcloud firestore fields ttls list --project=${PROJECT_ID}"
