@@ -79,6 +79,48 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       where: (field: string, _op: string, value: unknown) =>
         buildQuery(name, [{ field, value }]),
     }),
+    // Minimal transaction emulation for the SCALE2-01 journal-atomic money
+    // paths: reads delegate to the ref, writes buffer and commit after the
+    // callback resolves.
+    runTransaction: async <T>(
+      updateFn: (tx: {
+        get: (ref: {
+          get: () => Promise<unknown>;
+        }) => Promise<unknown>;
+        set: (
+          ref: { set: (payload: Record<string, unknown>, options?: Record<string, unknown>) => Promise<void> },
+          payload: Record<string, unknown>,
+          options?: Record<string, unknown>,
+        ) => void;
+        update: (
+          ref: { set: (payload: Record<string, unknown>, options?: Record<string, unknown>) => Promise<void> },
+          payload: Record<string, unknown>,
+        ) => void;
+      }) => Promise<T>,
+    ): Promise<T> => {
+      const writes: Array<() => Promise<void>> = [];
+      const tx = {
+        get: async (ref: { get: () => Promise<unknown> }) => ref.get(),
+        set: (
+          ref: { set: (payload: Record<string, unknown>, options?: Record<string, unknown>) => Promise<void> },
+          payload: Record<string, unknown>,
+          options?: Record<string, unknown>,
+        ) => {
+          writes.push(() => ref.set(payload, options));
+        },
+        update: (
+          ref: { set: (payload: Record<string, unknown>, options?: Record<string, unknown>) => Promise<void> },
+          payload: Record<string, unknown>,
+        ) => {
+          writes.push(() => ref.set(payload, { merge: true }));
+        },
+      };
+      const result = await updateFn(tx);
+      for (const write of writes) {
+        await write();
+      }
+      return result;
+    },
   },
   authAdmin: {
     verifyIdToken: async (token: string) => ({ uid: token, email: `${token}@example.com` }),
