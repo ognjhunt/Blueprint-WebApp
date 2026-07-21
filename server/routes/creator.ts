@@ -409,7 +409,11 @@ router.get("/captures", async (req: Request, res: Response) => {
     .get();
   const captures = snapshot.docs
     .map((doc) => serializeCapture(doc))
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+    .sort(
+      (a, b) =>
+        (b.captured_at ? new Date(b.captured_at).getTime() : 0) -
+        (a.captured_at ? new Date(a.captured_at).getTime() : 0),
+    );
 
   return res.json(captures);
 });

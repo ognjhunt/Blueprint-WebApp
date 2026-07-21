@@ -1093,7 +1093,7 @@ export interface InboundRequestListItem {
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
   buyer_review_access?: BuyerReviewAccess;
-  ops?: OpsSummary;
+  ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
