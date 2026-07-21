@@ -3,35 +3,23 @@
 Blueprint-WebApp has exactly one deploy owner: `.github/workflows/deploy.yml`.
 Render-native auto-deploy is off (`render.yaml` `autoDeploy: false`).
 
-> **OPEN INCIDENT — deploy ownership is NOT yet singular (refreshed 2026-07-21).**
-> Evidence from the `1acc5a84` deploy: the gated workflow (run 29552846927)
-> failed closed at 03:37:50Z because `RENDER_DEPLOY_HOOK_URL` was unset, yet
-> the live site served `1acc5a84` with `built_at_iso 2026-07-17T03:34:55Z` —
-> built *before* the workflow ran. Render-native dashboard auto-deploy is
-> therefore still active, and the `render.yaml` `autoDeploy: false` setting is
-> not in effect for this service (render.yaml governs Blueprint-synced
-> services only). Until a human completes the one-time activation steps below
-> — dashboard Auto-Deploy off + the authenticated API workflow proven — the
-> repository must treat deployment ownership as
-> `BLOCKED_RENDER_DEPLOY_OWNER_CONFIGURATION` and must not claim CI-gated
-> deployment.
+> **RESOLVED 2026-07-21 — deployment ownership is singular.** PR #419 merged as
+> `1cf156f2e38127c3b2a38727232c7c7451d6646e`. Main CI run `29836994895`
+> completed successfully, then workflow-run-gated deploy run `29837245844`
+> created Render deploy `dep-d9fno0hkh4rs73cr9fsg` for that exact SHA.
 >
-> The deploy workflow now also verifies completion: after triggering the hook
-> it polls `GET /version.json` until the exact requested SHA is live, then
-> checks `/health` and `/health/ready` separately and uploads a
-> `deploy-verification` artifact. A deploy-hook 2xx is never treated as
-> deployment success.
+> The deployment evidence records provider status `live`, an exact match
+> between requested and public SHA, `/health` 200, and `/health/ready` 200.
+> Render service configuration was then updated and read back as
+> `autoDeploy: no`. `.github/workflows/deploy.yml` is now the only production
+> deploy trigger.
 
-Current-state refresh (2026-07-21): PR #418 merged as
-`41e17825f8716efa91a9dfc99f5329ad0544a02f` and that exact SHA is live.
-Production `/health` and `/health/ready` both return 200 after setting beta
-capacity to 100 total invites and 25 admissions per day. GitHub Actions now
-holds `RENDER_API_KEY` and `RENDER_SERVICE_ID`, but Render still reports
-`autoDeploy: yes`. Main CI run `29828655494` therefore passed every substantive
-gate but failed its duplicate, obsolete deploy-hook job. The follow-up removes
-that duplicate and makes `.github/workflows/deploy.yml` the API-backed single
-owner. Do not close this incident or disable provider auto-deploy until the
-follow-up workflow succeeds end to end.
+Current-state refresh (2026-07-21): production serves
+`1cf156f2e38127c3b2a38727232c7c7451d6646e`, `/health` and `/health/ready`
+return 200, beta capacity is 100 total invites and 25 admissions per day, and
+the provider reports native auto-deploy disabled. The Render API credential
+shared in chat still requires rotation and replacement in GitHub Actions; that
+security task is separate from deployment-owner activation.
 
 ## How a deploy happens
 
@@ -55,7 +43,9 @@ Fail-closed properties:
 
 ## One-time activation steps (Render + GitHub)
 
-1. In GitHub: repo → Settings → Secrets and variables → Actions → add the
+Completed on 2026-07-21:
+
+1. In GitHub: repo → Settings → Secrets and variables → Actions, add the
    Render control-plane key as secret `RENDER_API_KEY`.
 2. Add the production Render service ID as repository variable
    `RENDER_SERVICE_ID`.
@@ -67,9 +57,9 @@ Fail-closed properties:
 5. Recommended: branch protection on `main` requiring the CI workflow's
    `check`, `test`, `e2e`, and `build` jobs.
 
-Until step 3 is proven, keep Render native auto-deploy enabled as the recovery
-path. After step 4, `.github/workflows/deploy.yml` is the only production deploy
-owner.
+All activation steps are complete. `.github/workflows/deploy.yml` is the only
+production deploy owner. Rotate the exposed API key without changing these
+ownership semantics.
 
 ## Manual redeploy / roll-forward
 
