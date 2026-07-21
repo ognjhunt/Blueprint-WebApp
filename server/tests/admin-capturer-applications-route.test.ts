@@ -111,6 +111,31 @@ describe("capturer application review routes", () => {
     }
   });
 
+  it("does not invent pending review when an application state is missing", async () => {
+    state.users.set("capturer-without-state", {
+      role: "capturer",
+      name: "Unlinked Capturer",
+    });
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(`${baseUrl}/api/admin/field-ops/capturer-applications`, {
+        headers: { Authorization: "Bearer admin" },
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        count: 1,
+        applications: [
+          expect.objectContaining({
+            id: "capturer-without-state",
+            application_status: null,
+          }),
+        ],
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("approves a capturer and emits the account notification", async () => {
     state.users.set("capturer-1", { role: "capturer", email: "applicant@example.com" });
     const { server, baseUrl } = await startRoute();

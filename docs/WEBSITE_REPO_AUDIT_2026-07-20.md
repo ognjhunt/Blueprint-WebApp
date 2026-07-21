@@ -491,6 +491,14 @@ Implemented on this branch (see individual commits for detail):
   Pipeline placeholder-request fallback, and any non-production record marked
   `autoCreatedByPipeline` is excluded from public site-world supply. Operator
   status fields remain null when the owning request has not recorded them;
+  capturer application, capture, Stripe, and payout views preserve absent
+  owner records as unrecorded, while the admin capturer list no longer assigns
+  a review state to missing application data. The private buyer request room
+  and admin lead APIs no longer turn missing opportunity, rights, capture,
+  quote, policy, preview, region, or next-action data into operational-looking
+  defaults. Local robot-eval entitlement proof now fails closed unless
+  `access_state` is explicit, and buyer run summaries no longer synthesize a
+  status for incomplete stored records.
   Settings links to authenticated buyer APIs instead of inventing payment or
   purchase state; the unimplemented public error-statistics endpoint is
   removed; and remaining public copy no longer calls QA acceptance

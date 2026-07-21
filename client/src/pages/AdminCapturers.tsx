@@ -14,7 +14,7 @@ type CapturerApplication = {
   market: string;
   equipment: string[];
   availability: string;
-  application_status: string;
+  application_status: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   review_note: string;
@@ -25,7 +25,7 @@ type CapturerApplicationsResponse = {
   count: number;
 };
 
-function statusTone(status: string) {
+function statusTone(status: string | null) {
   if (status === "approved") return "proof" as const;
   if (status === "rejected" || status === "paused") return "block" as const;
   return "warn" as const;
@@ -107,7 +107,7 @@ export default function AdminCapturers() {
                   <p className="mt-1 text-sm text-ink-500">{application.email || application.id}</p>
                 </div>
                 <StatusChip tone={statusTone(application.application_status)} square>
-                  {application.application_status.replace(/_/g, " ")}
+                  {application.application_status?.replace(/_/g, " ") || "Not recorded"}
                 </StatusChip>
               </div>
               <dl className="grid gap-3 text-sm sm:grid-cols-3">

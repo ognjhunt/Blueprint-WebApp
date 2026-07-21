@@ -70,7 +70,10 @@ router.get("/capturer-applications", requireOps, async (req: Request, res: Respo
         market: String(data.capturerMarket || ""),
         equipment: Array.isArray(data.capturerEquipment) ? data.capturerEquipment : [],
         availability: String(data.capturerAvailability || ""),
-        application_status: String(data.capturerApplicationStatus || "pending_review"),
+        application_status:
+          typeof data.capturerApplicationStatus === "string" && data.capturerApplicationStatus.trim()
+            ? data.capturerApplicationStatus.trim()
+            : null,
         submitted_at: isoTimestamp(data.createdAt || data.created_at || data.createdDate),
         reviewed_at: isoTimestamp(data.capturerReviewedAt),
         review_note: String(data.capturerReviewNote || ""),

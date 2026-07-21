@@ -2894,14 +2894,16 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.rights_status || "unknown"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.rights_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             rights_status: event.target.value as UpdateRequestOpsPayload["rights_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(rightsStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2915,15 +2917,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.capture_policy_tier || "review_required"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.capture_policy_tier || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             capture_policy_tier:
                               event.target.value as UpdateRequestOpsPayload["capture_policy_tier"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(capturePolicyLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2937,15 +2941,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.capture_status || "not_requested"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.capture_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             capture_status:
                               event.target.value as UpdateRequestOpsPayload["capture_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(captureStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2959,15 +2965,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.quote_status || "not_started"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.quote_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             quote_status:
                               event.target.value as UpdateRequestOpsPayload["quote_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(quoteStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}

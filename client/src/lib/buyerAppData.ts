@@ -105,7 +105,7 @@ export function useBuyerAppEntitlements(): BuyerAppEntitlementsState {
 
 export type BuyerRunRecord = {
   job_id: string;
-  status: string;
+  status: string | null;
   pipeline_status?: string | null;
   site_slug?: string | null;
   site_submission_id?: string | null;
@@ -230,7 +230,7 @@ export function runDisplayName(run: BuyerRunRecord) {
 
 export function runStatusLabel(status: string | null | undefined) {
   if (!status || status === "unknown") {
-    return "Unknown";
+    return "Not recorded";
   }
   if (status === "queued_for_pipeline") {
     return "Queued";

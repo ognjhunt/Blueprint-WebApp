@@ -684,11 +684,11 @@ export type ProofPathMilestoneKey =
 
 export interface OpsSummary {
   assigned_region_id?: string | null;
-  rights_status?: RequestRightsStatus;
-  capture_policy_tier?: RequestCapturePolicyTier;
-  capture_status?: RequestCaptureStatus;
+  rights_status?: RequestRightsStatus | null;
+  capture_policy_tier?: RequestCapturePolicyTier | null;
+  capture_status?: RequestCaptureStatus | null;
   recapture_reason?: string | null;
-  quote_status?: RequestQuoteStatus;
+  quote_status?: RequestQuoteStatus | null;
   next_step?: string | null;
   last_buyer_ready_at?: FirebaseFirestore.Timestamp | string | null;
   proof_path?: ProofPathMilestones | null;
@@ -790,7 +790,7 @@ export interface InboundRequest {
   createdAt: FirebaseFirestore.Timestamp;
   status: RequestStatus;
   qualification_state: QualificationState;
-  opportunity_state: OpportunityState;
+  opportunity_state?: OpportunityState | null;
   priority: RequestPriority;
   owner: RequestOwner;
   contact: ContactInfo;
@@ -803,7 +803,7 @@ export interface InboundRequest {
   human_review_required?: boolean | null;
   automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
-  ops?: OpsSummary;
+  ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;

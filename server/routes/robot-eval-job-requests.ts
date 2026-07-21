@@ -270,11 +270,21 @@ function localRobotEvalEntitlementProof(params: {
     };
   }
 
+  const accessState = stringValue(parsed.access_state);
+  if (!accessState) {
+    return {
+      ok: false,
+      status: 503,
+      code: "invalid_local_robot_eval_entitlement_proof",
+      error: `${LOCAL_ENTITLEMENT_PROOF_ENV} must explicitly include access_state.`,
+    };
+  }
+
   const entitlement = {
     ...parsed,
     id: stringValue(parsed.id || parsed.entitlement_id) || "local-robot-eval-route-proof",
     buyer_user_id: stringValue(parsed.buyer_user_id || parsed.buyerUserId) || params.buyerUserId,
-    access_state: stringValue(parsed.access_state) || "provisioned",
+    access_state: accessState,
     proof_source: "local_robot_eval_route_proof_entitlement",
   };
   if (stringValue(entitlement.buyer_user_id) !== stringValue(params.buyerUserId)) {
@@ -408,7 +418,7 @@ function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
   const entitlementProof = asObject(data.entitlement_proof);
   return {
     job_id: jobId,
-    status: String(data.status || "unknown"),
+    status: stringValue(data.status) || null,
     pipeline_status: data.pipeline_status || null,
     site_slug: stringValue(data.site_slug) || null,
     site_submission_id: stringValue(data.site_submission_id) || null,
@@ -436,7 +446,7 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
   return {
     ok: true,
     job_id: jobId,
-    status: String(data.status || "unknown"),
+    status: stringValue(data.status) || null,
     pipeline_status: data.pipeline_status || pipelineResult.status || null,
     result_artifacts: data.result_artifacts || pipelineResult.result_artifacts || {},
     proof_boundary: data.proof_boundary || pipelineResult.proof_boundary || {},

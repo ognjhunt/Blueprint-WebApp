@@ -309,8 +309,8 @@ function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | Firebas
   return {
     id: String(data.id || doc.id),
     target_address: String(data.target_address || "Submitted space"),
-    captured_at: toIso(data.captured_at) || new Date().toISOString(),
-    status: String(data.status || "submitted"),
+    captured_at: toIso(data.captured_at),
+    status: typeof data.status === "string" && data.status.trim() ? data.status : null,
     // Server-quoted estimate wins; the client's own pre-registration estimate
     // is display fallback only and never a payable amount (payouts come from
     // the payout ledger, not this field).
@@ -529,7 +529,10 @@ router.post("/captures", async (req: Request, res: Response) => {
       ok: true,
       id: captureId,
       replay: true,
-      status: String(existing.status || "submitted"),
+      status:
+        typeof existing.status === "string" && existing.status.trim()
+          ? existing.status
+          : null,
     });
   };
 
@@ -786,7 +789,7 @@ router.get("/captures/:captureId", async (req: Request, res: Response) => {
     id: String(data.id || req.params.captureId),
     target_address: String(data.target_address || "Submitted space"),
     captured_at: toIso(data.captured_at),
-    status: String(data.status || "submitted"),
+    status: typeof data.status === "string" && data.status.trim() ? data.status : null,
     quality: data.quality || null,
     earnings: data.earnings || null,
     rejection_reason: data.rejection_reason || null,

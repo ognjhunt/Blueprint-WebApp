@@ -91,7 +91,7 @@ function ValueChip({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4">
       <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{label}</p>
-      <p className="mt-2 text-sm font-medium text-zinc-900">{value || "Pending"}</p>
+      <p className="mt-2 text-sm font-medium text-zinc-900">{value || "Not recorded"}</p>
     </div>
   );
 }
@@ -354,7 +354,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       {REQUEST_STATUS_LABELS[request.qualification_state]}
                     </span>
                     <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${toneClasses(statusTone(ops?.capture_status))}`}>
-                      {REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]}
+                      {ops?.capture_status
+                        ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
+                        : "Capture state not recorded"}
                     </span>
                     <span className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/50">
                       Protected
@@ -368,7 +370,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <p className="mt-3 text-[3rem] font-semibold tracking-[-0.08em] text-[#111110]">
                   {trustScore?.score ?? "N/A"}
                 </p>
-                <p className="text-sm text-black/50">{trustScore?.band || "Pending review"}</p>
+                  <p className="text-sm text-black/50">{trustScore?.band || "Not attached"}</p>
               </div>
             </div>
 
@@ -401,7 +403,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
                     <p className="text-sm font-semibold text-[#111110]">Firestore request record</p>
                     <p className="mt-1 text-sm leading-6 text-black/60">
-                      {REQUEST_STATUS_LABELS[request.qualification_state]} / {REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]}
+                      {REQUEST_STATUS_LABELS[request.qualification_state]} / {ops?.capture_status
+                        ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
+                        : "capture state not recorded"}
                     </p>
                   </div>
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
@@ -413,7 +417,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
                     <p className="text-sm font-semibold text-[#111110]">Provider preview state</p>
                     <p className="mt-1 text-sm leading-6 text-black/60">
-                      {previewRun?.provider_name || "No provider"} / {String(readiness?.preview_status || "not requested").replaceAll("_", " ")}
+                      {previewRun?.provider_name || "No provider attached"} / {readiness?.preview_status
+                        ? String(readiness.preview_status).replaceAll("_", " ")
+                        : "no preview state attached"}
                     </p>
                   </div>
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
@@ -441,30 +447,39 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                   {section === "overview" ? (
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
-                      <ValueChip label="Next step" value={ops?.next_step || "Blueprint is reviewing the latest evidence."} />
-                      <ValueChip label="Region" value={ops?.assigned_region_id || "Managed assignment"} />
+                      <ValueChip label="Next step" value={ops?.next_step} />
+                      <ValueChip label="Region" value={ops?.assigned_region_id} />
                       <ValueChip label="Buyer type" value={BUYER_TYPE_LABELS[request.request.buyerType]} />
-                      <ValueChip label="Quote status" value={REQUEST_QUOTE_STATUS_LABELS[ops?.quote_status || "not_started"]} />
+                      <ValueChip
+                        label="Quote status"
+                        value={ops?.quote_status ? REQUEST_QUOTE_STATUS_LABELS[ops.quote_status] : null}
+                      />
                       <ValueChip
                         label="Intake route"
-                        value={structuredIntake?.routing_summary || structuredIntake?.owner_lane || "Structured intake review pending"}
+                        value={structuredIntake?.routing_summary || structuredIntake?.owner_lane}
                       />
                       <ValueChip
                         label="Calendar"
-                        value={structuredIntake?.calendar_summary || "Calendar stays secondary until intake justifies it."}
+                        value={structuredIntake?.calendar_summary}
                       />
                       <ValueChip
                         label="Proof path"
-                        value={structuredIntake?.proof_path_summary || "Proof path is pending intake review."}
+                        value={structuredIntake?.proof_path_summary}
                       />
                       <ValueChip
                         label="Missing intake fields"
-                        value={missingStructuredLabels.length ? missingStructuredLabels.join(", ") : "None blocking first review"}
+                        value={
+                          structuredIntake
+                            ? missingStructuredLabels.length
+                              ? missingStructuredLabels.join(", ")
+                              : "None recorded"
+                            : null
+                        }
                       />
                       <div className="rounded-2xl border border-zinc-200 bg-[#faf6ef] p-4 md:col-span-2">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
                         <p className="mt-2 text-sm leading-7 text-zinc-800">
-                          {request.request.workflowContext || "Blueprint is using the submitted task statement as the current workflow baseline."}
+                          {request.request.workflowContext || "Not supplied"}
                         </p>
                       </div>
                     </div>
@@ -476,14 +491,14 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       <ValueChip label="Privacy / Security" value={request.request.privacySecurityConstraints || "None supplied"} />
                       <ValueChip
                         label="Coverage summary"
-                        value={readiness?.capture_quality_summary ? "Attached" : "Still assembling"}
+                        value={readiness?.capture_quality_summary ? "Attached" : "Not attached"}
                       />
                       <ValueChip
                         label="Rights summary"
                         value={
                           readiness?.rights_and_compliance?.consent_scope?.length
                             ? readiness.rights_and_compliance.consent_scope.join(", ")
-                            : "Pending"
+                            : "Not attached"
                         }
                       />
                     </div>
@@ -492,7 +507,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   {section === "qualification" ? (
                     <div className="mt-5 grid gap-4">
                       <div className="grid gap-4 md:grid-cols-2">
-                        <ValueChip label="Buyer trust score" value={trustScore ? `${trustScore.score} / ${trustScore.band}` : "Pending"} />
+                        <ValueChip label="Buyer trust score" value={trustScore ? `${trustScore.score} / ${trustScore.band}` : "Not attached"} />
                         <ValueChip label="Missing evidence" value={missingEvidence.length ? `${missingEvidence.length} item(s)` : "None attached"} />
                       </div>
                       {trustScore?.reasons?.length ? (
@@ -523,7 +538,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                         />
                       </div>
                       <div className="space-y-4">
-                        <ValueChip label="Preview status" value={String(readiness?.preview_status || "not_requested").replaceAll("_", " ")} />
+                        <ValueChip
+                          label="Preview status"
+                          value={readiness?.preview_status ? String(readiness.preview_status).replaceAll("_", " ") : null}
+                        />
                         <ValueChip label="Provider" value={previewRun?.provider_name || "Not assigned"} />
                         <ValueChip
                           label="Provenance"
@@ -557,8 +575,18 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     className="mt-5"
                     items={[
                       { label: "Readiness", value: REQUEST_STATUS_LABELS[request.qualification_state] },
-                      { label: "Opportunity", value: OPPORTUNITY_STATE_LABELS[request.opportunity_state] },
-                      { label: "Capture policy", value: REQUEST_CAPTURE_POLICY_LABELS[ops?.capture_policy_tier || "review_required"] },
+                      {
+                        label: "Opportunity",
+                        value: request.opportunity_state
+                          ? OPPORTUNITY_STATE_LABELS[request.opportunity_state]
+                          : "Not recorded",
+                      },
+                      {
+                        label: "Capture policy",
+                        value: ops?.capture_policy_tier
+                          ? REQUEST_CAPTURE_POLICY_LABELS[ops.capture_policy_tier]
+                          : "Not recorded",
+                      },
                     ]}
                   />
                 </SurfaceCard>
@@ -575,9 +603,19 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     className="mt-5"
                     items={[
                       { label: "Request ID", value: request.requestId },
-                      { label: "Rights", value: REQUEST_RIGHTS_STATUS_LABELS[ops?.rights_status || "unknown"] },
-                      { label: "Capture status", value: REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"] },
-                      { label: "Requested on", value: request.createdAt || "Pending" },
+                      {
+                        label: "Rights",
+                        value: ops?.rights_status
+                          ? REQUEST_RIGHTS_STATUS_LABELS[ops.rights_status]
+                          : "Not recorded",
+                      },
+                      {
+                        label: "Capture status",
+                        value: ops?.capture_status
+                          ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
+                          : "Not recorded",
+                      },
+                      { label: "Requested on", value: request.createdAt || "Not recorded" },
                     ]}
                   />
                 </SurfaceCard>
@@ -599,7 +637,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                         { label: "Target", value: displayMetadata.targetName || request.request.siteName },
                         { label: "Address", value: displayMetadata.addressLabel || request.request.siteLocation },
                         { label: "Request ID", value: displayMetadata.requestId || request.requestId },
-                        { label: "Capture job", value: displayMetadata.captureJobId || "Pending" },
+                        { label: "Capture job", value: displayMetadata.captureJobId || "Not recorded" },
                       ]}
                     />
                     {displayMetadata.captureBrief ? (
@@ -636,9 +674,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     </div>
                   </div>
                   <p className="mt-5 text-base leading-7 text-white/80">
-                    {structuredIntake?.next_action ||
-                      ops?.next_step ||
-                      "Blueprint will route the next step once the review record is stable."}
+                    {structuredIntake?.next_action || ops?.next_step || "No next action is recorded."}
                   </p>
                   {previewRun?.provider_name ? (
                     <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">

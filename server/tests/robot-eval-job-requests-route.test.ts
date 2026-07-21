@@ -230,6 +230,43 @@ afterEach(() => {
 });
 
 describe("robot-eval job request route forwarding", () => {
+  it("fails closed when a local entitlement proof omits access_state", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
+    const jobRequest = buildRequest(path.join(inboxDir, "captures", "sw-chi-01"));
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    vi.stubEnv(
+      "BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON",
+      JSON.stringify({
+        buyer_user_id: "robot-team-a",
+        sku: "sw-chi-01",
+        site_slug: "sw-chi-01",
+      }),
+    );
+    const route = await startRobotEvalRoute();
+
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        body: JSON.stringify(jobRequest),
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(payload).toEqual(
+        expect.objectContaining({
+          ok: false,
+          status: "robot_eval_entitlement_verification_failed",
+          code: "invalid_local_robot_eval_entitlement_proof",
+          error: expect.stringContaining("must explicitly include access_state"),
+        }),
+      );
+      expect(firestoreState.collectionWrites).toHaveLength(0);
+    } finally {
+      await stopServer(route.server);
+    }
+  });
+
   it("blocks buyer robot-eval access before entitlement checks, inbox writes, or forwarding when beta is paused", async () => {
     const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
     const captureRoot = path.join(inboxDir, "captures", "sw-chi-01");

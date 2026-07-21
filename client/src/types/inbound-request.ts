@@ -658,11 +658,11 @@ export interface BuyerReviewAccess {
 
 export interface OpsSummary {
   assigned_region_id?: string | null;
-  rights_status?: RequestRightsStatus;
-  capture_policy_tier?: RequestCapturePolicyTier;
-  capture_status?: RequestCaptureStatus;
+  rights_status?: RequestRightsStatus | null;
+  capture_policy_tier?: RequestCapturePolicyTier | null;
+  capture_status?: RequestCaptureStatus | null;
   recapture_reason?: string | null;
-  quote_status?: RequestQuoteStatus;
+  quote_status?: RequestQuoteStatus | null;
   next_step?: string | null;
   last_buyer_ready_at?: string | null;
   proof_path?: ProofPathMilestones | null;
@@ -892,7 +892,7 @@ export interface InboundRequestListItem {
   createdAt: string; // ISO string
   status: RequestStatus;
   qualification_state: QualificationState;
-  opportunity_state: OpportunityState;
+  opportunity_state?: OpportunityState | null;
   priority: RequestPriority;
   contact: {
     firstName: string;
@@ -920,7 +920,7 @@ export interface InboundRequestListItem {
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
   buyer_review_access?: BuyerReviewAccess;
-  ops?: OpsSummary;
+  ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
@@ -950,7 +950,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   };
   ops_automation?: OpsAutomationEnvelope;
   buyer_review_access?: BuyerReviewAccess;
-  ops?: OpsSummary;
+  ops?: OpsSummary | null;
   notes?: RequestNote[];
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;

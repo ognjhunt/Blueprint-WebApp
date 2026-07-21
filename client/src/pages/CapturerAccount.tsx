@@ -9,8 +9,8 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 type CaptureRecord = {
   id: string;
   target_address: string;
-  captured_at: string;
-  status: string;
+  captured_at: string | null;
+  status: string | null;
   estimated_payout_cents: number | null;
 };
 
@@ -39,15 +39,19 @@ function money(cents: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
-function statusTone(status: string) {
-  if (["approved", "paid", "active"].includes(status)) return "proof" as const;
-  if (["rejected", "failed", "needs_recapture", "paused"].includes(status)) return "block" as const;
+function statusTone(status: string | null | undefined) {
+  const normalized = status || "";
+  if (["approved", "paid", "active"].includes(normalized)) return "proof" as const;
+  if (["rejected", "failed", "needs_recapture", "paused"].includes(normalized)) return "block" as const;
   return "warn" as const;
 }
 
 export default function CapturerAccount() {
   const { currentUser, userData } = useAuth();
-  const applicationStatus = userData?.capturerApplicationStatus || "pending_review";
+  const applicationStatus =
+    typeof userData?.capturerApplicationStatus === "string" && userData.capturerApplicationStatus.trim()
+      ? userData.capturerApplicationStatus.trim()
+      : null;
   const isApproved = applicationStatus === "approved" || applicationStatus === "active";
   const query = useQuery({
     queryKey: ["capturer-account", currentUser?.uid || "anonymous"],
@@ -98,11 +102,16 @@ export default function CapturerAccount() {
                 Application, capture review, earnings, and Stripe payout readiness stay separate and come from their owning records.
               </p>
             </div>
-            <StatusChip tone={statusTone(applicationStatus)} square>{applicationStatus.replace(/_/g, " ")}</StatusChip>
+            <StatusChip tone={statusTone(applicationStatus)} square>{applicationStatus?.replace(/_/g, " ") || "Not recorded"}</StatusChip>
           </div>
         </header>
 
-        {!isApproved ? (
+        {!applicationStatus ? (
+          <ProofBoundary level="info" title="No application state is recorded" icon={Clock3}>
+            This account is not linked to a recorded capturer application state. No review,
+            approval, assignment, accepted capture, or payout is implied.
+          </ProofBoundary>
+        ) : !isApproved ? (
           <ProofBoundary level="info" title="Application review is the current gate" icon={Clock3}>
             Your application is {applicationStatus.replace(/_/g, " ")}. No assignment, accepted capture,
             or payout is implied until an operator records approval and a specific assignment is issued.
@@ -127,22 +136,51 @@ export default function CapturerAccount() {
             <Card pad="lg" className="flex flex-col gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div><h2 className="text-xl font-semibold">Payout setup</h2><p className="mt-2 text-sm text-ink-500">Stripe owns bank-account and payout readiness.</p></div>
-                <StatusChip tone={query.data.stripe?.payouts_enabled ? "proof" : "warn"} square>{query.data.stripe?.payouts_enabled ? "payouts enabled" : "setup required"}</StatusChip>
+                <StatusChip tone={query.data.stripe?.payouts_enabled ? "proof" : "warn"} square>
+                  {query.data.stripe
+                    ? query.data.stripe.payouts_enabled
+                      ? "payouts enabled"
+                      : "setup required"
+                    : "state unavailable"}
+                </StatusChip>
               </div>
-              {isApproved && !query.data.stripe?.payouts_enabled ? (
+              {isApproved && query.data.stripe && !query.data.stripe.payouts_enabled ? (
                 <Button variant="action" iconRight={<ExternalLink />} className="w-fit" onClick={startPayoutOnboarding}>Open Stripe payout setup</Button>
               ) : null}
               {!isApproved ? <p className="text-sm text-ink-500">Payout setup opens after application approval.</p> : null}
+              {isApproved && !query.data.stripe ? (
+                <p className="text-sm text-ink-500">
+                  Stripe account state is unavailable. No payout-readiness conclusion can be shown.
+                </p>
+              ) : null}
             </Card>
 
             <section className="flex flex-col gap-3">
               <h2 className="text-xl font-semibold">Capture history</h2>
               {query.data.captures.length ? query.data.captures.map((capture) => (
                 <Card key={capture.id} pad="md" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div><p className="font-semibold">{capture.target_address}</p><p className="mt-1 font-mono text-xs text-ink-400">{capture.id} · {new Date(capture.captured_at).toLocaleString()}</p></div>
-                  <StatusChip tone={statusTone(capture.status)} square>{capture.status.replace(/_/g, " ")}</StatusChip>
+                  <div><p className="font-semibold">{capture.target_address}</p><p className="mt-1 font-mono text-xs text-ink-400">{capture.id} · {capture.captured_at ? new Date(capture.captured_at).toLocaleString() : "Time not recorded"}</p></div>
+                  <StatusChip tone={statusTone(capture.status)} square>{capture.status?.replace(/_/g, " ") || "Not recorded"}</StatusChip>
                 </Card>
               )) : <Card pad="lg"><p className="text-ink-500">No capture submission is recorded for this account.</p></Card>}
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h2 className="text-xl font-semibold">Payout history</h2>
+              {query.data.payouts.length ? query.data.payouts.map((payout) => (
+                <Card key={payout.id} pad="md" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{payout.description}</p>
+                    <p className="mt-1 font-mono text-xs text-ink-400">
+                      {payout.id} · {new Date(payout.scheduled_for).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm">{money(payout.amount_cents)}</span>
+                    <StatusChip tone={statusTone(payout.status)} square>{payout.status.replace(/_/g, " ")}</StatusChip>
+                  </div>
+                </Card>
+              )) : <Card pad="lg"><p className="text-ink-500">No payout ledger entry is recorded for this account.</p></Card>}
             </section>
 
             <div className="flex flex-wrap gap-3">
