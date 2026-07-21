@@ -42,6 +42,7 @@ function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
 }
 
 const authSensitivePathPatterns = [
+  /^\/portal(?:\/|$)/,
   /^\/settings(?:\/|$)/,
   /^\/requests\/[^/]+(?:\/|$)/,
   /^\/capture-app(?:\/|$)/,
@@ -50,6 +51,7 @@ const authSensitivePathPatterns = [
 const authRequiredPathPatterns = [
   /^\/app(?:\/|$)/,
   /^\/admin(?:\/|$)/,
+  /^\/dashboard(?:\/|$)/,
   /^\/onboarding(?:\/|$)/,
 ];
 
@@ -216,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
         }
-        return "/capture-app";
+        return "/capture-app/account";
       }
 
       if (storedRedirect) {
@@ -243,12 +245,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // If user hasn't finished the intake-first onboarding flow
       if (data && data.finishedOnboarding !== true) {
-        return "/onboarding";
-      }
-
-      // Site operators have no dedicated app surface yet — their onboarding
-      // checklist is the honest status view. Buyers land in the buyer app.
-      if (data?.buyerType === "site_operator") {
         return "/onboarding";
       }
 

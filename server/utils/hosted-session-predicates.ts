@@ -4,9 +4,8 @@ import type { HostedSessionMode, HostedSessionRecord } from "../types/hosted-ses
  * Pure classification predicates for hosted sessions.
  *
  * These answer yes/no (or key/mode) questions about a session record without
- * any I/O or route-level state: whether a site world is a public demo, whether
- * a presentation-demo session is reusable, when it expires, etc. They are
- * imported by both the route layer and the in-memory session store.
+ * any I/O or route-level state, including whether a presentation session is
+ * reusable and when it expires.
  */
 
 function toIsoString(value: unknown) {
@@ -17,22 +16,6 @@ function toIsoString(value: unknown) {
     return (value as { toDate: () => Date }).toDate().toISOString();
   }
   return String(value);
-}
-
-const PUBLIC_DEMO_SITE_WORLD_IDS = new Set<string>();
-if (process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1") {
-  PUBLIC_DEMO_SITE_WORLD_IDS.add("siteworld-f5fd54898cfb");
-}
-if (process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID?.trim()) {
-  PUBLIC_DEMO_SITE_WORLD_IDS.add(process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID.trim());
-}
-
-export function isPublicDemoSiteWorldId(siteWorldId: string) {
-  return PUBLIC_DEMO_SITE_WORLD_IDS.has(String(siteWorldId || "").trim());
-}
-
-export function isPublicDemoSession(session: HostedSessionRecord | null | undefined) {
-  return Boolean(session && isPublicDemoSiteWorldId(session.site.siteWorldId));
 }
 
 export function normalizeSessionMode(value: unknown): HostedSessionMode {

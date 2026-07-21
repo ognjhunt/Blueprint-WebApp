@@ -15,6 +15,7 @@ import {
   markCreatorPayoutDisbursementFunded,
   markCreatorPayoutDisbursementFundingFailure,
 } from "../utils/accounting";
+import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { resolveStripeAccountForRequest } from "../utils/stripeConnectAccounts";
 
 const VALID_SCHEDULES = new Set(["daily", "weekly", "monthly", "manual"]);
@@ -639,6 +640,20 @@ router.post("/account/instant_payout", async (req, res) => {
               reason: "Platform treasury balance is insufficient to fund this payout.",
               platformAvailableBalanceCents: availableCents,
             });
+            await recordBetaOpsFailureSignal({
+              kind: "spend_budget_failure",
+              scopeId: disbursement.disbursement.id,
+              severity: "critical",
+              summary: "Creator payout funding was blocked by insufficient platform treasury balance.",
+              details: {
+                creator_id: stripeContext.creatorId,
+                stripe_account_id: stripeContext.accountId,
+                disbursement_id: disbursement.disbursement.id,
+                required_amount_cents: disbursement.disbursement.disbursed_amount_cents,
+                platform_available_balance_cents: availableCents,
+                blocker: "insufficient_platform_balance",
+              },
+            }).catch(() => null);
             return res.status(409).json({
               error: "Platform treasury balance is insufficient to fund this payout.",
             });

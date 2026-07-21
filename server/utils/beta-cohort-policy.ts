@@ -6,7 +6,8 @@ type BetaCohortGate =
   | "waitlist"
   | "capture_intake"
   | "buyer_checkout"
-  | "robot_eval_request";
+  | "robot_eval_request"
+  | "buyer_access";
 
 type BetaCohortGateInput = {
   gate: BetaCohortGate;

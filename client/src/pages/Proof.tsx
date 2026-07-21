@@ -62,8 +62,8 @@ export default function Proof() {
                 Proof stays scoped.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                The 0.929 research result is correlation evidence, not an
-                accuracy or deployment claim.
+                SC3-Eval's published 0.929 correlation is third-party research
+                context, not a Blueprint result, accuracy claim, or deployment claim.
               </p>
               <a
                 href={requestHref}
@@ -124,9 +124,8 @@ export default function Proof() {
             <div>
               <h2 className="text-3xl font-semibold">What we do not claim.</h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-                {robotPolicyEvaluationBoundary} Evaluation packs report
-                metrics only inside the matched robot, task, and site
-                envelope.
+                {robotPolicyEvaluationBoundary} Provenance-checked packs report metrics
+                only inside the matched robot, task, and site envelope.
               </p>
             </div>
           </div>

@@ -327,7 +327,7 @@ export function evaluateAgentLiveCheckoutEligibility(
       severity: "blocking",
       ownerSystem: "catalog",
       message:
-        "This site world is a sample or planned catalog profile, not a pipeline-backed package, so live checkout is not offered for it.",
+        "This record does not have current Pipeline-backed package identity, so live checkout is not offered for it.",
       retryAction:
         "Use dry-run checkout to prove the flow, or submit the requestCandidate intake draft from search to request this site.",
     });
@@ -523,8 +523,8 @@ export function createAgentDryRunCheckout(input: AgentDryRunCheckoutInput, siteW
       total_amount_cents: quote.totalAmountCents,
     },
     checkout: {
-      success_url: `/agents?dry_run_order=${encodeURIComponent(orderId)}`,
-      cancel_url: "/agents?dry_run_checkout=cancel",
+      success_url: `/app/entitlements?dry_run_order=${encodeURIComponent(orderId)}`,
+      cancel_url: "/app/entitlements?dry_run_checkout=cancel",
     },
     stripe: {
       checkout_session_id: null,

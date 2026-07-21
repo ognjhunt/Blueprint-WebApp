@@ -230,6 +230,43 @@ afterEach(() => {
 });
 
 describe("robot-eval job request route forwarding", () => {
+  it("blocks buyer robot-eval access before entitlement checks, inbox writes, or forwarding when beta is paused", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
+    const captureRoot = path.join(inboxDir, "captures", "sw-chi-01");
+    const jobRequest = buildRequest(captureRoot);
+    vi.stubEnv("BLUEPRINT_BETA_KILL_SWITCH", "1");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    const route = await startRobotEvalRoute();
+
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        body: JSON.stringify(jobRequest),
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(payload).toEqual(
+        expect.objectContaining({
+          ok: false,
+          status: "beta_cohort_denied",
+          code: "beta_kill_switch_active",
+          beta_cohort_policy: expect.objectContaining({
+            allowed: false,
+            reason: "beta_kill_switch_active",
+            kill_switch_active: true,
+          }),
+        }),
+      );
+      await expect(fs.readdir(inboxDir)).resolves.toEqual([]);
+      expect(firestoreState.collectionWrites).toEqual([]);
+    } finally {
+      await stopServer(route.server);
+      await fs.rm(inboxDir, { recursive: true, force: true });
+    }
+  });
+
   it("returns 403 and does not write the inbox when no provisioned buyer entitlement matches", async () => {
     const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
     const captureRoot = path.join(inboxDir, "captures", "sw-chi-01");

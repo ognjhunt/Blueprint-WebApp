@@ -1,13 +1,9 @@
 import { Request, Response } from "express";
-import { randomUUID } from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
-
-const SERVICE_SCENE_OWNER_UID = "service:contact-form";
-const SERVICE_SCENE_ORG_ID = "blueprint-intake";
 
 function emailDomain(value: string) {
   const domain = value.split("@").pop()?.trim().toLowerCase();
@@ -26,7 +22,6 @@ export default async function contactHandler(req: Request, res: Response) {
     city,
     state,
     companyWebsite,
-    companyAddress,
     jobTitle,
     country,
     requestType,
@@ -338,8 +333,6 @@ export default async function contactHandler(req: Request, res: Response) {
     );
   }
 
-  let offWaitlistUrl: string | null = null;
-
   if (requestSource === "website-contact-form") {
     if (!db) {
       logger.error(
@@ -355,25 +348,9 @@ export default async function contactHandler(req: Request, res: Response) {
         .json({ error: "Service temporarily unavailable" });
     }
 
-    const baseUrl =
-      process.env.VITE_PUBLIC_APP_URL?.trim() ||
-      process.env.STRIPE_PUBLIC_BASE_URL?.trim() ||
-      process.env.BASE_URL?.trim() ||
-      "https://www.tryblueprint.io";
-    const sanitizedBaseUrl = baseUrl.replace(/\/$/, "");
-    const token = randomUUID();
-    offWaitlistUrl = `${sanitizedBaseUrl}/off-waitlist-signup?token=${token}`;
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
     try {
-      await db.collection("waitlistTokens").add({
-        token,
-        email: emailValue,
-        company,
-        status: "unused",
-        createdAt: timestamp,
-      });
-
       await db.collection("contactRequests").add({
         name: requesterName,
         email: emailValue,
@@ -382,8 +359,6 @@ export default async function contactHandler(req: Request, res: Response) {
         state: typeof state === "string" ? state : "",
         message: typeof message === "string" ? message : "",
         companyWebsite: typeof companyWebsite === "string" ? companyWebsite : "",
-        token,
-        offWaitlistUrl,
         requestSource,
         ops_automation: {
           status: "pending",
@@ -408,45 +383,11 @@ export default async function contactHandler(req: Request, res: Response) {
         createdAt: timestamp,
       });
 
-      const sceneId = `scene-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      await db.collection("scenes").add({
-        id: sceneId,
-        name: company,
-        title: company,
-        ownerUid: SERVICE_SCENE_OWNER_UID,
-        orgId: SERVICE_SCENE_ORG_ID,
-        description:
-          typeof message === "string" && message.length > 0
-            ? message
-            : `Scene for ${company}`,
-        status: "pending",
-        source: "contact_form",
-        contact: {
-          name: requesterName,
-          email: emailValue,
-          company,
-          city: typeof city === "string" ? city : "",
-          state: typeof state === "string" ? state : "",
-          message: typeof message === "string" ? message : "",
-          companyWebsite:
-            typeof companyWebsite === "string" ? companyWebsite : "",
-        },
-        location: {
-          city: typeof city === "string" ? city : "",
-          state: typeof state === "string" ? state : "",
-          address: typeof companyAddress === "string" ? companyAddress : "",
-        },
-        token,
-        offWaitlistUrl,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
       logger.info(
         {
           ...logContext,
           event: "contact_form_records_created",
-          offWaitlistUrlCreated: Boolean(offWaitlistUrl),
-          sceneRecordCreated: true,
+          contactRequestCreated: true,
         },
         "Contact form durable records created",
       );
@@ -478,7 +419,7 @@ export default async function contactHandler(req: Request, res: Response) {
       "",
       "In the meantime, please check out the following resources:",
       "- Product: https://tryblueprint.io/product",
-      "- Catalog: https://tryblueprint.io/world-models",
+      "- Captured sites: https://tryblueprint.io/sites",
       "- Updates: https://tryblueprint.io/updates",
       "",
       "Best,",
@@ -518,7 +459,7 @@ export default async function contactHandler(req: Request, res: Response) {
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">In the meantime, please check out the following resources:</p>
                 <ul style="margin:0 0 24px;padding-left:20px;color:#78a0ff;">
                   <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/product" style="color:#78a0ff;text-decoration:none;">Product</a></li>
-                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/world-models" style="color:#78a0ff;text-decoration:none;">Catalog</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/sites" style="color:#78a0ff;text-decoration:none;">Captured sites</a></li>
                   <li><a href="https://tryblueprint.io/updates" style="color:#78a0ff;text-decoration:none;">Updates</a></li>
                 </ul>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Best,</p>
@@ -555,7 +496,6 @@ export default async function contactHandler(req: Request, res: Response) {
       event: "contact_submission_email_processed",
       sent,
       confirmationAttempted: Boolean(email),
-      offWaitlistUrlCreated: Boolean(offWaitlistUrl),
     },
     "Contact submission email processing completed",
   );
@@ -563,6 +503,5 @@ export default async function contactHandler(req: Request, res: Response) {
   return res.status(HTTP_STATUS.ACCEPTED).json({
     success: true,
     sent,
-    offWaitlistUrl,
   });
 }

@@ -21,6 +21,7 @@ import {
   requestAgentSpendProvider,
   type AgentSpendProviderRequestResult,
 } from "./agentSpendProviders.js";
+import { recordBetaOpsFailureSignal } from "./ops-alerts.js";
 
 export const AGENT_SPEND_REQUEST_COLLECTION = "agentSpendRequests";
 
@@ -171,6 +172,13 @@ function pendingSpendCommitmentUsd(records: AgentSpendRequestRecord[]) {
     .reduce((sum, record) => sum + Math.max(0, record.amountUsd || 0), 0);
 }
 
+function spendBudgetAlertReasons(policyDecision: AgentSpendPolicyDecision) {
+  const budgetPattern = /\b(budget|cap|envelope|spend|committed|approved)\b/i;
+  return [...policyDecision.blockers, ...policyDecision.reasons].filter((reason) =>
+    budgetPattern.test(reason),
+  );
+}
+
 async function listByCity<T>(collectionName: string, citySlug: string) {
   if (!db) {
     return [] as T[];
@@ -318,6 +326,34 @@ export async function requestAgentSpend(input: AgentSpendRequestInput) {
     },
     { merge: true },
   );
+
+  const budgetAlertReasons = spendBudgetAlertReasons(policyDecision);
+  if (!policyDecision.withinPolicy && budgetAlertReasons.length > 0) {
+    await recordBetaOpsFailureSignal({
+      kind: "spend_budget_failure",
+      scopeId: ref.id,
+      severity: "critical",
+      summary: "Agent spend request exceeded or lacked approval under the city budget policy.",
+      details: {
+        spend_request_id: ref.id,
+        city: base.city,
+        city_slug: base.citySlug,
+        launch_id: payload.launchId,
+        issue_id: payload.issueId,
+        run_id: payload.runId,
+        status: finalStatus,
+        amount_usd: input.amountUsd,
+        category: input.category,
+        vendor_name: input.vendorName,
+        budget_tier: policyDecision.budgetPolicy.tier,
+        max_total_approved_usd: policyDecision.budgetPolicy.maxTotalApprovedUsd,
+        operator_auto_approve_usd: policyDecision.budgetPolicy.operatorAutoApproveUsd,
+        existing_committed_spend_usd: policyDecision.existingCommittedSpendUsd,
+        projected_committed_spend_usd: policyDecision.projectedCommittedSpendUsd,
+        reasons: budgetAlertReasons,
+      },
+    }).catch(() => null);
+  }
 
   return payload;
 }

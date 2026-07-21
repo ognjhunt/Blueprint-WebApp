@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   markFunded: vi.fn().mockResolvedValue(undefined),
   markFundingFailure: vi.fn().mockResolvedValue(undefined),
   finalize: vi.fn().mockResolvedValue(undefined),
+  recordBetaOpsFailureSignal: vi.fn().mockResolvedValue({ recorded: true }),
   livePayoutExecutionEnabled: false,
 }));
 
@@ -80,6 +81,10 @@ vi.mock("../utils/accounting", () => ({
   failCreatorPayoutDisbursement: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../utils/ops-alerts", () => ({
+  recordBetaOpsFailureSignal: state.recordBetaOpsFailureSignal,
+}));
+
 async function startServer() {
   const { default: stripeRouter } = await import("../routes/stripe");
   const app = express();
@@ -127,6 +132,7 @@ afterEach(() => {
   state.markFunded.mockClear();
   state.markFundingFailure.mockClear();
   state.finalize.mockClear();
+  state.recordBetaOpsFailureSignal.mockClear();
   state.livePayoutExecutionEnabled = false;
   delete process.env.BLUEPRINT_FINANCE_REVIEW_OWNER;
   delete process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI;
@@ -354,6 +360,21 @@ describe("stripe treasury funding", () => {
         expect.objectContaining({
           disbursementId: "disb_123",
           status: "insufficient_platform_balance",
+        }),
+      );
+      expect(state.recordBetaOpsFailureSignal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "spend_budget_failure",
+          scopeId: "disb_123",
+          summary:
+            "Creator payout funding was blocked by insufficient platform treasury balance.",
+          details: expect.objectContaining({
+            creator_id: "creator-123",
+            stripe_account_id: "acct_creator_123",
+            required_amount_cents: 4500,
+            platform_available_balance_cents: 1000,
+            blocker: "insufficient_platform_balance",
+          }),
         }),
       );
     } finally {

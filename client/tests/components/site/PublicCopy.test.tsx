@@ -21,10 +21,6 @@ vi.mock("@/lib/experiments", () => ({
   resolveExperimentVariant: vi.fn(() => new Promise(() => {})),
 }));
 
-vi.mock("@/lib/siteWorldsApi", () => ({
-  fetchSiteWorldDetail: vi.fn(() => new Promise(() => {})),
-}));
-
 describe("public real-site evaluation copy", () => {
   it("keeps the buyer path centered on evaluation, proof, and free operator participation", { timeout: 10000 }, () => {
     window.localStorage.clear();

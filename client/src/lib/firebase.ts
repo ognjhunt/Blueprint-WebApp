@@ -285,7 +285,14 @@ export interface UserData {
   planHours?: number | string;
   role?: string;
   roles?: string[];
-  capturerApplicationStatus?: "applied" | "active" | "paused";
+  capturerApplicationStatus?:
+    | "applied"
+    | "pending_review"
+    | "future_city_waitlist"
+    | "approved"
+    | "rejected"
+    | "active"
+    | "paused";
   capturerMarket?: string;
   capturerEquipment?: string[];
   capturerAvailability?: "weekdays" | "evenings" | "weekends" | "flexible";
@@ -388,55 +395,14 @@ export const createUserDocument = async (
         photoURL,
         username,
         deviceToken: "",
-        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
         createdDate: timestamp,
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
         numSessions: 1,
-        uploadedContentCount: 0,
-        collectedContentCount: 0,
         planType: "free",
-        mappingOptIn: null,
-        kitDeliveryEstimate: null,
-        kitTrackingUrl: null,
-        subscriptionStartEstimate: null,
         credits: 0,
         finishedOnboarding: false,
-        hasEnteredNotes: false,
-        hasEnteredInventory: false,
-        hasEnteredCameraRoll: false,
         amountEarned: 0,
-        connectedBlueprintIds: [],
-        createdBlueprintIds: [],
-        collectedObjectIds: [],
-        collectedPortalIds: [],
-        uploadedFileIds: [],
-        createdPhotoIds: [],
-        createdNoteIds: [],
-        createdReportIds: [],
-        createdSuggestionIds: [],
-        createdContentIds: [],
-        modelInteractions: {},
-        blueprintInteractions: {},
-        portalInteractions: {},
-        categoryPreferences: {},
-        averageSessionDuration: 0,
-        peakUsageHours: [],
-        featureUsageCount: {},
-        mostUsedFeatures: [],
-        collaborationScore: 0,
-        sharedContentCount: 0,
-        preferredModelScales: [],
-        preferredRoomTypes: [],
-        preferredColors: [],
-        dailyActiveStreak: 1,
-        weeklyEngagementScore: 0,
-        completedTutorials: [],
-        skillLevels: {},
-        mostFrequentLocation: "",
-        deviceTypes: [],
-        billingHistory: [],
-        paymentMethods: [],
       };
 
       logDebug("[Firebase] Attempting setDoc for new user...");

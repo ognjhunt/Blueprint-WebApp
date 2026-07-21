@@ -54,6 +54,11 @@ const steps: Array<{ num: string; title: string; body: string }> = [
   },
   {
     num: "04",
+    title: "Improve against failures",
+    body: "A Policy Improvement Run turns failure clusters into scenarios, curriculum, and a sealed regression pack; an improved policy artifact requires an approved trainable path.",
+  },
+  {
+    num: "05",
     title: "Decide the next test",
     body: "Use the ranking, failure clusters, and missing-proof labels to pilot, tune, recapture, or hold.",
   },
@@ -172,7 +177,7 @@ export default function Home() {
                       Policy rank
                     </span>
                     <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brass-lit">
-                      RUN-2049
+                      Illustrative run
                     </span>
                   </div>
                   <p className="mt-2 font-mono text-[11px] text-[#f3efe6]/55">
@@ -200,36 +205,7 @@ export default function Home() {
           </MonochromeMedia>
         </section>
 
-        {/* (1b) Three terms, defined before they're used */}
-        <section className="border-b border-line bg-canvas">
-          <div className="mx-auto max-w-container px-7 py-8">
-            <dl className="grid gap-6 md:grid-cols-3">
-              {[
-                {
-                  term: "Task pack",
-                  def: "The tasks, start states, and success thresholds every policy runs against on one captured site.",
-                },
-                {
-                  term: "Rank fidelity",
-                  def: "How well the simulated ranking predicts the real-site ordering of policies — always an estimate, never a guarantee.",
-                },
-                {
-                  term: "Proof boundary",
-                  def: "The explicit line between what the capture proves and what is generated review support.",
-                },
-              ].map((item) => (
-                <div key={item.term} className="border-l-2 border-brass-deep pl-4">
-                  <dt className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-900">
-                    {item.term}
-                  </dt>
-                  <dd className="mt-1 text-sm leading-[1.6] text-ink-500">{item.def}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        {/* (2) How it works — 4-step TileGrid */}
+        {/* (2) How it works — capture, evaluate, improve, decide */}
         <section className="border-b border-line bg-canvas">
           <div className="mx-auto max-w-container px-7 py-16">
             <EditorialSectionIntro
@@ -237,7 +213,7 @@ export default function Home() {
               title="Capture first. Package the proof. Decide the next test."
               description="A run is configured per site. Blueprint turns a real captured site into a comparable task envelope so you can rank policies before spending scarce robot time."
             />
-            <TileGrid cols={4} className="mt-10">
+            <TileGrid cols={5} className="mt-10">
               {steps.map((step) => (
                 <div key={step.num} className="flex h-full flex-col gap-6 bg-white p-6">
                   <span className="font-mono text-[1.6rem] font-semibold leading-none text-brass-deep">
@@ -257,6 +233,31 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Supply side — the capture network is part of the product loop */}
+        <section className="border-b border-line bg-paper">
+          <div className="mx-auto grid max-w-container gap-8 px-7 py-14 lg:grid-cols-[0.62fr_0.38fr] lg:items-center">
+            <div>
+              <Eyebrow tone="brass" rule>For capturers</Eyebrow>
+              <h2 className="font-editorial mt-5 text-[clamp(2rem,3.8vw,3.4rem)] font-medium leading-[1.02] tracking-[-0.04em] text-ink">
+                Real-site evidence starts with a careful capture.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-ink-600">
+                Join the reviewed capture network, follow assignment-specific access and privacy cues,
+                and see payout terms before work begins. Applications and captures remain pending until
+                the owning review record approves them.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+              <Button asChild variant="brass" size="lg">
+                <a href="/signup/capturer">Apply to capture</a>
+              </Button>
+              <Button asChild variant="secondary" size="lg">
+                <a href="/capture">How capture works</a>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* (3) Comparison band */}
         <section className="border-b border-line bg-inset">
           <div className="mx-auto grid max-w-container gap-12 px-7 py-16 lg:grid-cols-[0.42fr_0.58fr] lg:items-center">
@@ -271,7 +272,7 @@ export default function Home() {
                   Predicted success
                 </span>
                 <span className="font-mono text-[12px] text-ink-500">
-                  RUN-2049 · 500 episodes
+                  Illustrative run · 500 episodes
                 </span>
               </div>
               <div className="mt-5 grid gap-4">
@@ -342,49 +343,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* (4b) Supply side — capturers */}
-        <section className="border-b border-line bg-inset">
-          <div className="mx-auto max-w-container px-7 py-14">
-            <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
-              <div>
-                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brass-deep">
-                  For capturers
-                </p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900">
-                  Get paid to capture real sites.
-                </h2>
-                <p className="mt-3 max-w-xl text-sm leading-[1.7] text-ink-500">
-                  Every evaluation starts with a real captured place. Capturers
-                  walk approved routes with a phone, 360 camera, or smart
-                  glasses — with payout, QA rules, and rights handling stated
-                  up front.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <a
-                  href="/capture"
-                  className="inline-flex min-h-12 items-center justify-center rounded-lg bg-ink px-6 text-sm font-semibold text-[color:var(--text-on-ink)] hover:opacity-90"
-                >
-                  See capture jobs
-                </a>
-                <a
-                  href="/launch-map"
-                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-line px-6 text-sm font-semibold text-ink-900 hover:bg-white"
-                >
-                  City status
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* (5) CTA close */}
         <section className="bg-canvas">
           <div className="mx-auto max-w-container px-7 py-16">
             <EditorialCtaBand
               eyebrow="Request evaluation"
               title="Rank your policies before field time."
-              description="Bring your checkpoints, a teammate's policy, or a vendor runner. We package a captured real site and return a ranked, proof-bounded readout."
+              description="Bring your checkpoints, a teammate's policy, or a vendor runner. Start with a proof-bounded Task Evaluation Run, then use a Policy Improvement Run to turn measured failures into the next curriculum and regression test."
               imageSrc="/redesign/pov/route-scan.jpg"
               imageAlt="Monochrome capture of an indoor route scan"
               primaryHref={requestHref}

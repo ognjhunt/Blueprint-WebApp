@@ -2,8 +2,6 @@
 import { describe, expect, it } from "vitest";
 import type { HostedSessionRecord } from "../types/hosted-session";
 import {
-  isPublicDemoSession,
-  isPublicDemoSiteWorldId,
   isReusablePresentationSession,
   isSessionExpired,
   normalizeSessionMode,
@@ -92,14 +90,5 @@ describe("isReusablePresentationSession", () => {
 describe("presentationSessionKey", () => {
   it("joins uid and site world id with a colon", () => {
     expect(presentationSessionKey("u", "w")).toBe("u:w");
-  });
-});
-
-describe("public demo predicates", () => {
-  it("rejects unknown site world ids and null sessions", () => {
-    expect(isPublicDemoSiteWorldId("definitely-not-a-demo-world")).toBe(false);
-    expect(isPublicDemoSiteWorldId("   ")).toBe(false);
-    expect(isPublicDemoSession(null)).toBe(false);
-    expect(isPublicDemoSession(session({ siteWorldId: "definitely-not-a-demo-world" }))).toBe(false);
   });
 });

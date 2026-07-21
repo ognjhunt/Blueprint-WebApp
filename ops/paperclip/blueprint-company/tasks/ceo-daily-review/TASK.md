@@ -16,7 +16,7 @@ Each run must:
 - update issue status, priority, assignment, or parent/child links when the current queue is wrong
 - close or cancel obsolete issues explicitly instead of leaving them to drift
 - create linked follow-up issues when blockers or cross-repo dependencies appear
-- keep work aligned to Blueprint's capture-first, world-model-product-first strategy
+- keep work aligned to Blueprint's capture-first, real-site evaluation and policy-improvement strategy
 
 gstack workflow:
 

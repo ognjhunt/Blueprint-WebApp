@@ -50,6 +50,12 @@ const workflowSteps = [
   },
   {
     step: "05",
+    title: "Policy improvement",
+    body: "Convert measured failures into prioritized scenarios, curriculum recommendations, and a sealed regression set. An improved policy artifact is included only when your team provides an approved trainable adapter, controller, reward, or fine-tuning path.",
+    proof: "Failure clusters · curriculum · sealed regression set",
+  },
+  {
+    step: "06",
     title: "Pilot protocol",
     body: "The request ends in a decision: export the package, kick off a narrower follow-up, recapture, or move the leading policy into a scoped pilot protocol.",
     proof: "Export request · pilot protocol · next-step record",
@@ -100,6 +106,7 @@ const included = [
   "Task suite, episode budget, and success thresholds you control",
   "PolicyRankBar comparison across your submitted policies",
   "Failure clusters and out-of-distribution flags per run",
+  "Policy Improvement Run path from measured failures to sealed regression",
   "Rights and privacy packet attached to every export",
   "Hosted review path with scoped access windows",
 ];
@@ -110,7 +117,7 @@ function HeroRankCard() {
       <div className="flex items-center justify-between">
         <Eyebrow tone="onInk">Sample readout</Eyebrow>
         <StatusChip tone="info" square dot={false}>
-          RUN-2049
+          Illustrative run
         </StatusChip>
       </div>
       <div className="mt-5 flex flex-col gap-3">
@@ -211,15 +218,15 @@ export default function ForRobotTeams() {
           </MonochromeMedia>
         </section>
 
-        {/* Workflow — 5 steps */}
+        {/* Workflow — evaluation through improvement */}
         <section className="mx-auto max-w-[88rem] px-7 py-16 lg:py-20">
           <EditorialSectionIntro
             eyebrow="Workflow"
-            title="From a real site to a ranked decision."
-            description="Five steps move a captured facility into readiness evidence your team can act on. Each step keeps its proof attached so nothing is overclaimed downstream."
+            title="From a real site to a ranked, improvable decision."
+            description="Six steps move a captured facility into evaluation evidence, then turn measured failures into a scoped improvement path. Each step keeps its proof attached."
             className="max-w-3xl"
           />
-          <TileGrid cols={5} className="mt-10">
+          <TileGrid cols={3} className="mt-10">
             {workflowSteps.map((item) => (
               <div key={item.step} className="flex h-full flex-col bg-white p-6">
                 <span className="font-mono text-[0.8rem] font-semibold text-brass-deep">
@@ -393,6 +400,18 @@ export default function ForRobotTeams() {
                 </Button>
               </div>
             </TileGrid>
+            <ProofBoundary level="info" title="Policy Improvement Runs are source-access optional" className="mt-8">
+              Blueprint can deliver failure prioritization, scenario design, curriculum recommendations,
+              and a sealed regression pack from run evidence alone. Delivering an improved policy
+              artifact additionally requires an approved trainable interface—such as an adapter,
+              controller, reward, fine-tuning endpoint, or distillation path.
+              <a
+                href="/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=for-robot-teams"
+                className="ml-2 font-semibold text-blue-700"
+              >
+                Scope an improvement run
+              </a>
+            </ProofBoundary>
           </div>
         </section>
 

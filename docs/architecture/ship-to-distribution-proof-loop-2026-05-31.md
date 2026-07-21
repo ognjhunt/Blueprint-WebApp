@@ -37,7 +37,7 @@ Existing surfaces this loop should compose rather than replace:
 | Surface | Current repo path | Role in loop |
 | --- | --- | --- |
 | Public update page | `client/src/pages/Blog.tsx`, `server/routes/site-content.ts` | Website note drafts and crawlable update language. |
-| Catalog/search truth | `client/src/lib/siteWorldCommercialStatus.ts`, `client/src/data/siteWorlds.ts`, `server/routes/site-worlds.ts`, `server/retrieval/siteWorldSearch.ts` | Search copy, listing disclosure, request-candidate language, and no-exact-match boundaries. |
+| Captured-site search truth | `client/src/data/siteWorlds.ts`, `server/routes/site-worlds.ts`, `server/retrieval/siteWorldSearch.ts` | Search copy, owner-system listing disclosure, request-candidate language, and no-exact-match boundaries. |
 | Public claims guard | `docs/architecture/public-display-ready-claims-matrix.md`, `scripts/claims/cross-source-claims-guard.ts` | Claim classes, owner proof, and safe replacements. |
 | Content asset metadata | `ops/paperclip/plugins/blueprint-automation/src/content-ops.ts` | `assetKey`, `assetType`, channels, source evidence, proof links, allowed claims, blocked claims. |
 | Deterministic community writer | `ops/paperclip/plugins/blueprint-automation/src/worker.ts` (`buildCommunityUpdatesOutputProof`) | Draft package validation, KB artifact, optional Notion/Slack/SendGrid draft paths when explicitly run by Paperclip. |

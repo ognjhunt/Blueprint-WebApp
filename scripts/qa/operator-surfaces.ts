@@ -83,7 +83,7 @@ export const operatorQaSurfaces: OperatorQaSurface[] = [
     label: "Request Console Ready Overview",
     path: "/requests/op-qa-ready",
     expectedTexts: [
-      "Harborview Grocery Annex",
+      "Test Fixture Grocery Annex",
       "Private review truth map",
       "Firestore request record",
       "Access Boundary",
@@ -94,7 +94,7 @@ export const operatorQaSurfaces: OperatorQaSurface[] = [
     label: "Request Console Ready Evidence",
     path: "/requests/op-qa-ready/evidence",
     expectedTexts: [
-      "Harborview Grocery Annex",
+      "Test Fixture Grocery Annex",
       "Evidence bundle",
       "Operating constraints",
       "approved operator hours",
@@ -105,7 +105,7 @@ export const operatorQaSurfaces: OperatorQaSurface[] = [
     label: "Request Console Ready Qualification",
     path: "/requests/op-qa-ready/qualification",
     expectedTexts: [
-      "Harborview Grocery Annex",
+      "Test Fixture Grocery Annex",
       "Readiness review",
       "Buyer trust score",
       "Why this score exists",
@@ -736,7 +736,7 @@ function requestFixture(overrides: {
 const requestReadyFixture = requestFixture({
   requestId: "op-qa-ready",
   siteSubmissionId: "site-op-qa-ready",
-  siteName: "Harborview Grocery Annex",
+  siteName: "Test Fixture Grocery Annex",
   siteLocation: "Austin, TX",
   qualificationState: "qualified_ready",
   opportunityState: "handoff_ready",

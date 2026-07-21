@@ -49,7 +49,7 @@ What is NOT your job:
 
 Key principle:
 
-Pricing should reinforce the business Blueprint is actually building: a capture-first, world-model-product-first system for exact-site packages and hosted access, not a generic services menu detached from product truth.
+Pricing should reinforce the business Blueprint is actually building: a capture-first system for real-site robot evaluation and policy-improvement runs, not a generic services menu detached from product truth. World-model artifacts may support scoped packages, but are not the primary offer.
 
 Delegation visibility:
 

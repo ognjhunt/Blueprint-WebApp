@@ -135,6 +135,27 @@ function robotEvalSiteTokens(jobRequest: Record<string, unknown>) {
   return tokens;
 }
 
+function robotEvalBetaScope(jobRequest: Record<string, unknown>) {
+  const sitePackage = asObject(jobRequest.site_package);
+  return {
+    market:
+      stringValue(sitePackage.market) ||
+      stringValue(sitePackage.region_id) ||
+      stringValue(sitePackage.regionId) ||
+      stringValue(sitePackage.city) ||
+      stringValue(sitePackage.site_slug) ||
+      null,
+    siteType:
+      stringValue(sitePackage.site_type) ||
+      stringValue(sitePackage.siteType) ||
+      stringValue(sitePackage.location_type) ||
+      stringValue(sitePackage.locationType) ||
+      stringValue(sitePackage.item_type) ||
+      stringValue(sitePackage.itemType) ||
+      "robot_eval",
+  };
+}
+
 function requestedEntitlementId(jobRequest: Record<string, unknown>) {
   const entitlement = asObject(jobRequest.entitlement);
   return stringValue(
@@ -381,9 +402,8 @@ async function verifyRobotEvalEntitlement(params: {
 
 const BUYER_RUN_LIST_LIMIT = 200;
 
-// P1-D: durable buyer-facing run summary. Every field is read from the stored
-// robotEvalJobRequests record (written by the POST intake path or the
-// pipeline-status callback) — nothing is synthesized for display.
+// Every field in this buyer-facing summary comes from the stored owner-scoped
+// robotEvalJobRequests record. Nothing is synthesized for display.
 function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
   const entitlementProof = asObject(data.entitlement_proof);
   return {
@@ -404,6 +424,15 @@ function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
 
 function statusResponse(jobId: string, data: Record<string, unknown>) {
   const pipelineResult = asObject(data.pipeline_result);
+  const jobRequest = asObject(data.jobRequest);
+  const sitePackage = asObject(jobRequest.site_package);
+  const robotProfile = asObject(jobRequest.robot_profile);
+  const requestedTasks = Array.isArray(jobRequest.requested_tasks)
+    ? jobRequest.requested_tasks.map(asObject).map((task) => ({
+        task_id: stringValue(task.task_id),
+        label: stringValue(task.label),
+      }))
+    : [];
   return {
     ok: true,
     job_id: jobId,
@@ -415,6 +444,16 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
     updated_at_iso: data.updated_at_iso || null,
     created_at_iso: data.created_at_iso || null,
     pipeline_forward: data.pipeline_forward || null,
+    request_summary: {
+      buyer_request_id:
+        stringValue(data.buyer_request_id) || stringValue(jobRequest.buyer_request_id),
+      site_slug: stringValue(data.site_slug) || stringValue(sitePackage.site_slug),
+      site_name: stringValue(sitePackage.site_name),
+      site_type: stringValue(sitePackage.site_type),
+      robot_name: stringValue(robotProfile.robot_name),
+      operation: stringValue(jobRequest.operation) || "evaluate_only",
+      requested_tasks: requestedTasks,
+    },
   };
 }
 
@@ -436,6 +475,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   const buyerUserId = String(
     (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
+  const betaScope = robotEvalBetaScope(submittedJobRequest);
 
   // Beta cohort policy applies to buyer intake exactly like capture intake:
   // a denial must happen before any inbox record, Firestore write, or
@@ -451,6 +491,8 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     : await evaluateBetaCohortGate({
         gate: "robot_eval_request",
         creatorId: buyerUserId || null,
+        market: betaScope.market,
+        siteType: betaScope.siteType,
         source: "robot_eval_job_request_intake",
       });
   if (betaCohortDecision && !betaCohortDecision.allowed) {
@@ -623,6 +665,18 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     );
   }
 
+  if (betaCohortDecision) {
+    await recordBetaCohortAdmission({
+      gate: "robot_eval_request",
+      admissionId: `robot-eval:${jobId}`,
+      decision: betaCohortDecision,
+      creatorId: buyerUserId,
+      market: betaScope.market,
+      siteType: betaScope.siteType,
+      source: "robot_eval_job_request",
+    });
+  }
+
   return res.status(202).json({
     ok: true,
     status: "queued_for_pipeline",
@@ -634,9 +688,8 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   });
 });
 
-// P1-D: buyer-scoped run list. Records are keyed to the buyer by the
-// buyer_user_id field the authenticated POST intake path writes, so the query
-// can only ever return the caller's own job requests.
+// Restore persisted buyer run history without requiring a composite Firestore
+// index. The owner query is bounded; recency ordering happens in application code.
 router.get("/", verifyFirebaseToken, async (_req, res) => {
   if (!db) {
     return res.status(503).json({
@@ -645,37 +698,30 @@ router.get("/", verifyFirebaseToken, async (_req, res) => {
     });
   }
 
-  const callerUid = String(
+  const buyerUserId = String(
     (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
-  if (!callerUid) {
+  if (!buyerUserId) {
     return res.status(401).json({
-      error: "Missing authenticated buyer.",
+      error: "Authenticated buyer identity is required.",
       code: "robot_eval_missing_authenticated_buyer",
     });
   }
 
   const snapshot = await db
     .collection("robotEvalJobRequests")
-    .where("buyer_user_id", "==", callerUid)
+    .where("buyer_user_id", "==", buyerUserId)
     .limit(BUYER_RUN_LIST_LIMIT)
     .get();
-
-  // Sort newest-first in memory (single equality filter keeps the query free
-  // of composite-index requirements).
   const jobRequests = (snapshot.docs || [])
     .map((doc) => buyerRunSummary(doc.id, (doc.data() || {}) as Record<string, unknown>))
-    .sort((a, b) => {
-      const left = a.created_at_iso || "";
-      const right = b.created_at_iso || "";
-      return left < right ? 1 : left > right ? -1 : 0;
+    .sort((left, right) => {
+      const leftTimestamp = String(left.updated_at_iso || left.created_at_iso || "");
+      const rightTimestamp = String(right.updated_at_iso || right.created_at_iso || "");
+      return leftTimestamp < rightTimestamp ? 1 : leftTimestamp > rightTimestamp ? -1 : 0;
     });
 
-  return res.json({
-    ok: true,
-    count: jobRequests.length,
-    job_requests: jobRequests,
-  });
+  return res.json({ ok: true, job_requests: jobRequests, count: jobRequests.length });
 });
 
 // WEB-02: require auth + ownership. Previously unauthenticated, which leaked
@@ -715,9 +761,6 @@ router.get("/:jobId/status", verifyFirebaseToken, async (req, res) => {
     });
   }
 
-  // P1-D: include the stored run summary fields (site/task labels, entitlement
-  // linkage) so the buyer run detail page can render without a second lookup.
-  // statusResponse spreads last so its status/error fallbacks win.
   return res.json({
     ...buyerRunSummary(jobId, data),
     ...statusResponse(jobId, data),

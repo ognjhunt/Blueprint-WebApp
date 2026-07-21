@@ -172,15 +172,11 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Sites (legacy /world-models, redirects to /sites)",
     path: "/world-models",
     canonicalPath: "/sites",
-    expectedHeading: "Pick a captured place.",
+    expectedHeading: "Evaluate where the work happens.",
     requiredCtas: [
-      { label: "Start", hrefStartsWith: "/contact" },
-      { label: "Submit site", hrefStartsWith: "/contact" },
+      { label: "Scope an evaluation", hrefStartsWith: "/contact" },
+      { label: "Capture a site", hrefStartsWith: "/signup/capturer" },
     ],
-    // The readiness filter control's own option list includes "Coming soon"
-    // as one of four honest per-site status labels — not apologetic launch
-    // copy about the product itself.
-    allowedPosturePatterns: ["coming soon"],
   },
   {
     label: "Agents (legacy, redirects to Contact)",
@@ -247,8 +243,8 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/faq",
     expectedHeading: "The questions that usually decide fit.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact/robot-team" },
-      { label: "Browse sample site packages", hrefStartsWith: "/sites" },
+      { label: "Talk to Blueprint about a real site", hrefStartsWith: "/contact/robot-team" },
+      { label: "Browse site packages", hrefStartsWith: "/sites" },
     ],
   },
   {
@@ -351,7 +347,7 @@ This checklist is a repo-owned review template for human or Notion Manager revie
 
 ## Blueprint Doctrine And Claims
 
-- [ ] Capture-first and world-model-product-first language remains visible.
+- [ ] Capture-first, real-site evaluation, and policy-improvement language remains visible.
 - [ ] Qualification, readiness, and review are presented as support layers, not the company center.
 - [ ] Capture provenance, rights, privacy, consent, and commercialization status are not invented.
 - [ ] Sample, planned, request-gated, and live proof states are labeled separately.

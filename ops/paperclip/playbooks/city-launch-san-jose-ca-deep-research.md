@@ -17,7 +17,7 @@ This playbook is not a generic city-growth memo. It is the operating reference f
 
 ## Truth Constraints
 
-- Blueprint is capture-first and world-model-product-first.
+- Blueprint is capture-first and real-site robot-evaluation/data-package first.
 - The active wedge is Exact-Site Hosted Review.
 - Private controlled interiors require explicit authorization before capture dispatch.
 - No public claim may overstate rights, access, proof readiness, or buyer traction.

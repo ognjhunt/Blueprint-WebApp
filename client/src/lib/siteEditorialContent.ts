@@ -1,13 +1,4 @@
-import {
-  siteWorldCards,
-  type SiteWorldCard,
-  type ThumbnailKind,
-} from "@/data/siteWorlds";
-import {
-  COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
-  PUBLIC_SAMPLE_SITE_WORLD_ID,
-  getSiteWorldCatalogPriority,
-} from "@/lib/siteWorldCommercialStatus";
+import type { SiteWorldCard, ThumbnailKind } from "@/data/siteWorlds";
 import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 
 const editorialThumbnailByKind: Record<ThumbnailKind, string> = {
@@ -48,42 +39,18 @@ export function getEditorialSiteLocation(site: SiteWorldCard) {
 }
 
 function sortCatalog(sites: SiteWorldCard[]) {
-  return [...sites].sort((left, right) => {
-    const priorityDelta =
-      getSiteWorldCatalogPriority(left) - getSiteWorldCatalogPriority(right);
-    if (priorityDelta !== 0) return priorityDelta;
-    return left.siteName.localeCompare(right.siteName);
-  });
+  return [...sites].sort((left, right) => left.siteName.localeCompare(right.siteName));
 }
 
 export function getEditorialFeaturedSites(
-  sites: SiteWorldCard[] = siteWorldCards,
+  sites: SiteWorldCard[],
   count = 4,
 ) {
-  const sorted = sortCatalog(sites);
-  const preferredIds = [
-    PUBLIC_SAMPLE_SITE_WORLD_ID,
-    COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
-  ];
-  const chosen: SiteWorldCard[] = [];
-
-  preferredIds.forEach((id) => {
-    const match = sorted.find((site) => site.id === id);
-    if (match) chosen.push(match);
-  });
-
-  sorted.forEach((site) => {
-    if (chosen.length >= count) return;
-    if (!chosen.some((existing) => existing.id === site.id)) {
-      chosen.push(site);
-    }
-  });
-
-  return chosen.slice(0, count);
+  return sortCatalog(sites).slice(0, count);
 }
 
 export function getEditorialMoreSites(
-  sites: SiteWorldCard[] = siteWorldCards,
+  sites: SiteWorldCard[],
   count = 5,
   excludeIds: string[] = [],
 ) {

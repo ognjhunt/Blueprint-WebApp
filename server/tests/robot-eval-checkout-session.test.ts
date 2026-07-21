@@ -21,6 +21,27 @@ const stripeState = vi.hoisted(() => ({
   sessionCreates: [] as Array<Record<string, unknown>>,
 }));
 
+const siteWorldState = vi.hoisted(() => ({
+  records: new Map<string, Record<string, unknown>>(),
+}));
+
+function pipelineSiteRecord(id: string, ready = true) {
+  return {
+    id,
+    siteName: `Pipeline site ${id}`,
+    siteSubmissionId: `submission-${id}`,
+    captureId: `capture-${id}`,
+    dataSource: "pipeline",
+    evaluationReadiness: {
+      robot_eval_dataset_summary: { ready_to_evaluate_publishable: ready },
+    },
+  };
+}
+
+vi.mock("../utils/site-worlds", () => ({
+  getPublicSiteWorldById: async (id: string) => siteWorldState.records.get(id) || null,
+}));
+
 function buildQuery(
   name: string,
   filters: Array<{ field: string; value: unknown }> = [],
@@ -217,12 +238,14 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_BASE_URL", "http://localhost:5173");
   vi.stubEnv("BLUEPRINT_BETA_INVITE_CAP", "10");
   vi.stubEnv("BLUEPRINT_BETA_COHORT_DAILY_LIMIT", "10");
+  siteWorldState.records.set("sw-chi-01", pipelineSiteRecord("sw-chi-01"));
 });
 
 afterEach(() => {
   firestoreState.collectionDocData = {};
   firestoreState.collectionWrites = [];
   stripeState.sessionCreates = [];
+  siteWorldState.records.clear();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.resetModules();
@@ -246,11 +269,11 @@ describe("robot-eval-run checkout session", () => {
   });
 
   it("rejects unknown sites and sites without a publication-ready eval package", async () => {
-    const { siteLibrarySites } = await import("../../client/src/data/siteLibrary");
-    const unpublishedSite = siteLibrarySites.find(
-      (site) => !site.robotEvalPublication?.readyToEvaluatePublishable,
+    const unpublishedSiteSlug = "pipeline-site-not-ready";
+    siteWorldState.records.set(
+      unpublishedSiteSlug,
+      pipelineSiteRecord(unpublishedSiteSlug, false),
     );
-    expect(unpublishedSite).toBeTruthy();
 
     const route = await startCheckoutRoute();
     try {
@@ -262,7 +285,7 @@ describe("robot-eval-run checkout session", () => {
 
       const notReady = await postCheckout(route, {
         sessionType: "robot-eval-run",
-        robotEvalRun: { siteSlug: unpublishedSite?.slug },
+        robotEvalRun: { siteSlug: unpublishedSiteSlug },
       });
       expect(notReady.response.status).toBe(409);
 
@@ -292,28 +315,33 @@ describe("robot-eval-run checkout session", () => {
     }
   });
 
-  it("creates a catalog-priced order + checkout session whose paid webhook provisions an entitlement the job-request route accepts", async () => {
-    const { siteLibrarySites } = await import("../../client/src/data/siteLibrary");
-    const { premiumCapabilities } = await import("../../client/src/data/content");
-    const site = siteLibrarySites.find(
-      (candidate) =>
-        candidate.robotEvalPublication?.readyToEvaluatePublishable &&
-        candidate.defaultRobotEvalSelection,
+  it("creates a server-priced order + checkout session whose paid webhook provisions an entitlement the job-request route accepts", async () => {
+    const { ROBOT_EVAL_RUN_PRICE_USD: catalogPrice } = await import(
+      "../routes/api/create-checkout-session"
     );
-    expect(site).toBeTruthy();
-    if (!site) {
-      return;
-    }
-    const catalogPrice = premiumCapabilities.find(
-      (capability) => capability.slug === "policy-benchmarking",
-    )?.price;
-    expect(typeof catalogPrice).toBe("number");
+    const siteSlug = "pipeline-site-ready";
+    const site = {
+      slug: siteSlug,
+      name: "Pipeline-backed test site",
+      captureLineage: {
+        siteSubmissionId: `site-submission-${siteSlug}`,
+        captureJobId: `capture-job-${siteSlug}`,
+        captureId: `capture-${siteSlug}`,
+      },
+      defaultRobotEvalSelection: {
+        taskId: "walk_to_target",
+        scenarioId: "scenario_walk_to_target",
+        robotProfileId: "mobile_manipulator_rgb_v1",
+        policyId: "policy-api-fixture",
+      },
+    };
+    siteWorldState.records.set(siteSlug, pipelineSiteRecord(siteSlug));
 
     const route = await startCheckoutRoute();
     try {
       const { response, payload } = await postCheckout(route, {
         sessionType: "robot-eval-run",
-        robotEvalRun: { siteSlug: site.slug },
+        robotEvalRun: { siteSlug },
       });
 
       expect(response.status).toBe(200);

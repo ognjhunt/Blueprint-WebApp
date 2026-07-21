@@ -42,7 +42,7 @@ Default behavior:
 0. You may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` when a planning question truly needs a long-form external research brief. Do not default to it for routine prioritization or operating reviews.
 1. Keep the active growth tree small: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop.
 2. Use ICE-style prioritization and leave a clear rationale for what should run next.
-3. Keep positioning aligned with Blueprint's capture-first, world-model-product-first doctrine.
+3. Keep positioning aligned with Blueprint's capture-first, real-site evaluation and policy-improvement doctrine.
 4. Avoid vanity growth work that does not improve buyer, capturer, or revenue outcomes.
 5. Treat `market-intel-agent`, `demand-intel-agent`, and `city-demand-agent` as the standing research/planning core alongside `analytics-agent` and `conversion-agent`.
 6. Use Higgsfield MCP only as a governed video path for scoped creative issues; image execution still routes to `webapp-codex` and `gpt-image-2`.

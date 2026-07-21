@@ -11,8 +11,18 @@ import {
 } from "@/components/blueprint/app/BuyerAppStates";
 import { EntitlementAccessTable } from "@/components/blueprint/app/EntitlementAccessTable";
 import { useBuyerAppEntitlements } from "@/lib/buyerAppData";
+import { useAuth } from "@/contexts/AuthContext";
+import OperatorOverview from "./OperatorOverview";
 
 export default function Overview() {
+  const { userData } = useAuth();
+  if (userData?.buyerType === "site_operator") {
+    return <OperatorOverview />;
+  }
+  return <BuyerOverview />;
+}
+
+function BuyerOverview() {
   const {
     entitlements,
     provisionedEntitlements,

@@ -18,21 +18,32 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     },
   },
   dbAdmin: {
-    collection: (name: string) => ({
-      doc: (id: string) => ({
-        get: async () => ({
-          exists: name === "robotEvalJobRequests" && state.docs.has(id),
-          data: () => state.docs.get(id),
+    collection: (name: string) => {
+      const matchingDocs = (field: string, value: unknown) =>
+        [...state.docs.entries()]
+          .filter(([, data]) => name === "robotEvalJobRequests" && data[field] === value)
+          .map(([id, data]) => ({ id, data: () => data }));
+      return {
+        doc: (id: string) => ({
+          get: async () => ({
+            exists: name === "robotEvalJobRequests" && state.docs.has(id),
+            data: () => state.docs.get(id),
+          }),
+          set: async (payload: Record<string, unknown>, options?: { merge?: boolean }) => {
+            if (name !== "robotEvalJobRequests") return;
+            state.docs.set(id, {
+              ...(options?.merge ? state.docs.get(id) || {} : {}),
+              ...payload,
+            });
+          },
         }),
-        set: async (payload: Record<string, unknown>, options?: { merge?: boolean }) => {
-          if (name !== "robotEvalJobRequests") return;
-          state.docs.set(id, {
-            ...(options?.merge ? state.docs.get(id) || {} : {}),
-            ...payload,
-          });
-        },
-      }),
-    }),
+        where: (field: string, _operator: string, value: unknown) => ({
+          limit: (limit: number) => ({
+            get: async () => ({ docs: matchingDocs(field, value).slice(0, limit) }),
+          }),
+        }),
+      };
+    },
   },
   // WEB-02: verifyFirebaseToken needs authAdmin. Treat the Bearer token as the uid;
   // "invalid" throws (rejected token). admin uid grants the admin bypass.
@@ -87,6 +98,52 @@ afterEach(() => {
 });
 
 describe("robot eval job request status routes", () => {
+  it("lists only the authenticated buyer's persisted runs in recency order", async () => {
+    state.docs.set("older-run", {
+      status: "queued_for_pipeline",
+      buyer_user_id: "buyer-1",
+      buyer_request_id: "request-older",
+      site_slug: "owned-site",
+      created_at_iso: "2026-07-01T00:00:00.000Z",
+      jobRequest: {
+        site_package: { site_name: "Owned site" },
+        requested_tasks: [{ task_id: "task-1", label: "Inspect aisle" }],
+      },
+    });
+    state.docs.set("newer-run", {
+      status: "completed",
+      buyer_user_id: "buyer-1",
+      updated_at_iso: "2026-07-03T00:00:00.000Z",
+    });
+    state.docs.set("another-buyers-run", {
+      status: "completed",
+      buyer_user_id: "buyer-2",
+      updated_at_iso: "2026-07-04T00:00:00.000Z",
+    });
+    const { server, baseUrl } = await startRoute();
+
+    try {
+      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests`, {
+        headers: { Authorization: "Bearer buyer-1" },
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        ok: true,
+        count: 2,
+        job_requests: [
+          expect.objectContaining({ job_id: "newer-run", status: "completed" }),
+          expect.objectContaining({
+            job_id: "older-run",
+            site_slug: "owned-site",
+            status: "queued_for_pipeline",
+          }),
+        ],
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("returns job status to the owning buyer (authenticated)", async () => {
     state.docs.set("job-1", {
       status: "queued_for_pipeline",

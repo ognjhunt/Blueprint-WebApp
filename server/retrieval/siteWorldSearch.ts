@@ -85,7 +85,7 @@ export type SiteWorldSearchResponse = {
   requestCandidate: SiteWorldSearchRequestCandidate | null;
   warnings: string[];
   meta: {
-    backend: "firestore-live" | "static-fallback";
+    backend: "firestore-live";
     embeddingModel: string;
     usedEmbeddings: boolean;
     totalCandidates: number;
@@ -430,10 +430,8 @@ function extractAddressParts(siteAddress: string) {
 }
 
 function availabilityForSite(site: SiteWorldCard) {
-  if (site.id === "siteworld-f5fd54898cfb") return "public_demo_sample";
-  if (site.id === "sw-chi-01") return "request_reviewed_exemplar";
   if (site.dataSource === "pipeline") return "pipeline_backed_request_scoped";
-  return "planned_catalog_profile";
+  return "unverified_source";
 }
 
 function readinessForSite(site: SiteWorldCard) {
@@ -794,12 +792,6 @@ function scoreStructuredSignals(candidate: SiteWorldSearchCandidate, parsed: Ret
     reasons.push("Pipeline-backed public record");
     matchedFields.push("availability");
   }
-  if (site.id === "sw-chi-01") {
-    score += 0.015;
-    reasons.push("Request-reviewed exemplar listing");
-    matchedFields.push("availability");
-  }
-
   return {
     score,
     reasons,
@@ -980,8 +972,6 @@ function sortResults(results: SiteWorldSearchResult[], sort: SiteWorldSearchSort
   const copy = results.slice();
   const availabilityRank = (value: string) => {
     if (value === "pipeline_backed_request_scoped") return 4;
-    if (value === "request_reviewed_exemplar") return 3;
-    if (value === "public_demo_sample") return 2;
     return 1;
   };
   const readinessRank = (site: SiteWorldCard) => {
@@ -1162,7 +1152,7 @@ export async function searchPublicSiteWorlds(params: {
     requestCandidate,
     warnings,
     meta: {
-      backend: sites.some((site) => site.dataSource === "pipeline") ? "firestore-live" : "static-fallback",
+      backend: "firestore-live",
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
       usedEmbeddings,
       totalCandidates: candidates.length,

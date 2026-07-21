@@ -11,44 +11,44 @@ import { ArrowRight } from "lucide-react";
 
 const faqs = [
   {
-    question: "What does Blueprint actually sell?",
+    question: "What does Blueprint sell?",
     answer:
-      "Two things. Task Evaluation Runs rank robot policies on a real captured site against your task suite and thresholds, before you spend field time. Policy Improvement Runs are a sim-only loop that works the dominant failure modes the evaluation surfaced — twin/cousin scenarios, curriculum, sealed scenario tests, and an evidence report.",
+      "Blueprint sells capture-backed Task Evaluation Runs, Policy Improvement Runs, and provenance-checked data packages for real-site robot workflows. World models and simulation are supporting tools inside those deliverables, not the primary offer or ground truth.",
   },
   {
-    question: "What is a task pack?",
+    question: "What does a Task Evaluation Run return?",
     answer:
-      "The tasks, start states, and success thresholds every policy runs against on one captured site. Same site, same task, same thresholds — that is what makes the comparison fair.",
+      "A scoped comparison for the same site, task, robot profile, and policy set: episode metrics, policy ordering, failure clusters, uncertainty and missing-proof labels, plus review-support media. It is an estimate inside that envelope, not a deployment guarantee.",
   },
   {
-    question: "What does a buyer actually receive?",
+    question: "What is a Policy Improvement Run?",
     answer:
-      "A ranked comparison with failure clusters and review media, plus the site package behind it: walkthrough media, timestamps, poses, site notes, available geometry, and the rights, privacy, and provenance metadata that travel with every export.",
+      "Blueprint turns evaluation failures into a request-scoped improvement package: prioritized failure clusters, scenario or curriculum recommendations, and a sealed regression set. If your team exposes an approved trainable adapter, controller, reward, or fine-tuning path, the scope can also include an improved policy artifact; source-code access is not always required.",
   },
   {
-    question: "Do we have to hand over our policy weights?",
+    question: "Is the published 0.929 correlation a Blueprint result?",
     answer:
-      "No. Evaluation and improvement are source-access optional: black-box runs work through an API endpoint, container, private-cloud runner, sim plugin, or action traces. An improved policy artifact is delivered only when you expose a trainable surface such as adapter hooks, a task head, a fine-tuning API, or a policy wrapper.",
+      "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites that third-party research as category context; a Blueprint result exists only when a specific owned run records its own evidence.",
   },
   {
-    question: "Is a ranking a deployment guarantee?",
+    question: "Are the sites page and run dashboard filled with samples?",
     answer:
-      "No. A run reports an estimate of rank fidelity inside the matched robot, task, and site envelope. It grounds the pilot decision earlier — it does not replace safety review, stack-specific validation, or on-site signoff.",
+      "No. Public site cards come only from current Pipeline-backed capture records, and the buyer run dashboard lists only records owned by the signed-in buyer. When no record exists, the interface shows an empty request path instead of invented supply or analytics.",
   },
   {
-    question: "Are the sites in the public library real customer sites?",
+    question: "What if the exact site is not publicly listed?",
     answer:
-      "The public library shows sample site packages with representative names — not live operator supply. Your run is scoped to a real captured site confirmed at request time, and real customer results are shown only after approval.",
+      "Tell Blueprint the facility type, workflow, access window, and robot question. Blueprint can scope a new capture with the operator or review private inventory without implying that access, rights, or city coverage already exists.",
   },
   {
-    question: "What if the exact site we care about is not listed?",
+    question: "How do capturers and site operators participate?",
     answer:
-      "The library is the starting point, not the inventory. Tell us the place, workflow, and robot question that matter — new sites enter supply through a capture and rights review.",
+      "Capturers apply for reviewed assignments and see payout terms before work begins. Site operators define access, privacy, restricted areas, rights, and commercial posture. No application, capture, payout, or downstream use is treated as approved until the system that owns that state records it.",
   },
   {
-    question: "How do capturers and site operators fit in?",
+    question: "Does a purchase prove execution or deployment readiness?",
     answer:
-      "Capturers are paid to record approved routes in real facilities, and site operators keep control of access, privacy, and commercialization, earning revenue share set in the rights packet before any buyer use.",
+      "No. Payment, entitlement, queued execution, simulator output, ranking evidence, and field validation are separate states. Blueprint reports each boundary separately and never promotes checkout or startup into a successful run claim.",
   },
 ];
 
@@ -57,14 +57,14 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Straight answers about Task Evaluation Runs, Policy Improvement Runs, task packs, proof boundaries, black-box policy access, and how to start."
+        description="Straight answers about Blueprint evaluation runs, policy improvement, real-site supply, proof boundaries, and how to start."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
             name: "Blueprint FAQ",
             description:
-              "Questions and answers about Task Evaluation Runs, Policy Improvement Runs, site packages, proof boundaries, and buyer next steps.",
+              "Questions and answers about Blueprint evaluation runs, policy improvement, real-site supply, proof boundaries, and buyer next steps.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -99,14 +99,14 @@ export default function FAQ() {
                     href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=faq-hero"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Request evaluation
+                    Talk to Blueprint about a real site
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
                     href="/sites"
                     className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
-                    Browse sample site packages
+                    Browse site packages
                   </a>
                 </div>
                 </div>
@@ -131,7 +131,7 @@ export default function FAQ() {
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
             primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=faq-bottom"
-            primaryLabel="Request evaluation"
+            primaryLabel="Talk to Blueprint about a real site"
             dark
           />
         </section>

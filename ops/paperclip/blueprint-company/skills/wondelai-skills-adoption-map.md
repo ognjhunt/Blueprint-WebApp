@@ -8,7 +8,7 @@ This repo is vendored as source material only. Do not bind its upstream `SKILL.m
 
 Use Blueprint wrapper skills so the imported frameworks stay aligned with:
 
-- capture-first, world-model-product-first doctrine
+- capture-first, real-site evaluation and policy-improvement doctrine
 - exact-site package and hosted-review truth
 - Paperclip-as-work-record execution
 - no invented traction, guarantees, supply, or capability

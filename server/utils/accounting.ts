@@ -3,6 +3,10 @@ import crypto from "crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { entitlementTermForOrderItem } from "./entitlementExpiry";
 import { stripeLedgerJournalTxWriter } from "./stripeLedgerJournal";
+import {
+  dispatchCreatorPayoutSettlementNotifications,
+  dispatchTransactionalNotification,
+} from "./transactional-notifications";
 
 const BUYER_ORDER_COLLECTION = "buyerOrders";
 const BUYER_ENTITLEMENT_COLLECTION = "marketplaceEntitlements";
@@ -1839,6 +1843,64 @@ export function summarizeCreatorEarnings(
   };
 }
 
+function captureRejectionReason(params: {
+  qualificationState: string | null;
+  recommendation: Record<string, unknown>;
+}): string | null {
+  const statusFields = [
+    "capture_status",
+    "captureStatus",
+    "capture_verdict",
+    "captureVerdict",
+    "quality_status",
+    "qualityStatus",
+    "status",
+    "verdict",
+  ];
+  const statuses = statusFields
+    .map((field) => (asString(params.recommendation[field]) || "").toLowerCase())
+    .filter(Boolean);
+  const rejectedStatus = statuses.find((status) =>
+    [
+      "rejected",
+      "failed",
+      "blocked",
+      "needs_recapture",
+      "needs_fix",
+      "not_ready",
+      "not_ready_yet",
+      "processing_failed",
+      "upload_rejected",
+    ].includes(status),
+  );
+  const qualificationState = (params.qualificationState || "").trim().toLowerCase();
+  const qualificationRejected =
+    qualificationState === "needs_refresh" ||
+    qualificationState === "not_ready_yet" ||
+    qualificationState === "blocked";
+  const recaptureRequired =
+    params.recommendation.recapture_required === true ||
+    params.recommendation.recaptureRequired === true;
+
+  if (!rejectedStatus && !qualificationRejected && !recaptureRequired) {
+    return null;
+  }
+
+  return (
+    firstStringField(params.recommendation, [
+      "rejection_reason",
+      "rejectionReason",
+      "failure_reason",
+      "failureReason",
+      "reason",
+      "summary",
+    ]) ||
+    (recaptureRequired
+      ? "Pipeline review requires recapture before this submission can be accepted."
+      : "Pipeline review could not accept this capture as submitted.")
+  );
+}
+
 export async function upsertCreatorPayoutFromPipeline(params: {
   captureId: string;
   sceneId: string | null;
@@ -1872,6 +1934,10 @@ export async function upsertCreatorPayoutFromPipeline(params: {
   const isQualifiedReady = READY_QUALIFICATION_STATES.has(
     (params.qualificationState || "").trim(),
   );
+  const rejectedReason = captureRejectionReason({
+    qualificationState: params.qualificationState,
+    recommendation: params.recommendation,
+  });
   const requiresFundingCheck =
     isQualifiedReady && recommendationStatus !== "review_required" && basePayoutCents > 0;
   const funding = requiresFundingCheck
@@ -2022,14 +2088,56 @@ export async function upsertCreatorPayoutFromPipeline(params: {
     await updateCreatorCaptureProjection({
       captureId: params.captureId,
       creatorId,
-      status: "under_review",
+      status: rejectedReason ? "needs_recapture" : "under_review",
       estimatedPayoutCents: basePayoutCents,
     });
     await updateCaptureSubmissionProjection({
       captureId: params.captureId,
       creatorId,
-      status: "under_review",
+      status: rejectedReason ? "needs_recapture" : "under_review",
       payoutCents: basePayoutCents,
+    });
+  }
+
+  if (nextStatus === "approved") {
+    await dispatchTransactionalNotification({
+      eventType: "capture_accepted",
+      recipientType: "creator",
+      recipientUserId: creatorId,
+      subjectId: params.captureId,
+      sourceEventId: `capture:${params.captureId}:accepted:${payload.approved_at || payload.updated_at}`,
+      sourceCollection: CREATOR_PAYOUT_COLLECTION,
+      sourceDocId: params.captureId,
+      title: "Capture accepted",
+      body: `Capture ${params.captureId} passed review and is moving through payout handling.`,
+      emailSubject: "Your Blueprint capture was accepted",
+      emailText: `Capture ${params.captureId} passed review and is moving through payout handling.`,
+      preferenceKey: "capture_status",
+      data: {
+        capture_id: params.captureId,
+        payout_status: nextStatus,
+        approved_amount_cents: basePayoutCents,
+      },
+    });
+  } else if (rejectedReason) {
+    await dispatchTransactionalNotification({
+      eventType: "capture_rejected",
+      recipientType: "creator",
+      recipientUserId: creatorId,
+      subjectId: params.captureId,
+      sourceEventId: `capture:${params.captureId}:rejected:${payload.updated_at}`,
+      sourceCollection: CREATOR_PAYOUT_COLLECTION,
+      sourceDocId: params.captureId,
+      title: "Capture needs attention",
+      body: rejectedReason,
+      emailSubject: "Your Blueprint capture needs attention",
+      emailText: rejectedReason,
+      preferenceKey: "capture_status",
+      data: {
+        capture_id: params.captureId,
+        payout_status: nextStatus,
+        qualification_state: params.qualificationState || "",
+      },
     });
   }
 
@@ -2659,6 +2767,14 @@ export async function applyCreatorPayoutWebhook(params: {
       });
     }
   }
+
+  await dispatchCreatorPayoutSettlementNotifications({
+    disbursementId: disbursement.id,
+    status: params.status,
+    stripePayoutId: params.stripePayoutId,
+    sourceEventId: params.eventId,
+    failureReason: params.failureReason || null,
+  });
 
   return disbursement.id;
 }

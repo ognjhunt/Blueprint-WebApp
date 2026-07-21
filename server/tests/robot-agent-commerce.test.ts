@@ -1,8 +1,16 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
+
+vi.mock("../utils/accounting", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/accounting")>();
+  return {
+    ...actual,
+    fetchBuyerOrder: vi.fn(async () => null),
+  };
+});
 
 async function startServer() {
   const { default: router } = await import("../routes/agent-access");
@@ -44,9 +52,6 @@ describe("robot agent dry-run commerce", () => {
       await expect(response.json()).resolves.toMatchObject({
         preferredTool: "blueprint.siteWorld.search",
         compatibilityTool: "blueprint.catalog.search",
-        publicDemo: {
-          canRunWithoutCredentials: true,
-        },
         dryRunCommerce: {
           liveStripeTouched: false,
           endpoints: expect.objectContaining({

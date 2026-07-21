@@ -65,15 +65,14 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(searchOperation)).toContain("does not grant hosted-session access");
   });
 
-  it("keeps protected write endpoints behind bearer auth while documenting public demo eligibility", () => {
+  it("keeps hosted-session write endpoints behind bearer auth", () => {
     const contract = buildRobotAgentOpenApiContract();
     const createOperation = contract.paths["/api/site-worlds/sessions"].post;
     const protectedOperation = contract.paths["/api/site-worlds/sessions/{sessionId}/reset"].post;
 
-    expect(createOperation.security).toContainEqual({ BlueprintBearer: [] });
-    expect(createOperation["x-blueprint-public-demo"]).toBe(true);
+    expect(createOperation.security).toEqual([{ BlueprintBearer: [] }]);
+    expect(createOperation).not.toHaveProperty("x-blueprint-public-demo");
     expect(protectedOperation.security).toEqual([{ BlueprintBearer: [] }]);
-    expect(JSON.stringify(contract)).toContain("public_demo_eligible");
     expect(JSON.stringify(contract)).toContain("capture_grounded");
     expect(JSON.stringify(contract)).toContain("provider_derived");
   });
@@ -110,22 +109,21 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(contract.components.schemas.AgentLiveCheckoutBlocker)).toContain("budget_exceeded");
   });
 
-  it("documents the credential-free discovery/search/mock-demo path and all truth labels", () => {
+  it("documents credential-free discovery/search and protected hosted-session boundaries", () => {
     const contract = buildRobotAgentOpenApiContract();
     const discoveryOperation = contract.paths["/api/agent-access"].get;
 
     expect(discoveryOperation.security).toEqual([{}]);
     expect(discoveryOperation.operationId).toBe("discoverAgentAccess");
     expect(JSON.stringify(discoveryOperation)).toContain("blueprint.siteWorld.search");
-    expect(JSON.stringify(discoveryOperation)).toContain("without credentials");
-    expect(JSON.stringify(contract.components.schemas.AgentAccessManifest)).toContain("publicDemo");
+    expect(JSON.stringify(discoveryOperation)).toContain("Credential-free discovery manifest");
+    expect(JSON.stringify(contract.paths["/api/site-worlds/sessions"].post)).toContain("provisioned entitlement");
+    expect(JSON.stringify(contract.components.schemas.AgentAccessManifest)).not.toContain("publicDemo");
     expect(JSON.stringify(contract.components.schemas.AgentAccessManifest)).toContain("credentiallessWorkflow");
     expect(contract["x-blueprint-truth-labels"]).toEqual([
       "capture_grounded",
       "provider_derived",
       "generated",
-      "sample_demo",
-      "public_demo_eligible",
       "request_gated",
       "protected_robot_team",
       "dry_run_order",

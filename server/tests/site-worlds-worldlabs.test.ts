@@ -192,7 +192,7 @@ describe("live site-world World Labs projection", () => {
     );
   });
 
-  it("prefers a live pipeline-backed record over the static demo entry", async () => {
+  it("resolves the former demo capture only through its live Pipeline-backed identity", async () => {
     state.storagePayloads.clear();
     state.docs = [
       {
@@ -246,7 +246,9 @@ describe("live site-world World Labs projection", () => {
       }),
     );
 
-    const record = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
+    const record = await getPublicSiteWorldById(
+      "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+    );
 
     expect(record?.dataSource).toBe("pipeline");
     expect(record?.worldLabsPreview).toMatchObject({

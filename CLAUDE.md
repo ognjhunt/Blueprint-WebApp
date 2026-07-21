@@ -14,7 +14,8 @@ Read first:
 
 Key rules:
 
-- Keep copy and UX aligned with capture-first, real-site robot-evaluation/policy-improvement-first positioning (per `PLATFORM_CONTEXT.md`; world models are support substrates, not the primary public offer).
+- Keep copy and UX capture-first and real-site robot-evaluation/data-package first.
+- Treat world models as internal compatibility, generation/editing/augmentation, or advisory support inside data packages—not the primary public offer or ground truth.
 - Treat provenance, rights, privacy, and hosted access as first-class product truths.
 - Do not make qualification or one model backend the core story.
 - Avoid fake supply, fake readiness, or fabricated operational states.
@@ -47,9 +48,9 @@ npm run test:e2e
 
 ## graphify
 
-This project has a graphify knowledge graph at graphify-out/.
+This project publishes its canonical graphify knowledge graph at `graphify-out/` and stages generation inputs under `derived/graphify/webapp-architecture/corpus/graphify-out/`.
 
 Rules:
-- graphify-out/ is generated and gitignored; on a fresh clone it will be absent. If present, read graphify-out/GRAPH_REPORT.md for god nodes and community structure before answering architecture or codebase questions; if absent, generate it with `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` or proceed without it
+- Before answering architecture or codebase questions, read `graphify-out/GRAPH_REPORT.md` when present; otherwise read the staged derived report and generate the canonical graph if needed
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` to refresh the staged architecture pilot and publish the canonical root `graphify-out/` outputs

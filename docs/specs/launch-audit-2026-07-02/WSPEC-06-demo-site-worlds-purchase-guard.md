@@ -1,10 +1,13 @@
 # WSPEC-06: Demo site-worlds can never be purchasable in production
 
-- Status: Proposed
+- Status: Superseded by deletion (2026-07-20)
 - Priority: **P1 — major** (doctrine: no fake supply for sale)
 - Area: `server/routes/api/create-checkout-session.ts`
 
 ## Problem
+
+The static marketplace catalog and its checkout mode were removed. This file is
+retained as historical context; none of the paths or flags below remain active.
 
 `create-checkout-session.ts:187-188`:
 

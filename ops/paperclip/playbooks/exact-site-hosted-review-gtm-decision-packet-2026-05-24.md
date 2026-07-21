@@ -21,7 +21,7 @@ Recommended change: narrow the first decision batch to structured-facility workf
 
 Recommended CTA: "Reply with the one workflow lane your team would want captured and hosted first; if the labeled sample is useful, inspect it as proof shape only."
 
-This changes ICP, artifact, and CTA instead of extending the same 14-day motion by default. It preserves the product doctrine: capture-first, world-model-product-first, and no claim that demand-sourced rows already have hosted reviews.
+This changes ICP, artifact, and CTA instead of extending the same 14-day motion by default. It preserves the product doctrine: capture-first, real-site robot-evaluation/data-package first, and no claim that demand-sourced rows already have hosted reviews.
 
 ## Proof State
 

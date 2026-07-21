@@ -16,7 +16,7 @@ Each run must:
 - use `blueprint-scan-work` when repo or automation state may have changed since the last meaningful check
 - create, update, close, reprioritize, or reassign real Paperclip issues instead of narrating
 - create blocker follow-up issues only when there is a real dependency or new owner to route
-- keep work aligned with Blueprint's capture-first, world-model-product-first, provenance-truthful doctrine
+- keep work aligned with Blueprint's capture-first, real-site evaluation/policy-improvement, provenance-truthful doctrine
 - reduce founder coordination load without crossing human gates for strategy, budget, rights/privacy, commercialization, legal, or policy decisions
 - batch normal founder visibility into the existing founder morning/accountability/EoD/Friday/gaps routines instead of sending extra founder-facing summaries from this loop
 - leave the queue cleaner, clearer, and more truthful than it was at the start of the cycle

@@ -59,15 +59,9 @@ Analytics Daily Snapshot 2026-04-29: GA4 and Firehose Still Unavailable, Stripe 
 
 ## Recommended Follow-up
 
-<<<<<<< HEAD
-- Restore Firehose bridge credentials or an approved alternate source so external demand and operator signals can be reconciled.
-- Rerun Analytics Daily after those feeds return and keep any city-level readiness claim blocked until live source truth is available.
-- Add a focused regression test around the recently corrected E2E route and selector path so the fix survives the next UI refactor. (Update analytics snapshot: GA4 available, Firehose/Stripe pending, add report content)
-=======
-- Restore GA4 measurement configuration and Firehose bridge credentials or an approved alternate source so behavioral and external demand signals can be reconciled.
-- Keep city-level readiness claims blocked until GA4 and Firehose feeds return and live source truth is available.
-- Rerun Analytics Daily after the missing feeds are restored to complete full KPI closeout.
->>>>>>> 533ec467 (Resolve local worktree drift: update analytics snapshot and other files)
+- Restore the missing analytics source integrations or approved alternatives so behavioral, external-demand, and operator signals can be reconciled.
+- Keep city-level readiness claims blocked until the required feeds return and live source truth is available.
+- Rerun Analytics Daily after the missing feeds are restored to complete the KPI closeout.
 
 ## Linked KB Pages
 

@@ -44,7 +44,7 @@ const definitions = [
       "A fixed-scope 100 or 500 episode evaluation run for 1-3 policies or checkpoints against one captured real-site task pack. It ranks candidates for review and does not claim deployment proof, off-scope validation, or guaranteed outcomes.",
   },
   {
-    term: "Validated Evaluation Pack",
+    term: "Provenance-checked Evaluation Package",
     definition:
       "A buyer-facing pack that can attach owner-system rollout evidence and envelope-scoped correlation metrics when those artifacts exist for the matched evaluation scope. The pack reports scoped correlation signals and proof limits; it does not claim universal SRCC, off-scope validation, generated-world policy-ranking proof, or guaranteed field outcomes.",
   },
@@ -124,7 +124,25 @@ const pages = [
     path: "/proof",
     title: "Proof",
     description:
-      "Short proof explainer: website samples, request packets, and real robot validation stay separate.",
+      "Short proof explainer: third-party research, request packets, owner-system run evidence, and real robot validation stay separate.",
+  },
+  {
+    path: "/how-it-works",
+    title: "How It Works",
+    description:
+      "Capture-first workflow for Policy Evaluation Runs, Policy Improvement Runs, package delivery, and explicit proof boundaries.",
+  },
+  {
+    path: "/faq",
+    title: "FAQ",
+    description:
+      "Plain-language answers about capture provenance, evaluation scope, pricing, rights, generated media, and the third-party SC3-Eval correlation reference.",
+  },
+  {
+    path: "/capture",
+    title: "Capture for Blueprint",
+    description:
+      "Capturer application, launch-city availability, field workflow, review state, and payout setup boundaries.",
   },
   {
     path: "/pricing",
@@ -169,7 +187,7 @@ const queryThemes = [
   "WAM VLA evaluator backends",
   "100 episode Policy Evaluation Run",
   "500 episode Policy Evaluation Run",
-  "Validated Evaluation Pack with owner-system evidence when available",
+  "Provenance-checked evaluation package with owner-system evidence when available",
   "envelope scoped correlation metrics robot evaluation",
   "robot team test submission interface",
   "policy API endpoint Docker container robot eval",
@@ -200,6 +218,7 @@ const privateOrNoindex = [
   "/site-worlds/*",
   "/agents",
   "/sample-deliverables",
+  "/launch-map",
   "/updates",
   "/careers",
   "/help",

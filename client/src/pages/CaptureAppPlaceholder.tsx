@@ -12,11 +12,22 @@ import {
 } from "@/components/site/privateSurface";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-import {
-  publicCaptureLocationTypes,
-  publicCaptureProofStories,
-} from "@/lib/proofEvidence";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+
+const captureLocationTypes = [
+  {
+    label: "Retail and service spaces",
+    detail: "Public-facing aisles, counters, and customer routes when an approved assignment is open.",
+  },
+  {
+    label: "Lobbies and common areas",
+    detail: "Lawfully accessible shared routes with assignment-specific privacy and access rules.",
+  },
+  {
+    label: "Venues and corridors",
+    detail: "Approved navigation paths captured only within the boundaries shown before the walk begins.",
+  },
+] as const;
 
 const steps = [
   {
@@ -427,7 +438,7 @@ export default function CaptureAppPlaceholder() {
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {publicCaptureLocationTypes.map((item) => (
+                  {captureLocationTypes.map((item) => (
                     <div key={item.label} className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-4">
                       <p className="text-sm font-semibold text-[#111110]">{item.label}</p>
                       <p className="mt-2 text-sm leading-6 text-black/60">{item.detail}</p>
@@ -436,17 +447,6 @@ export default function CaptureAppPlaceholder() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 lg:grid-cols-4">
-                {publicCaptureProofStories.map((story) => (
-                  <div key={story.id} className="rounded-[1.35rem] border border-black/10 bg-white p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
-                      {story.city}
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-[#111110]">{story.locationName}</p>
-                    <p className="mt-2 text-sm leading-6 text-black/60">{story.captureAppCue}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </SurfaceBrowserFrame>
         </SurfaceSection>

@@ -17,10 +17,6 @@ vi.mock('@/lib/firebase', () => ({
 vi.mock('@/lib/client-env', () => ({
   getGoogleMapsApiKey: () => getGoogleMapsApiKeyMock(),
 }));
-vi.mock('uuid', () => ({
-  v4: vi.fn().mockReturnValue('mock-uuid-token'),
-}));
-
 describe('ContactForm', () => {
   const fillForm = (data: {
     name?: string;

@@ -9,7 +9,7 @@ describe("ForSiteOperators", () => {
     expect(screen.getAllByText(/^For Site Operators$/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
-        name: /Earn from your facility\. Keep control of it\./i,
+        name: /Supply a real site without losing the boundary\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /From a facility to a controlled supply site\./i })).toBeInTheDocument();

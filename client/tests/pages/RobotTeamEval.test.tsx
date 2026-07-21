@@ -2,23 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import RobotTeamEval from "@/pages/RobotTeamEval";
 
-const setLocationMock = vi.fn();
-const { authMock } = vi.hoisted(() => ({
-  authMock: {
-    currentUser: {
-      getIdToken: vi.fn(async () => "token-1"),
-    },
-  },
-}));
-
-vi.mock("wouter", async () => {
-  const actual = await vi.importActual<typeof import("wouter")>("wouter");
-  return {
-    ...actual,
-    useLocation: () => ["/for-robot-teams", setLocationMock],
-  };
-});
-
 vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: vi.fn(async (headers: Record<string, string> = {}) => ({
     ...headers,
@@ -26,13 +9,8 @@ vi.mock("@/lib/csrf", () => ({
   })),
 }));
 
-vi.mock("@/lib/firebase", () => ({
-  auth: authMock,
-}));
-
 afterEach(() => {
   vi.restoreAllMocks();
-  setLocationMock.mockReset();
 });
 
 describe("RobotTeamEval", () => {
@@ -44,8 +22,11 @@ describe("RobotTeamEval", () => {
         name: /Compare policies on one site task\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Four steps\./i })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /1 Pick a site\/task/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Start with the essentials\./i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /1 Choose the site path/i })).toHaveValue("exact-site");
+    expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Work email/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Team or company/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /2 Add policies/i })).toHaveValue(
       "primary-policy",
     );
@@ -75,18 +56,26 @@ describe("RobotTeamEval", () => {
     expect(screen.getByText(/Same task\. Same robot\. Same episode count\./i)).toBeInTheDocument();
   });
 
-  it("creates a hosted-session request with normalized policy evaluation payload", async () => {
+  it("persists an evaluation request with a normalized policy payload", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
-        JSON.stringify({
-          workspaceUrl: "/world-models/siteworld-f5fd54898cfb/workspace?sessionId=session-1",
-        }),
-        { status: 201, headers: { "Content-Type": "application/json" } },
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
     vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as typeof fetch);
 
     render(<RobotTeamEval />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
+      target: { value: "Jordan Lee" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
+      target: { value: "jordan@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Team or company/i }), {
+      target: { value: "Example Robotics" },
+    });
 
     fireEvent.change(screen.getByRole("textbox", { name: /2 Add policies/i }), {
       target: { value: "warehouse-policy, baseline-policy, ignored-fourth" },
@@ -147,28 +136,23 @@ describe("RobotTeamEval", () => {
     fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
 
     await waitFor(() => {
-      expect(setLocationMock).toHaveBeenCalledWith(
-        "/world-models/siteworld-f5fd54898cfb/workspace?sessionId=session-1",
-      );
+      expect(screen.getByText(/Request received\. Blueprint will confirm the real site/i)).toBeInTheDocument();
     });
 
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/contact");
     const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
-    const policy = body.policy as Record<string, unknown>;
-    const submission = policy.robotTeamTestSubmission as Record<string, unknown>;
+    const submission = body.robotTeamTestSubmission as Record<string, unknown>;
 
-    expect(body.sessionMode).toBe("runtime_only");
-    expect(body.requestedOutputs).toEqual([
-      "policy_ranking",
-      "comparative_policy_eval",
-      "failure_taxonomy",
-      "ood_uncertainty_flags",
-      "site_ops_comparison_packet",
-      "validation_targets",
-    ]);
-    expect(policy.proofBoundary).toEqual(
-      expect.stringContaining("Generated-observation review can compare policies and diagnose failures"),
-    );
+    expect(body).toMatchObject({
+      name: "Jordan Lee",
+      email: "jordan@example.com",
+      company: "Example Robotics",
+      projectType: "Policy Evaluation Run",
+      requestSource: "robot-team-eval",
+    });
+    expect(submission.siteWorldId).toBeNull();
+    expect(submission.sitePackageTarget).toBe("My exact site");
     expect(submission.schemaVersion).toBe("blueprint.robot_team_test_submission.v1");
     expect(submission.selectedModalities).toEqual(["policy_api_endpoint"]);
     expect(submission.policyLabels).toEqual([
@@ -206,15 +190,12 @@ describe("RobotTeamEval", () => {
     expect(submission.successCriteria).toBe("tote placed without safety event");
   });
 
-  it("surfaces the intake fallback when direct session creation is blocked", async () => {
+  it("surfaces a retryable error when request persistence is blocked", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(
       vi.fn(async () =>
         new Response(
           JSON.stringify({
-            error: "The site-world registration does not include a reachable runtime handle.",
-            blockers: [
-              "The site-world registration does not include a reachable runtime handle.",
-            ],
+            error: "Unable to persist the request.",
           }),
           { status: 409, headers: { "Content-Type": "application/json" } },
         ),
@@ -223,12 +204,21 @@ describe("RobotTeamEval", () => {
 
     render(<RobotTeamEval />);
 
+    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
+      target: { value: "Jordan Lee" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
+      target: { value: "jordan@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Team or company/i }), {
+      target: { value: "Example Robotics" },
+    });
+
     fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
 
     expect(
-      await screen.findByText(/Hosted session access is request-gated/i),
+      await screen.findByText(/Unable to persist the request/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/confirm runtime access, rights, pricing/i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Contact instead/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("source=robot-team-eval"),

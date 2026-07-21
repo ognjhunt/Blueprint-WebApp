@@ -1,35 +1,20 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
-import {
-  calculateTotalPrice,
-  marketplaceScenes,
-  premiumCapabilities,
-  syntheticDatasets,
-  trainingDatasets,
-  type MarketplaceScene,
-  type SyntheticDataset,
-  type TrainingDataset,
-  type ExclusivityType,
-  type LicenseTier,
-} from "../../../client/src/data/content";
-import { getSiteLibrarySite } from "../../../client/src/data/siteLibrary";
-import { findPublishedMarketplaceInventoryBySku } from "../../utils/marketplaceInventory";
+import { getPublicSiteWorldById } from "../../utils/site-worlds";
 import {
   attachStripeCheckoutSessionToBuyerOrder,
   createBuyerOrderDraft,
   markBuyerOrderCheckoutFailure,
 } from "../../utils/accounting";
+import { stripeAvailable } from "../../constants/stripe";
+import { logger } from "../../logger";
 import {
   betaDecisionForResponse,
   evaluateBetaCohortGate,
 } from "../../utils/beta-cohort-policy";
-import { stripeAvailable } from "../../constants/stripe";
-import { logger } from "../../logger";
 
 type PaymentSessionType =
   | "onboarding"
-  | "legacy-hourly"
-  | "marketplace"
   | "robot-eval-run";
 
 type CheckoutRequestBody = {
@@ -65,114 +50,22 @@ type CheckoutRequestBody = {
   totalCost?: number;
   hours?: number;
   costPerHour?: number;
-  marketplaceItem?: {
-    sku?: string;
-    title?: string;
-    description?: string;
-    price?: number;
-    quantity?: number;
-    itemType?: string;
-    // Hybrid marketplace fields
-    licenseTier?: 'research' | 'commercial' | 'enterprise';
-    exclusivity?: 'non-exclusive' | 'time-limited' | 'category' | 'semi-exclusive' | 'full-exclusive';
-    basePrice?: number;
-    addons?: string[];
-    dataTier?: "basic" | "standard" | "premium";
-  };
   robotEvalRun?: {
     siteSlug?: string;
   };
 };
 
 export const ROBOT_EVAL_RUN_SKU_SUFFIX = "-robot-eval-run";
-export const ROBOT_EVAL_RUN_PRICE_CATALOG_SLUG = "policy-benchmarking";
+export const ROBOT_EVAL_RUN_PRICE_USD = 350;
+export const ROBOT_EVAL_RUN_DESCRIPTION =
+  "Capture-backed virtual policy evaluation with a queued Pipeline handoff and buyer-visible run status.";
 
 export function robotEvalRunSkuForSiteSlug(siteSlug: string) {
   return `${siteSlug}${ROBOT_EVAL_RUN_SKU_SUFFIX}`;
 }
 
-const VALID_LICENSE_TIERS: ReadonlySet<LicenseTier> = new Set<LicenseTier>([
-  "research",
-  "commercial",
-  "enterprise",
-]);
-
-const VALID_EXCLUSIVITY_TYPES: ReadonlySet<ExclusivityType> = new Set<ExclusivityType>([
-  "non-exclusive",
-  "time-limited",
-  "category",
-  "semi-exclusive",
-  "full-exclusive",
-]);
-
-function findSceneBySku(sku: string) {
-  const normalizedSku = sku.trim();
-  return marketplaceScenes
-    .filter((scene) => normalizedSku === scene.slug || normalizedSku.startsWith(`${scene.slug}-`))
-    .sort((a, b) => b.slug.length - a.slug.length)[0];
-}
-
-function findDatasetBySku(sku: string) {
-  const normalizedSku = sku.trim();
-  return syntheticDatasets
-    .filter((dataset) => normalizedSku === dataset.slug || normalizedSku.startsWith(`${dataset.slug}-`))
-    .sort((a, b) => b.slug.length - a.slug.length)[0];
-}
-
-function findTrainingBySku(sku: string) {
-  const normalizedSku = sku.trim();
-  return trainingDatasets
-    .filter((training) => normalizedSku === training.slug || normalizedSku.startsWith(`${training.slug}-`))
-    .sort((a, b) => b.slug.length - a.slug.length)[0];
-}
-
 function roundToCurrency(value: number): number {
   return Math.round(value * 100) / 100;
-}
-
-export function buildMarketplaceCheckoutMetadata(params: {
-  orderId: string;
-  marketplaceItem: NonNullable<CheckoutRequestBody["marketplaceItem"]>;
-  itemType: string | undefined;
-  liveInventoryRecord?: {
-    deliveryMode?: string | null;
-    fulfillmentStatus?: string | null;
-  } | null;
-  computedPrice: number;
-  quantity: number;
-  expectedBasePrice: number;
-  licenseTier: LicenseTier;
-  exclusivity: ExclusivityType;
-  addons: string[];
-}) {
-  const {
-    orderId,
-    marketplaceItem,
-    itemType,
-    liveInventoryRecord,
-    computedPrice,
-    quantity,
-    expectedBasePrice,
-    licenseTier,
-    exclusivity,
-    addons,
-  } = params;
-  return {
-    order_id: orderId,
-    marketplaceSku: marketplaceItem.sku || "",
-    marketplaceItemType: itemType || "",
-    marketplaceTitle: marketplaceItem.title || "",
-    marketplaceDescription: (marketplaceItem.description || "").slice(0, 500),
-    marketplacePrice: computedPrice.toFixed(2),
-    marketplaceQuantity: quantity.toString(),
-    marketplaceInventorySource: liveInventoryRecord ? "firestore" : "static",
-    marketplaceDeliveryMode: liveInventoryRecord?.deliveryMode || "",
-    marketplaceFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || "",
-    licenseTier,
-    exclusivity,
-    basePrice: expectedBasePrice.toFixed(2),
-    addons: addons.join(","),
-  };
 }
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -203,9 +96,6 @@ const allowedOrigins = new Set<string>([
   fallbackOrigin,
   ...configuredOrigins,
 ]);
-const staticMarketplaceFallbackEnabled =
-  process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1";
-
 function resolveBaseOrigin(originHeader: string | undefined): string {
   if (originHeader && allowedOrigins.has(originHeader)) {
     return originHeader;
@@ -250,281 +140,10 @@ export default async function handler(req: Request, res: Response) {
 
     const stripe = getStripeClient();
 
-    const sessionType: PaymentSessionType =
-      body.sessionType || (body.totalCost ? "legacy-hourly" : "onboarding");
+    const sessionType: PaymentSessionType = body.sessionType || "onboarding";
 
     const originHeader = req.headers.origin as string | undefined;
     const originBase = resolveBaseOrigin(originHeader);
-
-    if (sessionType === "marketplace") {
-      const { marketplaceItem } = body;
-
-      if (
-        !marketplaceItem?.title ||
-        typeof marketplaceItem.title !== "string" ||
-        !marketplaceItem.sku ||
-        typeof marketplaceItem.sku !== "string"
-      ) {
-        return res.status(400).json({
-          error: "A valid marketplace item title and SKU are required",
-        });
-      }
-
-      const requestedPrice = marketplaceItem?.price;
-      const quantity =
-        typeof marketplaceItem?.quantity === "number" &&
-        Number.isFinite(marketplaceItem.quantity) &&
-        marketplaceItem.quantity > 0
-          ? Math.floor(marketplaceItem.quantity)
-          : 1;
-
-      if (typeof requestedPrice !== "number" || !Number.isFinite(requestedPrice)) {
-        return res.status(400).json({
-          error: "A valid marketplace item price is required",
-        });
-      }
-
-      const sanitizedDescription = (marketplaceItem.description || "").slice(0, 500);
-
-      // Hybrid marketplace fields (strictly server-validated)
-      const licenseTier: LicenseTier = VALID_LICENSE_TIERS.has(marketplaceItem.licenseTier as LicenseTier)
-        ? (marketplaceItem.licenseTier as LicenseTier)
-        : "commercial";
-      const exclusivity: ExclusivityType = VALID_EXCLUSIVITY_TYPES.has(
-        marketplaceItem.exclusivity as ExclusivityType,
-      )
-        ? (marketplaceItem.exclusivity as ExclusivityType)
-        : "non-exclusive";
-
-      const requestedAddons = Array.isArray(marketplaceItem.addons)
-        ? marketplaceItem.addons.filter((addon): addon is string => typeof addon === "string")
-        : [];
-      const addonPriceMap = new Map(premiumCapabilities.map((addon) => [addon.slug, addon]));
-      const addons = requestedAddons.filter((addonSlug) => addonPriceMap.has(addonSlug));
-
-      const itemType = marketplaceItem.itemType;
-      let expectedBasePrice = 0;
-      let expectedQuantity = quantity;
-      const liveInventoryRecord = await findPublishedMarketplaceInventoryBySku(
-        marketplaceItem.sku,
-      );
-
-      if (!liveInventoryRecord && !staticMarketplaceFallbackEnabled) {
-        return res.status(409).json({
-          error: "This marketplace item is not available from live inventory.",
-        });
-      }
-
-      if ((liveInventoryRecord?.itemType || itemType) === "scene") {
-        const scene: MarketplaceScene | undefined =
-          liveInventoryRecord?.itemType === "scene"
-            ? (liveInventoryRecord.item as MarketplaceScene)
-            : findSceneBySku(marketplaceItem.sku);
-        if (!scene) {
-          return res.status(400).json({ error: "Unknown marketplace scene SKU" });
-        }
-
-        if (marketplaceItem.sku.includes("-scene-")) {
-          expectedBasePrice = scene.sceneOnlyPrice || Math.round(scene.price * 0.45);
-        } else if (marketplaceItem.sku.includes("-episodes-")) {
-          expectedBasePrice = scene.episodesOnlyPrice || Math.round(scene.price * 0.65);
-        } else if (marketplaceItem.sku.includes("-bundle-")) {
-          expectedBasePrice = scene.bundlePrice || scene.price;
-        } else {
-          expectedBasePrice = scene.price;
-        }
-
-        expectedQuantity = 1;
-      } else if ((liveInventoryRecord?.itemType || itemType) === "dataset") {
-        const dataset: SyntheticDataset | undefined =
-          liveInventoryRecord?.itemType === "dataset"
-            ? (liveInventoryRecord.item as SyntheticDataset)
-            : findDatasetBySku(marketplaceItem.sku);
-        if (!dataset) {
-          return res.status(400).json({ error: "Unknown marketplace dataset SKU" });
-        }
-
-        expectedBasePrice = dataset.pricePerScene;
-        expectedQuantity = dataset.sceneCount || 1;
-      } else if ((liveInventoryRecord?.itemType || itemType) === "training") {
-        const training: TrainingDataset | undefined =
-          liveInventoryRecord?.itemType === "training"
-            ? (liveInventoryRecord.item as TrainingDataset)
-            : findTrainingBySku(marketplaceItem.sku);
-        if (!training) {
-          return res.status(400).json({ error: "Unknown marketplace training SKU" });
-        }
-
-        const dataTier = marketplaceItem.dataTier;
-        if (dataTier === "basic" || marketplaceItem.sku.includes("-basic-")) {
-          expectedBasePrice = training.basicPrice || Math.round(training.price * 0.4);
-        } else if (dataTier === "premium" || marketplaceItem.sku.includes("-premium-")) {
-          expectedBasePrice = training.premiumPrice || Math.round(training.price * 1.5);
-        } else {
-          expectedBasePrice = training.standardPrice || training.price;
-        }
-
-        expectedQuantity = 1;
-      } else {
-        return res.status(400).json({ error: "Unknown marketplace item type" });
-      }
-
-      if (liveInventoryRecord?.rightsStatus === "blocked") {
-        return res.status(409).json({
-          error: "This marketplace item is not commercially publishable.",
-        });
-      }
-
-      if (quantity !== expectedQuantity) {
-        return res.status(400).json({ error: "Invalid quantity for selected marketplace item" });
-      }
-
-      const addonTotal = addons.reduce((sum, addonSlug) => {
-        return sum + (addonPriceMap.get(addonSlug)?.price || 0);
-      }, 0);
-
-      const computedPrice = roundToCurrency(
-        calculateTotalPrice(expectedBasePrice, licenseTier, exclusivity) + addonTotal,
-      );
-
-      if (roundToCurrency(requestedPrice) !== computedPrice) {
-        return res.status(400).json({
-          error: "Invalid marketplace price for selected SKU and license options",
-        });
-      }
-
-      // Build product description with license info
-      const licenseLabels: Record<string, string> = {
-        research: 'Research License',
-        commercial: 'Commercial License',
-        enterprise: 'Enterprise License',
-      };
-      const licenseLabel = licenseLabels[licenseTier] || 'Commercial License';
-
-      const exclusivityLabels: Record<string, string> = {
-        'non-exclusive': '',
-        'time-limited': ' (90-Day Exclusive)',
-        'category': ' (Category Exclusive)',
-        'semi-exclusive': ' (Limited Availability)',
-        'full-exclusive': ' (Full Exclusive)',
-      };
-      const exclusivityLabel = exclusivityLabels[exclusivity] || '';
-
-      const fullDescription = sanitizedDescription
-        ? `${sanitizedDescription} | ${licenseLabel}${exclusivityLabel}`
-        : `${licenseLabel}${exclusivityLabel}`;
-
-      const successUrl = resolveUrl(
-        originBase,
-        body.successPath,
-        "/world-models?checkout=success",
-      );
-      const cancelUrl = resolveUrl(
-        originBase,
-        body.cancelPath,
-        "/world-models?checkout=cancel",
-      );
-
-      const firebaseUser = (res.locals.firebaseUser || {}) as {
-        uid?: string;
-        email?: string;
-      };
-      const order = await createBuyerOrderDraft({
-        buyerUserId:
-          typeof firebaseUser.uid === "string" ? firebaseUser.uid : null,
-        buyerEmail:
-          typeof firebaseUser.email === "string" ? firebaseUser.email : null,
-        sku: marketplaceItem.sku,
-        title: marketplaceItem.title,
-        description: sanitizedDescription,
-        itemType: itemType || liveInventoryRecord?.itemType || "",
-        quantity,
-        licenseTier,
-        exclusivity,
-        addons,
-        inventorySource: liveInventoryRecord ? "firestore-live" : "static",
-        liveInventoryRecordId: liveInventoryRecord?.id || null,
-        deliveryMode: liveInventoryRecord?.deliveryMode || null,
-        inventoryFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || null,
-        rightsStatus: liveInventoryRecord?.rightsStatus || null,
-        unitAmountCents: Math.round(computedPrice * 100),
-        totalAmountCents: Math.round(computedPrice * 100 * quantity),
-        currency: "usd",
-        successUrl,
-        cancelUrl,
-      });
-      if (!order) {
-        return res.status(500).json({ error: "Order ledger is not available" });
-      }
-
-      let session: Stripe.Checkout.Session;
-      try {
-        session = await stripe.checkout.sessions.create({
-          client_reference_id: order.id,
-          mode: "payment",
-          payment_method_types: ["card"],
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: marketplaceItem.title,
-                  description: fullDescription || undefined,
-                  metadata: {
-                    orderId: order.id,
-                    sku: marketplaceItem.sku || "",
-                    itemType: marketplaceItem.itemType || null,
-                    licenseTier,
-                    exclusivity,
-                  },
-                },
-                unit_amount: Math.round(computedPrice * 100),
-              },
-              quantity,
-            },
-          ],
-          metadata: buildMarketplaceCheckoutMetadata({
-            orderId: order.id,
-            marketplaceItem,
-            itemType,
-            liveInventoryRecord,
-            computedPrice,
-            quantity,
-            expectedBasePrice,
-            licenseTier,
-            exclusivity,
-            addons,
-          }),
-          payment_intent_data: {
-            metadata: {
-              order_id: order.id,
-              marketplace_sku: marketplaceItem.sku || "",
-            },
-          },
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-        });
-      } catch (error) {
-        await markBuyerOrderCheckoutFailure({
-          orderId: order.id,
-          reason:
-            error instanceof Error
-              ? error.message
-              : "Stripe failed to create the checkout session.",
-        });
-        throw error;
-      }
-
-      await attachStripeCheckoutSessionToBuyerOrder({
-        orderId: order.id,
-        checkoutSessionId: session.id,
-        checkoutSessionUrl:
-          typeof session.url === "string" ? session.url : null,
-        livemode: session.livemode,
-      });
-
-      return res.json({ sessionId: session.id, sessionUrl: session.url });
-    }
 
     if (sessionType === "robot-eval-run") {
       const firebaseUser = (res.locals.firebaseUser || {}) as {
@@ -548,13 +167,15 @@ export default async function handler(req: Request, res: Response) {
         });
       }
 
-      const site = getSiteLibrarySite(siteSlug);
-      if (!site) {
+      const site = await getPublicSiteWorldById(siteSlug);
+      if (!site || site.dataSource !== "pipeline") {
         return res.status(404).json({ error: "Unknown site for policy evaluation run." });
       }
       if (
-        !site.robotEvalPublication?.readyToEvaluatePublishable ||
-        !site.defaultRobotEvalSelection
+        site.evaluationReadiness?.robot_eval_dataset_summary
+          ?.ready_to_evaluate_publishable !== true ||
+        !site.siteSubmissionId ||
+        !site.captureId
       ) {
         return res.status(409).json({
           error:
@@ -578,41 +199,38 @@ export default async function handler(req: Request, res: Response) {
         });
       }
 
-      const evalService = premiumCapabilities.find(
-        (capability) => capability.slug === ROBOT_EVAL_RUN_PRICE_CATALOG_SLUG,
-      );
-      if (!evalService || !Number.isFinite(evalService.price) || evalService.price <= 0) {
+      if (!Number.isFinite(ROBOT_EVAL_RUN_PRICE_USD) || ROBOT_EVAL_RUN_PRICE_USD <= 0) {
         return res.status(503).json({
           error: "Policy evaluation run pricing is not configured.",
         });
       }
-      const priceUsd = roundToCurrency(evalService.price);
+      const priceUsd = roundToCurrency(ROBOT_EVAL_RUN_PRICE_USD);
 
-      const sku = robotEvalRunSkuForSiteSlug(site.slug);
+      const sku = robotEvalRunSkuForSiteSlug(site.id);
       const successUrl = resolveUrl(
         originBase,
         body.successPath,
-        `/sites/${site.slug}?robotEvalCheckout=success`,
+        `/sites/${site.id}?robotEvalCheckout=success`,
       );
       const cancelUrl = resolveUrl(
         originBase,
         body.cancelPath,
-        `/sites/${site.slug}?robotEvalCheckout=cancelled`,
+        `/sites/${site.id}?robotEvalCheckout=cancelled`,
       );
 
       const order = await createBuyerOrderDraft({
         buyerUserId,
         buyerEmail: buyerEmail || null,
         sku,
-        title: `${site.name} — Policy Evaluation Run`,
-        description: evalService.description,
+        title: `${site.siteName} — Policy Evaluation Run`,
+        description: ROBOT_EVAL_RUN_DESCRIPTION,
         itemType: "robot_eval_run",
         quantity: 1,
         licenseTier: "commercial",
         exclusivity: "non-exclusive",
         addons: [],
-        inventorySource: "site-library",
-        liveInventoryRecordId: null,
+        inventorySource: "pipeline-site-world",
+        liveInventoryRecordId: site.siteSubmissionId,
         // hosted_runtime is a provisionable delivery mode with no hourly
         // expiry, so the paid webhook grants the marketplaceEntitlements doc
         // that /api/robot-eval/job-requests requires — no manual review step.
@@ -640,14 +258,14 @@ export default async function handler(req: Request, res: Response) {
               price_data: {
                 currency: "usd",
                 product_data: {
-                  name: `${site.name} — Policy Evaluation Run`,
+                  name: `${site.siteName} — Policy Evaluation Run`,
                   description:
                     "Virtual policy-evaluation run on this captured site package. Blueprint queues the request and forwards it to Pipeline for scheduling.",
                   metadata: {
                     orderId: order.id,
                     sku,
                     itemType: "robot_eval_run",
-                    robotEvalSiteSlug: site.slug,
+                    robotEvalSiteSlug: site.id,
                   },
                 },
                 unit_amount: Math.round(priceUsd * 100),
@@ -659,7 +277,7 @@ export default async function handler(req: Request, res: Response) {
             order_id: order.id,
             sessionKind: "robot_eval_run",
             marketplaceSku: sku,
-            robotEvalSiteSlug: site.slug,
+            robotEvalSiteSlug: site.id,
             buyerUserId,
           },
           payment_intent_data: {
@@ -711,12 +329,8 @@ export default async function handler(req: Request, res: Response) {
           ? Math.max(body.kitUpgradeSurcharge, 0)
           : 0;
 
-      // WEB-08: like the marketplace path (and the removed WEB-07 legacy path),
-      // never charge client-authored amounts. Every legitimate caller submits
-      // values from a static client catalog, so anything outside that catalog is
-      // a forged payload: onboarding fee is always 0; plan prices are the
-      // published subscription tiers; the kit surcharge is a kit upgrade fee
-      // (0/15/45) plus an optional mapping fee (99).
+      // Never charge client-authored amounts. Anything outside the server-owned
+      // onboarding price allowlist is a forged or stale payload.
       const ONBOARDING_ALLOWED_MONTHLY_PRICES = new Set([49.99, 99, 149]);
       const ONBOARDING_ALLOWED_KIT_SURCHARGES = new Set([0, 15, 45, 99, 114, 144]);
       if (
@@ -856,21 +470,14 @@ export default async function handler(req: Request, res: Response) {
       return res.json({ sessionId: session.id, sessionUrl: session.url });
     }
 
-    // WEB-07: the legacy "hourly plus plan" path charged a client-supplied
-    // `totalCost` with no server-side validation, letting a caller set their own
-    // price. It has no remaining client caller (the marketplace path above is the
-    // real one, and it recomputes+rejects mismatched prices server-side), so it is
-    // removed. Any legacy caller now gets a 400 instead of a self-priced checkout.
+    // Unknown and retired checkout modes fail closed instead of accepting a
+    // client-authored price or SKU.
     return res.status(400).json({ error: "Invalid checkout session payload" });
   } catch (error) {
     logger.error(
       {
         event: "stripe_checkout_session_create_failed",
         sessionType: body.sessionType ?? null,
-        marketplaceSku:
-          typeof body.marketplaceItem?.sku === "string" ? body.marketplaceItem.sku : null,
-        marketplaceItemType:
-          typeof body.marketplaceItem?.itemType === "string" ? body.marketplaceItem.itemType : null,
         err: error,
       },
       "Error creating Stripe session",

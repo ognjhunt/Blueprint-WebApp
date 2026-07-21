@@ -58,8 +58,16 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
 - Build command: `npm ci && npm run build`
 - Start command: `npm start`
 - Health check: `/health/ready`
+- Render `autoDeploy` is disabled in `render.yaml`. GitHub Actions owns
+  deploy-on-green through `.github/workflows/ci.yml`.
+- The `deploy-render` job runs only on `main` pushes after `check`, `test`,
+  `e2e`, and `build` pass. It triggers the Render deploy hook with
+  `ref=${GITHUB_SHA}` so Render deploys the exact green commit.
 
 Render should hold all secrets in the service environment, not in `render.yaml`.
+GitHub should hold the deploy hook URL as `RENDER_DEPLOY_HOOK_URL`; if the secret
+is missing, the deploy job fails closed instead of allowing a red or unverified
+push to deploy.
 
 ## Required Environment Variables
 
@@ -213,11 +221,9 @@ Agent-side creative MCP note:
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON={"sw-chi-01":"/abs/live/capture/root"}`
   - Optional single active-root fallback: `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT=/abs/live/capture/root`
 - Optional internal-only fallback: `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS=true`
-- Optional internal demo flags: `BLUEPRINT_ENABLE_DEMO_SITE_WORLDS=1`, `BLUEPRINT_DEMO_BUNDLE_PIPELINE_ROOT=/abs/path`, `BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID=<id>`
 
 Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
-- Leave demo site-world flags unset in production unless you explicitly want the internal demo world exposed.
 - Live robot-eval request acceptance requires forwarding to the CapturePipeline intake service by default, and production ignores `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=false`. If URL/token are missing, blocked, or fail, the route returns a 5xx while preserving the durable local inbox record. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
 - Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; WebApp signs the probe and forwarded POSTs with timestamp/nonce HMAC headers instead of sending the token as bearer auth. The probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
 - For a route-level proof after preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...` starts a local WebApp route and POSTs a non-rehearsal request through `/api/robot-eval/job-requests`. Use a local/staging intake URL unless a live Pipeline staging side effect is explicitly intended; this still does not prove production deployment, GPU allocation, simulator execution, safety, or 90%+ sim-only policy-ranking agreement.
@@ -403,6 +409,19 @@ means "deliberately closed", never "unlimited".
   `BLUEPRINT_BETA_ALLOWED_SITE_TYPES`
 - Optional fallback cohort key:
   `BLUEPRINT_BETA_DEFAULT_COHORT=default`
+
+Native capture clients are separately version-gated before beta upload preflight
+and again at capture registration:
+
+- `BLUEPRINT_CAPTURE_CLIENT_KILL_SWITCH=0` (`1` pauses native capture intake before uploads)
+- `BLUEPRINT_CAPTURE_MIN_IOS_VERSION=<short-version>` (for example `1.2.0`)
+- `BLUEPRINT_CAPTURE_MIN_IOS_BUILD=<build-number>` (for example `120`)
+
+The iOS app sends `X-Blueprint-Native-Client`, `X-Blueprint-App-Version`,
+`X-Blueprint-App-Build`, `X-Blueprint-OS-Version`, and
+`X-Blueprint-Device-Model` headers plus matching payload fields. Old or paused
+clients receive `426 capture_client_upgrade_required` or
+`503 capture_client_kill_switch_active` and must not upload raw capture bundles.
 
 Optional review-watchdog workers that only flag overdue human queues:
 

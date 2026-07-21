@@ -1,0 +1,75 @@
+# Blocker Title
+
+Configure the CI-gated Render deploy hook
+
+## Blocker Id
+
+`human-blocker:webapp-render-deploy-hook-2026-07-20`
+
+## Why This Is Blocked
+
+The deploy workflow now fails closed when `RENDER_DEPLOY_HOOK_URL` is absent,
+and the GitHub Actions repository currently has no configured secrets. A
+read-only Render API check succeeded and confirmed the production
+`Blueprint-WebApp` service on `main`; the remaining gap is a durable CI deploy
+hook or secret plus publication of the reviewed remediation commit.
+
+Channel target: Slack DM to `Nijel Hunt`, mirrored by email to
+`ohstnhunt@gmail.com` for the durable credential/configuration trail.
+
+## Recommended Answer
+
+Create a deploy hook for the production Blueprint-WebApp Render service and add
+its URL as the GitHub Actions secret `RENDER_DEPLOY_HOOK_URL`.
+
+## Alternatives
+
+- Explicitly designate a different production deployment owner and replace the
+  workflow with that approved provider's fail-closed deployment contract.
+- Keep deployment disabled and continue preview-only QA; this does not make the
+  public remediation live.
+
+## Downside / Risk
+
+A hook bound to the wrong Render service could deploy the correct commit to the
+wrong target. The service name and production domain must be checked in Render
+before the secret is saved.
+
+## Exact Response Needed
+
+Reply with `RENDER HOOK CONFIGURED` and the Render service name only after the
+production hook exists and GitHub Actions contains a secret named exactly
+`RENDER_DEPLOY_HOOK_URL`. Do not send the hook URL itself.
+
+## Execution Owner After Reply
+
+`webapp-codex`, with `blueprint-cto` owning Render/GitHub configuration.
+
+## Immediate Next Action After Reply
+
+Verify the secret name with `gh secret list --app actions`, publish the approved
+remediation commit, observe the CI-gated deploy run, and verify `/version.json`,
+`/health`, `/health/ready`, canonical routes, and the live bundle.
+
+## Deadline / Checkpoint
+
+Before the remediation can be called deployed or public-launch-current.
+
+## Evidence
+
+- `gh secret list --app actions` returned no configured Actions secrets on
+  2026-07-20.
+- A read-only Render API request returned HTTP 200 and identified production
+  service `srv-d4vnmk3e5dus73aiohk0` (`Blueprint-WebApp`, branch `main`, automatic
+  deploy enabled). No credential value was written to the repository.
+- Deploy run `29776034602` failed for SHA `e6c3e20` while the matching CI run
+  `29775636637` passed.
+- Production `/version.json` still reports SHA `e6c3e20`.
+- Safe proof: `gh secret list --app actions` (secret names only; never print the
+  hook value).
+
+## Non-Scope
+
+This reply does not authorize a deploy from an unreviewed tree, changing the
+production domain, exposing the hook value, bypassing CI, or treating a fired
+hook as successful deployment proof.

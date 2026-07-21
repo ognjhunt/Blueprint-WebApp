@@ -52,11 +52,11 @@ Supported request fields include `source`, `buyerType`, `siteName`, `location`, 
 
 Agents with a budget can transact directly. `GET /api/site-worlds/search` supports natural-language queries plus `category`, `city`, `state`, `siteType`, `taskLane`, `objectTags`, `robot`, `availability`, `readiness`, and `sort` filters with embedding-based semantic ranking. `GET|POST /api/agent-access/ask` answers grounded questions with citations and machine next-actions. `POST /api/agent-access/commerce/live-checkout` creates a real Stripe Checkout Session for pipeline-backed site worlds with a server-enforced `budgetCents` guard; webhook fulfillment provisions the entitlement, and `GET /api/agent-access/commerce/live-orders/{orderId}` polls non-PII payment/provisioning status. Sample or planned catalog profiles are not live-purchasable and return structured blockers routing to dry-run commerce or request intake.
 
-Agent access truth labels include `capture_grounded`, `provider_derived`, `generated`, `sample_demo`, `public_demo_eligible`, `request_gated`, `protected_robot_team`, `dry_run_order`, and `live_checkout`.
+Agent access truth labels include `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `dry_run_order`, and `live_checkout`.
 
 Current MCP tool names include `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, `blueprint.siteWorld.launchReadiness`, `blueprint.commerce.quote`, `blueprint.commerce.checkoutDryRun`, `blueprint.commerce.checkoutLive`, `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`.
 
-No-credential mock proof: `npm run smoke:agent-headless` exercises public discovery, dry-run quote/order/entitlement readiness, truth labels, and a mock public-demo hosted session without proving live payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment verdicts.
+No-credential access is limited to public discovery, live-inventory search, grounded questions, intake drafts, and dry-run commerce. Hosted-session creation and operations require scoped robot-team/admin authentication plus entitlement or session-ownership proof.
 
 ## Full Machine-Readable Overview
 

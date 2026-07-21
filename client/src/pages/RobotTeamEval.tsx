@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useLocation } from "wouter";
 import { ArrowRight, CheckCircle2, ChevronDown, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import {
@@ -8,8 +7,11 @@ import {
   robotPolicyEvaluationBoundary,
   robotPolicyResearchSignals,
 } from "@/data/robotPolicyEvaluationClaims";
-import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  buyerRunOnboardingTimeline,
+  buyerRunReceiveLinks,
+} from "@/lib/buyerRunOnboarding";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
   buildRobotTeamSubmissionInput,
@@ -23,7 +25,6 @@ import {
   type RobotTeamTestSubmissionSiteIpProtectionLevel,
   type RobotTeamTestSubmissionValidationMode,
 } from "@/lib/robotTeamTestSubmission";
-import type { CreateHostedSessionRequest } from "@/types/hostedSession";
 
 type FieldState = Record<
   RobotTeamTestSubmissionModalityId,
@@ -44,10 +45,11 @@ const shortAccessLabels: Record<RobotTeamTestSubmissionModalityId, string> = {
   sim_controller_plugin: "Sim plugin",
 };
 
-const sitePackages = [
-  { id: "siteworld-f5fd54898cfb", label: "Warehouse tote transfer" },
-  { id: siteWorldCards[1]?.id || "retail-backroom", label: "Retail backroom pick" },
-  { id: siteWorldCards[2]?.id || "lab-bench", label: "Lab bench handoff" },
+const siteTargets = [
+  { id: "exact-site", label: "My exact site" },
+  { id: "source-warehouse", label: "Source a warehouse-type site" },
+  { id: "source-retail", label: "Source a retail backroom-type site" },
+  { id: "source-lab", label: "Source a lab bench-type site" },
 ];
 
 const steps = [
@@ -120,53 +122,6 @@ function createSubmissionId() {
   return `robot-team-test-${Date.now()}`;
 }
 
-function publicDemoSiteWorldIds() {
-  const ids = new Set<string>(["siteworld-f5fd54898cfb"]);
-  const envSiteWorldId = String(
-    import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID ||
-      import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID ||
-      "",
-  ).trim();
-  if (envSiteWorldId) ids.add(envSiteWorldId);
-  return ids;
-}
-
-function isPublicDemoSiteWorldId(siteWorldId: string) {
-  return publicDemoSiteWorldIds().has(String(siteWorldId || "").trim());
-}
-
-const hostedSessionRequestGatedMessage =
-  "Hosted session access is request-gated for this package. Submit an intake request so Blueprint can confirm runtime access, rights, pricing, and proof boundaries before opening a session.";
-
-function hostedSessionErrorMessage(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : "Runtime path is request-gated.";
-  const normalized = message.toLowerCase();
-  if (
-    normalized.includes("runtime path is request-gated") ||
-    normalized.includes("reachable runtime handle") ||
-    normalized.includes("missing authenticated user") ||
-    normalized.includes("unauthorized") ||
-    normalized.includes("forbidden")
-  ) {
-    return hostedSessionRequestGatedMessage;
-  }
-  return message;
-}
-
-async function getFirebaseIdToken(): Promise<string> {
-  if (typeof window === "undefined") return "";
-
-  try {
-    const firebase = await import("@/lib/firebase");
-    return firebase.auth?.currentUser
-      ? await firebase.auth.currentUser.getIdToken()
-      : "";
-  } catch {
-    return "";
-  }
-}
-
 function initialFieldState(): FieldState {
   return Object.fromEntries(
     ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
@@ -174,14 +129,6 @@ function initialFieldState(): FieldState {
       Object.fromEntries(definition.fields.map((field) => [field.key, ""])),
     ]),
   ) as FieldState;
-}
-
-function selectedSiteWorld(siteWorldId: string) {
-  return (
-    siteWorldCards.find((site) => site.id === siteWorldId) ||
-    siteWorldCards.find((site) => site.id === "siteworld-f5fd54898cfb") ||
-    siteWorldCards[0]
-  );
 }
 
 function splitLabels(value: string) {
@@ -223,8 +170,10 @@ function intakeHref(params: {
 }
 
 export default function RobotTeamEval() {
-  const [, setLocation] = useLocation();
-  const [siteWorldId, setSiteWorldId] = useState("siteworld-f5fd54898cfb");
+  const [requesterName, setRequesterName] = useState("");
+  const [requesterEmail, setRequesterEmail] = useState("");
+  const [requesterCompany, setRequesterCompany] = useState("");
+  const [siteTarget, setSiteTarget] = useState("exact-site");
   const [policyLabels, setPolicyLabels] = useState("primary-policy");
   const [episodeCount, setEpisodeCount] =
     useState<RobotTeamTestSubmissionEpisodeCount>("100");
@@ -262,23 +211,20 @@ export default function RobotTeamEval() {
   const [lastSubmission, setLastSubmission] =
     useState<RobotTeamTestSubmission | null>(null);
 
-  const site = useMemo(() => selectedSiteWorld(siteWorldId), [siteWorldId]);
-  const robot = site?.robotProfiles[0] || site?.sampleRobotProfile || null;
-  const task = site?.taskCatalog[0] || null;
-  const scenario = site?.scenarioCatalog[0] || null;
-  const startState = site?.startStateCatalog[0] || null;
+  const siteTargetLabel =
+    siteTargets.find((option) => option.id === siteTarget)?.label ||
+    "My exact site";
   const selectedAccessMode =
     accessModes.find((definition) => definition.id === accessMode) ||
     accessModes[0];
 
   const submissionPreview = useMemo(() => {
-    if (!site || !robot || !task || !scenario) return null;
     return normalizeRobotTeamTestSubmission(
       buildRobotTeamSubmissionInput({
-        siteWorldId: site.id,
-        taskId: task.id,
-        scenarioId: scenario.id,
-        robotProfileId: robot.id || "",
+        siteWorldId: null,
+        taskId: null,
+        scenarioId: null,
+        robotProfileId: null,
         policyLabels: splitLabels(policyLabels),
         episodeCount,
         customEpisodeCount,
@@ -294,7 +240,7 @@ export default function RobotTeamEval() {
         gripper,
         cameraSetup,
         intrinsicsExtrinsicsRef,
-        sitePackageTarget: site.siteName,
+        sitePackageTarget: siteTargetLabel,
         taskInstruction,
         startStateConstraints,
         successCriteria,
@@ -322,14 +268,11 @@ export default function RobotTeamEval() {
     intrinsicsExtrinsicsRef,
     observationSchemaRef,
     policyLabels,
-    robot,
     robotEmbodiment,
-    scenario,
-    site,
+    siteTargetLabel,
     startStateConstraints,
     successCriteria,
     siteIpProtectionLevel,
-    task,
     taskInstruction,
     validationMode,
     robotEmbodimentPackRef,
@@ -346,24 +289,24 @@ export default function RobotTeamEval() {
     }));
   };
 
-  const createHostedSession = async (event: FormEvent<HTMLFormElement>) => {
+  const createEvaluationRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("submitting");
     setStatusMessage("");
 
-    if (!site || !robot || !task || !scenario || !startState) {
+    if (!requesterName.trim() || !requesterEmail.trim() || !requesterCompany.trim()) {
       setStatus("blocked");
-      setStatusMessage("Select a site package with task and robot records.");
+      setStatusMessage("Add your name, work email, and team or company.");
       return;
     }
 
     const submission = normalizeRobotTeamTestSubmission(
       buildRobotTeamSubmissionInput({
         submissionId: createSubmissionId(),
-        siteWorldId: site.id,
-        taskId: task.id,
-        scenarioId: scenario.id,
-        robotProfileId: robot.id || "",
+        siteWorldId: null,
+        taskId: null,
+        scenarioId: null,
+        robotProfileId: null,
         policyLabels: splitLabels(policyLabels),
         episodeCount,
         customEpisodeCount,
@@ -379,7 +322,7 @@ export default function RobotTeamEval() {
         gripper,
         cameraSetup,
         intrinsicsExtrinsicsRef,
-        sitePackageTarget: site.siteName,
+        sitePackageTarget: siteTargetLabel,
         taskInstruction,
         startStateConstraints,
         successCriteria,
@@ -397,82 +340,51 @@ export default function RobotTeamEval() {
 
     if (!submission) {
       setStatus("blocked");
-      setStatusMessage("Add a policy access method before creating a session.");
+      setStatusMessage("Add a policy access method before sending the request.");
       return;
     }
 
     setLastSubmission(submission);
-    const requestPayload: CreateHostedSessionRequest = {
-      siteWorldId: site.id,
-      sessionMode: "runtime_only",
-      runtimeUi: null,
-      robotProfileId: robot.id || "",
-      taskId: task.id,
-      scenarioId: scenario.id,
-      startStateId: startState.id,
-      requestedBackend: site.defaultRuntimeBackend,
-      requestedOutputs: [
-        "policy_ranking",
-        "comparative_policy_eval",
-        "failure_taxonomy",
-        "ood_uncertainty_flags",
-        "site_ops_comparison_packet",
-        "validation_targets",
-      ],
-      exportModes: ["raw_bundle", "rlds_dataset"],
-      runtimeSessionConfig: {
-        canonical_package_uri: site.siteWorldSpecUri || null,
-        canonical_package_version: null,
-        prompt: null,
-        trajectory: null,
-        presentation_model: null,
-        debug_mode: false,
-        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(site.id),
-      },
-      policy: {
-        runMode: "robot_team_structured_test_submission",
-        robotTeamTestSubmission: submission,
-        proofBoundary:
-          "Generated-observation review can compare policies and diagnose failures inside the measured scope; Blueprint reports simulator-backed comparison support with MMRV, Spearman, and Pearson when owner-system evidence is available.",
-      },
-      notes: `Policy Evaluation Run: ${submission.policyLabels.join(", ")}`,
-    };
-
     try {
-      const token = await getFirebaseIdToken();
-      const publicDemoRoute = isPublicDemoSiteWorldId(site.id);
-      if (!token && !publicDemoRoute) {
-        throw new Error("Runtime path is request-gated.");
-      }
-
-      const response = await fetch("/api/site-worlds/sessions", {
+      const response = await fetch("/api/contact", {
         method: "POST",
-        headers: publicDemoRoute
-          ? { "Content-Type": "application/json" }
-          : {
-              ...(await withCsrfHeader({ "Content-Type": "application/json" })),
-              Authorization: `Bearer ${token}`,
-            },
-        body: JSON.stringify(requestPayload),
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: requesterName.trim(),
+          email: requesterEmail.trim(),
+          company: requesterCompany.trim(),
+          projectType: "Policy Evaluation Run",
+          engagementScope: "robot_team",
+          requestSource: "robot-team-eval",
+          message: [
+            `Site target: ${siteTargetLabel}`,
+            `Task: ${submission.taskInstruction || "Needs scoping"}`,
+            `Policies: ${submission.policyLabels.join(", ")}`,
+            `Robot: ${submission.robotEmbodiment || "Needs scoping"}`,
+            `Episodes: ${submission.customEpisodeCount || submission.episodeCount}`,
+            `Hardware integration: ${submission.hardwareIntegrationMode}`,
+            `Selected access: ${submission.selectedModalities.join(", ") || "Needs scoping"}`,
+          ].join("\n"),
+          robotTeamTestSubmission: submission,
+        }),
       });
       const payload = (await response.json()) as {
-        workspaceUrl?: string;
         error?: string;
-        blockers?: string[];
       };
-      if (!response.ok || !payload.workspaceUrl) {
-        throw new Error(
-          Array.isArray(payload.blockers) && payload.blockers.length > 0
-            ? payload.blockers.join(", ")
-            : payload.error || "Runtime path is request-gated.",
-        );
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to send your request right now.");
       }
       setStatus("created");
-      setStatusMessage("Hosted session created.");
-      setLocation(payload.workspaceUrl);
+      setStatusMessage(
+        "Request received. Blueprint will confirm the real site, rights, pricing, and execution scope before opening a run.",
+      );
     } catch (error) {
       setStatus("blocked");
-      setStatusMessage(hostedSessionErrorMessage(error));
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to send your request right now.",
+      );
     }
   };
 
@@ -531,6 +443,53 @@ export default function RobotTeamEval() {
                 <span className="text-sm font-semibold">{label}</span>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="border-b border-slate-200 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[0.34fr_0.66fr] md:px-8">
+            <div>
+              <h2 className="text-3xl font-semibold leading-tight">
+                Request, run, receive.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Intake is only the first step. A complete buyer path names the
+                scope review, the run queue, the protected delivery surface, and
+                the timeline assumptions that can move into blocked or degraded
+                state.
+              </p>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                {buyerRunReceiveLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href === "/requests/:requestId" ? "/beta/buyer-guide" : link.href}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                  >
+                    {link.label}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {buyerRunOnboardingTimeline.map((step) => (
+                <article key={step.phase} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white">
+                      {step.phase}
+                    </span>
+                    <span className="text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {step.owner}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950">{step.title}</h3>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                    {step.target}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{step.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -629,9 +588,9 @@ export default function RobotTeamEval() {
         >
           <form
             className="rounded-lg border border-slate-200 bg-white p-5 md:p-6"
-            onSubmit={createHostedSession}
+            onSubmit={createEvaluationRequest}
           >
-            <h2 className="text-3xl font-semibold">Four steps.</h2>
+            <h2 className="text-3xl font-semibold">Start with the essentials.</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Add the minimum now. We will recommend subscription scope,
               quick-look scope, or a single-site comparison based on your task,
@@ -640,13 +599,47 @@ export default function RobotTeamEval() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
-                1 Pick a site/task
+                Name
+                <input
+                  value={requesterName}
+                  onChange={(event) => setRequesterName(event.target.value)}
+                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  autoComplete="name"
+                  required
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Work email
+                <input
+                  type="email"
+                  value={requesterEmail}
+                  onChange={(event) => setRequesterEmail(event.target.value)}
+                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                Team or company
+                <input
+                  value={requesterCompany}
+                  onChange={(event) => setRequesterCompany(event.target.value)}
+                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  autoComplete="organization"
+                  required
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                1 Choose the site path
                 <select
-                  value={siteWorldId}
-                  onChange={(event) => setSiteWorldId(event.target.value)}
+                  value={siteTarget}
+                  onChange={(event) => setSiteTarget(event.target.value)}
                   className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
                 >
-                  {sitePackages.map((option) => (
+                  {siteTargets.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
                     </option>
@@ -944,7 +937,11 @@ export default function RobotTeamEval() {
 
             {statusMessage ? (
               <div
-                className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-900"
+                className={`mt-5 rounded-lg border p-4 text-sm font-semibold ${
+                  status === "created"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                    : "border-amber-300 bg-amber-50 text-amber-900"
+                }`}
                 role="status"
               >
                 {statusMessage}
@@ -991,7 +988,7 @@ export default function RobotTeamEval() {
                 <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">Task</dt>
                   <dd className="text-right font-semibold">
-                    {task?.taskText || "Selected task"}
+                    {taskInstruction || siteTargetLabel}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">

@@ -695,8 +695,6 @@ export default function BusinessSignUpFlow() {
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
         numSessions: 1,
-        uploadedContentCount: 0,
-        collectedContentCount: 0,
         planType: "free",
         credits: 0,
         finishedOnboarding: false,
@@ -725,43 +723,6 @@ export default function BusinessSignUpFlow() {
           reviewQualifiedOpportunities: false,
           inviteTeam: false,
         },
-        deviceToken: "",
-        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        hasEnteredNotes: false,
-        hasEnteredInventory: false,
-        hasEnteredCameraRoll: false,
-        amountEarned: 0,
-        connectedBlueprintIds: [],
-        createdBlueprintIds: [],
-        collectedObjectIds: [],
-        collectedPortalIds: [],
-        uploadedFileIds: [],
-        createdPhotoIds: [],
-        createdNoteIds: [],
-        createdReportIds: [],
-        createdSuggestionIds: [],
-        createdContentIds: [],
-        modelInteractions: {},
-        blueprintInteractions: {},
-        portalInteractions: {},
-        categoryPreferences: {},
-        averageSessionDuration: 0,
-        peakUsageHours: [],
-        featureUsageCount: {},
-        mostUsedFeatures: [],
-        collaborationScore: 0,
-        sharedContentCount: 0,
-        preferredModelScales: [],
-        preferredRoomTypes: [],
-        preferredColors: [],
-        dailyActiveStreak: 1,
-        weeklyEngagementScore: 0,
-        completedTutorials: [],
-        skillLevels: {},
-        mostFrequentLocation: "",
-        deviceTypes: [],
-        billingHistory: [],
-        paymentMethods: [],
       };
 
       await setDoc(doc(db, "users", uid), newUserData);
@@ -1111,7 +1072,7 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <div>
                               <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Phone
+                                Phone number
                               </Label>
                               <Input
                                 id="phoneNumber"

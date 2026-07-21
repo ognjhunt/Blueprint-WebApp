@@ -15,7 +15,7 @@ Every canonical agent directory under `ops/paperclip/blueprint-company/agents/` 
 - Explicit handoff map. Adjacent agents and escalation paths must be named, not implied.
 - Paperclip is the work record. Delegation, blockers, verification, and closure must show up in issues, not just in prose.
 - Human gates remain visible for irreversible or high-risk decisions.
-- Language stays capture-first, exact-site/world-model-product-first, rights-safe, privacy-safe, and provenance-truthful.
+- Language stays capture-first, real-site evaluation/policy-improvement first, rights-safe, privacy-safe, and provenance-truthful.
 
 ## Required Structure
 `AGENTS.md`

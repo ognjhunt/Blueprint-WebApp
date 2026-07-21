@@ -51,6 +51,11 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const OPERATOR_NAV_ITEMS: NavItem[] = [
+  { key: "overview", label: "Site status", href: "/app", Icon: LayoutDashboard },
+  { key: "packs", label: "Submit another site", href: "/contact/site-operator", Icon: Boxes },
+];
+
 /* -------------------------------------------------------------------------- */
 /*  Sidebar internals (shared between fixed rail + mobile drawer)             */
 /* -------------------------------------------------------------------------- */
@@ -77,9 +82,12 @@ function SidebarBrand() {
 }
 
 function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
+  const { userData } = useAuth();
+  const isSiteOperator = userData?.buyerType === "site_operator";
+  const navItems = isSiteOperator ? OPERATOR_NAV_ITEMS : NAV_ITEMS;
   return (
-    <nav className="flex flex-col gap-1 px-3" aria-label="Buyer app">
-      {NAV_ITEMS.map(({ key, label, href, Icon }) => {
+    <nav className="flex flex-col gap-1 px-3" aria-label={isSiteOperator ? "Site operator app" : "Buyer app"}>
+      {navItems.map(({ key, label, href, Icon }) => {
         const isActive = key === active;
         return (
           <Link
@@ -109,6 +117,16 @@ function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
 }
 
 function SidebarPlanCard() {
+  const { userData } = useAuth();
+  if (userData?.buyerType === "site_operator") {
+    return (
+      <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">Operator record</div>
+        <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">Request-backed</div>
+        <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">Status comes from the linked intake and ops record; no buyer demand or approval is implied.</div>
+      </div>
+    );
+  }
   return (
     <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">

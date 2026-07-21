@@ -118,10 +118,15 @@ describe("cross-source claims guard", () => {
     const targets = buildDefaultScanTargets(repoRoot).map((target) => target.relativePath);
 
     expect(targets).toContain("client/src/pages");
-    expect(targets).toContain("client/src/data/content");
     expect(targets).toContain("AGENTS.md");
+    expect(targets).toContain("VISION.md");
     expect(targets).toContain("PLATFORM_CONTEXT.md");
     expect(targets).toContain("WORLD_MODEL_STRATEGY_CONTEXT.md");
+    expect(targets).toContain("ops/paperclip/blueprint-company/agents");
+    expect(targets).toContain("ops/paperclip/blueprint-company/skills");
+    expect(targets).toContain("ops/paperclip/blueprint-company/tasks");
+    expect(targets).toContain("ops/paperclip/programs");
+    expect(targets).toContain("knowledge/compiled/playbooks/platform-doctrine.md");
     expect(targets).toContain("../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md");
     expect(targets).toContain("scripts/gtm");
     expect(targets).toContain("ops/paperclip/playbooks");

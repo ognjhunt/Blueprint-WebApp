@@ -8,14 +8,14 @@ Purpose: fast orientation for a new engineer or agent entering `Blueprint-WebApp
 
 | Surface | Primary files | Responsibility |
 |---|---|---|
-| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/SiteWorlds.tsx`, `client/src/pages/SiteWorldDetail.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md`, `docs/architecture/real-site-robot-eval-dataset-sync-boundary-2026-06-03.md` | Explain and route the buyer workflow for capture-backed real-site robot eval datasets, Site/Task/Scenario/Eval Cards, hosted evaluation, and proof-bounded pilot decisions. |
-| Site-world/world-model catalog | `client/src/data/siteWorlds.ts`, `client/src/lib/siteWorldCommercialStatus.ts`, `server/routes/site-worlds.ts`, `server/utils/site-worlds.ts`, `server/routes/admin-site-worlds.ts` | List public samples, planned catalog profiles, request-scoped proof, and pipeline-backed packages without overstating readiness. |
-| Hosted sessions | `client/src/pages/HostedSessionSetup.tsx`, `client/src/pages/HostedSessionWorkspace.tsx`, `client/src/lib/hostedSession.ts`, `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts` | Create, load, proxy, and disclose hosted-session access for site-world packages and demo/runtime paths. |
+| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ForRobotTeams.tsx`, `client/src/pages/Sites.tsx`, `client/src/pages/SiteDetail.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/FAQ.tsx`, `client/src/pages/Contact.tsx` | Explain and route the buyer workflow for capture-backed Task Evaluation Runs, Policy Improvement Runs, post-training data packages, and proof-bounded decisions. |
+| Captured-site inventory | `client/src/pages/Sites.tsx`, `client/src/pages/SiteDetail.tsx`, `server/routes/site-worlds.ts`, `server/utils/site-worlds.ts`, `server/routes/admin-site-worlds.ts` | Publish only current Pipeline-backed capture records; keep static fixture catalogs out of public listing and checkout paths. |
+| Buyer run status | `client/src/pages/app/Runs.tsx`, `client/src/pages/app/RunDetail.tsx`, `client/src/lib/buyerAppData.ts`, `server/routes/robot-eval-job-requests.ts` | List and poll the signed-in buyer's persisted run requests without upgrading queue, provider, or artifact state. |
 | Buyer intake and request console | `client/src/pages/Contact.tsx`, `client/src/pages/RequestConsole.tsx`, `client/src/lib/structuredIntake.ts`, `server/routes/inbound-request.ts`, `server/routes/requests.ts`, `server/types/inbound-request.ts` | Capture buyer/site/operator context, persist request state, and expose proof/readiness/preview progress. |
 | Admin and ops dashboards | `client/src/pages/AdminLeads.tsx`, `client/src/pages/AdminGrowthStudio.tsx`, `client/src/pages/AdminCompanyMetrics.tsx`, `server/routes/admin-leads.ts`, `server/routes/admin-growth.ts`, `server/routes/admin-company-metrics.ts` | Operate request queues, growth loops, company metrics, and admin review surfaces. |
-| Licensing, checkout, entitlement | `client/src/lib/stripeClient.ts`, `server/routes/api/create-checkout-session.ts`, `server/routes/marketplace.ts`, `server/routes/marketplace-entitlements.ts`, `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/utils/accounting.ts` | Gate payment, entitlement, Stripe Connect, fulfillment, and accounting behavior. |
+| Licensing, checkout, entitlement | `client/src/lib/stripeClient.ts`, `server/routes/api/create-checkout-session.ts`, `server/routes/agent-access.ts`, `server/routes/marketplace-entitlements.ts`, `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/utils/accounting.ts` | Gate payment, entitlement, Stripe Connect, fulfillment, and accounting behavior against Pipeline-backed inventory and buyer-owned records. |
 | Capture/field supply | `client/src/pages/Capture.tsx`, `client/src/pages/CaptureLaunchAccess.tsx`, `client/src/pages/CapturerSignUpFlow.tsx`, `server/routes/creator.ts`, `server/routes/admin-field-ops.ts`, `server/utils/field-ops-automation.ts` | Route capturer signup, launch access, creator ledgers, and field-ops automation. |
-| City-launch and GTM | `client/src/pages/CityLanding.tsx`, `client/src/pages/AdminAustinLaunchScorecard.tsx`, `server/routes/city-launch.ts`, `server/utils/cityLaunch*.ts`, `server/utils/exactSiteHostedReviewGtmPilot.ts`, `scripts/city-launch/`, `scripts/gtm/` | Plan and operate city launch, coverage, outbound, scorecards, and Exact-Site Hosted Review GTM loops. |
+| City-launch and GTM | `client/src/pages/AdminAustinLaunchScorecard.tsx`, `server/routes/city-launch.ts`, `server/utils/cityLaunch*.ts`, `scripts/city-launch/`, `scripts/gtm/` | Plan and operate request-scoped city launch, coverage, outbound, and scorecards without publishing unproven city supply. |
 | Autonomous org and control plane | `AUTONOMOUS_ORG.md`, `server/agents/`, `ops/paperclip/`, `scripts/paperclip/`, `server/routes/paperclip-relay.ts`, `server/routes/internal-human-blockers.ts`, `server/routes/internal-human-replies.ts` | Keep Paperclip issue/routine state, agent runtime behavior, human gates, and founder-reply durability aligned. |
 | Company onboarding and policy | `README.md`, `AGENTS.md`, `docs/onboarding/`, `docs/company/`, `docs/architecture/source-of-truth-map.md`, `docs/architecture/command-safety-matrix.md` | Orient humans and AI agents without creating a competing source of truth. Legal/HR/payroll drafts require counsel/PEO review before operational use. |
 
@@ -23,7 +23,7 @@ Purpose: fast orientation for a new engineer or agent entering `Blueprint-WebApp
 
 - Buyer surfaces describe packages, hosted access, pricing, proof, and request paths.
 - Licensing surfaces handle entitlement, checkout, usage boundaries, and Stripe/Stripe Connect interactions.
-- Hosted-session surfaces launch and proxy runtime experiences only when entitlement/runtime state supports it.
+- Legacy hosted-session URLs redirect to the live Sites inventory; runtime APIs remain internal until an eligible record and entitlement support a maintained public surface.
 - Ops surfaces manage inbound requests, capture coordination, readiness review, city launch, GTM, and company metrics.
 - Control-plane surfaces keep Paperclip, human blockers, reply ingestion, and agent closeouts accountable to evidence.
 
@@ -36,8 +36,8 @@ Purpose: fast orientation for a new engineer or agent entering `Blueprint-WebApp
 - `client/src/contexts/AuthContext.tsx`: auth context.
 - `client/src/lib/queryClient.ts`: client API/query helper.
 - `client/src/lib/client-env.ts`: client environment access.
-- `client/src/lib/siteWorldCommercialStatus.ts`: buyer-facing listing disclosure rules.
-- `client/src/types/inbound-request.ts` and `client/src/types/hostedSession.ts`: shared client-side contracts.
+- `client/src/lib/buyerAppData.ts`: buyer-owned run list and status polling.
+- `client/src/types/inbound-request.ts`: shared client-side intake contract.
 
 For new public product work, start at `client/src/app/routes.tsx`, then the target page, then any supporting `client/src/lib/` or `client/src/data/` file.
 
@@ -51,7 +51,7 @@ For new public product work, start at `client/src/app/routes.tsx`, then the targ
 - `server/routes/internal-pipeline.ts`: `BlueprintCapturePipeline` bridge ingestion.
 - `server/routes/site-worlds.ts`: public site-world catalog API.
 - `server/routes/site-world-sessions.ts`: hosted-session create/read/proxy/runtime handling.
-- `server/routes/marketplace.ts`, `server/routes/marketplace-entitlements.ts`, `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`: checkout, entitlement, and Stripe flows.
+- `server/routes/api/create-checkout-session.ts`, `server/routes/agent-access.ts`, `server/routes/marketplace-entitlements.ts`, `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`: checkout, entitlement, and Stripe flows.
 - `server/routes/city-launch.ts`: city-launch API surface.
 - `server/agents/runtime.ts`, `server/agents/provider-config.ts`, `server/agents/goal-closeout-contract.ts`: agent runtime behavior and closeout policy.
 
@@ -84,11 +84,7 @@ Policy docs in `docs/company/` are repo-canonical drafts. Notion mirrors are for
 
 ## Graphify Hotspots
 
-Current `graphify-out/GRAPH_REPORT.md` is a structural aid generated from the architecture corpus. It reports:
-
-- top connected nodes around hosted sessions and site-world disclosure: `isPlannedCatalogSiteWorld()`, `updateSession()`, `readFreshHostedSession()`, `isPublicSampleSiteWorld()`, `buildFailureDiagnostic()`, `syncPresentationSessionIndex()`, `createSessionRecord()`, `authorizedJsonFetch()`, `isCommercialExemplarSiteWorld()`, `loadHostedSession()`.
-- the densest repeated communities are in `server/routes/site-world-sessions.ts`.
-- `client/src/pages/HostedSessionWorkspace.tsx`, `client/src/pages/SiteWorldDetail.tsx`, `client/src/lib/siteWorldCommercialStatus.ts`, `server/routes/site-world-sessions.ts`, and `server/utils/site-worlds.ts` are the main orientation files for hosted access and public world-model disclosure.
+Current `graphify-out/GRAPH_REPORT.md` is a structural aid generated from the architecture corpus. Regenerate it after code changes and use its current god nodes and communities to identify coupling. Public inventory truth is owned by `server/routes/site-worlds.ts`, `server/utils/site-worlds.ts`, `client/src/pages/Sites.tsx`, and `client/src/pages/SiteDetail.tsx`.
 
 Use graphify to find navigation hotspots. Do not use it to decide product truth, launch readiness, or live system state.
 

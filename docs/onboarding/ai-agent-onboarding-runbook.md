@@ -101,10 +101,10 @@ From `docs/architecture/refactor-hotspots.md`, treat these as high-risk:
 
 - `ops/paperclip/plugins/blueprint-automation/src/worker.ts`
 - `server/utils/cityLaunchExecutionHarness.ts`
-- `client/src/data/content.ts`
 - `server/routes/site-world-sessions.ts`
 - `client/src/pages/AdminLeads.tsx`
-- `client/src/pages/HostedSessionWorkspace.tsx`
+- `client/src/pages/app/Runs.tsx`
+- `client/src/pages/app/RunDetail.tsx`
 - `server/agents/runtime.ts`
 - `server/routes/admin-leads.ts`
 

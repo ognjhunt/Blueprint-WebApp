@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/BusinessSignUpFlow";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 
+const ANIMATED_STEP_TIMEOUT_MS = 10_000;
+
 const setLocationMock = vi.hoisted(() => vi.fn());
 const createUserWithEmailAndPasswordMock = vi.hoisted(() => vi.fn());
 const setDocMock = vi.hoisted(() => vi.fn());
@@ -154,10 +156,17 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Team and requested lane/i);
+    await screen.findByText(
+      /Team and requested lane/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(await screen.findByLabelText(/Your name/i), {
       target: { value: "Ada Lovelace" },
+    });
+    fireEvent.change(screen.getByLabelText(/Phone number/i), {
+      target: { value: "919-555-0101" },
     });
     fireEvent.change(screen.getByLabelText(/Title/i), {
       target: { value: "Autonomy lead" },
@@ -167,7 +176,11 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByLabelText(/Site name/i);
+    await screen.findByLabelText(
+      /Site name/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(screen.getByLabelText(/Site name/i), {
       target: { value: "Durham fulfillment center" },
@@ -268,7 +281,7 @@ describe("BusinessSignUpFlow analytics", () => {
       companySize: "11-50",
       budgetRange: "$50K-$300K",
       referralSource: "google",
-      hasPhoneNumber: false,
+      hasPhoneNumber: true,
       hasWorkflowContext: true,
       hasOperatingConstraints: true,
       hasPrivacySecurityConstraints: false,
@@ -329,10 +342,17 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Team and requested lane/i);
+    await screen.findByText(
+      /Team and requested lane/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(await screen.findByLabelText(/Your name/i), {
       target: { value: "Nina Operator" },
+    });
+    fireEvent.change(screen.getByLabelText(/Phone number/i), {
+      target: { value: "919-555-0102" },
     });
     fireEvent.change(screen.getByLabelText(/Title/i), {
       target: { value: "Facilities lead" },
@@ -343,7 +363,11 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.click(screen.getByText(/^Site operator$/i));
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByLabelText(/Facility name/i);
+    await screen.findByLabelText(
+      /Facility name/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(screen.getByLabelText(/Facility name/i), {
       target: { value: "Brightleaf Books" },
@@ -437,10 +461,17 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Team and requested lane/i);
+    await screen.findByText(
+      /Team and requested lane/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(await screen.findByLabelText(/Your name/i), {
       target: { value: "Ada Lovelace" },
+    });
+    fireEvent.change(screen.getByLabelText(/Phone number/i), {
+      target: { value: "919-555-0103" },
     });
     fireEvent.change(screen.getByLabelText(/Title/i), {
       target: { value: "Autonomy lead" },
@@ -450,7 +481,11 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByLabelText(/Site name/i);
+    await screen.findByLabelText(
+      /Site name/i,
+      undefined,
+      { timeout: ANIMATED_STEP_TIMEOUT_MS },
+    );
 
     fireEvent.change(screen.getByLabelText(/Site name/i), {
       target: { value: "Durham fulfillment center" },

@@ -1,6 +1,6 @@
 {
   "schema_version": "blueprint.webapp.robot_eval_forwarding_readiness.v1",
-  "generated_at_iso": "2026-07-07T18:13:17.001Z",
+  "generated_at_iso": "2026-07-10T21:03:50.427Z",
   "generated_by": "Blueprint-WebApp/scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
   "status": "ready_for_required_forwarding_with_probe",
   "forwarding_required": true,
@@ -10,7 +10,7 @@
       "configured": true,
       "valid": true,
       "protocol": "http",
-      "origin": "http://127.0.0.1:65066",
+      "origin": "http://127.0.0.1:53830",
       "pathname": "/api/live-pipeline/job-requests",
       "query_present": false,
       "credentials_present": false
@@ -42,7 +42,7 @@
       "configured": true,
       "valid": true,
       "protocol": "http",
-      "origin": "http://127.0.0.1:65066",
+      "origin": "http://127.0.0.1:53830",
       "pathname": "/api/live-pipeline/intake-audit",
       "query_present": false,
       "credentials_present": false

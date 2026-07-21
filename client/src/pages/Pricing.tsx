@@ -63,32 +63,31 @@ const tiers: Tier[] = [
   },
   {
     name: "Policy Improvement Run",
-    price: "$25–40k",
+    price: "Scoped",
     unit: "/ run",
-    tagline: "Sim-only improvement loop after an evaluation ranks your policy.",
+    tagline: "Turn measured evaluation failures into the next policy-development loop.",
     features: [
-      "Baseline evaluation on the captured site",
-      "Dominant failure-mode diagnosis",
-      "Twin/cousin scenarios, curriculum, regression packs",
-      "Sealed scenario tests and an evidence report",
-      "Black-box supported: API endpoint, container, or action traces",
+      "Prioritized failure clusters and scenario design",
+      "Curriculum recommendations and sealed regression set",
+      "Source-code access is optional for analysis outputs",
+      "Improved policy artifact only with an approved trainable path",
     ],
-    note: "An improved policy artifact is delivered only when you expose a trainable surface (adapter hooks, task head, fine-tuning API, or policy wrapper).",
-    cta: "Scope an improvement run",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing",
+    note: "Price and deliverables depend on the policy interface, evidence, and training authority in scope.",
+    cta: "Scope improvement",
+    href: "/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing",
   },
   {
     name: "Site supply",
     price: "$5k",
     unit: "/ site",
-    tagline: "One-time review fee to bring an operator facility into supply.",
+    tagline: "A supply-side path for operators with useful sites to make available.",
     features: [
       "Facility, access, and privacy review",
       "Capture and commercialization posture",
       "Rights packet drafted with the operator",
-      "Operator revenue share set before any buyer use",
+      "Payout terms set before any buyer use",
     ],
-    note: "The review is a fee; operator earnings are revenue share per the rights packet.",
+    note: "No deployment or rights guarantee until the site is reviewed.",
     cta: "Start a site review",
     href: "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
   },
@@ -132,7 +131,7 @@ const addOns: AddOn[] = [
     body: "Rendered support clips that help reviewers reason about a run. Always labeled as review support, never as real-world proof of an outcome.",
   },
   {
-    name: "Provenance-checked data export",
+    name: "Provenance-checked data package",
     meter: "per_export · +$3k",
     body: "An export-ready data package with provenance, rights packet, and coverage flags attached, scoped to your access window.",
   },
@@ -152,12 +151,7 @@ const faqItems = [
   {
     question: "How does site supply pricing work?",
     answer:
-      "Operators start with a $5k supply review covering facility, access, privacy, and commercialization posture. Rights and payout terms are confirmed before any robot-team use. Monitoring is a separate, recurring option.",
-  },
-  {
-    question: "Do I have to hand over my policy weights for an improvement run?",
-    answer:
-      "No. Policy Improvement Runs are source-access optional: black-box evaluation works through an API endpoint, container, private-cloud runner, sim plugin, or action traces, and closed-stack support covers failure clusters, twin/cousin scenarios, curriculum, and regression packs. An improved policy artifact is only delivered when you expose a trainable surface such as adapter hooks, a task head, a fine-tuning API, or a policy wrapper.",
+      "The $5k operator-side figure is a review fee covering facility, access, privacy, and commercialization posture; it is not a promised payout. Any separate payout terms are confirmed before robot-team use. Monitoring is a separate, recurring option.",
   },
   {
     question: "Is generated media ever counted as proof?",
@@ -401,7 +395,7 @@ export default function Pricing() {
             <p className="mt-3 font-mono text-[13px] text-ink-700">
               All access is bounded to the reviewed site, task, robot profile,
               policy-access mode, and proof boundary. Figures shown are illustrative
-              ranges (e.g. RUN-2049 · 100/500 episodes · $6.5k/$15k).
+              ranges; the final episode count, access mode, and price are written into the request.
             </p>
           </ProofBoundary>
         </div>

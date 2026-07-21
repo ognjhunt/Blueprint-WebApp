@@ -9,7 +9,7 @@ The first cycle is a measurement cycle, not an experiment cycle:
 2. Confirm start, submit, success, and failure events are live on the buyer signup and contact request flows (`/client/src/pages/BusinessSignUpFlow.tsx`, `/client/src/components/site/ContactForm.tsx`).
 3. Validate PostHog and GA event naming, property shape, and no-PII discipline against the current analytics contract in `/client/src/lib/analytics.ts`.
 4. Establish current completion rate per step and per entry lane only after the above events are live.
-5. Audit whether buyer-entry defaults are pushing a qualification-first story instead of an exact-site world-model story.
+5. Audit whether buyer-entry defaults are pushing a qualification-first story instead of a capture-backed robot-evaluation story.
 6. Only then propose the first experiment.
 
 ## Hypothesis Queue (deferred until baseline data available)

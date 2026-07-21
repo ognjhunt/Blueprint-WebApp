@@ -6,7 +6,6 @@ This layer wraps the existing `/api/site-worlds`, `/api/site-worlds/search`, `/a
 
 ## Public Resources
 
-- Public page: `/agents`
 - OpenAPI contract: `/agent-access.openapi.json`
 - Dynamic contract route: `/api/agent-access/openapi.json`
 - Public discovery: `/api/site-content`
@@ -29,17 +28,17 @@ npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
 npm run agent:cli -- request location --location "Whole Foods near Durham" --site-class grocery --workflow "shelf restocking"
 npm run agent:cli -- catalog search --q "warehouse tote" --limit 5
 npm run agent:cli -- ask --q "How do I buy a hosted session with a budget?"
-npm run agent:cli -- world get siteworld-f5fd54898cfb
-npm run agent:cli -- commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1
-npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run
+npm run agent:cli -- world get <pipeline-site-world-id>
+npm run agent:cli -- commerce quote --site-world-id <pipeline-site-world-id> --product hosted-session-rental --session-hours 1
+npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run
 npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000
 npm run agent:cli -- commerce live-order <live-order-id>
 npm run agent:cli -- commerce order <dry-order-id>
 npm run agent:cli -- commerce entitlement <dry-entitlement-id>
-npm run agent:cli -- commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>
-npm run agent:cli -- readiness --site-world-id siteworld-f5fd54898cfb
+npm run agent:cli -- commerce entitlement-readiness --site-world-id <pipeline-site-world-id> --entitlement-id <dry-entitlement-id>
+npm run agent:cli -- readiness --site-world-id <pipeline-site-world-id>
 npm run agent:cli -- session create \
-  --site-world-id siteworld-f5fd54898cfb \
+  --site-world-id <pipeline-site-world-id> \
   --entitlement-id <dry-entitlement-id> \
   --order-id <dry-order-id> \
   --commerce-mode dry_run \
@@ -54,7 +53,7 @@ JSON is the default output. Add `--format ndjson` for harness logs that expect o
 `help`, `doctor`, and `setup-auth` are local setup commands:
 
 - `npm run agent:cli -- help --format json` prints command usage, env vars, examples, exit codes, and truth boundaries without calling Blueprint APIs.
-- `npm run agent:cli -- doctor --format json` checks local setup, output formats, credentialless public/demo support, optional protected auth env, and dry-run commerce defaults without calling live services.
+- `npm run agent:cli -- doctor --format json` checks local setup, output formats, credentialless discovery/search/dry-run commerce, protected auth env, and dry-run commerce defaults without calling live services.
 - `npm run agent:cli -- setup-auth --require-auth --format ndjson` fails predictably when a protected robot-team/admin bearer token is required but neither `BLUEPRINT_AGENT_AUTH_TOKEN` nor `BLUEPRINT_FIREBASE_ID_TOKEN` is present.
 
 Predictable CLI exit codes:
@@ -67,7 +66,7 @@ Predictable CLI exit codes:
 | `3` | Setup/auth doctor failed, such as malformed `BLUEPRINT_API_BASE_URL` or missing required bearer auth. |
 | `4` | Blueprint API request failed or could not be reached. |
 
-The CLI setup checks do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths. Protected non-demo hosted-session creation still requires existing Firebase robot-team/admin bearer auth plus a provisioned entitlement; existing session operations require session ownership, admin access, or an active per-session share grant.
+The CLI setup checks do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths. Hosted-session creation requires existing Firebase robot-team/admin bearer auth plus a provisioned entitlement; existing session operations require session ownership, admin access, or an active per-session share grant.
 
 ## Agent Journey Planner
 
@@ -77,7 +76,7 @@ Use `plan` when a robot-team agent has a natural-language query and needs the ne
 npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review
 ```
 
-Planner actions are read/dry-run by default: `exact_catalog_match`, `request_candidate`, `dry_run_quote_order`, `entitlement_readiness`, `public_demo_session_path`, or `blocked_protected_session_path`. Blockers are returned as structured objects with `code`, `severity`, `ownerSystem`, `message`, and `retryAction`. The planner does not create live payment, private access, provider execution, or hosted-session fulfillment.
+Planner actions are read/dry-run by default: `exact_catalog_match`, `request_candidate`, `dry_run_quote_order`, `entitlement_readiness`, or `blocked_protected_session_path`. Blockers are returned as structured objects with `code`, `severity`, `ownerSystem`, `message`, and `retryAction`. The planner does not create live payment, private access, provider execution, or hosted-session fulfillment.
 
 ## Request/Commerce/Session Lifecycle
 
@@ -86,11 +85,11 @@ The request/commerce/session lifecycle is intentionally split so robot-team agen
 - `request intake`: use `requestCandidate` from search or `blueprint.request.locationDraft` to produce a contact URL and inbound-request draft. This does not submit, write, grant package access, or create entitlement.
 - `dry-run commerce`: use quote, dry-run checkout, order, entitlement, and entitlement-readiness tools to prove the commerce shape without live Stripe, package delivery, rights clearance, provider execution, or hosted fulfillment.
 - `live agent commerce`: use `blueprint.commerce.checkoutLive` to create a real Stripe Checkout Session for a pipeline-backed site world with an optional server-enforced `budgetCents` guard, then poll `blueprint.commerce.liveOrder.get` until webhook fulfillment marks the order paid and provisions the entitlement.
-- `hosted-session lifecycle`: use create/reset/step/runBatch/control/renderExplorer/export only after public-demo eligibility or protected Firebase robot-team/admin auth plus entitlement/session ownership gates allow it.
+- `hosted-session lifecycle`: use create/reset/step/runBatch/control/renderExplorer/export only after Firebase robot-team/admin auth plus entitlement/session ownership gates allow it.
 
 ## Structured Robot-Team Test Submission
 
-The buyer-facing structured submission surface lives at `/for-robot-teams` and `/robot-team/eval`. It creates an eligible hosted session through `POST /api/site-worlds/sessions` when public-demo or protected robot-team access allows direct create, and falls back to a prefilled `/contact` intake URL when the package is request-gated. The fallback URL carries a compact modality/field-reference summary in the contact `message` so existing intake can preserve artifact references without adding raw uploads.
+The buyer-facing structured submission surface lives at `/for-robot-teams` and `/robot-team/eval`. It creates an eligible hosted session through `POST /api/site-worlds/sessions` only when protected robot-team auth and entitlement checks allow direct create, and falls back to a prefilled `/contact` intake URL when the package is request-gated. The fallback URL carries a compact modality/field-reference summary in the contact `message` so existing intake can preserve artifact references without adding raw uploads.
 
 The hosted-session create payload may include `policy.robotTeamTestSubmission` with schema version `blueprint.robot_team_test_submission.v1`. WebApp normalizes and validates this object before storing it on the session policy or forwarding it to the hosted-session runtime adapter.
 
@@ -124,7 +123,7 @@ The Pipeline schema truth for these modalities is `robot_team_test_submission_mo
 }
 ```
 
-Read-only tools can use public endpoints. Session/write tools require either public-demo eligibility or a scoped bearer token that resolves through the existing Firebase robot-team/admin access checks. Protected non-demo session create also requires a provisioned hosted-session entitlement; protected session operations require admin access, session ownership, or an active per-session share grant.
+Read-only tools can use public endpoints. Session/write tools require a scoped bearer token that resolves through the existing Firebase robot-team/admin access checks. Session create also requires a provisioned hosted-session entitlement; protected session operations require admin access, session ownership, or an active per-session share grant.
 
 ## Catalog Search
 
@@ -214,25 +213,11 @@ A created live checkout is labeled `live_checkout` and proves payment intent onl
 - `blueprint.session.renderExplorer`
 - `blueprint.session.export`
 
-## Smoke
-
-```bash
-npm run smoke:agent-headless
-```
-
-The default smoke runs in mock mode and exercises:
-
-`catalog -> quote -> dry-run order -> entitlement -> entitlement readiness -> create session -> reset -> step -> run batch -> control -> explorer render -> export`
-
-Use `tsx scripts/agent-access/headless-hosted-session-smoke.ts --mode public-demo` only when a local or preview public-demo runtime is intentionally available and provider/runtime calls are in scope.
-
 ## Truth Boundaries
 
 - `capture_grounded` means a field is tied to capture evidence, provenance, or package records.
 - `provider_derived` means a runtime/provider/adapter produced the output from the package path.
 - `generated` means the artifact was produced by a hosted run or render request.
-- `sample_demo` means public demo shape, not customer proof.
-- `public_demo_eligible` means the public sample can exercise credential-free demo paths without representing protected customer access.
 - `request_gated` means access, rights, export, or hosted availability still depends on review.
 - `dry_run_order` means local/test quote, order, receipt, and entitlement proof with no live Stripe charge or live package access.
 - `live_checkout` means a real Stripe Checkout Session and buyer-order ledger entry exist for a budgeted agent purchase; payment and entitlement provisioning complete only after Stripe reports the session paid, and rights/provider/runtime proof stay with their owning systems.

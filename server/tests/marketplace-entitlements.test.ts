@@ -101,7 +101,7 @@ afterEach(() => {
 });
 
 describe("marketplace entitlements route", () => {
-  it("returns entitlement-backed buyer access for the current SKU", async () => {
+  it("returns entitlement state without inventing access from a static SKU", async () => {
     state.entitlements = [
       {
         id: "ent-1",
@@ -123,17 +123,11 @@ describe("marketplace entitlements route", () => {
           id: "ent-1",
           sku: "modular-kitchen-line",
         }),
-        access: expect.objectContaining({
-          kind: "download",
-          label: "Download Scene Package",
-        }),
+        access: null,
         entitlements: [
           expect.objectContaining({
             id: "ent-1",
-            access: expect.objectContaining({
-              kind: "download",
-              label: "Download Scene Package",
-            }),
+            access: null,
           }),
         ],
       });

@@ -10,8 +10,7 @@ export type AgentJourneyWant =
   | "hosted_review"
   | "dry_run_order"
   | "entitlement_readiness"
-  | "session"
-  | "public_demo_session";
+  | "session";
 
 export type AgentJourneyPlanInput = SearchSiteWorldsInput & {
   q?: string;
@@ -46,7 +45,6 @@ type CompactSearchMatch = {
   matchedAliases: string[];
 };
 
-const DEFAULT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 const DEFAULT_BUYER_USER_ID = "agent-dry-run-buyer";
 
 const SAFE_DEFAULTS = {
@@ -134,9 +132,6 @@ function normalizeWant(value: unknown): AgentJourneyWant {
   if (["session", "hosted_session", "protected_session"].includes(normalized)) {
     return "session";
   }
-  if (["public_demo", "public_demo_session", "demo_session"].includes(normalized)) {
-    return "public_demo_session";
-  }
   return "catalog_match";
 }
 
@@ -152,15 +147,6 @@ function normalizeProduct(value: unknown) {
 
 function envValue(env: AgentClientEnv | undefined, key: string) {
   return env?.[key] ?? process.env[key];
-}
-
-function publicDemoIds(env: AgentClientEnv | undefined) {
-  return new Set(
-    [
-      DEFAULT_PUBLIC_DEMO_SITE_WORLD_ID,
-      clean(envValue(env, "BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID")),
-    ].filter(Boolean),
-  );
 }
 
 function hasBearerAuth(env: AgentClientEnv | undefined) {
@@ -214,20 +200,6 @@ function compactTopMatch(result: Record<string, unknown> | null): CompactSearchM
     score: numberAt(result, "score"),
     matchedFields: stringArray(result?.matchedFields),
     matchedAliases: stringArray(result?.matchedAliases),
-  };
-}
-
-function firstCatalogId(siteWorld: Record<string, unknown> | null, key: string, fallbackKey = "id") {
-  const first = arrayOfRecords(siteWorld?.[key])[0];
-  return stringAt(first, fallbackKey) || stringAt(first, "id");
-}
-
-function sessionIdsFromSiteWorld(siteWorld: Record<string, unknown> | null, input: AgentJourneyPlanInput) {
-  return {
-    robotProfileId: clean(input.robotProfileId) || firstCatalogId(siteWorld, "robotProfiles"),
-    taskId: clean(input.taskId) || firstCatalogId(siteWorld, "taskCatalog", "taskId"),
-    scenarioId: clean(input.scenarioId) || firstCatalogId(siteWorld, "scenarioCatalog"),
-    startStateId: clean(input.startStateId) || firstCatalogId(siteWorld, "startStateCatalog"),
   };
 }
 
@@ -294,16 +266,6 @@ function missingEntitlementIdBlocker(): AgentJourneyBlocker {
   };
 }
 
-function missingPublicDemoInputsBlocker(): AgentJourneyBlocker {
-  return {
-    code: "public_demo_session_inputs_missing",
-    severity: "blocked",
-    ownerSystem: "site_world_catalog",
-    message: "The public-demo session path needs site-world robot, task, scenario, and start-state ids.",
-    retryAction: "Pass --robot-profile-id, --task-id, --scenario-id, and --start-state-id explicitly.",
-  };
-}
-
 function compactCommercePayload(params: {
   quotePayload?: unknown;
   checkoutPayload?: unknown;
@@ -359,18 +321,6 @@ function buildBasePlan(params: {
   };
 }
 
-function buildPublicDemoCommand(siteWorldId: string, ids: ReturnType<typeof sessionIdsFromSiteWorld>) {
-  return [
-    "npm run agent:cli -- session create",
-    `--site-world-id ${siteWorldId}`,
-    "--session-mode runtime_only",
-    `--robot-profile-id ${ids.robotProfileId}`,
-    `--task-id ${ids.taskId}`,
-    `--scenario-id ${ids.scenarioId}`,
-    `--start-state-id ${ids.startStateId}`,
-  ].join(" ");
-}
-
 function parseBuyer(value: AgentJourneyPlanInput["buyer"], buyerUserId: string): AgentDryRunCheckoutInput["buyer"] {
   if (value && typeof value === "object") {
     return value;
@@ -399,7 +349,6 @@ export async function planAgentJourney(
   const results = arrayOfRecords(search?.results);
   const topResult = results[0] || null;
   const topMatch = compactTopMatch(topResult);
-  const topSiteWorld = nestedRecord(topResult, "siteWorld");
   const compactSearch = compactSearchPayload(searchPayload, topMatch);
   const base = buildBasePlan({ query, want, searchPayload, topMatch });
   const requestCandidate = compactSearch.requestCandidate;
@@ -520,36 +469,6 @@ export async function planAgentJourney(
       },
       commerce: compactCommercePayload({ readinessPayload }),
       blockers,
-    };
-  }
-
-  const ids = sessionIdsFromSiteWorld(topSiteWorld, input);
-  const publicDemo = publicDemoIds(env).has(topMatch.siteWorldId);
-  const missingSessionInputs = !ids.robotProfileId || !ids.taskId || !ids.scenarioId || !ids.startStateId;
-
-  if (want === "public_demo_session" || (want === "session" && publicDemo)) {
-    const blockers = missingSessionInputs ? [missingPublicDemoInputsBlocker()] : [];
-    return {
-      ...base,
-      nextAction: {
-        kind: "public_demo_session_path",
-        siteWorldId: topMatch.siteWorldId,
-        safeToRun: publicDemo && blockers.length === 0,
-        command: publicDemo && blockers.length === 0
-          ? buildPublicDemoCommand(topMatch.siteWorldId, ids)
-          : `npm run agent:cli -- site-world search --q ${shellQuote(query)}`,
-      },
-      blockers: publicDemo
-        ? blockers
-        : [
-            {
-              code: "not_public_demo_site_world",
-              severity: "blocked",
-              ownerSystem: "hosted_session_access_policy",
-              message: "The matched site world is not public-demo eligible.",
-              retryAction: "Use dry-run commerce or provide protected-flow auth and entitlement proof.",
-            } satisfies AgentJourneyBlocker,
-          ],
     };
   }
 

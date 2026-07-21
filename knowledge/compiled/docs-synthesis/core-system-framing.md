@@ -36,9 +36,9 @@ This page mirrors the five canonical system-framing documents that define how Bl
 - `BlueprintCapturePipeline` = turns captures into site-specific world-model packages and hosted-session artifacts
 - `Blueprint-WebApp` = buyer, licensing, ops, and hosted-access surface
 - `BlueprintValidation` = optional downstream infrastructure for benchmarking
-- Platform is capture-first and world-model-product-first
-- Center of gravity: broad real-world capture coverage, strong capture quality/provenance, site-specific world models and hosted access, rights/privacy/commercialization controls, buyer-facing surfaces
-- Market structure is two-sided: capturers supply evidence packages, robot teams buy site-specific world models and hosted access
+- Platform is capture-first and real-site robot-evaluation/policy-improvement first
+- Center of gravity: broad real-world capture coverage, strong capture quality/provenance, real-site Task Evaluation Runs, sim-only Policy Improvement Runs, rights/privacy/commercialization controls, and buyer-facing delivery surfaces
+- Market structure is two-sided: capturers supply provenance-backed evidence packages, while robot teams buy scoped real-site evaluation and policy-improvement runs
 - Truth hierarchy: raw capture > rights/privacy/consent > world-model packages > optional trust/qualification outputs
 - Qualification/readiness are optional trust layers, not the center of the company
 
@@ -52,7 +52,7 @@ This page mirrors the five canonical system-framing documents that define how Bl
 - Stable across model swaps: capture bundle structure, timestamps/poses/intrinsics/depth/metadata, consent/rights/privacy, package manifests, hosted-session contracts, buyer attachment/licensing/sync contracts, truth labeling
 - Swappable: world-model checkpoints, providers, inference services, retrieval-conditioned generation strategies, refinement models, training/export adapters
 - Data to preserve: walkthrough video, motion/trajectory logs, camera poses, intrinsics, depth, timestamps, device/modality metadata, site/scenario/deployment context, privacy/consent/rights metadata, retrieval/reference relationships
-- Build priorities (in order): capture quality/coverage, packaging into site-specific world models, hosted access/buyer usability, rights/privacy/provenance rigor, stable contracts that survive backend swaps, optional trust/readiness outputs
+- Build priorities (in order): capture quality/coverage, packaging into evaluation-ready site evidence, buyer run access/usability, rights/privacy/provenance rigor, stable contracts that survive backend swaps, and optional generated/advisory support artifacts
 - Decision rule: prefer reusable capture/packaging/product infrastructure over model-specific hacks unless the hack materially improves near-term user-visible value without increasing long-term coupling
 
 ### 3. Autonomous Org (AUTONOMOUS_ORG.md)
@@ -108,7 +108,7 @@ This page mirrors the five canonical system-framing documents that define how Bl
 **Mission:** Blueprint-WebApp is the buyer, licensing, ops, and hosted-access surface for Blueprint's site-specific world-model products.
 
 **Product rules:**
-1. Keep Blueprint capture-first and world-model-product-first
+1. Keep Blueprint capture-first and real-site robot-evaluation/policy-improvement first
 2. Do not reframe as qualification-first or model-checkpoint-first
 3. Do not overstate simulated or generated outputs as ground truth
 4. Buyer, licensing, hosted-session, and ops flows must stay anchored to real capture provenance
@@ -134,7 +134,7 @@ This page mirrors the five canonical system-framing documents that define how Bl
 
 - Any agent working on any Blueprint repo MUST operate within these framing constraints
 - The Hermes KB is support, not authority — the repo files and Paperclip are the sources of truth
-- Product decisions should always optimize for the capture-first, world-model-product-first hierarchy
+- Product decisions should always optimize for the capture-first, real-site evaluation and policy-improvement hierarchy
 - Model backends are replaceable; the data pipeline, rights handling, and buyer surfaces are the durable moat
 - Autonomous agents have defined human gates for strategy, budget, rights/privacy, commercialization, legal, policy, and irreversible decisions
 - This page should be updated whenever any of the five source documents change materially

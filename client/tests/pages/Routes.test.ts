@@ -46,12 +46,17 @@ describe("Route registration", () => {
     expect(source).not.toContain('path: "/deployment-marketplace-guide"');
   });
 
-  it("keeps canonical dashboard and off-waitlist routes reachable", () => {
+  it("keeps legacy dashboard and signup aliases as redirects", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('path: "/dashboard"');
     expect(source).toContain('path: "/off-waitlist-signup"');
+    expect(source).toContain("BuyerAppRedirect");
+    expect(source).toContain("BusinessSignupRedirect");
+    expect(source).not.toContain('import("../pages/Dashboard")');
+    expect(source).not.toContain('import("../pages/Portal")');
+    expect(source).not.toContain('import("../pages/JoinBlueprint")');
   });
 
   it("keeps buyer app routes protected", () => {

@@ -36,13 +36,10 @@ export default defineConfig({
           if (!id.includes("node_modules")) return;
           const packageName = packageNameFromId(id);
           if (!packageName) return;
-          if (packageName === "three" || packageName === "three-stdlib") {
-            return "vendor-3d";
-          }
           if (packageName === "@googlemaps/js-api-loader") {
             return "vendor-google-maps";
           }
-          if (["openai", "@anthropic-ai/sdk", "@google/generative-ai", "@google-cloud/aiplatform", "lumaai"].includes(packageName)) {
+          if (["openai", "@anthropic-ai/sdk", "@google/generative-ai"].includes(packageName)) {
             return "vendor-ai";
           }
           if (
@@ -57,9 +54,6 @@ export default defineConfig({
             if (id.includes("auth")) return "vendor-firebase-auth";
             if (id.includes("storage")) return "vendor-firebase-storage";
             return "vendor-firebase";
-          }
-          if (packageName === "reactflow") {
-            return "vendor-flow";
           }
           if (packageName.startsWith("@sentry/")) {
             return "vendor-sentry";
@@ -78,13 +72,6 @@ export default defineConfig({
             packageName.startsWith("@tanstack/")
           ) {
             return "vendor-react";
-          }
-          if (
-            packageName === "react-datepicker" ||
-            packageName === "date-fns" ||
-            packageName === "react-transition-group"
-          ) {
-            return "vendor-react-datepicker";
           }
           if (
             packageName === "recharts" ||

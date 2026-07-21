@@ -178,6 +178,10 @@ vi.mock("../utils/access-control", () => ({
   hasAnyRole: async () => true,
 }));
 
+vi.mock("../utils/slack", () => ({
+  sendSlackMessage: vi.fn().mockResolvedValue({ sent: true }),
+}));
+
 vi.mock("../utils/request-review-auth", () => ({
   createRequestReviewToken: () => "valid",
   getRequestReviewCookieName: () => "blueprint-review",
@@ -432,6 +436,141 @@ describe("pipeline integration routes", () => {
     }
   }, 60_000);
 
+  it("records provider and package failure alerts from pipeline sync statuses", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const update = vi.fn().mockResolvedValue(undefined);
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          site_submission_id: "req-1",
+          buyer_request_id: "buyer-req-123",
+          context: {
+            demandCity: "Durham, NC",
+          },
+          pipeline: {
+            scene_id: "scene-0",
+            capture_id: "cap-0",
+            pipeline_prefix: "scenes/scene-0/captures/cap-0/pipeline",
+            artifacts: {},
+          },
+        }),
+      },
+    ];
+    const payload = {
+      ...pipelineAttachmentFixture,
+      buyer_request_id: "buyer-req-123",
+      capture_job_id: "job-1",
+      authoritative_state_update: false,
+      derived_assets: {
+        ...((pipelineAttachmentFixture.derived_assets as Record<string, unknown>) || {}),
+        preview_simulation: {
+          status: "failed",
+          manifest_uri:
+            "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/preview_simulation/failed_manifest.json",
+        },
+        dataset_package: {
+          status: "failed",
+          artifact_uri:
+            "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/package_failed.json",
+        },
+      },
+      evaluation_readiness: {
+        ...((pipelineAttachmentFixture.evaluation_readiness as Record<string, unknown>) || {}),
+        provider_run: {
+          provider_name: "openai",
+          provider_model: "world-preview",
+          provider_run_id: "provider-run-1",
+          status: "failed",
+          failure_reason: "Provider timed out before producing review media.",
+        },
+        robot_eval_dataset_summary: {
+          ...(((pipelineAttachmentFixture.evaluation_readiness as Record<string, unknown>)
+            ?.robot_eval_dataset_summary as Record<string, unknown>) || {}),
+          required_artifact_status: "failed",
+          missing_required_artifacts: ["post_training_data_package_uri"],
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        ...signedPipelineRequest(payload),
+      });
+
+      expect(response.status).toBe(200);
+      expect(findCollectionWrites("opsAlertSignals")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "provider_run_failure:provider-run-1",
+            payload: expect.objectContaining({
+              kind: "provider_run_failure",
+              scope_id: "provider-run-1",
+              event_count: 1,
+              threshold: 1,
+              last_details: expect.objectContaining({
+                provider_run_id: "provider-run-1",
+                status: "failed",
+                failure_reason: "Provider timed out before producing review media.",
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            id: "package_generation_failure:cap-1",
+            payload: expect.objectContaining({
+              kind: "package_generation_failure",
+              scope_id: "cap-1",
+              event_count: 1,
+              threshold: 1,
+              last_details: expect.objectContaining({
+                package_id: "cap-1",
+                failures: expect.arrayContaining([
+                  expect.objectContaining({
+                    surface: "derived_assets.dataset_package",
+                    status: "failed",
+                  }),
+                  expect.objectContaining({
+                    surface:
+                      "evaluation_readiness.robot_eval_dataset_summary.required_artifact_status",
+                    status: "failed",
+                  }),
+                ]),
+              }),
+            }),
+          }),
+        ]),
+      );
+      expect(findCollectionWrites("opsAlerts")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "provider_run_failure:provider-run-1",
+            payload: expect.objectContaining({
+              status: "open",
+              kind: "provider_run_failure",
+              requires_human_review: true,
+            }),
+          }),
+          expect.objectContaining({
+            id: "package_generation_failure:cap-1",
+            payload: expect.objectContaining({
+              status: "open",
+              kind: "package_generation_failure",
+              requires_human_review: true,
+            }),
+          }),
+        ]),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
   it("publishes qualified robot-eval packages into marketplace inventory", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     const update = vi.fn().mockResolvedValue(undefined);
@@ -467,6 +606,7 @@ describe("pipeline integration routes", () => {
         "ent-robot-eval-1": {
           id: "ent-robot-eval-1",
           buyer_user_id: "buyer-123",
+          buyer_email: "buyer@example.com",
           sku: "robot-eval-cap-1",
           access_state: "provisioned",
           capture_id: "cap-1",
@@ -570,6 +710,28 @@ describe("pipeline integration routes", () => {
           }),
         ]),
       );
+      expect(findCollectionWrites("transactionalNotifications")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              event_type: "delivery_ready",
+              channel: "in_app",
+              status: "queued",
+              recipient_user_id: "buyer-123",
+              subject_id: "ent-robot-eval-1",
+            }),
+          }),
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              event_type: "delivery_ready",
+              channel: "email",
+              status: "skipped",
+              skip_reason: "transactional_email_disabled",
+              recipient_email_domain: "example.com",
+            }),
+          }),
+        ]),
+      );
     } finally {
       await stopServer(server);
     }
@@ -646,6 +808,7 @@ describe("pipeline integration routes", () => {
         "ent-robot-eval-revoked": {
           id: "ent-robot-eval-revoked",
           buyer_user_id: "buyer-123",
+          buyer_email: "buyer@example.com",
           sku: "robot-eval-cap-revoked",
           scene_id: "scene-1",
           capture_id: "cap-1",
@@ -697,6 +860,24 @@ describe("pipeline integration routes", () => {
           scene_id: "scene-1",
           capture_id: "cap-1",
         }),
+      );
+      expect(Object.values(state.collectionDocData.transactionalNotifications || {})).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event_type: "consent_revocation",
+            channel: "in_app",
+            status: "queued",
+            recipient_user_id: "buyer-123",
+            subject_id: "ent-robot-eval-revoked",
+          }),
+          expect.objectContaining({
+            event_type: "consent_revocation",
+            channel: "email",
+            status: "skipped",
+            skip_reason: "transactional_email_disabled",
+            recipient_email_domain: "example.com",
+          }),
+        ]),
       );
 
       const accessRequest = signedPipelineRequest({

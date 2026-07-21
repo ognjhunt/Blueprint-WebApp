@@ -4,7 +4,7 @@
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-07-16",
     "summary": "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
-    "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new protected session; existing sessions require creator ownership, admin access, or an active per-session share grant."
+    "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and protected hosted-session endpoints for robot-team agents. Hosted-session flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new session; existing sessions require creator ownership, admin access, or an active per-session share grant."
   },
   "servers": [
     {
@@ -13,7 +13,7 @@
     },
     {
       "url": "http://localhost:5000",
-      "description": "Local development server. Public demo flow can run without auth when demo site worlds are enabled."
+      "description": "Local development server. Hosted-session routes retain the same bearer and entitlement boundaries."
     }
   ],
   "tags": [
@@ -50,7 +50,7 @@
         ],
         "operationId": "discoverAgentAccess",
         "summary": "Discover the robot-team agent access manifest.",
-        "description": "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, documents truth labels, and explains the mock/public-demo hosted-session path without credentials.",
+        "description": "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, and documents the protected hosted-session boundary.",
         "security": [
           {}
         ],
@@ -332,7 +332,6 @@
         "operationId": "getLaunchReadiness",
         "summary": "Inspect launch readiness for a site world before creating a hosted session.",
         "security": [
-          {},
           {
             "BlueprintBearer": []
           }
@@ -408,8 +407,7 @@
               }
             }
           }
-        },
-        "x-blueprint-public-demo": true
+        }
       }
     },
     "/api/agent-access/commerce/quote": {
@@ -899,9 +897,8 @@
           "Hosted sessions"
         ],
         "operationId": "createHostedSession",
-        "summary": "Create a hosted session for a public demo site world or protected robot-team account.",
+        "summary": "Create a hosted session for an entitled robot-team account.",
         "security": [
-          {},
           {
             "BlueprintBearer": []
           }
@@ -918,7 +915,7 @@
         },
         "responses": {
           "200": {
-            "description": "Reusable presentation-demo session returned",
+            "description": "Reusable protected session returned",
             "content": {
               "application/json": {
                 "schema": {
@@ -988,8 +985,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Public unauthenticated creation applies only to demo-eligible site worlds. Protected site worlds continue through Firebase robot_team/admin checks plus provisioned entitlement or existing session ownership."
+        "x-blueprint-truth-boundary": "Creation requires Firebase robot_team/admin authentication plus a provisioned entitlement and current owner-system launch readiness."
       }
     },
     "/api/site-worlds/sessions/{sessionId}": {
@@ -1000,7 +996,6 @@
         "operationId": "getHostedSession",
         "summary": "Read a hosted session record.",
         "security": [
-          {},
           {
             "BlueprintBearer": []
           }
@@ -1071,8 +1066,7 @@
               }
             }
           }
-        },
-        "x-blueprint-public-demo": true
+        }
       }
     },
     "/api/site-worlds/sessions/{sessionId}/reset": {
@@ -1174,8 +1168,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     },
     "/api/site-worlds/sessions/{sessionId}/step": {
@@ -1277,8 +1270,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     },
     "/api/site-worlds/sessions/{sessionId}/run-batch": {
@@ -1380,8 +1372,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     },
     "/api/site-worlds/sessions/{sessionId}/control": {
@@ -1483,8 +1474,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     },
     "/api/site-worlds/sessions/{sessionId}/render": {
@@ -1495,7 +1485,6 @@
         "operationId": "renderHostedSessionFrame",
         "summary": "Render a robot-observation frame for the selected camera.",
         "security": [
-          {},
           {
             "BlueprintBearer": []
           }
@@ -1582,8 +1571,7 @@
               }
             }
           }
-        },
-        "x-blueprint-public-demo": true
+        }
       }
     },
     "/api/site-worlds/sessions/{sessionId}/explorer-render": {
@@ -1685,8 +1673,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     },
     "/api/site-worlds/sessions/{sessionId}/explorer-frame": {
@@ -1697,7 +1684,6 @@
         "operationId": "getHostedSessionExplorerFrame",
         "summary": "Fetch the latest explorer-rendered PNG frame.",
         "security": [
-          {},
           {
             "BlueprintBearer": []
           }
@@ -1778,8 +1764,7 @@
               }
             }
           }
-        },
-        "x-blueprint-public-demo": true
+        }
       }
     },
     "/api/site-worlds/sessions/{sessionId}/export": {
@@ -1881,8 +1866,7 @@
             }
           }
         },
-        "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary": "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks."
+        "x-blueprint-truth-boundary": "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks."
       }
     }
   },
@@ -1920,8 +1904,6 @@
           "capture_grounded",
           "provider_derived",
           "generated",
-          "sample_demo",
-          "public_demo_eligible",
           "request_gated",
           "protected_robot_team",
           "dry_run_order",
@@ -2026,7 +2008,6 @@
           "requestLocationDraft",
           "dryRunCommerce",
           "liveCommerce",
-          "publicDemo",
           "protectedFlow",
           "truthLabels"
         ],
@@ -2090,15 +2071,11 @@
               ]
             }
           },
-          "publicDemoSiteWorldId": {
-            "type": "string"
-          },
           "credentiallessWorkflow": {
             "type": "object",
             "required": [
               "requiredCredentials",
               "summary",
-              "smokeCommand",
               "cliCommands"
             ],
             "additionalProperties": true,
@@ -2107,9 +2084,6 @@
                 "type": "boolean"
               },
               "summary": {
-                "type": "string"
-              },
-              "smokeCommand": {
                 "type": "string"
               },
               "cliCommands": {
@@ -2145,10 +2119,6 @@
             "additionalProperties": true
           },
           "liveCommerce": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "publicDemo": {
             "type": "object",
             "additionalProperties": true
           },
@@ -2626,8 +2596,7 @@
           "backend": {
             "type": "string",
             "enum": [
-              "firestore-live",
-              "static-fallback"
+              "firestore-live"
             ]
           },
           "embeddingModel": {
@@ -3074,7 +3043,7 @@
           "siteWorldId": {
             "type": "string",
             "examples": [
-              "siteworld-f5fd54898cfb"
+              "sw-<pipeline-site-world-id>"
             ]
           },
           "sessionMode": {
@@ -4335,8 +4304,6 @@
     "capture_grounded",
     "provider_derived",
     "generated",
-    "sample_demo",
-    "public_demo_eligible",
     "request_gated",
     "protected_robot_team",
     "dry_run_order",

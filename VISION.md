@@ -250,9 +250,9 @@ These are inherited from platform doctrine and do not bend as we climb:
 > → more proprietary real-world outcome data → better prediction *and* better data generation → better
 > per-site policies → more deployments we can credibly serve → funds and justifies more capture.
 
-Rungs 1–2 are a **data-acquisition strategy disguised as a product.** Every deployment decision we
-sit under is a labeled, ground-truth outcome that the whole rest of the ladder needs and that no
-competitor without our capture footprint can buy.
+Rungs 1–2 are the **buyer-facing evidence foundation.** Every deployment decision we support can
+produce a labeled outcome that strengthens later evaluation and policy-improvement work, without
+turning an unverified prediction into ground truth.
 
 ## The bets we are explicitly making (and what would have to become true)
 

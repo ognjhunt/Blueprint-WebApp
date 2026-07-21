@@ -498,7 +498,7 @@ function buildHelpPayload(topic: unknown) {
     ],
     environment: {
       BLUEPRINT_API_BASE_URL: "Optional. Defaults to http://localhost:5000.",
-      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery/demo and dry-run commerce; required for protected robot-team/admin flows.",
+      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery and dry-run commerce; required for hosted-session and other protected robot-team/admin flows.",
       BLUEPRINT_FIREBASE_ID_TOKEN: "Fallback bearer token env var for protected flows.",
     },
     examples: [
@@ -510,7 +510,7 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- site-world search --q \"Whole Foods near Durham\" --limit 5",
       "npm run agent:cli -- ask --q \"How do I buy a hosted session with a budget?\"",
       "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
-      "npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+      "npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run",
       "npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
       "npm run agent:cli -- commerce live-order <live-order-id>",
     ],
@@ -518,8 +518,8 @@ function buildHelpPayload(topic: unknown) {
     truthBoundaries: [
       "Public discovery, public search, ask, and dry-run commerce never grant package access, live payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
       "commerce checkout --mode live creates a real Stripe Checkout Session for pipeline-backed site worlds; payment completes at the returned URL and webhook fulfillment provisions the entitlement.",
-      "Credential-free hosted-session creation is limited to public-demo eligible site worlds and remains sample/demo only.",
-      "Protected flows require existing Firebase robot_team/admin bearer auth plus session ownership or a matching provisioned entitlement.",
+      "Hosted-session creation requires existing Firebase robot_team/admin bearer auth plus a matching provisioned entitlement.",
+      "Existing protected session operations require session ownership, admin access, or an active per-session share grant.",
     ],
   };
 }
@@ -563,7 +563,7 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
     id: "credentialless_public_flow",
     ok: true,
     level: "pass",
-    message: "Public discovery, catalog search, dry-run commerce, and mock smoke can run without credentials.",
+    message: "Public discovery, catalog search, ask, and dry-run commerce can run without credentials.",
     value: true,
   });
 
@@ -575,7 +575,7 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
       ? "Protected-flow bearer auth env is present."
       : requireAuth
         ? "Protected-flow bearer auth is required but BLUEPRINT_AGENT_AUTH_TOKEN or BLUEPRINT_FIREBASE_ID_TOKEN is missing."
-        : "Protected-flow bearer auth is not set; protected non-demo session calls will fail until a token is provided.",
+        : "Protected-flow bearer auth is not set; hosted-session calls will fail until a token is provided.",
     value: Boolean(token),
   });
 
@@ -595,13 +595,6 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
         message: "Agent commerce checkout defaults to dry_run and does not call live Stripe unless --mode live is passed explicitly.",
         value: "dry_run",
       },
-      {
-        id: "headless_smoke",
-        ok: true,
-        level: "pass",
-        message: "Use npm run smoke:agent-headless for the local mock catalog-to-session proof path.",
-        value: "npm run smoke:agent-headless",
-      },
     );
   }
 
@@ -620,7 +613,7 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
       : [
           "npm run agent:cli -- help --format json",
           "npm run agent:cli -- discover --format ndjson",
-          "npm run smoke:agent-headless",
+          "npm run agent:cli -- site-world search --q \"warehouse tote\" --limit 5",
         ],
     truthBoundary:
       "Doctor and setup-auth are local setup checks only. They do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths.",
