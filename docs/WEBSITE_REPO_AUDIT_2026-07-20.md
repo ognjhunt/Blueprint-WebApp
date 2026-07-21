@@ -478,3 +478,17 @@ Implemented on this branch (see individual commits for detail):
   proof boundaries; homepage tests pin illustrative labels and the generated-
   media-not-real-world-proof boundary so those compliance labels cannot
   silently disappear.
+
+External launch gates that remain after the code remediation:
+
+- Rotate/revoke the exposed Lindy, Perplexity, Firecrawl, and Render
+  credentials; replacement values must stay out of source and chat.
+- Choose positive production beta invite/daily limits. Production is healthy
+  but `/health/ready` currently returns 503 because both capacity variables
+  are absent and the intake contract fails closed.
+- Configure `RENDER_DEPLOY_HOOK_URL` in GitHub Actions and disable Render
+  automatic deploys so a merge cannot bypass the verified-main workflow.
+- Review and merge PR #418, then verify the resulting main CI, Render deploy,
+  live build SHA, readiness, canonical routes, and production bundle.
+- Decide whether `ops/paperclip`, `labs`, and `knowledge` move to an approved
+  operations repository or are formally retained as a monorepo.

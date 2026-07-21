@@ -11,16 +11,19 @@ Configure the CI-gated Render deploy hook
 The deploy workflow now fails closed when `RENDER_DEPLOY_HOOK_URL` is absent,
 and the GitHub Actions repository currently has no configured secrets. A
 read-only Render API check succeeded and confirmed the production
-`Blueprint-WebApp` service on `main`; the remaining gap is a durable CI deploy
-hook or secret plus publication of the reviewed remediation commit.
+`Blueprint-WebApp` service on `main`, but Render currently has automatic deploys
+enabled. That means a merge can deploy before GitHub's main-branch CI finishes,
+so the current provider setting bypasses the intended CI-gated workflow.
 
 Channel target: Slack DM to `Nijel Hunt`, mirrored by email to
 `ohstnhunt@gmail.com` for the durable credential/configuration trail.
 
 ## Recommended Answer
 
-Create a deploy hook for the production Blueprint-WebApp Render service and add
-its URL as the GitHub Actions secret `RENDER_DEPLOY_HOOK_URL`.
+Create a deploy hook for the production Blueprint-WebApp Render service, add
+its URL as the GitHub Actions secret `RENDER_DEPLOY_HOOK_URL`, and disable
+Render automatic deploys so the verified main workflow is the only deploy
+trigger.
 
 ## Alternatives
 
@@ -37,9 +40,10 @@ before the secret is saved.
 
 ## Exact Response Needed
 
-Reply with `RENDER HOOK CONFIGURED` and the Render service name only after the
-production hook exists and GitHub Actions contains a secret named exactly
-`RENDER_DEPLOY_HOOK_URL`. Do not send the hook URL itself.
+Reply with `RENDER HOOK CONFIGURED; AUTO DEPLOY DISABLED` and the Render service
+name only after the production hook exists, GitHub Actions contains a secret
+named exactly `RENDER_DEPLOY_HOOK_URL`, and the Render service reports automatic
+deploys disabled. Do not send the hook URL itself.
 
 ## Execution Owner After Reply
 
@@ -62,9 +66,12 @@ Before the remediation can be called deployed or public-launch-current.
 - A read-only Render API request returned HTTP 200 and identified production
   service `srv-d4vnmk3e5dus73aiohk0` (`Blueprint-WebApp`, branch `main`, automatic
   deploy enabled). No credential value was written to the repository.
+- Production auto-deployed current main SHA `2a73ad61` even though GitHub has no
+  deploy-hook secret, proving the present path is not actually CI-gated.
 - Deploy run `29776034602` failed for SHA `e6c3e20` while the matching CI run
   `29775636637` passed.
-- Production `/version.json` still reports SHA `e6c3e20`.
+- Production `/version.json` reports current main SHA `2a73ad61`; PR #418 has
+  not been merged or deployed.
 - Safe proof: `gh secret list --app actions` (secret names only; never print the
   hook value).
 

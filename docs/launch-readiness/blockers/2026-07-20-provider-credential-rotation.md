@@ -1,6 +1,6 @@
 # Blocker Title
 
-Rotate credentials previously committed to Blueprint-WebApp
+Rotate exposed Blueprint-WebApp provider credentials
 
 ## Blocker Id
 
@@ -10,18 +10,21 @@ Rotate credentials previously committed to Blueprint-WebApp
 
 The remediation removes the client-bundled Lindy bearer token and dead-code
 Perplexity and Firecrawl keys, but repository edits cannot revoke credentials
-in those provider accounts. A provider account owner must rotate or revoke all
-three before the exposure can be treated as contained.
+in those provider accounts. A Render API credential was also pasted into the
+remediation task while deployment access was being diagnosed. It was verified
+with a read-only request and was not written to the repository, but plaintext
+disclosure still requires rotation. A provider account owner must rotate or
+revoke all four credentials before the exposure can be treated as contained.
 
 Channel target: email to `ohstnhunt@gmail.com` for the durable security trail,
 with an optional Slack DM to `Nijel Hunt` carrying the same blocker id.
 
 ## Recommended Answer
 
-Revoke the exposed Lindy credential and rotate the affected Perplexity and
-Firecrawl credentials now. Confirm only provider name, account/workspace, and
-completion timestamp; do not paste replacement secrets into chat, email, or
-the repository.
+Revoke the exposed Lindy credential and rotate the affected Perplexity,
+Firecrawl, and Render credentials now. Confirm only provider name,
+account/workspace, and completion timestamp; do not paste replacement secrets
+into chat, email, or the repository.
 
 ## Alternatives
 
@@ -37,9 +40,9 @@ to their approved server-side secret stores.
 
 ## Exact Response Needed
 
-Reply with: `APPROVE ROTATION`, then list `Lindy`, `Perplexity`, and `Firecrawl`
-with the account/workspace label and revocation or rotation timestamp for each.
-Do not include credential values.
+Reply with: `APPROVE ROTATION`, then list `Lindy`, `Perplexity`, `Firecrawl`,
+and `Render` with the account/workspace label and revocation or rotation
+timestamp for each. Do not include credential values.
 
 ## Execution Owner After Reply
 
@@ -60,10 +63,13 @@ re-enabled.
 
 - The audit identified a Lindy bearer token in a routed client flow and
   Perplexity/Firecrawl keys in committed dead code at baseline SHA `e6c3e20`.
-- The local remediation deletes those files and the client source secret guard
-  passes.
-- Production still reports build SHA `e6c3e20`; code deletion is not provider
-  revocation evidence.
+- The remediation in PR #418 deletes those files; the client source secret
+  guard passes locally and in hosted CI.
+- The Render API credential shared during the task returned HTTP 200 for a
+  read-only service lookup. It was not committed or printed into an artifact;
+  successful authentication is why it must now be treated as exposed.
+- Production reports current main SHA `2a73ad61`, not PR #418; code deletion in
+  an unmerged branch is not provider revocation evidence.
 - Safe proof: `npm run check && npx vitest run client/tests/security/client-source-secret-guard.test.ts`.
 
 ## Non-Scope

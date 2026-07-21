@@ -8,21 +8,23 @@ Approve coordinated publication and credential-history cleanup
 
 ## Why This Is Blocked
 
-The complete remediation is a large, intentionally destructive cleanup layered
-onto a pre-existing dirty working tree. Publishing it requires an owner decision
-on branch/PR ownership and review. Rewriting Git history to remove previously
-committed credentials and large generated blobs is separately disruptive to
-every clone and must not be inferred from an implementation request.
+The complete remediation is a large, intentionally destructive cleanup that
+was reconciled from a pre-existing dirty working tree into isolated PR #418.
+The branch is published and hosted CI is green; merging still requires the
+designated owner/reviewer after provider rotation. Rewriting Git history to
+remove previously committed credentials and large generated blobs is
+separately disruptive to every clone and must not be inferred from an
+implementation request.
 
 Channel target: email to `ohstnhunt@gmail.com`, with Slack DM to `Nijel Hunt`
 for the time-sensitive branch decision.
 
 ## Recommended Answer
 
-After provider rotation is confirmed, authorize a dedicated remediation branch
-and PR containing the reviewed working-tree changes. Merge and deploy that PR,
-then schedule a coordinated `git-filter-repo` history rewrite with collaborator
-notice and a repository backup.
+After provider rotation is confirmed, review and approve PR #418. Merge it only
+after the Render deploy hook is configured, then verify the CI-gated production
+deployment. Schedule a coordinated `git-filter-repo` history rewrite later,
+with collaborator notice and a repository backup.
 
 ## Alternatives
 
@@ -41,8 +43,8 @@ requires collaborators to re-clone or carefully rebase.
 
 Reply with one of:
 
-- `APPROVE ONE REMEDIATION PR; DEFER HISTORY REWRITE`, or
-- `APPROVE ONE REMEDIATION PR AND COORDINATED HISTORY REWRITE AFTER ROTATION`.
+- `APPROVE PR 418; DEFER HISTORY REWRITE`, or
+- `APPROVE PR 418 AND COORDINATED HISTORY REWRITE AFTER ROTATION`.
 
 Also name the reviewer responsible for approving the PR. This approval must
 arrive only after the credential-rotation blocker is resolved.
@@ -54,10 +56,11 @@ history-rewrite coordination.
 
 ## Immediate Next Action After Reply
 
-Reconcile the exact diff against `origin/main`, isolate known unrelated changes,
-create the approved branch and commit sequence, open the PR, and attach the
-local verification record. If history rewrite is approved, prepare a dry-run
-inventory and collaborator migration notice before any force update.
+Reconfirm PR #418 is clean against `origin/main`, merge after rotation and
+deploy-hook configuration, observe the main CI/deploy chain, and verify the
+live build identity and canonical routes. If history rewrite is approved,
+prepare a dry-run inventory and collaborator migration notice before any force
+update.
 
 ## Deadline / Checkpoint
 
@@ -66,12 +69,13 @@ After credential rotation and before claiming the fixes are integrated on
 
 ## Evidence
 
-- Local `HEAD` and `origin/main` are currently `0 0` ahead/behind at
-  `e6c3e20`, while the remediation exists only as a large dirty-tree diff.
-- The retained safety stash is
-  `264cab6df0a7e784b2687fad428911d2641b9b40`.
-- Local typecheck, production build, generated-output tests, claims guard, and
-  browser QA pass; publication and deployment are distinct unproven states.
+- PR #418 contains commits `7a25f4e2` and `2e3cfaf0`, is cleanly mergeable,
+  and all five required hosted CI jobs pass at head `2e3cfaf0`.
+- The isolated branch is exactly two commits ahead of `origin/main`; the
+  primary dirty checkout remains untouched behind two retained safety stashes.
+- Local typecheck, 1,691 tests, production build, generated-output tests,
+  claims guard, and browser QA pass; merge and deployment remain distinct
+  unproven states.
 - Safe proof: `git status --short --branch && git rev-list --left-right --count HEAD...origin/main && git diff --check`.
 
 ## Non-Scope
