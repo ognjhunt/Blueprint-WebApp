@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  sceneAdds: [] as Record<string, unknown>[],
+  contactAdds: [] as Record<string, unknown>[],
   sendEmail: vi.fn(async () => ({ sent: true })),
 }));
 
@@ -27,17 +27,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         };
       }
 
-      if (name === "waitlistTokens" || name === "contactRequests") {
-        return {
-          add: async () => ({ id: `${name}-record` }),
-        };
-      }
-
-      if (name === "scenes") {
+      if (name === "contactRequests") {
         return {
           add: async (payload: Record<string, unknown>) => {
-            state.sceneAdds.push(payload);
-            return { id: "scene-record" };
+            state.contactAdds.push(payload);
+            return { id: "contact-request-record" };
           },
         };
       }
@@ -69,13 +63,13 @@ function makeResponse() {
 }
 
 afterEach(() => {
-  state.sceneAdds.length = 0;
+  state.contactAdds.length = 0;
   state.sendEmail.mockClear();
   vi.resetModules();
 });
 
-describe("contact scene ownership", () => {
-  it("stamps server-created contact scenes with service ownership", async () => {
+describe("contact request persistence", () => {
+  it("persists a website inquiry without fabricating a scene or waitlist state", async () => {
     const { default: contactHandler } = await import("../routes/contact");
     const req = {
       method: "POST",
@@ -98,12 +92,14 @@ describe("contact scene ownership", () => {
     await contactHandler(req, res);
 
     expect(res.statusCode).toBe(202);
-    expect(state.sceneAdds).toHaveLength(1);
-    expect(state.sceneAdds[0]).toMatchObject({
-      ownerUid: "service:contact-form",
-      orgId: "blueprint-intake",
-      source: "contact_form",
-      status: "pending",
+    expect(state.contactAdds).toHaveLength(1);
+    expect(state.contactAdds[0]).toMatchObject({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      company: "Analytical Engines",
+      requestSource: "website-contact-form",
+      ops_automation: expect.objectContaining({ status: "pending" }),
     });
+    expect(res.body).toEqual({ success: true, sent: true });
   });
 });

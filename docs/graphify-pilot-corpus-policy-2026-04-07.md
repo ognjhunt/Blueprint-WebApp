@@ -80,8 +80,6 @@ The first pilot must exclude:
 - `node_modules/`
 - `dist/`
 - `coverage/`
-- `attached_assets/`
-- `paperclip-desktop/`
 - `ops/paperclip/external/`
 - environment files
 - secret-bearing files

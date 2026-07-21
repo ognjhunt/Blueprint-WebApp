@@ -62,7 +62,7 @@ vi.mock("../utils/field-encryption", () => ({
 import { getPublicSiteWorldById } from "../utils/site-worlds";
 
 describe("live site-world World Labs projection", () => {
-  it("builds a visible live site-world from an auto-created pipeline placeholder request", async () => {
+  it("keeps an auto-created pipeline placeholder out of public site-world supply", async () => {
     state.storagePayloads.clear();
     state.docs = [
       {
@@ -73,6 +73,10 @@ describe("live site-world World Labs projection", () => {
           status: "qualified_ready",
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
+          debug: {
+            schemaVersion: 2,
+            autoCreatedByPipeline: true,
+          },
           request: {
             siteName: "Pipeline site req-auto-1",
             siteLocation: "Scene scene-auto-1",
@@ -91,14 +95,7 @@ describe("live site-world World Labs projection", () => {
 
     const record = await getPublicSiteWorldById("sw-req-auto-1");
 
-    expect(record).toMatchObject({
-      id: "sw-req-auto-1",
-      dataSource: "pipeline",
-      siteName: "Pipeline site req-auto-1",
-      siteAddress: "Scene scene-auto-1",
-      sceneId: "scene-auto-1",
-      captureId: "capture-auto-1",
-    });
+    expect(record).toBeNull();
   });
 
   it("surfaces a ready World Labs preview from pipeline artifacts", async () => {
@@ -192,7 +189,7 @@ describe("live site-world World Labs projection", () => {
     );
   });
 
-  it("prefers a live pipeline-backed record over the static demo entry", async () => {
+  it("resolves the former demo capture only through its live Pipeline-backed identity", async () => {
     state.storagePayloads.clear();
     state.docs = [
       {
@@ -246,7 +243,9 @@ describe("live site-world World Labs projection", () => {
       }),
     );
 
-    const record = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
+    const record = await getPublicSiteWorldById(
+      "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+    );
 
     expect(record?.dataSource).toBe("pipeline");
     expect(record?.worldLabsPreview).toMatchObject({

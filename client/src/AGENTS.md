@@ -16,7 +16,7 @@ Local conventions:
 - Qualify or block only the specific unsupported fact: live availability, customer proof, active supply, cleared rights, payment or payout success, provider execution, city coverage, package access already open, hosted-session fulfillment, or guaranteed support/launch outcome.
 - Move sample, request-gated, not-customer-proof, rights, and hosted-availability caveats into proof/detail sections unless the first-screen claim itself would otherwise be false.
 - Public `/world-models` routes may still use `siteWorld` internals. Do not rename internal contracts just to match public copy.
-- Use `client/src/lib/siteWorldCommercialStatus.ts` for public listing disclosure patterns.
+- Use Pipeline-backed `SiteWorldCard` fields from `client/src/data/siteWorlds.ts` and the current `/api/site-worlds` response for public listing disclosure; do not add a parallel static status catalog.
 - Do not present planned profiles, demo samples, generated media, or request-scoped proof as cleared supply or launch guarantees.
 - Keep secrets out of client code; use `client/src/lib/client-env.ts` for allowed client env access.
 

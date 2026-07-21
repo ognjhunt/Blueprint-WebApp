@@ -1,8 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
-import { siteWorldCards, type SiteWorldCard, type SiteWorldPackage } from "../../client/src/data/siteWorlds";
-import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
+import type { SiteWorldCard, SiteWorldPackage } from "../../client/src/data/siteWorlds";
 import type {
   EvaluationReadinessSummary,
   InboundRequest,
@@ -31,74 +28,6 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 ]);
 
 type ArtifactJson = Record<string, unknown> | null;
-
-const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
-const DEMO_SITE_WORLDS_ENABLED = isEnvFlagEnabled("BLUEPRINT_ENABLE_DEMO_SITE_WORLDS");
-const STATIC_SITE_WORLD_FIXTURES_ENABLED = process.env.NODE_ENV !== "production";
-const SITE_WORLD_FALLBACKS_ENABLED =
-  STATIC_SITE_WORLD_FIXTURES_ENABLED || DEMO_SITE_WORLDS_ENABLED;
-const DEMO_BUNDLE_PIPELINE_ROOT = getConfiguredEnvValue("BLUEPRINT_DEMO_BUNDLE_PIPELINE_ROOT");
-
-function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
-  const normalized = String(runtimeBaseUrl || "").trim();
-  if (!normalized) {
-    return null;
-  }
-  try {
-    const url = new URL(normalized);
-    if (url.protocol === "https:") url.protocol = "wss:";
-    if (url.protocol === "http:") url.protocol = "ws:";
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return null;
-  }
-}
-
-function resolveDemoRuntimeManifest(runtimeManifest: SiteWorldCard["runtimeManifest"]): SiteWorldCard["runtimeManifest"] {
-  const runtimeBaseUrl = getConfiguredEnvValue(
-    "BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL",
-    "VITE_HOSTED_DEMO_RUNTIME_BASE_URL",
-  );
-  const websocketBaseUrl =
-    getConfiguredEnvValue(
-      "BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
-      "VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
-    ) || deriveWebsocketUrl(runtimeBaseUrl);
-
-  return {
-    ...runtimeManifest,
-    runtimeBaseUrl,
-    websocketBaseUrl,
-    healthStatus: runtimeBaseUrl ? runtimeManifest.healthStatus || "healthy" : "unknown",
-    launchable: Boolean(runtimeBaseUrl),
-  };
-}
-
-function demoBundleAssetPath(relativePath: string) {
-  if (!DEMO_BUNDLE_PIPELINE_ROOT) {
-    return null;
-  }
-  return path.join(DEMO_BUNDLE_PIPELINE_ROOT, relativePath);
-}
-
-function resolveDemoBundlePathFromRuntimePath(rawPath: string) {
-  if (!DEMO_BUNDLE_PIPELINE_ROOT) {
-    return null;
-  }
-  const normalized = String(rawPath || "").trim();
-  const marker = "/pipeline/";
-  const index = normalized.indexOf(marker);
-  if (index === -1) {
-    return null;
-  }
-  const relative = normalized.slice(index + marker.length);
-  const local = demoBundleAssetPath(relative);
-  return local && fs.existsSync(local) ? local : null;
-}
-
-function buildExplorerAssetUrl(siteWorldId: string, relativePath: string) {
-  return `/api/site-worlds/${encodeURIComponent(siteWorldId)}/explorer-asset?path=${encodeURIComponent(relativePath)}`;
-}
 
 function buildAgentCommerceSummary(siteWorldId: string): NonNullable<SiteWorldCard["agentCommerce"]> {
   const encodedSiteWorldId = encodeURIComponent(siteWorldId);
@@ -207,7 +136,6 @@ function buildPresentationDemoReadiness(params: {
 }
 
 function buildArtifactExplorer(params: {
-  template?: SiteWorldCard;
   siteWorldId: string;
   sceneId: string;
   captureId: string;
@@ -236,110 +164,6 @@ function buildArtifactExplorer(params: {
         }).url || null
       : null;
 
-  if (params.siteWorldId === DEMO_SITE_WORLD_ID) {
-    const manifestPath = demoBundleAssetPath("evaluation_prep/object_geometry_manifest.json");
-    const demoBundleRoot = DEMO_BUNDLE_PIPELINE_ROOT;
-    if (demoBundleRoot && manifestPath && fs.existsSync(manifestPath)) {
-      try {
-        const objectGeometryManifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as Record<string, unknown>;
-        const rawObjects = Array.isArray(objectGeometryManifest.objects)
-          ? (objectGeometryManifest.objects as Array<Record<string, unknown>>)
-          : [];
-        const objects = rawObjects
-          .map((item) => {
-            const rawMeshPath = String(item.mesh_glb_path || "").trim();
-            const localMeshPath = resolveDemoBundlePathFromRuntimePath(rawMeshPath);
-            const placement = (item.placement_bbox as Record<string, unknown> | undefined) || {};
-            const center = Array.isArray(placement.center)
-              ? placement.center.slice(0, 3).map((value) => Number(value || 0))
-              : [0, 0, 0];
-            const extents = Array.isArray(placement.extents)
-              ? placement.extents.slice(0, 3).map((value) => Number(value || 0))
-              : [0.15, 0.15, 0.15];
-            const selectedViews = Array.isArray(item.selected_views)
-              ? (item.selected_views as Array<Record<string, unknown>>)
-              : [];
-            const firstImagePath = String(selectedViews[0]?.image_path || "").trim();
-            const localImagePath = resolveDemoBundlePathFromRuntimePath(firstImagePath);
-            const selectedViewUrls = selectedViews
-              .map((view) => resolveDemoBundlePathFromRuntimePath(String(view.image_path || "").trim()))
-              .filter((value): value is string => Boolean(value))
-              .map((value) => buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, value)));
-            return {
-              id: String(item.object_id || ""),
-              label: String(item.label || item.object_id || "object"),
-              taskRole: String(item.task_role || "").trim() || null,
-              taskCritical: Boolean(item.task_critical),
-              groundingLevel: String(item.grounding_level || item.source_mode || "").trim() || null,
-              meshUrl: localMeshPath
-                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, localMeshPath))
-                : null,
-              previewImageUrl: localImagePath
-                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, localImagePath))
-                : null,
-              selectedViewUrls,
-              center: center as [number, number, number],
-              extents: extents as [number, number, number],
-            };
-          })
-          .filter((item) => item.id);
-
-        return {
-          status: objects.length > 0 ? "ready" : "partial",
-          headline: "Canonical site-world object geometry",
-          summary:
-            "Explore the primary internal site-world package built from canonical geometry, retrieval memory, and captured scene evidence.",
-          derivationMode: "grounded object geometry",
-          canonicalPackageVersion: params.template?.siteWorldSpecUri ? null : null,
-          presentationStatus: "secondary derived overlays available",
-          sceneKind: "canonical_object_geometry",
-          sceneModelUrl: null,
-          sceneModelFormat: "object_bundle",
-          views: [],
-          objects,
-          sources: [
-            {
-              id: "canonical",
-              label: "Canonical package",
-              uri: params.siteWorldSpecUri || null,
-              detail: "Grounded site-world package",
-            },
-            {
-              id: "object-geometry",
-              label: "Object geometry manifest",
-              uri: buildExplorerAssetUrl(params.siteWorldId, "evaluation_prep/object_geometry_manifest.json"),
-              detail: `${objects.length} reconstructed scene objects`,
-            },
-            {
-              id: "presentation",
-              label: "Presentation manifest",
-              uri: params.presentationWorldManifestUri || null,
-              detail: "Derived presentation output, secondary to the canonical scene",
-            },
-            {
-              id: "runtime-demo",
-              label: "Runtime demo manifest",
-              uri: params.runtimeDemoManifestUri || null,
-              detail: "Saved demo runtime configuration",
-            },
-          ].filter((item) => Boolean(item.uri)),
-          operatorView: {
-            available: Boolean(uiBaseUrl),
-            live: Boolean(uiBaseUrl),
-            uiBaseUrl,
-            label: uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
-            description: uiBaseUrl
-              ? "A private runtime operator UI is configured for internal movement and debugging."
-              : "The canonical explorer is the primary path when no private operator bridge is configured.",
-          },
-        };
-      } catch {
-        // Fall through to the generic artifact explorer below.
-      }
-    }
-  }
-
-  const template = params.template;
   const derivationMode = String(
     params.presentationWorldManifest?.derivation_mode || params.runtimeDemoManifest?.derivation_mode || "",
   ).trim() || null;
@@ -350,27 +174,7 @@ function buildArtifactExplorer(params: {
     params.presentationWorldManifest?.status || params.runtimeDemoManifest?.status || "",
   ).trim() || null;
 
-  const views = [
-    {
-      id: "presentation-overview",
-      title: "Presentation overview",
-      description: "Saved customer-facing view from the presentation-world lane.",
-      imageUrl: template?.presentationReferenceImageUrl || null,
-      sourceUri: params.presentationWorldManifestUri || null,
-      badge: "Derived presentation",
-      available: Boolean(template?.presentationReferenceImageUrl),
-    },
-    {
-      id: "runtime-head-rgb",
-      title: "Runtime head camera",
-      description: "Validated runtime observation frame from the saved demo session.",
-      imageUrl: template?.runtimeReferenceImageUrl || null,
-      sourceUri: params.runtimeDemoManifestUri || null,
-      badge: "Validated runtime frame",
-      cameraId: "head_rgb",
-      available: Boolean(template?.runtimeReferenceImageUrl),
-    },
-  ].filter((item) => item.available);
+  const views: NonNullable<SiteWorldCard["artifactExplorer"]>["views"] = [];
 
   const sources = [
     {
@@ -542,49 +346,37 @@ function deriveSampleRobotProfile(sampleRobot: string, runtime: string): SiteWor
   };
 }
 
-function buildFallbackRuntimeManifest(template: SiteWorldCard): SiteWorldCard["runtimeManifest"] {
+function buildUnconfiguredRuntimeManifest(
+  robotProfile: SiteWorldCard["sampleRobotProfile"],
+): SiteWorldCard["runtimeManifest"] {
   return {
-    defaultBackend: template.defaultRuntimeBackend,
+    defaultBackend: "unconfigured",
     runtimeBaseUrl: null,
     websocketBaseUrl: null,
-    supportedCameras: template.sampleRobotProfile.observationCameras.map((item) => item.id),
-    launchableBackends: template.availableRuntimeBackends,
-    exportModes: ["raw_bundle", "rlds_dataset"],
-    supportsStepRollout: true,
-    supportsBatchRollout: true,
-    supportsCameraViews: true,
+    supportedCameras: robotProfile.observationCameras.map((item) => item.id),
+    launchableBackends: [],
+    exportModes: [],
+    supportsStepRollout: false,
+    supportsBatchRollout: false,
+    supportsCameraViews: false,
     supportsStream: false,
     healthStatus: "unknown",
     launchable: false,
   };
 }
 
-function buildFallbackTaskCatalog(template: SiteWorldCard): SiteWorldCard["taskCatalog"] {
+function buildRequestBackedTaskCatalog(
+  siteId: string,
+  sampleTask: string,
+): SiteWorldCard["taskCatalog"] {
   return [
     {
-      id: `${template.id}-task-1`,
-      taskId: `${template.id}-task-1`,
-      taskText: template.sampleTask,
+      id: `${siteId}-requested-task`,
+      taskId: `${siteId}-requested-task`,
+      taskText: sampleTask,
       taskCategory: "generic",
     },
   ];
-}
-
-function buildFallbackScenarioCatalog(template: SiteWorldCard): SiteWorldCard["scenarioCatalog"] {
-  return template.scenarioVariants.map((name, index) => ({
-    id: `${template.id}-scenario-${index + 1}`,
-    name,
-    source: "static",
-  }));
-}
-
-function buildFallbackStartStateCatalog(template: SiteWorldCard): SiteWorldCard["startStateCatalog"] {
-  return template.startStates.map((name, index) => ({
-    id: `${template.id}-start-${index + 1}`,
-    name,
-    taskId: `${template.id}-task-1`,
-    source: "static",
-  }));
 }
 
 function normalizeRobotProfiles(value: unknown, fallback: SiteWorldCard["sampleRobotProfile"]): SiteWorldCard["robotProfiles"] {
@@ -831,17 +623,21 @@ function buildFallbackPackages(siteId: string, siteName: string, siteAddress: st
   ];
 }
 
-function fallbackCapabilityEnvelope(template?: SiteWorldCard): RobotCapabilityEnvelope {
+function fallbackCapabilityEnvelope(
+  sampleRobot: string,
+  runtimeHint: string,
+): RobotCapabilityEnvelope {
+  const normalizedRobot = sampleRobot.toLowerCase();
   return {
-    embodiment_type: template?.sampleRobot?.toLowerCase().includes("humanoid")
+    embodiment_type: normalizedRobot.includes("humanoid")
       ? "humanoid"
-      : template?.sampleRobot?.toLowerCase().includes("arm")
+      : normalizedRobot.includes("arm")
         ? "fixed_arm"
         : "mobile_manipulator",
     minimum_path_width_m: 0.95,
     maximum_reach_m: 1.1,
     maximum_payload_kg: null,
-    sensor_requirements: template?.runtime ? [template.runtime] : [],
+    sensor_requirements: runtimeHint ? [runtimeHint] : [],
     controller_interface_assumptions: ["policy checkpoint interface", "bounded rollout execution"],
     safety_envelope: ["qualification-backed task scope", "operator-defined restricted zones"],
     facility_constraints: [],
@@ -866,12 +662,16 @@ function buildFallbackRights(request: InboundRequest): RightsAndComplianceSummar
   };
 }
 
-function extractCapabilityEnvelope(compatibilityMatrix: ArtifactJson, template?: SiteWorldCard): RobotCapabilityEnvelope {
+function extractCapabilityEnvelope(
+  compatibilityMatrix: ArtifactJson,
+  sampleRobot: string,
+  runtimeHint: string,
+): RobotCapabilityEnvelope {
   const envelope = compatibilityMatrix?.reference_capability_envelope;
   if (envelope && typeof envelope === "object") {
     return envelope as RobotCapabilityEnvelope;
   }
-  return fallbackCapabilityEnvelope(template);
+  return fallbackCapabilityEnvelope(sampleRobot, runtimeHint);
 }
 
 function extractRightsSummary(siteNormalization: ArtifactJson, request: InboundRequest): RightsAndComplianceSummary {
@@ -959,7 +759,8 @@ function buildEvaluationReadiness({
   siteWorldSpec,
   siteWorldHealth,
   worldLabsPreview,
-  template,
+  sampleRobot,
+  runtimeHint,
 }: {
   request: InboundRequest;
   qualificationState: QualificationState;
@@ -973,7 +774,8 @@ function buildEvaluationReadiness({
   siteWorldSpec: ArtifactJson;
   siteWorldHealth: ArtifactJson;
   worldLabsPreview?: SiteWorldCard["worldLabsPreview"];
-  template?: SiteWorldCard;
+  sampleRobot: string;
+  runtimeHint: string;
 }): EvaluationReadinessSummary & {
   qualification_state: QualificationState;
   opportunity_state: OpportunityState;
@@ -1000,7 +802,7 @@ function buildEvaluationReadiness({
   const runtimeLabel = String(
     launchableExportBundle?.public_runtime_label
       || (nativeWorldModelPrimary ? "Native hosted site world" : "")
-      || template?.runtime
+      || runtimeHint
       || "Qualified site runtime"
   );
 
@@ -1014,7 +816,11 @@ function buildEvaluationReadiness({
     recapture_required: recapture.required,
     freshness_date: timestampToIso(pipeline?.synced_at) || timestampToIso(request.createdAt) || null,
     missing_evidence: recapture.missingEvidence,
-    capability_envelope: extractCapabilityEnvelope(compatibilityMatrix, template),
+    capability_envelope: extractCapabilityEnvelope(
+      compatibilityMatrix,
+      sampleRobot,
+      runtimeHint,
+    ),
     rights_and_compliance: extractRightsSummary(siteNormalization, request),
     exports_available: exportsAvailable,
     task_categories: benchmark.categories,
@@ -1027,50 +833,6 @@ function buildEvaluationReadiness({
     runtime_launchable: Boolean(siteWorldHealth?.launchable),
     runtime_registration_status: String(siteWorldHealth?.runtime_registration_status || ""),
     evaluation_prep_summary: launchableExportBundle || null,
-  };
-}
-
-function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
-  const presentationDemoReadiness =
-    template.presentationDemoReadiness || {
-      launchable: false,
-      blockers: ["missing presentation package", "site not launchable yet"],
-      presentationWorldManifestUri: null,
-      runtimeDemoManifestUri: null,
-      status: "presentation_assets_missing" as const,
-      uiBaseUrl: null,
-    };
-  return {
-    ...template,
-    runtimeManifest:
-      template.id === DEMO_SITE_WORLD_ID
-        ? resolveDemoRuntimeManifest(template.runtimeManifest || buildFallbackRuntimeManifest(template))
-        : template.runtimeManifest || buildFallbackRuntimeManifest(template),
-    taskCatalog: template.taskCatalog || buildFallbackTaskCatalog(template),
-    scenarioCatalog: template.scenarioCatalog || buildFallbackScenarioCatalog(template),
-    startStateCatalog: template.startStateCatalog || buildFallbackStartStateCatalog(template),
-    robotProfiles: template.robotProfiles || [template.sampleRobotProfile],
-    exportModes: template.exportModes || ["raw_bundle", "rlds_dataset"],
-    presentationDemoReadiness,
-    artifactExplorer:
-      template.artifactExplorer ||
-      buildArtifactExplorer({
-        template,
-        siteWorldId: template.id,
-        sceneId: template.sceneId,
-        captureId: template.captureId,
-        siteWorldSpecUri: template.siteWorldSpecUri ?? null,
-        sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
-        conditioningBundleUri: template.conditioningBundleUri ?? null,
-        presentationWorldManifestUri: presentationDemoReadiness.presentationWorldManifestUri ?? null,
-        runtimeDemoManifestUri: presentationDemoReadiness.runtimeDemoManifestUri ?? null,
-      }),
-    sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
-    conditioningBundleUri: template.conditioningBundleUri ?? null,
-    siteWorldSpecUri: template.siteWorldSpecUri ?? null,
-    siteWorldRegistrationUri: template.siteWorldRegistrationUri ?? null,
-    siteWorldHealthUri: template.siteWorldHealthUri ?? null,
-    dataSource: template.dataSource || "static",
   };
 }
 
@@ -1172,29 +934,13 @@ async function listLiveInboundRequestDocs(limit: number): Promise<FirebaseFirest
     .slice(0, Math.max(1, limit));
 }
 
-function findStaticSiteWorldById(id: string): SiteWorldCard | null {
-  if (!SITE_WORLD_FALLBACKS_ENABLED) {
-    return null;
-  }
-  const normalizedId = String(id || "").trim();
-  if (!normalizedId) {
-    return null;
-  }
-
-  const template = siteWorldCards.find(
-    (item) =>
-      item.id === normalizedId ||
-      item.siteSubmissionId === normalizedId ||
-      item.sceneId === normalizedId ||
-      item.captureId === normalizedId,
-  );
-  return template ? buildStaticRecord(template) : null;
-}
-
 async function buildLiveRecord(
   requestId: string,
   request: InboundRequest,
 ): Promise<SiteWorldCard | null> {
+  if (request.debug?.autoCreatedByPipeline === true) {
+    return null;
+  }
   const qualificationState = normalizeQualificationState(request);
   const opportunityState = normalizeOpportunityState(request, qualificationState);
   if (!LIVE_QUALIFICATION_STATES.has(qualificationState) && !LIVE_OPPORTUNITY_STATES.has(opportunityState)) {
@@ -1203,24 +949,15 @@ async function buildLiveRecord(
 
   const pipeline = request.pipeline;
   const siteSubmissionId = request.site_submission_id || requestId;
-  const template = siteWorldCards.find(
-    (item) =>
-      item.id === siteSubmissionId ||
-      item.siteSubmissionId === siteSubmissionId ||
-      item.sceneId === pipeline?.scene_id ||
-      item.captureId === pipeline?.capture_id,
-  );
-
   const generatedId =
-    template?.id ||
     `sw-${slugify(siteSubmissionId || request.request.siteName || requestId) || requestId.slice(0, 8)}`;
-  const sceneId = String(pipeline?.scene_id || template?.sceneId || siteSubmissionId);
-  const captureId = String(pipeline?.capture_id || template?.captureId || requestId);
-  const pipelinePrefix = String(pipeline?.pipeline_prefix || template?.pipelinePrefix || "");
-  const siteName = request.request.siteName || template?.siteName || "Qualified site";
-  const siteAddress = request.request.siteLocation || template?.siteAddress || "Location pending";
-  const sampleTask = request.request.taskStatement || template?.sampleTask || "Review the qualified workflow";
-  const sampleRobot = request.request.targetRobotTeam || template?.sampleRobot || "Robot team";
+  const sceneId = String(pipeline?.scene_id || siteSubmissionId);
+  const captureId = String(pipeline?.capture_id || requestId);
+  const pipelinePrefix = String(pipeline?.pipeline_prefix || "");
+  const siteName = request.request.siteName || "Qualified site";
+  const siteAddress = request.request.siteLocation || "Location pending";
+  const sampleTask = request.request.taskStatement || "Review the qualified workflow";
+  const sampleRobot = request.request.targetRobotTeam || "Robot team";
 
   const [
     siteNormalization,
@@ -1308,14 +1045,22 @@ async function buildLiveRecord(
     siteWorldSpec,
     siteWorldHealth,
     worldLabsPreview: undefined,
-    template,
+    sampleRobot,
+    runtimeHint: String(siteWorldRegistration?.public_runtime_label || ""),
   });
 
-  const packages =
-    template?.packages ||
-    buildFallbackPackages(generatedId, siteName, siteAddress, sampleTask, sampleRobot);
+  const packages = buildFallbackPackages(
+    generatedId,
+    siteName,
+    siteAddress,
+    sampleTask,
+    sampleRobot,
+  );
 
-  const fallbackRobotProfile = template?.sampleRobotProfile || deriveSampleRobotProfile(sampleRobot, readiness.runtime_label);
+  const fallbackRobotProfile = deriveSampleRobotProfile(
+    sampleRobot,
+    readiness.runtime_label,
+  );
   const taskCatalog = Array.isArray(siteWorldSpec?.task_catalog)
     ? (siteWorldSpec?.task_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || item.task_id || ""),
@@ -1323,7 +1068,7 @@ async function buildLiveRecord(
         taskText: String(item.task_text || item.name || sampleTask),
         taskCategory: item.task_category ? String(item.task_category) : "generic",
       }))
-    : template?.taskCatalog || buildFallbackTaskCatalog(template || buildStaticRecord(siteWorldCards[0]));
+    : buildRequestBackedTaskCatalog(generatedId, sampleTask);
   const startStateCatalog = Array.isArray(siteWorldSpec?.start_state_catalog)
     ? (siteWorldSpec?.start_state_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || ""),
@@ -1331,18 +1076,22 @@ async function buildLiveRecord(
         taskId: item.task_id ? String(item.task_id) : undefined,
         source: item.source ? String(item.source) : undefined,
       }))
-    : template?.startStateCatalog || buildFallbackStartStateCatalog(template || buildStaticRecord(siteWorldCards[0]));
+    : [];
   const scenarioCatalog = Array.isArray(siteWorldRegistration?.scenario_catalog)
     ? (siteWorldRegistration?.scenario_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || ""),
         name: String(item.name || "default"),
         source: item.source ? String(item.source) : undefined,
       }))
-    : template?.scenarioCatalog || buildFallbackScenarioCatalog(template || buildStaticRecord(siteWorldCards[0]));
+    : [];
   const robotProfiles = normalizeRobotProfiles(siteWorldRegistration?.robot_profiles || siteWorldSpec?.robot_profiles, fallbackRobotProfile);
   const startStates = startStateCatalog.map((item) => item.name).filter(Boolean);
   const scenarioVariants = scenarioCatalog.map((item) => item.name).filter(Boolean);
-  const exportModes = template?.exportModes || ["raw_bundle", "rlds_dataset"];
+  const exportModes = Array.isArray(siteWorldRegistration?.export_modes)
+    ? (siteWorldRegistration.export_modes as unknown[])
+        .map((item) => String(item).trim())
+        .filter(Boolean)
+    : readiness.exports_available;
   const runtimeCapabilities =
     siteWorldRegistration && typeof siteWorldRegistration.runtime_capabilities === "object"
       ? (siteWorldRegistration.runtime_capabilities as Record<string, unknown>)
@@ -1403,16 +1152,16 @@ async function buildLiveRecord(
             ? Object.values(backendVariants)
                 .filter((item) => item.launchable)
                 .map((item) => item.backendId)
-            : [String(siteWorldRegistration.default_backend || siteWorldRegistration.primary_runtime_backend || "site_world_runtime")],
-        supportsStepRollout: Boolean(runtimeCapabilities.supports_step_rollout ?? true),
-        supportsBatchRollout: Boolean(runtimeCapabilities.supports_batch_rollout ?? true),
-        supportsCameraViews: Boolean(runtimeCapabilities.supports_camera_views ?? true),
-        supportsStream: Boolean(runtimeCapabilities.supports_stream ?? true),
+            : [],
+        supportsStepRollout: Boolean(runtimeCapabilities.supports_step_rollout),
+        supportsBatchRollout: Boolean(runtimeCapabilities.supports_batch_rollout),
+        supportsCameraViews: Boolean(runtimeCapabilities.supports_camera_views),
+        supportsStream: Boolean(runtimeCapabilities.supports_stream),
         healthStatus: String(siteWorldHealth?.status || "unknown"),
-        launchable: Boolean(siteWorldHealth?.launchable ?? true),
+        launchable: Boolean(siteWorldHealth?.launchable),
         backendVariants,
       }
-    : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
+    : buildUnconfiguredRuntimeManifest(fallbackRobotProfile);
   const presentationDemoReadiness = buildPresentationDemoReadiness({
     pipeline,
     launchable: Boolean(siteWorldHealth?.launchable ?? runtimeManifest.launchable),
@@ -1491,10 +1240,10 @@ async function buildLiveRecord(
     siteWorldSpec,
     siteWorldHealth,
     worldLabsPreview,
-    template,
+    sampleRobot,
+    runtimeHint: String(siteWorldRegistration?.public_runtime_label || ""),
   });
   const artifactExplorer = buildArtifactExplorer({
-    template,
     siteWorldId: generatedId,
     sceneId,
     captureId,
@@ -1514,63 +1263,34 @@ async function buildLiveRecord(
   });
 
   return {
-    ...(template || {
-      id: generatedId,
-      siteCode: `LIVE-${requestId.slice(0, 6).toUpperCase()}`,
-      category: "Logistics",
-      industry: "Qualified site",
-      tone: "from-slate-100 via-white to-slate-50",
-      accent: "#0f172a",
-      thumbnailKind: "parcel" as const,
-      summary: "Qualified deployment-readiness record prepared from pipeline artifacts.",
-      bestFor: "Teams reviewing exact-site readiness before a pilot.",
-      runtime: refreshedReadiness.runtime_label,
-      defaultRuntimeBackend: runtimeManifest.defaultBackend,
-      availableRuntimeBackends: runtimeManifest.launchableBackends,
-      samplePolicy: "Submitted checkpoint",
-      exportArtifacts: refreshedReadiness.exports_available,
-      startStates,
-      scenarioVariants,
-      runtimeManifest,
-      taskCatalog,
-      scenarioCatalog,
-      startStateCatalog,
-      robotProfiles,
-      exportModes,
-      packages,
-      siteName,
-      siteAddress,
-      sceneId,
-      captureId,
-      siteSubmissionId,
-      pipelinePrefix,
-      taskLane: sampleTask,
-      sampleRobot,
-      sampleRobotProfile: robotProfiles[0] || fallbackRobotProfile,
-      sampleTask,
-    }),
     id: generatedId,
+    siteCode: `LIVE-${requestId.slice(0, 6).toUpperCase()}`,
     siteName,
     siteAddress,
     sceneId,
     captureId,
     siteSubmissionId,
     pipelinePrefix,
-    taskLane: template?.taskLane || sampleTask,
+    category: "Service",
+    industry: request.request.targetSiteType || "Qualified site",
+    tone: "from-slate-100 via-white to-slate-50",
+    accent: "#0f172a",
+    thumbnailKind: "electronics",
+    taskLane: sampleTask,
     summary:
       String(siteNormalization?.summary || "").trim() ||
-      template?.summary ||
       "Qualified site packaged for deployment-readiness review and downstream evaluation.",
-    bestFor: template?.bestFor || "Policy ranking readiness review on one exact site.",
+    bestFor: "Policy ranking readiness review on one exact site.",
     runtime: refreshedReadiness.runtime_label,
     defaultRuntimeBackend: runtimeManifest.defaultBackend,
     availableRuntimeBackends: runtimeManifest.launchableBackends,
     sampleRobot,
     sampleRobotProfile: robotProfiles[0] || fallbackRobotProfile,
     sampleTask,
+    samplePolicy: "Buyer-submitted policy",
     startStates,
     scenarioVariants,
-    exportArtifacts: refreshedReadiness.exports_available.length > 0 ? refreshedReadiness.exports_available : template?.exportArtifacts || [],
+    exportArtifacts: refreshedReadiness.exports_available,
     runtimeManifest,
     taskCatalog,
     scenarioCatalog,
@@ -1593,9 +1313,7 @@ async function buildLiveRecord(
 
 export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]> {
   if (!db) {
-    return SITE_WORLD_FALLBACKS_ENABLED
-      ? siteWorldCards.slice(0, limit).map(buildStaticRecord).map(withAgentCommerce)
-      : [];
+    return [];
   }
 
   const liveDocs = await listLiveInboundRequestDocs(limit);
@@ -1619,37 +1337,11 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
     }
   }
 
-  if (SITE_WORLD_FALLBACKS_ENABLED) {
-    for (const template of siteWorldCards) {
-      if (!deduped.has(template.id)) {
-        deduped.set(template.id, buildStaticRecord(template));
-      }
-    }
-  }
-
   return Array.from(deduped.values()).slice(0, limit).map(withAgentCommerce);
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
-  const staticDirectMatch = findStaticSiteWorldById(id);
   const catalog = await listPublicSiteWorlds(100);
-  if (staticDirectMatch) {
-    const liveEquivalent =
-      catalog.find(
-        (item) =>
-          item.dataSource === "pipeline" &&
-          (item.id === id ||
-            item.siteSubmissionId === staticDirectMatch.siteSubmissionId ||
-            item.sceneId === staticDirectMatch.sceneId ||
-            item.captureId === staticDirectMatch.captureId),
-      ) || null;
-    if (liveEquivalent) {
-      return withAgentCommerce(liveEquivalent);
-    }
-    if (staticDirectMatch.hostedSessionOverride?.allowBlockedSiteWorld) {
-      return withAgentCommerce(staticDirectMatch);
-    }
-  }
 
   const liveOrStaticRecord =
     catalog.find(
@@ -1685,7 +1377,7 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
     return withAgentCommerce(liveOrStaticRecord);
   }
 
-  return staticDirectMatch ? withAgentCommerce(staticDirectMatch) : null;
+  return null;
 }
 
 export async function resolveLiveSiteWorldContext(id: string): Promise<{
@@ -1719,21 +1411,4 @@ export async function resolveLiveSiteWorldContext(id: string): Promise<{
   }
 
   return null;
-}
-
-export async function resolvePublicSiteWorldExplorerAssetPath(siteWorldId: string, relativePath: string): Promise<string | null> {
-  if (siteWorldId !== DEMO_SITE_WORLD_ID || !DEMO_BUNDLE_PIPELINE_ROOT) {
-    return null;
-  }
-  const demoBundleRoot = DEMO_BUNDLE_PIPELINE_ROOT;
-  const normalized = path.normalize(String(relativePath || "").trim()).replace(/^(\.\.(\/|\\|$))+/, "");
-  if (!normalized || normalized.startsWith("..")) {
-    return null;
-  }
-  const resolved = path.resolve(demoBundleRoot, normalized);
-  const allowedRoot = path.resolve(demoBundleRoot);
-  if (!resolved.startsWith(`${allowedRoot}${path.sep}`) && resolved !== allowedRoot) {
-    return null;
-  }
-  return fs.existsSync(resolved) ? resolved : null;
 }

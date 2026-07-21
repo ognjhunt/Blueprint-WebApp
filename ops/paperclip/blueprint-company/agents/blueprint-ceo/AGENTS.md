@@ -38,7 +38,7 @@ Default behavior:
 Your job is to keep the company aligned with the core mission:
 
 - capture-first
-- world-model-product-first
+- real-site robot-evaluation and policy-improvement first
 - provenance-safe
 - privacy-safe
 - rights-safe

@@ -1,6 +1,5 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
-import { getConfiguredEnvValue } from "../config/env";
 import type { EvaluationReadinessSummary, PipelineAttachment, QualificationState } from "../types/inbound-request";
 import type {
   RobotProfile,
@@ -18,23 +17,6 @@ export class HostedSessionRuntimeError extends Error {
   constructor(code: string, message: string) {
     super(message);
     this.code = code;
-  }
-}
-
-const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
-
-function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
-  const normalized = String(runtimeBaseUrl || "").trim();
-  if (!normalized) {
-    return null;
-  }
-  try {
-    const url = new URL(normalized);
-    if (url.protocol === "https:") url.protocol = "wss:";
-    if (url.protocol === "http:") url.protocol = "ws:";
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return null;
   }
 }
 
@@ -264,7 +246,6 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
   const pipeline = (inbound?.data?.pipeline as PipelineAttachment | undefined) ?? undefined;
   const artifacts = pipeline?.artifacts ?? {};
   const pipelinePrefix = String(pipeline?.pipeline_prefix || site.pipelinePrefix || "").trim();
-  const hostedSessionOverride = site.hostedSessionOverride || null;
 
   if (!pipelinePrefix) {
     throw new HostedSessionRuntimeError(
@@ -316,21 +297,10 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
 
   const registrationPayload = await readHostedRuntimeArtifactJson(siteWorldRegistrationUri);
   const siteWorldSpecPayload = await readHostedRuntimeArtifactJson(siteWorldSpecUri);
-  const demoRuntimeBaseUrl =
-    site.id === DEMO_SITE_WORLD_ID
-      ? getConfiguredEnvValue("BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL", "VITE_HOSTED_DEMO_RUNTIME_BASE_URL")
-      : null;
-  const demoWebsocketBaseUrl =
-    site.id === DEMO_SITE_WORLD_ID
-      ? getConfiguredEnvValue(
-          "BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
-          "VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
-        ) || deriveWebsocketUrl(demoRuntimeBaseUrl)
-      : null;
   const runtimeBaseUrl =
-    String(demoRuntimeBaseUrl || registrationPayload?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "").trim() || null;
+    String(registrationPayload?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "").trim() || null;
   const websocketBaseUrl =
-    String(demoWebsocketBaseUrl || registrationPayload?.websocket_base_url || site.runtimeManifest?.websocketBaseUrl || "").trim() || null;
+    String(registrationPayload?.websocket_base_url || site.runtimeManifest?.websocketBaseUrl || "").trim() || null;
   const runtimeSiteWorldId =
     String(registrationPayload?.site_world_id || site.id || "").trim() || site.id;
   const [runtimeSiteWorldRecord, runtimeHealthRecord] = await Promise.all([
@@ -497,7 +467,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     runtimeHealthRecord,
     runtimeBaseUrl,
     websocketBaseUrl,
-    allowBlockedSiteWorld: hostedSessionOverride?.allowBlockedSiteWorld === true,
+    allowBlockedSiteWorld: false,
     sceneMemoryManifestUri,
     conditioningBundleUri,
     presentationWorldManifestUri,
@@ -506,13 +476,13 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     runtimeDemoManifestDeclared,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
-    qualificationState:
-      hostedSessionOverride?.qualificationState
-      || parseQualificationState(inbound?.data?.qualification_state || site.evaluationReadiness?.qualification_state),
+    qualificationState: parseQualificationState(
+      inbound?.data?.qualification_state || site.evaluationReadiness?.qualification_state,
+    ),
     evaluationReadiness:
-      hostedSessionOverride
-        ? site.evaluationReadiness || null
-        : (inbound?.data?.evaluation_readiness as EvaluationReadinessSummary | undefined) || site.evaluationReadiness || null,
+      (inbound?.data?.evaluation_readiness as EvaluationReadinessSummary | undefined)
+      || site.evaluationReadiness
+      || null,
     readinessDecisionUri: String(artifacts.readiness_decision_uri || "").trim() || null,
     humanActionsRequiredUri: String(artifacts.human_actions_required_uri || "").trim() || null,
   };

@@ -7,6 +7,7 @@ import type { Server } from "http";
 const embedTextsMock = vi.hoisted(() =>
   vi.fn(async (texts: string[]) => texts.map(() => [] as number[])),
 );
+const listPublicSiteWorldsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   dbAdmin: null,
@@ -17,14 +18,78 @@ vi.mock("../retrieval/embeddings", () => ({
   embedTexts: embedTextsMock,
 }));
 
+vi.mock("../utils/site-worlds", () => ({
+  listPublicSiteWorlds: listPublicSiteWorldsMock,
+}));
+
 import siteWorldsRouter from "../routes/site-worlds";
-import { siteWorldCards } from "../../client/src/data/siteWorlds";
+import type { SiteWorldCard } from "../../client/src/data/siteWorlds";
 import { buildSiteWorldSearchDoc, parseSiteWorldSearchQuery, searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
+
+function testSite(overrides: Partial<SiteWorldCard>): SiteWorldCard {
+  return {
+    id: "fixture-retail",
+    siteCode: "FIXTURE-RETAIL",
+    siteName: "Test Fixture Grocery Backroom",
+    siteAddress: "100 Fixture Lane, Chicago, IL 00000",
+    sceneId: "fixture-scene",
+    captureId: "fixture-capture",
+    siteSubmissionId: "fixture-submission",
+    pipelinePrefix: "gs://test-fixtures/site-worlds/fixture-retail",
+    category: "Retail",
+    industry: "Grocery test fixture",
+    taskLane: "Shelf replenishment fixture workflow",
+    tone: "test",
+    accent: "test",
+    thumbnailKind: "grocery",
+    summary: "Synthetic unit-test fixture with totes and shelves.",
+    bestFor: "Automated search tests only.",
+    startStates: ["Fixture start"],
+    runtime: "test-runtime",
+    defaultRuntimeBackend: "test-runtime",
+    availableRuntimeBackends: ["test-runtime"],
+    sampleRobot: "Fixture robot",
+    sampleRobotProfile: { id: "fixture-robot", displayName: "Fixture robot" } as SiteWorldCard["sampleRobotProfile"],
+    sampleTask: "Move the fixture tote to the shelf",
+    samplePolicy: "fixture-policy",
+    scenarioVariants: ["Fixture lighting"],
+    exportArtifacts: ["fixture manifest"],
+    runtimeManifest: { launchable: false } as SiteWorldCard["runtimeManifest"],
+    taskCatalog: [{ id: "fixture-task", taskId: "fixture-task", taskText: "Move tote", taskCategory: "manipulation" }] as SiteWorldCard["taskCatalog"],
+    scenarioCatalog: [{ id: "fixture-scenario", name: "Fixture lighting", source: "test_fixture" }] as SiteWorldCard["scenarioCatalog"],
+    startStateCatalog: [{ id: "fixture-start", name: "Fixture start", source: "test_fixture" }] as SiteWorldCard["startStateCatalog"],
+    robotProfiles: [{ id: "fixture-robot", displayName: "Fixture robot" }] as SiteWorldCard["robotProfiles"],
+    exportModes: ["test"],
+    packages: [
+      { name: "Site Package", summary: "Fixture package", priceLabel: "Request review", payerLabel: "Test", actionLabel: "Test", actionHref: "/contact", deliverables: [] },
+      { name: "Policy Evaluation Set", summary: "Fixture evaluation set", priceLabel: "Request review", payerLabel: "Test", actionLabel: "Test", actionHref: "/contact", deliverables: [] },
+    ],
+    dataSource: "pipeline",
+    ...overrides,
+  };
+}
+
+const siteWorldCards: SiteWorldCard[] = [
+  testSite({}),
+  testSite({
+    id: "fixture-logistics",
+    siteCode: "FIXTURE-LOGISTICS",
+    siteName: "Test Fixture Warehouse",
+    siteAddress: "200 Fixture Road, Example City, TX 00000",
+    category: "Logistics",
+    industry: "Warehouse test fixture",
+    taskLane: "Tote transfer fixture workflow",
+    thumbnailKind: "parcel",
+    summary: "Synthetic logistics unit-test fixture with totes and pallets.",
+    sampleTask: "Transfer the fixture tote",
+  }),
+];
 
 let server: Server;
 let baseUrl: string;
 
 beforeAll(async () => {
+  listPublicSiteWorldsMock.mockResolvedValue(siteWorldCards);
   const app = express();
   app.use(express.json());
   app.use("/api/site-worlds", siteWorldsRouter);
@@ -53,19 +118,19 @@ afterAll(async () => {
 
 describe("site-world search aliases", () => {
   it("builds reusable search docs from catalog, location, workflow, robot, object, package, alias, and truth metadata", () => {
-    const grocery = siteWorldCards.find((site) => site.id === "sw-chi-01");
+    const grocery = siteWorldCards.find((site) => site.id === "fixture-retail");
     expect(grocery).toBeDefined();
 
     const doc = buildSiteWorldSearchDoc(grocery!);
 
-    expect(doc.searchDoc).toContain("siteName: Harborview Grocery Distribution Annex");
+    expect(doc.searchDoc).toContain("siteName: Test Fixture Grocery Backroom");
     expect(doc.searchDoc).toContain("category: Retail");
     expect(doc.searchDoc).toContain("city: Chicago");
     expect(doc.searchDoc).toContain("packages:");
     expect(doc.searchDoc).toContain("robotProfiles:");
     expect(doc.searchDoc).toContain("aliases:");
     expect(doc.objectTags).toContain("tote");
-    expect(doc.availability).toBe("request_reviewed_exemplar");
+    expect(doc.availability).toBe("pipeline_backed_request_scoped");
   });
 
   it("parses retail aliases for agent-style store queries", () => {
@@ -98,14 +163,14 @@ describe("site-world search aliases", () => {
 
 describe("site-world search ranking", () => {
   it("lets exact site/name and city signals beat category-only matches", async () => {
-    const exactName = await searchPublicSiteWorlds({ query: "Harborview Grocery", limit: 5 });
-    expect(exactName.results[0].siteWorld.id).toBe("sw-chi-01");
+    const exactName = await searchPublicSiteWorlds({ query: "Test Fixture Grocery", limit: 5 });
+    expect(exactName.results[0].siteWorld.id).toBe("fixture-retail");
     expect(exactName.results[0].matchedFields).toContain("siteName");
     expect(exactName.matchSemantics.exactMatch).toBe(true);
     expect(exactName.requestCandidate).toBeNull();
 
     const cityCategory = await searchPublicSiteWorlds({ query: "Chicago grocery", limit: 5 });
-    expect(cityCategory.results[0].siteWorld.id).toBe("sw-chi-01");
+    expect(cityCategory.results[0].siteWorld.id).toBe("fixture-retail");
     expect(cityCategory.results[0].matchedFields).toContain("address");
   });
 
@@ -114,8 +179,8 @@ describe("site-world search ranking", () => {
 
     expect(response.meta.usedEmbeddings).toBe(false);
     expect(response.warnings.join(" ")).toContain("embeddings_unavailable");
-    expect(response.results[0].siteWorld.id).toBe("sw-chi-01");
-    expect(response.results[0].siteWorld.siteName).toBe("Harborview Grocery Distribution Annex");
+    expect(response.results[0].siteWorld.id).toBe("fixture-retail");
+    expect(response.results[0].siteWorld.siteName).toBe("Test Fixture Grocery Backroom");
     expect(response.results[0].matchedAliases.join(" ")).toContain("whole foods");
     expect(response.results[0].reasons.join(" ").toLowerCase()).toContain("no exact whole foods availability is implied");
   });
@@ -174,12 +239,12 @@ describe("GET /api/site-worlds/search", () => {
     expect(response.status).toBe(200);
     const payload = (await response.json()) as any;
 
-    expect(payload.results[0].siteWorld.id).toBe("sw-chi-01");
+    expect(payload.results[0].siteWorld.id).toBe("fixture-retail");
     expect(payload.results[0].score).toBeGreaterThan(0);
     expect(payload.results[0].matchedAliases.join(" ")).toContain("whole foods");
     expect(payload.parsed.aliases[0].alias).toBe("whole foods");
     expect(payload.matchSemantics.noExactScannedPackage).toBe(true);
     expect(payload.requestCandidate.requestUrl).toContain("source=site-worlds");
-    expect(["static-fallback", "firestore-live"]).toContain(payload.meta.backend);
+    expect(payload.meta.backend).toBe("firestore-live");
   });
 });

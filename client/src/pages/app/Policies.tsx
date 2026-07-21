@@ -54,9 +54,9 @@ export default function Policies() {
                 title="No buyer policy records exposed yet"
                 icon={ShieldCheck}
               >
-                Blueprint is not showing placeholder policies, endpoint refs, or
-                score history in the buyer app. Policy rows require records owned
-                by this authenticated buyer.
+                This workspace shows only policy records and endpoint references
+                owned by the authenticated buyer. Submit the real policy you want
+                Blueprint to evaluate to start a record-backed run.
               </ProofBoundary>
             </Card>
 

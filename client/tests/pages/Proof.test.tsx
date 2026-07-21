@@ -10,7 +10,7 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /Proof stays scoped\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/research result is correlation evidence, not an[\s\S]*accuracy or deployment claim/i),
+      screen.getByText(/third-party research context, not a Blueprint result, accuracy claim, or deployment claim/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Research signal$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();

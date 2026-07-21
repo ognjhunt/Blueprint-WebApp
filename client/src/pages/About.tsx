@@ -13,7 +13,7 @@ import { TileGrid } from "@/components/site/TileGrid";
 
 const statStrip = [
   { label: "Episodes / run", value: "100–500", caption: "Per policy evaluation" },
-  { label: "Rank correlation", value: "0.929", caption: "SC3-Eval published result" },
+  { label: "Evidence layers", value: "3", caption: "Capture · run · owner proof" },
   { label: "Surfaces", value: "4", caption: "Site · Task · Scenario · Eval" },
   { label: "Proof boundary", value: "Always on", caption: "Review support, not proof" },
 ];
@@ -23,7 +23,7 @@ const principles = [
     eyebrow: "Principle 01",
     label: "Capture first, claim later.",
     description:
-      "Every site package starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
+      "Every world model starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
   },
   {
     eyebrow: "Principle 02",

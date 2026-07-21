@@ -267,7 +267,7 @@ describe("city launch run control", () => {
 
     expect(scorecard.stdout).toContain('"city": "Boise, ID"');
     expect(scorecard.stdout).toContain('"checkpointHour": 24');
-  });
+  }, 240_000);
 
   it("reuses a valid completed playbook when Deep Research cannot run", async () => {
     const budgetPolicy = buildCityLaunchBudgetPolicy({

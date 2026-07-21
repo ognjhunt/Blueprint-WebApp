@@ -1,6 +1,6 @@
 # Blueprint WebApp architecture pilot corpus.
-# Keep this narrow: doctrine plus the launch-status, city, capture, and hosted-session paths
-# that define public launch truth and buyer-facing hosted access.
+# Keep this narrow: doctrine plus public inventory and the buyer, capturer, and
+# site-operator loops that define launch truth.
 
 AGENTS.md
 PLATFORM_CONTEXT.md
@@ -14,32 +14,32 @@ docs/alpha-launch-checklist.md
 
 client/src/hooks/usePublicLaunchStatus.ts
 client/src/lib/publicLaunchStatus.ts
-client/src/lib/launchMap.ts
 client/src/pages/Capture.tsx
 client/src/pages/CaptureAppPlaceholder.tsx
 client/src/pages/CaptureLaunchAccess.tsx
-client/src/pages/CityLanding.tsx
-client/src/pages/LaunchMap.tsx
 client/src/components/site/LaunchCityAvailability.tsx
-client/src/components/site/PublicLaunchMap.tsx
 server/routes/public-launch.ts
 server/utils/cityLaunchCaptureTargets.ts
 
-client/src/lib/siteWorldCommercialStatus.ts
-client/src/lib/siteWorldsApi.ts
-client/src/pages/SiteWorlds.tsx
-client/src/pages/SiteWorldDetail.tsx
-client/src/pages/HostedSessionSetup.tsx
-client/src/pages/HostedSessionWorkspace.tsx
+client/src/pages/Sites.tsx
+client/src/pages/SiteDetail.tsx
+client/src/pages/app/Runs.tsx
+client/src/pages/app/RunDetail.tsx
+client/src/pages/CapturerAccount.tsx
+client/src/pages/AdminCapturers.tsx
+client/src/pages/app/OperatorOverview.tsx
+client/src/lib/buyerAppData.ts
 server/routes/site-worlds.ts
 server/routes/site-world-sessions.ts
+server/routes/robot-eval-job-requests.ts
+server/routes/admin-field-ops.ts
+server/routes/operator-status.ts
 
 client/tests/pages/CapturerAccessCopy.test.tsx
-client/tests/pages/CityLanding.test.tsx
-client/tests/pages/SiteWorlds.test.tsx
-client/tests/pages/SiteWorldDetail.test.tsx
-client/tests/pages/HostedSessionSetup.test.tsx
-client/tests/lib/siteWorldCommercialStatus.test.ts
+client/tests/pages/Sites.test.tsx
 server/tests/public-launch-route.test.ts
 server/tests/city-launch-status.test.ts
 server/tests/city-launch-capture-targets.test.ts
+server/tests/robot-eval-job-status-route.test.ts
+server/tests/admin-capturer-applications-route.test.ts
+server/tests/operator-status-route.test.ts

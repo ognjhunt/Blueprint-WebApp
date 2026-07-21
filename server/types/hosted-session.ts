@@ -431,7 +431,7 @@ export interface HostedSessionRecord {
     orderId?: string | null;
     mode?: "dry_run" | null;
     sku?: string | null;
-    accessSource?: "admin" | "session_owner" | "agent_dry_run" | "firestore" | "public_demo" | null;
+    accessSource?: "admin" | "session_owner" | "agent_dry_run" | "firestore" | null;
   } | null;
   createdAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   startedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;

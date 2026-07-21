@@ -52,14 +52,6 @@ describe("server logging conventions", () => {
         ],
       ],
       [
-        "server/routes/apply.ts",
-        [
-          "application_resume_rejected",
-          "application_submission_idempotency_hit",
-          "application_submission_received",
-        ],
-      ],
-      [
         "server/utils/idempotency.ts",
         ["idempotency_read_failed", "idempotency_store_failed"],
       ],

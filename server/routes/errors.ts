@@ -103,17 +103,4 @@ router.post("/", (req: Request, res: Response) => {
   });
 });
 
-/**
- * Get error statistics (for admin dashboard)
- * GET /api/errors/stats
- */
-router.get("/stats", (_req: Request, res: Response) => {
-  // This would typically query a database for error stats
-  // For now, return placeholder data
-  res.status(200).json({
-    message: "Error statistics endpoint - implement with your preferred storage",
-    hint: "Connect to your database or error tracking service to get real stats",
-  });
-});
-
 export default router;

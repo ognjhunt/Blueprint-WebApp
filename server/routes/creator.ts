@@ -162,6 +162,113 @@ function alertKindForClientTelemetry(eventType: string, severity: string): BetaO
   return "mobile_capture_client_error";
 }
 
+function requestString(req: Request, bodyKeys: string[], headerName?: string) {
+  const headerValue = headerName ? req.get(headerName) : undefined;
+  const candidates = [
+    headerValue,
+    ...bodyKeys.map((key) => (req.body as Record<string, unknown> | undefined)?.[key]),
+  ];
+  for (const candidate of candidates) {
+    const value = typeof candidate === "string" || typeof candidate === "number"
+      ? String(candidate).trim()
+      : "";
+    if (value) {
+      return value.slice(0, 120);
+    }
+  }
+  return "";
+}
+
+function parsePositiveInt(value: string | undefined) {
+  const parsed = Number(String(value || "").trim());
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : null;
+}
+
+function compareDottedVersions(a: string, b: string) {
+  const left = a.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const right = b.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const max = Math.max(left.length, right.length);
+  for (let index = 0; index < max; index += 1) {
+    const delta = (left[index] || 0) - (right[index] || 0);
+    if (delta !== 0) {
+      return delta;
+    }
+  }
+  return 0;
+}
+
+function captureClientPolicyDecision(req: Request) {
+  const platform = requestString(req, ["client_platform", "platform"], "X-Blueprint-Native-Client")
+    .toLowerCase();
+  const appVersion = requestString(req, ["client_version", "app_version"], "X-Blueprint-App-Version");
+  const appBuild = requestString(req, ["client_build", "app_build"], "X-Blueprint-App-Build");
+  const minIosVersion = String(process.env.BLUEPRINT_CAPTURE_MIN_IOS_VERSION || "").trim();
+  const minIosBuild = parsePositiveInt(process.env.BLUEPRINT_CAPTURE_MIN_IOS_BUILD);
+  const clientKillSwitchActive = ["1", "true", "yes", "on"].includes(
+    String(process.env.BLUEPRINT_CAPTURE_CLIENT_KILL_SWITCH || "").trim().toLowerCase(),
+  );
+  const policy = {
+    platform: platform || "unknown",
+    app_version: appVersion || null,
+    app_build: appBuild || null,
+    min_ios_version: minIosVersion || null,
+    min_ios_build: minIosBuild,
+    kill_switch_active: clientKillSwitchActive,
+  };
+
+  if (clientKillSwitchActive) {
+    return {
+      allowed: false,
+      statusCode: 503,
+      code: "capture_client_kill_switch_active",
+      message: "Blueprint capture intake is temporarily paused for native clients.",
+      policy,
+    };
+  }
+
+  if (platform === "ios" || platform === "blueprint-capture") {
+    if (minIosBuild !== null) {
+      const parsedBuild = parsePositiveInt(appBuild);
+      if (parsedBuild === null || parsedBuild < minIosBuild) {
+        return {
+          allowed: false,
+          statusCode: 426,
+          code: "capture_client_upgrade_required",
+          message: "Update Blueprint Capture before submitting beta captures.",
+          policy,
+        };
+      }
+    }
+    if (minIosVersion && (!appVersion || compareDottedVersions(appVersion, minIosVersion) < 0)) {
+      return {
+        allowed: false,
+        statusCode: 426,
+        code: "capture_client_upgrade_required",
+        message: "Update Blueprint Capture before submitting beta captures.",
+        policy,
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    statusCode: 200,
+    code: "allowed",
+    message: "Capture client version is allowed.",
+    policy,
+  };
+}
+
+function clientMetadataFromRequest(req: Request) {
+  return {
+    platform: requestString(req, ["client_platform", "platform"], "X-Blueprint-Native-Client") || null,
+    app_version: requestString(req, ["client_version", "app_version"], "X-Blueprint-App-Version") || null,
+    app_build: requestString(req, ["client_build", "app_build"], "X-Blueprint-App-Build") || null,
+    os_version: requestString(req, ["client_os_version", "os_version"], "X-Blueprint-OS-Version") || null,
+    device_model: requestString(req, ["client_device_model", "device_model"], "X-Blueprint-Device-Model") || null,
+  };
+}
+
 router.use((req: Request, res: Response, next) => {
   const authenticatedUid = String(res.locals.firebaseUser?.uid || "").trim();
   if (!authenticatedUid) {
@@ -202,8 +309,8 @@ function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | Firebas
   return {
     id: String(data.id || doc.id),
     target_address: String(data.target_address || "Submitted space"),
-    captured_at: toIso(data.captured_at) || new Date().toISOString(),
-    status: String(data.status || "submitted"),
+    captured_at: toIso(data.captured_at),
+    status: typeof data.status === "string" && data.status.trim() ? data.status : null,
     // Server-quoted estimate wins; the client's own pre-registration estimate
     // is display fallback only and never a payable amount (payouts come from
     // the payout ledger, not this field).
@@ -302,7 +409,11 @@ router.get("/captures", async (req: Request, res: Response) => {
     .get();
   const captures = snapshot.docs
     .map((doc) => serializeCapture(doc))
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+    .sort(
+      (a, b) =>
+        (b.captured_at ? new Date(b.captured_at).getTime() : 0) -
+        (a.captured_at ? new Date(a.captured_at).getTime() : 0),
+    );
 
   return res.json(captures);
 });
@@ -367,7 +478,6 @@ function optionalTrimmedString(value: unknown, maxLength = 400): string | null {
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, maxLength) : null;
 }
-
 router.post("/captures", async (req: Request, res: Response) => {
   if (!db) {
     return res.status(500).json({ error: "Database not available" });
@@ -385,7 +495,6 @@ router.post("/captures", async (req: Request, res: Response) => {
   if (!body) {
     return res.status(400).json({ error: "Request body must be a JSON object", code: "invalid_request" });
   }
-
   const unknownFields = Object.keys(body).filter(
     (key) =>
       !CAPTURE_REGISTRATION_ALLOWED_FIELDS.has(key)
@@ -424,7 +533,10 @@ router.post("/captures", async (req: Request, res: Response) => {
       ok: true,
       id: captureId,
       replay: true,
-      status: String(existing.status || "submitted"),
+      status:
+        typeof existing.status === "string" && existing.status.trim()
+          ? existing.status
+          : null,
     });
   };
 
@@ -436,6 +548,16 @@ router.post("/captures", async (req: Request, res: Response) => {
     return replayOrConflictResponse((existingDoc.data() || {}) as Record<string, unknown>);
   }
 
+  const captureClientPolicy = captureClientPolicyDecision(req);
+  if (!captureClientPolicy.allowed) {
+    return res.status(captureClientPolicy.statusCode).json({
+      ok: false,
+      status: "capture_client_policy_blocked",
+      code: captureClientPolicy.code,
+      error: captureClientPolicy.message,
+      capture_client_policy: captureClientPolicy.policy,
+    });
+  }
   const betaCohortDecision = await evaluateBetaCohortGate({
     gate: "capture_intake",
     creatorId,
@@ -493,6 +615,8 @@ router.post("/captures", async (req: Request, res: Response) => {
     requested_outputs: Array.isArray(body.requested_outputs)
       ? body.requested_outputs.slice(0, 20).map((item) => String(item).slice(0, 120))
       : [],
+    client_metadata: clientMetadataFromRequest(req),
+    capture_client_policy: captureClientPolicy.policy,
     thumbnail_url: optionalTrimmedString(body.thumbnail_url, 800),
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     timeline: [
@@ -535,6 +659,7 @@ router.post("/captures", async (req: Request, res: Response) => {
     id: captureId,
     status: "submitted",
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+    capture_client_policy: captureClientPolicy.policy,
   });
 });
 
@@ -548,6 +673,18 @@ router.post("/captures/preflight", async (req: Request, res: Response) => {
   const creatorId = creatorIdFromRequest(req);
   if (!creatorId) {
     return res.status(400).json({ error: "Missing creator id", code: "invalid_request" });
+  }
+
+  const captureClientPolicy = captureClientPolicyDecision(req);
+  if (!captureClientPolicy.allowed) {
+    return res.status(captureClientPolicy.statusCode).json({
+      ok: false,
+      allowed: false,
+      status: "capture_client_policy_blocked",
+      code: captureClientPolicy.code,
+      error: captureClientPolicy.message,
+      capture_client_policy: captureClientPolicy.policy,
+    });
   }
 
   const body =
@@ -616,6 +753,7 @@ router.post("/captures/preflight", async (req: Request, res: Response) => {
       code: betaCohortDecision.reason,
       error: betaCohortDecision.message,
       policy: policyForResponse,
+      capture_client_policy: captureClientPolicy.policy,
       beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     });
   }
@@ -625,6 +763,7 @@ router.post("/captures/preflight", async (req: Request, res: Response) => {
     allowed: true,
     code: "allowed",
     policy: policyForResponse,
+    capture_client_policy: captureClientPolicy.policy,
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     client: { platform, app_version: appVersion, app_build: appBuild },
   });
@@ -654,7 +793,7 @@ router.get("/captures/:captureId", async (req: Request, res: Response) => {
     id: String(data.id || req.params.captureId),
     target_address: String(data.target_address || "Submitted space"),
     captured_at: toIso(data.captured_at),
-    status: String(data.status || "submitted"),
+    status: typeof data.status === "string" && data.status.trim() ? data.status : null,
     quality: data.quality || null,
     earnings: data.earnings || null,
     rejection_reason: data.rejection_reason || null,

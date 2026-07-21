@@ -52,6 +52,12 @@ describe("brand polish QA harness contract", () => {
       ]),
     });
 
+    const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
+    expect(faqRoute).toMatchObject({
+      canonicalPath: "/faq",
+      expectedHeading: "The questions that usually decide fit.",
+    });
+
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({
       generatedAt: "2026-05-14T00:00:00.000Z",
       reportPath: "output/qa/brand-polish/latest/report.md",

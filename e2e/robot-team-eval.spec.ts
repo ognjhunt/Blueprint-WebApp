@@ -20,18 +20,12 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   await page.setViewportSize({ width: 1280, height: 900 });
 
   let observedBody: Record<string, unknown> | null = null;
-  await page.route("**/api/site-worlds/sessions", async (route) => {
+  await page.route("**/api/contact", async (route) => {
     observedBody = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({
-      status: 409,
+      status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        error:
-          "The site-world registration does not include a reachable runtime handle.",
-        blockers: [
-          "The site-world registration does not include a reachable runtime handle.",
-        ],
-      }),
+      body: JSON.stringify({ success: true }),
     });
   });
 
@@ -42,7 +36,7 @@ test("robot-team eval route is simple and submits normalized policy payload", as
       name: "Compare policies on one site task.",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Four steps." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Start with the essentials." })).toBeVisible();
   await expect(page.getByText("API").first()).toBeVisible();
   await expect(page.getByText("Docker").first()).toBeVisible();
   await expect(page.getByText("Checkpoint").first()).toBeVisible();
@@ -57,6 +51,10 @@ test("robot-team eval route is simple and submits normalized policy payload", as
     page.getByLabel("5 Protect hardware and site IP"),
   ).toHaveValue("customer_hosted_sealed_eval_capsule");
   await expect(page.getByText(/raw captures, full scenes, scoring harnesses/i)).toBeVisible();
+
+  await page.getByLabel("Name", { exact: true }).fill("Jordan Lee");
+  await page.getByLabel("Work email").fill("jordan@example.com");
+  await page.getByLabel("Team or company").fill("Example Robotics");
 
   await page
     .getByLabel("2 Add policies")
@@ -91,24 +89,22 @@ test("robot-team eval route is simple and submits normalized policy payload", as
 
   await page.getByRole("button", { name: /Send request/i }).click();
   await expect(
-    page.getByText(/Hosted session access is request-gated/i),
+    page.getByText(/Request received\. Blueprint will confirm the real site/i),
   ).toBeVisible();
-  await expect(page.getByText(/confirm runtime access, rights, pricing/i)).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Contact instead/i }).first(),
   ).toHaveAttribute("href", /source=robot-team-eval/);
 
-  expect(observedBody?.sessionMode).toBe("runtime_only");
-  expect(observedBody?.requestedOutputs).toEqual([
-    "policy_ranking",
-    "comparative_policy_eval",
-    "failure_taxonomy",
-    "ood_uncertainty_flags",
-    "site_ops_comparison_packet",
-    "validation_targets",
-  ]);
-  const policy = observedBody?.policy as Record<string, unknown>;
-  const submission = policy.robotTeamTestSubmission as Record<string, unknown>;
+  expect(observedBody).toMatchObject({
+    name: "Jordan Lee",
+    email: "jordan@example.com",
+    company: "Example Robotics",
+    projectType: "Policy Evaluation Run",
+    requestSource: "robot-team-eval",
+  });
+  const submission = observedBody?.robotTeamTestSubmission as Record<string, unknown>;
+  expect(submission.siteWorldId).toBeNull();
+  expect(submission.sitePackageTarget).toBe("My exact site");
   expect(submission.schemaVersion).toBe(
     "blueprint.robot_team_test_submission.v1",
   );

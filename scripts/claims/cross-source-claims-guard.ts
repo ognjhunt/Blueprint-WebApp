@@ -126,13 +126,27 @@ const CITY_NAMES = [
 const ROOT_DOCTRINE_FILES = new Set([
   "AGENTS.md",
   "README.md",
+  "VISION.md",
   "PLATFORM_CONTEXT.md",
   "WORLD_MODEL_STRATEGY_CONTEXT.md",
   "AUTONOMOUS_ORG.md",
   "client/src/AGENTS.md",
   "docs/ai-tooling-adoption-implementation-2026-04-07.md",
   "docs/ai-skills-governance-2026-04-07.md",
+  "knowledge/compiled/docs-synthesis/core-system-framing.md",
+  "knowledge/compiled/playbooks/platform-doctrine.md",
+  "ops/paperclip/AGENT_EMPLOYEE_AUDIT.md",
+  "ops/paperclip/blueprint-company/COMPANY.md",
+  "scripts/autonomy/generate-budget-next-goal-queue.ts",
+  "scripts/qa/brand-polish.ts",
 ]);
+
+const ROOT_DOCTRINE_PREFIXES = [
+  "ops/paperclip/blueprint-company/agents/",
+  "ops/paperclip/blueprint-company/skills/",
+  "ops/paperclip/blueprint-company/tasks/",
+  "ops/paperclip/programs/",
+];
 
 const guardrailPatterns = [
   /\bdo not\b/i,
@@ -284,6 +298,7 @@ function hasPaymentOperationalClaim(line: string) {
 
 function isRootDoctrineFile(relativeFile: string) {
   return ROOT_DOCTRINE_FILES.has(relativeFile)
+    || ROOT_DOCTRINE_PREFIXES.some((prefix) => relativeFile.startsWith(prefix))
     || relativeFile.endsWith("fixtures/negative/stale-root-doctrine.md");
 }
 
@@ -514,16 +529,24 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
   const specs = [
     ["AGENTS.md", "root_doctrine"],
     ["README.md", "root_doctrine"],
+    ["VISION.md", "root_doctrine"],
     ["PLATFORM_CONTEXT.md", "root_doctrine"],
     ["WORLD_MODEL_STRATEGY_CONTEXT.md", "root_doctrine"],
     ["AUTONOMOUS_ORG.md", "root_doctrine"],
     ["client/src/AGENTS.md", "root_doctrine"],
     ["docs/ai-tooling-adoption-implementation-2026-04-07.md", "root_doctrine"],
     ["docs/ai-skills-governance-2026-04-07.md", "root_doctrine"],
+    ["knowledge/compiled/docs-synthesis/core-system-framing.md", "root_doctrine"],
+    ["knowledge/compiled/playbooks/platform-doctrine.md", "root_doctrine"],
+    ["ops/paperclip/AGENT_EMPLOYEE_AUDIT.md", "root_doctrine"],
+    ["ops/paperclip/blueprint-company/COMPANY.md", "root_doctrine"],
+    ["ops/paperclip/blueprint-company/agents", "root_doctrine"],
+    ["ops/paperclip/blueprint-company/skills", "root_doctrine"],
+    ["ops/paperclip/blueprint-company/tasks", "root_doctrine"],
+    ["ops/paperclip/programs", "root_doctrine"],
+    ["scripts/autonomy/generate-budget-next-goal-queue.ts", "root_doctrine"],
+    ["scripts/qa/brand-polish.ts", "root_doctrine"],
     ["client/src/pages", "webapp_pages"],
-    ["client/src/data/content", "webapp_pages"],
-    ["client/src/data/content/publicPages.ts", "webapp_pages"],
-    ["client/src/lib/proofEvidence.ts", "webapp_pages"],
     ["../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md", "capture_public_copy_docs"],
     ["scripts/gtm", "gtm_artifacts"],
     ["ops/paperclip/playbooks", "gtm_artifacts"],

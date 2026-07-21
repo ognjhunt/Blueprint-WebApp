@@ -23,6 +23,7 @@ import {
 import { createOnboardingSequence } from "./buyer-onboarding";
 import { initRenewalTracking } from "./growth-ops";
 import { recordBetaOpsFailureSignal } from "./ops-alerts";
+import { dispatchTransactionalNotification } from "./transactional-notifications";
 
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
@@ -51,6 +52,22 @@ async function handleCheckoutSessionCompleted(
     });
 
     if (paidOrder?.id && paidOrder.buyer_email) {
+      await dispatchTransactionalNotification({
+        eventType: "order_confirmation",
+        recipientType: "buyer",
+        recipientUserId: paidOrder.buyer_user_id || null,
+        recipientEmail: paidOrder.buyer_email,
+        subjectId: paidOrder.id,
+        sourceEventId: event.id,
+        sourceCollection: "buyerOrders",
+        sourceDocId: paidOrder.id,
+        title: "Blueprint order confirmed",
+        body: `Your order for ${paidOrder.item.title || paidOrder.item.sku} is confirmed. Access and fulfillment status remain attached to your buyer account.`,
+        emailSubject: "Your Blueprint order is confirmed",
+        emailText: `Your order for ${paidOrder.item.title || paidOrder.item.sku} is confirmed. Sign in to review access and fulfillment status.`,
+        preferenceKey: "account",
+        data: { order_id: paidOrder.id, sku: paidOrder.item.sku },
+      });
       void createOnboardingSequence({
         orderId: paidOrder.id,
         buyerEmail: paidOrder.buyer_email,

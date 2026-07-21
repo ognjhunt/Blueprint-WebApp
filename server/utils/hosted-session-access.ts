@@ -39,7 +39,7 @@ export type HostedSessionAccessScope = "read" | "ui" | "operate" | "export";
 export type HostedSessionLaunchAccess = HostedSessionAccessUser & {
   entitled: boolean;
   entitlement: AgentEntitlementProof | null;
-  accessSource: "admin" | "session_owner" | "session_share" | "agent_dry_run" | "firestore" | "public_demo" | "none";
+  accessSource: "admin" | "session_owner" | "session_share" | "agent_dry_run" | "firestore" | "none";
   blockers: string[];
 };
 

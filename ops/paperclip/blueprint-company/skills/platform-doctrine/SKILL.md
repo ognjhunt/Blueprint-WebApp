@@ -1,6 +1,6 @@
 ---
 name: platform-doctrine
-description: Shared Blueprint platform doctrine covering capture-first and world-model-product-first rules.
+description: Shared Blueprint platform doctrine covering capture-first, real-site robot-evaluation, and policy-improvement rules.
 ---
 
 # Platform Doctrine
@@ -20,7 +20,8 @@ Read:
 
 Operating rules:
 
-- Blueprint is capture-first and world-model-product-first.
+- Blueprint is capture-first and real-site robot-evaluation/policy-improvement first.
+- World models are internal compatibility, generation, augmentation, or advisory support inside data packages and scoped runs; they are not the primary public offer.
 - Model providers and checkpoints are replaceable engines, not the moat.
 - Preserve provenance, rights, privacy, and truthful product claims.
 - Qualification and readiness are support layers, not the company's center.

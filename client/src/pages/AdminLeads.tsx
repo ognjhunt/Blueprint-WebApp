@@ -710,7 +710,7 @@ export default function AdminLeads() {
     }: {
       requestId: string;
       qualificationState: QualificationState;
-      opportunityState: OpportunityState;
+      opportunityState?: OpportunityState | null;
       note?: string;
     }) => {
       const response = await fetch(`/api/admin/leads/${requestId}/status`, {
@@ -718,7 +718,7 @@ export default function AdminLeads() {
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           qualification_state: qualificationState,
-          opportunity_state: opportunityState,
+          ...(opportunityState ? { opportunity_state: opportunityState } : {}),
           note: mutationNote,
         }),
       });
@@ -2894,14 +2894,16 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.rights_status || "unknown"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.rights_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             rights_status: event.target.value as UpdateRequestOpsPayload["rights_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(rightsStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2915,15 +2917,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.capture_policy_tier || "review_required"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.capture_policy_tier || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             capture_policy_tier:
                               event.target.value as UpdateRequestOpsPayload["capture_policy_tier"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(capturePolicyLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2937,15 +2941,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.capture_status || "not_requested"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.capture_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             capture_status:
                               event.target.value as UpdateRequestOpsPayload["capture_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(captureStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -2959,15 +2965,17 @@ export default function AdminLeads() {
                       </label>
                       <select
                         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                        value={selectedLead.ops?.quote_status || "not_started"}
-                        onChange={(event) =>
+                        value={selectedLead.ops?.quote_status || ""}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
                           updateOpsMutation.mutate({
                             requestId: selectedLead.requestId,
                             quote_status:
                               event.target.value as UpdateRequestOpsPayload["quote_status"],
-                          })
-                        }
+                          });
+                        }}
                       >
+                        <option value="" disabled>Not recorded</option>
                         {Object.entries(quoteStatusLabels).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
@@ -3061,7 +3069,7 @@ export default function AdminLeads() {
                         {selectedLead.evaluation_readiness.buyer_trust_score?.score ?? "N/A"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-600">
-                        {selectedLead.evaluation_readiness.buyer_trust_score?.band ?? "unknown"} confidence
+                        {selectedLead.evaluation_readiness.buyer_trust_score?.band ?? "Not recorded"} confidence
                       </p>
                       {selectedLead.evaluation_readiness.buyer_trust_score?.reasons?.length ? (
                         <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-zinc-600">
@@ -3074,10 +3082,10 @@ export default function AdminLeads() {
                     <div className="rounded-xl border border-zinc-200 p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Preview run</p>
                       <p className="mt-2 text-sm text-zinc-700">
-                        Status: {selectedLead.evaluation_readiness.preview_status || "not_requested"}
+                        Status: {selectedLead.evaluation_readiness.preview_status || "Not recorded"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-700">
-                        Provider: {selectedLead.evaluation_readiness.provider_run?.provider_name || "none"}
+                        Provider: {selectedLead.evaluation_readiness.provider_run?.provider_name || "Not attached"}
                       </p>
                       {selectedLead.evaluation_readiness.provider_run?.failure_reason ? (
                         <p className="mt-3 text-sm text-rose-700">
@@ -3118,7 +3126,7 @@ export default function AdminLeads() {
                     </label>
                     <select
                       className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                      value={selectedLead.opportunity_state}
+                      value={selectedLead.opportunity_state || ""}
                       onChange={(event) =>
                         updateStateMutation.mutate({
                           requestId: selectedLead.requestId,
@@ -3128,6 +3136,7 @@ export default function AdminLeads() {
                         })
                       }
                     >
+                      <option value="" disabled>Not recorded</option>
                       {opportunityStates.map((state) => (
                         <option key={state} value={state}>
                           {opportunityStateLabels[state]}

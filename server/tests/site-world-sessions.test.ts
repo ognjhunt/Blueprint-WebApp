@@ -136,13 +136,26 @@ const state = vi.hoisted(() => {
   let hostedSessionUpdateGate: Promise<void> | null = null;
   let releaseHostedSessionUpdateGate: (() => void) | null = null;
   const inboundRequestData = {
+    requestId: "req-site-world-session-fixture",
+    site_submission_id: "chi-01",
+    status: "qualified_ready",
     qualification_state: "qualified_ready",
+    opportunity_state: "handoff_ready",
+    request: {
+      siteName: "Test Fixture Grocery Backroom",
+      siteLocation: "100 Fixture Lane, Chicago, IL 00000",
+      taskStatement: "Walk to shelf staging and pick the test fixture tote",
+      targetRobotTeam: "Test fixture humanoid",
+      targetSiteType: "Grocery test fixture",
+    },
     evaluation_readiness: {
       qualification_state: "qualified_ready",
       missing_evidence: [],
       recapture_required: false,
     },
     pipeline: {
+      scene_id: "scene-harborview-grocery-annex",
+      capture_id: "cap-harborview-grocery-annex-v1",
       pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
       artifacts: {
         readiness_decision_uri:
@@ -222,6 +235,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               get: async () => ({
                 docs: [
                   {
+                    id: "req-1",
                     ref: { id: "req-1" },
                     data: () => state.inboundRequestData,
                   },
@@ -317,6 +331,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     }),
   },
   authAdmin: null,
+}));
+
+vi.mock("../utils/field-encryption", () => ({
+  decryptInboundRequestForAdmin: async (value: Record<string, unknown>) => value,
 }));
 
 vi.mock("../utils/hosted-session-orchestrator", () => ({
@@ -1247,7 +1265,7 @@ describe("site world session routes", () => {
           status: response.status,
           payload: (await response.json()) as Record<string, unknown>,
         })),
-        new Promise<{ kind: "timeout" }>((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 150)),
+        new Promise<{ kind: "timeout" }>((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 2_000)),
       ]);
 
       expect(stepResult.kind).toBe("response");
@@ -1443,7 +1461,7 @@ describe("site world session routes", () => {
     }
   }, 10000);
 
-  it("prefers the live runtime frame for public demo session renders", async () => {
+  it("denies unauthenticated runtime rendering for former demo site ids", async () => {
     state.hostedSessions.set("public-render-runtime", {
       sessionId: "public-render-runtime",
       site: {
@@ -1507,17 +1525,16 @@ describe("site world session routes", () => {
     const { server, baseUrl } = await startServer();
     try {
       const render = await fetch(`${baseUrl}/public-render-runtime/render?cameraId=head_rgb`);
+      const payload = (await render.json()) as Record<string, unknown>;
 
-      expect(render.status).toBe(200);
-      expect(render.headers.get("x-blueprint-render-source")).toBe("runtime-proxy");
-      expect(render.headers.get("cache-control")).toBe("no-store");
-      expect(await render.text()).toBe("runtime-frame");
+      expect(render.status).toBe(403);
+      expect(payload.code).toBe("session_access_denied");
     } finally {
       await stopServer(server);
     }
   });
 
-  it("falls back to the canonical published frame when the public demo runtime render fails", async () => {
+  it("does not expose canonical render fallbacks without protected session access", async () => {
     state.hostedSessions.set("public-render-canonical", {
       sessionId: "public-render-canonical",
       site: {
@@ -1605,17 +1622,16 @@ describe("site world session routes", () => {
     const { server, baseUrl } = await startServer();
     try {
       const render = await fetch(`${baseUrl}/public-render-canonical/render?cameraId=head_rgb`);
+      const payload = (await render.json()) as Record<string, unknown>;
 
-      expect(render.status).toBe(200);
-      expect(render.headers.get("x-blueprint-render-source")).toBe("canonical-authoritative-frame");
-      expect(render.headers.get("cache-control")).toBe("public, max-age=60");
-      expect(await render.text()).toBe("{\"frame\":\"canonical-authoritative\"}");
+      expect(render.status).toBe(403);
+      expect(payload.code).toBe("session_access_denied");
     } finally {
       await stopServer(server);
     }
   });
 
-  it("does not mask native runtime render failures with canonical fallback for public demos", async () => {
+  it("blocks unauthenticated native-runtime rendering before provider fallback logic", async () => {
     state.hostedSessions.set("public-render-native-failure", {
       sessionId: "public-render-native-failure",
       site: {
@@ -1706,9 +1722,9 @@ describe("site world session routes", () => {
       const render = await fetch(`${baseUrl}/public-render-native-failure/render?cameraId=head_rgb`);
       const payload = await render.json();
 
-      expect(render.status).toBe(502);
+      expect(render.status).toBe(403);
       expect(render.headers.get("x-blueprint-render-source")).toBeNull();
-      expect(payload.code).toBe("runtime_render_failed");
+      expect(payload.code).toBe("session_access_denied");
     } finally {
       await stopServer(server);
     }

@@ -4,7 +4,6 @@ import { performance } from "perf_hooks";
 import { chromium, type Page } from "playwright";
 
 import { appRoutes } from "../client/src/app/routes";
-import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 type Args = {
   baseUrl: string;
@@ -50,7 +49,7 @@ type RouteMeasurement = RouteTarget & {
   error?: string;
 };
 
-const defaultSiteSlug = siteLibrarySites[0]?.slug || "springfield-robotics-lab";
+const defaultSiteSlug = "pipeline-site-record";
 const segmentSamples: Record<string, string> = {
   articleSlug: "package-access",
   categorySlug: "capture",

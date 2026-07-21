@@ -15,9 +15,7 @@ import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
-import SiteDetail from "../client/src/pages/SiteDetail";
 import Pricing from "../client/src/pages/Pricing";
-import FAQ from "../client/src/pages/FAQ";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
@@ -25,9 +23,9 @@ import HowItWorks from "../client/src/pages/HowItWorks";
 import About from "../client/src/pages/About";
 import Vision from "../client/src/pages/Vision";
 import Governance from "../client/src/pages/Governance";
+import FAQ from "../client/src/pages/FAQ";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotTeams from "../client/src/pages/ForRobotTeams";
-import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -259,32 +257,6 @@ const PrerenderRobotTeamEvalSummary = () => (
   />
 );
 
-const PrerenderAdminCityLaunchSummary = () => (
-  <MinimalStaticPage
-    title="City Launch Scorecard | Blueprint"
-    description="Protected city-launch scorecard shell for Blueprint operators."
-    heading="City launch scorecard"
-    body="This protected operations route loads the city-launch scorecard for approved Blueprint operators after sign-in."
-    primaryHref="/sign-in"
-    primaryLabel="Sign in"
-    canonical="/admin/city-launch/austin"
-    noIndex
-  />
-);
-
-const PrerenderAdminQueueSummary = () => (
-  <MinimalStaticPage
-    title="Admin Queue | Blueprint"
-    description="Protected Blueprint admin queue shell."
-    heading="Protected admin queue"
-    body="This protected operations route loads approved Blueprint queue details after sign-in."
-    primaryHref="/sign-in"
-    primaryLabel="Sign in"
-    canonical="/admin/leads"
-    noIndex
-  />
-);
-
 const PrerenderFallbackSummary = () => (
   <MinimalStaticPage
     title="Blueprint"
@@ -297,118 +269,18 @@ const PrerenderFallbackSummary = () => (
   />
 );
 
-const PrerenderHomeSummary = () => (
-  <MinimalStaticPage
-    title="Blueprint | Test Robot Policies Before Field Time"
-    description="Blueprint helps robot teams test and rank policies on captured real-site task packs before field time."
-    heading="Test robot policies before field time"
-    body="Use captured real-site tasks to see what works before the robot goes onsite."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
-    primaryLabel="Start"
-    canonical="/"
-  />
-);
-
-function makePrerenderSiteAccessSummary(site: (typeof siteLibrarySites)[number]) {
-  return function PrerenderSiteAccessSummary() {
-    return (
-      <MinimalStaticPage
-        title={`${site.name} Access | Blueprint`}
-        description={`Request access to the ${site.name} exact-site package and hosted evaluation workspace.`}
-        heading="Request site package access"
-        body={`${site.name} is shown as a request-scoped exact-site package surface. Access, export scope, rights, and hosted review depend on the approved buyer request.`}
-        primaryHref={`/sites/${site.slug}`}
-        primaryLabel="View site package"
-        canonical={`/sites/${site.slug}`}
-      />
-    );
-  };
-}
-
-const captureAliasRoutes = [
-  "/capture-jobs",
-  "/capture-network",
-  "/capturer",
-  "/capturers",
-  "/capturer-access",
-  "/become-a-capturer",
-  "/for-capturers",
-  "/earn",
-].map((routePath) => ({ path: routePath, component: Capture }));
-
-const contactAliasRoutes = [
-  "/city/austin",
-  "/agents",
-  "/contact",
-  "/help",
-  "/help/contact",
-  "/help/category/capture",
-  "/help/article/package-access",
-  "/book-exact-site-review",
-  "/careers",
-  "/partners",
-].map((routePath) => ({ path: routePath, component: Contact }));
-
-const homeAliasRoutes = [
-  "/for-robot-integrators",
-  "/product",
-  "/readiness",
-  "/readiness-pack",
-  "/exact-site-hosted-review",
-  "/updates",
-  "/blog",
-  "/solutions",
-  "/quality-standard",
-].map((routePath) => ({ path: routePath, component: PrerenderHomeSummary, shell: "bare" as const }));
-
-const proofAliasRoutes = [
-  "/sample-evaluation",
-  "/sample-deliverables",
-  "/case-studies",
-  "/docs",
-  "/qualified-opportunities",
-  "/qualified-opportunities-guide",
-  "/pilot-exchange",
-  "/pilot-exchange-guide",
-  "/environments",
-].map((routePath) => ({ path: routePath, component: PrerenderProofSummary, shell: "bare" as const }));
-
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
-  ...homeAliasRoutes,
   { path: "/capture", component: Capture },
-  ...captureAliasRoutes,
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },
   // Prerender the real pricing page: crawlers, link previews, and no-JS
   // agents must see the actual tiers and prices, not a summary that omits
   // them (WSPEC context: the summary shell made /pricing look price-free).
   { path: "/pricing", component: Pricing },
-  { path: "/faq", component: FAQ },
   { path: "/sites", component: Sites },
-  { path: "/world-models", component: Sites },
-  { path: "/site-worlds", component: Sites },
-  { path: "/marketplace", component: Sites },
-  ...siteLibrarySites.map((site) => ({
-    path: `/sites/${site.slug}`,
-    component: SiteDetail as ComponentType<any>,
-    props: { params: { slug: site.slug } },
-  })),
-  ...siteLibrarySites.flatMap((site) =>
-    [
-      `/world-models/${site.slug}`,
-      `/world-models/${site.slug}/start`,
-      `/site-worlds/${site.slug}`,
-      `/site-worlds/${site.slug}/start`,
-      `/site-worlds/${site.slug}/workspace`,
-    ].map((routePath) => ({
-      path: routePath,
-      component: makePrerenderSiteAccessSummary(site),
-      shell: "bare" as const,
-    })),
-  ),
   { path: "/proof", component: PrerenderProofSummary, shell: "bare" },
-  ...proofAliasRoutes,
+  { path: "/faq", component: FAQ },
   // /for-robot-teams is the canonical citation target advertised in the
   // sitemap and llms.txt, so crawlers must see the real page, not a summary
   // shell whose canonical points elsewhere.
@@ -421,11 +293,9 @@ const staticRoutes: StaticRoute[] = [
   { path: "/about", component: About },
   { path: "/vision", component: Vision },
   { path: "/governance", component: Governance },
-  ...contactAliasRoutes,
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },
-  { path: "/login", component: Login },
   { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/robot-team", component: PrerenderBusinessSignup, shell: "bare" },
@@ -434,11 +304,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
   { path: "/privacy", component: Privacy, shell: "bare" },
   { path: "/terms", component: Terms, shell: "bare" },
-  { path: "/admin/leads", component: PrerenderAdminQueueSummary, shell: "bare" },
-  { path: "/admin/leads/perf-request", component: PrerenderAdminQueueSummary, shell: "bare" },
-  { path: "/admin/submissions", component: PrerenderAdminQueueSummary, shell: "bare" },
-  { path: "/admin/submissions/perf-request", component: PrerenderAdminQueueSummary, shell: "bare" },
-  { path: "/admin/city-launch/austin", component: PrerenderAdminCityLaunchSummary, shell: "bare" },
   { path: "/__blueprint-performance-fallback__", component: PrerenderFallbackSummary, shell: "bare" },
 ];
 

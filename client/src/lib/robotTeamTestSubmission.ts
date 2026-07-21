@@ -333,7 +333,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
           label: "Task / scenario mapping",
           helper: "How traces map to Blueprint task_id and scenario_id.",
           required: true,
-          placeholder: "trace task_key maps to task_id sw-chi-01-task-1.",
+          placeholder: "trace task_key maps to the live task_id from the selected site package.",
         },
         {
           key: "timestampAlignment",
@@ -472,7 +472,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
           label: "Task / scenario mapping",
           helper: "How demos map to Blueprint task and scenario IDs.",
           required: true,
-          placeholder: "demo_id D001 maps to scenario sw-chi-01-scenario-1.",
+          placeholder: "trace the submitted scenario key to the live scenario_id from the selected site package.",
         },
         {
           key: "rightsPrivacyAttestation",

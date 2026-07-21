@@ -6,12 +6,9 @@ Status of `npm audit --omit=dev` after the 2026-07-17 public-beta closure work:
 ## Remediated in this pass
 
 - **d3-color < 3.1.0 ReDoS (GHSA-36jr-mh4h-2g58, high, 5 findings)** — the
-  `react-simple-maps@3` transitive chain (`d3-zoom`/`d3-transition`/
-  `d3-interpolate`/`d3-color`) is force-resolved to the patched d3 v3 line via
-  the `overrides` block in `package.json`. `react-simple-maps` is used only by
-  `client/src/components/site/PublicLaunchMap.tsx`; the d3 v2→v3 API surface it
-  touches (geo/zoom rendering) is unchanged, and the page is covered by the
-  Playwright brand-polish route sweep.
+  `react-simple-maps@3` transitive chain was removed with the unused
+  `PublicLaunchMap` component. The package and its temporary d3 overrides are
+  no longer present in the production dependency graph.
 
 ## Accepted exceptions (moderate)
 

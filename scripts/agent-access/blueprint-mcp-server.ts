@@ -126,7 +126,7 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        siteWorldId: stringProp("Site-world id, for example siteworld-f5fd54898cfb."),
+        siteWorldId: stringProp("Pipeline-backed site-world id returned by live inventory search."),
       },
       required: ["siteWorldId"],
       additionalProperties: false,
@@ -134,7 +134,7 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   },
   {
     name: "blueprint.siteWorld.launchReadiness",
-    description: "Inspect launch readiness for a public-demo or protected robot-team site world.",
+    description: "Inspect launch readiness for a protected, Pipeline-backed robot-team site world.",
     inputSchema: {
       type: "object",
       properties: {
@@ -244,7 +244,7 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   },
   {
     name: "blueprint.session.create",
-    description: "Create a public-demo or protected robot-team hosted session.",
+    description: "Create a protected robot-team hosted session after auth and entitlement checks pass.",
     inputSchema: {
       type: "object",
       properties: {

@@ -26,7 +26,7 @@ This page mirrors `PLATFORM_CONTEXT.md`, the shared platform doctrine document t
 3. **Blueprint-WebApp** — Buyer, licensing, ops, and hosted-access surface around those packages.
 4. **BlueprintValidation** — Optional downstream infrastructure for deeper benchmarking, robot evaluation, and specialized runtime checks.
 
-The platform is capture-first and world-model-product-first.
+The platform is capture-first and real-site robot-evaluation/policy-improvement first. World models are internal compatibility, generation, augmentation, or advisory support inside scoped packages and runs.
 
 ### Product Center of Gravity
 
@@ -47,7 +47,7 @@ The center of gravity is NOT:
 
 The core business engine is two-sided:
 - **Capturers** supply real-site evidence packages.
-- **Robot teams** buy site-specific world models, hosted access, and related outputs.
+- **Robot teams** buy scoped real-site Task Evaluation Runs and sim-only Policy Improvement Runs; world-model artifacts may support those packages but are not the primary offer.
 
 **Site operators** remain an optional third lane for access control, rights/consent/privacy boundaries, and commercialization/revenue sharing.
 
@@ -92,7 +92,7 @@ Key prohibitions:
 
 ## Implications For Blueprint
 
-- All agent decisions across all repos must align with the capture-first, world-model-product-first doctrine
+- All agent decisions across all repos must align with the capture-first, real-site evaluation and policy-improvement doctrine
 - Qualification and readiness are support layers, not the product story
 - No agent should invent fake supply, fake providers, or fake readiness states in production paths
 - Product language around hosted sessions, captures, rights, and provenance must remain truthful

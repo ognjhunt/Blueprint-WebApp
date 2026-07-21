@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
 import { hasAnyRole, resolveAccessContext } from "../utils/access-control";
 import {
@@ -17,6 +18,7 @@ import {
   updateFinanceReview,
   updateSiteAccessStatus,
 } from "../utils/field-ops-automation";
+import { dispatchTransactionalNotification } from "../utils/transactional-notifications";
 
 const router = Router();
 
@@ -38,6 +40,114 @@ async function operatorEmail(res: Response) {
   const access = await resolveAccessContext(res);
   return access.email || "ops@tryblueprint.io";
 }
+
+const CAPTURER_REVIEW_STATUSES = new Set([
+  "pending_review",
+  "future_city_waitlist",
+  "approved",
+  "rejected",
+  "paused",
+]);
+
+function isoTimestamp(value: unknown) {
+  const candidate = value as { toDate?: () => Date } | string | null | undefined;
+  if (!candidate) return null;
+  if (typeof candidate === "string") return candidate;
+  return candidate.toDate?.()?.toISOString?.() || null;
+}
+
+router.get("/capturer-applications", requireOps, async (req: Request, res: Response) => {
+  if (!db) return res.status(503).json({ error: "Database not available" });
+  const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+  const snapshot = await db.collection("users").where("role", "==", "capturer").limit(200).get();
+  const applications = (snapshot.docs || [])
+    .map((doc) => {
+      const data = (doc.data() || {}) as Record<string, unknown>;
+      return {
+        id: doc.id,
+        name: String(data.name || data.displayName || "Capturer applicant"),
+        email: String(data.email || ""),
+        market: String(data.capturerMarket || ""),
+        equipment: Array.isArray(data.capturerEquipment) ? data.capturerEquipment : [],
+        availability: String(data.capturerAvailability || ""),
+        application_status:
+          typeof data.capturerApplicationStatus === "string" && data.capturerApplicationStatus.trim()
+            ? data.capturerApplicationStatus.trim()
+            : null,
+        submitted_at: isoTimestamp(data.createdAt || data.created_at || data.createdDate),
+        reviewed_at: isoTimestamp(data.capturerReviewedAt),
+        review_note: String(data.capturerReviewNote || ""),
+      };
+    })
+    .filter((application) => !status || application.application_status === status)
+    .sort((left, right) => String(right.submitted_at || "").localeCompare(String(left.submitted_at || "")));
+  return res.json({ applications, count: applications.length });
+});
+
+router.patch(
+  "/capturer-applications/:userId",
+  requireOps,
+  async (req: Request, res: Response) => {
+    if (!db) return res.status(503).json({ error: "Database not available" });
+    const userId = String(req.params.userId || "").trim();
+    const status = String(req.body?.status || "").trim();
+    const reviewNote = String(req.body?.review_note || "").trim().slice(0, 1000);
+    if (!userId || !CAPTURER_REVIEW_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Valid capturer user id and review status are required" });
+    }
+
+    const userRef = db.collection("users").doc(userId);
+    const snapshot = await userRef.get();
+    if (!snapshot.exists) return res.status(404).json({ error: "Capturer application not found" });
+    const existing = (snapshot.data() || {}) as Record<string, unknown>;
+    if (String(existing.role || "") !== "capturer") {
+      return res.status(409).json({ error: "User is not a capturer applicant" });
+    }
+
+    const reviewedAt = new Date().toISOString();
+    const reviewedBy = await operatorEmail(res);
+    await userRef.set(
+      {
+        capturerApplicationStatus: status,
+        capturerReviewNote: reviewNote || null,
+        capturerReviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+        capturerReviewedBy: reviewedBy,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    if (status === "approved" || status === "rejected") {
+      await dispatchTransactionalNotification({
+        eventType: status === "approved" ? "capturer_application_approved" : "capturer_application_rejected",
+        recipientType: "creator",
+        recipientUserId: userId,
+        recipientEmail: typeof existing.email === "string" ? existing.email : null,
+        subjectId: userId,
+        sourceEventId: `capturer-application:${userId}:${status}:${reviewedAt}`,
+        sourceCollection: "users",
+        sourceDocId: userId,
+        title: status === "approved" ? "Capturer application approved" : "Capturer application update",
+        body:
+          status === "approved"
+            ? "Your capturer application is approved. Open Capture Access to review assignment and payout setup."
+            : "Your capturer application was reviewed. Open Capture Access for the recorded status and next step.",
+        emailSubject:
+          status === "approved"
+            ? "Your Blueprint capturer application is approved"
+            : "Update on your Blueprint capturer application",
+        emailText:
+          status === "approved"
+            ? "Your capturer application is approved. Sign in to Blueprint and open Capture Access to review assignment and payout setup."
+            : "Your capturer application was reviewed. Sign in to Blueprint and open Capture Access for the recorded status and next step.",
+        preferenceKey: "account",
+        data: { application_status: status, reviewed_by: reviewedBy },
+      });
+    }
+
+    return res.json({ ok: true, user_id: userId, application_status: status, reviewed_at: reviewedAt });
+  },
+);
 
 router.get("/capture-jobs", requireOps, async (req: Request, res: Response) => {
   try {

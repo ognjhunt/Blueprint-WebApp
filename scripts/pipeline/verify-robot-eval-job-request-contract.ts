@@ -94,7 +94,7 @@ function buildFixtureRequest() {
     sitePackage: {
       siteSlug: "sw-chi-01",
       siteId: "site-sw-chi-01",
-      siteName: "Harborview Grocery Distribution Annex",
+      siteName: "Test Fixture Grocery Distribution Annex",
       siteSubmissionId: "site-submission-sw-chi-01",
       captureJobId: "capture-job-sw-chi-01",
       captureId: "capture-sw-chi-01",

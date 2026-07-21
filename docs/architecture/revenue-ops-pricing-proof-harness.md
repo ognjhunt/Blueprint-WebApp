@@ -16,7 +16,7 @@ The harness reads these repo-local surfaces first:
 
 - Public pricing display: `client/src/pages/Pricing.tsx`, `client/src/components/site/OfferComparison.tsx`, and `client/src/data/marketingDefinitions.ts`
 - Public route and buyer path inventory: `client/src/app/routes.tsx`
-- Catalog and package disclosure: `client/src/data/siteWorlds.ts`, `client/src/lib/siteWorldCommercialStatus.ts`, and `server/utils/site-worlds.ts`
+- Captured-site and package disclosure: `client/src/data/siteWorlds.ts` and `server/utils/site-worlds.ts`
 - Buyer request and quote status state: `server/routes/inbound-request.ts`, `server/routes/admin-leads.ts`, and `server/types/inbound-request.ts`
 - Dry-run agent commerce: `server/routes/agent-access.ts`, `server/utils/robot-agent-commerce.ts`, `scripts/agent-access/blueprint-agent-cli.ts`, and `docs/agent-access/robot-team-agent-access.md`
 - Live payment and entitlement boundaries only as code contracts: `server/routes/api/create-checkout-session.ts`, `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/routes/marketplace-entitlements.ts`, and `server/utils/accounting.ts`

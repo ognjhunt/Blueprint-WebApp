@@ -131,9 +131,102 @@ async function stopServer(server: Server) {
 afterEach(() => {
   state.creatorCaptures.clear();
   state.betaCohortAdmissions.clear();
+  delete process.env.BLUEPRINT_CAPTURE_CLIENT_KILL_SWITCH;
+  delete process.env.BLUEPRINT_CAPTURE_MIN_IOS_VERSION;
+  delete process.env.BLUEPRINT_CAPTURE_MIN_IOS_BUILD;
 });
 
 describe("creator payout launch gate", () => {
+  it("blocks native capture preflight when the capture client kill switch is active", async () => {
+    process.env.BLUEPRINT_CAPTURE_CLIENT_KILL_SWITCH = "1";
+    const { server, baseUrl } = await startServer();
+
+    try {
+      const response = await fetch(`${baseUrl}/v1/creator/captures/preflight`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Creator-Id": "creator-123",
+          "X-Blueprint-Native-Client": "ios",
+          "X-Blueprint-App-Version": "1.0.0",
+          "X-Blueprint-App-Build": "100",
+        },
+        body: JSON.stringify({
+          id: "capture-preflight-kill",
+          region_id: "austin",
+        }),
+      });
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        ok: false,
+        status: "capture_client_policy_blocked",
+        code: "capture_client_kill_switch_active",
+        capture_client_policy: {
+          kill_switch_active: true,
+          platform: "ios",
+        },
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("requires the configured minimum iOS build before capture intake", async () => {
+    process.env.BLUEPRINT_CAPTURE_MIN_IOS_BUILD = "120";
+    process.env.BLUEPRINT_CAPTURE_MIN_IOS_VERSION = "1.2.0";
+    const { server, baseUrl } = await startServer();
+
+    try {
+      const preflight = await fetch(`${baseUrl}/v1/creator/captures/preflight`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Creator-Id": "creator-123",
+          "X-Blueprint-Native-Client": "ios",
+          "X-Blueprint-App-Version": "1.2.0",
+          "X-Blueprint-App-Build": "119",
+        },
+        body: JSON.stringify({
+          id: "capture-old-client",
+          region_id: "austin",
+        }),
+      });
+
+      expect(preflight.status).toBe(426);
+      await expect(preflight.json()).resolves.toMatchObject({
+        ok: false,
+        code: "capture_client_upgrade_required",
+        capture_client_policy: {
+          min_ios_build: 120,
+          min_ios_version: "1.2.0",
+          app_build: "119",
+        },
+      });
+
+      const registration = await fetch(`${baseUrl}/v1/creator/captures`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Creator-Id": "creator-123",
+          "X-Blueprint-Native-Client": "ios",
+          "X-Blueprint-App-Version": "1.2.0",
+          "X-Blueprint-App-Build": "119",
+        },
+        body: JSON.stringify({
+          id: "capture-old-client",
+          target_address: "100 Main St",
+          captured_at: "2026-03-20T13:00:00.000Z",
+        }),
+      });
+
+      expect(registration.status).toBe(426);
+      expect(state.creatorCaptures.has("capture-old-client")).toBe(false);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it(
     "keeps payout state server-owned: client registers, backend approves and pays",
     async () => {
@@ -145,6 +238,9 @@ describe("creator payout launch gate", () => {
         const headers = {
           "Content-Type": "application/json",
           "X-Blueprint-Creator-Id": "creator-123",
+          "X-Blueprint-Native-Client": "ios",
+          "X-Blueprint-App-Version": "1.2.3",
+          "X-Blueprint-App-Build": "123",
         };
 
         const submitted = await fetch(`${baseUrl}/v1/creator/captures`, {
@@ -170,6 +266,18 @@ describe("creator payout launch gate", () => {
         const created = state.creatorCaptures.get("capture-123")!;
         expect(created.status).toBe("submitted");
         expect(created.estimated_payout_cents).toBeNull();
+        expect(created).toMatchObject({
+          client_metadata: {
+            platform: "ios",
+            app_version: "1.2.3",
+            app_build: "123",
+          },
+          capture_client_policy: {
+            platform: "ios",
+            app_version: "1.2.3",
+            app_build: "123",
+          },
+        });
 
         const submittedEarnings = await fetch(`${baseUrl}/v1/creator/earnings`, {
           headers: {

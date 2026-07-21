@@ -441,38 +441,84 @@ Implemented on this branch (see individual commits for detail):
 - **P0.1 partial** — secret-bearing files deleted (`lindyWebhook.ts`,
   `FeatureConfigScreens.jsx`, `Workspace.tsx`, `TeamMembers.tsx`).
   **OWNER ACTION STILL REQUIRED: revoke/rotate the Lindy, Perplexity, and
-  Firecrawl credentials at the providers — they remain valid and in git
-  history until rotated.**
-- **P0.2 done** — `/sites` + `/sites/:slug` labeled as sample packages;
-  Capture per-job Apply replaced with waitlist CTA + live city status;
-  `/launch-map` restored as the real API-backed page (SPA + server layer).
+  Firecrawl credentials at the providers — assume they may remain valid and
+  they remain in git history until rotated.**
+- **P0.2 done** — `/sites` + `/sites/:slug` now accept only current
+  Pipeline-backed public records; static fixture responses fail closed and the
+  empty state routes to real capture/intake instead of inventing supply.
 - **P0.3 done** — `/dashboard` deleted (Math.random metrics gone); sign-in
-  routes buyers to `/app`, operators to `/onboarding`.
+  routes both personas to `/app`, whose overview selects the buyer or
+  request-backed operator surface.
 - **P0.4 done** — 0.929 attributed to SC3-Eval on Vision/About; "Validated"
   SKU renamed; "disguised as a product" line removed.
 - **P0.5 done** — `/join` and `/portal` theater removed (redirects remain).
-- **P1.6 done** — ~46 dead pages/components/data deleted (Agents.tsx kept
-  for the drift guard; FAQ.tsx kept and rewritten); orphaned
+- **P1.6 done** — ~46 dead pages/components/data deleted (including the dead
+  Agents surface; FAQ.tsx kept and rewritten); orphaned
   deployment-marketplace SVGs removed; prerender/build expectations updated.
 - **P1.7 done** — signups consolidated (Business + Capturer flows only);
-  single logged-in home (`/app`).
+  single logged-in home (`/app`); the orphaned `/api/apply` endpoint is
+  removed, legacy buyer-profile duplicates are no longer written, and
+  capturer signup no longer creates synthetic plan or earnings fields.
 - **P1.8 done** — durable run view (`/app/runs` + buyer-scoped list
   endpoint); Policy Improvement Run surfaced on ForRobotTeams, Pricing,
   HowItWorks, FAQ.
-- **P1.9 done** — copy fixes: $5k fee-vs-payout resolved (fee + revenue
-  share), HowItWorks capture link, ForSiteOperators H1, FAQ restored and
-  in footer/sitemap, homepage jargon strip + capturer band.
+- **P1.9 done** — copy fixes: $5k fee-vs-payout resolved as an operator-side
+  review fee, HowItWorks capture link, ForSiteOperators H1, FAQ restored and
+  in footer/sitemap, homepage jargon strip + capturer band. ForRobotTeams and
+  Pricing now expose the self-serve site-record path, and the policy-input
+  configurator is linked from the robot-team journey.
 - **P1.10 done** — CLAUDE.md wedge wording + repo-relative paths + graphify
   rule; AGENTS.md paths; MARKETING_AUDIT_REPORT archived with banner.
-- **P2.11 partial** — Replit files, stray files, `tmp/` untracked (34 MB).
-  Deliberately NOT done here: `output/`/`outputs/` untracking (load-bearing
-  for claims:guard per BLR-040), `issue-updates/` untracking (read by
-  `cityLaunchRecipientEvidence.ts` + tests), `attached_assets/` removal
-  (path-validation regexes reference it), ops/labs/knowledge extraction
-  (needs a new repo + `blueprint-cto` approval), LFS/CDN migration.
-- **P2.12 done (minimal)** — capturer approval endpoints + AdminLeads
-  Capturers tab + honest status ladder on `/capture-app`. Operator lane
-  remains checklist-based (decision still open: thin status page vs.
-  concierge framing).
-- **P2.13 open** — broader client unit coverage for truth-labeling badges
-  (new Sites/FAQ/ladder tests added, but no dedicated badge-guard suite).
+- **P2.11 partial** — Replit files, attached assets, stray files, `tmp/`,
+  `output/`, `outputs/`, and `issue-updates/` are no longer tracked; the
+  claims guard writes ignored runtime reports and recipient recovery now uses
+  explicit playbook evidence. Ten dated accountability, founder, demand, and
+  market reports have moved from the repository root to `docs/archive/`.
+  The two large world-preview `.ply` and `.spz` binaries called out by the
+  audit are already stored through Git LFS.
+  Remaining: ops/labs/knowledge extraction needs an approved destination;
+  broader media CDN migration needs deployment-owner confirmation. The root
+  package still exposes 106 scripts because 458 retained docs/code references
+  depend on the autonomous-ops, city-launch, GTM, research, and Paperclip
+  commands. Collapsing that surface is coupled to the same extraction: moving
+  commands without their owning code and runbooks would create a misleadingly
+  small product manifest while leaving a broken ops platform in-tree.
+- **P2.12 done** — capturer approval, account history, earnings, and Stripe
+  payout setup are routed; site operators receive a thin request-backed
+  `/app` status surface instead of the legacy AR dashboard. `/capture` no
+  longer advertises invented jobs, cities, or payout bands, and `/launch-map`
+  now resolves to the API-backed, fail-closed launch-access status surface.
+- **P2.13 done** — Sites tests reject static fixture supply and require live
+  proof boundaries; homepage tests pin illustrative labels and the generated-
+  media-not-real-world-proof boundary so those compliance labels cannot
+  silently disappear.
+- **Residual truth hardening done** — production now refuses the opt-in
+  Pipeline placeholder-request fallback, and any non-production record marked
+  `autoCreatedByPipeline` is excluded from public site-world supply. Operator
+  status fields remain null when the owning request has not recorded them;
+  capturer application, capture, Stripe, and payout views preserve absent
+  owner records as unrecorded, while the admin capturer list no longer assigns
+  a review state to missing application data. The private buyer request room
+  and admin lead APIs no longer turn missing opportunity, rights, capture,
+  quote, policy, preview, region, or next-action data into operational-looking
+  defaults. Local robot-eval entitlement proof now fails closed unless
+  `access_state` is explicit, and buyer run summaries no longer synthesize a
+  status for incomplete stored records.
+  Settings links to authenticated buyer APIs instead of inventing payment or
+  purchase state; the unimplemented public error-statistics endpoint is
+  removed; and remaining public copy no longer calls QA acceptance
+  "validation" or describes illustrative imagery as placeholder supply.
+
+External launch gates that remain after the code remediation:
+
+- Rotate/revoke the exposed Lindy, Perplexity, Firecrawl, and Render
+  credentials; replacement values must stay out of source and chat.
+- Choose positive production beta invite/daily limits. Production is healthy
+  but `/health/ready` currently returns 503 because both capacity variables
+  are absent and the intake contract fails closed.
+- Configure `RENDER_DEPLOY_HOOK_URL` in GitHub Actions and disable Render
+  automatic deploys so a merge cannot bypass the verified-main workflow.
+- Review and merge PR #418, then verify the resulting main CI, Render deploy,
+  live build SHA, readiness, canonical routes, and production bundle.
+- Decide whether `ops/paperclip`, `labs`, and `knowledge` move to an approved
+  operations repository or are formally retained as a monorepo.

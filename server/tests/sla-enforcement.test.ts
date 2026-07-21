@@ -54,6 +54,11 @@ describe("sla enforcement", () => {
     expect(mockSet).toHaveBeenCalledTimes(1);
     const payload = mockSet.mock.calls[0]?.[0];
     expect(payload.currentStage).toBe("scoping");
+    expect(payload.stages.map((stage: { key: string }) => stage.key)).toContain("upload_to_package");
+    expect(payload.customerFacingStatus).toMatchObject({
+      status: "on_track",
+      active_stage: "scoping",
+    });
   });
 
   it("marks an SLA as at risk when nearing the deadline", async () => {
@@ -117,5 +122,54 @@ describe("sla enforcement", () => {
 
     expect(result.processedCount).toBe(1);
     expect(mockExecuteAction).toHaveBeenCalled();
+  });
+
+  it("lists operator SLA trackers with active stage and customer-facing delayed semantics", async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [
+        {
+          id: "req_789",
+          data: () => ({
+            requestId: "req_789",
+            buyerEmail: "buyer@example.com",
+            currentStage: "upload_to_package",
+            status: "breached",
+            createdAt: "2026-07-08T10:00:00.000Z",
+            completedAt: null,
+            stages: [
+              {
+                key: "upload_to_package",
+                slaHours: 48,
+                startedAt: "2026-07-08T10:00:00.000Z",
+                deadline: "2026-07-10T10:00:00.000Z",
+                completedAt: null,
+                status: "breached",
+                escalations: [],
+              },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { listOperatorSlaTrackers } = await import("../utils/sla-enforcement");
+    const result = await listOperatorSlaTrackers({
+      status: "breached",
+      stage: "upload_to_package",
+      limit: 10,
+    });
+
+    expect(result.trackers).toHaveLength(1);
+    expect(result.trackers[0]).toMatchObject({
+      id: "req_789",
+      request_id: "req_789",
+      status: "breached",
+      current_stage: "upload_to_package",
+      customer_facing_status: {
+        label: "Delayed",
+        active_stage: "upload_to_package",
+      },
+    });
+    expect(result.customer_status_semantics.breached.message).toMatch(/missed its target window/i);
   });
 });

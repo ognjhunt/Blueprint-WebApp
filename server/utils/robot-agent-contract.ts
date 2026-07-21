@@ -1,11 +1,8 @@
 export const ROBOT_AGENT_CONTRACT_VERSION = "2026-07-16";
-export const ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 export const ROBOT_AGENT_TRUTH_LABELS = [
   "capture_grounded",
   "provider_derived",
   "generated",
-  "sample_demo",
-  "public_demo_eligible",
   "request_gated",
   "protected_robot_team",
   "dry_run_order",
@@ -42,18 +39,18 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I buy a hosted session with a budget?\"",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id <pipeline-site-world-id> --product hosted-session-rental --session-hours 1",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id <pipeline-site-world-id> --entitlement-id <dry-entitlement-id>",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id <pipeline-site-world-id> --session-mode runtime_only --robot-profile-id <robot-profile-id> --task-id <task-id> --scenario-id <scenario-id> --start-state-id <start-state-id>",
 ] as const;
 
 export function buildRobotAgentAccessManifest() {
   return {
     name: "Blueprint Robot-Team Agent Access",
-    docs: "/agents",
+    docs: "/agent-access.openapi.json",
     openapi: "/api/agent-access/openapi.json",
     staticOpenapi: "/agent-access.openapi.json",
     llms: "/llms.txt",
@@ -61,7 +58,6 @@ export function buildRobotAgentAccessManifest() {
     preferredTool: "blueprint.siteWorld.search",
     compatibilityTool: "blueprint.catalog.search",
     mcpToolNames: ROBOT_AGENT_MCP_TOOL_NAMES,
-    publicDemoSiteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
     env: {
       apiBaseUrl: "BLUEPRINT_API_BASE_URL",
       bearerToken: "BLUEPRINT_AGENT_AUTH_TOKEN",
@@ -69,8 +65,7 @@ export function buildRobotAgentAccessManifest() {
     credentiallessWorkflow: {
       requiredCredentials: false,
       summary:
-        "A headless robot-team agent can discover Blueprint, ask grounded questions, plan the next safe journey action, search site worlds with filters and semantic ranking, draft a new-location intake request, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials. Live checkout additionally works without a bearer token but creates a real Stripe payment session.",
-      smokeCommand: "npm run smoke:agent-headless",
+        "A headless robot-team agent can discover Blueprint, ask grounded questions, search live public site records, draft a new-location intake request, and create planning-only dry-run commerce records without credentials. Hosted sessions require a scoped robot-team or admin bearer token plus current entitlement and runtime proof.",
       cliCommands: ROBOT_AGENT_CLI_COMMANDS,
     },
     siteWorldSearch: {
@@ -115,7 +110,6 @@ export function buildRobotAgentAccessManifest() {
         "request_candidate",
         "dry_run_quote_order",
         "entitlement_readiness",
-        "public_demo_session_path",
         "blocked_protected_session_path",
       ],
       livePayment: false,
@@ -197,7 +191,7 @@ export function buildRobotAgentAccessManifest() {
       budgetGuard:
         "Optional budgetCents is enforced server-side: quotes above the declared budget return a structured budget_exceeded blocker and create no order or Stripe session.",
       eligibility:
-        "Live checkout is offered only for pipeline-backed site worlds. Sample or planned catalog profiles return a not_live_purchasable blocker with dry-run and request-intake alternatives.",
+        "Live checkout is offered only for Pipeline-backed site worlds. Any record without current owner-system identity returns a not_live_purchasable blocker with request-intake alternatives.",
       priceGrounding:
         "Only catalog-grounded prices are charged: when the public catalog has no parseable price for the requested product, live checkout returns a price_unavailable blocker instead of charging a fallback default.",
       buyerIdentity:
@@ -211,19 +205,11 @@ export function buildRobotAgentAccessManifest() {
       truth:
         "Live checkout creates a real Stripe Checkout Session and buyer-order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights clearance, provider execution, and hosted runtime proof remain owned by their normal systems.",
     },
-    publicDemo: {
-      canRunWithoutCredentials: true,
-      siteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
-      sessionCreateEndpoint: "/api/site-worlds/sessions",
-      sessionMode: "runtime_only",
-      truth:
-        "Credential-free hosted-session creation is limited to public-demo eligible site worlds and remains sample/demo only.",
-    },
     protectedFlow: {
       requiresBearer: true,
       authModel: "Firebase robot_team or admin bearer token",
       accessModel: "provisioned entitlement for new protected launches; existing sessions require session ownership, admin access, or an active per-session share grant",
-      livePaymentPath: "/api/create-checkout-session",
+      livePaymentPath: "/api/agent-access/commerce/live-checkout",
       truth:
         "Protected robot-team hosted sessions preserve Firebase, entitlement, session ownership, rights, runtime, and launch-readiness checks. Dry-run commerce is separate from live Stripe/payment/fulfillment.",
     },
@@ -234,7 +220,7 @@ export function buildRobotAgentAccessManifest() {
     },
     truthLabels: ROBOT_AGENT_TRUTH_LABELS,
     truth:
-      "Public demo endpoints are sample/demo only. Protected site worlds require Firebase robot-team/admin bearer auth and current launch readiness. Dry-run commerce never substitutes for live Stripe, rights, provider, package-access, or fulfillment proof.",
+      "Hosted sessions require Firebase robot-team/admin bearer auth and current entitlement, package, runtime, and launch-readiness proof. Dry-run commerce never substitutes for live Stripe, rights, provider, package-access, or fulfillment proof.",
   };
 }
 
@@ -256,7 +242,6 @@ const errorResponses = {
 };
 
 const bearerSecurity = [{ BlueprintBearer: [] }];
-const publicOrBearerSecurity = [{}, { BlueprintBearer: [] }];
 
 export function buildRobotAgentOpenApiContract() {
   return {
@@ -266,7 +251,7 @@ export function buildRobotAgentOpenApiContract() {
       version: ROBOT_AGENT_CONTRACT_VERSION,
       summary: "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
       description:
-        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new protected session; existing sessions require creator ownership, admin access, or an active per-session share grant.",
+        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and protected hosted-session endpoints for robot-team agents. Hosted-session flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new session; existing sessions require creator ownership, admin access, or an active per-session share grant.",
     },
     servers: [
       {
@@ -275,7 +260,7 @@ export function buildRobotAgentOpenApiContract() {
       },
       {
         url: "http://localhost:5000",
-        description: "Local development server. Public demo flow can run without auth when demo site worlds are enabled.",
+        description: "Local development server. Hosted-session routes retain the same bearer and entitlement boundaries.",
       },
     ],
     tags: [
@@ -293,7 +278,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "discoverAgentAccess",
           summary: "Discover the robot-team agent access manifest.",
           description:
-            "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, documents truth labels, and explains the mock/public-demo hosted-session path without credentials.",
+            "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, and documents the protected hosted-session boundary.",
           security: [{}],
           responses: {
             "200": jsonResponse("#/components/schemas/AgentAccessManifest"),
@@ -389,7 +374,7 @@ export function buildRobotAgentOpenApiContract() {
           tags: ["Hosted sessions"],
           operationId: "getLaunchReadiness",
           summary: "Inspect launch readiness for a site world before creating a hosted session.",
-          security: publicOrBearerSecurity,
+          security: bearerSecurity,
           parameters: [
             {
               name: "siteWorldId",
@@ -402,7 +387,6 @@ export function buildRobotAgentOpenApiContract() {
             "200": jsonResponse("#/components/schemas/LaunchReadiness"),
             ...errorResponses,
           },
-          "x-blueprint-public-demo": true,
         },
       },
       "/api/agent-access/commerce/quote": {
@@ -559,7 +543,7 @@ export function buildRobotAgentOpenApiContract() {
           summary: "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
           description:
             "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored; if the catalog has no parseable price for the product a price_unavailable blocker is returned instead of a fallback charge), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. A buyer identity is required so the paid entitlement binds to a usable account: send a Firebase bearer token, buyer.uid, or buyer.email (verified-email sign-in later unlocks email-bound entitlements). Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch.",
-          security: publicOrBearerSecurity,
+          security: [{}, { BlueprintBearer: [] }],
           requestBody: {
             required: true,
             content: {
@@ -600,8 +584,8 @@ export function buildRobotAgentOpenApiContract() {
         post: {
           tags: ["Hosted sessions"],
           operationId: "createHostedSession",
-          summary: "Create a hosted session for a public demo site world or protected robot-team account.",
-          security: publicOrBearerSecurity,
+          summary: "Create a hosted session for an entitled robot-team account.",
+          security: bearerSecurity,
           requestBody: {
             required: true,
             content: {
@@ -612,12 +596,11 @@ export function buildRobotAgentOpenApiContract() {
           },
           responses: {
             "201": jsonResponse("#/components/schemas/CreateHostedSessionResponse", "Session created"),
-            "200": jsonResponse("#/components/schemas/CreateHostedSessionResponse", "Reusable presentation-demo session returned"),
+            "200": jsonResponse("#/components/schemas/CreateHostedSessionResponse", "Reusable protected session returned"),
             ...errorResponses,
           },
-          "x-blueprint-public-demo": true,
-        "x-blueprint-truth-boundary":
-            "Public unauthenticated creation applies only to demo-eligible site worlds. Protected site worlds continue through Firebase robot_team/admin checks plus provisioned entitlement or existing session ownership.",
+          "x-blueprint-truth-boundary":
+            "Creation requires Firebase robot_team/admin authentication plus a provisioned entitlement and current owner-system launch readiness.",
         },
       },
       "/api/site-worlds/sessions/{sessionId}": {
@@ -625,13 +608,12 @@ export function buildRobotAgentOpenApiContract() {
           tags: ["Hosted sessions"],
           operationId: "getHostedSession",
           summary: "Read a hosted session record.",
-          security: publicOrBearerSecurity,
+          security: bearerSecurity,
           parameters: [{ $ref: "#/components/parameters/SessionId" }],
           responses: {
             "200": jsonResponse("#/components/schemas/HostedSession"),
             ...errorResponses,
           },
-          "x-blueprint-public-demo": true,
         },
       },
       "/api/site-worlds/sessions/{sessionId}/reset": {
@@ -651,7 +633,7 @@ export function buildRobotAgentOpenApiContract() {
           tags: ["Hosted sessions"],
           operationId: "renderHostedSessionFrame",
           summary: "Render a robot-observation frame for the selected camera.",
-          security: publicOrBearerSecurity,
+          security: bearerSecurity,
           parameters: [
             { $ref: "#/components/parameters/SessionId" },
             { name: "cameraId", in: "query", required: false, schema: { type: "string", default: "head_rgb" } },
@@ -666,7 +648,6 @@ export function buildRobotAgentOpenApiContract() {
             },
             ...errorResponses,
           },
-          "x-blueprint-public-demo": true,
         },
       },
       "/api/site-worlds/sessions/{sessionId}/explorer-render": {
@@ -677,7 +658,7 @@ export function buildRobotAgentOpenApiContract() {
           tags: ["Hosted sessions"],
           operationId: "getHostedSessionExplorerFrame",
           summary: "Fetch the latest explorer-rendered PNG frame.",
-          security: publicOrBearerSecurity,
+          security: bearerSecurity,
           parameters: [
             { $ref: "#/components/parameters/SessionId" },
             { name: "cameraId", in: "query", required: false, schema: { type: "string", default: "head_rgb" } },
@@ -689,7 +670,6 @@ export function buildRobotAgentOpenApiContract() {
             },
             ...errorResponses,
           },
-          "x-blueprint-public-demo": true,
         },
       },
       "/api/site-worlds/sessions/{sessionId}/export": {
@@ -746,9 +726,8 @@ function sessionMutationOperation(operationId: string, summary: string, requestS
       "202": jsonResponse("#/components/schemas/PendingOperationResponse", "Accepted for async runtime mutation"),
       ...errorResponses,
     },
-    "x-blueprint-public-demo": true,
     "x-blueprint-truth-boundary":
-      "Unauthenticated use applies only when the session belongs to a public-demo site world. Protected site worlds require bearer auth and preserve Firebase entitlement checks.",
+      "Hosted-session mutation requires bearer auth and preserves entitlement, ownership, runtime, and launch-readiness checks.",
   } as const;
 }
 
@@ -760,8 +739,6 @@ function buildSchemas() {
         "capture_grounded",
         "provider_derived",
         "generated",
-        "sample_demo",
-        "public_demo_eligible",
         "request_gated",
         "protected_robot_team",
         "dry_run_order",
@@ -821,7 +798,6 @@ function buildSchemas() {
         "requestLocationDraft",
         "dryRunCommerce",
         "liveCommerce",
-        "publicDemo",
         "protectedFlow",
         "truthLabels",
       ],
@@ -839,15 +815,13 @@ function buildSchemas() {
           type: "array",
           items: { type: "string", enum: [...ROBOT_AGENT_MCP_TOOL_NAMES] },
         },
-        publicDemoSiteWorldId: { type: "string" },
         credentiallessWorkflow: {
           type: "object",
-          required: ["requiredCredentials", "summary", "smokeCommand", "cliCommands"],
+          required: ["requiredCredentials", "summary", "cliCommands"],
           additionalProperties: true,
           properties: {
             requiredCredentials: { type: "boolean" },
             summary: { type: "string" },
-            smokeCommand: { type: "string" },
             cliCommands: { type: "array", items: { type: "string" } },
           },
         },
@@ -858,7 +832,6 @@ function buildSchemas() {
         requestLocationDraft: { type: "object", additionalProperties: true },
         dryRunCommerce: { type: "object", additionalProperties: true },
         liveCommerce: { type: "object", additionalProperties: true },
-        publicDemo: { type: "object", additionalProperties: true },
         protectedFlow: { type: "object", additionalProperties: true },
         tools: { type: "object", additionalProperties: true },
         truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },
@@ -1012,7 +985,7 @@ function buildSchemas() {
       type: "object",
       required: ["backend", "embeddingModel", "usedEmbeddings", "totalCandidates", "returned"],
       properties: {
-        backend: { type: "string", enum: ["firestore-live", "static-fallback"] },
+        backend: { type: "string", enum: ["firestore-live"] },
         embeddingModel: { type: "string" },
         usedEmbeddings: { type: "boolean" },
         totalCandidates: { type: "integer" },
@@ -1192,7 +1165,7 @@ function buildSchemas() {
       type: "object",
       required: ["siteWorldId", "robotProfileId", "taskId", "scenarioId", "startStateId"],
       properties: {
-        siteWorldId: { type: "string", examples: [ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID] },
+        siteWorldId: { type: "string", examples: ["sw-<pipeline-site-world-id>"] },
         sessionMode: { type: "string", enum: ["runtime_only", "presentation_demo"], default: "runtime_only" },
         runtimeUi: { type: ["string", "null"], enum: ["neoverse_gradio", null] },
         autoStartDemo: { type: "boolean" },

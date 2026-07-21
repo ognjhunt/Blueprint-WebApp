@@ -22,6 +22,12 @@ Render-native auto-deploy is off (`render.yaml` `autoDeploy: false`).
 > `deploy-verification` artifact. A deploy-hook 2xx is never treated as
 > deployment success.
 
+Current-state refresh (2026-07-21): Render still reports `autoDeploy: yes`,
+GitHub Actions still has no repository secrets, and production's latest live
+deploy remains main SHA `2a73ad614a3ab569fc8a021022eb317285b55996`.
+PR #418 is green and cleanly mergeable, but it is not deployed. The incident
+above therefore remains open.
+
 ## How a deploy happens
 
 1. A commit lands on `main`.

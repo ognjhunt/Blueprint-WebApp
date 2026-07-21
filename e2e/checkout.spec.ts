@@ -5,6 +5,6 @@ test('old world models checkout flag lands on the sites catalog', async ({ page 
 
   await expect(page).toHaveURL(/\/sites\?checkout=success$/);
   await expect(
-    page.getByRole('heading', { name: /Pick a captured place\./i }),
+    page.getByRole('heading', { name: /Evaluate where the work happens\./i }),
   ).toBeVisible();
 });

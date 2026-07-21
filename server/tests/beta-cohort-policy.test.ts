@@ -204,4 +204,53 @@ describe("beta cohort policy", () => {
       window_key: "2026-07-08",
     });
   });
+
+  it("applies the same kill switch and daily throttle to buyer access gates", async () => {
+    const db = makeDb({
+      betaCohortAdmissions: {
+        today: {
+          gate: "buyer_access",
+          cohort_key: "austin",
+          window_key: "2026-07-08",
+        },
+      },
+    });
+
+    const paused = await evaluateBetaCohortGate(
+      {
+        gate: "buyer_access",
+        creatorId: "buyer-1",
+        market: "Austin",
+        siteType: "warehouse",
+        now: new Date("2026-07-08T10:00:00Z"),
+      },
+      {
+        db: db as any,
+        env: {
+          BLUEPRINT_BETA_KILL_SWITCH: "1",
+        } as NodeJS.ProcessEnv,
+      },
+    );
+    expect(paused.allowed).toBe(false);
+    expect(paused.reason).toBe("beta_kill_switch_active");
+
+    const throttled = await evaluateBetaCohortGate(
+      {
+        gate: "buyer_access",
+        creatorId: "buyer-1",
+        market: "Austin",
+        siteType: "warehouse",
+        now: new Date("2026-07-08T10:00:00Z"),
+      },
+      {
+        db: db as any,
+        env: {
+          BLUEPRINT_BETA_INVITE_CAP: "10",
+          BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "1",
+        } as NodeJS.ProcessEnv,
+      },
+    );
+    expect(throttled.allowed).toBe(false);
+    expect(throttled.reason).toBe("beta_cohort_daily_limit_reached");
+  });
 });

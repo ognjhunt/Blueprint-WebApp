@@ -149,9 +149,6 @@ app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 const cspDirectives = buildContentSecurityPolicy({
   isProduction,
   posthogHost: process.env.VITE_PUBLIC_POSTHOG_HOST,
-  hostedDemoRuntimeBaseUrl: env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL,
-  hostedDemoRuntimeWebsocketBaseUrl:
-    env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL,
 });
 
 app.use((req, res, next) => {
@@ -382,7 +379,7 @@ app.use((req, res, next) => {
     { from: "/for-robot-integrators", to: "/" },
     { from: "/contact", to: "/contact/robot-team" },
     { from: "/world-models", to: "/sites" },
-    { from: "/world-models/:slug", to: (req) => `/sites/${req.params.slug}` },
+    { from: "/world-models/:slug", to: "/sites" },
     { from: "/agents", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/capture-jobs", to: "/capture" },
     { from: "/capture-network", to: "/capture" },
@@ -393,6 +390,7 @@ app.use((req, res, next) => {
     { from: "/for-capturers", to: "/capture" },
     { from: "/earn", to: "/capture" },
     { from: "/sample-deliverables", to: "/proof" },
+    { from: "/launch-map", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/updates", to: "/" },
     { from: "/careers", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/help", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
@@ -417,9 +415,9 @@ app.use((req, res, next) => {
     { from: "/environments", to: "/proof" },
     { from: "/marketplace", to: "/sites" },
     { from: "/site-worlds", to: "/sites" },
-    { from: "/site-worlds/:slug", to: (req) => `/sites/${req.params.slug}` },
-    { from: "/site-worlds/:slug/start", to: (req) => `/world-models/${req.params.slug}/start` },
-    { from: "/site-worlds/:slug/workspace", to: (req) => `/world-models/${req.params.slug}/workspace` },
+    { from: "/site-worlds/:slug", to: "/sites" },
+    { from: "/site-worlds/:slug/start", to: "/sites" },
+    { from: "/site-worlds/:slug/workspace", to: "/sites" },
   ];
 
   legacyPublicRedirects.forEach(({ from, to }) => {

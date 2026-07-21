@@ -85,6 +85,14 @@ capture_submission_client_status_block() {
   ' "$1"
 }
 
+capture_submission_client_update_keys_block() {
+  awk '
+    /function captureSubmissionClientUpdateKeys\(\)/ { in_block = 1 }
+    in_block { print }
+    in_block && /function captureSubmissionClientStatuses\(\)/ { exit }
+  ' "$1"
+}
+
 assert_capture_submission_status_boundary() {
   local file="$1"
   local status_block
@@ -105,6 +113,40 @@ assert_capture_submission_status_boundary() {
   for denied in "'approved'" "'paid'" "'under_review'" "'needs_fix'" "'rejected'"; do
     if printf '%s\n' "$status_block" | grep -Fq "$denied"; then
       fail "capture submission client status allowlist includes backend review status $denied ($file)"
+      status=1
+    fi
+  done
+}
+
+assert_capture_submission_update_boundary() {
+  local file="$1"
+  local update_block
+  update_block="$(capture_submission_client_update_keys_block "$file")"
+  if [ -z "$update_block" ]; then
+    fail "capture submission client update key allowlist is missing ($file)"
+    status=1
+    return
+  fi
+
+  # These are the client-owned capture/upload progress fields. Their nested
+  # values remain constrained by hasValidClientCaptureSubmissionPayload(), and
+  # status remains constrained to the client-only status allowlist above.
+  for allowed in \
+    "'created_at'" \
+    "'submitted_at'" \
+    "'status'" \
+    "'operational_state'" \
+    "'lifecycle'" \
+    "'upload_error'"; do
+    if ! printf '%s\n' "$update_block" | grep -Fq "$allowed"; then
+      fail "capture submission client update key allowlist is missing $allowed ($file)"
+      status=1
+    fi
+  done
+
+  for denied in "'payout_cents'" "'approved_by'" "'reviewed_by'" "'paid_at'"; do
+    if printf '%s\n' "$update_block" | grep -Fq "$denied"; then
+      fail "capture submission client update key allowlist includes backend-owned key $denied ($file)"
       status=1
     fi
   done
@@ -204,6 +246,7 @@ fi
 #    payouts/referrals must be backend-only Admin-SDK writes.
 for f in "$WEBAPP_RULES" "$IOS_RULES"; do
   assert_capture_submission_status_boundary "$f"
+  assert_capture_submission_update_boundary "$f"
   assert_contains \
     "$f" \
     "captureSubmissionExistingStatusAllowsClientUpdate(resource.data)" \

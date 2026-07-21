@@ -39,8 +39,6 @@ const envSchema = z
     BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_AGENT: z.string().trim().optional(),
     BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON: z.string().trim().optional(),
     BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON: z.string().trim().optional(),
-    BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL: z.string().trim().url().optional(),
-    BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL: z.string().trim().url().optional(),
     WORLDLABS_API_KEY: z.string().trim().optional(),
     WORLDLABS_API_BASE_URL: z.string().trim().url().optional(),
     WORLDLABS_DEFAULT_MODEL: z.string().trim().optional(),

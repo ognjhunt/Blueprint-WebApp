@@ -26,16 +26,6 @@ vi.mock("@/lib/helmet", () => ({
   HelmetProvider: ({ children }: { children?: ReactNode }) => children,
 }));
 
-// canvas-confetti probes OffscreenCanvas at import time; happy-dom's canvas
-// returns a null 2d context under the coverage pool, crashing any suite that
-// imports Dashboard. No test asserts confetti behavior — stub the module.
-vi.mock("canvas-confetti", () => ({
-  default: Object.assign(() => Promise.resolve(null), {
-    reset: () => {},
-    create: () => () => Promise.resolve(null),
-  }),
-}));
-
 const DEFAULT_LAYOUT_WIDTH = 800;
 const DEFAULT_LAYOUT_HEIGHT = 400;
 

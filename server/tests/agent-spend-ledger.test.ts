@@ -11,6 +11,7 @@ const firestoreState = vi.hoisted(() => ({
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
 const listCityLaunchBudgetEvents = vi.hoisted(() => vi.fn());
 const recordCityLaunchBudgetEvent = vi.hoisted(() => vi.fn());
+const recordBetaOpsFailureSignal = vi.hoisted(() => vi.fn());
 
 function collectionDocs(name: string) {
   let docs = firestoreState.collections.get(name);
@@ -81,12 +82,18 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   recordCityLaunchBudgetEvent,
 }));
 
+vi.mock("../utils/ops-alerts.js", () => ({
+  recordBetaOpsFailureSignal,
+}));
+
 beforeEach(() => {
   firestoreState.collections.clear();
   firestoreState.autoId = 0;
   readCityLaunchActivation.mockReset();
   listCityLaunchBudgetEvents.mockReset();
   recordCityLaunchBudgetEvent.mockReset();
+  recordBetaOpsFailureSignal.mockReset();
+  recordBetaOpsFailureSignal.mockResolvedValue({ recorded: true });
 
   const budgetPolicy = buildCityLaunchBudgetPolicy({ tier: "funded" });
   readCityLaunchActivation.mockResolvedValue({
@@ -135,6 +142,47 @@ describe("agent spend ledger", () => {
     const listed = await listAgentSpendRequests("Austin, TX");
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
+  });
+
+  it("records a spend budget alert when a request exceeds the city budget envelope", async () => {
+    const { requestAgentSpend } = await import("../utils/agentSpendLedger");
+    const budgetPolicy = buildCityLaunchBudgetPolicy({
+      tier: "lean",
+      maxTotalApprovedUsd: 50,
+      operatorAutoApproveUsd: 50,
+    });
+
+    const record = await requestAgentSpend({
+      city: "Austin, TX",
+      amountUsd: 75,
+      category: "tools",
+      vendorName: "Stripe",
+      purpose: "Buy a paid provider credit for the launch loop",
+      issueId: "BLU-205",
+      requestedByAgent: "city-launch-agent",
+      provider: "manual",
+      budgetPolicy,
+      founderApprovedBudgetEnvelope: true,
+    });
+
+    expect(record.status).toBe("requires_founder_approval");
+    expect(recordBetaOpsFailureSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "spend_budget_failure",
+        scopeId: record.id,
+        summary:
+          "Agent spend request exceeded or lacked approval under the city budget policy.",
+        details: expect.objectContaining({
+          spend_request_id: record.id,
+          city_slug: "austin-tx",
+          status: "requires_founder_approval",
+          amount_usd: 75,
+          budget_tier: "lean",
+          max_total_approved_usd: 50,
+          projected_committed_spend_usd: 75,
+        }),
+      }),
+    );
   });
 
   it("reconciles paid provider events back into city budget events", async () => {

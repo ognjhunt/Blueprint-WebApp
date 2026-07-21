@@ -1,6 +1,7 @@
 "use client";
 
-import { CreditCard, Mail, ShieldCheck, ShoppingBag, User } from "lucide-react";
+import { Mail, ShieldCheck, User } from "lucide-react";
+import { Link } from "wouter";
 import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -17,16 +18,17 @@ import {
 import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 
 const accountNav = [
-  "Profile",
-  "Sign-In & Security",
-  "Payment Methods",
-  "Billing History",
-  "Purchases & Packages",
+  { label: "Profile", href: "/settings" },
+  { label: "Evaluation runs", href: "/app/runs" },
+  { label: "Packages & access", href: "/app/entitlements" },
 ];
 
 export default function SettingsPage() {
   const { currentUser, userData } = useAuth();
-  const purchases = userData?.purchases || userData?.library || userData?.purchasedItems || [];
+  const signInProviders = currentUser?.providerData
+    ?.map((provider) => provider.providerId)
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <>
@@ -46,8 +48,8 @@ export default function SettingsPage() {
               Account overview
             </h1>
             <p className="mt-3 max-w-[38rem] text-base leading-8 text-black/60">
-              Private account page for profile, sign-in details, billing methods, billing
-              history, and purchased packages.
+              Identity details from your authenticated account, with links to the
+              record-backed buyer workspace.
             </p>
           </div>
 
@@ -93,9 +95,9 @@ export default function SettingsPage() {
                   <SurfaceMiniLabel>Account</SurfaceMiniLabel>
                   <div className="mt-4 space-y-2">
                     {accountNav.map((item, index) => (
-                      <div key={item} className={`rounded-[1rem] px-3 py-2.5 text-sm ${index === 0 ? "bg-white font-semibold text-black" : "text-black/70"}`}>
-                        {item}
-                      </div>
+                      <Link key={item.href} href={item.href} className={`block rounded-[1rem] px-3 py-2.5 text-sm ${index === 0 ? "bg-white font-semibold text-black" : "text-black/70 hover:bg-white/70"}`}>
+                        {item.label}
+                      </Link>
                     ))}
                   </div>
                 </SurfaceSidebar>
@@ -133,43 +135,24 @@ export default function SettingsPage() {
                       className="mt-5"
                       items={[
                         { label: "Primary email", value: currentUser.email || userData?.email || "N/A" },
-                        { label: "Password", value: "Managed" },
+                        { label: "Sign-in provider", value: signInProviders || "Not reported by identity provider" },
                       ]}
                     />
                   </SurfaceCard>
                 </div>
 
-                <div className="mt-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+                <div className="mt-5">
                   <SurfaceCard>
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="h-4.5 w-4.5 text-black/55" />
-                      <SurfaceMiniLabel>Payment Methods</SurfaceMiniLabel>
-                    </div>
-                    <p className="mt-4 text-sm leading-7 text-black/60">
-                      Saved payment methods and billing actions appear here for authenticated users.
+                    <SurfaceMiniLabel>Buyer records</SurfaceMiniLabel>
+                    <p className="mt-4 max-w-[42rem] text-sm leading-7 text-black/60">
+                      Evaluation runs, entitlements, and package access are loaded from
+                      the authenticated buyer APIs in the Blueprint app.
                     </p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <SurfaceButton href="/app/runs">View evaluation runs</SurfaceButton>
+                      <SurfaceButton href="/app/entitlements" tone="secondary">View packages & access</SurfaceButton>
+                    </div>
                   </SurfaceCard>
-
-                  <div className="space-y-5">
-                    <SurfaceCard>
-                      <div className="flex items-center gap-3">
-                        <ShoppingBag className="h-4.5 w-4.5 text-black/55" />
-                        <SurfaceMiniLabel>Purchases & Packages</SurfaceMiniLabel>
-                      </div>
-                      <div className="mt-5 space-y-3">
-                        {purchases.length > 0 ? (
-                          purchases.slice(0, 4).map((item, index) => (
-                            <div key={item.id || item.slug || index} className="rounded-[1.1rem] border border-black/10 bg-[#faf7f1] px-4 py-4">
-                              <p className="text-sm font-semibold">{item.title || item.name || item.slug || `Purchase ${index + 1}`}</p>
-                              <p className="mt-1 text-sm text-black/55">{item.status || "Provisioned"}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-black/60">Purchased packages will appear here once provisioned.</p>
-                        )}
-                      </div>
-                    </SurfaceCard>
-                  </div>
                 </div>
               </div>
             </div>

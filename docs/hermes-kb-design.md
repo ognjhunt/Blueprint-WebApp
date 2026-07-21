@@ -167,7 +167,7 @@ confidence: 0.76
   - Use the dominant source system for the page.
 - `source_urls`
   - Array of source locators.
-  - May include public URLs, Notion URLs, Paperclip URLs, Drive URLs, or repo locators such as `repo:///docs/marketplace-semantic-search.md`.
+  - May include public URLs, Notion URLs, Paperclip URLs, Drive URLs, or repo locators such as `repo:///docs/architecture/source-of-truth-map.md`.
 - `last_verified_at`
   - ISO date string `YYYY-MM-DD`.
 - `owner`

@@ -35,6 +35,7 @@ coverage/
 test-results/
 playwright-report/
 .playwright-mcp/
+paperclip-desktop/
 
 # Git worktrees
 .worktrees/
@@ -55,6 +56,9 @@ derived/graphify/webapp-architecture/*
 ops/paperclip/research-grounding/notion/
 
 # Generated execution artifacts (prevent worktree drift)
+output/
+outputs/
+tmp/
 ops/paperclip/reports/
 issue-updates/
 create-research-stub.mjs

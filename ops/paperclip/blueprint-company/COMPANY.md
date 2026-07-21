@@ -9,7 +9,7 @@ license: MIT
 authors:
   - name: Blueprint
 goals:
-  - Strengthen Blueprint's capture-first, world-model-product-first platform across the webapp, capture pipeline, and capture clients.
+  - Strengthen Blueprint's capture-first, real-site robot-evaluation and policy-improvement platform across the webapp, capture pipeline, and capture clients.
 ---
 
 Blueprint Autonomous Operations exists to coordinate Codex, Claude, and Hermes-backed agents across the three Blueprint repos without manual session babysitting.

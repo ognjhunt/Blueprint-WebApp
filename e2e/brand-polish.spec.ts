@@ -157,6 +157,14 @@ async function auditRouteViewport(
     const response = await page.goto(route.path, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
     await page.locator("body").waitFor({ state: "visible", timeout: 10_000 });
+    // The app shell can become visible before React finishes hydrating the
+    // route under full-suite CPU pressure. Wait on the same route-specific H1
+    // that the audit verifies so metrics are taken from the settled page.
+    await page
+      .locator("h1")
+      .filter({ hasText: route.expectedHeading })
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 });
 
     if (!context.getBaseUrl()) {
       context.setBaseUrl(new URL(page.url()).origin);

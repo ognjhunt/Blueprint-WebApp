@@ -45,5 +45,5 @@
 - First cycle — building baseline competitor map from scratch
 - Analytics Agent completed first daily run 2026-03-29 (BLU-38, done with proof)
 - PostHog analytics deployed on webapp 2026-03-27 with consent-aware tracking
-- Blueprint positioning: capture-first, world-model-product-first (see WORLD_MODEL_STRATEGY_CONTEXT.md)
+- Blueprint positioning: capture-first, real-site robot-evaluation and policy-improvement first; world models remain generated/advisory support (see WORLD_MODEL_STRATEGY_CONTEXT.md)
 - No prior competitor intelligence exists; this is the baseline scan

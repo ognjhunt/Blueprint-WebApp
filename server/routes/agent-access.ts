@@ -84,7 +84,7 @@ router.get("/commerce/quote", async (req, res) => {
         ? {
             id: siteWorld.id,
             siteName: siteWorld.siteName,
-            commercialStatus: siteWorld.dataSource === "pipeline" ? "pipeline_backed" : "sample_or_planned",
+            commercialStatus: "pipeline_backed",
             agentCommerce: {
               product: quote.product,
               sku: quote.sku,
@@ -208,8 +208,8 @@ router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, 
       null;
     const buyerEmail = buyerEmailRaw ? buyerEmailRaw.toLowerCase() : null;
 
-    const successUrl = resolveLiveCheckoutUrl(input.successPath, "/agents?live_checkout=success");
-    const cancelUrl = resolveLiveCheckoutUrl(input.cancelPath, "/agents?live_checkout=cancel");
+    const successUrl = resolveLiveCheckoutUrl(input.successPath, "/app/entitlements?live_checkout=success");
+    const cancelUrl = resolveLiveCheckoutUrl(input.cancelPath, "/app/entitlements?live_checkout=cancel");
     const deliveryMode = quote.product === "hosted_session_rental" ? "hosted_session" : "download_link";
 
     // Beta cohort policy gates live buyer checkout the same way it gates

@@ -286,9 +286,9 @@ Not worth full automation yet:
 Current signals in repo:
 
 - `server/routes/requests.ts`
-- `server/routes/marketplace.ts`
+- `server/routes/agent-access.ts`
 - `server/routes/marketplace-entitlements.ts`
-- `client/src/pages/Portal.tsx`
+- `client/src/pages/app/Entitlements.tsx`
 - `client/src/pages/RequestConsole.tsx`
 
 Human actions implied:

@@ -41,6 +41,10 @@ describe("Pricing", () => {
       "href",
       expect.stringContaining("/contact/site-operator"),
     );
+    expect(screen.getByRole("link", { name: /Browse site records/i })).toHaveAttribute(
+      "href",
+      "/sites",
+    );
     expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
   });
 });

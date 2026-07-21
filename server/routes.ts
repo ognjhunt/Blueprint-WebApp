@@ -13,10 +13,10 @@ import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
+import operatorStatusRouter from "./routes/operator-status";
 import creatorRouter from "./routes/creator";
 import contactHandler from "./routes/contact";
 import waitlistHandler from "./routes/waitlist";
-import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
@@ -33,10 +33,10 @@ import adminGrowthRouter, {
 } from "./routes/admin-growth";
 import adminCompanyMetricsRouter from "./routes/admin-company-metrics";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
+import adminSlaRouter from "./routes/admin-sla";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
 import requestsRouter from "./routes/requests";
-import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
@@ -88,13 +88,11 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  // Public semantic search for the marketplace (CSRF-protected, no auth required).
   app.use(
     "/api/marketplace/entitlements",
     verifyFirebaseToken,
     marketplaceEntitlementsRouter,
   );
-  app.use("/api/marketplace", csrfProtection, marketplaceRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
   app.post(
@@ -120,7 +118,6 @@ export function registerRoutes(app: Express) {
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
-  app.post("/api/apply", csrfProtection, applyHandler);
   app.use("/api/help", csrfProtection, helpRouter);
   app.post("/api/voice/webhook", voiceWebhookHandler);
   app.post("/api/voice/telephony/inbound", telephonyInboundHandler);
@@ -189,6 +186,12 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     clientRuntimeConfigAdminRouter,
   );
+  app.use(
+    "/api/admin/sla",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminSlaRouter,
+  );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.post(
     "/api/upload-to-b2",
@@ -213,5 +216,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
   app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
+  app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
   app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }

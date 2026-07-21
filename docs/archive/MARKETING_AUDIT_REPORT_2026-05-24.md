@@ -2,6 +2,8 @@
 
 # Blueprint Public Marketing Audit Report
 
+> Superseded on 2026-07-20. This historical report reflects the retired world-model-product-first route map and must not guide current product copy or routing. Current doctrine lives in `PLATFORM_CONTEXT.md`, `WORLD_MODEL_STRATEGY_CONTEXT.md`, `AGENTS.md`, and the public claims matrix.
+
 Date: 2026-05-24
 
 Status: Current internal audit closeout for the public WebApp marketing surface.

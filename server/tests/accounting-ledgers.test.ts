@@ -44,6 +44,12 @@ function readDoc(collection: string, id: string): StoredDoc | undefined {
   return stored ? clone(stored) : undefined;
 }
 
+function readCollectionDocs(collection: string): StoredDoc[] {
+  return Array.from(state.docs.entries())
+    .filter(([key]) => key.startsWith(`${collection}/`))
+    .map(([, value]) => clone(value));
+}
+
 function makeQueryDoc(collection: string, id: string, data: StoredDoc) {
   return {
     id,
@@ -354,6 +360,25 @@ describe("accounting ledgers", () => {
       status: "processed",
       order_id: order!.id,
     });
+    expect(readCollectionDocs("transactionalNotifications")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event_type: "order_confirmation",
+          channel: "email",
+          status: "skipped",
+          skip_reason: "transactional_email_disabled",
+          subject_id: order!.id,
+          source_event_id: "evt_checkout_complete_1",
+        }),
+        expect.objectContaining({
+          event_type: "order_confirmation",
+          channel: "in_app",
+          status: "queued",
+          recipient_user_id: "buyer-1",
+          subject_id: order!.id,
+        }),
+      ]),
+    );
   });
 
   it("records hosted-session rental license expiration when payment provisions access", async () => {
@@ -788,5 +813,23 @@ describe("accounting ledgers", () => {
       status: "paid",
       payout_cents: 4500,
     });
+    expect(readCollectionDocs("transactionalNotifications")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event_type: "capture_accepted",
+          channel: "in_app",
+          status: "queued",
+          recipient_user_id: "creator-123",
+          subject_id: "cap-1",
+        }),
+        expect.objectContaining({
+          event_type: "payout_sent",
+          channel: "in_app",
+          status: "queued",
+          recipient_user_id: "creator-123",
+          subject_id: disbursement!.disbursement.id,
+        }),
+      ]),
+    );
   });
 });

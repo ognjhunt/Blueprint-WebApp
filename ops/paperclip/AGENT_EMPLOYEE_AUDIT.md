@@ -10,7 +10,7 @@ From `PLATFORM_CONTEXT.md` and `WORLD_MODEL_STRATEGY_CONTEXT.md`, Blueprint is n
 Blueprint is:
 
 - capture-first
-- world-model-product-first
+- real-site robot-evaluation and policy-improvement first
 - exact-site package and hosted-access focused
 - rights-safe, privacy-safe, provenance-safe
 - designed so software remains the system of record and agents operate on top of it
@@ -26,7 +26,7 @@ Each agent was checked against six requirements:
 3. Explicit tools, sources of truth, and trust model
 4. Explicit collaboration and handoff model with other agents
 5. Explicit software boundary: the agent operates on top of software and does not become the software
-6. Alignment with Blueprint doctrine: capture-first, exact-site/world-model-product-first, rights/provenance truthful
+6. Alignment with Blueprint doctrine: capture-first, real-site evaluation/policy-improvement first, rights/provenance truthful
 
 ## Overall Verdict
 

@@ -12,6 +12,10 @@ import {
 import { MonochromeMedia } from "@/components/site/editorial";
 import { SEO } from "@/components/SEO";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
+import {
+  buyerRunOnboardingTimeline,
+  buyerRunReceiveLinks,
+} from "@/lib/buyerRunOnboarding";
 import { parseContactRequestPrefill } from "@/lib/contactRequestPrefill";
 import { withCsrfHeader } from "@/lib/csrf";
 
@@ -48,7 +52,7 @@ const routeCards = [
     href: "/signup?flow=capturer",
     eyebrow: "Capturers",
     title: "Capture sites near you.",
-    body: "Run lawful public-facing captures and get paid per validated bundle.",
+    body: "Run lawful public-facing captures and get paid after a capture bundle passes QA.",
     Icon: Camera,
   },
 ];
@@ -153,7 +157,7 @@ export default function Contact() {
               : "Start a Blueprint Policy Evaluation",
             description: isSiteOperator
               ? "Structured intake for site operators submitting a facility for capture-backed robot evaluation review."
-              : "Structured intake for robot-team Policy Evaluation Run, Validated Evaluation Pack, and Policy Improvement Run requests.",
+              : "Structured intake for robot-team Policy Evaluation Run, provenance-checked data package, and Policy Improvement Run requests.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -209,7 +213,7 @@ export default function Contact() {
                   <p className="mt-2 text-[15px] leading-[1.7] text-ink-600">
                     {isSiteOperator
                       ? "We will review the place and follow up to confirm access, rights, and scope. No access is granted until you approve it."
-                      : "We will check the task, scope the comparison, and return a priced run plan. Nothing is committed until you confirm scope."}
+                      : "We will check the task, scope the comparison, and return a priced run plan. If approved, run records appear in the buyer app or a private request room after evidence and access are accepted."}
                   </p>
                 </div>
                 <Button variant="secondary" size="md" onClick={() => setSubmitted(false)}>
@@ -346,6 +350,42 @@ export default function Contact() {
                 );
               })}
             </div>
+
+            {!isSiteOperator ? (
+              <div className="rounded-md border border-line bg-white p-5">
+                <Eyebrow tone="muted">Run / receive path</Eyebrow>
+                <h2 className="mt-3 text-title-m font-semibold tracking-tight text-ink">
+                  What happens after this request
+                </h2>
+                <div className="mt-4 grid gap-3">
+                  {buyerRunOnboardingTimeline.map((step) => (
+                    <div key={step.phase} className="rounded-sm border border-line-soft bg-inset p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-caption font-semibold uppercase tracking-eyebrow text-brass-deep">
+                          {step.phase}. {step.title}
+                        </span>
+                        <span className="text-right text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
+                          {step.owner}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-caption font-semibold text-ink-800">{step.target}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {buyerRunReceiveLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href === "/requests/:requestId" ? "/beta/buyer-guide" : link.href}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-line px-3 text-caption font-semibold text-ink-800 hover:bg-inset"
+                    >
+                      {link.label}
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-2 rounded-md border border-line bg-white px-5 py-4">
               <Mail className="h-4 w-4 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />

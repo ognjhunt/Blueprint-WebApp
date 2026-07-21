@@ -13,7 +13,7 @@ import { TileGrid } from "@/components/site/TileGrid";
 
 const statStrip = [
   { label: "Robot data vs. text", value: "~1B×", caption: "Smaller than internet text (Bessemer)" },
-  { label: "Sim-to-site rank", value: "0.929", caption: "Generated-world vs. real ordering (SC3-Eval)" },
+  { label: "SC3-Eval research", value: "0.929", caption: "Published correlation; not a Blueprint result" },
   { label: "One real eval", value: "2,500+", caption: "Rollouts + 100+ human hours (AutoEval)" },
   { label: "Reliability bar", value: "99.99%", caption: "What industrial buyers expect (Bain)" },
 ];
@@ -23,7 +23,7 @@ const rungs = [
     step: "01",
     phase: "Today",
     title: "Know which policy will actually work — before field time.",
-    body: "Blueprint's Task Evaluation Runs rank robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit — and a generated world can now do it: 2026 research (SC3-Eval, from NVIDIA and Physical Intelligence; OSCAR, from Peking University and NVIDIA) shows video world models predicting real policy rankings at a Pearson correlation up to 0.98 in-distribution, with SC3-Eval reporting ~0.929 rank correlation across settings. Those are published research results, not Blueprint measurements — each Blueprint run reports its own rank-fidelity estimate inside its stated envelope.",
+    body: "Blueprint's Task Evaluation Runs compare robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit. Third-party 2026 research — SC3-Eval from NVIDIA and Physical Intelligence, and OSCAR from Peking University and NVIDIA — reports that video world models can predict real policy ordering. SC3-Eval's published 0.929 closed-loop Pearson correlation is category evidence, not a Blueprint run result.",
     proof: "Rank fidelity & predicted success — an estimate, never a guaranteed field outcome.",
   },
   {
@@ -267,9 +267,9 @@ export default function Vision() {
                 funds more capture.
               </p>
               <p className="mt-6 max-w-[44rem] text-[15px] leading-[1.7] text-ink-600">
-                The first rungs compound: every decision we sit under is a ground-truth outcome the
-                rest of the ladder needs — and one no competitor without our capture footprint can
-                buy.
+                The first rungs deliver the product and compound the capture network at the same time.
+                Request-scoped outcomes can improve future evaluation design only when rights and
+                provenance permit that use; they are never silently repurposed as ground truth.
               </p>
             </div>
           </div>

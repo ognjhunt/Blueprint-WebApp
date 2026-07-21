@@ -117,7 +117,7 @@ These are allowed only when the cited ledger source supports the exact wording:
 
 | Area | Allowed draft posture |
 |---|---|
-| Product posture | Blueprint is capture-first and world-model-product-first, with hosted access and request-specific proof around site-specific world-model packages. |
+| Product posture | Blueprint is capture-first and real-site robot-evaluation/data-package first, with hosted access and request-specific proof around capture-backed site packages. |
 | Auth/access | WebApp protected APIs use Firebase-authenticated bearer-token paths where the cited route/middleware shows that behavior. |
 | Admin/ops access | Admin and ops checks can be described when grounded in role-check code and Firestore/token-claim behavior. |
 | Hosted session | Hosted-session access is request/session scoped and must be confirmed per site/request when entitlement/runtime proof is required. |

@@ -246,7 +246,7 @@ router.get("/:requestId", async (req: Request, res: Response) => {
       buyer_request_id: decrypted.buyer_request_id || decrypted.requestId,
       createdAt: decrypted.createdAt?.toDate?.()?.toISOString?.() || "",
       qualification_state: decrypted.qualification_state || decrypted.status,
-      opportunity_state: decrypted.opportunity_state || "not_applicable",
+      opportunity_state: decrypted.opportunity_state || null,
       request: {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
@@ -279,17 +279,19 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
         last_sent_at: normalizeTimestamp(decrypted.buyer_review_access?.last_sent_at),
       },
-      ops: {
-        assigned_region_id: decrypted.ops?.assigned_region_id || null,
-        rights_status: decrypted.ops?.rights_status || "unknown",
-        capture_policy_tier: decrypted.ops?.capture_policy_tier || "review_required",
-        capture_status: decrypted.ops?.capture_status || "not_requested",
-        recapture_reason: decrypted.ops?.recapture_reason || null,
-        quote_status: decrypted.ops?.quote_status || "not_started",
-        next_step: decrypted.ops?.next_step || null,
-        last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
-        proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
-      },
+      ops: decrypted.ops
+        ? {
+            assigned_region_id: decrypted.ops.assigned_region_id || null,
+            rights_status: decrypted.ops.rights_status || null,
+            capture_policy_tier: decrypted.ops.capture_policy_tier || null,
+            capture_status: decrypted.ops.capture_status || null,
+            recapture_reason: decrypted.ops.recapture_reason || null,
+            quote_status: decrypted.ops.quote_status || null,
+            next_step: decrypted.ops.next_step || null,
+            last_buyer_ready_at: normalizeTimestamp(decrypted.ops.last_buyer_ready_at),
+            proof_path: normalizeProofPathMilestones(decrypted.ops.proof_path),
+          }
+        : null,
       context: {
         sourcePageUrl: decrypted.context.sourcePageUrl,
         referrer: decrypted.context.referrer || null,

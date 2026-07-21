@@ -75,14 +75,14 @@ const pipelineSteps: PipelineStep[] = [
   {
     step: "04",
     badge: "Improve",
-    title: "Improve the policy in simulation.",
-    body: "When the ranking shows where a policy falls short, a sim-only Policy Improvement Run works the dominant failure modes on the same captured site: twin/cousin scenarios, curriculum, sealed scenario tests, and an evidence report. Black-box policies are supported; improved artifacts are delivered only when a trainable surface is exposed.",
-    src: "/redesign/pov/machine-tending.jpg",
-    alt: "Robot arm rehearsing a task variation",
+    title: "Turn failures into the next policy loop.",
+    body: "A Policy Improvement Run converts measured failure clusters into prioritized scenarios, curriculum recommendations, and a sealed regression set. An improved policy artifact requires a separately approved trainable interface.",
+    src: "/redesign/pov/inspection-bench.jpg",
+    alt: "Robot policy failure review at an inspection bench",
     proof: [
-      "Failure-mode diagnosis",
-      "Twin/cousin scenarios and curriculum",
-      "Sealed scenario tests",
+      "Failure priorities",
+      "Curriculum recommendations",
+      "Sealed regression set",
     ],
   },
   {
@@ -216,8 +216,8 @@ const surfaceTiles = [
     eyebrow: "Surface",
     label: "Public listings",
     description:
-      "Sample site packages anyone can inspect to see how capture, framing, and the proof boundary hold together.",
-    href: "/pricing",
+      "Current Pipeline-backed site records that buyers can inspect without implying fictional supply.",
+    href: "/sites",
   },
 ];
 
@@ -226,7 +226,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="Capture first, package the proof, evaluate policies, improve them in simulation, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
+        description="Capture first, package the proof, evaluate policies, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
         canonical="/how-it-works"
         jsonLd={[
           webPageJsonLd({
@@ -460,8 +460,8 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-[88rem] px-5 pb-20 sm:px-8 lg:px-10 lg:pb-28">
           <EditorialCtaBand
             eyebrow="See it on a real site"
-            title="Inspect a sample package before you commit field time."
-            description="Open a public sample site package to see how capture, framing, and the proof boundary stay attached — or request an evaluation for your own policies."
+            title="Scope the package before you commit field time."
+            description="Review the package structure, pricing, and proof boundary — then request an evaluation against a Pipeline-backed site record or your own capture scope."
             imageSrc="/redesign/pov/inspection-bench.jpg"
             imageAlt="Inspection bench workstation"
             primaryHref="/pricing"

@@ -10,8 +10,6 @@ export function derivePostHogAssetHost(host: string | undefined | null) {
 type ContentSecurityPolicyOptions = {
   isProduction: boolean;
   posthogHost?: string | null;
-  hostedDemoRuntimeBaseUrl?: string | null;
-  hostedDemoRuntimeWebsocketBaseUrl?: string | null;
 };
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
@@ -27,8 +25,6 @@ function uniqueNonEmpty(values: Array<string | null | undefined>) {
 export function buildContentSecurityPolicy({
   isProduction,
   posthogHost,
-  hostedDemoRuntimeBaseUrl,
-  hostedDemoRuntimeWebsocketBaseUrl,
 }: ContentSecurityPolicyOptions) {
   const analyticsConnectAllowlist = uniqueNonEmpty([
     posthogHost,
@@ -46,11 +42,7 @@ export function buildContentSecurityPolicy({
     derivePostHogAssetHost(posthogHost),
   ]);
 
-  const cspConnectAllowlist = uniqueNonEmpty([
-    hostedDemoRuntimeBaseUrl,
-    hostedDemoRuntimeWebsocketBaseUrl,
-    ...analyticsConnectAllowlist,
-  ]);
+  const cspConnectAllowlist = analyticsConnectAllowlist;
 
   return [
     "default-src 'self'",
@@ -63,12 +55,12 @@ export function buildContentSecurityPolicy({
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://chat.lindy.ai https://www.youtube-nocookie.com https://*.firebaseapp.com",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube-nocookie.com https://*.firebaseapp.com",
     "worker-src 'self' blob: https://cdnjs.cloudflare.com",
     "media-src 'self' blob: https:",
     `connect-src 'self' data: ${
       isProduction ? "" : "http://localhost:5173 ws://localhost:5173"
-    } ${cspConnectAllowlist.join(" ")} https://api.openai.com https://api.lumalabs.ai https://api.firecrawl.dev https://api.gumloop.com https://public.lindy.ai https://chat.lindy.ai https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com https://js.stripe.com`,
+    } ${cspConnectAllowlist.join(" ")} https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://js.stripe.com`,
     "upgrade-insecure-requests",
   ]
     .map((directive) => directive.trim())

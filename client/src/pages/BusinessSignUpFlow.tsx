@@ -124,13 +124,6 @@ type BuyerType = typeof BUYER_TYPES[number]["value"];
 type CompanySize = typeof COMPANY_SIZE_OPTIONS[number];
 type BudgetRange = typeof BUDGET_RANGE_OPTIONS[number];
 type ReferralSource = typeof REFERRAL_SOURCE_OPTIONS[number]["value"];
-type LegacyPrimaryNeed =
-  | "benchmark-packs"
-  | "scene-library"
-  | "dataset-packs"
-  | "custom-capture"
-  | "other";
-
 const DEFAULT_BUYER_TYPE: BuyerType = "robot_team";
 const DEFAULT_REQUESTED_LANE: RequestedLane = "deeper_evaluation";
 const BUYER_STEP_LABELS = ["Organization", "Role", "Site & Workflow"] as const;
@@ -148,14 +141,6 @@ const COMMERCIALIZATION_BOUNDARY_OPTIONS = [
 ] as const;
 
 type CommercializationBoundary = typeof COMMERCIALIZATION_BOUNDARY_OPTIONS[number];
-
-const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
-  qualification: "benchmark-packs",
-  preview_simulation: "scene-library",
-  deeper_evaluation: "dataset-packs",
-  managed_tuning: "scene-library",
-  data_licensing: "dataset-packs",
-};
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -602,7 +587,6 @@ export default function BusinessSignUpFlow() {
         userEmail = email;
       }
 
-      const primaryNeeds = requestedLanes.map((lane) => LEGACY_PRIMARY_NEED_BY_LANE[lane]);
       const username = contactName.toLowerCase().replace(/\s+/g, "_");
       const structuredIntakeRequestId = generateRequestId();
       const structuredDetails =
@@ -673,11 +657,6 @@ export default function BusinessSignUpFlow() {
         knownBlockers: knownBlockers || undefined,
         targetRobotTeam: targetRobotTeam || undefined,
         timeline: timeline || undefined,
-        primaryNeeds,
-        companySize: companySize as CompanySize,
-        projectDescription: workflowContext || undefined,
-        budgetRange: budgetRange as BudgetRange,
-        referralSource: referralSource as ReferralSource,
         demandAttribution: signupAnalyticsAttribution || null,
         // R047: record Terms of Service + Privacy Policy acceptance on the profile.
         acceptedTerms: true,
@@ -695,10 +674,6 @@ export default function BusinessSignUpFlow() {
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
         numSessions: 1,
-        uploadedContentCount: 0,
-        collectedContentCount: 0,
-        planType: "free",
-        credits: 0,
         finishedOnboarding: false,
         onboardingStep: "welcome",
         onboardingProgress: {
@@ -725,43 +700,6 @@ export default function BusinessSignUpFlow() {
           reviewQualifiedOpportunities: false,
           inviteTeam: false,
         },
-        deviceToken: "",
-        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        hasEnteredNotes: false,
-        hasEnteredInventory: false,
-        hasEnteredCameraRoll: false,
-        amountEarned: 0,
-        connectedBlueprintIds: [],
-        createdBlueprintIds: [],
-        collectedObjectIds: [],
-        collectedPortalIds: [],
-        uploadedFileIds: [],
-        createdPhotoIds: [],
-        createdNoteIds: [],
-        createdReportIds: [],
-        createdSuggestionIds: [],
-        createdContentIds: [],
-        modelInteractions: {},
-        blueprintInteractions: {},
-        portalInteractions: {},
-        categoryPreferences: {},
-        averageSessionDuration: 0,
-        peakUsageHours: [],
-        featureUsageCount: {},
-        mostUsedFeatures: [],
-        collaborationScore: 0,
-        sharedContentCount: 0,
-        preferredModelScales: [],
-        preferredRoomTypes: [],
-        preferredColors: [],
-        dailyActiveStreak: 1,
-        weeklyEngagementScore: 0,
-        completedTutorials: [],
-        skillLevels: {},
-        mostFrequentLocation: "",
-        deviceTypes: [],
-        billingHistory: [],
-        paymentMethods: [],
       };
 
       await setDoc(doc(db, "users", uid), newUserData);
@@ -1111,7 +1049,7 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <div>
                               <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Phone
+                                Phone number
                               </Label>
                               <Input
                                 id="phoneNumber"

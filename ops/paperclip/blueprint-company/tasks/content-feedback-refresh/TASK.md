@@ -15,7 +15,7 @@ Each run must:
 - create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` when a real learning implies new image-heavy creative execution
 - require the `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` packet for any generated-media follow-up so the new test has bounded concepts, storyboard/reference-image instructions, video prompt details when needed, and blocked-claim rules
 - keep the learnings tied to the originating asset key or Paperclip issue rather than narrating them loosely
-- protect Blueprint's capture-first, world-model-product-first doctrine when turning feedback into new briefs or experiments
+- protect Blueprint's capture-first, real-site evaluation and policy-improvement doctrine when turning feedback into new briefs or experiments
 
 Human-only boundaries:
 

@@ -12,7 +12,10 @@ import {
   buildCityProgramId,
   buildPackageRunId,
 } from "../utils/operatingGraph";
-import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
+import {
+  parsePipelineAttachmentSyncPayload,
+  type PipelineAttachmentSyncPayload,
+} from "../utils/pipelineAttachmentContract";
 import {
   resolveCreatorIdForCapture,
   upsertCreatorPayoutFromPipeline,
@@ -50,6 +53,7 @@ import {
 } from "../utils/pipelineSyncSecurity";
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
+import { dispatchTransactionalNotification } from "../utils/transactional-notifications";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -510,6 +514,26 @@ async function syncBuyerEntitlementArtifacts(params: {
       },
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
+    await dispatchTransactionalNotification({
+      eventType: "delivery_ready",
+      recipientType: "buyer",
+      recipientUserId: stringValue(record.data.buyer_user_id || record.data.buyerUserId),
+      recipientEmail: stringValue(record.data.buyer_email || record.data.buyerEmail),
+      subjectId: record.id,
+      sourceEventId: `delivery-ready:${record.id}:${artifactKeys.join(",")}`,
+      sourceCollection: "marketplaceEntitlements",
+      sourceDocId: record.id,
+      title: "Blueprint delivery is ready",
+      body: `${stringValue(record.data.title || record.data.sku) || "Your Blueprint package"} is ready for buyer artifact access.`,
+      emailSubject: "Your Blueprint delivery is ready",
+      emailText: `${stringValue(record.data.title || record.data.sku) || "Your Blueprint package"} is ready for buyer artifact access.`,
+      preferenceKey: "account",
+      data: {
+        entitlement_id: record.id,
+        sku: stringValue(record.data.sku),
+        artifact_keys: artifactKeys.join(","),
+      },
+    });
     syncedIds.push(record.id);
   }
 
@@ -521,6 +545,9 @@ async function syncBuyerEntitlementArtifacts(params: {
 }
 
 function allowPipelinePlaceholderRequests() {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
   const normalized = String(process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS || "")
     .trim()
     .toLowerCase();
@@ -649,6 +676,187 @@ function buildEvaluationReadiness(
   };
 }
 
+const PIPELINE_FAILURE_STATUSES = new Set([
+  "aborted",
+  "blocked",
+  "cancelled",
+  "canceled",
+  "crashed",
+  "error",
+  "errored",
+  "failed",
+  "failure",
+  "timed_out",
+  "timeout",
+]);
+
+function pipelineFailureStatus(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return PIPELINE_FAILURE_STATUSES.has(normalized) ? normalized : null;
+}
+
+function pipelineFailureRecord(
+  record: Record<string, unknown> | undefined,
+  fields: string[],
+): { field: string; status: string } | null {
+  if (!record) {
+    return null;
+  }
+  for (const field of fields) {
+    const status = pipelineFailureStatus(record[field]);
+    if (status) {
+      return { field, status };
+    }
+  }
+  return null;
+}
+
+function alertScopeForPipelineSync(
+  parsedBody: PipelineAttachmentSyncPayload,
+  fallbackDocId: string,
+) {
+  return (
+    String(parsedBody.capture_job_id || "").trim() ||
+    String(parsedBody.capture_id || "").trim() ||
+    String(parsedBody.request_id || "").trim() ||
+    String(parsedBody.site_submission_id || "").trim() ||
+    fallbackDocId
+  );
+}
+
+function collectPackageFailureReasons(params: {
+  derivedAssets?: DerivedAssetsAttachment;
+  evaluationReadiness?: EvaluationReadinessSummary;
+}) {
+  const reasons: Array<Record<string, unknown>> = [];
+  const derivedAssets = params.derivedAssets || {};
+  for (const key of ["dataset_package", "validation_package"] as const) {
+    const entry = derivedAssets[key];
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const status = pipelineFailureStatus(entry.status);
+    if (!status) {
+      continue;
+    }
+    reasons.push({
+      surface: `derived_assets.${key}`,
+      status,
+      manifest_uri: entry.manifest_uri || null,
+      artifact_uri: entry.artifact_uri || null,
+    });
+  }
+
+  const readiness = params.evaluationReadiness;
+  const datasetSummary = isRecord(readiness?.robot_eval_dataset_summary)
+    ? readiness.robot_eval_dataset_summary
+    : undefined;
+  const datasetFailure = pipelineFailureRecord(datasetSummary, [
+    "status",
+    "dataset_state",
+    "required_artifact_status",
+    "package_status",
+    "publication_status",
+    "delivery_status",
+  ]);
+  if (datasetFailure) {
+    reasons.push({
+      surface: `evaluation_readiness.robot_eval_dataset_summary.${datasetFailure.field}`,
+      status: datasetFailure.status,
+      manifest_uri: datasetSummary?.manifest_uri || null,
+      missing_required_artifacts: datasetSummary?.missing_required_artifacts || null,
+    });
+  }
+
+  return reasons;
+}
+
+async function recordPipelineSyncFailureSignals(params: {
+  docId: string;
+  parsedBody: PipelineAttachmentSyncPayload;
+  packageId: string;
+  derivedAssets?: DerivedAssetsAttachment;
+  evaluationReadiness?: EvaluationReadinessSummary;
+}) {
+  const signals: Array<Parameters<typeof recordBetaOpsFailureSignal>[0]> = [];
+  const scopeId = alertScopeForPipelineSync(params.parsedBody, params.docId);
+  const readiness = params.evaluationReadiness;
+  const providerRun = isRecord(readiness?.provider_run)
+    ? readiness.provider_run
+    : undefined;
+  const providerFailure =
+    pipelineFailureRecord(providerRun, ["status", "state", "provider_status"]) ||
+    (pipelineFailureStatus(readiness?.preview_status)
+      ? { field: "preview_status", status: pipelineFailureStatus(readiness?.preview_status)! }
+      : null);
+  const previewSimulation = params.derivedAssets?.preview_simulation;
+  const previewFailureStatus = isRecord(previewSimulation)
+    ? pipelineFailureStatus(previewSimulation.status)
+    : null;
+
+  if (providerFailure || previewFailureStatus) {
+    signals.push({
+      kind: "provider_run_failure",
+      scopeId:
+        String(providerRun?.provider_run_id || "").trim() ||
+        String(params.parsedBody.capture_job_id || "").trim() ||
+        scopeId,
+      severity: "critical",
+      summary: "Pipeline provider run failed during attachment sync.",
+      details: {
+        request_id: params.parsedBody.request_id || params.docId,
+        site_submission_id: params.parsedBody.site_submission_id || null,
+        buyer_request_id: params.parsedBody.buyer_request_id || null,
+        capture_job_id: params.parsedBody.capture_job_id || null,
+        capture_id: params.parsedBody.capture_id || null,
+        scene_id: params.parsedBody.scene_id || null,
+        provider_name: providerRun?.provider_name || null,
+        provider_model: providerRun?.provider_model || null,
+        provider_run_id: providerRun?.provider_run_id || null,
+        status_field: providerFailure?.field || "derived_assets.preview_simulation.status",
+        status: providerFailure?.status || previewFailureStatus,
+        failure_reason: providerRun?.failure_reason || null,
+        preview_manifest_uri: providerRun?.preview_manifest_uri || null,
+      },
+    });
+  }
+
+  const packageFailures = collectPackageFailureReasons({
+    derivedAssets: params.derivedAssets,
+    evaluationReadiness: readiness,
+  });
+  if (packageFailures.length > 0) {
+    signals.push({
+      kind: "package_generation_failure",
+      scopeId: params.packageId || scopeId,
+      severity: "critical",
+      summary: "Pipeline package generation failed during attachment sync.",
+      details: {
+        request_id: params.parsedBody.request_id || params.docId,
+        site_submission_id: params.parsedBody.site_submission_id || null,
+        buyer_request_id: params.parsedBody.buyer_request_id || null,
+        capture_job_id: params.parsedBody.capture_job_id || null,
+        capture_id: params.parsedBody.capture_id || null,
+        scene_id: params.parsedBody.scene_id || null,
+        package_id: params.packageId || null,
+        failures: packageFailures,
+      },
+    });
+  }
+
+  for (const signal of signals) {
+    await recordBetaOpsFailureSignal(signal).catch((err: unknown) => {
+      logger.warn(
+        { err, kind: signal.kind, scopeId: signal.scopeId },
+        "Failed to record pipeline sync ops alert signal",
+      );
+    });
+  }
+}
+
 function buildPlaceholderInboundRequest(params: {
   requestId: string;
   siteSubmissionId: string;
@@ -721,10 +929,10 @@ function buildPlaceholderInboundRequest(params: {
       crmSyncedAt: null,
     },
     ops: {
-      assigned_region_id: "managed-alpha",
+      assigned_region_id: null,
       rights_status: "unknown",
       capture_policy_tier: "review_required",
-      capture_status: "approved",
+      capture_status: "not_requested",
       recapture_reason: null,
       quote_status: "not_started",
       next_step:
@@ -982,6 +1190,10 @@ router.post(
           site_submission_id: siteSubmissionId || null,
         });
       }
+      logger.warn(
+        { requestId: requestId || null, siteSubmissionId: siteSubmissionId || null },
+        "Using non-production pipeline placeholder request fallback",
+      );
       const targetDocId = requestId || siteSubmissionId;
       docRef = db.collection("inboundRequests").doc(targetDocId);
       shouldCreate = true;
@@ -1218,6 +1430,13 @@ router.post(
           .trim()
         || null,
       requestId: docRef.id,
+    });
+    await recordPipelineSyncFailureSignals({
+      docId: docRef.id,
+      parsedBody,
+      packageId: responsePackageId,
+      derivedAssets,
+      evaluationReadiness,
     });
 
     // Emit growth events for newly stamped milestones and stall detection
@@ -1707,6 +1926,30 @@ router.post(
             pipeline_signal_received_at: now,
           },
           updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await dispatchTransactionalNotification({
+          eventType: "consent_revocation",
+          recipientType: "buyer",
+          recipientUserId: stringValue(record.data.buyer_user_id || record.data.buyerUserId),
+          recipientEmail: stringValue(record.data.buyer_email || record.data.buyerEmail),
+          subjectId: record.id,
+          sourceEventId: `consent-revocation:${record.id}:${revokedAt}`,
+          sourceCollection: "marketplaceEntitlements",
+          sourceDocId: record.id,
+          title: "Blueprint access revoked",
+          body:
+            "Access to a Blueprint artifact was revoked because a rights or consent signal changed.",
+          emailSubject: "Blueprint artifact access was revoked",
+          emailText:
+            "Access to a Blueprint artifact was revoked because a rights or consent signal changed.",
+          preferenceKey: "account",
+          data: {
+            entitlement_id: record.id,
+            sku: stringValue(record.data.sku),
+            scene_id: stringValue(body.scene_id || body.sceneId),
+            capture_id: stringValue(body.capture_id || body.captureId),
+            consent_revoked_at: revokedAt,
+          },
         });
         revokedEntitlementIds.push(record.id);
       }

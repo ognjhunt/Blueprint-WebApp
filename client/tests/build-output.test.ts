@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
-import { siteLibrarySites } from "@/data/siteLibrary";
 
 function currentSitemapDate() {
   const sourceDateEpoch = process.env.SOURCE_DATE_EPOCH;
@@ -47,9 +46,6 @@ describe("build output", () => {
     [
       "index.html",
       "sites/index.html",
-      "sites/sw-chi-01/index.html",
-      "sites/sw-det-09/index.html",
-      "sites/triangle-robotics-lab/index.html",
       "capture/index.html",
       "pricing/index.html",
       "proof/index.html",
@@ -71,31 +67,35 @@ describe("build output", () => {
     });
   });
 
-  it("ships lightweight secondary public aliases without legacy dynamic shells", () => {
+  it("does not prerender retired aliases or protected operations routes", () => {
     [
       "product/index.html",
       "readiness/index.html",
-      "how-it-works/index.html",
       "world-models/index.html",
-      "world-models/sw-chi-01/index.html",
       "contact/index.html",
       "agents/index.html",
       "sample-deliverables/index.html",
-      "faq/index.html",
-      "governance/index.html",
-      "about/index.html",
+      "launch-map/index.html",
       "updates/index.html",
       "careers/index.html",
       "help/index.html",
-    ].forEach((file) => {
-      expect(fs.existsSync(distPath(file))).toBe(true);
-    });
-
-    [
+      "admin/leads/index.html",
+      "admin/submissions/index.html",
+      "admin/city-launch/austin/index.html",
+      "world-models/sw-chi-01/index.html",
       "world-models/siteworld-f5fd54898cfb/index.html",
       "help/article/choose-the-right-path/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(false);
+    });
+
+    [
+      "how-it-works/index.html",
+      "faq/index.html",
+      "governance/index.html",
+      "about/index.html",
+    ].forEach((file) => {
+      expect(fs.existsSync(distPath(file))).toBe(true);
     });
   });
 
@@ -116,7 +116,7 @@ describe("build output", () => {
     });
   });
 
-  it("includes core public routes and canonical site detail pages in the sitemap", () => {
+  it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
     [
@@ -125,11 +125,10 @@ describe("build output", () => {
       "https://tryblueprint.io/capture",
       "https://tryblueprint.io/pricing",
       "https://tryblueprint.io/proof",
+      "https://tryblueprint.io/faq",
       "https://tryblueprint.io/for-robot-teams",
       "https://tryblueprint.io/for-site-operators",
       "https://tryblueprint.io/how-it-works",
-      "https://tryblueprint.io/faq",
-      "https://tryblueprint.io/launch-map",
       "https://tryblueprint.io/contact/robot-team",
       "https://tryblueprint.io/contact/site-operator",
       "https://tryblueprint.io/about",
@@ -141,16 +140,13 @@ describe("build output", () => {
       expect(sitemap).toContain(url);
     });
 
-    siteLibrarySites.forEach((site) => {
-      expect(sitemap).toContain(`https://tryblueprint.io/sites/${site.slug}`);
-    });
-
     [
       "https://tryblueprint.io/product",
       "https://tryblueprint.io/readiness",
       "https://tryblueprint.io/world-models",
       "https://tryblueprint.io/agents",
       "https://tryblueprint.io/sample-deliverables",
+      "https://tryblueprint.io/launch-map",
       "https://tryblueprint.io/updates",
       "https://tryblueprint.io/careers",
       "https://tryblueprint.io/help",
@@ -227,5 +223,29 @@ describe("build output", () => {
     );
     expect(proofHtml).toContain("Start");
     expect(proofHtml).not.toContain("images.unsplash.com");
+  });
+
+  it("keeps fictional supply and provider credentials out of the browser bundle", () => {
+    const assetsDir = distPath("assets");
+    const browserJavaScript = fs
+      .readdirSync(assetsDir)
+      .filter((file) => file.endsWith(".js"))
+      .map((file) => fs.readFileSync(path.join(assetsDir, file), "utf8"))
+      .join("\n");
+
+    [
+      "Harborview Grocery Distribution Annex",
+      "Peachtree Parcel Exchange South",
+      "1847 W Fulton St",
+      "2550 Lakewood Ave",
+      "Ready to evaluate",
+      "api.lindy",
+    ].forEach((forbiddenText) => {
+      expect(browserJavaScript).not.toContain(forbiddenText);
+    });
+    expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
+    expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
+    expect(browserJavaScript).toContain("Source a warehouse-type site");
+    expect(browserJavaScript).toContain("Request received. Blueprint will confirm the real site");
   });
 });

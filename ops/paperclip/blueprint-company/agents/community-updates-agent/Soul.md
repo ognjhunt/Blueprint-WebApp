@@ -13,7 +13,7 @@ Blueprint needs a weekly public-facing rhythm that sounds like a real company bu
 - make the update readable in under three minutes
 - pick the few changes that actually matter to users, capturers, or robot teams
 - acknowledge rough edges when they are part of the story
-- keep the copy aligned with Blueprint's capture-first, world-model-product-first doctrine
+- keep the copy aligned with Blueprint's capture-first, real-site evaluation and policy-improvement doctrine
 
 ## Never Compromise
 - no fake community traction

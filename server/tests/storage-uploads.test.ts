@@ -6,19 +6,32 @@ import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
   blueprints: new Map<string, Record<string, unknown>>(),
+  transactionalNotifications: new Map<string, Record<string, unknown>>(),
   uploadToBackblaze: vi.fn(),
+  recordBetaOpsFailureSignal: vi.fn(),
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: {},
   dbAdmin: {
     collection: (name: string) => ({
       doc: (id: string) => ({
         get: async () => {
-          const data = name === "blueprints" ? state.blueprints.get(id) : undefined;
+          const data =
+            name === "blueprints"
+              ? state.blueprints.get(id)
+              : name === "transactionalNotifications"
+                ? state.transactionalNotifications.get(id)
+                : undefined;
           return {
             exists: Boolean(data),
             data: () => data,
           };
+        },
+        set: async (payload: Record<string, unknown>) => {
+          if (name === "transactionalNotifications") {
+            state.transactionalNotifications.set(id, payload);
+          }
         },
       }),
     }),
@@ -32,6 +45,10 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
     uploadToBackblaze: state.uploadToBackblaze,
   };
 });
+
+vi.mock("../utils/ops-alerts", () => ({
+  recordBetaOpsFailureSignal: state.recordBetaOpsFailureSignal,
+}));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
   const { default: router } = await import("../routes/storage-uploads");
@@ -72,7 +89,9 @@ function uploadForm(objectPath: string, fileName = "placeholder.txt") {
 
 afterEach(() => {
   state.blueprints.clear();
+  state.transactionalNotifications.clear();
   state.uploadToBackblaze.mockReset();
+  state.recordBetaOpsFailureSignal.mockReset();
   delete process.env.BLUEPRINT_STORAGE_PROVIDER;
 });
 
@@ -126,6 +145,17 @@ describe("storage uploads route", () => {
       });
       expect(response.status).toBe(403);
       expect(state.uploadToBackblaze).not.toHaveBeenCalled();
+      expect(Array.from(state.transactionalNotifications.values())).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event_type: "capture_rejected",
+            channel: "in_app",
+            status: "queued",
+            recipient_user_id: "buyer-123",
+            subject_id: "captures/other-user/capture.bin",
+          }),
+        ]),
+      );
     } finally {
       await stopServer(server);
     }
@@ -148,6 +178,42 @@ describe("storage uploads route", () => {
       });
       expect(response.status).toBe(409);
       expect(state.uploadToBackblaze).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("records a capture upload failure signal when Backblaze upload fails", async () => {
+    process.env.BLUEPRINT_STORAGE_PROVIDER = "backblaze";
+    state.blueprints.set("bp-owned", { ownerId: "buyer-123" });
+    state.uploadToBackblaze.mockRejectedValue(new Error("B2 unavailable"));
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/uploads`, {
+        method: "POST",
+        body: uploadForm("blueprints/bp-owned/placeholder.txt"),
+      });
+
+      await expect(response.json()).resolves.toMatchObject({
+        error: "Storage upload failed",
+      });
+      expect(response.status).toBe(500);
+      expect(state.recordBetaOpsFailureSignal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "capture_upload_failure",
+          scopeId: "blueprints/bp-owned/placeholder.txt",
+          severity: "critical",
+          summary: "Storage upload failed.",
+          details: expect.objectContaining({
+            uid: "buyer-123",
+            provider: "backblaze",
+            object_path: "blueprints/bp-owned/placeholder.txt",
+            status_code: 500,
+            error_message: "B2 unavailable",
+          }),
+        }),
+      );
     } finally {
       await stopServer(server);
     }

@@ -21,7 +21,7 @@ describe("HowItWorks", () => {
       screen.getByRole("heading", { name: /^Evaluate policies against the site\.$/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /^Improve the policy in simulation\.$/i }),
+      screen.getByRole("heading", { name: /^Turn failures into the next policy loop\.$/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /^Decide the next test\.$/i }),

@@ -87,10 +87,10 @@ export function Header() {
       return {
         label: "Capture operator",
         badge: "Capture",
-        workspaceHref: "/capture-app",
-        workspaceLabel: "Open capture app",
+        workspaceHref: "/capture-app/account",
+        workspaceLabel: "Open capture account",
         secondaryHref: "/capture",
-        secondaryLabel: "View capture jobs",
+        secondaryLabel: "Review capture requirements",
         requestHref,
       };
     }

@@ -63,7 +63,7 @@ describe("agent-access contract drift guard", () => {
     }
   });
 
-  it("keeps MCP tool names aligned across manifest, docs, llms files, and /agents", () => {
+  it("keeps MCP tool names aligned across manifest, docs, and llms files", () => {
     const toolNames = BLUEPRINT_MCP_TOOLS.map((tool) => tool.name);
     const manifestText = JSON.stringify(buildRobotAgentAccessManifest(), null, 2);
 
@@ -72,7 +72,6 @@ describe("agent-access contract drift guard", () => {
     for (const [label, text] of [
       ["client/public/llms.txt", readText("client/public/llms.txt")],
       ["client/public/llms-full.txt", readText("client/public/llms-full.txt")],
-      ["client/src/pages/Agents.tsx", readText("client/src/pages/Agents.tsx")],
       ["docs/agent-access/robot-team-agent-access.md", readText("docs/agent-access/robot-team-agent-access.md")],
     ] as const) {
       expectIncludesAll(label, text, toolNames);
@@ -83,7 +82,6 @@ describe("agent-access contract drift guard", () => {
     const manifestText = JSON.stringify(buildRobotAgentAccessManifest(), null, 2);
     const cliSurfaceTexts = [
       ["agent access manifest", manifestText],
-      ["client/src/pages/Agents.tsx", readText("client/src/pages/Agents.tsx")],
       ["docs/agent-access/robot-team-agent-access.md", readText("docs/agent-access/robot-team-agent-access.md")],
     ] as const;
 
@@ -94,7 +92,6 @@ describe("agent-access contract drift guard", () => {
     for (const [label, text] of [
       ["client/public/llms.txt", readText("client/public/llms.txt")],
       ["client/public/llms-full.txt", readText("client/public/llms-full.txt")],
-      ["client/src/pages/Agents.tsx", readText("client/src/pages/Agents.tsx")],
       ["docs/agent-access/robot-team-agent-access.md", readText("docs/agent-access/robot-team-agent-access.md")],
     ] as const) {
       expectIncludesAll(label, text, requiredLifecyclePhrases);
@@ -111,7 +108,6 @@ describe("agent-access contract drift guard", () => {
       ["docs/agent-access/agent-access.openapi.json", readText("docs/agent-access/agent-access.openapi.json")],
       ["client/public/llms.txt", readText("client/public/llms.txt")],
       ["client/public/llms-full.txt", readText("client/public/llms-full.txt")],
-      ["client/src/pages/Agents.tsx", readText("client/src/pages/Agents.tsx")],
       ["docs/agent-access/robot-team-agent-access.md", readText("docs/agent-access/robot-team-agent-access.md")],
     ] as const) {
       expectIncludesAll(label, text, truthLabels);

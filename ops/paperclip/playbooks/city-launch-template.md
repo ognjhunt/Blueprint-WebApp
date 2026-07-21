@@ -8,7 +8,7 @@
 - last-human-launch-decision: not approved | approved with conditions
 
 ## Launch Thesis
-- one short paragraph on why the city matters for Blueprint's capture-first, world-model-product-first strategy
+- one short paragraph on why the city matters for Blueprint's capture-first, real-site robot-evaluation and policy-improvement strategy
 
 ## Why This City Now
 - 3-5 bullets grounded in current Blueprint research, not generic city hype
