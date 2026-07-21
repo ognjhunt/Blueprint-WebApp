@@ -30,6 +30,7 @@ export const footerProductLinks = [
 export const footerEvidenceLinks = [
   { href: "/proof", label: "Proof" },
   { href: "/sites", label: "Sites" },
+  { href: "/faq", label: "FAQ" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
 ];

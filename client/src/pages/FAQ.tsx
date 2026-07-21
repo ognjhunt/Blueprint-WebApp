@@ -11,44 +11,44 @@ import { ArrowRight } from "lucide-react";
 
 const faqs = [
   {
-    question: "What is a Blueprint world model?",
+    question: "What does Blueprint actually sell?",
     answer:
-      "A digital environment built from real capture of one site and one workflow. It is not a generic benchmark scene or a synthetic environment generator.",
+      "Two things. Task Evaluation Runs rank robot policies on a real captured site against your task suite and thresholds, before you spend field time. Policy Improvement Runs are a sim-only loop that works the dominant failure modes the evaluation surfaced — twin/cousin scenarios, curriculum, sealed scenario tests, and an evidence report.",
   },
   {
-    question: "What does a buyer actually receive with the site package?",
+    question: "What is a task pack?",
     answer:
-      "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry files for that site, plus rights, privacy, and provenance metadata.",
+      "The tasks, start states, and success thresholds every policy runs against on one captured site. Same site, same task, same thresholds — that is what makes the comparison fair.",
   },
   {
-    question: "What is a policy evaluation set?",
+    question: "What does a buyer actually receive?",
     answer:
-      "A Blueprint-managed hosted session on one exact site. Your team can rerun scoped tasks, review failures, compare policies or checkpoints when configured, and export results without moving data into its own stack first.",
+      "A ranked comparison with failure clusters and review media, plus the site package behind it: walkthrough media, timestamps, poses, site notes, available geometry, and the rights, privacy, and provenance metadata that travel with every export.",
   },
   {
-    question: "How close is this to a deployment guarantee?",
+    question: "Do we have to hand over our policy weights?",
     answer:
-      "It is not a deployment guarantee. The point is to ground the team on the real site sooner and cut bad assumptions earlier, not to replace safety review, stack-specific validation, or on-site signoff.",
+      "No. Evaluation and improvement are source-access optional: black-box runs work through an API endpoint, container, private-cloud runner, sim plugin, or action traces. An improved policy artifact is delivered only when you expose a trainable surface such as adapter hooks, a task head, a fine-tuning API, or a policy wrapper.",
   },
   {
-    question: "What if the exact site we care about is not in the catalog?",
+    question: "Is a ranking a deployment guarantee?",
     answer:
-      "The public catalog is the starting point, not the full inventory. If your team needs a specific site, use the contact path and say which place, workflow, and robot question matter.",
+      "No. A run reports an estimate of rank fidelity inside the matched robot, task, and site envelope. It grounds the pilot decision earlier — it does not replace safety review, stack-specific validation, or on-site signoff.",
   },
   {
-    question: "Can Blueprint start from everyday public-facing locations?",
+    question: "Are the sites in the public library real customer sites?",
     answer:
-      "Yes. The Capture app is designed for lawful public-facing places such as grocery stores, retail aisles, hotel lobbies, mall corridors, museums, and other common areas. Capturers still avoid restricted zones, screens, payment areas, private spaces, and identifiable people, and every submission goes through review before buyer-facing use.",
+      "The public library shows sample site packages with representative names — not live operator supply. Your run is scoped to a real captured site confirmed at request time, and real customer results are shown only after approval.",
   },
   {
-    question: "Are the capture examples real customer results?",
+    question: "What if the exact site we care about is not listed?",
     answer:
-      "No. The current public examples use invented names. They show the capture cue, route, manifest, rights sheet, hosted report, and export files a robot team would evaluate. Real customer results are shown only after approval.",
+      "The library is the starting point, not the inventory. Tell us the place, workflow, and robot question that matter — new sites enter supply through a capture and rights review.",
   },
   {
-    question: "Can we book time instead of starting with a form?",
+    question: "How do capturers and site operators fit in?",
     answer:
-      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or a policy evaluation set.",
+      "Capturers are paid to record approved routes in real facilities, and site operators keep control of access, privacy, and commercialization, earning revenue share set in the rights packet before any buyer use.",
   },
 ];
 
@@ -57,14 +57,14 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Straight answers about Blueprint world models, site packages, policy evaluation sets, proof boundaries, and how to start."
+        description="Straight answers about Task Evaluation Runs, Policy Improvement Runs, task packs, proof boundaries, black-box policy access, and how to start."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
             name: "Blueprint FAQ",
             description:
-              "Questions and answers about Blueprint world models, site packages, policy evaluation sets, proof boundaries, and buyer next steps.",
+              "Questions and answers about Task Evaluation Runs, Policy Improvement Runs, site packages, proof boundaries, and buyer next steps.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -96,17 +96,17 @@ export default function FAQ() {
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
+                    href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=faq-hero"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Talk to Blueprint about a real site
+                    Request evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/world-models"
+                    href="/sites"
                     className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
-                    Browse site packages
+                    Browse sample site packages
                   </a>
                 </div>
                 </div>
@@ -130,8 +130,8 @@ export default function FAQ() {
             description="If one real site already matters, tell Blueprint the place, workflow, and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
-            primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom"
-            primaryLabel="Talk to Blueprint about a real site"
+            primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=faq-bottom"
+            primaryLabel="Request evaluation"
             dark
           />
         </section>

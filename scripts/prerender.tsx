@@ -17,6 +17,7 @@ import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
 import SiteDetail from "../client/src/pages/SiteDetail";
 import Pricing from "../client/src/pages/Pricing";
+import FAQ from "../client/src/pages/FAQ";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
@@ -364,7 +365,6 @@ const proofAliasRoutes = [
   "/sample-evaluation",
   "/sample-deliverables",
   "/case-studies",
-  "/faq",
   "/docs",
   "/qualified-opportunities",
   "/qualified-opportunities-guide",
@@ -384,6 +384,7 @@ const staticRoutes: StaticRoute[] = [
   // agents must see the actual tiers and prices, not a summary that omits
   // them (WSPEC context: the summary shell made /pricing look price-free).
   { path: "/pricing", component: Pricing },
+  { path: "/faq", component: FAQ },
   { path: "/sites", component: Sites },
   { path: "/world-models", component: Sites },
   { path: "/site-worlds", component: Sites },

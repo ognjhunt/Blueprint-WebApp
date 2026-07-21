@@ -200,6 +200,35 @@ export default function Home() {
           </MonochromeMedia>
         </section>
 
+        {/* (1b) Three terms, defined before they're used */}
+        <section className="border-b border-line bg-canvas">
+          <div className="mx-auto max-w-container px-7 py-8">
+            <dl className="grid gap-6 md:grid-cols-3">
+              {[
+                {
+                  term: "Task pack",
+                  def: "The tasks, start states, and success thresholds every policy runs against on one captured site.",
+                },
+                {
+                  term: "Rank fidelity",
+                  def: "How well the simulated ranking predicts the real-site ordering of policies — always an estimate, never a guarantee.",
+                },
+                {
+                  term: "Proof boundary",
+                  def: "The explicit line between what the capture proves and what is generated review support.",
+                },
+              ].map((item) => (
+                <div key={item.term} className="border-l-2 border-brass-deep pl-4">
+                  <dt className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-900">
+                    {item.term}
+                  </dt>
+                  <dd className="mt-1 text-sm leading-[1.6] text-ink-500">{item.def}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         {/* (2) How it works — 4-step TileGrid */}
         <section className="border-b border-line bg-canvas">
           <div className="mx-auto max-w-container px-7 py-16">
@@ -310,6 +339,42 @@ export default function Home() {
             <p className="mt-10 max-w-4xl border-t border-white/10 pt-6 font-mono text-[11px] leading-[1.6] text-[#f3efe6]/55">
               Boundary: {robotPolicyEvaluationBoundary}
             </p>
+          </div>
+        </section>
+
+        {/* (4b) Supply side — capturers */}
+        <section className="border-b border-line bg-inset">
+          <div className="mx-auto max-w-container px-7 py-14">
+            <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brass-deep">
+                  For capturers
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900">
+                  Get paid to capture real sites.
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-[1.7] text-ink-500">
+                  Every evaluation starts with a real captured place. Capturers
+                  walk approved routes with a phone, 360 camera, or smart
+                  glasses — with payout, QA rules, and rights handling stated
+                  up front.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="/capture"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg bg-ink px-6 text-sm font-semibold text-[color:var(--text-on-ink)] hover:opacity-90"
+                >
+                  See capture jobs
+                </a>
+                <a
+                  href="/launch-map"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-line px-6 text-sm font-semibold text-ink-900 hover:bg-white"
+                >
+                  City status
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -41,6 +41,7 @@ function lazyRoute<P = any>(
 
 const Home = lazyRoute(() => import("../pages/Home"));
 const LaunchMap = lazyRoute(() => import("../pages/LaunchMap"));
+const FAQ = lazyRoute(() => import("../pages/FAQ"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
@@ -266,7 +267,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
-  { path: "/faq", layout: "public", component: ProofRedirect },
+  { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
   { path: "/vision", layout: "public", component: Vision },

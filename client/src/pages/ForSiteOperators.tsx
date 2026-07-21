@@ -96,7 +96,8 @@ const payoutMetrics = [
     label: "Supply review",
     value: "$5k",
     unit: "/ site",
-    caption: "One-time review when a facility enters supply.",
+    caption:
+      "One-time review fee to bring a facility into supply. Operator earnings are revenue share, set in the rights packet before any buyer use.",
   },
   {
     label: "Site monitoring",
@@ -158,7 +159,7 @@ export default function ForSiteOperators() {
                     For Site Operators
                   </Eyebrow>
                   <h1 className="mt-6 max-w-[40rem] font-display text-[clamp(3rem,5.4vw,5rem)] font-medium leading-[0.95] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-                    Supply a real site without losing the boundary.
+                    Earn from your facility. Keep control of it.
                   </h1>
                   <p className="mt-6 max-w-[34rem] text-[1.1rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
                     Turn a facility into a captured evaluation site — and keep
@@ -342,9 +343,9 @@ export default function ForSiteOperators() {
         <section className="border-y border-line bg-inset">
           <div className="mx-auto max-w-[88rem] px-7 py-16 lg:py-20">
             <EditorialSectionIntro
-              eyebrow="Payout & monitoring"
-              title="One review to enter supply. Monitoring only when deployed."
-              description="A supply review brings a facility into scope. Yearly monitoring is separate — it applies only when a deployed site needs repeated policy-update checks under a cap. Figures are illustrative."
+              eyebrow="Costs & earnings"
+              title="One review to enter supply. Revenue share when buyers use it."
+              description="A one-time supply review brings a facility into scope; operator earnings are revenue share set in the rights packet before any buyer use. Yearly monitoring is separate — it applies only when a deployed site needs repeated policy-update checks under a cap. Figures are illustrative."
               className="max-w-3xl"
             />
             <div className="mt-10 grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8] sm:grid-cols-2 xl:grid-cols-4">

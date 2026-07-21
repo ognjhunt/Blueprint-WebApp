@@ -239,6 +239,56 @@ export default function ForRobotTeams() {
           </TileGrid>
         </section>
 
+        {/* Policy Improvement Runs — the second half of the wedge */}
+        <section className="border-t border-line">
+          <div className="mx-auto max-w-[88rem] px-7 py-16 lg:py-20">
+            <EditorialSectionIntro
+              eyebrow="After the ranking"
+              title="Policy Improvement Runs: close the gap in simulation."
+              description="When an evaluation shows where your policy falls short, a sim-only improvement loop works the dominant failure modes on the same captured site — baseline eval, failure diagnosis, twin/cousin scenarios, curriculum, sealed scenario tests, and an evidence report."
+              className="max-w-3xl"
+            />
+            <TileGrid cols={3} className="mt-10">
+              {[
+                {
+                  title: "Source-access optional",
+                  body: "Run black-box through an API endpoint, container, private-cloud runner, sim plugin, or action traces. Your weights never have to leave your stack.",
+                  proof: "Black-box runner · action traces",
+                },
+                {
+                  title: "Closed-stack support",
+                  body: "Failure clusters, twin/cousin scenarios, curriculum, regression packs, and recommended training changes — usable even when we never touch the policy internals.",
+                  proof: "Failure clusters · curriculum · regression packs",
+                },
+                {
+                  title: "Improved artifacts, gated honestly",
+                  body: "An improved policy artifact is delivered only when you expose a trainable surface — adapter hooks, a task head, a fine-tuning API, or a policy wrapper. Black-box-only engagements get evidence and recommendations, not edited weights.",
+                  proof: "Trainable surface required for artifacts",
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex h-full flex-col bg-white p-6">
+                  <h3 className="text-title-m font-semibold tracking-tight text-ink-900">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 flex-1 text-sm leading-[1.7] text-ink-500">
+                    {item.body}
+                  </p>
+                  <p className="mt-6 border-t border-line-soft pt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-400">
+                    {item.proof}
+                  </p>
+                </div>
+              ))}
+            </TileGrid>
+            <div className="mt-8">
+              <Button asChild variant="secondary" size="lg" iconRight={<ArrowRight />}>
+                <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=for-robot-teams">
+                  Scope an improvement run
+                </a>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing — 2-col, subscription highlighted dark */}
         <section className="border-y border-line bg-inset">
           <div className="mx-auto max-w-[88rem] px-7 py-16 lg:py-20">
