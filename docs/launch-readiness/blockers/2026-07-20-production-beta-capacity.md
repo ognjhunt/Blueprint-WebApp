@@ -23,7 +23,10 @@ Channel target: Slack DM to `Nijel Hunt`, mirrored by email to
 
 Choose a positive total invite cap and a positive per-cohort daily admission
 limit for the current beta. Keep the allowed-market and allowed-site-type lists
-empty unless the launch is intentionally restricted.
+empty unless the launch is intentionally restricted. The deployment contract's
+documented starting point is `BLUEPRINT_BETA_INVITE_CAP=100` and
+`BLUEPRINT_BETA_COHORT_DAILY_LIMIT=25`; these are recommendations, not values
+an agent may silently promote to production.
 
 ## Alternatives
 
@@ -66,11 +69,12 @@ auto-deploy to production.
 
 ## Evidence
 
-- On 2026-07-20, live `/version.json` reported main SHA `2a73ad61`.
-- Live `/health` returned HTTP 200 while `/health/ready` returned HTTP 503 with
-  `blocker_count: 1`.
-- A read-only Render environment-key inventory confirmed both beta-capacity
-  variables are absent; no environment values were printed.
+- Rechecked on 2026-07-21: live `/health` returned HTTP 200 while
+  `/health/ready` returned HTTP 503.
+- Rechecked on 2026-07-21: the latest live Render deploy is main SHA
+  `2a73ad614a3ab569fc8a021022eb317285b55996`.
+- A read-only Render environment-key inventory again confirmed both
+  beta-capacity variables are absent; no environment values were printed.
 - `server/utils/beta-cohort-policy.ts` and
   `server/utils/launch-readiness.ts` fail closed when either value is missing,
   invalid, or non-positive.

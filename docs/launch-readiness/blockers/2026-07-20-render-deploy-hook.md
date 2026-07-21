@@ -61,8 +61,8 @@ Before the remediation can be called deployed or public-launch-current.
 
 ## Evidence
 
-- `gh secret list --app actions` returned no configured Actions secrets on
-  2026-07-20.
+- `gh secret list --app actions` returned no configured Actions secrets when
+  rechecked on 2026-07-21.
 - A read-only Render API request returned HTTP 200 and identified production
   service `srv-d4vnmk3e5dus73aiohk0` (`Blueprint-WebApp`, branch `main`, automatic
   deploy enabled). No credential value was written to the repository.
@@ -70,8 +70,12 @@ Before the remediation can be called deployed or public-launch-current.
   deploy-hook secret, proving the present path is not actually CI-gated.
 - Deploy run `29776034602` failed for SHA `e6c3e20` while the matching CI run
   `29775636637` passed.
-- Production `/version.json` reports current main SHA `2a73ad61`; PR #418 has
-  not been merged or deployed.
+- Production's latest live Render deploy remains current main SHA
+  `2a73ad614a3ab569fc8a021022eb317285b55996`; PR #418 has not been merged or
+  deployed.
+- PR #418 head `bc60b90c92fd3e81c328e762c8276f00ffc4a77e`
+  passed all hosted checks in CI run `29806484254`; the deploy job correctly
+  skipped on the pull-request event.
 - Safe proof: `gh secret list --app actions` (secret names only; never print the
   hook value).
 

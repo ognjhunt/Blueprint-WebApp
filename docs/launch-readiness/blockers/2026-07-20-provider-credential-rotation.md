@@ -64,12 +64,15 @@ re-enabled.
 - The audit identified a Lindy bearer token in a routed client flow and
   Perplexity/Firecrawl keys in committed dead code at baseline SHA `e6c3e20`.
 - The remediation in PR #418 deletes those files; the client source secret
-  guard passes locally and in hosted CI.
+  guard and claims guard pass at head
+  `bc60b90c92fd3e81c328e762c8276f00ffc4a77e` in hosted CI run
+  `29806484254`.
 - The Render API credential shared during the task returned HTTP 200 for a
   read-only service lookup. It was not committed or printed into an artifact;
   successful authentication is why it must now be treated as exposed.
-- Production reports current main SHA `2a73ad61`, not PR #418; code deletion in
-  an unmerged branch is not provider revocation evidence.
+- Production's latest live Render deploy is current main SHA
+  `2a73ad614a3ab569fc8a021022eb317285b55996`, not PR #418; code deletion in an
+  unmerged branch is not provider revocation evidence.
 - Safe proof: `npm run check && npx vitest run client/tests/security/client-source-secret-guard.test.ts`.
 
 ## Non-Scope

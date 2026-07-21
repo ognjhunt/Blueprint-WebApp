@@ -69,13 +69,13 @@ After credential rotation and before claiming the fixes are integrated on
 
 ## Evidence
 
-- PR #418 contains commits `7a25f4e2` and `2e3cfaf0`, is cleanly mergeable,
-  and all five required hosted CI jobs pass at head `2e3cfaf0`.
-- The isolated branch is exactly two commits ahead of `origin/main`; the
+- PR #418 is cleanly mergeable and all required hosted CI jobs pass at head
+  `bc60b90c92fd3e81c328e762c8276f00ffc4a77e` in run `29806484254`.
+- The isolated branch is exactly eight commits ahead of `origin/main`; the
   primary dirty checkout remains untouched behind two retained safety stashes.
-- Local typecheck, 1,691 tests, production build, generated-output tests,
-  claims guard, and browser QA pass; merge and deployment remain distinct
-  unproven states.
+- Hosted typecheck, 335 test files / 1,699 tests, production build,
+  generated-output tests, claims guard, dependency audit, 26 browser tests,
+  and operator QA pass; merge and deployment remain distinct unproven states.
 - Safe proof: `git status --short --branch && git rev-list --left-right --count HEAD...origin/main && git diff --check`.
 
 ## Non-Scope

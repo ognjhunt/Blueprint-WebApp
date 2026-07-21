@@ -477,7 +477,12 @@ Implemented on this branch (see individual commits for detail):
   The two large world-preview `.ply` and `.spz` binaries called out by the
   audit are already stored through Git LFS.
   Remaining: ops/labs/knowledge extraction needs an approved destination;
-  broader media CDN migration needs deployment-owner confirmation.
+  broader media CDN migration needs deployment-owner confirmation. The root
+  package still exposes 106 scripts because 458 retained docs/code references
+  depend on the autonomous-ops, city-launch, GTM, research, and Paperclip
+  commands. Collapsing that surface is coupled to the same extraction: moving
+  commands without their owning code and runbooks would create a misleadingly
+  small product manifest while leaving a broken ops platform in-tree.
 - **P2.12 done** — capturer approval, account history, earnings, and Stripe
   payout setup are routed; site operators receive a thin request-backed
   `/app` status surface instead of the legacy AR dashboard. `/capture` no

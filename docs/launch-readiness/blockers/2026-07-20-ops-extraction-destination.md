@@ -69,6 +69,11 @@ This is not a blocker to deploying the public-surface remediation itself.
   `tmp`, and tracked `issue-updates` artifacts were removed.
 - Their tests and scripts are active in the current full test graph, so deletion
   without a destination would break real operating contracts.
+- The retained tree currently contains 2,004 files under `ops`, 166 under
+  `labs`, 135 under `knowledge`, and 2 under `knowledge-artifacts`. The root
+  package exposes 106 scripts, with 458 retained code/document references to
+  the ops-oriented command families. Script-surface cleanup is therefore part
+  of the extraction decision, not a safe independent deletion.
 - Safe proof: `rg -n 'ops/paperclip|knowledge/|labs/' package.json .github scripts server client --glob '!node_modules/**'`.
 
 ## Non-Scope
