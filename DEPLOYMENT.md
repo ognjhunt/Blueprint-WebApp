@@ -59,15 +59,17 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
 - Start command: `npm start`
 - Health check: `/health/ready`
 - Render `autoDeploy` is disabled in `render.yaml`. GitHub Actions owns
-  deploy-on-green through `.github/workflows/ci.yml`.
-- The `deploy-render` job runs only on `main` pushes after `check`, `test`,
-  `e2e`, and `build` pass. It triggers the Render deploy hook with
-  `ref=${GITHUB_SHA}` so Render deploys the exact green commit.
+  deploy-on-green through `.github/workflows/deploy.yml`.
+- The deploy workflow runs only after the full `CI` workflow succeeds on
+  `main`. It calls Render's authenticated deploy API with the exact green
+  commit SHA, waits for that deploy to become live, then verifies
+  `/version.json`, `/health`, and `/health/ready`.
 
-Render should hold all secrets in the service environment, not in `render.yaml`.
-GitHub should hold the deploy hook URL as `RENDER_DEPLOY_HOOK_URL`; if the secret
-is missing, the deploy job fails closed instead of allowing a red or unverified
-push to deploy.
+Render should hold all application secrets in the service environment, not in
+`render.yaml`. GitHub Actions holds the Render control-plane credential as the
+`RENDER_API_KEY` secret and the production service identifier as the
+`RENDER_SERVICE_ID` repository variable. If either is missing or invalid, the
+deploy job fails closed instead of allowing a red or unverified push to deploy.
 
 ## Required Environment Variables
 

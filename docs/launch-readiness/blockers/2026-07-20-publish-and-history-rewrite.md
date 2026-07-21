@@ -1,6 +1,6 @@
 # Blocker Title
 
-Approve coordinated publication and credential-history cleanup
+Coordinate credential rotation and optional history cleanup
 
 ## Blocker Id
 
@@ -8,23 +8,21 @@ Approve coordinated publication and credential-history cleanup
 
 ## Why This Is Blocked
 
-The complete remediation is a large, intentionally destructive cleanup that
-was reconciled from a pre-existing dirty working tree into isolated PR #418.
-The branch is published and hosted CI is green; merging still requires the
-designated owner/reviewer after provider rotation. Rewriting Git history to
-remove previously committed credentials and large generated blobs is
-separately disruptive to every clone and must not be inferred from an
-implementation request.
+The publication portion is resolved: PR #418 merged on 2026-07-21 as
+`41e17825f8716efa91a9dfc99f5329ad0544a02f` and that exact SHA is live. Rewriting
+Git history to remove previously committed credentials and large generated
+blobs remains separately disruptive to every clone and must not be inferred
+from the merge authorization.
 
 Channel target: email to `ohstnhunt@gmail.com`, with Slack DM to `Nijel Hunt`
 for the time-sensitive branch decision.
 
 ## Recommended Answer
 
-After provider rotation is confirmed, review and approve PR #418. Merge it only
-after the Render deploy hook is configured, then verify the CI-gated production
-deployment. Schedule a coordinated `git-filter-repo` history rewrite later,
-with collaborator notice and a repository backup.
+Rotate every exposed provider credential, including the Render key that was
+shared in chat, and replace active secret-store values. Schedule a coordinated
+`git-filter-repo` history rewrite later, with collaborator notice and a
+repository backup, only if the owner separately approves it.
 
 ## Alternatives
 
@@ -41,13 +39,9 @@ requires collaborators to re-clone or carefully rebase.
 
 ## Exact Response Needed
 
-Reply with one of:
-
-- `APPROVE PR 418; DEFER HISTORY REWRITE`, or
-- `APPROVE PR 418 AND COORDINATED HISTORY REWRITE AFTER ROTATION`.
-
-Also name the reviewer responsible for approving the PR. This approval must
-arrive only after the credential-rotation blocker is resolved.
+No publication response remains. For history cleanup, reply explicitly with
+`APPROVE COORDINATED HISTORY REWRITE AFTER ROTATION`; otherwise history rewrite
+remains deferred.
 
 ## Execution Owner After Reply
 
@@ -56,26 +50,21 @@ history-rewrite coordination.
 
 ## Immediate Next Action After Reply
 
-Reconfirm PR #418 is clean against `origin/main`, merge after rotation and
-deploy-hook configuration, observe the main CI/deploy chain, and verify the
-live build identity and canonical routes. If history rewrite is approved,
-prepare a dry-run inventory and collaborator migration notice before any force
-update.
+Complete provider credential rotation. If history rewrite is approved, prepare
+a dry-run inventory and collaborator migration notice before any force update.
 
 ## Deadline / Checkpoint
 
-After credential rotation and before claiming the fixes are integrated on
-`main` or live in production.
+After credential rotation and before claiming historical credential exposure
+has been remediated.
 
 ## Evidence
 
-- PR #418 is cleanly mergeable and all required hosted CI jobs pass at head
-  `bc60b90c92fd3e81c328e762c8276f00ffc4a77e` in run `29806484254`.
-- The isolated branch is exactly eight commits ahead of `origin/main`; the
-  primary dirty checkout remains untouched behind two retained safety stashes.
-- Hosted typecheck, 335 test files / 1,699 tests, production build,
-  generated-output tests, claims guard, dependency audit, 26 browser tests,
-  and operator QA pass; merge and deployment remain distinct unproven states.
+- PR #418 merged at `41e17825f8716efa91a9dfc99f5329ad0544a02f`.
+- Production `/version.json` reports that exact SHA, and `/health` plus
+  `/health/ready` both return 200.
+- Main CI run `29828655494` passed all substantive verification jobs; its only
+  failure was the separately tracked obsolete deploy-hook job.
 - Safe proof: `git status --short --branch && git rev-list --left-right --count HEAD...origin/main && git diff --check`.
 
 ## Non-Scope

@@ -6,17 +6,17 @@ name: Deploy (Render, CI-gated)
 # Guarantees:
 #   * Only an exact commit whose CI workflow concluded `success` on main can
 #     deploy (workflow_run trigger + conclusion check + exact head SHA pin).
-#   * Missing deploy configuration fails CLOSED: no hook secret means the job
-#     errors loudly instead of silently skipping or falling back.
+#   * Missing deploy configuration fails CLOSED: no API key or service ID
+#     means the job errors loudly instead of silently skipping or falling back.
 #   * The deployed SHA is observable at GET /version.json (written by
 #     scripts/generate-build-info.mjs during the build).
 #   * Rollback is revert-commit based (scripts/deploy-rollback.mjs) and rides
 #     the same green-CI gate; history is never rewritten.
 #
 # One-time dashboard steps (documented in docs/runbooks/ci-gated-deploy-2026-07-16.md):
-#   1. Confirm Auto-Deploy is off for the service in the Render dashboard.
-#   2. Create a Deploy Hook (Service -> Settings -> Deploy Hook) and store its
-#      URL as the RENDER_DEPLOY_HOOK_URL Actions secret.
+#   1. Store a Render API key as the RENDER_API_KEY Actions secret.
+#   2. Store the service ID as the RENDER_SERVICE_ID Actions variable.
+#   3. Confirm Auto-Deploy is off after this workflow is proven operational.
 
 on:
   workflow_run:
@@ -79,35 +79,57 @@ jobs:
           echo "deploy_ref=${deploy_ref}" >> "${GITHUB_OUTPUT}"
           echo "Deploying exact ref ${deploy_ref}"
 
-      - name: Trigger Render Deploy Hook (fail-closed)
+      - name: Trigger exact-SHA Render deploy through API (fail-closed)
+        id: render
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
         run: |
           set -euo pipefail
-          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set. Deploys fail closed: create a Render Deploy Hook (Service -> Settings -> Deploy Hook) and store its URL as the RENDER_DEPLOY_HOOK_URL Actions secret. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "::error::RENDER_API_KEY secret is not set. Deploys fail closed. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
             exit 1
           fi
-          # Deploy hook URLs already carry ?key=..., so append the exact commit
-          # with '&'. ref= pins the deploy to the SHA that passed CI.
-          case "${RENDER_DEPLOY_HOOK_URL}" in
-            *\?*) sep='&' ;;
-            *) sep='?' ;;
+          case "${RENDER_SERVICE_ID:-}" in
+            srv-*) ;;
+            *)
+              echo "::error::RENDER_SERVICE_ID Actions variable is missing or invalid."
+              exit 1
+              ;;
           esac
+          payload=$(printf '{"commitId":"%s","clearCache":"do_not_clear"}' "${DEPLOY_REF}")
           response_code=$(curl -s -o /tmp/render-deploy-response.txt -w "%{http_code}" \
-            -X POST "${RENDER_DEPLOY_HOOK_URL}${sep}ref=${DEPLOY_REF}")
-          echo "Render deploy hook responded ${response_code}"
-          cat /tmp/render-deploy-response.txt || true
+            --request POST \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header "Content-Type: application/json" \
+            --data "${payload}" \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys")
+          echo "Render deploy API responded ${response_code}"
           if [ "${response_code}" -lt 200 ] || [ "${response_code}" -ge 300 ]; then
-            echo "::error::Render deploy hook returned HTTP ${response_code}."
+            echo "::error::Render deploy API returned HTTP ${response_code}."
+            cat /tmp/render-deploy-response.txt || true
             exit 1
           fi
-          echo "Deploy hook accepted the request for ${DEPLOY_REF}. A 2xx here is NOT deployment success; the verify step below is the gate."
+          deploy_id=$(node -e '
+            const fs = require("node:fs");
+            const response = JSON.parse(fs.readFileSync("/tmp/render-deploy-response.txt", "utf8"));
+            if (typeof response.id !== "string" || !response.id.startsWith("dep-")) process.exit(1);
+            process.stdout.write(response.id);
+          ')
+          if [ -z "${deploy_id}" ]; then
+            echo "::error::Render accepted the request but did not return a deploy ID."
+            exit 1
+          fi
+          echo "deploy_id=${deploy_id}" >> "${GITHUB_OUTPUT}"
+          echo "Render accepted deploy ${deploy_id} for ${DEPLOY_REF}. API acceptance is NOT deployment success; the verify step below is the gate."
 
       - name: Verify deployment completed at the exact SHA
         env:
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
+          RENDER_DEPLOY_ID: ${{ steps.render.outputs.deploy_id }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           BASE_URL: https://tryblueprint.io
         run: |
           set -euo pipefail
@@ -115,10 +137,40 @@ jobs:
           evidence=/tmp/deploy-evidence/deploy-verification.json
           started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
+          # Poll Render's deploy record first so build/update failures surface
+          # directly rather than looking like a generic live-SHA timeout.
+          deploy_status=""
+          for attempt in $(seq 1 80); do
+            if ! response_code=$(curl -s -o /tmp/deploy-evidence/render-deploy.json -w "%{http_code}" \
+              --max-time 20 \
+              --header "Authorization: Bearer ${RENDER_API_KEY}" \
+              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${RENDER_DEPLOY_ID}"); then
+              response_code=000
+            fi
+            if [ "${response_code}" = "200" ]; then
+              deploy_status=$(node -e '
+                const fs = require("node:fs");
+                const response = JSON.parse(fs.readFileSync("/tmp/deploy-evidence/render-deploy.json", "utf8"));
+                process.stdout.write(typeof response.status === "string" ? response.status : "");
+              ')
+            fi
+            case "${deploy_status}" in
+              live) break ;;
+              build_failed|update_failed|canceled|deactivated)
+                echo "::error::Render deploy ${RENDER_DEPLOY_ID} ended with status ${deploy_status}."
+                exit 1
+                ;;
+            esac
+            echo "Attempt ${attempt}/80: Render deploy status='${deploy_status:-unreachable}'. Waiting 15s."
+            sleep 15
+          done
+          if [ "${deploy_status}" != "live" ]; then
+            echo "::error::Render deploy ${RENDER_DEPLOY_ID} did not become live after 20 minutes."
+            exit 1
+          fi
+
           # Poll GET /version.json until the exact requested SHA is serving
-          # traffic. Render only cuts traffic over after its health check
-          # (/health/ready) passes, so convergence here also proves readiness
-          # passed at cutover. Timeout: 20 minutes.
+          # traffic. Timeout: 20 minutes.
           deployed_sha=""
           for attempt in $(seq 1 40); do
             deployed_sha=$(curl -sf --max-time 20 "${BASE_URL}/version.json" | { grep -o '"git_sha"[^,}]*' || true; } | { grep -o '[0-9a-f]\{40\}' || true; })
@@ -141,8 +193,8 @@ jobs:
           health_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BASE_URL}/health")
           ready_code=$(curl -s -o /tmp/deploy-evidence/health-ready-body.json -w "%{http_code}" --max-time 20 "${BASE_URL}/health/ready")
           finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          printf '{"deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
-            "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
+          printf '{"render_deploy_id":"%s","render_deploy_status":"%s","deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
+            "${RENDER_DEPLOY_ID}" "${deploy_status}" "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
           cat "${evidence}"
           if [ "${health_code}" != "200" ]; then
             echo "::error::GET /health returned ${health_code}; expected 200."
