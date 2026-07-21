@@ -9,23 +9,36 @@ describe("Render deploy-on-green contract", () => {
     const repoRoot = process.cwd();
     const renderYaml = fs.readFileSync(path.join(repoRoot, "render.yaml"), "utf-8");
     const ciWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf-8");
+    const deployWorkflow = fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/deploy.yml"),
+      "utf-8",
+    );
     const deploymentDoc = fs.readFileSync(path.join(repoRoot, "DEPLOYMENT.md"), "utf-8");
 
     expect(renderYaml).toContain("autoDeploy: false");
     expect(renderYaml).not.toContain("autoDeploy: true");
 
-    expect(ciWorkflow).toContain("deploy-render:");
-    expect(ciWorkflow).toContain("needs: [check, test, e2e, build]");
-    expect(ciWorkflow).toContain("github.event_name == 'push' && github.ref == 'refs/heads/main'");
-    expect(ciWorkflow).toContain("RENDER_DEPLOY_HOOK_URL");
-    expect(ciWorkflow).toContain("::error::RENDER_DEPLOY_HOOK_URL is required for deploy-on-green.");
-    expect(ciWorkflow).toContain('"${RENDER_DEPLOY_HOOK_URL}${separator}ref=${GITHUB_SHA}"');
-    expect(ciWorkflow).toContain("curl --fail --show-error --silent --request POST");
+    expect(ciWorkflow).not.toContain("deploy-render:");
+    expect(ciWorkflow).not.toContain("RENDER_DEPLOY_HOOK_URL");
+
+    expect(deployWorkflow).toContain('workflows: ["CI"]');
+    expect(deployWorkflow).toContain("github.event.workflow_run.conclusion == 'success'");
+    expect(deployWorkflow).toContain("WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}");
+    expect(deployWorkflow).toContain("RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}");
+    expect(deployWorkflow).toContain("RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}");
+    expect(deployWorkflow).toContain("RENDER_API_KEY secret is not set");
+    expect(deployWorkflow).toContain("RENDER_SERVICE_ID Actions variable is missing or invalid");
+    expect(deployWorkflow).toContain("https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys");
+    expect(deployWorkflow).toContain("commitId");
+    expect(deployWorkflow).toContain("${DEPLOY_REF}");
+    expect(deployWorkflow).toContain("render-deploy.json");
+    expect(deployWorkflow).toContain('"${BASE_URL}/version.json"');
+    expect(deployWorkflow).toContain('"${BASE_URL}/health/ready"');
 
     expect(deploymentDoc).toContain("Render `autoDeploy` is disabled");
     expect(deploymentDoc).toContain("deploy-on-green");
-    expect(deploymentDoc).toContain("check`, `test`,");
-    expect(deploymentDoc).toContain("`e2e`, and `build` pass");
-    expect(deploymentDoc).toContain("RENDER_DEPLOY_HOOK_URL");
+    expect(deploymentDoc).toContain("full `CI` workflow succeeds");
+    expect(deploymentDoc).toContain("RENDER_API_KEY");
+    expect(deploymentDoc).toContain("RENDER_SERVICE_ID");
   });
 });

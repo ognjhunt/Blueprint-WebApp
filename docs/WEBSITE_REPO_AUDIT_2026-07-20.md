@@ -513,12 +513,16 @@ External launch gates that remain after the code remediation:
 
 - Rotate/revoke the exposed Lindy, Perplexity, Firecrawl, and Render
   credentials; replacement values must stay out of source and chat.
-- Choose positive production beta invite/daily limits. Production is healthy
-  but `/health/ready` currently returns 503 because both capacity variables
-  are absent and the intake contract fails closed.
-- Configure `RENDER_DEPLOY_HOOK_URL` in GitHub Actions and disable Render
-  automatic deploys so a merge cannot bypass the verified-main workflow.
-- Review and merge PR #418, then verify the resulting main CI, Render deploy,
-  live build SHA, readiness, canonical routes, and production bundle.
+- **Resolved 2026-07-21:** production beta capacity is configured at 100 total
+  invites and 25 admissions per day. After an authenticated Render redeploy,
+  `/health` and `/health/ready` both returned 200 and readiness reported zero
+  blockers.
+- **Resolved 2026-07-21:** PR #418 merged as
+  `41e17825f8716efa91a9dfc99f5329ad0544a02f`; that exact SHA is live in
+  production. Its main run passed check, rules emulator, tests, e2e, and build.
+- Complete the follow-up that removes the duplicate obsolete deploy-hook job,
+  proves the API-backed `.github/workflows/deploy.yml` path with the configured
+  `RENDER_API_KEY` and `RENDER_SERVICE_ID`, then disables Render automatic
+  deploys so merges cannot bypass the verified-main workflow.
 - Decide whether `ops/paperclip`, `labs`, and `knowledge` move to an approved
   operations repository or are formally retained as a monorepo.
