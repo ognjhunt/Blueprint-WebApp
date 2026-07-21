@@ -393,8 +393,6 @@ app.use((req, res, next) => {
     { from: "/for-capturers", to: "/capture" },
     { from: "/earn", to: "/capture" },
     { from: "/sample-deliverables", to: "/proof" },
-    { from: "/launch-map", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/faq", to: "/proof" },
     { from: "/updates", to: "/" },
     { from: "/careers", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/help", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },

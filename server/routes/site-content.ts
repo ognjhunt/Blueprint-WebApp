@@ -200,8 +200,6 @@ const privateOrNoindex = [
   "/site-worlds/*",
   "/agents",
   "/sample-deliverables",
-  "/launch-map",
-  "/faq",
   "/updates",
   "/careers",
   "/help",
