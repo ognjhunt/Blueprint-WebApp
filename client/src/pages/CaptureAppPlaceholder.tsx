@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ExternalLink, Mail, MapPinned, QrCode, Smartphone } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   SurfaceBrowserFrame,
   SurfaceButton,
@@ -32,6 +33,72 @@ const steps = [
   },
 ] as const;
 
+type CapturerLadderState = "pending" | "approved" | "rejected";
+
+const capturerLadderSteps = [
+  {
+    key: "applied",
+    label: "Applied",
+    body: "Your capturer application is on record.",
+  },
+  {
+    key: "in_review",
+    label: "In review",
+    body: "Blueprint reviews your market, equipment, and availability.",
+  },
+  {
+    key: "approved",
+    label: "Approved",
+    body: "Approved capturers become eligible for assignment coordination.",
+  },
+  {
+    key: "first_assignment",
+    label: "First assignment",
+    body: "Coordinated by the ops team after approval — we reach out when one is ready.",
+  },
+] as const;
+
+type CapturerLadderStepKey = (typeof capturerLadderSteps)[number]["key"];
+
+function resolveCapturerLadderState(
+  status: string | undefined,
+): CapturerLadderState | null {
+  if (status === "pending_review" || status === "applied") {
+    return "pending";
+  }
+  if (status === "approved" || status === "active") {
+    return "approved";
+  }
+  if (status === "rejected") {
+    return "rejected";
+  }
+  return null;
+}
+
+function capturerStepState(
+  step: CapturerLadderStepKey,
+  ladderState: CapturerLadderState,
+): "done" | "current" | "upcoming" {
+  if (ladderState === "pending") {
+    if (step === "applied") return "done";
+    if (step === "in_review") return "current";
+    return "upcoming";
+  }
+  if (ladderState === "approved") {
+    if (step === "first_assignment") return "current";
+    return "done";
+  }
+  // rejected: application was received and reviewed; later rungs never opened.
+  if (step === "applied" || step === "in_review") return "done";
+  return "upcoming";
+}
+
+const capturerStepStyles: Record<"done" | "current" | "upcoming", string> = {
+  done: "border-black/10 bg-[#111110] text-white",
+  current: "border-black/40 bg-white text-[#111110]",
+  upcoming: "border-black/10 bg-[#faf6ef] text-[#111110] opacity-60",
+};
+
 const hasExternalAppLink = (value: string) => {
   try {
     const url = new URL(value, "https://tryblueprint.io");
@@ -42,6 +109,11 @@ const hasExternalAppLink = (value: string) => {
 };
 
 export default function CaptureAppPlaceholder() {
+  const { currentUser, userData } = useAuth();
+  const capturerStatus: string | undefined = userData?.capturerApplicationStatus;
+  const ladderState = currentUser
+    ? resolveCapturerLadderState(capturerStatus)
+    : null;
   const captureAppUrl = getCaptureAppPlaceholderUrl();
   const showExternalHandoff = hasExternalAppLink(captureAppUrl);
   const captureAccessUrl = "/capture-app/launch-access?source=capture-app-placeholder";
@@ -96,6 +168,70 @@ export default function CaptureAppPlaceholder() {
 
       <SurfacePage>
         <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Path" />
+        {ladderState ? (
+          <SurfaceSection className="pt-8">
+            <div className="rounded-[1.75rem] border border-black/10 bg-white p-6 lg:p-8">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <SurfaceMiniLabel>Your Capturer Application</SurfaceMiniLabel>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                  {ladderState === "pending"
+                    ? "In review"
+                    : ladderState === "approved"
+                      ? "Approved"
+                      : "Not approved"}
+                </span>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {capturerLadderSteps.map((step, index) => {
+                  const state = capturerStepState(step.key, ladderState);
+                  return (
+                    <div
+                      key={step.key}
+                      className={`rounded-[1.35rem] border p-4 ${capturerStepStyles[state]}`}
+                    >
+                      <p
+                        className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                          state === "done" ? "text-white/50" : "text-black/40"
+                        }`}
+                      >
+                        0{index + 1} ·{" "}
+                        {state === "done"
+                          ? "Done"
+                          : state === "current"
+                            ? "Current"
+                            : "Next"}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold">{step.label}</p>
+                      <p
+                        className={`mt-2 text-sm leading-6 ${
+                          state === "done" ? "text-white/65" : "text-black/60"
+                        }`}
+                      >
+                        {step.body}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-5 max-w-[46rem] text-sm leading-7 text-black/60">
+                {ladderState === "pending"
+                  ? "Your application is in review — we'll email you when there's a decision. Nothing else is needed from you right now."
+                  : ladderState === "approved"
+                    ? "You're approved. First assignments are coordinated by the Blueprint ops team after approval — we'll contact you directly when one is ready in your market. Keep the capture app path below handy."
+                    : "Your application wasn't approved this time. If your market, equipment, or availability changes — or you think we got this wrong — reach out and we'll take another look."}
+              </p>
+              {ladderState === "rejected" ? (
+                <a
+                  href="/contact"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#111110]"
+                >
+                  Contact the Blueprint team
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              ) : null}
+            </div>
+          </SurfaceSection>
+        ) : null}
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame className="overflow-hidden">
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">

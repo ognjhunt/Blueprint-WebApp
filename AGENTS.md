@@ -6,25 +6,25 @@
 
 This repo must reinforce the platform doctrine in:
 
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
+- `PLATFORM_CONTEXT.md`
+- `WORLD_MODEL_STRATEGY_CONTEXT.md`
 
 ## Read First
 
 Before making changes, read:
 
-1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/README.md`
-2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for platform doctrine
-3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for world-model strategy
-4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md` — repo-authoritative mirror of Blueprint Knowledge for org structure
-5. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/DEPLOYMENT.md`
-6. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/package.json`
-7. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/source-of-truth-map.md`
-8. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/command-safety-matrix.md`
-9. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/public-display-ready-claims-matrix.md`
-10. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/ai-onboarding-map.md`
-11. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
-12. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+1. `README.md`
+2. `PLATFORM_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for platform doctrine
+3. `WORLD_MODEL_STRATEGY_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for world-model strategy
+4. `AUTONOMOUS_ORG.md` — repo-authoritative mirror of Blueprint Knowledge for org structure
+5. `DEPLOYMENT.md`
+6. `package.json`
+7. `docs/architecture/source-of-truth-map.md`
+8. `docs/architecture/command-safety-matrix.md`
+9. `docs/architecture/public-display-ready-claims-matrix.md`
+10. `docs/architecture/ai-onboarding-map.md`
+11. `docs/ai-tooling-adoption-implementation-2026-04-07.md`
+12. `docs/ai-skills-governance-2026-04-07.md`
 
 Agents also follow the nearest nested `AGENTS.md` when working under `client/`, `server/`, `scripts/`, or `ops/paperclip/`; nested guides add local constraints but do not weaken root doctrine.
 
@@ -69,14 +69,14 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as the default operating stack for this repo.
 - Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
 - Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
-- For autonomous-loop closeouts, use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
+- For autonomous-loop closeouts, use `docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
 - For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.
 - For repo work, start with `git status --short`; inspect dirty and untracked files before editing and preserve unrelated work.
 
 ## Human Gates
 
-- When a blocker is truly human-gated, use the standard packet in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-blocker-packet-standard.md`.
-- Follow `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-reply-handling-contract.md` for watcher ownership, correlation, and resume handoff after the human replies.
+- When a blocker is truly human-gated, use the standard packet in `ops/paperclip/programs/human-blocker-packet-standard.md`.
+- Follow `ops/paperclip/programs/human-reply-handling-contract.md` for watcher ownership, correlation, and resume handoff after the human replies.
 - Default fast path: Slack DM to `Nijel Hunt`.
 - Default durable path: email to `ohstnhunt@gmail.com`.
 - Disallowed org identity: `hlfabhunt@gmail.com` must never be used for org-facing drafts, sends, or escalation routing.
@@ -138,7 +138,7 @@ npm run smoke:launch:local
 npm run alpha:check
 ```
 
-Read `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/command-safety-matrix.md` before running commands with live, provider, send, Notion, Stripe, Firebase, Render, Paperclip, payroll, or production-like side effects.
+Read `docs/architecture/command-safety-matrix.md` before running commands with live, provider, send, Notion, Stripe, Firebase, Render, Paperclip, payroll, or production-like side effects.
 
 ## graphify
 

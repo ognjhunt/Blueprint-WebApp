@@ -1,25 +1,167 @@
 import { Helmet } from "@/lib/helmet";
 import { Link, useParams } from "wouter";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ShieldAlert, ShieldCheck } from "lucide-react";
 
-import { Button, DataField, ProofBoundary } from "@/components/blueprint";
+import { Button, DataField, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import {
   BuyerAppErrorState,
   BuyerAppLoadingState,
 } from "@/components/blueprint/app/BuyerAppStates";
-import { EntitlementAccessTable } from "@/components/blueprint/app/EntitlementAccessTable";
-import { useBuyerAppEntitlements } from "@/lib/buyerAppData";
+import {
+  runDisplayName,
+  runStatusLabel,
+  runStatusTone,
+  useBuyerAppRunDetail,
+  type BuyerRunDetail,
+} from "@/lib/buyerAppData";
+
+function stringEntries(value: Record<string, unknown> | undefined) {
+  return Object.entries(value || {}).filter(
+    (entry): entry is [string, string] =>
+      typeof entry[1] === "string" && entry[1].trim().length > 0,
+  );
+}
+
+function booleanEntries(value: Record<string, unknown> | undefined) {
+  return Object.entries(value || {}).filter(
+    (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
+  );
+}
+
+function fieldLabel(key: string) {
+  return key.replace(/_/g, " ");
+}
+
+function RunRecord({ run }: { run: BuyerRunDetail }) {
+  const artifactEntries = stringEntries(run.result_artifacts);
+  const proofBoundaryEntries = booleanEntries(run.proof_boundary);
+
+  return (
+    <>
+      <section className="rounded-md border border-line bg-white px-4">
+        <DataField label="Run id" value={run.job_id} />
+        <DataField
+          label="Status"
+          value={runStatusLabel(run.status)}
+          mono={false}
+          trailing={
+            <StatusChip tone={runStatusTone(run.status)} square>
+              {runStatusLabel(run.status)}
+            </StatusChip>
+          }
+        />
+        <DataField
+          label="Pipeline status"
+          value={run.pipeline_status || "Not reported yet"}
+        />
+        {run.site_slug ? <DataField label="Site" value={run.site_slug} /> : null}
+        {run.site_submission_id ? (
+          <DataField label="Site submission" value={run.site_submission_id} />
+        ) : null}
+        {run.capture_job_id ? (
+          <DataField label="Capture job" value={run.capture_job_id} />
+        ) : null}
+        {run.capture_id ? <DataField label="Capture" value={run.capture_id} /> : null}
+        {run.entitlement_id ? (
+          <DataField label="Entitlement" value={run.entitlement_id} />
+        ) : null}
+        {run.entitlement_sku ? (
+          <DataField label="Entitlement SKU" value={run.entitlement_sku} />
+        ) : null}
+        <DataField label="Created" value={run.created_at_iso || "Not recorded"} />
+        <DataField
+          label="Last update"
+          value={run.updated_at_iso || "Not recorded"}
+          border={Boolean(run.error)}
+        />
+        {run.error ? (
+          <DataField label="Error" value={String(run.error)} border={false} />
+        ) : null}
+      </section>
+
+      {artifactEntries.length ? (
+        <section className="flex flex-col gap-3" aria-label="Result artifacts">
+          <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+            Result artifacts
+          </h2>
+          <div className="rounded-md border border-line bg-white px-4">
+            {artifactEntries.map(([key, value], index) => (
+              <DataField
+                key={key}
+                label={fieldLabel(key)}
+                value={value}
+                border={index < artifactEntries.length - 1}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {proofBoundaryEntries.length ? (
+        <section className="flex flex-col gap-3" aria-label="Proof boundary">
+          <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+            Proof boundary
+          </h2>
+          <div className="rounded-md border border-line bg-white px-4">
+            {proofBoundaryEntries.map(([key, value], index) => (
+              <DataField
+                key={key}
+                label={fieldLabel(key)}
+                value={value ? "true" : "false"}
+                border={index < proofBoundaryEntries.length - 1}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <ProofBoundary level="info" title="Run record source" icon={ShieldCheck}>
+        Every field on this page is read from the stored run record owned by
+        this authenticated buyer. Blueprint does not synthesize progress,
+        rankings, or operational results for display.
+      </ProofBoundary>
+    </>
+  );
+}
+
+function RunNotFound({ runId }: { runId: string }) {
+  return (
+    <>
+      <section className="rounded-md border border-line bg-white px-4">
+        <DataField label="Requested run id" value={runId} />
+        <DataField
+          label="Result status"
+          value="No owned run record returned"
+          mono={false}
+          border={false}
+        />
+      </section>
+
+      <ProofBoundary level="block" title="Run record not available" icon={ShieldAlert}>
+        Blueprint did not find an evaluation run record owned by this buyer for
+        this id. This page does not show sample policy rankings, simulated
+        success, or research correlations in place of a real run record.
+      </ProofBoundary>
+
+      <Button asChild variant="secondary" className="w-fit">
+        <Link href="/app/runs">Return to runs</Link>
+      </Button>
+    </>
+  );
+}
 
 export default function RunDetail() {
   const params = useParams<{ runId: string }>();
-  const runId = params.runId || "unknown";
-  const { entitlements, isLoading, error } = useBuyerAppEntitlements();
+  const runId = params.runId || "";
+  const { run, notFound, isLoading, error } = useBuyerAppRunDetail(runId);
+
+  const title = run ? runDisplayName(run) : "Run record not available";
 
   return (
-    <AppShell active="runs" breadcrumb={`runs / ${runId}`}>
+    <AppShell active="runs" breadcrumb={`runs / ${runId || "unknown"}`}>
       <Helmet>
-        <title>{`${runId} · Run detail · Blueprint`}</title>
+        <title>{`${runId || "unknown"} · Run detail · Blueprint`}</title>
         <meta
           name="description"
           content="Protected Blueprint run detail route for buyer-owned evaluation records."
@@ -37,57 +179,19 @@ export default function RunDetail() {
 
         <header className="flex flex-col gap-2 border-b border-line pb-6">
           <h1 className="text-[1.55rem] font-semibold leading-tight tracking-tight text-ink-900">
-            Run record not available
+            {title}
           </h1>
           <p className="text-body-s text-ink-500">
-            Blueprint did not find a buyer-owned operational run record for this
-            route.
+            {run
+              ? "Stored evaluation run record for this authenticated buyer."
+              : "Blueprint renders run details only from a buyer-owned stored run record."}
           </p>
         </header>
 
         {isLoading ? <BuyerAppLoadingState /> : null}
-        {error ? <BuyerAppErrorState message={error.message} /> : null}
-        {!isLoading && !error ? (
-          <>
-            <section className="rounded-md border border-line bg-white">
-              <DataField label="Requested run id" value={runId} />
-              <DataField
-                label="Access source"
-                value="Marketplace entitlement endpoint"
-                mono={false}
-              />
-              <DataField
-                label="Result status"
-                value="No owned run record returned"
-                mono={false}
-                border={false}
-              />
-            </section>
-
-            <ProofBoundary
-              level="block"
-              title="Static run metrics are disabled"
-              icon={ShieldAlert}
-            >
-              This page does not show sample policy rankings, simulated success,
-              or research correlations as buyer operational results. A run detail
-              view requires a real run record owned by this authenticated buyer.
-            </ProofBoundary>
-
-            {entitlements.length ? (
-              <section className="flex flex-col gap-3" aria-label="Buyer entitlements">
-                <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
-                  Buyer access on file
-                </h2>
-                <EntitlementAccessTable entitlements={entitlements} />
-              </section>
-            ) : null}
-
-            <Button asChild variant="secondary" className="w-fit">
-              <Link href="/app/runs">Return to runs</Link>
-            </Button>
-          </>
-        ) : null}
+        {!isLoading && error ? <BuyerAppErrorState message={error.message} /> : null}
+        {!isLoading && !error && run ? <RunRecord run={run} /> : null}
+        {!isLoading && !error && !run && notFound ? <RunNotFound runId={runId} /> : null}
       </div>
     </AppShell>
   );

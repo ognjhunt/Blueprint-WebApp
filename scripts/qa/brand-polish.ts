@@ -242,12 +242,13 @@ export const publicQaRoutes: PublicQaRoute[] = [
     ],
   },
   {
-    label: "FAQ (legacy, redirects to Proof)",
+    label: "FAQ",
     path: "/faq",
-    canonicalPath: "/proof",
-    expectedHeading: "Proof stays scoped.",
+    canonicalPath: "/faq",
+    expectedHeading: "The questions that usually decide fit.",
     requiredCtas: [
-      { label: "Start", hrefStartsWith: "/contact" },
+      { label: "Request evaluation", hrefStartsWith: "/contact/robot-team" },
+      { label: "Browse sample site packages", hrefStartsWith: "/sites" },
     ],
   },
   {

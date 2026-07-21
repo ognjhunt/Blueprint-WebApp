@@ -73,3 +73,6 @@ client/public/generated/*
 !client/public/generated/wam-policy-eval-2026-06-21/**
 !client/public/generated/wam-policy-eval-pov-2026-06-25/
 !client/public/generated/wam-policy-eval-pov-2026-06-25/**
+
+# committed-artifact hygiene (2026-07-20)
+tmp/

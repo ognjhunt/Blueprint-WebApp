@@ -17,6 +17,7 @@ import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
 import SiteDetail from "../client/src/pages/SiteDetail";
 import Pricing from "../client/src/pages/Pricing";
+import FAQ from "../client/src/pages/FAQ";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
@@ -156,27 +157,6 @@ function MinimalStaticPage({
     </>
   );
 }
-
-const PrerenderPortal = () => (
-  <BareStaticPage
-    title="Portal | Blueprint"
-    description="Private operations hub for protected Blueprint requests and review workflows."
-    eyebrow="Private Workspace"
-    heading="Private operations hub"
-    body="The Blueprint portal is invite-only. Sign in to view protected request queues, assignments, evidence packages, and hosted-review workflow state."
-    primaryHref="/sign-in"
-    primaryLabel="Sign in"
-    secondaryHref="/contact?persona=robot-team"
-    secondaryLabel="Request access"
-    rows={[
-      "Protected request and package state stays behind authenticated access.",
-      "Hosted review outputs, exports, and rights context are visible only to approved users.",
-      "New teams should request buyer access before expecting a private portal workspace.",
-    ]}
-    canonical="/portal"
-    noIndex
-  />
-);
 
 const PrerenderBusinessSignup = () => (
   <BareStaticPage
@@ -357,7 +337,6 @@ const captureAliasRoutes = [
 ].map((routePath) => ({ path: routePath, component: Capture }));
 
 const contactAliasRoutes = [
-  "/launch-map",
   "/city/austin",
   "/agents",
   "/contact",
@@ -386,7 +365,6 @@ const proofAliasRoutes = [
   "/sample-evaluation",
   "/sample-deliverables",
   "/case-studies",
-  "/faq",
   "/docs",
   "/qualified-opportunities",
   "/qualified-opportunities-guide",
@@ -406,6 +384,7 @@ const staticRoutes: StaticRoute[] = [
   // agents must see the actual tiers and prices, not a summary that omits
   // them (WSPEC context: the summary shell made /pricing look price-free).
   { path: "/pricing", component: Pricing },
+  { path: "/faq", component: FAQ },
   { path: "/sites", component: Sites },
   { path: "/world-models", component: Sites },
   { path: "/site-worlds", component: Sites },
@@ -447,7 +426,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },
   { path: "/login", component: Login },
-  { path: "/portal", component: PrerenderPortal, shell: "bare" },
   { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/robot-team", component: PrerenderBusinessSignup, shell: "bare" },

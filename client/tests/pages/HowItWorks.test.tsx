@@ -21,10 +21,13 @@ describe("HowItWorks", () => {
       screen.getByRole("heading", { name: /^Evaluate policies against the site\.$/i }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: /^Improve the policy in simulation\.$/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: /^Decide the next test\.$/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Four steps from real site to a decision\./i),
+      screen.getByText(/Five steps from real site to a decision\./i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Not every value is proof\./i),

@@ -379,6 +379,29 @@ async function verifyRobotEvalEntitlement(params: {
   };
 }
 
+const BUYER_RUN_LIST_LIMIT = 200;
+
+// P1-D: durable buyer-facing run summary. Every field is read from the stored
+// robotEvalJobRequests record (written by the POST intake path or the
+// pipeline-status callback) — nothing is synthesized for display.
+function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
+  const entitlementProof = asObject(data.entitlement_proof);
+  return {
+    job_id: jobId,
+    status: String(data.status || "unknown"),
+    pipeline_status: data.pipeline_status || null,
+    site_slug: stringValue(data.site_slug) || null,
+    site_submission_id: stringValue(data.site_submission_id) || null,
+    capture_job_id: stringValue(data.capture_job_id) || null,
+    capture_id: stringValue(data.capture_id) || null,
+    error: data.error || null,
+    entitlement_id: stringValue(entitlementProof.entitlement_id) || null,
+    entitlement_sku: stringValue(entitlementProof.sku) || null,
+    created_at_iso: stringValue(data.created_at_iso) || null,
+    updated_at_iso: stringValue(data.updated_at_iso) || null,
+  };
+}
+
 function statusResponse(jobId: string, data: Record<string, unknown>) {
   const pipelineResult = asObject(data.pipeline_result);
   return {
@@ -611,6 +634,50 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   });
 });
 
+// P1-D: buyer-scoped run list. Records are keyed to the buyer by the
+// buyer_user_id field the authenticated POST intake path writes, so the query
+// can only ever return the caller's own job requests.
+router.get("/", verifyFirebaseToken, async (_req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      error: "Robot eval job status store is not configured.",
+      code: "robot_eval_status_store_not_configured",
+    });
+  }
+
+  const callerUid = String(
+    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
+  ).trim();
+  if (!callerUid) {
+    return res.status(401).json({
+      error: "Missing authenticated buyer.",
+      code: "robot_eval_missing_authenticated_buyer",
+    });
+  }
+
+  const snapshot = await db
+    .collection("robotEvalJobRequests")
+    .where("buyer_user_id", "==", callerUid)
+    .limit(BUYER_RUN_LIST_LIMIT)
+    .get();
+
+  // Sort newest-first in memory (single equality filter keeps the query free
+  // of composite-index requirements).
+  const jobRequests = (snapshot.docs || [])
+    .map((doc) => buyerRunSummary(doc.id, (doc.data() || {}) as Record<string, unknown>))
+    .sort((a, b) => {
+      const left = a.created_at_iso || "";
+      const right = b.created_at_iso || "";
+      return left < right ? 1 : left > right ? -1 : 0;
+    });
+
+  return res.json({
+    ok: true,
+    count: jobRequests.length,
+    job_requests: jobRequests,
+  });
+});
+
 // WEB-02: require auth + ownership. Previously unauthenticated, which leaked
 // result_artifacts and proof_boundary of any job to anyone who knew a jobId.
 router.get("/:jobId/status", verifyFirebaseToken, async (req, res) => {
@@ -648,7 +715,13 @@ router.get("/:jobId/status", verifyFirebaseToken, async (req, res) => {
     });
   }
 
-  return res.json(statusResponse(jobId, data));
+  // P1-D: include the stored run summary fields (site/task labels, entitlement
+  // linkage) so the buyer run detail page can render without a second lookup.
+  // statusResponse spreads last so its status/error fallbacks win.
+  return res.json({
+    ...buyerRunSummary(jobId, data),
+    ...statusResponse(jobId, data),
+  });
 });
 
 router.post(

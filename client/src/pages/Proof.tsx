@@ -124,8 +124,9 @@ export default function Proof() {
             <div>
               <h2 className="text-3xl font-semibold">What we do not claim.</h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-                {robotPolicyEvaluationBoundary} Validated packs report metrics
-                only inside the matched robot, task, and site envelope.
+                {robotPolicyEvaluationBoundary} Evaluation packs report
+                metrics only inside the matched robot, task, and site
+                envelope.
               </p>
             </div>
           </div>

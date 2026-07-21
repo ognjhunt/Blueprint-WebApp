@@ -96,6 +96,11 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
                 This package gives every policy the same task.
               </p>
+              <p className="mt-4 max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">
+                Sample site package — the name and layout are representative,
+                not a named operator facility. Your run is scoped to a real
+                captured site confirmed at request time.
+              </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={taskPackHref}

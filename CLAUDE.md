@@ -6,21 +6,21 @@ Use this repo as Blueprint's buyer and ops surface, not as a generic marketing a
 
 Read first:
 
-1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
-2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
-3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AGENTS.md`
-4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
-5. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+1. `PLATFORM_CONTEXT.md`
+2. `WORLD_MODEL_STRATEGY_CONTEXT.md`
+3. `AGENTS.md`
+4. `docs/ai-tooling-adoption-implementation-2026-04-07.md`
+5. `docs/ai-skills-governance-2026-04-07.md`
 
 Key rules:
 
-- Keep copy and UX aligned with capture-first, world-model-product-first positioning.
+- Keep copy and UX aligned with capture-first, real-site robot-evaluation/policy-improvement-first positioning (per `PLATFORM_CONTEXT.md`; world models are support substrates, not the primary public offer).
 - Treat provenance, rights, privacy, and hosted access as first-class product truths.
 - Do not make qualification or one model backend the core story.
 - Avoid fake supply, fake readiness, or fabricated operational states.
 - Do not use external boilerplates, skill packs, or AI recommendations to implicitly introduce new primary services into this repo.
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as primary unless `blueprint-cto` explicitly approves a change.
-- Before claiming autonomous-loop `done`, `blocked`, or `awaiting_human_decision`, apply `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
+- Before claiming autonomous-loop `done`, `blocked`, or `awaiting_human_decision`, apply `docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
 
 Key commands:
 
@@ -50,6 +50,6 @@ npm run test:e2e
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- graphify-out/ is generated and gitignored; on a fresh clone it will be absent. If present, read graphify-out/GRAPH_REPORT.md for god nodes and community structure before answering architecture or codebase questions; if absent, generate it with `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` or proceed without it
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` to refresh the staged architecture pilot and publish the canonical root `graphify-out/` outputs

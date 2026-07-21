@@ -18,6 +18,8 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/for-robot-teams", changefreq: "monthly", priority: 0.8 },
   { path: "/for-site-operators", changefreq: "monthly", priority: 0.8 },
   { path: "/how-it-works", changefreq: "monthly", priority: 0.8 },
+  { path: "/faq", changefreq: "monthly", priority: 0.6 },
+  { path: "/launch-map", changefreq: "weekly", priority: 0.5 },
   { path: "/contact/robot-team", changefreq: "monthly", priority: 0.8 },
   { path: "/contact/site-operator", changefreq: "monthly", priority: 0.7 },
   { path: "/about", changefreq: "monthly", priority: 0.5 },

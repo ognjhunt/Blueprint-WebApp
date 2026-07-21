@@ -99,6 +99,175 @@ export function useBuyerAppEntitlements(): BuyerAppEntitlementsState {
   }, [loading, query.data?.entitlements, query.error, query.isLoading]);
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Evaluation runs (robotEvalJobRequests)                                     */
+/* -------------------------------------------------------------------------- */
+
+export type BuyerRunRecord = {
+  job_id: string;
+  status: string;
+  pipeline_status?: string | null;
+  site_slug?: string | null;
+  site_submission_id?: string | null;
+  capture_job_id?: string | null;
+  capture_id?: string | null;
+  error?: string | null;
+  entitlement_id?: string | null;
+  entitlement_sku?: string | null;
+  created_at_iso?: string | null;
+  updated_at_iso?: string | null;
+};
+
+export type BuyerRunDetail = BuyerRunRecord & {
+  result_artifacts?: Record<string, unknown>;
+  proof_boundary?: Record<string, unknown>;
+  pipeline_forward?: Record<string, unknown> | null;
+};
+
+type BuyerRunsResponse = {
+  ok?: boolean;
+  count?: number;
+  job_requests?: BuyerRunRecord[];
+};
+
+export type BuyerAppRunsState = {
+  runs: BuyerRunRecord[];
+  isLoading: boolean;
+  error: Error | null;
+};
+
+async function fetchBuyerRuns(currentUser: FirebaseUser): Promise<BuyerRunsResponse> {
+  const response = await fetch("/api/robot-eval/job-requests", {
+    credentials: "include",
+    headers: await withFirebaseAuthHeaders(currentUser),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load evaluation runs (${response.status})`);
+  }
+
+  return response.json() as Promise<BuyerRunsResponse>;
+}
+
+export function useBuyerAppRuns(): BuyerAppRunsState {
+  const { currentUser, loading } = useAuth();
+  const query = useQuery({
+    queryKey: ["buyer-app-runs", currentUser?.uid || "anonymous"],
+    enabled: Boolean(currentUser && !loading),
+    queryFn: () => fetchBuyerRuns(currentUser!),
+    staleTime: 30_000,
+  });
+
+  return useMemo(() => {
+    const runs = [...(query.data?.job_requests || [])].sort((a, b) => {
+      const left = a.created_at_iso || "";
+      const right = b.created_at_iso || "";
+      return left < right ? 1 : left > right ? -1 : 0;
+    });
+    return {
+      runs,
+      isLoading: loading || query.isLoading,
+      error: query.error instanceof Error ? query.error : null,
+    };
+  }, [loading, query.data?.job_requests, query.error, query.isLoading]);
+}
+
+export type BuyerAppRunDetailState = {
+  run: BuyerRunDetail | null;
+  /** True when the server confirmed no buyer-owned record exists (404/403). */
+  notFound: boolean;
+  isLoading: boolean;
+  error: Error | null;
+};
+
+async function fetchBuyerRunDetail(
+  currentUser: FirebaseUser,
+  runId: string,
+): Promise<BuyerRunDetail | null> {
+  const response = await fetch(
+    `/api/robot-eval/job-requests/${encodeURIComponent(runId)}/status`,
+    {
+      credentials: "include",
+      headers: await withFirebaseAuthHeaders(currentUser),
+    },
+  );
+
+  // 404: no record. 403: record exists but is not owned by this buyer. Both
+  // render as "no buyer-owned run record" rather than a transport error.
+  if (response.status === 404 || response.status === 403) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load run record (${response.status})`);
+  }
+
+  return response.json() as Promise<BuyerRunDetail>;
+}
+
+export function useBuyerAppRunDetail(runId: string): BuyerAppRunDetailState {
+  const { currentUser, loading } = useAuth();
+  const query = useQuery({
+    queryKey: ["buyer-app-run", currentUser?.uid || "anonymous", runId],
+    enabled: Boolean(currentUser && !loading && runId),
+    queryFn: () => fetchBuyerRunDetail(currentUser!, runId),
+    staleTime: 30_000,
+  });
+
+  return useMemo(
+    () => ({
+      run: query.data || null,
+      notFound: query.isFetched && query.data === null,
+      isLoading: loading || query.isLoading,
+      error: query.error instanceof Error ? query.error : null,
+    }),
+    [loading, query.data, query.error, query.isFetched, query.isLoading],
+  );
+}
+
+export function runDisplayName(run: BuyerRunRecord) {
+  return run.site_slug || run.site_submission_id || run.capture_job_id || run.job_id;
+}
+
+export function runStatusLabel(status: string | null | undefined) {
+  if (!status || status === "unknown") {
+    return "Unknown";
+  }
+  if (status === "queued_for_pipeline") {
+    return "Queued";
+  }
+  if (status === "pipeline_running") {
+    return "Running";
+  }
+  if (status === "completed") {
+    return "Completed";
+  }
+  if (status === "failed") {
+    return "Failed";
+  }
+  if (status === "pipeline_forward_failed") {
+    return "Forward failed";
+  }
+  return status.replace(/_/g, " ");
+}
+
+export function runStatusTone(
+  status: string | null | undefined,
+): NonNullable<StatusChipProps["tone"]> {
+  if (status === "completed") {
+    return "proof";
+  }
+  if (status === "failed" || status === "pipeline_forward_failed") {
+    return "block";
+  }
+  if (status === "queued_for_pipeline") {
+    return "warn";
+  }
+  if (status === "pipeline_running") {
+    return "info";
+  }
+  return "neutral";
+}
+
 export function entitlementDisplayName(entitlement: BuyerEntitlement) {
   return entitlement.title || entitlement.sku || entitlement.id;
 }

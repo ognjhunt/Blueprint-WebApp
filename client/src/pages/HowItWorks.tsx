@@ -74,6 +74,19 @@ const pipelineSteps: PipelineStep[] = [
   },
   {
     step: "04",
+    badge: "Improve",
+    title: "Improve the policy in simulation.",
+    body: "When the ranking shows where a policy falls short, a sim-only Policy Improvement Run works the dominant failure modes on the same captured site: twin/cousin scenarios, curriculum, sealed scenario tests, and an evidence report. Black-box policies are supported; improved artifacts are delivered only when a trainable surface is exposed.",
+    src: "/redesign/pov/machine-tending.jpg",
+    alt: "Robot arm rehearsing a task variation",
+    proof: [
+      "Failure-mode diagnosis",
+      "Twin/cousin scenarios and curriculum",
+      "Sealed scenario tests",
+    ],
+  },
+  {
+    step: "05",
     badge: "Decide",
     title: "Decide the next test.",
     body: "Every run ends in a decision a team can act on: export the data package, request a recapture, narrow the scenario, or move to a field pilot. The proof boundary stays attached so the decision is grounded in what was actually captured.",
@@ -183,7 +196,7 @@ const surfaceTiles = [
     label: "Capture",
     description:
       "The SwiftUI capture app vetted capturers use to record the route, with live coverage and provenance cues.",
-    href: "/for-site-operators",
+    href: "/capture",
   },
   {
     eyebrow: "Surface",
@@ -213,7 +226,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="Capture first, package the proof, evaluate policies, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
+        description="Capture first, package the proof, evaluate policies, improve them in simulation, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
         canonical="/how-it-works"
         jsonLd={[
           webPageJsonLd({
@@ -268,7 +281,7 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
             eyebrow="The pipeline"
-            title="Four steps from real site to a decision."
+            title="Five steps from real site to a decision."
             description="Each step produces an artifact the next one depends on. Nothing is asserted that the capture cannot support."
           />
 

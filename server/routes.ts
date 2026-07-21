@@ -24,6 +24,7 @@ import agentAccessRouter from "./routes/agent-access";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import capturerApplicationsRouter from "./routes/capturer-applications";
 import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
 import adminCreativeRouter from "./routes/admin-creative";
@@ -136,6 +137,13 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminLeadsRouter,
+  );
+  // Capturer application review (approve/reject) - admin/ops only.
+  app.use(
+    "/api/admin/capturer-applications",
+    csrfProtection,
+    verifyFirebaseToken,
+    capturerApplicationsRouter,
   );
   app.use(
     "/api/admin/field-ops",

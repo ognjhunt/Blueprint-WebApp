@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import FAQ from "@/pages/FAQ";
 
 describe("FAQ", () => {
-  it("renders the shortened buyer-objections page", () => {
+  it("renders the current-wedge FAQ in eval/policy-improvement vocabulary", () => {
     render(<FAQ />);
 
     expect(
@@ -11,26 +11,30 @@ describe("FAQ", () => {
         name: /The questions that usually decide fit\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What is a Blueprint world model\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What does a buyer actually receive with the site package\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What is a policy evaluation set\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/How close is this to a deployment guarantee\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What if the exact site we care about is not in the catalog\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Can Blueprint start from everyday public-facing locations\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Are the capture examples real customer results\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Can we book time instead of starting with a form\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/grocery stores, retail aisles, hotel lobbies, mall corridors/i)).toBeInTheDocument();
-    expect(screen.getByText(/use invented names/i)).toBeInTheDocument();
-    const robotTeamLinks = screen.getAllByRole("link", {
-      name: /Talk to Blueprint about a real site/i,
-    });
-    expect(robotTeamLinks.length).toBeGreaterThanOrEqual(1);
-    robotTeamLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", expect.stringContaining("/contact/robot-team?persona=robot-team"));
-      expect(link).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
-    });
-
-    expect(screen.queryByText(/What scenario variation controls are live today\?/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/What turns a listing from listing-only into proof-rich\?/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/What does Blueprint actually sell\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What is a task pack\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Do we have to hand over our policy weights\?/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Is a ranking a deployment guarantee\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Are the sites in the public library real customer sites\?/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/How do capturers and site operators fit in\?/i),
+    ).toBeInTheDocument();
+    // Honest boundaries stay explicit.
+    expect(screen.getByText(/not live operator supply/i)).toBeInTheDocument();
+    expect(screen.getByText(/source-access optional/i)).toBeInTheDocument();
+    // Retired world-model-first vocabulary must not resurface.
+    expect(screen.queryByText(/Blueprint world model/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/policy evaluation set/i)).not.toBeInTheDocument();
+    // CTAs point at the live funnel.
+    expect(
+      screen.getAllByRole("link", { name: /Request evaluation/i })[0],
+    ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
+    expect(
+      screen.getByRole("link", { name: /Browse sample site packages/i }),
+    ).toHaveAttribute("href", "/sites");
   });
 });

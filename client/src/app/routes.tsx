@@ -40,6 +40,8 @@ function lazyRoute<P = any>(
 }
 
 const Home = lazyRoute(() => import("../pages/Home"));
+const LaunchMap = lazyRoute(() => import("../pages/LaunchMap"));
+const FAQ = lazyRoute(() => import("../pages/FAQ"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
@@ -54,7 +56,6 @@ const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
 const Pricing = lazyRoute(() => import("../pages/Pricing"));
 const Contact = lazyRoute(() => import("../pages/Contact"));
 const Proof = lazyRoute(() => import("../pages/Proof"));
-const Portal = lazyRoute(() => import("../pages/Portal"));
 const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
@@ -65,8 +66,6 @@ const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsS
 const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
 const AdminGrowthStudio = lazyRoute(() => import("../pages/AdminGrowthStudio"));
 const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
-const Dashboard = lazyRoute(() => import("../pages/Dashboard"));
-const OffWaitlistSignUpFlow = lazyRoute(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
 const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 
@@ -77,7 +76,6 @@ const Governance = lazyRoute(() => import("../pages/Governance"));
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
 const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
-const JoinBlueprint = lazyRoute(() => import("../pages/JoinBlueprint"));
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
@@ -96,6 +94,10 @@ const NotFound = lazyRoute(() => import("../pages/NotFound"));
 const ADMIN_ROLES: AccessRole[] = ["admin", "ops"];
 
 const HomeRedirect = () => <MarketingRedirect to="/" />;
+
+const BuyerAppRedirect = () => <MarketingRedirect to="/app" />;
+
+const LegacySignupRedirect = () => <MarketingRedirect to="/signup" />;
 
 const HowItWorksRedirect = () => <MarketingRedirect to="/#how-it-works" />;
 
@@ -205,7 +207,7 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
-  { path: "/launch-map", layout: "public", component: ContactRedirect },
+  { path: "/launch-map", layout: "public", component: LaunchMap },
 
   // Capture / Earn direct flows
   { path: "/capture", layout: "public", component: Capture },
@@ -265,7 +267,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
-  { path: "/faq", layout: "public", component: ProofRedirect },
+  { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
   { path: "/vision", layout: "public", component: Vision },
@@ -288,7 +290,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/marketplace", layout: "public", component: SitesRedirect },
 
   // Auth & account
-  { path: "/portal", layout: "public", shell: "bare", component: Portal },
+  { path: "/portal", layout: "public", component: BuyerAppRedirect },
   { path: "/sign-in", layout: "public", shell: "bare", component: Login },
   { path: "/login", layout: "public", component: LegacyLoginRedirect },
   { path: "/signup", layout: "public", shell: "bare", component: BusinessSignUpFlow },
@@ -317,17 +319,11 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/city-launch/:citySlug", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
   { path: "/admin/growth-studio", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthStudio },
 
-  // Dashboard
-  { path: "/dashboard", layout: "protected", component: Dashboard },
+  // Legacy logged-in surfaces → buyer app
+  { path: "/dashboard", layout: "public", component: BuyerAppRedirect },
   { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
-  {
-    path: "/off-waitlist-signup",
-    layout: "public",
-    component: OffWaitlistSignUpFlow,
-  },
-
-  // Redesign — sign-up (two-pane stepped wizard)
-  { path: "/join", layout: "public", shell: "bare", component: JoinBlueprint },
+  { path: "/off-waitlist-signup", layout: "public", component: LegacySignupRedirect },
+  { path: "/join", layout: "public", component: LegacySignupRedirect },
 
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
