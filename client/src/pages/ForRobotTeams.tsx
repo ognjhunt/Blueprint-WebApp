@@ -480,7 +480,7 @@ export default function ForRobotTeams() {
           <EditorialSectionIntro
             eyebrow="Use cases"
             title="Built for the tasks robots actually run."
-            description="Captured sites span the indoor environments where manipulation and mobility policies have to hold up. Imagery below is placeholder capture, shown as review support."
+            description="Captured sites span the indoor environments where manipulation and mobility policies have to hold up. The imagery below is illustrative and does not represent live supply."
             className="max-w-3xl"
           />
           <div className="mt-10 grid gap-6 md:grid-cols-3">

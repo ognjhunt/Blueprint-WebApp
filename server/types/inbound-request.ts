@@ -811,6 +811,7 @@ export interface InboundRequest {
   terms_acceptance?: TermsAcceptanceRecord | null;
   debug: {
     schemaVersion: number;
+    autoCreatedByPipeline?: boolean;
   };
 }
 

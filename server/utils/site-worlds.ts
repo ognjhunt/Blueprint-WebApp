@@ -174,27 +174,7 @@ function buildArtifactExplorer(params: {
     params.presentationWorldManifest?.status || params.runtimeDemoManifest?.status || "",
   ).trim() || null;
 
-  const views = [
-    {
-      id: "presentation-overview",
-      title: "Presentation overview",
-      description: "Saved customer-facing view from the presentation-world lane.",
-      imageUrl: null,
-      sourceUri: params.presentationWorldManifestUri || null,
-      badge: "Derived presentation",
-      available: false,
-    },
-    {
-      id: "runtime-head-rgb",
-      title: "Runtime head camera",
-      description: "Validated runtime observation frame from the saved demo session.",
-      imageUrl: null,
-      sourceUri: params.runtimeDemoManifestUri || null,
-      badge: "Validated runtime frame",
-      cameraId: "head_rgb",
-      available: false,
-    },
-  ].filter((item) => item.available);
+  const views: NonNullable<SiteWorldCard["artifactExplorer"]>["views"] = [];
 
   const sources = [
     {
@@ -958,6 +938,9 @@ async function buildLiveRecord(
   requestId: string,
   request: InboundRequest,
 ): Promise<SiteWorldCard | null> {
+  if (request.debug?.autoCreatedByPipeline === true) {
+    return null;
+  }
   const qualificationState = normalizeQualificationState(request);
   const opportunityState = normalizeOpportunityState(request, qualificationState);
   if (!LIVE_QUALIFICATION_STATES.has(qualificationState) && !LIVE_OPPORTUNITY_STATES.has(opportunityState)) {

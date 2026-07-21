@@ -487,6 +487,14 @@ Implemented on this branch (see individual commits for detail):
   proof boundaries; homepage tests pin illustrative labels and the generated-
   media-not-real-world-proof boundary so those compliance labels cannot
   silently disappear.
+- **Residual truth hardening done** — production now refuses the opt-in
+  Pipeline placeholder-request fallback, and any non-production record marked
+  `autoCreatedByPipeline` is excluded from public site-world supply. Operator
+  status fields remain null when the owning request has not recorded them;
+  Settings links to authenticated buyer APIs instead of inventing payment or
+  purchase state; the unimplemented public error-statistics endpoint is
+  removed; and remaining public copy no longer calls QA acceptance
+  "validation" or describes illustrative imagery as placeholder supply.
 
 External launch gates that remain after the code remediation:
 

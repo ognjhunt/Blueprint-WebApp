@@ -545,6 +545,9 @@ async function syncBuyerEntitlementArtifacts(params: {
 }
 
 function allowPipelinePlaceholderRequests() {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
   const normalized = String(process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS || "")
     .trim()
     .toLowerCase();
@@ -926,10 +929,10 @@ function buildPlaceholderInboundRequest(params: {
       crmSyncedAt: null,
     },
     ops: {
-      assigned_region_id: "managed-alpha",
+      assigned_region_id: null,
       rights_status: "unknown",
       capture_policy_tier: "review_required",
-      capture_status: "approved",
+      capture_status: "not_requested",
       recapture_reason: null,
       quote_status: "not_started",
       next_step:
@@ -1187,6 +1190,10 @@ router.post(
           site_submission_id: siteSubmissionId || null,
         });
       }
+      logger.warn(
+        { requestId: requestId || null, siteSubmissionId: siteSubmissionId || null },
+        "Using non-production pipeline placeholder request fallback",
+      );
       const targetDocId = requestId || siteSubmissionId;
       docRef = db.collection("inboundRequests").doc(targetDocId);
       shouldCreate = true;

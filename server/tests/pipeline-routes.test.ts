@@ -1191,6 +1191,38 @@ describe("pipeline integration routes", () => {
     }
   });
 
+  it("keeps placeholder fallback disabled in production even when the flag is enabled", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS = "true";
+    state.queryDocs = [];
+    state.docExists = false;
+
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest(pipelineAttachmentFixture);
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ code: "missing_inbound_request_bootstrap" }),
+      );
+      expect(state.docSet).not.toHaveBeenCalled();
+    } finally {
+      if (originalNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+      await stopServer(server);
+    }
+  });
+
   it("returns a validated scene dashboard for an attached request", async () => {
     state.docData = {
       requestId: "req-1",

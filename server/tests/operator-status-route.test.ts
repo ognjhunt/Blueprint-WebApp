@@ -113,4 +113,39 @@ describe("operator status route", () => {
       await stopServer(server);
     }
   });
+
+  it("returns null instead of inventing missing operational states", async () => {
+    state.users.set("operator-2", {
+      buyerType: "site_operator",
+      structuredIntakeRequestId: "request-2",
+    });
+    state.requests.set("request-2", {
+      requestId: "request-2",
+      request: {
+        siteName: "South line",
+      },
+    });
+    const { server, baseUrl } = await startRoute();
+
+    try {
+      const response = await fetch(`${baseUrl}/api/operator-status/current`, {
+        headers: { "x-test-uid": "operator-2" },
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            qualification_state: null,
+            opportunity_state: null,
+            rights_status: null,
+            capture_status: null,
+            quote_status: null,
+            next_step: null,
+          }),
+        }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

@@ -302,7 +302,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/terms", layout: "public", shell: "bare", component: Terms },
   { path: "/beta/capturer-guide", layout: "public", shell: "bare", component: BetaCapturerGuide },
   { path: "/beta/buyer-guide", layout: "public", shell: "bare", component: BetaBuyerGuide },
-  { path: "/settings", layout: "public", shell: "bare", component: Settings },
+  { path: "/settings", layout: "protected", shell: "bare", component: Settings },
   { path: "/requests/:requestId", layout: "public", shell: "bare", component: RequestConsole },
   { path: "/requests/:requestId/evidence", layout: "public", shell: "bare", component: RequestConsole },
   { path: "/requests/:requestId/qualification", layout: "public", shell: "bare", component: RequestConsole },

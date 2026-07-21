@@ -52,7 +52,7 @@ const routeCards = [
     href: "/signup?flow=capturer",
     eyebrow: "Capturers",
     title: "Capture sites near you.",
-    body: "Run lawful public-facing captures and get paid per validated bundle.",
+    body: "Run lawful public-facing captures and get paid after a capture bundle passes QA.",
     Icon: Camera,
   },
 ];
