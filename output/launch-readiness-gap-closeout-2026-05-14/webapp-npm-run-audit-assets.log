@@ -1,7 +1,0 @@
-
-> rest-express@1.0.0 audit:assets
-> tsx scripts/audit-assets.ts
-
-Asset audit passed.
-
-EXIT_CODE=0

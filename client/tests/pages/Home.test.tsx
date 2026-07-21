@@ -21,6 +21,10 @@ describe("Home", () => {
     expect(screen.getByText(/Run the comparison/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Decide the next test/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/500 episodes/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Illustrative run$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Illustrative readout\. Generated and simulated media/i)).toBeInTheDocument();
+    expect(screen.getByText(/Illustrative values\. Correlation reference 0\.929 \(SC3-Eval\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review media, not real-world proof/i)).toBeInTheDocument();
     expect(screen.getAllByText(/policies submitted by other teams and vendors/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", { name: /One captured envelope\. A clear policy ranking\./i }),

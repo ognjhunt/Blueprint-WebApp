@@ -15,18 +15,7 @@ function normalizeComparableText(value: string | null | undefined) {
 }
 
 async function listRepoRecipientEvidenceFiles() {
-  const issueUpdatesDir = path.join(REPO_ROOT, "issue-updates");
   const playbooksDir = path.join(REPO_ROOT, "ops/paperclip/playbooks");
-
-  const issueUpdateFiles = await fs.readdir(issueUpdatesDir)
-    .then((entries) =>
-      entries
-        .filter((entry) => entry.endsWith(".md"))
-        .sort()
-        .reverse()
-        .map((entry) => path.join(issueUpdatesDir, entry)),
-    )
-    .catch(() => [] as string[]);
 
   const playbookFiles = await fs.readdir(playbooksDir)
     .then((entries) =>
@@ -41,7 +30,7 @@ async function listRepoRecipientEvidenceFiles() {
     )
     .catch(() => [] as string[]);
 
-  return [...issueUpdateFiles, ...playbookFiles];
+  return playbookFiles;
 }
 
 function extractRepoRecipientEvidence(input: {

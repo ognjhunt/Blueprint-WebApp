@@ -9,12 +9,12 @@ describe("city launch recipient evidence", () => {
   it("recovers recipient-backed emails from repo artifact evidence", async () => {
     const { resolveRepoArtifactRecipientEvidence } = await import("../utils/cityLaunchRecipientEvidence");
     const matches = await resolveRepoArtifactRecipientEvidence({
-      targets: ["Raymond West", "Lineage Logistics"],
+      targets: ["Raymond West", "SIR Robotics"],
     });
 
     expect(matches.get("raymondwest")?.recipientEmail).toBe("sales@raymondwest.com");
-    expect(matches.get("lineagelogistics")?.recipientEmail).toBe("mbeer@sir-robotics.com");
-    expect(matches.get("raymondwest")?.source).toContain("issue-updates/");
+    expect(matches.get("sirrobotics")?.recipientEmail).toBe("mbeer@sir-robotics.com");
+    expect(matches.get("raymondwest")?.source).toContain("ops/paperclip/playbooks/");
   });
 
   it("does not recover reserved example-domain rows from repo artifacts", async () => {

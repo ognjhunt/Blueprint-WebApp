@@ -441,8 +441,8 @@ export default function OnboardingChecklist() {
       });
     }
 
-    // Robot teams land in the entitlement-backed buyer app; site operators
-    // keep the legacy dashboard until an operator app surface exists.
+    // The app overview routes robot teams to buyer records and site operators
+    // to the request-backed operator status surface.
     setLocation("/app");
   }, [currentUser?.uid, setLocation, userData?.buyerType]);
 

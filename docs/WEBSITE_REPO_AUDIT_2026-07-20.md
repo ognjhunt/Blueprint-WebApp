@@ -441,38 +441,40 @@ Implemented on this branch (see individual commits for detail):
 - **P0.1 partial** — secret-bearing files deleted (`lindyWebhook.ts`,
   `FeatureConfigScreens.jsx`, `Workspace.tsx`, `TeamMembers.tsx`).
   **OWNER ACTION STILL REQUIRED: revoke/rotate the Lindy, Perplexity, and
-  Firecrawl credentials at the providers — they remain valid and in git
-  history until rotated.**
-- **P0.2 done** — `/sites` + `/sites/:slug` labeled as sample packages;
-  Capture per-job Apply replaced with waitlist CTA + live city status;
-  `/launch-map` restored as the real API-backed page (SPA + server layer).
+  Firecrawl credentials at the providers — assume they may remain valid and
+  they remain in git history until rotated.**
+- **P0.2 done** — `/sites` + `/sites/:slug` now accept only current
+  Pipeline-backed public records; static fixture responses fail closed and the
+  empty state routes to real capture/intake instead of inventing supply.
 - **P0.3 done** — `/dashboard` deleted (Math.random metrics gone); sign-in
-  routes buyers to `/app`, operators to `/onboarding`.
+  routes both personas to `/app`, whose overview selects the buyer or
+  request-backed operator surface.
 - **P0.4 done** — 0.929 attributed to SC3-Eval on Vision/About; "Validated"
   SKU renamed; "disguised as a product" line removed.
 - **P0.5 done** — `/join` and `/portal` theater removed (redirects remain).
-- **P1.6 done** — ~46 dead pages/components/data deleted (Agents.tsx kept
-  for the drift guard; FAQ.tsx kept and rewritten); orphaned
+- **P1.6 done** — ~46 dead pages/components/data deleted (including the dead
+  Agents surface; FAQ.tsx kept and rewritten); orphaned
   deployment-marketplace SVGs removed; prerender/build expectations updated.
 - **P1.7 done** — signups consolidated (Business + Capturer flows only);
   single logged-in home (`/app`).
 - **P1.8 done** — durable run view (`/app/runs` + buyer-scoped list
   endpoint); Policy Improvement Run surfaced on ForRobotTeams, Pricing,
   HowItWorks, FAQ.
-- **P1.9 done** — copy fixes: $5k fee-vs-payout resolved (fee + revenue
-  share), HowItWorks capture link, ForSiteOperators H1, FAQ restored and
+- **P1.9 done** — copy fixes: $5k fee-vs-payout resolved as an operator-side
+  review fee, HowItWorks capture link, ForSiteOperators H1, FAQ restored and
   in footer/sitemap, homepage jargon strip + capturer band.
 - **P1.10 done** — CLAUDE.md wedge wording + repo-relative paths + graphify
   rule; AGENTS.md paths; MARKETING_AUDIT_REPORT archived with banner.
-- **P2.11 partial** — Replit files, stray files, `tmp/` untracked (34 MB).
-  Deliberately NOT done here: `output/`/`outputs/` untracking (load-bearing
-  for claims:guard per BLR-040), `issue-updates/` untracking (read by
-  `cityLaunchRecipientEvidence.ts` + tests), `attached_assets/` removal
-  (path-validation regexes reference it), ops/labs/knowledge extraction
-  (needs a new repo + `blueprint-cto` approval), LFS/CDN migration.
-- **P2.12 done (minimal)** — capturer approval endpoints + AdminLeads
-  Capturers tab + honest status ladder on `/capture-app`. Operator lane
-  remains checklist-based (decision still open: thin status page vs.
-  concierge framing).
-- **P2.13 open** — broader client unit coverage for truth-labeling badges
-  (new Sites/FAQ/ladder tests added, but no dedicated badge-guard suite).
+- **P2.11 partial** — Replit files, attached assets, stray files, `tmp/`,
+  `output/`, `outputs/`, and `issue-updates/` are no longer tracked; the
+  claims guard writes ignored runtime reports and recipient recovery now uses
+  explicit playbook evidence. Remaining: ops/labs/knowledge extraction needs
+  an approved destination; broader LFS/CDN migration needs deployment-owner
+  confirmation.
+- **P2.12 done** — capturer approval, account history, earnings, and Stripe
+  payout setup are routed; site operators receive a thin request-backed
+  `/app` status surface instead of the legacy AR dashboard.
+- **P2.13 done** — Sites tests reject static fixture supply and require live
+  proof boundaries; homepage tests pin illustrative labels and the generated-
+  media-not-real-world-proof boundary so those compliance labels cannot
+  silently disappear.
