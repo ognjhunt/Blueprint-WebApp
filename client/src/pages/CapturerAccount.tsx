@@ -136,7 +136,7 @@ export default function CapturerAccount() {
             <Card pad="lg" className="flex flex-col gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div><h2 className="text-xl font-semibold">Payout setup</h2><p className="mt-2 text-sm text-ink-500">Stripe owns bank-account and payout readiness.</p></div>
-                <StatusChip tone={query.data.stripe?.payouts_enabled ? "proof" : "warn"} square>
+                <StatusChip tone={statusTone(query.data.stripe?.payouts_enabled ? "active" : null)} square>
                   {query.data.stripe
                     ? query.data.stripe.payouts_enabled
                       ? "payouts enabled"
