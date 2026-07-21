@@ -423,8 +423,8 @@ export default function Pricing() {
             imageAlt="Robotic packing cell"
             primaryHref="/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing"
             primaryLabel="Request evaluation"
-            secondaryHref="/how-it-works"
-            secondaryLabel="See how it works"
+            secondaryHref="/sites"
+            secondaryLabel="Browse site records"
           />
         </div>
       </section>

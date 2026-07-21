@@ -204,7 +204,7 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
-  { path: "/launch-map", layout: "public", component: ContactRedirect },
+  { path: "/launch-map", layout: "public", component: CaptureLaunchAccess },
 
   // Capture / Earn direct flows
   { path: "/capture", layout: "public", component: Capture },

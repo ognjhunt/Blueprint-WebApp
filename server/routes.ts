@@ -17,7 +17,6 @@ import operatorStatusRouter from "./routes/operator-status";
 import creatorRouter from "./routes/creator";
 import contactHandler from "./routes/contact";
 import waitlistHandler from "./routes/waitlist";
-import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
@@ -119,7 +118,6 @@ export function registerRoutes(app: Express) {
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
-  app.post("/api/apply", csrfProtection, applyHandler);
   app.use("/api/help", csrfProtection, helpRouter);
   app.post("/api/voice/webhook", voiceWebhookHandler);
   app.post("/api/voice/telephony/inbound", telephonyInboundHandler);

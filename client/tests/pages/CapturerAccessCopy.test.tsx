@@ -66,41 +66,27 @@ describe("Capturer access copy", () => {
     };
   });
 
-  it("renders Capture Jobs with accepted methods, payout hierarchy, mock jobs, and safety rules", () => {
+  it("renders an assignment-gated capturer path without invented public jobs or payout bands", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Capture Jobs/i }),
+      screen.getByRole("heading", { name: /Capture real sites for robot evaluation/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Get paid to capture real sites for robot evaluation/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/360 camera/i).length).toBeGreaterThan(2);
-    expect(screen.getByText(/Highest payout/i)).toBeInTheDocument();
-    expect(screen.getByText(/Standard payout/i)).toBeInTheDocument();
-    expect(screen.getByText(/POV payout/i)).toBeInTheDocument();
-    expect(screen.getByText(/360 camera pays the most, then phone, then smart glasses/i)).toBeInTheDocument();
-    expect(screen.getByText(/Showing 6 of 6 mock capture jobs/i)).toBeInTheDocument();
-    expect(screen.getByText(/Northfield Distribution Dock/i)).toBeInTheDocument();
-    expect(screen.getByText(/Capture only approved public-facing or operator-approved routes/i)).toBeInTheDocument();
-    expect(screen.getByText(/Sample jobs are not a live guarantee of availability, approval, or payout/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Apply to capture/i })).toHaveAttribute(
+    expect(screen.getByText(/Blueprint publishes assignments only after review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review first\. Assignment second\. Payout after QA\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No public payout promises/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Apply to capture/i })[0]).toHaveAttribute(
       "href",
-      "/signup/capturer?source=capture-jobs",
+      "/signup/capturer?source=capture",
     );
-    expect(screen.getAllByRole("link", { name: /Join waitlist/i }).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/world model/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/post-training/i)).not.toBeInTheDocument();
-  });
-
-  it("filters mock capture jobs by site type", () => {
-    render(<Capture />);
-
-    fireEvent.change(screen.getByLabelText(/Site type/i), {
-      target: { value: "Hospital" },
-    });
-
-    expect(screen.getByText(/Showing 1 of 6 mock capture jobs/i)).toBeInTheDocument();
-    expect(screen.getByText(/Commonwealth Pharmacy Supply Annex/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Check city status/i })[0]).toHaveAttribute(
+      "href",
+      "/capture-app/launch-access?role=capturer&source=capture",
+    );
     expect(screen.queryByText(/Northfield Distribution Dock/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Commonwealth Pharmacy Supply Annex/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/mock capture jobs/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$300-\$700/i)).not.toBeInTheDocument();
   });
 
   it("does not show default launch cities on the launch-access form when the API fails", () => {

@@ -67,4 +67,3 @@ The robotics market is shifting from broad awareness campaigns to proof-led tech
 ---
 
 *Notes: Demand signals for the week of April 28-May 4, 2026 remain consistent with prior weeks. Market intelligence gathering continues; see founder brief 2026-05-04 for ongoing research activities. No new source notes available in the raw knowledge base for this period; analysis based on sustained patterns from prior weeks and the Robot Team Demand Weekly Tracker (last verified 2026-04-27).*
-

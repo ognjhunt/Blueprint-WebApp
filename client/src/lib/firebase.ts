@@ -154,7 +154,6 @@ export interface UserData {
   numSessions: number;
   uploadedContentCount: number;
   collectedContentCount: number;
-  planType: string;
   mappingOptIn?: boolean | null;
   kitDeliveryEstimate?: Date | null;
   kitTrackingUrl?: string | null;
@@ -245,7 +244,6 @@ export interface UserData {
   hasEnteredNotes: boolean;
   hasEnteredInventory: boolean;
   hasEnteredCameraRoll: boolean;
-  amountEarned: number;
   latitude?: number;
   longitude?: number;
   altitude?: number;
@@ -399,10 +397,8 @@ export const createUserDocument = async (
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
         numSessions: 1,
-        planType: "free",
         credits: 0,
         finishedOnboarding: false,
-        amountEarned: 0,
       };
 
       logDebug("[Firebase] Attempting setDoc for new user...");

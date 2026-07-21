@@ -206,9 +206,19 @@ export default function ForRobotTeams() {
                       size="lg"
                       className="text-[color:var(--text-on-ink)] hover:bg-white/5"
                     >
-                      <a href="/how-it-works">See how it works</a>
+                      <a href="/sites">Browse site records</a>
                     </Button>
                   </div>
+                  <p className="mt-4 text-sm text-[color:var(--text-on-ink)] opacity-75">
+                    Already know the policy modalities and robot interface?{" "}
+                    <a
+                      href="/robot-team/eval"
+                      className="font-semibold underline underline-offset-4 hover:opacity-100"
+                    >
+                      Configure policy inputs
+                    </a>
+                    .
+                  </p>
                 </div>
                 <div className="hidden items-end justify-end lg:flex">
                   <HeroRankCard />
@@ -539,8 +549,8 @@ export default function ForRobotTeams() {
             imageAlt="Captured factory site for robot evaluation"
             primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&source=for-robot-teams-cta"
             primaryLabel="Request evaluation"
-            secondaryHref="/pricing"
-            secondaryLabel="See pricing"
+            secondaryHref="/sites"
+            secondaryLabel="Browse site records"
             dark
           />
         </section>

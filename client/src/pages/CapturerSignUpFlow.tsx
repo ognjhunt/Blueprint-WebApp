@@ -362,7 +362,6 @@ export default function CapturerSignUpFlow() {
         phoneNumber,
         role: "capturer",
         roles: ["capturer"],
-        planType: "capturer",
         capturerApplicationStatus: marketIsSupportedLaunchCity
           ? "pending_review"
           : "future_city_waitlist",
@@ -377,7 +376,6 @@ export default function CapturerSignUpFlow() {
         numSessions: 1,
         finishedOnboarding: true,
         onboardingStep: "completed",
-        amountEarned: 0,
       });
 
       analyticsEvents.capturerCohortEntered({

@@ -90,7 +90,7 @@ export function Header() {
         workspaceHref: "/capture-app/account",
         workspaceLabel: "Open capture account",
         secondaryHref: "/capture",
-        secondaryLabel: "View capture jobs",
+        secondaryLabel: "Review capture requirements",
         requestHref,
       };
     }

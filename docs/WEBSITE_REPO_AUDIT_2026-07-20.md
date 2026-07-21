@@ -456,24 +456,33 @@ Implemented on this branch (see individual commits for detail):
   Agents surface; FAQ.tsx kept and rewritten); orphaned
   deployment-marketplace SVGs removed; prerender/build expectations updated.
 - **P1.7 done** — signups consolidated (Business + Capturer flows only);
-  single logged-in home (`/app`).
+  single logged-in home (`/app`); the orphaned `/api/apply` endpoint is
+  removed, legacy buyer-profile duplicates are no longer written, and
+  capturer signup no longer creates synthetic plan or earnings fields.
 - **P1.8 done** — durable run view (`/app/runs` + buyer-scoped list
   endpoint); Policy Improvement Run surfaced on ForRobotTeams, Pricing,
   HowItWorks, FAQ.
 - **P1.9 done** — copy fixes: $5k fee-vs-payout resolved as an operator-side
   review fee, HowItWorks capture link, ForSiteOperators H1, FAQ restored and
-  in footer/sitemap, homepage jargon strip + capturer band.
+  in footer/sitemap, homepage jargon strip + capturer band. ForRobotTeams and
+  Pricing now expose the self-serve site-record path, and the policy-input
+  configurator is linked from the robot-team journey.
 - **P1.10 done** — CLAUDE.md wedge wording + repo-relative paths + graphify
   rule; AGENTS.md paths; MARKETING_AUDIT_REPORT archived with banner.
 - **P2.11 partial** — Replit files, attached assets, stray files, `tmp/`,
   `output/`, `outputs/`, and `issue-updates/` are no longer tracked; the
   claims guard writes ignored runtime reports and recipient recovery now uses
-  explicit playbook evidence. Remaining: ops/labs/knowledge extraction needs
-  an approved destination; broader LFS/CDN migration needs deployment-owner
-  confirmation.
+  explicit playbook evidence. Ten dated accountability, founder, demand, and
+  market reports have moved from the repository root to `docs/archive/`.
+  The two large world-preview `.ply` and `.spz` binaries called out by the
+  audit are already stored through Git LFS.
+  Remaining: ops/labs/knowledge extraction needs an approved destination;
+  broader media CDN migration needs deployment-owner confirmation.
 - **P2.12 done** — capturer approval, account history, earnings, and Stripe
   payout setup are routed; site operators receive a thin request-backed
-  `/app` status surface instead of the legacy AR dashboard.
+  `/app` status surface instead of the legacy AR dashboard. `/capture` no
+  longer advertises invented jobs, cities, or payout bands, and `/launch-map`
+  now resolves to the API-backed, fail-closed launch-access status surface.
 - **P2.13 done** — Sites tests reject static fixture supply and require live
   proof boundaries; homepage tests pin illustrative labels and the generated-
   media-not-real-world-proof boundary so those compliance labels cannot

@@ -211,10 +211,10 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Capture",
     path: "/capture",
     canonicalPath: "/capture",
-    expectedHeading: "Capture Jobs",
+    expectedHeading: "Capture real sites for robot evaluation.",
     requiredCtas: [
-      { label: "Browse capture jobs", hrefStartsWith: "#jobs" },
-      { label: "Apply or join waitlist", hrefStartsWith: "/signup/capturer" },
+      { label: "Apply to capture", hrefStartsWith: "/signup/capturer" },
+      { label: "Check city status", hrefStartsWith: "/capture-app/launch-access" },
     ],
   },
   {
