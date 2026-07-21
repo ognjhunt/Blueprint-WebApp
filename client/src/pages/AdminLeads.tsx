@@ -414,12 +414,217 @@ function formatStringList(value: unknown) {
     .join(", ");
 }
 
+interface CapturerApplicationItem {
+  uid: string;
+  displayName: string;
+  email: string;
+  market: string;
+  equipment: string[];
+  availability: string;
+  referralSource: string | null;
+  status: string;
+  appliedAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  reviewNote: string | null;
+}
+
+interface CapturerApplicationsResponse {
+  ok: boolean;
+  applications: CapturerApplicationItem[];
+}
+
+const capturerStatusColors: Record<string, string> = {
+  pending_review: "bg-amber-100 text-amber-800",
+  approved: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-rose-100 text-rose-700",
+};
+
+const capturerStatusLabels: Record<string, string> = {
+  pending_review: "Pending review",
+  approved: "Approved",
+  rejected: "Rejected",
+};
+
+function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
+  const queryClient = useQueryClient();
+
+  const applicationsQuery = useQuery<CapturerApplicationsResponse>({
+    queryKey: ["admin-capturer-applications"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const response = await fetch("/api/admin/capturer-applications", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch capturer applications");
+      return response.json();
+    },
+  });
+
+  const decisionMutation = useMutation({
+    mutationFn: async ({
+      uid,
+      decision,
+      note,
+    }: {
+      uid: string;
+      decision: "approved" | "rejected";
+      note?: string;
+    }) => {
+      const response = await fetch(`/api/admin/capturer-applications/${uid}/decision`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ decision, ...(note ? { note } : {}) }),
+      });
+      if (!response.ok) throw new Error("Failed to record capturer decision");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-capturer-applications"] });
+    },
+  });
+
+  const applications = applicationsQuery.data?.applications ?? [];
+
+  const handleApprove = (application: CapturerApplicationItem) => {
+    const name = application.displayName || application.email || application.uid;
+    if (!window.confirm(`Approve ${name} as a capturer?`)) {
+      return;
+    }
+    decisionMutation.mutate({ uid: application.uid, decision: "approved" });
+  };
+
+  const handleReject = (application: CapturerApplicationItem) => {
+    const name = application.displayName || application.email || application.uid;
+    if (!window.confirm(`Reject the capturer application from ${name}?`)) {
+      return;
+    }
+    const note = window.prompt("Optional note for the record (leave blank to skip):", "");
+    if (note === null) {
+      return;
+    }
+    decisionMutation.mutate({
+      uid: application.uid,
+      decision: "rejected",
+      note: note.trim() || undefined,
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600">
+        Decisions update the applicant&apos;s status on their capture-app page.
+        First assignments are coordinated by ops after approval — approving here
+        does not create or promise an assignment.
+      </div>
+      {applicationsQuery.isLoading ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+          Loading capturer applications...
+        </div>
+      ) : applicationsQuery.isError ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+          Failed to load capturer applications. Refresh to retry.
+        </div>
+      ) : applications.length === 0 ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+          No capturer applications on record yet.
+        </div>
+      ) : (
+        applications.map((application) => (
+          <div
+            key={application.uid}
+            className="rounded-2xl border border-zinc-200 bg-white p-5"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-medium text-zinc-950">
+                  {application.displayName || application.email || application.uid}
+                </p>
+                <p className="mt-1 text-sm text-zinc-600">{application.email}</p>
+                <div className="mt-3 grid gap-1 text-sm text-zinc-600">
+                  <p>
+                    <span className="text-zinc-400">Market:</span>{" "}
+                    {application.market || "Not provided"}
+                  </p>
+                  <p>
+                    <span className="text-zinc-400">Equipment:</span>{" "}
+                    {application.equipment.length > 0
+                      ? application.equipment.join(", ")
+                      : "Not provided"}
+                  </p>
+                  <p>
+                    <span className="text-zinc-400">Availability:</span>{" "}
+                    {application.availability || "Not provided"}
+                  </p>
+                  <p>
+                    <span className="text-zinc-400">Applied:</span>{" "}
+                    {application.appliedAt
+                      ? new Date(application.appliedAt).toLocaleString()
+                      : "Unknown"}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                  capturerStatusColors[application.status] ||
+                  "bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                {capturerStatusLabels[application.status] || application.status}
+              </span>
+            </div>
+            {application.status === "pending_review" ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleApprove(application)}
+                  disabled={decisionMutation.isPending}
+                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white disabled:opacity-60"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReject(application)}
+                  disabled={decisionMutation.isPending}
+                  className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 disabled:opacity-60"
+                >
+                  Reject
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 text-sm text-zinc-600">
+                <p>
+                  Reviewed{" "}
+                  {application.reviewedAt
+                    ? new Date(application.reviewedAt).toLocaleString()
+                    : "(time not recorded)"}
+                  {application.reviewedBy ? ` by ${application.reviewedBy}` : ""}
+                </p>
+                {application.reviewNote ? (
+                  <p className="mt-1 text-zinc-500">Note: {application.reviewNote}</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<
-    "submissions" | "hosted_review" | "waitlist" | "approvals" | "field_ops" | "agent"
+    | "submissions"
+    | "hosted_review"
+    | "waitlist"
+    | "approvals"
+    | "capturers"
+    | "field_ops"
+    | "agent"
   >("submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
@@ -1330,6 +1535,8 @@ export default function AdminLeads() {
                   ? "Ops Intake Queue"
                   : activeView === "approvals"
                     ? "Action Ledger"
+                    : activeView === "capturers"
+                      ? "Capturer Applications"
                     : activeView === "field_ops"
                       ? "Field Ops"
                   : "Ops Agent Console"}
@@ -1343,6 +1550,8 @@ export default function AdminLeads() {
                   ? "Waitlist and beta requests"
                   : activeView === "approvals"
                     ? "Phase 2 approvals"
+                    : activeView === "capturers"
+                      ? "Capturer applications"
                     : activeView === "field_ops"
                       ? "Field ops control room"
                   : "Startup operations agent"}
@@ -1356,6 +1565,8 @@ export default function AdminLeads() {
                   ? "Review structured waitlist and private beta intake without dropping into Firestore."
                   : activeView === "approvals"
                     ? "Review the Phase 2 action ledger, then approve, reject, or retry low-risk operator actions."
+                    : activeView === "capturers"
+                      ? "Review capturer signups and record approve/reject decisions. Assignments are coordinated by ops separately after approval."
                     : activeView === "field_ops"
                       ? "Assign capturers, send comms, work the reschedule queue, and track site-access plus finance review from one place."
                   : "Create agent threads, attach startup context, route work into Codex or Claude Code, and approve sensitive runs in one place."}
@@ -1372,6 +1583,7 @@ export default function AdminLeads() {
                       | "hosted_review"
                       | "waitlist"
                       | "approvals"
+                      | "capturers"
                       | "field_ops"
                       | "agent",
                   )
@@ -1389,6 +1601,9 @@ export default function AdminLeads() {
                   </TabsTrigger>
                   <TabsTrigger value="approvals" className="rounded-full px-4">
                     Approvals
+                  </TabsTrigger>
+                  <TabsTrigger value="capturers" className="rounded-full px-4">
+                    Capturers
                   </TabsTrigger>
                   <TabsTrigger value="field_ops" className="rounded-full px-4">
                     Field Ops
@@ -1408,6 +1623,10 @@ export default function AdminLeads() {
                     ? waitlistQuery.refetch()
                     : activeView === "approvals"
                       ? approvalQueueQuery.refetch()
+                      : activeView === "capturers"
+                        ? queryClient.invalidateQueries({
+                            queryKey: ["admin-capturer-applications"],
+                          })
                       : activeView === "field_ops"
                         ? Promise.all([
                             fieldOpsJobsQuery.refetch(),
@@ -1484,6 +1703,8 @@ export default function AdminLeads() {
 
         {activeView === "agent" ? (
           <AdminAgentConsole />
+        ) : activeView === "capturers" ? (
+          <CapturerApplicationsSection isAdmin={isAdmin} />
         ) : activeView === "approvals" ? (
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
