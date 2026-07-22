@@ -132,6 +132,11 @@ describe("buildRobotEvalJobRequest", () => {
           compatibility_notes: "Fixture controller, no contact-rich validation claim.",
         },
       },
+      benchmarkProtocol: {
+        mode: "benchmark_grade",
+        benchmarkSpecUri: "gs://blueprint/benchmarks/drawer/spec.json",
+        benchmarkSpecSha256: "a".repeat(64),
+      },
       source: {
         route: "/sites/sw-chi-01",
         surface: "sites",
@@ -139,6 +144,17 @@ describe("buildRobotEvalJobRequest", () => {
     });
 
     expect(request.schema_version).toBe("robot_eval_job_request.v1");
+    expect(request.benchmark_protocol_request).toEqual(
+      expect.objectContaining({
+        mode: "benchmark_grade",
+        frozen_hidden_splits_required: true,
+        fixed_rollouts_required: true,
+        confidence_intervals_required: true,
+        exact_checkpoint_digests_required: true,
+        private_split_material_allowed_in_webapp: false,
+        scheduler_owner: "BlueprintCapturePipeline",
+      }),
+    );
     expect(request.buyer_request_id).toMatch(/^buyer-request-sw-chi-01-place-return-in-bin-/);
     expect(request.job_id).toMatch(/^robot-eval-sw-chi-01-place-return-in-bin-/);
     expect(request.customer).toEqual(

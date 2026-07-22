@@ -49,6 +49,10 @@ export const ROBOT_EVAL_PIPELINE_EXPECTED_OUTPUTS = [
   "scenario_eval_matrix.json",
   "policy_ranking_scorecard.json",
   "candidate_selection_report.json",
+  "benchmark_card.json",
+  "benchmark_report.json",
+  "webapp_benchmark_projection.json",
+  "external_rank_fidelity_report.json",
   "wam_eval_claim_boundary.json",
   "post_training_data_package_export_manifest.json",
   "metrics",
@@ -420,6 +424,13 @@ export function buildRobotEvalJobRequest(input: {
     approved: boolean;
   };
   policySubmission: Record<string, unknown>;
+  benchmarkProtocol?: {
+    mode: "standard" | "benchmark_grade";
+    benchmarkSpecUri?: string | null;
+    benchmarkSpecSha256?: string | null;
+    benchmarkResultsUri?: string | null;
+    externalReferenceUri?: string | null;
+  };
   source: {
     route: string;
     surface: string;
@@ -543,6 +554,23 @@ export function buildRobotEvalJobRequest(input: {
       approved: input.entitlement.approved,
     },
     operation: "evaluate_only",
+    benchmark_protocol_request: {
+      schema_version: "blueprint_benchmark_protocol_request.v1",
+      mode: input.benchmarkProtocol?.mode || "standard",
+      benchmark_spec_uri: input.benchmarkProtocol?.benchmarkSpecUri || null,
+      benchmark_spec_sha256: input.benchmarkProtocol?.benchmarkSpecSha256 || null,
+      benchmark_results_uri: input.benchmarkProtocol?.benchmarkResultsUri || null,
+      external_reference_uri: input.benchmarkProtocol?.externalReferenceUri || null,
+      frozen_hidden_splits_required:
+        input.benchmarkProtocol?.mode === "benchmark_grade",
+      fixed_rollouts_required: input.benchmarkProtocol?.mode === "benchmark_grade",
+      confidence_intervals_required:
+        input.benchmarkProtocol?.mode === "benchmark_grade",
+      exact_checkpoint_digests_required:
+        input.benchmarkProtocol?.mode === "benchmark_grade",
+      private_split_material_allowed_in_webapp: false,
+      scheduler_owner: "BlueprintCapturePipeline",
+    },
     evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
     wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
     allowed_evaluator_backends: EVALUATOR_BACKEND_NEUTRAL_FIELDS.allowed_evaluator_backends,
@@ -662,6 +690,59 @@ export function validateRobotEvalJobRequest(value: unknown): {
   const buyerRequestId = String(value.buyer_request_id || "").trim();
   if (!jobId) errors.push("job_id is required");
   if (!buyerRequestId) errors.push("buyer_request_id is required");
+
+  const benchmarkProtocol = value.benchmark_protocol_request;
+  if (benchmarkProtocol !== undefined && !hasObject(benchmarkProtocol)) {
+    errors.push("benchmark_protocol_request must be an object when provided");
+  } else if (hasObject(benchmarkProtocol)) {
+    if (
+      benchmarkProtocol.schema_version !==
+      "blueprint_benchmark_protocol_request.v1"
+    ) {
+      errors.push(
+        "benchmark_protocol_request.schema_version must be blueprint_benchmark_protocol_request.v1",
+      );
+    }
+    if (!["standard", "benchmark_grade"].includes(String(benchmarkProtocol.mode))) {
+      errors.push("benchmark_protocol_request.mode must be standard or benchmark_grade");
+    }
+    if (benchmarkProtocol.private_split_material_allowed_in_webapp !== false) {
+      errors.push(
+        "benchmark_protocol_request.private_split_material_allowed_in_webapp must be false",
+      );
+    }
+    if (benchmarkProtocol.scheduler_owner !== "BlueprintCapturePipeline") {
+      errors.push(
+        "benchmark_protocol_request.scheduler_owner must be BlueprintCapturePipeline",
+      );
+    }
+    if (benchmarkProtocol.mode === "benchmark_grade") {
+      if (!String(benchmarkProtocol.benchmark_spec_uri || "").trim()) {
+        errors.push(
+          "benchmark_protocol_request.benchmark_spec_uri is required in benchmark_grade mode",
+        );
+      }
+      if (
+        !/^[a-f0-9]{64}$/.test(
+          String(benchmarkProtocol.benchmark_spec_sha256 || "").trim(),
+        )
+      ) {
+        errors.push(
+          "benchmark_protocol_request.benchmark_spec_sha256 must be 64 lowercase hex characters in benchmark_grade mode",
+        );
+      }
+      for (const field of [
+        "frozen_hidden_splits_required",
+        "fixed_rollouts_required",
+        "confidence_intervals_required",
+        "exact_checkpoint_digests_required",
+      ]) {
+        if (benchmarkProtocol[field] !== true) {
+          errors.push(`benchmark_protocol_request.${field} must be true in benchmark_grade mode`);
+        }
+      }
+    }
+  }
 
   const sitePackage = value.site_package;
   let siteSubmissionId = "";

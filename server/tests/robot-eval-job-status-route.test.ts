@@ -91,6 +91,56 @@ function signedPipelineRequest(body: Record<string, unknown>, secret = "secret")
   };
 }
 
+function plannedBenchmarkProjection() {
+  const visibilityCounts = { seen: 1, unseen: 1 };
+  return {
+    schema_version: "blueprint_webapp_benchmark_projection.v1",
+    benchmark_id: "blueprint-drawer",
+    benchmark_version: "2026.1",
+    benchmark_card_sha256: "a".repeat(64),
+    status: "planned",
+    split_summary: {
+      counts: { train: 1, dev: 1, public_test: 1, hidden_test: 1 },
+      generalization_counts: {
+        task: visibilityCounts,
+        scene: visibilityCounts,
+        object: visibilityCounts,
+        camera: visibilityCounts,
+        lighting: visibilityCounts,
+        embodiment: visibilityCounts,
+      },
+      hidden_test_identifiers_redacted: true,
+      hidden_test_content_digest_committed: true,
+    },
+    rollout_protocol: {
+      fixed_rollouts_per_scenario_policy: 20,
+      cherry_picking_prohibited: true,
+      result_replacement_prohibited: true,
+      infrastructure_retries_scored_as_new_attempts: true,
+    },
+    scoring: {
+      metrics: [
+        "full_task_success",
+        "partial_progress",
+        "efficiency",
+        "safety_interventions",
+        "evaluator_abstention",
+      ],
+      confidence_intervals_required: true,
+      bootstrap_replicates: 10_000,
+    },
+    policy_aggregates: [],
+    breakdowns: { split: {}, generalization: {} },
+    external_rank_fidelity: null,
+    hidden_scenario_identifiers_included: false,
+    claim_boundary: {
+      owner_system_artifacts_required: true,
+      different_site_comparison_is_not_site_specific_validation: true,
+      public_claim_upgrade_allowed: false,
+    },
+  };
+}
+
 afterEach(() => {
   state.docs.clear();
   vi.unstubAllEnvs();
@@ -274,6 +324,67 @@ describe("robot eval job request status routes", () => {
           }),
         }),
       );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("stores and returns only the validated benchmark projection", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
+    vi.stubEnv("PIPELINE_SYNC_ALLOWED_GCS_PREFIXES", "gs://bucket/");
+    state.docs.set("job-1", { status: "queued_for_pipeline" });
+    const { server, baseUrl } = await startRoute();
+    const benchmarkProjection = plannedBenchmarkProjection();
+    const signedRequest = signedPipelineRequest({
+      job_id: "job-1",
+      pipeline_status: "running",
+      benchmark_projection: benchmarkProjection,
+      internal_debug_payload: { policy_api_token: "must-not-be-persisted" },
+    });
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/pipeline-status`,
+        { method: "POST", ...signedRequest },
+      );
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ benchmark: benchmarkProjection }),
+      );
+      expect(state.docs.get("job-1")).toEqual(
+        expect.objectContaining({ benchmark_projection: benchmarkProjection }),
+      );
+      expect(state.docs.get("job-1")?.pipeline_result).not.toEqual(
+        expect.objectContaining({ internal_debug_payload: expect.anything() }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects benchmark projections containing hidden scenario material", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
+    state.docs.set("job-1", { status: "queued_for_pipeline" });
+    const { server, baseUrl } = await startRoute();
+    const signedRequest = signedPipelineRequest({
+      job_id: "job-1",
+      pipeline_status: "running",
+      benchmark_projection: {
+        ...plannedBenchmarkProjection(),
+        hidden_scenario_ids: ["secret-scenario"],
+      },
+    });
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/pipeline-status`,
+        { method: "POST", ...signedRequest },
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ code: "invalid_benchmark_projection" }),
+      );
+      expect(state.docs.get("job-1")).toEqual({ status: "queued_for_pipeline" });
     } finally {
       await stopServer(server);
     }

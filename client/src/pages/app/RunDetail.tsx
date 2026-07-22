@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldAlert, ShieldCheck } from "lucide-react";
 
 import { Button, DataField, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
+import { BenchmarkReportPanel } from "@/components/blueprint/app/BenchmarkReportPanel";
 import {
   BuyerAppErrorState,
   BuyerAppLoadingState,
@@ -115,6 +116,8 @@ function RunRecord({ run }: { run: BuyerRunDetail }) {
           </div>
         </section>
       ) : null}
+
+      {run.benchmark ? <BenchmarkReportPanel benchmark={run.benchmark} /> : null}
 
       <ProofBoundary level="info" title="Run record source" icon={ShieldCheck}>
         Every field on this page is read from the stored run record owned by

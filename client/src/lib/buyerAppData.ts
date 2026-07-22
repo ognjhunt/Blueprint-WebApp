@@ -5,6 +5,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { StatusChipProps } from "@/components/blueprint";
+import type { BenchmarkProjection } from "@/lib/benchmarkProjection";
 
 export type EntitlementAccessState =
   | "provisioned"
@@ -122,6 +123,7 @@ export type BuyerRunDetail = BuyerRunRecord & {
   result_artifacts?: Record<string, unknown>;
   proof_boundary?: Record<string, unknown>;
   pipeline_forward?: Record<string, unknown> | null;
+  benchmark?: BenchmarkProjection | null;
 };
 
 type BuyerRunsResponse = {

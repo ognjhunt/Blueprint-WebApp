@@ -281,7 +281,7 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
             eyebrow="The pipeline"
-            title="Five steps from real site to a decision."
+            title="Four steps from real site to a decision."
             description="Each step produces an artifact the next one depends on. Nothing is asserted that the capture cannot support."
           />
 

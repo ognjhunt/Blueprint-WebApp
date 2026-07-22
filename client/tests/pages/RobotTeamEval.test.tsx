@@ -32,7 +32,7 @@ describe("RobotTeamEval", () => {
     );
     expect(screen.getByRole("textbox", { name: /3 Tell us the robot/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /4 Choose episodes/i })).toHaveValue("100");
-    expect(screen.getByRole("combobox", { name: /5 Protect hardware and site IP/i })).toHaveValue(
+    expect(screen.getByRole("combobox", { name: /6 Protect hardware and site IP/i })).toHaveValue(
       "customer_hosted_sealed_eval_capsule",
     );
     expect(
@@ -83,7 +83,7 @@ describe("RobotTeamEval", () => {
     fireEvent.change(screen.getByRole("combobox", { name: /4 Choose episodes/i }), {
       target: { value: "500" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: /5 Protect hardware and site IP/i }), {
+    fireEvent.change(screen.getByRole("combobox", { name: /6 Protect hardware and site IP/i }), {
       target: { value: "physical_robot_evidence_bridge" },
     });
     fireEvent.click(screen.getByText(/Advanced details/i));
@@ -150,6 +150,14 @@ describe("RobotTeamEval", () => {
       company: "Example Robotics",
       projectType: "Policy Evaluation Run",
       requestSource: "robot-team-eval",
+      benchmarkProtocolRequest: {
+        schema_version: "blueprint_benchmark_protocol_request.v1",
+        mode: "benchmark_grade",
+        frozen_hidden_splits_required: true,
+        fixed_rollouts_required: true,
+        confidence_intervals_required: true,
+        exact_checkpoint_digests_required: true,
+      },
     });
     expect(submission.siteWorldId).toBeNull();
     expect(submission.sitePackageTarget).toBe("My exact site");
