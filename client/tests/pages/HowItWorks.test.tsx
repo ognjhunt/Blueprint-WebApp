@@ -27,7 +27,7 @@ describe("HowItWorks", () => {
       screen.getByRole("heading", { name: /^Decide the next test\.$/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Five steps from real site to a decision\./i),
+      screen.getByText(/Four steps from real site to a decision\./i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Not every value is proof\./i),
