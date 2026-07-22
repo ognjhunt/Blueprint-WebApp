@@ -11,10 +11,7 @@ import {
 } from "@/components/blueprint";
 import { MonochromeMedia } from "@/components/site/editorial";
 import { SEO } from "@/components/SEO";
-import {
-  robotPolicyScreeningValue,
-  robotPolicyBeachheadShort,
-} from "@/data/robotPolicyEvaluationClaims";
+import { robotPolicyBeachheadShort } from "@/data/robotPolicyEvaluationClaims";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   buyerRunOnboardingTimeline,
@@ -39,8 +36,8 @@ const routeCards = [
     persona: "robot_team" as const,
     href: "/contact/robot-team#contact-intake",
     eyebrow: "Robot teams",
-    title: "Rank your policies on a real site.",
-    body: "Bring one site and one task. We scope the Task Evaluation Run and return a priced plan.",
+    title: "Compare policies on a real site.",
+    body: "Bring one site and one task. We scope the run and return a priced plan.",
     Icon: Bot,
   },
 ];
@@ -61,19 +58,22 @@ export default function Contact() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const headline = isSiteOperator
-    ? "Partner on capture access."
-    : "Rank your robot policies on a real site — before you spend pilot time.";
+    ? "Share a place for policy comparison."
+    : "Tell us what policies to compare.";
   const subhead = isSiteOperator
-    ? "Operate a site? Partner as a lighthouse location on capture access. Access, rights, and scope are confirmed together — nothing is committed, and no access is granted until you approve it."
-    : `${robotPolicyScreeningValue} It returns a ranking to screen what earns field time — never a guarantee or safety certification. Request only — nothing is committed.`;
+    ? "Start a $5,000/site supply review or scope yearly monitoring. Access, rights, and pricing are confirmed per scope."
+    : "We will recommend the right subscription, quick-look, or site-ops comparison path. Request only — nothing is committed.";
 
   const intentOptions = isSiteOperator
     ? [
-        { value: "capture-access", label: "Partner on capture access" },
+        { value: "supply", label: "Supply a site for review" },
+        { value: "monitoring", label: "Scope yearly monitoring" },
         { value: "rights", label: "Discuss rights and access" },
       ]
     : [
-        { value: "evaluation-run", label: "Task Evaluation Run (policy ranking)" },
+        { value: "subscription", label: "Robot-team subscription" },
+        { value: "quick-look", label: "Quick-look evaluation" },
+        { value: "site-ops", label: "Site-ops comparison" },
       ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

@@ -66,7 +66,7 @@ const pipelineSteps: PipelineStep[] = [
   {
     step: "03",
     badge: "Evaluate",
-    title: "Rank the policies into a shortlist.",
+    title: "Evaluate policies against the site.",
     body: "This is the payload of the run. Robot teams compare policies, checkpoints, and vendor runners on the packaged site, and the run returns a ranked shortlist that says which policy to field-test first. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success, and never a safety certification.",
     src: "/redesign/pov/loading-dock.jpg",
     alt: "Warehouse loading dock staging lane where mobile bases stage and move",
@@ -74,6 +74,32 @@ const pipelineSteps: PipelineStep[] = [
       "Ranked policy shortlist",
       "Failure clusters",
       "Review-support media",
+    ],
+  },
+  {
+    step: "04",
+    badge: "Improve",
+    title: "Turn failures into the next policy loop.",
+    body: "A Policy Improvement Run converts measured failure clusters into prioritized scenarios, curriculum recommendations, and a sealed regression set. An improved policy artifact requires a separately approved trainable interface.",
+    src: "/redesign/pov/inspection-bench.jpg",
+    alt: "Robot policy failure review at an inspection bench",
+    proof: [
+      "Failure priorities",
+      "Curriculum recommendations",
+      "Sealed regression set",
+    ],
+  },
+  {
+    step: "05",
+    badge: "Decide",
+    title: "Decide the next test.",
+    body: "Every run ends in a decision a team can act on: export the data package, request a recapture, narrow the scenario, or move to a field pilot. The proof boundary stays attached so the decision is grounded in what was actually captured.",
+    src: "/redesign/pov/loading-dock.jpg",
+    alt: "Loading dock staging area",
+    proof: [
+      "Export request",
+      "Recapture call",
+      "Next-test record",
     ],
   },
 ];
@@ -213,11 +239,12 @@ export default function HowItWorks() {
               How it works
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-              Capture first. Package the proof. Rank the shortlist.
+              Capture first. Package the proof. Decide the next test.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
-              For robot and foundation-model teams: a site-specific Task Evaluation Run.{" "}
-              {robotPolicyScreeningValue}
+              Blueprint turns one real indoor capture into a versioned, rights-attached
+              package that robot teams can evaluate against — so the next test is a
+              decision, not a guess.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               <ProofChip light>Capture-backed</ProofChip>
@@ -232,8 +259,8 @@ export default function HowItWorks() {
       <section className="bg-canvas">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
-            eyebrow="The Task Evaluation Run"
-            title="From a real site to a ranked shortlist."
+            eyebrow="The pipeline"
+            title="Four steps from real site to a decision."
             description="Blueprint sells robot and foundation-model teams one thing: a site-specific Task Evaluation Run. Capture first, package the proof, then rank your candidate policies — the shortlist is the destination, not a middle step. Nothing is asserted that the capture cannot support."
           />
           <p className="mt-6 max-w-[46rem] text-[15px] leading-[1.7] text-ink-600">
@@ -452,7 +479,7 @@ export default function HowItWorks() {
             imageSrc="/redesign/pov/cold-storage.jpg"
             imageAlt="Cold-storage warehouse aisle where a mobile base navigates and stages totes"
             primaryHref="/contact/robot-team?persona=robot-team&source=how-it-works"
-            primaryLabel="Request an evaluation"
+            primaryLabel="Request evaluation"
             secondaryHref="/pricing"
             secondaryLabel="See pricing"
           />

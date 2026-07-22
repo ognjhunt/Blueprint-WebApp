@@ -36,7 +36,7 @@ const signupLinks = [
   },
   {
     href: "/signup/business?buyerType=site_operator&source=header-signup",
-    label: "Offer a site (access partner)",
+    label: "Site operator",
     description: "Submit a facility and set access boundaries for free.",
     Icon: ShieldCheck,
   },

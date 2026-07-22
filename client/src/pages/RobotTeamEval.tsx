@@ -61,6 +61,7 @@ const steps = [
   ["2", "Add policies"],
   ["3", "Tell us robot"],
   ["4", "Choose episodes"],
+  ["5", "Protect IP"],
 ];
 
 const privateHardwareRows = [
@@ -430,8 +431,8 @@ export default function RobotTeamEval() {
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
                 {robotPolicyScreeningValue} Rank your own checkpoints, another
                 internal team, or a vendor policy inside the same captured task
-                envelope — guiding field-time decisions without claiming
-                real-world accuracy.
+                envelope — an estimate to guide field-time decisions, not a
+                guarantee of field outcomes.
               </p>
               <p className="mt-4 max-w-md text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
                 Scope today: {robotPolicyBeachheadShort}
@@ -720,14 +721,55 @@ export default function RobotTeamEval() {
                 </select>
               </label>
 
-            </div>
+              <label className="grid gap-2 text-sm font-semibold">
+                5 Choose the evaluation protocol
+                <select
+                  value={evaluationProtocol}
+                  onChange={(event) =>
+                    setEvaluationProtocol(
+                      event.target.value as "benchmark_grade" | "standard",
+                    )
+                  }
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  <option value="benchmark_grade">Benchmark grade</option>
+                  <option value="standard">Standard evaluation</option>
+                </select>
+              </label>
 
-            <p className="mt-4 text-sm leading-6 text-slate-600">
-              This defaults to one comparative ranking run on a single site.
-              Evaluation protocol, validation mode, and hardware/site-IP
-              integration are tucked under Advanced details — leave them as-is
-              for the standard screening run.
-            </p>
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                6 Protect hardware and site IP
+                <select
+                  value={hardwareIntegrationMode}
+                  onChange={(event) => {
+                    const nextMode = event.target
+                      .value as RobotTeamTestSubmissionHardwareIntegrationMode;
+                    setHardwareIntegrationMode(nextMode);
+                    if (nextMode === "reference_public_robot") {
+                      setSiteIpProtectionLevel("blueprint_hosted");
+                    } else if (nextMode === "private_asset_hosted_by_blueprint") {
+                      setSiteIpProtectionLevel("blueprint_hosted");
+                    } else if (nextMode === "physical_robot_evidence_bridge") {
+                      setSiteIpProtectionLevel("redacted_anchor_packet");
+                    } else if (nextMode === "customer_hosted_sealed_eval_capsule") {
+                      setSiteIpProtectionLevel("sealed_eval_capsule");
+                    }
+                  }}
+                  className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  {ROBOT_TEAM_HARDWARE_INTEGRATION_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-normal leading-5 text-slate-500">
+                  Customer-hosted connectors receive a sealed, least-privilege packet;
+                  raw captures, full scenes, scoring harnesses, and sealed audit seeds
+                  stay withheld by default.
+                </span>
+              </label>
+            </div>
 
             <div className="mt-6">
               <h3 className="text-sm font-semibold">Policy access</h3>
@@ -760,55 +802,6 @@ export default function RobotTeamEval() {
                 Advanced details
               </summary>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2 text-sm font-semibold">
-                  Evaluation protocol
-                  <select
-                    value={evaluationProtocol}
-                    onChange={(event) =>
-                      setEvaluationProtocol(
-                        event.target.value as "benchmark_grade" | "standard",
-                      )
-                    }
-                    className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
-                  >
-                    <option value="benchmark_grade">Benchmark grade</option>
-                    <option value="standard">Standard evaluation</option>
-                  </select>
-                </label>
-
-                <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-                  Protect hardware and site IP
-                  <select
-                    value={hardwareIntegrationMode}
-                    onChange={(event) => {
-                      const nextMode = event.target
-                        .value as RobotTeamTestSubmissionHardwareIntegrationMode;
-                      setHardwareIntegrationMode(nextMode);
-                      if (nextMode === "reference_public_robot") {
-                        setSiteIpProtectionLevel("blueprint_hosted");
-                      } else if (nextMode === "private_asset_hosted_by_blueprint") {
-                        setSiteIpProtectionLevel("blueprint_hosted");
-                      } else if (nextMode === "physical_robot_evidence_bridge") {
-                        setSiteIpProtectionLevel("redacted_anchor_packet");
-                      } else if (nextMode === "customer_hosted_sealed_eval_capsule") {
-                        setSiteIpProtectionLevel("sealed_eval_capsule");
-                      }
-                    }}
-                    className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
-                  >
-                    {ROBOT_TEAM_HARDWARE_INTEGRATION_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs font-normal leading-5 text-slate-500">
-                    Customer-hosted connectors receive a sealed, least-privilege packet;
-                    raw captures, full scenes, scoring harnesses, and sealed audit seeds
-                    stay withheld by default.
-                  </span>
-                </label>
-
                 {episodeCount === "custom" ? (
                   <label className="grid gap-2 text-sm font-semibold">
                     Custom episode count

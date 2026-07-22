@@ -17,7 +17,7 @@ const requestHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof";
 
 const proofLayers = [
-  ["Captured real-site envelope", "Scopes one captured site, task, robot, policy set, and threshold — the capture-backed evidence a run ranks against."],
+  ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
   ["Owner proof", "Adds simulator traces, action logs, or real rollouts when needed."],
   ["Research signal", "A secondary, follow-on support layer: generated-observation review can back policy comparisons."],
 ];
@@ -64,7 +64,7 @@ export default function Proof() {
                 {robotPolicyEvaluationBeachhead}
               </p>
               <h1 className="mt-4 max-w-[16ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Proof for the decision.
+                Proof stays scoped.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
                 {robotPolicyScreeningValue}

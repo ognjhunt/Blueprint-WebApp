@@ -39,7 +39,7 @@ const gates = [
     chip: "Provenance",
     title: "Provenance",
     body:
-      "Facility identifier, capture timing, freshness state, approval path, and proof depth travel with the capture and its listing so a site is treated as current only when it actually is. World models, when present, are internal generation and review support — never the proof or the product.",
+      "Facility identifier, capture timing, freshness state, approval path, and proof depth travel with the world model so a site is treated as current only when it actually is. World models, when present, are internal generation and review support — never the proof or the product.",
   },
   {
     tone: "warn" as const,
@@ -63,7 +63,6 @@ const rightsPacket: Array<{ label: string; value: string; mono?: boolean }> = [
 ];
 
 const guarantees = [
-  "Our Task Evaluation Run ranks robot policies on a captured real-site task envelope — an estimate and decision-support ranking to screen before field time, never a guarantee, safety certification, or deployment readiness.",
   "We show proof depth, freshness, and commercial status on every listing before access.",
   "We keep rights, restricted zones, and export scope attached to the manifest, not the marketing.",
   "We separate public proof from example UI in every hosted-access surface.",
@@ -112,7 +111,7 @@ export default function Governance() {
                 Blueprint sells one thing to robot and foundation-model teams: a
                 site-specific Task Evaluation Run that ranks their policies on a captured
                 real-site task envelope. This page is how that ranking&rsquo;s rights, privacy,
-                and provenance stay provable. Every Blueprint capture is built from a real
+                and provenance stay provable. Every Blueprint world model is built from a real
                 place, with readable proof of where, when, how, and under what rights it was
                 captured. The trust details are product surfaces, not promises.
               </p>
@@ -133,7 +132,7 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
           <EditorialSectionIntro
             eyebrow="Four gates"
-            title="Every evaluation run passes the same four gates."
+            title="Every world model passes the same four gates."
             description="Each gate is a readable record a buyer can check before they treat a site as usable."
             className="max-w-3xl"
           />
@@ -188,7 +187,7 @@ export default function Governance() {
                 What we guarantee
               </Eyebrow>
               <h2 className="font-editorial mt-5 text-[clamp(1.8rem,2.8vw,2.6rem)] font-medium leading-[1.04] tracking-[-0.035em] text-ink">
-                Seven commitments we hold on every evaluation run.
+                Six commitments we hold on every world model.
               </h2>
               <div className="mt-7 divide-y divide-line-soft border-t border-line-soft">
                 {guarantees.map((item) => (

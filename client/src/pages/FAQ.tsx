@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "What does Blueprint sell?",
     answer:
-      "Blueprint sells one core thing today: a site-specific Task Evaluation Run that ranks your robot policies on a captured real-site task envelope — cheap screening before you spend field or pilot time. Provenance-checked data packages are a later, related offer off the same captures; world models and simulation are internal supporting tools, never the primary offer or ground truth.",
+      "Blueprint sells capture-backed Task Evaluation Runs, Policy Improvement Runs, and provenance-checked data packages for real-site robot workflows. World models and simulation are supporting tools inside those deliverables, not the primary offer or ground truth.",
   },
   {
     question: "What does a Task Evaluation Run return?",
@@ -99,7 +99,7 @@ export default function FAQ() {
                 <div className="flex h-full max-w-[34rem] flex-col justify-end">
                 <EditorialSectionLabel light>FAQ</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  One run that ranks your robot policies.
+                  The questions that usually decide fit.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-white/70">
                   {robotPolicyScreeningValue}
@@ -116,7 +116,7 @@ export default function FAQ() {
                     href="/sites"
                     className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
-                    See captured real-site task envelopes
+                    Browse site packages
                   </a>
                 </div>
                 </div>

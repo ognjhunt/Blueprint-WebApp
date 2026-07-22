@@ -4,7 +4,7 @@
 // everywhere. Keep export names stable — several pages consume these.
 
 export const robotPolicyEvaluationBoundary =
-  "A Task Evaluation Run ranks robot policies on a captured real-site task envelope as an estimate and decision-support screen — never a guarantee, a safety certification, or a deployment-readiness claim. It holds as rank fidelity inside the measured site, task, robot, and threshold scope; policy-evaluation research is cited as external category evidence, not a Blueprint accuracy result outside that scope.";
+  "A Task Evaluation Run ranks robot policies on a captured real-site task envelope as an estimate and decision-support screen — never a guarantee, a safety certification, or a deployment-readiness claim. It holds as rank fidelity inside the measured site, task, robot, and threshold scope; policy-evaluation research is cited as external category evidence, and it does not turn a virtual score into a universal accuracy guarantee or public policy-ranking result outside the measured evaluation scope.";
 
 // The one-line value proposition for the primary buyer (robot / foundation-model teams).
 export const robotPolicyScreeningValue =

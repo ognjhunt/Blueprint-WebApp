@@ -27,16 +27,27 @@ function requestHref(site?: SiteWorldCard) {
 
 function SiteCard({ site }: { site: SiteWorldCard }) {
   const tasks = site.taskCatalog?.slice(0, 3) || [];
-  const hasCapture = Boolean(site.evaluationReadiness?.qualification_state);
+  const qualificationState = site.evaluationReadiness?.qualification_state;
+  // Surface the risk/refresh states distinctly so a stale or flagged site is not
+  // hidden; keep the ordinary "ready" state neutral so a capture record never
+  // reads as a deployment certification.
+  const captureBadge =
+    qualificationState === "needs_refresh"
+      ? { label: "Needs refresh", className: "border-amber-200 bg-amber-50 text-amber-900" }
+      : qualificationState === "qualified_risky"
+        ? { label: "Qualified · risk noted", className: "border-amber-200 bg-amber-50 text-amber-900" }
+        : qualificationState
+          ? { label: "Capture on file", className: "border-slate-200 bg-slate-50 text-slate-700" }
+          : null;
   return (
     <article className="flex flex-col rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider">
         <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-900">
           Pipeline record
         </span>
-        {hasCapture ? (
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
-            Capture on file
+        {captureBadge ? (
+          <span className={`rounded-md border px-2.5 py-1 ${captureBadge.className}`}>
+            {captureBadge.label}
           </span>
         ) : null}
       </div>
@@ -154,7 +165,7 @@ export default function Sites() {
                 Real capture inventory
               </p>
               <h1 className="mt-4 max-w-[14ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Rank policies where the work happens.
+                Evaluate where the work happens.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
                 {robotPolicyScreeningValue}
@@ -177,14 +188,13 @@ export default function Sites() {
                 >
                   Scope an evaluation <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
+                <a
+                  href="/signup/capturer"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                >
+                  Capture a site
+                </a>
               </div>
-              <p className="mt-4 text-sm text-slate-500">
-                Own a site instead?{" "}
-                <a href="/signup/capturer" className="font-semibold text-slate-700 underline hover:text-slate-950">
-                  Join the capturer network to add supply
-                </a>{" "}
-                — a follow-on access-partner path.
-              </p>
             </div>
             <img
               src={wamPolicyEvalAssets.hero}

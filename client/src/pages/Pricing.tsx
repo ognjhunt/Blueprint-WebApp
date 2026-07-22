@@ -216,7 +216,7 @@ export default function Pricing() {
               Pricing
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-ink-900">
-              Price the run that screens what earns pilot time.
+              Priced as evaluation infrastructure.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-ink-500">
               {robotPolicyScreeningValue}
@@ -541,8 +541,8 @@ export default function Pricing() {
             imageAlt="Warehouse loading dock — mobile-base navigation and rigid tote handling"
             primaryHref="/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing"
             primaryLabel="Request evaluation"
-            secondaryHref="/proof"
-            secondaryLabel="See the proof boundary"
+            secondaryHref="/sites"
+            secondaryLabel="Browse site records"
           />
         </div>
       </section>

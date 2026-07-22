@@ -25,9 +25,9 @@ const statStrip = [
 const principles = [
   {
     eyebrow: "Principle 01",
-    label: "Every run starts from one real captured place.",
+    label: "Capture first, claim later.",
     description:
-      "The captured site is the ground truth, not the world model. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown. Post-Training Data Packages come off the same captures later, as a follow-on, never the front door.",
+      "Every world model starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
   },
   {
     eyebrow: "Principle 02",
@@ -79,8 +79,7 @@ export default function About() {
                 About Blueprint
               </Eyebrow>
               <h1 className="font-editorial mt-6 text-[clamp(2.6rem,5vw,4.2rem)] font-medium leading-[0.96] tracking-[-0.045em] text-ink">
-                Blueprint runs one service: a Task Evaluation Run that ranks your candidate
-                robot policies on a captured real-site task envelope.
+                Blueprint turns one real site into a decision a robot team can trust.
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">
                 {robotPolicyScreeningValue}
@@ -96,13 +95,10 @@ export default function About() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="brass" size="lg">
-                  <a href="/contact/robot-team">
-                    Request an evaluation run
+                  <a href="/sites">
+                    Explore site packages
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </a>
-                </Button>
-                <Button asChild variant="secondary" size="lg">
-                  <a href="/sites">Explore site packages</a>
                 </Button>
                 <Button asChild variant="secondary" size="lg">
                   <a href="/how-it-works">See how it works</a>
@@ -201,14 +197,14 @@ export default function About() {
         <section className="mx-auto max-w-[88rem] px-5 pb-14 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Bring one exact site and rank the policies you'd otherwise field-test blind."
-            description="Request a Task Evaluation Run when the readiness question is already known, or browse site packages first to read the proof style."
+            title="Start with the public proof or bring one exact site."
+            description="Browse site packages to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
             imageSrc="/redesign/pov/factory-conveyor.jpg"
             imageAlt="Captured warehouse conveyor site (review support, not real-world proof)"
-            primaryHref="/contact/robot-team"
-            primaryLabel="Request an evaluation run"
-            secondaryHref="/sites"
-            secondaryLabel="Explore site packages"
+            primaryHref="/sites"
+            primaryLabel="Explore site packages"
+            secondaryHref="/contact/robot-team"
+            secondaryLabel="Request evaluation"
             dark
           />
         </section>
