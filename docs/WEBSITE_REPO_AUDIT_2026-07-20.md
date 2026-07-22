@@ -520,9 +520,9 @@ External launch gates that remain after the code remediation:
 - **Resolved 2026-07-21:** PR #418 merged as
   `41e17825f8716efa91a9dfc99f5329ad0544a02f`; that exact SHA is live in
   production. Its main run passed check, rules emulator, tests, e2e, and build.
-- Complete the follow-up that removes the duplicate obsolete deploy-hook job,
-  proves the API-backed `.github/workflows/deploy.yml` path with the configured
-  `RENDER_API_KEY` and `RENDER_SERVICE_ID`, then disables Render automatic
-  deploys so merges cannot bypass the verified-main workflow.
+- **Resolved 2026-07-21:** PR #419 removed the duplicate obsolete deploy-hook
+  job. Main CI run `29836994895` passed, gated deploy run `29837245844` proved
+  an exact-SHA API deployment with both health checks at 200, and Render now
+  reports `autoDeploy: no`.
 - Decide whether `ops/paperclip`, `labs`, and `knowledge` move to an approved
   operations repository or are formally retained as a monorepo.

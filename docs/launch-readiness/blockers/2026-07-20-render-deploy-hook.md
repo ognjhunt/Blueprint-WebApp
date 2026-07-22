@@ -1,6 +1,6 @@
 # Blocker Title
 
-Prove the API-backed CI deploy owner, then disable Render auto-deploy
+Resolved: API-backed CI deploy ownership
 
 ## Blocker Id
 
@@ -8,42 +8,29 @@ Prove the API-backed CI deploy owner, then disable Render auto-deploy
 
 ## Status
 
-Activation in progress; the credential/configuration request was answered on
-2026-07-21 and is no longer human-gated.
+Resolved on 2026-07-21. This blocker is closed.
 
 ## Current State
 
-GitHub Actions now has the `RENDER_API_KEY` secret and
-`RENDER_SERVICE_ID` repository variable. PR #418 merged as
-`41e17825f8716efa91a9dfc99f5329ad0544a02f`, and an authenticated Render API
-deploy put that exact SHA live. Production `/health` and `/health/ready` both
-return 200 after configuring beta capacity at 100 total invites and 25 daily
-admissions.
+PR #419 merged as `1cf156f2e38127c3b2a38727232c7c7451d6646e`.
+Main CI run `29836994895` passed check, rules emulator, tests, e2e, and build.
+Workflow-run-gated deploy run `29837245844` then created provider deploy
+`dep-d9fno0hkh4rs73cr9fsg` for that exact SHA. Its evidence recorded Render
+status `live`, an exact public SHA match, `/health` 200, and `/health/ready`
+200. Render service configuration was subsequently read back as
+`autoDeploy: no`, leaving `.github/workflows/deploy.yml` as the single
+production deploy owner.
 
-The remaining defect is repository deployment ownership. Main CI run
-`29828655494` passed check, rules emulator, tests, e2e, and build, then failed
-only because `.github/workflows/ci.yml` still contained an obsolete
-`RENDER_DEPLOY_HOOK_URL` job. That failure prevented the intended
-workflow-run-gated deploy workflow from owning the release. Render native
-auto-deploy remains enabled as a temporary recovery path.
+## Remaining Separate Security Action
 
-## Required Closeout
-
-1. Merge the follow-up that removes the duplicate in-CI deploy job and makes
-   `.github/workflows/deploy.yml` call Render's authenticated API with the exact
-   successful `workflow_run.head_sha`.
-2. Observe one hosted deploy become live and verify its uploaded evidence,
-   exact `/version.json` SHA, `/health`, and `/health/ready`.
-3. Disable Render native auto-deploy and retrieve the service configuration to
-   prove `autoDeploy: no`.
-4. Rotate the API key that was exposed in chat, replace the GitHub secret, and
-   re-prove authenticated access without printing the replacement value.
+Rotate the API key that was exposed in chat, replace the GitHub secret, and
+re-prove authenticated access without printing the replacement value. This is
+a credential-containment task, not an open deployment-ownership blocker.
 
 ## Risk
 
-Disabling provider auto-deploy before the replacement workflow proves itself
-could stop production releases. Leaving it enabled after proof allows a main
-push to begin deploying before CI finishes.
+Re-enabling provider native auto-deploy would recreate two competing deploy
+paths and allow a main push to begin deploying before CI finishes.
 
 ## Execution Owner
 
@@ -53,11 +40,14 @@ owner-generated replacement.
 
 ## Evidence
 
-- PR #418 merged at `41e17825f8716efa91a9dfc99f5329ad0544a02f`.
-- Render deploy `dep-d9fm74vavr4c73ci0gs0` became live for that exact SHA.
-- `GET /version.json` returned the exact merge SHA after the redeploy.
+- PR #419 merged at `1cf156f2e38127c3b2a38727232c7c7451d6646e`.
+- Main CI run `29836994895` completed successfully.
+- Gated deploy run `29837245844` completed successfully and uploaded evidence.
+- Render deploy `dep-d9fno0hkh4rs73cr9fsg` became live for the exact merge SHA.
+- `GET /version.json` returned the exact merge SHA.
 - `GET /health` returned 200.
 - `GET /health/ready` returned 200 with `blocker_count: 0`.
+- Render service configuration returned `autoDeploy: no` after the update.
 - GitHub Actions contains the secret name `RENDER_API_KEY` and repository
   variable name `RENDER_SERVICE_ID`; values are not written to this file.
 
