@@ -1,7 +1,9 @@
 import { SEO } from "@/components/SEO";
 import {
+  robotPolicyEvaluationBeachhead,
   robotPolicyEvaluationBoundary,
   robotPolicyResearchSignals,
+  robotPolicyScreeningValue,
 } from "@/data/robotPolicyEvaluationClaims";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
@@ -15,9 +17,9 @@ const requestHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof";
 
 const proofLayers = [
-  ["Research signal", "Generated-observation review can support policy comparisons."],
   ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
   ["Owner proof", "Adds simulator traces, action logs, or real rollouts when needed."],
+  ["Research signal", "A secondary, follow-on support layer: generated-observation review can back policy comparisons."],
 ];
 
 export default function Proof() {
@@ -58,10 +60,16 @@ export default function Proof() {
         <section className="border-b border-slate-200">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
-              <h1 className="max-w-[10ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                {robotPolicyEvaluationBeachhead}
+              </p>
+              <h1 className="mt-4 max-w-[16ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
                 Proof stays scoped.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
+                {robotPolicyScreeningValue}
+              </p>
+              <p className="mt-4 max-w-md text-sm leading-7 text-slate-500">
                 SC3-Eval's published 0.929 correlation is third-party research
                 context, not a Blueprint result, accuracy claim, or deployment claim.
               </p>
@@ -75,7 +83,7 @@ export default function Proof() {
             </div>
             <img
               src={wamPolicyEvalAssets.rolloutStrip}
-              alt="Generated rollout support frames for a humanoid robot task"
+              alt="Generated preview / review support: rollout frames of a mobile robot navigating a warehouse aisle and making a rigid tote pick"
               className="aspect-[16/6] w-full rounded-lg border border-slate-200 object-cover"
             />
           </div>
@@ -126,6 +134,10 @@ export default function Proof() {
               <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
                 {robotPolicyEvaluationBoundary} Provenance-checked packs report metrics
                 only inside the matched robot, task, and site envelope.
+              </p>
+              <p className="mt-4 max-w-4xl text-sm font-semibold leading-7 text-slate-200">
+                A Task Evaluation Run returns a ranking / estimate — not a guarantee or
+                safety certification.
               </p>
             </div>
           </div>

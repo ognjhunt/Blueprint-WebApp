@@ -185,7 +185,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
       { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
+      { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {
@@ -204,7 +204,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/proof",
     expectedHeading: "Proof stays scoped.",
     requiredCtas: [
-      { label: "Start", hrefStartsWith: "/contact" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
     ],
   },
   {
@@ -224,7 +224,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
       { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
+      { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {
@@ -234,7 +234,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
       { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
+      { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {

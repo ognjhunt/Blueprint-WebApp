@@ -14,6 +14,10 @@ import {
   EditorialSectionIntro,
   ProofChip,
 } from "@/components/site/editorial";
+import {
+  robotPolicyBeachheadShort,
+  robotPolicyEvaluationBoundary,
+} from "@/data/robotPolicyEvaluationClaims";
 
 const gates = [
   {
@@ -35,7 +39,7 @@ const gates = [
     chip: "Provenance",
     title: "Provenance",
     body:
-      "Facility identifier, capture timing, freshness state, approval path, and proof depth travel with the world model so a site is treated as current only when it actually is.",
+      "Facility identifier, capture timing, freshness state, approval path, and proof depth travel with the world model so a site is treated as current only when it actually is. World models, when present, are internal generation and review support — never the proof or the product.",
   },
   {
     tone: "warn" as const,
@@ -49,7 +53,8 @@ const gates = [
 const rightsPacket: Array<{ label: string; value: string; mono?: boolean }> = [
   { label: "Packet ID", value: "RIGHTS-2049-08" },
   { label: "Facility", value: "SITE-2049 · Midwest DC" },
-  { label: "Rights class", value: "Evaluation + licensed export" },
+  { label: "Eval envelope", value: "Nav + rigid pick-and-place · dexterous out of scope" },
+  { label: "Rights class", value: "Evaluation now · licensed export later (Data Package)" },
   { label: "Export scope", value: "Buyer + 1 named policy team" },
   { label: "Restricted zones", value: "Checkout · employee corridor" },
   { label: "Retention", value: "Raw 90d · derived 365d", mono: true },
@@ -103,9 +108,16 @@ export default function Governance() {
                 Rights, privacy, and provenance — kept visible.
               </h1>
               <p className="mt-6 max-w-[36rem] text-lg leading-[1.7] text-[color:var(--text-on-ink)] opacity-75">
-                Every Blueprint world model is built from a real place, with readable proof
-                of where, when, how, and under what rights it was captured. The trust
-                details are product surfaces, not promises.
+                Blueprint sells one thing to robot and foundation-model teams: a
+                site-specific Task Evaluation Run that ranks their policies on a captured
+                real-site task envelope. This page is how that ranking&rsquo;s rights, privacy,
+                and provenance stay provable. Every Blueprint world model is built from a real
+                place, with readable proof of where, when, how, and under what rights it was
+                captured. The trust details are product surfaces, not promises.
+              </p>
+              <p className="mt-5 max-w-[36rem] font-mono text-[12px] leading-[1.6] text-[color:var(--text-on-ink)] opacity-70">
+                Eval envelope: {robotPolicyBeachheadShort} · dexterous, contact-rich
+                manipulation out of scope for now.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 <ProofChip light>Rights stay explicit</ProofChip>
@@ -198,6 +210,7 @@ export default function Governance() {
           <EditorialSectionIntro
             eyebrow="Hard limit"
             title="The line we will not cross."
+            description={robotPolicyEvaluationBoundary}
             className="max-w-3xl"
           />
           <div className="mt-8 max-w-3xl">

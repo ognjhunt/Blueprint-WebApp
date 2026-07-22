@@ -32,10 +32,11 @@ describe("Header", () => {
       "href",
       "/for-robot-teams",
     );
-    expect(screen.getByRole("link", { name: /^For Site Operators$/i })).toHaveAttribute(
-      "href",
-      "/for-site-operators",
-    );
+    // Site operators are demoted out of the primary header nav to the footer
+    // ("Site access partners"); the buyer-facing header stays robot-team focused.
+    expect(
+      screen.queryByRole("link", { name: /^For Site Operators$/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
       "href",
       "/how-it-works",

@@ -87,10 +87,11 @@ describe("Contact page", () => {
       "href",
       "/contact/robot-team#contact-intake",
     );
-    expect(screen.getByRole("link", { name: /Supply or monitor a facility\./i })).toHaveAttribute(
-      "href",
-      "/contact/site-operator#contact-intake",
-    );
+    // The operator lane is demoted to a low-emphasis reachable link, but stays
+    // reachable at the same site-operator intake href.
+    expect(
+      screen.getByRole("link", { name: /Partner on lighthouse capture access/i }),
+    ).toHaveAttribute("href", "/contact/site-operator#contact-intake");
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
@@ -159,7 +160,7 @@ describe("Contact page", () => {
     expect(screen.getByText(/Start a \$5,000\/site supply review or scope yearly monitoring\. Access, rights, and pricing are confirmed per scope/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Supply or monitor a facility\./i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Partner on lighthouse capture access/i)[0]).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
   });
 });

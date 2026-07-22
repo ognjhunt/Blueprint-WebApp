@@ -1,4 +1,8 @@
 import { SEO } from "@/components/SEO";
+import {
+  robotPolicyBeachheadShort,
+  robotPolicyEvaluationBeachhead,
+} from "@/data/robotPolicyEvaluationClaims";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
@@ -81,7 +85,7 @@ export default function Capture() {
     <>
       <SEO
         title="Become a Capturer | Blueprint"
-        description="Apply to capture approved real-site routes for Blueprint robot evaluation packages. Review city status, accepted methods, assignment boundaries, safety, QA, and payout eligibility."
+        description="Apply to capture approved real-site routes that feed Blueprint's site-specific Task Evaluation Runs — the ranking of robot policies that robot and foundation-model teams buy before they spend field or pilot time. Review city status, accepted methods, assignment boundaries, safety, QA, and payout eligibility."
         canonical="/capture"
         jsonLd={[
           webPageJsonLd({
@@ -114,6 +118,18 @@ export default function Capture() {
                 Blueprint publishes assignments only after review. Site availability, access,
                 assignment, and payout are confirmed for each approved route before capture begins.
               </p>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700">
+                Your captures feed one paid service: site-specific Task Evaluation Runs that rank
+                robot policies for robot and foundation-model teams before they spend field or pilot
+                time. Robot and foundation-model teams buy a ranking of their policies on the exact
+                site you captured — which is why route fidelity and QA matter on every assignment.
+              </p>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+                Assignments today anchor to the beachhead where the evaluation evidence is strongest:{" "}
+                {robotPolicyBeachheadShort}. That means warehouse and logistics navigable floor
+                routes — mobile-base navigation and rigid pick-and-place areas — not fine, contact-rich
+                manipulation. {robotPolicyEvaluationBeachhead}
+              </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href={applicationHref}
@@ -134,7 +150,7 @@ export default function Capture() {
             <div className="relative min-h-[28rem] overflow-hidden border border-slate-200 bg-slate-900">
               <img
                 src={publicCaptureGeneratedAssets.captureAppHero}
-                alt="Capturer following an approved indoor route"
+                alt="Generated preview / review support: a capturer following an approved warehouse floor route for mobile-base navigation and rigid pick-and-place capture"
                 className="absolute inset-0 h-full w-full object-cover grayscale"
                 loading="eager"
               />

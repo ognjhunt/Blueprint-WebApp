@@ -10,6 +10,10 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
+import {
+  robotPolicyEvaluationBeachhead,
+  robotPolicyScreeningValue,
+} from "@/data/robotPolicyEvaluationClaims";
 
 const statStrip = [
   { label: "Robot data vs. text", value: "~1B×", caption: "Smaller than internet text (Bessemer)" },
@@ -23,14 +27,14 @@ const rungs = [
     step: "01",
     phase: "Today",
     title: "Know which policy will actually work — before field time.",
-    body: "Blueprint's Task Evaluation Runs compare robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit. Third-party 2026 research — SC3-Eval from NVIDIA and Physical Intelligence, and OSCAR from Peking University and NVIDIA — reports that video world models can predict real policy ordering. SC3-Eval's published 0.929 closed-loop Pearson correlation is category evidence, not a Blueprint run result.",
-    proof: "Rank fidelity & predicted success — an estimate, never a guaranteed field outcome.",
+    body: `Blueprint's Task Evaluation Runs compare robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit. ${robotPolicyEvaluationBeachhead} Third-party 2026 research — SC3-Eval from NVIDIA and Physical Intelligence, and OSCAR from Peking University and NVIDIA — reports that video world models can predict real policy ordering. SC3-Eval's published 0.929 closed-loop Pearson correlation is category evidence, not a Blueprint run result.`,
+    proof: "Rank fidelity & predicted success — an estimate, never a guaranteed field outcome or safety certification.",
   },
   {
     step: "02",
     phase: "Building",
     title: "Become the neutral standard both sides route decisions through.",
-    body: "Robot teams use our runs to prove readiness and win pilots; site operators require them before a robot reaches the floor. The goal is that a large share of deployment and pilot decisions pass through one trusted, neutral measurement — the way credit ratings, UL safety marks, and MLPerf became the scoreboard their industries transact against. This is a decision layer, not a marketplace.",
+    body: "The aspiration is that robot teams use our runs to prove readiness and win pilots, and that over time site operators come to ask for them before a robot reaches the floor. The goal is that a large share of deployment and pilot decisions eventually pass through one trusted, neutral measurement — the way credit ratings, UL safety marks, and MLPerf became the scoreboard their industries transact against. This is a decision layer we are building toward, not a marketplace and not a gate we operate today.",
     proof: "Neutrality is the asset. Visible methodology, re-validation, and a conflict-of-interest firewall.",
   },
   {
@@ -113,29 +117,26 @@ export default function Vision() {
                 The vision
               </Eyebrow>
               <h1 className="font-editorial mt-6 text-[clamp(2.6rem,5vw,4.2rem)] font-medium leading-[0.96] tracking-[-0.045em] text-ink">
-                Make sure the best robot runs at every site.
+                Know which robot policy works at a real site — before field time.
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">
-                Robotics is heading toward millions of robots, dozens of vendors, and no neutral way
-                to know which one will actually work at a specific real place. Blueprint starts by
-                answering exactly that question — and earns the right to climb the stack from there.
+                For robot and foundation-model teams, Blueprint does one thing today:{" "}
+                {robotPolicyScreeningValue} It's an estimate and a decision-support screen — never a
+                guarantee, a safety certification, or a deployment-readiness claim.
               </p>
-              <p className="mt-4 text-lg leading-[1.7] text-ink-600">
-                We begin as the neutral measurement of policy performance on a captured site, grow
-                into the standard the market routes its deployment decisions through, and let the
-                proprietary data that produces open the door to prediction, site-specific policies,
-                and — where we can prove we're the best operator — deployment itself. Capture-first,
-                provenance-true, the whole way up.
+              <p className="mt-4 text-base leading-[1.7] text-ink-500">
+                Longer-horizon, that neutral measurement is the first rung of a climb — toward the
+                standard the market routes deployment decisions through, and the proprietary data
+                that opens the door to prediction, site-specific policies, and deployment itself.
+                Capture-first, provenance-true, the whole way up. Only rung one is a product you can
+                buy today; everything above it is where we're heading.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="brass" size="lg">
-                  <a href="/how-it-works">
-                    See how it works today
+                  <a href="/contact/robot-team">
+                    Request an evaluation
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </a>
-                </Button>
-                <Button asChild variant="secondary" size="lg">
-                  <a href="/sites">Explore site packages</a>
                 </Button>
               </div>
             </div>
@@ -207,47 +208,71 @@ export default function Vision() {
         <section className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
           <EditorialSectionIntro
             eyebrow="The path up the stack"
-            title="Five rungs, each built on the data the last one produces."
-            description="We don't skip rungs. Each is a product we can sell, a moat we deepen, and the launchpad for the next. Today's product is rung one; everything above it is where the same capture-first foundation is taking us."
+            title="One product today. Four more rungs it's built to reach."
+            description="We don't skip rungs. Only rung one is a product you can buy today; each rung above it is a moat we'd deepen and the launchpad for the next. Everything above rung one is where the same capture-first foundation is taking us — a direction, not a shipped offer."
             className="max-w-3xl"
           />
-          <div className="mt-10 flex flex-col gap-px overflow-hidden rounded-sm border border-line bg-line">
-            {rungs.map((rung) => (
-              <div
-                key={rung.step}
-                className="grid gap-5 bg-white p-6 sm:grid-cols-[auto_1fr] sm:gap-8 lg:p-8"
-              >
-                <div className="flex flex-row items-center gap-4 sm:flex-col sm:items-start sm:gap-3">
-                  <span className="font-mono text-[2.2rem] font-medium leading-none tracking-tight text-ink">
+
+          {/* Rung 01 — the product today */}
+          <div className="mt-10 overflow-hidden rounded-sm border border-brass-deep/30 bg-white">
+            <div className="grid gap-5 p-6 sm:grid-cols-[auto_1fr] sm:gap-8 lg:p-8">
+              <div className="flex flex-row items-center gap-4 sm:flex-col sm:items-start sm:gap-3">
+                <span className="font-mono text-[2.2rem] font-medium leading-none tracking-tight text-ink">
+                  {rungs[0].step}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-brass-deep/30 bg-brass-deep/10 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-brass-deep">
+                  {rungs[0].phase} · the product
+                </span>
+              </div>
+              <div>
+                <h3 className="font-editorial text-[1.6rem] leading-[1.05] tracking-[-0.03em] text-ink">
+                  {rungs[0].title}
+                </h3>
+                <p className="mt-3 max-w-[46rem] text-[15px] leading-[1.7] text-ink-500">
+                  {rungs[0].body}
+                </p>
+                <p className="mt-4 flex items-start gap-2 text-[13px] leading-snug text-ink-400">
+                  <span className="mt-[0.15rem] text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+                    Proof boundary
+                  </span>
+                  <span className="text-ink-500">{rungs[0].proof}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Rungs 02–05 — where this goes over time, subordinate strip */}
+          <p className="mt-10 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            Where this goes over time — direction, not shipped product
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            {rungs.slice(1).map((rung) => (
+              <div key={rung.step} className="flex flex-col gap-3 bg-white p-5">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[1.4rem] font-medium leading-none tracking-tight text-ink-500">
                     {rung.step}
                   </span>
                   <span
                     className={
-                      "inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] " +
-                      (rung.phase === "Today"
-                        ? "border-brass-deep/30 bg-brass-deep/10 text-brass-deep"
-                        : rung.phase === "Building"
-                          ? "border-line bg-canvas text-ink-600"
-                          : "border-line bg-canvas text-ink-400")
+                      "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] " +
+                      (rung.phase === "Building"
+                        ? "border-line bg-canvas text-ink-600"
+                        : "border-line bg-canvas text-ink-400")
                     }
                   >
                     {rung.phase}
                   </span>
                 </div>
-                <div>
-                  <h3 className="font-editorial text-[1.6rem] leading-[1.05] tracking-[-0.03em] text-ink">
-                    {rung.title}
-                  </h3>
-                  <p className="mt-3 max-w-[46rem] text-[15px] leading-[1.7] text-ink-500">
-                    {rung.body}
-                  </p>
-                  <p className="mt-4 flex items-start gap-2 text-[13px] leading-snug text-ink-400">
-                    <span className="mt-[0.15rem] text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-                      Proof boundary
-                    </span>
-                    <span className="text-ink-500">{rung.proof}</span>
-                  </p>
-                </div>
+                <h3 className="font-editorial text-[1.15rem] leading-[1.1] tracking-[-0.02em] text-ink-700">
+                  {rung.title}
+                </h3>
+                <p className="text-[13px] leading-[1.6] text-ink-500">{rung.body}</p>
+                <p className="mt-auto flex items-start gap-1.5 pt-2 text-[12px] leading-snug text-ink-400">
+                  <span className="mt-[0.1rem] text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+                    Proof boundary
+                  </span>
+                  <span className="text-ink-500">{rung.proof}</span>
+                </p>
               </div>
             ))}
           </div>

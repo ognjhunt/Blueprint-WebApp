@@ -3,9 +3,13 @@ import type { FormEvent } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import {
+  robotPolicyBeachheadShort,
   robotPolicyComparisonUseCases,
+  robotPolicyEvaluationBeachhead,
   robotPolicyEvaluationBoundary,
   robotPolicyResearchSignals,
+  robotPolicyResearchSignalsNote,
+  robotPolicyScreeningValue,
 } from "@/data/robotPolicyEvaluationClaims";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -425,9 +429,16 @@ export default function RobotTeamEval() {
                 Compare policies on one site task.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Rank your own checkpoints, another internal team, or a vendor
-                policy inside the same captured task envelope. The output guides
-                field-time decisions without claiming real-world accuracy.
+                {robotPolicyScreeningValue} Rank your own checkpoints, another
+                internal team, or a vendor policy inside the same captured task
+                envelope — an estimate to guide field-time decisions, not a
+                guarantee of field outcomes.
+              </p>
+              <p className="mt-4 max-w-md text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                Scope today: {robotPolicyBeachheadShort}
+              </p>
+              <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">
+                {robotPolicyEvaluationBeachhead}
               </p>
               <a
                 href="#robot-team-submission"
@@ -439,7 +450,7 @@ export default function RobotTeamEval() {
             </div>
             <img
               src={wamPolicyEvalAssets.siteTask}
-              alt="Realistic humanoid robot loading a dishwasher in a captured site task"
+              alt="Generated preview of a warehouse tote pick-and-place task envelope (review support, not real-world proof)"
               className="aspect-[16/9] w-full rounded-lg border border-slate-200 object-cover"
             />
           </div>
@@ -538,14 +549,20 @@ export default function RobotTeamEval() {
           <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[0.36fr_0.64fr] md:px-8">
             <div>
               <h2 className="text-3xl font-semibold leading-tight">
-                Why comparison matters.
+                Which checkpoint earns field time.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                Site ops needs a fair way to compare what gets robot time:
-                your latest checkpoint, another team's runner, a vendor
-                submission, or a baseline trace. Blueprint keeps the site,
-                task, robot, episodes, thresholds, and missing-proof labels
-                constant.
+                Your team needs a cheap, fair way to decide which policy earns
+                scarce field and pilot time: your latest checkpoint, an older
+                baseline, another internal team's runner, or a vendor
+                submission. Blueprint keeps the site, task, robot, episodes,
+                thresholds, and missing-proof labels constant so the ranking is
+                comparable.
+              </p>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Later, for site operators: the same held-constant run can double
+                as one shared evidence packet for a vendor bake-off — a
+                follow-on use, not the front door here.
               </p>
             </div>
             <MobileDisclosureGrid
@@ -573,6 +590,9 @@ export default function RobotTeamEval() {
                 The public claim is that policy-evaluation worlds are becoming
                 useful ranking and diagnosis tools. It is not that Blueprint
                 can promise a percentage-point policy-ranking outcome.
+              </p>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                {robotPolicyResearchSignalsNote}
               </p>
             </div>
             <MobileDisclosureGrid
@@ -604,9 +624,14 @@ export default function RobotTeamEval() {
           >
             <h2 className="text-3xl font-semibold">Start with the essentials.</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Add the minimum now. We will recommend subscription scope,
-              quick-look scope, or a single-site comparison based on your task,
-              policy cadence, and site-operator decision path.
+              Add the minimum now and we scope one cheap comparative screening
+              run — a single-site ranking of your candidate policies before you
+              spend field time.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Later: if you run policies on a cadence, you can expand to a
+              subscription. Quick-look scope stays available on request — both
+              are follow-ons to the first screening run, not the starting point.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -675,7 +700,7 @@ export default function RobotTeamEval() {
                   value={robotEmbodiment}
                   onChange={(event) => setRobotEmbodiment(event.target.value)}
                   className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="Figure 03 humanoid"
+                  placeholder="mobile-base pick robot (AMR + tote picker)"
                 />
               </label>
 
@@ -1010,7 +1035,7 @@ export default function RobotTeamEval() {
                 <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">Commercial path</dt>
                   <dd className="text-right font-semibold">
-                    Subscription or quick-look
+                    One screening run
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">

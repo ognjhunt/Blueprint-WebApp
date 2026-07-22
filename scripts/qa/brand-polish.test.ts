@@ -48,7 +48,7 @@ describe("brand polish QA harness contract", () => {
       expectedHeading: "Tell us what policies to compare.",
       requiredCtas: expect.arrayContaining([
         { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
-        { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
+        { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
       ]),
     });
 

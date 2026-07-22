@@ -31,7 +31,7 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=robot_team&source=header-signup",
     label: "Robot team",
-    description: "Create an account to scope evaluations and policy improvement.",
+    description: "Create an account to scope a site-specific evaluation run and rank your policies.",
     Icon: Bot,
   },
   {
@@ -90,7 +90,7 @@ export function Header() {
         workspaceHref: "/capture-app/account",
         workspaceLabel: "Open capture account",
         secondaryHref: "/capture",
-        secondaryLabel: "Review capture requirements",
+        secondaryLabel: "Get paid to capture",
         requestHref,
       };
     }

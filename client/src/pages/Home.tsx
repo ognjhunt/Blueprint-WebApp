@@ -13,7 +13,11 @@ import {
   ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
-import { robotPolicyEvaluationBoundary } from "@/data/robotPolicyEvaluationClaims";
+import {
+  robotPolicyBeachheadShort,
+  robotPolicyEvaluationBeachhead,
+  robotPolicyEvaluationBoundary,
+} from "@/data/robotPolicyEvaluationClaims";
 import { ArrowRight } from "lucide-react";
 
 const requestHref =
@@ -54,13 +58,13 @@ const steps: Array<{ num: string; title: string; body: string }> = [
   },
   {
     num: "04",
-    title: "Improve against failures",
-    body: "A Policy Improvement Run turns failure clusters into scenarios, curriculum, and a sealed regression pack; an improved policy artifact requires an approved trainable path.",
+    title: "Later — improve against failures",
+    body: "Follow-on, after the ranking: an optional Policy Improvement Run can turn failure clusters into scenarios, curriculum, and a sealed regression pack; an improved policy artifact requires an approved trainable path. Secondary to the run itself.",
   },
   {
     num: "05",
     title: "Decide the next test",
-    body: "Use the ranking, failure clusters, and missing-proof labels to pilot, tune, recapture, or hold.",
+    body: "Use the ranking, failure clusters, and missing-proof labels to pilot, tune, recapture, or hold. Any follow-on Post-Training Data Package export built from the same evidence is a secondary, optional aside — the ranking in step 03 is the product.",
   },
 ];
 
@@ -76,17 +80,19 @@ const comparisonStack: Array<{
   { label: "Checkpoint v2", value: 0.38, rank: "4" },
 ];
 
+// Lead with the warehouse/logistics beachhead — navigation, mobile-base movement,
+// and rigid pick-and-place. Dexterous, contact-rich tiles are demoted to the end;
+// the two most dexterous (dishwasher, laundry-folding) are dropped as out of scope.
 const povClips: Array<{ id: string; alt: string; span?: string }> = [
-  { id: "factory-conveyor", alt: "First-person review clip of a factory conveyor task", span: "sm:col-span-2 sm:row-span-2" },
-  { id: "warehouse-tote", alt: "First-person review clip of a warehouse tote task" },
-  { id: "packing-cell", alt: "First-person review clip of a packing-cell task" },
-  { id: "inspection-bench", alt: "First-person review clip of an inspection-bench task" },
+  { id: "warehouse-tote", alt: "First-person review clip of a warehouse mobile-base tote move", span: "sm:col-span-2 sm:row-span-2" },
+  { id: "loading-dock", alt: "First-person review clip of a loading-dock navigation task", span: "sm:col-span-2" },
+  { id: "cold-storage", alt: "First-person review clip of a cold-storage navigation task" },
+  { id: "retail-backroom", alt: "First-person review clip of a retail-backroom rigid pick task" },
+  { id: "factory-conveyor", alt: "First-person review clip of a factory conveyor rigid pick task" },
+  // Dexterous, contact-rich variants — out of the current beachhead scope, kept last.
   { id: "machine-tending", alt: "First-person review clip of a machine-tending task" },
-  { id: "loading-dock", alt: "First-person review clip of a loading-dock task", span: "sm:col-span-2" },
-  { id: "laundry-folding", alt: "First-person review clip of a laundry-folding task" },
-  { id: "cold-storage", alt: "First-person review clip of a cold-storage task" },
-  { id: "dishwasher", alt: "First-person review clip of a dishwasher task" },
-  { id: "retail-backroom", alt: "First-person review clip of a retail-backroom task" },
+  { id: "inspection-bench", alt: "First-person review clip of an inspection-bench task" },
+  { id: "packing-cell", alt: "First-person review clip of a packing-cell task" },
 ];
 
 export default function Home() {
@@ -147,6 +153,9 @@ export default function Home() {
                       </ProofChip>
                     ))}
                   </div>
+                  <p className="mt-4 max-w-[34rem] font-mono text-[11px] leading-[1.5] text-[#f3efe6]/60">
+                    Beachhead: {robotPolicyBeachheadShort}. {robotPolicyEvaluationBeachhead}
+                  </p>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                     <Button
                       asChild
@@ -237,14 +246,15 @@ export default function Home() {
         <section className="border-b border-line bg-paper">
           <div className="mx-auto grid max-w-container gap-8 px-7 py-14 lg:grid-cols-[0.62fr_0.38fr] lg:items-center">
             <div>
-              <Eyebrow tone="brass" rule>For capturers</Eyebrow>
+              <Eyebrow tone="brass" rule>For capturers — paid supply</Eyebrow>
               <h2 className="font-editorial mt-5 text-[clamp(2rem,3.8vw,3.4rem)] font-medium leading-[1.02] tracking-[-0.04em] text-ink">
                 Real-site evidence starts with a careful capture.
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-ink-600">
-                Join the reviewed capture network, follow assignment-specific access and privacy cues,
-                and see payout terms before work begins. Applications and captures remain pending until
-                the owning review record approves them.
+                Secondary to the buyer flow above: this is the paid capture network we recruit to feed
+                the evaluation runs. Join the reviewed capture network, follow assignment-specific access
+                and privacy cues, and see payout terms before work begins. Applications and captures remain
+                pending until the owning review record approves them.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">

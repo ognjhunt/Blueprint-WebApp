@@ -10,9 +10,13 @@ test('homepage leads with the simple capture-backed policy evaluation story', as
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
   await expect(nav.getByRole('link', { name: /^For Robot Teams$/i })).toBeVisible();
-  await expect(nav.getByRole('link', { name: /^For Site Operators$/i })).toBeVisible();
+  // Site operators are demoted out of the primary header nav to the footer.
+  await expect(nav.getByRole('link', { name: /^For Site Operators$/i })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: /^How it works$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Pricing$/i })).toBeVisible();
+  await expect(
+    page.getByRole('contentinfo').getByRole('link', { name: /^Site access partners$/i }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: /^Request evaluation$/i }).first()).toBeVisible();
   await expect(
     page.locator('main').getByText(/Compare your policy against earlier checkpoints/i),

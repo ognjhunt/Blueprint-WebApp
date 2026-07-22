@@ -33,7 +33,7 @@ test('contact page leads with a simple robot-team Policy Evaluation Run flow', a
     page.locator('main').getByRole('link', { name: /Compare policies on a real site\./i }).first(),
   ).toBeVisible();
   await expect(
-    page.locator('main').getByRole('link', { name: /Supply or monitor a facility\./i }).first(),
+    page.locator('main').getByRole('link', { name: /Partner on lighthouse capture access/i }).first(),
   ).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Work email/i })).toBeVisible();
@@ -54,7 +54,7 @@ test('site-operator contact path keeps the low-cost access-boundary lane visible
   await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Organization/i })).toBeVisible();
   await expect(
-    page.locator('main').getByRole('link', { name: /Supply or monitor a facility\./i }).first(),
+    page.locator('main').getByRole('link', { name: /Partner on lighthouse capture access/i }).first(),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
 });

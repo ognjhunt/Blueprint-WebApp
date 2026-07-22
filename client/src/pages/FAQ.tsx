@@ -6,6 +6,10 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import {
+  robotPolicyEvaluationBeachhead,
+  robotPolicyScreeningValue,
+} from "@/data/robotPolicyEvaluationClaims";
 import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight } from "lucide-react";
 
@@ -18,12 +22,13 @@ const faqs = [
   {
     question: "What does a Task Evaluation Run return?",
     answer:
-      "A scoped comparison for the same site, task, robot profile, and policy set: episode metrics, policy ordering, failure clusters, uncertainty and missing-proof labels, plus review-support media. It is an estimate inside that envelope, not a deployment guarantee.",
+      "The run ranks and orders your candidate policies on the same site, task, robot profile, and policy set so your team can screen before committing field or pilot budget. You get a scoped comparison: episode metrics, policy ordering, failure clusters, uncertainty and missing-proof labels, plus review-support media. We stand behind the ordering (rank fidelity), not a calibrated success guarantee. It is an estimate inside that envelope, not a deployment guarantee.",
   },
   {
-    question: "What is a Policy Improvement Run?",
+    question: "Where is the evidence strongest today?",
     answer:
-      "Blueprint turns evaluation failures into a request-scoped improvement package: prioritized failure clusters, scenario or curriculum recommendations, and a sealed regression set. If your team exposes an approved trainable adapter, controller, reward, or fine-tuning path, the scope can also include an improved policy artifact; source-code access is not always required.",
+      robotPolicyEvaluationBeachhead +
+      " That beachhead is where a Task Evaluation Run screens policies most confidently right now — never a guarantee or safety certification.",
   },
   {
     question: "Is the published 0.929 correlation a Blueprint result?",
@@ -41,14 +46,19 @@ const faqs = [
       "Tell Blueprint the facility type, workflow, access window, and robot question. Blueprint can scope a new capture with the operator or review private inventory without implying that access, rights, or city coverage already exists.",
   },
   {
-    question: "How do capturers and site operators participate?",
+    question: "Who is the buyer, and how do capturers and site operators participate?",
     answer:
-      "Capturers apply for reviewed assignments and see payout terms before work begins. Site operators define access, privacy, restricted areas, rights, and commercial posture. No application, capture, payout, or downstream use is treated as approved until the system that owns that state records it.",
+      "The robot or foundation-model team is the buyer. Capturers are recruited, reviewed, and paid supply: they apply for assignments and see payout terms before work begins. Site operators are access and lighthouse partners who define access, privacy, restricted areas, rights, and commercial posture. No application, capture, payout, or downstream use is treated as approved until the system that owns that state records it.",
   },
   {
     question: "Does a purchase prove execution or deployment readiness?",
     answer:
       "No. Payment, entitlement, queued execution, simulator output, ranking evidence, and field validation are separate states. Blueprint reports each boundary separately and never promotes checkout or startup into a successful run claim.",
+  },
+  {
+    question: "What is a Policy Improvement Run? (follow-on)",
+    answer:
+      "A Policy Improvement Run is a later, follow-on offer, not the core product. After a Task Evaluation Run, Blueprint can turn evaluation failures into a request-scoped improvement package: prioritized failure clusters, scenario or curriculum recommendations, and a sealed regression set. If your team exposes an approved trainable adapter, controller, reward, or fine-tuning path, the scope can also include an improved policy artifact; source-code access is not always required.",
   },
 ];
 
@@ -57,14 +67,14 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Straight answers about Blueprint evaluation runs, policy improvement, real-site supply, proof boundaries, and how to start."
+        description="Straight answers about Blueprint's one core service — a site-specific Task Evaluation Run that ranks your robot policies on a captured real-site task envelope so you can screen before spending field or pilot time — plus proof boundaries and how to start."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
             name: "Blueprint FAQ",
             description:
-              "Questions and answers about Blueprint evaluation runs, policy improvement, real-site supply, proof boundaries, and buyer next steps.",
+              "Questions and answers about Blueprint's site-specific Task Evaluation Run — ranking robot policies on a captured real-site task envelope — plus proof boundaries and buyer next steps.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -78,7 +88,7 @@ export default function FAQ() {
         <section className="border-b border-black/10">
           <MonochromeMedia
             src={editorialGeneratedAssets.homeHero}
-            alt="FAQ hero"
+            alt="Generated preview / review support: warehouse navigation and rigid pick-and-place, the scenes a Task Evaluation Run screens today"
             className="min-h-[38rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[38rem]"
@@ -92,7 +102,7 @@ export default function FAQ() {
                   The questions that usually decide fit.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-white/70">
-                  The fastest way to evaluate Blueprint is to answer the few questions that actually change the next step.
+                  {robotPolicyScreeningValue}
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a

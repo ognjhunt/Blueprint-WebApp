@@ -10,11 +10,15 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
+import {
+  robotPolicyScreeningValue,
+  robotPolicyEvaluationBeachhead,
+} from "@/data/robotPolicyEvaluationClaims";
 
 const statStrip = [
   { label: "Episodes / run", value: "100–500", caption: "Per policy evaluation" },
   { label: "Evidence layers", value: "3", caption: "Capture · run · owner proof" },
-  { label: "Surfaces", value: "4", caption: "Site · Task · Scenario · Eval" },
+  { label: "Core service", value: "1", caption: "Task Evaluation Run — ranks which policy to field-test first" },
   { label: "Proof boundary", value: "Always on", caption: "Review support, not proof" },
 ];
 
@@ -78,15 +82,16 @@ export default function About() {
                 Blueprint turns one real site into a decision a robot team can trust.
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">
-                A robot team usually has one facility and one workflow question before a
-                field visit. Blueprint exists to make that exact site legible earlier — as
-                capture-backed evaluation runs, with rights, privacy, and provenance kept
-                readable the whole way through.
+                {robotPolicyScreeningValue}
               </p>
               <p className="mt-4 text-lg leading-[1.7] text-ink-600">
-                We are not a generic AI marketplace, a model demo, or a deployment
-                guarantee. We package capture truth and frame policy comparison as honest
-                estimates, so the next test is chosen on evidence instead of assumption.
+                {robotPolicyEvaluationBeachhead}
+              </p>
+              <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
+                We frame policy comparison as rank fidelity and an estimate — never a
+                guarantee, a safety certification, or a deployment-readiness claim. We are
+                not a generic AI marketplace or a model demo, so the next test is chosen on
+                evidence instead of assumption.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="brass" size="lg">
@@ -195,7 +200,7 @@ export default function About() {
             title="Start with the public proof or bring one exact site."
             description="Browse site packages to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
             imageSrc="/redesign/pov/factory-conveyor.jpg"
-            imageAlt="Captured factory conveyor site (review support, not real-world proof)"
+            imageAlt="Captured warehouse conveyor site (review support, not real-world proof)"
             primaryHref="/sites"
             primaryLabel="Explore site packages"
             secondaryHref="/contact/robot-team"
