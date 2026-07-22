@@ -167,6 +167,10 @@
     "wouter": "^3.3.5",
     "zod": "^3.24.2"
   },
+  "overrides": {
+    "d3-color": "^3.1.0",
+    "fast-uri": "3.1.4"
+  },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "@playwright/test": "^1.57.0",
