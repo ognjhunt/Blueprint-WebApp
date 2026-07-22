@@ -48,7 +48,7 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   ).toBeVisible();
   await expect(page.getByText(/the full scoring harness, hidden failure labels/i)).toBeVisible();
   await expect(
-    page.getByLabel("5 Protect hardware and site IP"),
+    page.getByLabel("6 Protect hardware and site IP"),
   ).toHaveValue("customer_hosted_sealed_eval_capsule");
   await expect(page.getByText(/raw captures, full scenes, scoring harnesses/i)).toBeVisible();
 
@@ -61,7 +61,7 @@ test("robot-team eval route is simple and submits normalized policy payload", as
     .fill("warehouse-policy, baseline-policy, ignored-fourth");
   await page.getByLabel("4 Choose episodes").selectOption("500");
   await page
-    .getByLabel("5 Protect hardware and site IP")
+    .getByLabel("6 Protect hardware and site IP")
     .selectOption("physical_robot_evidence_bridge");
   await page.getByText("Advanced details").click();
   await page
