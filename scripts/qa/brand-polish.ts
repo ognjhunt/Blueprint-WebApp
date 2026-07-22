@@ -204,7 +204,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/proof",
     expectedHeading: "Proof stays scoped.",
     requiredCtas: [
-      { label: "Start", hrefStartsWith: "/contact" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
     ],
   },
   {
