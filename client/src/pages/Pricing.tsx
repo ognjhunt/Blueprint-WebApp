@@ -14,6 +14,10 @@ import {
   ProofChip,
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
+import {
+  robotPolicyScreeningValue,
+  robotPolicyEvaluationBeachhead,
+} from "@/data/robotPolicyEvaluationClaims";
 import { ArrowRight, Check } from "lucide-react";
 
 type Tier = {
@@ -28,12 +32,15 @@ type Tier = {
   highlighted?: boolean;
 };
 
-const tiers: Tier[] = [
+// The primary front door: one service, two ways to buy it. Quick-look is the
+// lead first-purchase (cheap pre-pilot screening); the subscription is the
+// secondary scale-up once ranking is part of the development loop.
+const primaryTiers: Tier[] = [
   {
     name: "Quick-look eval",
     price: "$5–8k",
     unit: "/ eval",
-    tagline: "A low-friction first comparison before any subscription decision.",
+    tagline: "The first-purchase screen: rank a couple of policies on one captured site before you spend any field or pilot time.",
     features: [
       "Up to 100 episodes on one packaged site",
       "1–2 policies or checkpoints",
@@ -43,12 +50,13 @@ const tiers: Tier[] = [
     note: "Failure taxonomy and calibration stay in subscription scope.",
     cta: "Request a quick-look",
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=100&source=pricing",
+    highlighted: true,
   },
   {
     name: "Robot-team subscription",
     price: "$15k",
     unit: "/ mo",
-    tagline: "Recurring comparison infrastructure for active policy development.",
+    tagline: "The scale-up: recurring comparison infrastructure once ranking policies is part of the development loop.",
     features: [
       "Compare team, checkpoint, and vendor policies",
       "Unlimited eval cycles up to policy cap",
@@ -59,23 +67,29 @@ const tiers: Tier[] = [
     note: "Overage pricing applies above the agreed policy cap.",
     cta: "Start a subscription",
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
-    highlighted: true,
   },
-  {
-    name: "Policy Improvement Run",
-    price: "Scoped",
-    unit: "/ run",
-    tagline: "Turn measured evaluation failures into the next policy-development loop.",
-    features: [
-      "Prioritized failure clusters and scenario design",
-      "Curriculum recommendations and sealed regression set",
-      "Source-code access is optional for analysis outputs",
-      "Improved policy artifact only with an approved trainable path",
-    ],
-    note: "Price and deliverables depend on the policy interface, evidence, and training authority in scope.",
-    cta: "Scope improvement",
-    href: "/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing",
-  },
+];
+
+// Follow-on, on request — not part of the first-purchase decision.
+const policyImprovementRun: Tier = {
+  name: "Policy Improvement Run",
+  price: "Scoped",
+  unit: "/ run",
+  tagline: "Turn measured evaluation failures into the next policy-development loop.",
+  features: [
+    "Prioritized failure clusters and scenario design",
+    "Curriculum recommendations and sealed regression set",
+    "Source-code access is optional for analysis outputs",
+    "Improved policy artifact only with an approved trainable path",
+  ],
+  note: "Price and deliverables depend on the policy interface, evidence, and training authority in scope.",
+  cta: "Scope improvement",
+  href: "/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing",
+};
+
+// Secondary supply-side / access-partner path for lighthouse operators — kept
+// present, but not a co-equal product tier for robot teams.
+const operatorTiers: Tier[] = [
   {
     name: "Site supply",
     price: "$5k",
@@ -112,6 +126,7 @@ type AddOn = {
   name: string;
   meter: string;
   body: string;
+  stage?: string;
 };
 
 const addOns: AddOn[] = [
@@ -134,14 +149,15 @@ const addOns: AddOn[] = [
     name: "Provenance-checked data package",
     meter: "per_export · +$3k",
     body: "An export-ready data package with provenance, rights packet, and coverage flags attached, scoped to your access window.",
+    stage: "Second product, later",
   },
 ];
 
 const faqItems = [
   {
-    question: "Why is the subscription the primary tier?",
+    question: "Which tier should we start with?",
     answer:
-      "Most value shows up when comparing policies is part of the development loop, not a one-off. Quick-look evals and single-site reviews exist as the ramp into the subscription, where regression tracking and failure taxonomy live.",
+      "Start with a quick-look eval — the cheap pre-pilot screen that ranks your policies on one captured site before you spend field time. The robot-team subscription is the scale-up for teams comparing policies continuously, where regression tracking and failure taxonomy live.",
   },
   {
     question: "What exactly am I paying for in an eval?",
@@ -175,14 +191,14 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Priced as evaluation infrastructure: quick-look evals, a robot-team subscription, site supply reviews, and yearly site monitoring — bounded to the reviewed site, task, and access scope."
+        description="Pricing for the Task Evaluation Run: rank your robot policies on a captured real-site task envelope before you spend field or pilot time. Buy it as a quick-look eval or a robot-team subscription — bounded to the reviewed site, task, and access scope."
         canonical="/pricing"
         jsonLd={[
           webPageJsonLd({
             path: "/pricing",
             name: "Blueprint Pricing",
             description:
-              "Planning ranges for robot-team evaluation subscriptions, lite quick-look evals, operator site supply reviews, and yearly deployed-site monitoring.",
+              "Planning ranges for the robot-team Task Evaluation Run — a quick-look eval or a subscription that ranks policies on a captured real-site task envelope. Follow-on paths (policy improvement, operator site supply and monitoring) are secondary.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -200,13 +216,14 @@ export default function Pricing() {
               Pricing
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-ink-900">
-              Priced as evaluation infrastructure.
+              Price the run that screens what earns pilot time.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-ink-500">
-              Robot teams subscribe when comparing policies becomes part of the
-              development loop. Quick-look evals and single-site reviews are the ramp in.
-              Operators start with a supply review and add monitoring only when a site
-              needs repeated checks.
+              {robotPolicyScreeningValue}
+            </p>
+            <p className="mt-4 max-w-[34rem] text-[0.95rem] leading-[1.65] text-ink-400">
+              {robotPolicyEvaluationBeachhead} You are buying rank fidelity inside that
+              scope — never a guarantee or safety certification.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               <ProofChip>Capture-backed comparisons</ProofChip>
@@ -229,13 +246,13 @@ export default function Pricing() {
       <section className="border-y border-line bg-paper">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
-            eyebrow="Tiers"
-            title="Four ways to engage."
-            description="One subscription for active robot teams, plus lighter on-ramps and the operator supply path. All figures are illustrative ranges, set per engagement."
+            eyebrow="How teams buy an evaluation run"
+            title="One service, two ways to buy it."
+            description="Start with a quick-look eval as your first purchase, then move to a subscription when ranking policies becomes part of the development loop. All figures are illustrative ranges, set per engagement."
           />
 
-          <TileGrid cols={3} className="mt-12 rounded-lg">
-            {tiers.map((tier) => {
+          <TileGrid cols={2} className="mt-12 rounded-lg">
+            {primaryTiers.map((tier) => {
               const onInk = tier.highlighted;
               return (
                 <article
@@ -349,6 +366,30 @@ export default function Pricing() {
               );
             })}
           </TileGrid>
+
+          {/* Follow-on, on request — demoted out of the primary grid */}
+          <div className="mt-8 flex flex-col gap-3 border border-line bg-inset p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Eyebrow tone="muted">Later / on request</Eyebrow>
+                <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-500">
+                  {policyImprovementRun.price} {policyImprovementRun.unit}
+                </span>
+              </div>
+              <h3 className="mt-2 text-title-s font-semibold tracking-tight text-ink-900">
+                {policyImprovementRun.name}
+              </h3>
+              <p className="mt-1 max-w-[42rem] text-sm leading-[1.6] text-ink-500">
+                {policyImprovementRun.tagline} {policyImprovementRun.note}
+              </p>
+            </div>
+            <Button asChild variant="secondary" size="md">
+              <a href={policyImprovementRun.href}>
+                {policyImprovementRun.cta}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -376,6 +417,11 @@ export default function Pricing() {
                     {addOn.meter}
                   </span>
                 </div>
+                {addOn.stage ? (
+                  <span className="inline-flex w-fit items-center border border-brass/50 bg-transparent px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-brass">
+                    {addOn.stage}
+                  </span>
+                ) : null}
                 <p className="text-sm leading-[1.65] text-ink-500">{addOn.body}</p>
               </div>
             ))}
@@ -401,6 +447,78 @@ export default function Pricing() {
         </div>
       </section>
 
+      {/* Operator / access partnership — secondary supply-side path */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 pb-8 sm:px-8 lg:px-10 lg:pb-12">
+          <EditorialSectionIntro
+            eyebrow="Operator / access partnership"
+            title="Have a site instead of a policy?"
+            description="A separate, secondary path for lighthouse operators who can make a useful site available. This is paid supply and access partnership — not a co-equal product tier for robot teams, and it opens only after a facility, access, and privacy review."
+          />
+
+          <TileGrid cols={2} className="mt-10">
+            {operatorTiers.map((tier) => (
+              <article
+                key={tier.name}
+                className="flex h-full flex-col bg-white p-6"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <Eyebrow tone="muted">Access partner</Eyebrow>
+                  <StatusChip tone="neutral" square dot={false}>
+                    Secondary
+                  </StatusChip>
+                </div>
+
+                <h3 className="mt-5 text-title-m font-semibold tracking-tight text-ink-900">
+                  {tier.name}
+                </h3>
+
+                <div className="mt-4 flex items-baseline gap-1">
+                  <span className="font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-ink-900">
+                    {tier.price}
+                  </span>
+                  <span className="font-mono text-[0.9rem] text-ink-400">
+                    {tier.unit}
+                  </span>
+                </div>
+
+                <p className="mt-4 text-sm leading-[1.6] text-ink-500">
+                  {tier.tagline}
+                </p>
+
+                <ul className="mt-5 flex flex-col gap-2.5">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5">
+                      <Check
+                        className="mt-0.5 h-4 w-4 shrink-0 text-brass"
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                      <span className="text-[13px] leading-[1.5] text-ink-700">
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="mt-5 border-t border-line-soft pt-4 text-[12px] leading-[1.5] text-ink-400">
+                  {tier.note}
+                </p>
+
+                <div className="mt-auto pt-6">
+                  <Button asChild variant="secondary" size="md" full>
+                    <a href={tier.href}>
+                      {tier.cta}
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </TileGrid>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="border-y border-line bg-paper">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
@@ -419,12 +537,12 @@ export default function Pricing() {
             eyebrow="Pick your on-ramp"
             title="Start with a quick-look or scope a subscription."
             description="Tell us the site, task, and policies you want to compare. We'll come back with episode counts, a policy cap, and pricing for your scope."
-            imageSrc="/redesign/pov/packing-cell.jpg"
-            imageAlt="Robotic packing cell"
+            imageSrc="/redesign/pov/loading-dock.jpg"
+            imageAlt="Warehouse loading dock — mobile-base navigation and rigid tote handling"
             primaryHref="/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing"
             primaryLabel="Request evaluation"
-            secondaryHref="/sites"
-            secondaryLabel="Browse site records"
+            secondaryHref="/proof"
+            secondaryLabel="See the proof boundary"
           />
         </div>
       </section>

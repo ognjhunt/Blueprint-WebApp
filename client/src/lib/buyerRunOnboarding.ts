@@ -29,7 +29,7 @@ export const buyerRunOnboardingTimeline: BuyerRunOnboardingStep[] = [
     target: "One business day when the request is complete",
     owner: "Blueprint",
     body:
-      "Blueprint confirms rights, package availability, entitlement path, requested outputs, and whether the run is a quick-look, subscription, or site-ops comparison.",
+      "Blueprint confirms rights, package availability, entitlement path, and the requested Task Evaluation Run outputs.",
     href: "/beta/buyer-guide",
   },
   {
@@ -47,7 +47,7 @@ export const buyerRunOnboardingTimeline: BuyerRunOnboardingStep[] = [
     target: "Provisioned buyer app or private request-room link",
     owner: "Robot team",
     body:
-      "Receive the run record, scorecard or advisory package, hosted-session link when available, and proof-boundary notes that separate local support evidence from owner-system proof.",
+      "Receive the run record, ranking scorecard, hosted-session link when available, and proof-boundary notes that separate local support evidence from owner-system proof.",
     href: "/app/runs",
   },
 ];

@@ -30,8 +30,9 @@ export function Footer() {
           </a>
           <p className="font-editorial text-[1.05rem] leading-7 text-[#f3efe6]/80">
             Blueprint captures real indoor sites and packages them into evaluation
-            evidence, so robot teams can rank policies on real-site task packs before
-            field time.
+            evidence, so robot and foundation-model teams can rank policies on captured
+            warehouse task envelopes &mdash; navigation and rigid pick-and-place &mdash;
+            before spending pilot time.
           </p>
           <div className="flex flex-col text-sm">
             <a
@@ -73,6 +74,7 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[88rem] flex-col gap-2 px-7 py-5 font-mono text-[0.7rem] text-[#f3efe6]/55 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
+          <p>Evaluation runs rank policies as a screening estimate &mdash; not a guarantee or safety certification.</p>
           <p>Generated &amp; simulated media is review support &mdash; not real-world proof.</p>
         </div>
       </div>

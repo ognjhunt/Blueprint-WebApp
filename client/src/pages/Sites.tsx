@@ -3,6 +3,10 @@ import { ArrowRight, Database, Loader2, Search } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
 import type { SiteWorldCard } from "@/data/siteWorlds";
+import {
+  robotPolicyBeachheadShort,
+  robotPolicyScreeningValue,
+} from "@/data/robotPolicyEvaluationClaims";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -23,16 +27,16 @@ function requestHref(site?: SiteWorldCard) {
 
 function SiteCard({ site }: { site: SiteWorldCard }) {
   const tasks = site.taskCatalog?.slice(0, 3) || [];
-  const readiness = site.evaluationReadiness?.qualification_state?.replace(/_/g, " ");
+  const hasCapture = Boolean(site.evaluationReadiness?.qualification_state);
   return (
     <article className="flex flex-col rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider">
         <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-900">
           Pipeline record
         </span>
-        {readiness ? (
+        {hasCapture ? (
           <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
-            {readiness}
+            Capture on file
           </span>
         ) : null}
       </div>
@@ -43,6 +47,10 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
         {site.category} · {site.industry}
       </p>
       <p className="mt-4 flex-1 text-sm leading-6 text-slate-600">{site.summary}</p>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        A Task Evaluation Run ranks your candidate policies on this site&rsquo;s captured task
+        envelope to screen them before field or pilot time.
+      </p>
       {tasks.length ? (
         <div className="mt-5 flex flex-wrap gap-2" aria-label="Recorded tasks">
           {tasks.map((task) => (
@@ -145,12 +153,22 @@ export default function Sites() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
                 Real capture inventory
               </p>
-              <h1 className="mt-4 max-w-[11ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Evaluate where the work happens.
+              <h1 className="mt-4 max-w-[14ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
+                Rank policies where the work happens.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
-                Public cards come from current Pipeline-backed capture records. If the exact
-                place is not open, Blueprint can scope a new capture with its operator.
+                {robotPolicyScreeningValue}
+              </p>
+              <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
+                The evidence is strongest first for warehouse and logistics work —
+                mobile-base navigation and rigid pick-and-place ({robotPolicyBeachheadShort}).
+                Other site types stay browsable below. Public cards come from current
+                Pipeline-backed capture records; if the exact place is not open, Blueprint can
+                scope a new capture with its operator.
+              </p>
+              <p className="mt-4 max-w-lg text-sm leading-6 text-slate-500">
+                A Task Evaluation Run is a screening estimate that ranks policies by fidelity — not a
+                guarantee, safety certification, or deployment-readiness claim.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -159,17 +177,18 @@ export default function Sites() {
                 >
                   Scope an evaluation <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
-                <a
-                  href="/signup/capturer"
-                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
-                >
-                  Capture a site
-                </a>
               </div>
+              <p className="mt-4 text-sm text-slate-500">
+                Own a site instead?{" "}
+                <a href="/signup/capturer" className="font-semibold text-slate-700 underline hover:text-slate-950">
+                  Join the capturer network to add supply
+                </a>{" "}
+                — a follow-on access-partner path.
+              </p>
             </div>
             <img
               src={wamPolicyEvalAssets.hero}
-              alt="Humanoid robot working in a captured facility task"
+              alt="Generated preview: a mobile-base robot navigating a warehouse aisle and lifting a rigid tote — review support, not a captured photo"
               className="aspect-[16/9] w-full rounded-lg border border-slate-200 object-cover"
             />
           </div>
@@ -216,7 +235,7 @@ export default function Sites() {
               </h2>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
                 Blueprint only publishes inventory backed by the current capture and Pipeline record.
-                Request the exact workflow and site type you need, or join the capturer network to add supply.
+                Request the exact workflow and site type you need.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 {sites.length ? (

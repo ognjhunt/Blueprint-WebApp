@@ -10,20 +10,24 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
+import {
+  robotPolicyScreeningValue,
+  robotPolicyEvaluationBeachhead,
+} from "@/data/robotPolicyEvaluationClaims";
 
 const statStrip = [
   { label: "Episodes / run", value: "100–500", caption: "Per policy evaluation" },
   { label: "Evidence layers", value: "3", caption: "Capture · run · owner proof" },
-  { label: "Surfaces", value: "4", caption: "Site · Task · Scenario · Eval" },
+  { label: "Core service", value: "1", caption: "Task Evaluation Run — ranks which policy to field-test first" },
   { label: "Proof boundary", value: "Always on", caption: "Review support, not proof" },
 ];
 
 const principles = [
   {
     eyebrow: "Principle 01",
-    label: "Capture first, claim later.",
+    label: "Every run starts from one real captured place.",
     description:
-      "Every world model starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
+      "The captured site is the ground truth, not the world model. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown. Post-Training Data Packages come off the same captures later, as a follow-on, never the front door.",
   },
   {
     eyebrow: "Principle 02",
@@ -75,25 +79,30 @@ export default function About() {
                 About Blueprint
               </Eyebrow>
               <h1 className="font-editorial mt-6 text-[clamp(2.6rem,5vw,4.2rem)] font-medium leading-[0.96] tracking-[-0.045em] text-ink">
-                Blueprint turns one real site into a decision a robot team can trust.
+                Blueprint runs one service: a Task Evaluation Run that ranks your candidate
+                robot policies on a captured real-site task envelope.
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">
-                A robot team usually has one facility and one workflow question before a
-                field visit. Blueprint exists to make that exact site legible earlier — as
-                capture-backed evaluation runs, with rights, privacy, and provenance kept
-                readable the whole way through.
+                {robotPolicyScreeningValue}
               </p>
               <p className="mt-4 text-lg leading-[1.7] text-ink-600">
-                We are not a generic AI marketplace, a model demo, or a deployment
-                guarantee. We package capture truth and frame policy comparison as honest
-                estimates, so the next test is chosen on evidence instead of assumption.
+                {robotPolicyEvaluationBeachhead}
+              </p>
+              <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
+                We frame policy comparison as rank fidelity and an estimate — never a
+                guarantee, a safety certification, or a deployment-readiness claim. We are
+                not a generic AI marketplace or a model demo, so the next test is chosen on
+                evidence instead of assumption.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="brass" size="lg">
-                  <a href="/sites">
-                    Explore site packages
+                  <a href="/contact/robot-team">
+                    Request an evaluation run
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </a>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <a href="/sites">Explore site packages</a>
                 </Button>
                 <Button asChild variant="secondary" size="lg">
                   <a href="/how-it-works">See how it works</a>
@@ -192,14 +201,14 @@ export default function About() {
         <section className="mx-auto max-w-[88rem] px-5 pb-14 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Start with the public proof or bring one exact site."
-            description="Browse site packages to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
+            title="Bring one exact site and rank the policies you'd otherwise field-test blind."
+            description="Request a Task Evaluation Run when the readiness question is already known, or browse site packages first to read the proof style."
             imageSrc="/redesign/pov/factory-conveyor.jpg"
-            imageAlt="Captured factory conveyor site (review support, not real-world proof)"
-            primaryHref="/sites"
-            primaryLabel="Explore site packages"
-            secondaryHref="/contact/robot-team"
-            secondaryLabel="Request evaluation"
+            imageAlt="Captured warehouse conveyor site (review support, not real-world proof)"
+            primaryHref="/contact/robot-team"
+            primaryLabel="Request an evaluation run"
+            secondaryHref="/sites"
+            secondaryLabel="Explore site packages"
             dark
           />
         </section>

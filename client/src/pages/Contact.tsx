@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useLocation, useSearch } from "wouter";
-import { ArrowRight, Bot, MapPin, Camera, Mail } from "lucide-react";
+import { ArrowRight, Bot, MapPin, Mail } from "lucide-react";
 
 import {
   Button,
@@ -11,6 +11,10 @@ import {
 } from "@/components/blueprint";
 import { MonochromeMedia } from "@/components/site/editorial";
 import { SEO } from "@/components/SEO";
+import {
+  robotPolicyScreeningValue,
+  robotPolicyBeachheadShort,
+} from "@/data/robotPolicyEvaluationClaims";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   buyerRunOnboardingTimeline,
@@ -35,25 +39,9 @@ const routeCards = [
     persona: "robot_team" as const,
     href: "/contact/robot-team#contact-intake",
     eyebrow: "Robot teams",
-    title: "Compare policies on a real site.",
-    body: "Bring one site and one task. We scope the run and return a priced plan.",
+    title: "Rank your policies on a real site.",
+    body: "Bring one site and one task. We scope the Task Evaluation Run and return a priced plan.",
     Icon: Bot,
-  },
-  {
-    persona: "site_operator" as const,
-    href: "/contact/site-operator#contact-intake",
-    eyebrow: "Site operators",
-    title: "Supply or monitor a facility.",
-    body: "Start a $5k/site supply review or scope yearly monitoring. You control access.",
-    Icon: MapPin,
-  },
-  {
-    persona: null,
-    href: "/signup?flow=capturer",
-    eyebrow: "Capturers",
-    title: "Capture sites near you.",
-    body: "Run lawful public-facing captures and get paid after a capture bundle passes QA.",
-    Icon: Camera,
   },
 ];
 
@@ -73,22 +61,19 @@ export default function Contact() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const headline = isSiteOperator
-    ? "Share a place for policy comparison."
-    : "Tell us what policies to compare.";
+    ? "Partner on capture access."
+    : "Rank your robot policies on a real site — before you spend pilot time.";
   const subhead = isSiteOperator
-    ? "Start a $5,000/site supply review or scope yearly monitoring. Access, rights, and pricing are confirmed per scope."
-    : "We will recommend the right subscription, quick-look, or site-ops comparison path. Request only — nothing is committed.";
+    ? "Operate a site? Partner as a lighthouse location on capture access. Access, rights, and scope are confirmed together — nothing is committed, and no access is granted until you approve it."
+    : `${robotPolicyScreeningValue} It returns a ranking to screen what earns field time — never a guarantee or safety certification. Request only — nothing is committed.`;
 
   const intentOptions = isSiteOperator
     ? [
-        { value: "supply", label: "Supply a site for review" },
-        { value: "monitoring", label: "Scope yearly monitoring" },
+        { value: "capture-access", label: "Partner on capture access" },
         { value: "rights", label: "Discuss rights and access" },
       ]
     : [
-        { value: "subscription", label: "Robot-team subscription" },
-        { value: "quick-look", label: "Quick-look evaluation" },
-        { value: "site-ops", label: "Site-ops comparison" },
+        { value: "evaluation-run", label: "Task Evaluation Run (policy ranking)" },
       ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -157,7 +142,7 @@ export default function Contact() {
               : "Start a Blueprint Policy Evaluation",
             description: isSiteOperator
               ? "Structured intake for site operators submitting a facility for capture-backed robot evaluation review."
-              : "Structured intake for robot-team Policy Evaluation Run, provenance-checked data package, and Policy Improvement Run requests.",
+              : "Structured intake for a robot-team Task Evaluation Run that ranks candidate policies on a captured real-site task envelope.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -181,6 +166,11 @@ export default function Contact() {
                 {headline}
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">{subhead}</p>
+              {!isSiteOperator ? (
+                <p className="mt-3 text-caption font-semibold uppercase tracking-eyebrow text-brass-deep">
+                  Beachhead: {robotPolicyBeachheadShort}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>
@@ -260,7 +250,7 @@ export default function Contact() {
                     placeholder={
                       isSiteOperator
                         ? "Facility type, location, access windows, and any restricted zones."
-                        : "The site, the task, the policies to compare, and the threshold you care about."
+                        : "The site, the task, the policies to rank, and the threshold you care about — e.g. case pick-and-place or aisle navigation in a warehouse."
                     }
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />
@@ -272,6 +262,11 @@ export default function Contact() {
                       team@tryblueprint.io
                     </a>
                     .
+                  </p>
+                ) : null}
+                {!isSiteOperator ? (
+                  <p className="text-caption text-ink-500">
+                    A Task Evaluation Run returns a ranking to screen what to field-test first — never a guarantee, a safety certification, or a deployment-readiness claim.
                   </p>
                 ) : null}
                 <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
@@ -350,6 +345,18 @@ export default function Contact() {
                 );
               })}
             </div>
+
+            <a
+              href="/contact/site-operator#contact-intake"
+              aria-current={isSiteOperator ? "page" : undefined}
+              className="flex items-center justify-between gap-3 rounded-md border border-line bg-white px-5 py-3 text-caption text-ink-500 transition-colors duration-200 ease-standard hover:bg-inset"
+            >
+              <span className="inline-flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
+                Operate a site? Partner on lighthouse capture access.
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
+            </a>
 
             {!isSiteOperator ? (
               <div className="rounded-md border border-line bg-white p-5">

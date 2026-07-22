@@ -14,6 +14,10 @@ import {
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
 import {
+  robotPolicyEvaluationBeachhead,
+  robotPolicyScreeningValue,
+} from "@/data/robotPolicyEvaluationClaims";
+import {
   Boxes,
   ClipboardList,
   FileCheck2,
@@ -62,40 +66,14 @@ const pipelineSteps: PipelineStep[] = [
   {
     step: "03",
     badge: "Evaluate",
-    title: "Evaluate policies against the site.",
-    body: "Robot teams compare policies, checkpoints, and vendor runners on the packaged site. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success.",
-    src: "/redesign/pov/machine-tending.jpg",
-    alt: "Robot arm tending a machine cell",
+    title: "Rank the policies into a shortlist.",
+    body: "This is the payload of the run. Robot teams compare policies, checkpoints, and vendor runners on the packaged site, and the run returns a ranked shortlist that says which policy to field-test first. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success, and never a safety certification.",
+    src: "/redesign/pov/loading-dock.jpg",
+    alt: "Warehouse loading dock staging lane where mobile bases stage and move",
     proof: [
-      "Policy rank comparison",
+      "Ranked policy shortlist",
       "Failure clusters",
       "Review-support media",
-    ],
-  },
-  {
-    step: "04",
-    badge: "Improve",
-    title: "Turn failures into the next policy loop.",
-    body: "A Policy Improvement Run converts measured failure clusters into prioritized scenarios, curriculum recommendations, and a sealed regression set. An improved policy artifact requires a separately approved trainable interface.",
-    src: "/redesign/pov/inspection-bench.jpg",
-    alt: "Robot policy failure review at an inspection bench",
-    proof: [
-      "Failure priorities",
-      "Curriculum recommendations",
-      "Sealed regression set",
-    ],
-  },
-  {
-    step: "05",
-    badge: "Decide",
-    title: "Decide the next test.",
-    body: "Every run ends in a decision a team can act on: export the data package, request a recapture, narrow the scenario, or move to a field pilot. The proof boundary stays attached so the decision is grounded in what was actually captured.",
-    src: "/redesign/pov/loading-dock.jpg",
-    alt: "Loading dock staging area",
-    proof: [
-      "Export request",
-      "Recapture call",
-      "Next-test record",
     ],
   },
 ];
@@ -110,21 +88,9 @@ type VocabularyTile = {
 const vocabulary: VocabularyTile[] = [
   {
     eyebrow: "Package object",
-    term: "Site Card",
-    mono: "site_card",
-    body: "The facility itself — route context, geometry where available, and the access conditions that define the environment.",
-  },
-  {
-    eyebrow: "Package object",
     term: "Task Card",
     mono: "task_card",
     body: "A single job to evaluate on the site, with the start state, success condition, and constraints made explicit.",
-  },
-  {
-    eyebrow: "Package object",
-    term: "Scenario Card",
-    mono: "scenario_card",
-    body: "A parameterized variation of a task — clutter, lighting, or starting pose — used to probe robustness across conditions.",
   },
   {
     eyebrow: "Package object",
@@ -134,15 +100,15 @@ const vocabulary: VocabularyTile[] = [
   },
   {
     eyebrow: "Trust artifact",
-    term: "Rights packet",
-    mono: "rights_packet",
-    body: "The use-scope, consent, and commercialization terms attached to the capture and carried into every export.",
-  },
-  {
-    eyebrow: "Trust artifact",
     term: "Provenance record",
     mono: "provenance_record",
     body: "The chain of custody — capturer, device, timestamps, and processing steps — proving where each value came from.",
+  },
+  {
+    eyebrow: "Trust artifact",
+    term: "Rights packet",
+    mono: "rights_packet",
+    body: "The use-scope, consent, and commercialization terms attached to the capture and carried into every export.",
   },
 ];
 
@@ -178,7 +144,7 @@ const truthHierarchy: TruthRow[] = [
     tone: "warn",
     chip: "Advisory",
     accent: "#9a6a16",
-    body: "Simulated rollouts run before field time. Useful for ranking and triage, but an estimate of relative readiness — not a measurement of how the policy behaves on the floor.",
+    body: "Simulated rollouts run before field time. Useful for ranking and triage, but an estimate of relative readiness — never a guarantee or safety certification — not a measurement of how the policy behaves on the floor.",
   },
   {
     num: "04",
@@ -193,32 +159,19 @@ const truthHierarchy: TruthRow[] = [
 const surfaceTiles = [
   {
     eyebrow: "Surface",
-    label: "Capture",
-    description:
-      "The SwiftUI capture app vetted capturers use to record the route, with live coverage and provenance cues.",
-    href: "/capture",
-  },
-  {
-    eyebrow: "Surface",
     label: "Buyer app",
     description:
-      "Where robot teams configure runs per site, compare policies, and export data packages inside their access scope.",
+      "Where robot teams configure a Task Evaluation Run per site, rank policies into a shortlist, and export a data package inside their access scope.",
     href: "/for-robot-teams",
   },
-  {
-    eyebrow: "Surface",
-    label: "Ops console",
-    description:
-      "Internal queue, evidence review, and proof-safe buyer handoff — keeping rights and coverage visible end to end.",
-    href: "/contact",
-  },
-  {
-    eyebrow: "Surface",
-    label: "Public listings",
-    description:
-      "Current Pipeline-backed site records that buyers can inspect without implying fictional supply.",
-    href: "/sites",
-  },
+];
+
+// Secondary, follow-on surfaces — supply and ops paths that support the run but
+// are not co-equal product front doors.
+const secondarySurfaces = [
+  { label: "Capture app", href: "/capture" },
+  { label: "Ops console", href: "/contact" },
+  { label: "Public listings", href: "/sites" },
 ];
 
 export default function HowItWorks() {
@@ -260,12 +213,11 @@ export default function HowItWorks() {
               How it works
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-              Capture first. Package the proof. Decide the next test.
+              Capture first. Package the proof. Rank the shortlist.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
-              Blueprint turns one real indoor capture into a versioned, rights-attached
-              package that robot teams can evaluate against — so the next test is a
-              decision, not a guess.
+              For robot and foundation-model teams: a site-specific Task Evaluation Run.{" "}
+              {robotPolicyScreeningValue}
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               <ProofChip light>Capture-backed</ProofChip>
@@ -280,10 +232,17 @@ export default function HowItWorks() {
       <section className="bg-canvas">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
-            eyebrow="The pipeline"
-            title="Four steps from real site to a decision."
-            description="Each step produces an artifact the next one depends on. Nothing is asserted that the capture cannot support."
+            eyebrow="The Task Evaluation Run"
+            title="From a real site to a ranked shortlist."
+            description="Blueprint sells robot and foundation-model teams one thing: a site-specific Task Evaluation Run. Capture first, package the proof, then rank your candidate policies — the shortlist is the destination, not a middle step. Nothing is asserted that the capture cannot support."
           />
+          <p className="mt-6 max-w-[46rem] text-[15px] leading-[1.7] text-ink-600">
+            {robotPolicyScreeningValue}
+          </p>
+          <p className="mt-3 max-w-[46rem] rounded-sm border border-line bg-inset px-4 py-3 text-[14px] leading-[1.65] text-ink-600">
+            <span className="font-semibold text-ink-900">Where the evidence is strongest today. </span>
+            {robotPolicyEvaluationBeachhead}
+          </p>
 
           <div className="mt-12 flex flex-col gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8]">
             {pipelineSteps.map((stage) => (
@@ -335,6 +294,21 @@ export default function HowItWorks() {
               </article>
             ))}
           </div>
+
+          <div className="mt-6 rounded-md border border-line bg-paper p-6 lg:p-8">
+            <Eyebrow tone="muted">After the run (later)</Eyebrow>
+            <p className="mt-3 max-w-[52rem] text-[14px] leading-[1.7] text-ink-500">
+              The ranked shortlist is where the run ends. Everything past it is a
+              secondary, follow-on path a team can opt into later — never the reason to
+              start. You can export the ranked comparison as a data package, request a
+              recapture, narrow the scenario, or move to a field pilot; the proof boundary
+              stays attached so any next step is grounded in what was actually captured.
+              A <span className="font-medium text-ink-600">Policy Improvement Run</span> is
+              an even-later add-on that turns measured failure clusters into prioritized
+              scenarios, curriculum recommendations, and a sealed regression set — and an
+              improved policy artifact requires a separately approved trainable interface.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -347,7 +321,7 @@ export default function HowItWorks() {
             description="Every Blueprint package is assembled from the same named parts. The mono identifiers are how each object is referenced across the app, the API, and the manifest."
           />
 
-          <TileGrid cols={3} className="mt-12">
+          <TileGrid cols={4} className="mt-12">
             {vocabulary.map((item) => {
               const Icon =
                 item.mono === "site_card"
@@ -447,11 +421,24 @@ export default function HowItWorks() {
       <section className="border-y border-line bg-paper">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
-            eyebrow="Four surfaces"
-            title="One pipeline, four places it shows up."
-            description="The same capture-first truth chain runs across every surface — from the capturer's phone to the public listing."
+            eyebrow="The buyer surface"
+            title="Where robot teams run the evaluation."
+            description="The Buyer app is the front door for robot and foundation-model teams — the one place the Task Evaluation Run is configured, ranked, and exported."
           />
-          <TileGrid cols={4} items={surfaceTiles} className="mt-12" />
+          <TileGrid cols={1} items={surfaceTiles} className="mt-12" />
+          <p className="mt-6 max-w-[52rem] text-[14px] leading-[1.65] text-ink-500">
+            <span className="font-semibold text-ink-600">Supporting surfaces (secondary). </span>
+            The capture-first truth chain also runs across the paid-supply and ops paths —{" "}
+            {secondarySurfaces.map((surface, index) => (
+              <span key={surface.href}>
+                <a href={surface.href} className="underline decoration-line underline-offset-2 hover:text-ink-700">
+                  {surface.label}
+                </a>
+                {index < secondarySurfaces.length - 1 ? ", " : ""}
+              </span>
+            ))}
+            {" "}— but these support the run rather than serve as co-equal product front doors.
+          </p>
         </div>
       </section>
 
@@ -459,15 +446,15 @@ export default function HowItWorks() {
       <section className="bg-canvas">
         <div className="mx-auto max-w-[88rem] px-5 pb-20 sm:px-8 lg:px-10 lg:pb-28">
           <EditorialCtaBand
-            eyebrow="See it on a real site"
-            title="Scope the package before you commit field time."
-            description="Review the package structure, pricing, and proof boundary — then request an evaluation against a Pipeline-backed site record or your own capture scope."
-            imageSrc="/redesign/pov/inspection-bench.jpg"
-            imageAlt="Inspection bench workstation"
-            primaryHref="/pricing"
-            primaryLabel="See pricing"
-            secondaryHref="/contact/robot-team?persona=robot-team&source=how-it-works"
-            secondaryLabel="Request evaluation"
+            eyebrow="For robot & foundation-model teams"
+            title="Rank your policies before you spend field time."
+            description="Bring your candidate policies and a target site. A Task Evaluation Run returns a ranked shortlist — cheap screening that tells you which policy earns a pilot slot first, so scarce robot and field time goes to the strongest. An estimate and decision-support screen, never a guarantee or safety certification."
+            imageSrc="/redesign/pov/cold-storage.jpg"
+            imageAlt="Cold-storage warehouse aisle where a mobile base navigates and stages totes"
+            primaryHref="/contact/robot-team?persona=robot-team&source=how-it-works"
+            primaryLabel="Request an evaluation"
+            secondaryHref="/pricing"
+            secondaryLabel="See pricing"
           />
         </div>
       </section>
