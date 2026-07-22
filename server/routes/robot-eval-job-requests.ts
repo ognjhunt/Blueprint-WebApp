@@ -19,6 +19,10 @@ import {
   evaluateBetaCohortGate,
   recordBetaCohortAdmission,
 } from "../utils/beta-cohort-policy";
+import {
+  parseBenchmarkProjection,
+  type BenchmarkProjection,
+} from "../utils/benchmarkProjectionContract";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -454,6 +458,7 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
     updated_at_iso: data.updated_at_iso || null,
     created_at_iso: data.created_at_iso || null,
     pipeline_forward: data.pipeline_forward || null,
+    benchmark: data.benchmark_projection || pipelineResult.benchmark_projection || null,
     request_summary: {
       buyer_request_id:
         stringValue(data.buyer_request_id) || stringValue(jobRequest.buyer_request_id),
@@ -810,6 +815,21 @@ router.post(
     });
   }
 
+  const suppliedBenchmarkProjection =
+    body.benchmark_projection ?? body.webapp_benchmark_projection;
+  let benchmarkProjection: BenchmarkProjection | null = null;
+  if (suppliedBenchmarkProjection !== undefined) {
+    try {
+      benchmarkProjection = parseBenchmarkProjection(suppliedBenchmarkProjection);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Pipeline status benchmark projection is invalid or contains private fields.",
+        code: "invalid_benchmark_projection",
+        detail: error instanceof Error ? error.message : "invalid benchmark projection",
+      });
+    }
+  }
+
   const nowIso = new Date().toISOString();
   const pipelineStatus = String(body.pipeline_status || body.status || "").trim();
   const nextStatus =
@@ -823,9 +843,15 @@ router.post(
     pipeline_status: pipelineStatus || nextStatus,
     result_artifacts: asObject(body.result_artifacts || body.artifacts),
     pipeline_result: {
-      ...body,
+      job_id: bodyJobId,
+      pipeline_status: pipelineStatus || nextStatus,
+      result_artifacts: asObject(body.result_artifacts || body.artifacts),
+      ...(body.proof_boundary ? { proof_boundary: asObject(body.proof_boundary) } : {}),
+      ...(body.error ? { error: body.error } : {}),
+      ...(benchmarkProjection ? { benchmark_projection: benchmarkProjection } : {}),
       received_at_iso: nowIso,
     },
+    ...(benchmarkProjection ? { benchmark_projection: benchmarkProjection } : {}),
     ...(body.proof_boundary ? { proof_boundary: body.proof_boundary } : {}),
     ...(body.error ? { error: body.error } : {}),
     updated_at_iso: nowIso,

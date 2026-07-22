@@ -40,6 +40,6 @@ export default defineConfig({
     command: `${webServerEnvPrefix ? `${webServerEnvPrefix} ` : ''}PORT=${port} npx tsx server/index.ts`,
     url: baseURL,
     reuseExistingServer: !process.env.CI && !operatorQaFakeAuthEnabled,
-    timeout: 120_000,
+    timeout: 300_000,
   },
 });

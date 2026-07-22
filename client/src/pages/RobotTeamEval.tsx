@@ -174,6 +174,9 @@ export default function RobotTeamEval() {
   const [requesterEmail, setRequesterEmail] = useState("");
   const [requesterCompany, setRequesterCompany] = useState("");
   const [siteTarget, setSiteTarget] = useState("exact-site");
+  const [evaluationProtocol, setEvaluationProtocol] = useState<
+    "benchmark_grade" | "standard"
+  >("benchmark_grade");
   const [policyLabels, setPolicyLabels] = useState("primary-policy");
   const [episodeCount, setEpisodeCount] =
     useState<RobotTeamTestSubmissionEpisodeCount>("100");
@@ -362,10 +365,19 @@ export default function RobotTeamEval() {
             `Policies: ${submission.policyLabels.join(", ")}`,
             `Robot: ${submission.robotEmbodiment || "Needs scoping"}`,
             `Episodes: ${submission.customEpisodeCount || submission.episodeCount}`,
+            `Evaluation protocol: ${evaluationProtocol}`,
             `Hardware integration: ${submission.hardwareIntegrationMode}`,
             `Selected access: ${submission.selectedModalities.join(", ") || "Needs scoping"}`,
           ].join("\n"),
           robotTeamTestSubmission: submission,
+          benchmarkProtocolRequest: {
+            schema_version: "blueprint_benchmark_protocol_request.v1",
+            mode: evaluationProtocol,
+            frozen_hidden_splits_required: evaluationProtocol === "benchmark_grade",
+            fixed_rollouts_required: evaluationProtocol === "benchmark_grade",
+            confidence_intervals_required: evaluationProtocol === "benchmark_grade",
+            exact_checkpoint_digests_required: evaluationProtocol === "benchmark_grade",
+          },
         }),
       });
       const payload = (await response.json()) as {
@@ -603,7 +615,7 @@ export default function RobotTeamEval() {
                 <input
                   value={requesterName}
                   onChange={(event) => setRequesterName(event.target.value)}
-                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 text-sm font-normal"
                   autoComplete="name"
                   required
                 />
@@ -615,7 +627,7 @@ export default function RobotTeamEval() {
                   type="email"
                   value={requesterEmail}
                   onChange={(event) => setRequesterEmail(event.target.value)}
-                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 text-sm font-normal"
                   autoComplete="email"
                   required
                 />
@@ -626,7 +638,7 @@ export default function RobotTeamEval() {
                 <input
                   value={requesterCompany}
                   onChange={(event) => setRequesterCompany(event.target.value)}
-                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 text-sm font-normal"
                   autoComplete="organization"
                   required
                 />
@@ -637,7 +649,7 @@ export default function RobotTeamEval() {
                 <select
                   value={siteTarget}
                   onChange={(event) => setSiteTarget(event.target.value)}
-                  className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
                 >
                   {siteTargets.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -684,8 +696,24 @@ export default function RobotTeamEval() {
                 </select>
               </label>
 
+              <label className="grid gap-2 text-sm font-semibold">
+                5 Choose the evaluation protocol
+                <select
+                  value={evaluationProtocol}
+                  onChange={(event) =>
+                    setEvaluationProtocol(
+                      event.target.value as "benchmark_grade" | "standard",
+                    )
+                  }
+                  className="min-h-12 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  <option value="benchmark_grade">Benchmark grade</option>
+                  <option value="standard">Standard evaluation</option>
+                </select>
+              </label>
+
               <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-                5 Protect hardware and site IP
+                6 Protect hardware and site IP
                 <select
                   value={hardwareIntegrationMode}
                   onChange={(event) => {
