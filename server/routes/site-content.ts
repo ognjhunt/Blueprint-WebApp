@@ -142,7 +142,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Subscription-first pricing for robot-team eval infrastructure, lite quick-look evals, $5,000/site operator supply reviews, and yearly deployed-site monitoring.",
+      "Two fixed-price campaigns: a $3,000 Policy Shortlist for robot teams and a $5,000 Robot Match for site operators, each returning the two or three strongest candidates for an onsite pilot. Robot-team participation in a sponsored Robot Match is free.",
   },
   {
     path: "/contact",

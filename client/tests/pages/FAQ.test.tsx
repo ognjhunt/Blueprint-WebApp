@@ -12,12 +12,12 @@ describe("FAQ", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/What does Blueprint sell\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What does a Task Evaluation Run return\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What is a Policy Improvement Run\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What does a campaign return\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Do robot teams pay to join a Robot Match\?/i)).toBeInTheDocument();
     expect(screen.getByText(/Is the published 0.929 correlation a Blueprint result\?/i)).toBeInTheDocument();
     expect(screen.getByText(/How do capturers and site operators participate\?/i)).toBeInTheDocument();
     expect(screen.getByText(/Are the sites page and run dashboard filled with samples\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/capture-backed Task Evaluation Runs, Policy Improvement Runs/i)).toBeInTheDocument();
+    expect(screen.getByText(/a Policy Shortlist for robot teams and a Robot Match for site operators/i)).toBeInTheDocument();
     expect(screen.getByText(/shows an empty request path instead of invented supply or analytics/i)).toBeInTheDocument();
     const robotTeamLinks = screen.getAllByRole("link", {
       name: /Talk to Blueprint about a real site/i,

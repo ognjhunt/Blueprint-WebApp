@@ -628,14 +628,14 @@ export default function RobotTeamEval({ embedded = false }: { embedded?: boolean
           >
             <h2 className="text-3xl font-semibold">Start with the essentials.</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Add the minimum now and we scope one cheap comparative screening
-              run — a single-site ranking of your candidate policies before you
-              spend field time.
+              Add the minimum now and we scope one Policy Shortlist campaign — a
+              single-site ranking of up to five of your candidate policies that
+              returns the two or three strongest for an onsite pilot.
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Later: if you run policies on a cadence, you can expand to a
-              subscription. Quick-look scope stays available on request — both
-              are follow-ons to the first screening run, not the starting point.
+              Fixed price, $3,000 per campaign. Run campaigns on a cadence and we
+              negotiate volume pricing — a subscription only comes later, once the
+              cadence is real.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">

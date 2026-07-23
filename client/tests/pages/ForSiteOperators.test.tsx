@@ -3,26 +3,44 @@ import { describe, expect, it } from "vitest";
 import ForSiteOperators from "@/pages/ForSiteOperators";
 
 describe("ForSiteOperators", () => {
-  it("renders the simplified site-operator persona page", () => {
+  it("renders the Robot Match site-operator offering", () => {
     render(<ForSiteOperators />);
 
-    expect(screen.getAllByText(/^For Site Operators$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/For Site Operators/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
-        name: /Offer a site\. Keep the boundary\./i,
+        name: /Find the robot teams worth piloting\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /From a facility to a controlled supply site\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Operator approval stays attached, not inferred\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Register the facility/i)).toBeInTheDocument();
-    expect(screen.getByText(/Approve capture windows/i)).toBeInTheDocument();
-    expect(screen.getByText(/Turn a facility into a captured evaluation site — and keep/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /The facilities that make strong packages\./i })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Start site review/i })[0]).toHaveAttribute(
-      "href",
-      "/contact/site-operator?source=for-site-operators",
-    );
-    expect(screen.queryByText(/^Revenue share$/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Any indoor facility qualifies/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /From a workflow to a short, credible pilot list\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site-task brief$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Qualify a candidate pool$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Shortlist & pilot brief$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Your site stays yours\./i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /One campaign\. \$5,000\. A shortlist you can pilot\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^\$5,000$/)).toBeInTheDocument();
+
+    const matchLinks = screen.getAllByRole("link", {
+      name: /Find robot teams for my site/i,
+    });
+    expect(matchLinks.length).toBeGreaterThan(0);
+    matchLinks.forEach((link) => {
+      expect(link).toHaveAttribute(
+        "href",
+        expect.stringContaining("/contact/site-operator"),
+      );
+    });
+
+    // The retired supply-review / monitoring model is gone.
+    expect(screen.queryByText(/Site monitoring/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$30–40k/)).not.toBeInTheDocument();
   });
 });

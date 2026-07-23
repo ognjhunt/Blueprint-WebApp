@@ -192,10 +192,10 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Priced as evaluation infrastructure.",
+    expectedHeading: "Priced per campaign, not per seat.",
     requiredCtas: [
-      { label: "Start a subscription", hrefStartsWith: "/contact" },
-      { label: "Start a site review", hrefStartsWith: "/contact" },
+      { label: "Rank my policies", hrefStartsWith: "/contact" },
+      { label: "Find robot teams for my site", hrefStartsWith: "/" },
     ],
   },
   {

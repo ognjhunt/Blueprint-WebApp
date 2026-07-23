@@ -42,14 +42,14 @@ test('contact page leads with a simple robot-team Policy Evaluation Run flow', a
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
 
-test('site-operator contact path keeps the low-cost access-boundary lane visible', async ({ page }) => {
+test('site-operator contact path presents the Robot Match lane', async ({ page }) => {
   await page.goto('/contact/site-operator', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Share a place for policy comparison\./i }),
+    page.getByRole('heading', { name: /Find robot teams for your site\./i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Start a \$5,000\/site supply review or scope yearly monitoring\. Access, rights, and pricing are confirmed per scope\./i),
+    page.getByText(/Start a \$5,000 Robot Match — we compare compatible robot teams on your captured site/i),
   ).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Organization/i })).toBeVisible();

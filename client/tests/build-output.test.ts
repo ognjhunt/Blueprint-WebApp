@@ -208,15 +208,14 @@ describe("build output", () => {
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders the real page so crawlers and no-JS agents see the
     // actual tiers, prices, and correct persona intake links.
-    expect(pricingHtml).toContain("Priced as evaluation infrastructure.");
-    expect(pricingHtml).toContain("Quick-look eval");
-    expect(pricingHtml).toContain("Robot-team subscription");
-    expect(pricingHtml).toContain("Site supply");
-    expect(pricingHtml).toContain("Site monitoring");
-    expect(pricingHtml).toContain("$15k");
+    expect(pricingHtml).toContain("Priced per campaign, not per seat.");
+    expect(pricingHtml).toContain("Policy Shortlist");
+    expect(pricingHtml).toContain("Robot Match");
+    expect(pricingHtml).toContain("$3,000");
+    expect(pricingHtml).toContain("$5,000");
     expect(pricingHtml).toContain("/contact/site-operator?buyerType=site_operator");
-    expect(pricingHtml).toContain("illustrative ranges");
-    expect(pricingHtml).not.toContain("Pick a run");
+    expect(pricingHtml).not.toContain("Quick-look eval");
+    expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("Proof stays scoped");
     expect(proofHtml).toContain(
       "Generated clips help review. Real-world validation requires the matched robot, task, and site envelope.",

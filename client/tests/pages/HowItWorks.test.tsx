@@ -21,11 +21,13 @@ describe("HowItWorks", () => {
       screen.getByRole("heading", { name: /^Evaluate policies against the site\.$/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /^Turn failures into the next policy loop\.$/i }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", { name: /^Decide the next test\.$/i }),
     ).toBeInTheDocument();
+    // Policy Improvement Run is no longer a mainline pipeline step; it lives only
+    // in the demoted "After the run (later)" follow-on note.
+    expect(
+      screen.queryByRole("heading", { name: /^Turn failures into the next policy loop\.$/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText(/Four steps from real site to a decision\./i),
     ).toBeInTheDocument();

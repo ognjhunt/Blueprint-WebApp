@@ -17,18 +17,23 @@ const faqs = [
   {
     question: "What does Blueprint sell?",
     answer:
-      "Blueprint sells capture-backed Task Evaluation Runs, Policy Improvement Runs, and provenance-checked data packages for real-site robot workflows. World models and simulation are supporting tools inside those deliverables, not the primary offer or ground truth.",
+      "Site-specific robot ranking, sold as two fixed-price campaigns: a Policy Shortlist for robot teams and a Robot Match for site operators. Each captures the real site and task, evaluates comparable candidates under the same protocol, and returns the two or three strongest for an onsite pilot. World models and simulation are internal support inside those campaigns, not the primary offer or ground truth.",
   },
   {
-    question: "What does a Task Evaluation Run return?",
+    question: "What does a campaign return?",
     answer:
-      "The run ranks and orders your candidate policies on the same site, task, robot profile, and policy set so your team can screen before committing field or pilot budget. You get a scoped comparison: episode metrics, policy ordering, failure clusters, uncertainty and missing-proof labels, plus review-support media. We stand behind the ordering (rank fidelity), not a calibrated success guarantee. It is an estimate inside that envelope, not a deployment guarantee.",
+      "The top two or three candidates, with confidence and uncertainty, the major failure patterns, scenario-level performance, review media, and a recommended onsite pilot plan. A Robot Match adds each team's capability and integration gaps. We stand behind the ordering (rank fidelity) inside the measured site, task, and threshold scope — not a calibrated success guarantee, and not a deployment guarantee.",
+  },
+  {
+    question: "What if no candidate is strong enough?",
+    answer:
+      "The result can be “ranking inconclusive” or “no candidate met the threshold,” and Blueprint reports it honestly. Every candidate receives one verdict — shortlisted, viable but below shortlist, insufficient evidence, incompatible, or below minimum threshold. Blueprint never manufactures a winner; you are buying a better pilot decision, not a guaranteed one.",
   },
   {
     question: "Where is the evidence strongest today?",
     answer:
       robotPolicyEvaluationBeachhead +
-      " That beachhead is where a Task Evaluation Run screens policies most confidently right now — never a guarantee or safety certification.",
+      " That beachhead is where a campaign ranks candidates most confidently right now — never a guarantee or safety certification.",
   },
   {
     question: "Is the published 0.929 correlation a Blueprint result?",
@@ -36,29 +41,24 @@ const faqs = [
       "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites that third-party research as category context; a Blueprint result exists only when a specific owned run records its own evidence.",
   },
   {
+    question: "Do robot teams pay to join a Robot Match?",
+    answer:
+      "No. During a sponsored Robot Match, compatible robot teams participate for free, so the ranking never looks pay-to-play. Later, once a site benchmark is established, teams can submit to it for a small, uniform $250–500 fee that never affects ranking or placement. Every candidate first passes a capability and embodiment gate.",
+  },
+  {
     question: "Are the sites page and run dashboard filled with samples?",
     answer:
       "No. Public site cards come only from current Pipeline-backed capture records, and the buyer run dashboard lists only records owned by the signed-in buyer. When no record exists, the interface shows an empty request path instead of invented supply or analytics.",
   },
   {
-    question: "What if the exact site is not publicly listed?",
+    question: "How do capturers and site operators participate?",
     answer:
-      "Tell Blueprint the facility type, workflow, access window, and robot question. Blueprint can scope a new capture with the operator or review private inventory without implying that access, rights, or city coverage already exists.",
-  },
-  {
-    question: "Who is the buyer, and how do capturers and site operators participate?",
-    answer:
-      "The robot or foundation-model team is the buyer. Capturers are recruited, reviewed, and paid supply: they apply for assignments and see payout terms before work begins. Site operators are access and lighthouse partners who define access, privacy, restricted areas, rights, and commercial posture. No application, capture, payout, or downstream use is treated as approved until the system that owns that state records it.",
+      "Capturers are recruited, reviewed, and paid supply: they apply for assignments and see payout terms before work begins. Site operators are the buyers of a Robot Match and the controllers of access — they define access windows, privacy, restricted areas, rights, and commercial posture, and nothing is captured until they approve it. No application, capture, payout, or downstream use is treated as approved until the system that owns that state records it.",
   },
   {
     question: "Does a purchase prove execution or deployment readiness?",
     answer:
-      "No. Payment, entitlement, queued execution, simulator output, ranking evidence, and field validation are separate states. Blueprint reports each boundary separately and never promotes checkout or startup into a successful run claim.",
-  },
-  {
-    question: "What is a Policy Improvement Run? (follow-on)",
-    answer:
-      "A Policy Improvement Run is a later, follow-on offer, not the core product. After a Task Evaluation Run, Blueprint can turn evaluation failures into a request-scoped improvement package: prioritized failure clusters, scenario or curriculum recommendations, and a sealed regression set. If your team exposes an approved trainable adapter, controller, reward, or fine-tuning path, the scope can also include an improved policy artifact; source-code access is not always required.",
+      "No. Payment, entitlement, queued execution, simulator output, ranking evidence, and field validation are separate states. The report separates the ranking inside Blueprint's evaluator from estimated onsite-pilot suitability and from unproven physical performance, safety, reliability, and deployment readiness. Blueprint reports each boundary separately.",
   },
 ];
 

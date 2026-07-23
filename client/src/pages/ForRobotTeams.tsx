@@ -294,42 +294,43 @@ export default function ForRobotTeams() {
           </div>
         </section>
 
-        {/* Pricing — 2-col, quick-look (the screening wedge) highlighted dark */}
+        {/* Pricing — Policy Shortlist, one fixed-price campaign */}
         <section className="border-y border-line bg-inset">
           <div className="mx-auto max-w-[88rem] px-7 py-16 lg:py-20">
             <EditorialSectionIntro
               eyebrow="Pricing"
-              title="Priced as evaluation infrastructure."
-              description="Start with a single quick-look comparison — the cheap pre-field screening wedge. Move to a subscription later, when policy iteration is continuous. All figures below are illustrative."
+              title="One campaign. One shortlist. $3,000."
+              description="A Policy Shortlist evaluates up to five of your policies or checkpoints against the same captured site and task, then names the two or three strongest for an onsite pilot. Fixed price — no subscription to start."
               className="max-w-3xl"
             />
             <TileGrid cols={2} className="mt-10">
-              {/* Quick-look — the primary pre-field screening wedge, highlighted dark */}
+              {/* Policy Shortlist — the one campaign, highlighted dark */}
               <div className="relative flex h-full flex-col overflow-hidden bg-ink p-8 text-[color:var(--text-on-ink)]">
                 <div className="bp-evidence-grid pointer-events-none absolute inset-0 opacity-25" />
                 <div className="relative flex items-center justify-between">
-                  <Eyebrow tone="onInk">Quick-look</Eyebrow>
+                  <Eyebrow tone="onInk">Policy Shortlist</Eyebrow>
                   <StatusChip tone="info" square dot={false}>
-                    Primary
+                    Campaign
                   </StatusChip>
                 </div>
                 <div className="relative mt-4 flex items-baseline gap-2">
                   <span className="font-mono text-[2.5rem] font-medium leading-none tracking-tight text-[color:var(--text-on-ink)]">
-                    $5–8k
+                    $3,000
                   </span>
-                  <span className="font-mono text-sm text-ink-300">/ comparison</span>
+                  <span className="font-mono text-sm text-ink-300">/ campaign</span>
                 </div>
                 <p className="relative mt-4 text-sm leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
-                  One ranked comparison on a captured site — the cheap pre-field
-                  screening wedge, right-sized for a single go / no-go decision
-                  before field time.
+                  You already have a site and several candidate policies. Blueprint
+                  ranks them on the same captured site and task, and returns the two
+                  or three that deserve an onsite pilot.
                 </p>
                 <ul className="relative mt-6 flex flex-1 flex-col gap-3">
                   {[
-                    "One site package, one task suite",
-                    "Up to 100 episodes per policy",
-                    "PolicyRankBar + failure clusters",
-                    "Export with rights packet attached",
+                    "One site and deployment task",
+                    "Up to five policies or checkpoints",
+                    "Confidence-aware comparative evaluation",
+                    "Failure patterns and review media",
+                    "Onsite pilot recommendation",
                   ].map((f) => (
                     <li
                       key={f}
@@ -344,35 +345,37 @@ export default function ForRobotTeams() {
                   ))}
                 </ul>
                 <p className="relative mt-6 text-[13px] text-ink-300">
-                  Best for a first evaluation on a single facility.
+                  Capture of a normal local site is included. The result may be
+                  &ldquo;ranking inconclusive&rdquo; — Blueprint never manufactures a
+                  winner.
                 </p>
                 <Button asChild variant="brass" size="lg" full className="relative mt-6">
-                  <a href="/contact/robot-team?persona=robot-team&plan=quick-look&source=for-robot-teams">
-                    Request a quick-look
+                  <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-shortlist&requestedOutputs=Policy%20Shortlist&source=for-robot-teams">
+                    Rank my policies
                   </a>
                 </Button>
               </div>
 
-              {/* Subscription — secondary, for later when iteration is continuous */}
+              {/* Repeat campaigns — volume, no subscription until a real cadence */}
               <div className="flex h-full flex-col bg-white p-8">
-                <Eyebrow tone="muted">Robot-team subscription · later</Eyebrow>
+                <Eyebrow tone="muted">Repeat campaigns</Eyebrow>
                 <div className="mt-4 flex items-baseline gap-2">
                   <span className="font-mono text-[2.5rem] font-medium leading-none tracking-tight text-ink-900">
-                    $15k
+                    Volume
                   </span>
-                  <span className="font-mono text-sm text-ink-500">/ month</span>
+                  <span className="font-mono text-sm text-ink-500">/ negotiated</span>
                 </div>
                 <p className="mt-4 text-sm leading-[1.7] text-ink-500">
-                  Follow-on for when policy iteration is continuous — multiple sites
-                  and task suites, larger episode budgets, and a hosted review path.
+                  Running campaigns on a cadence? Repeat campaigns get privately
+                  negotiated volume pricing instead of a subscription you do not
+                  need yet.
                 </p>
                 <ul className="mt-6 flex flex-1 flex-col gap-3">
                   {[
-                    "Multiple site packages & task suites",
-                    "Up to 500 episodes per policy",
-                    "Comparison history across runs",
-                    "Hosted runtime with access windows",
-                    "Priority capture & recapture requests",
+                    "Example: four campaigns for $10,000",
+                    "Or a quarterly campaign commitment",
+                    "Priority capture and recapture routing",
+                    "A subscription only after a real cadence",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-ink-700">
                       <Check
@@ -384,25 +387,25 @@ export default function ForRobotTeams() {
                   ))}
                 </ul>
                 <p className="mt-6 text-[13px] text-ink-400">
-                  Best for teams shipping policy updates on a cadence.
+                  Best for teams comparing policies on a recurring cadence.
                 </p>
                 <Button asChild variant="secondary" size="lg" full className="mt-6">
-                  <a href="/contact/robot-team?persona=robot-team&plan=subscription&source=for-robot-teams">
-                    Talk to us about a subscription
+                  <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=volume-campaigns&requestedOutputs=Volume%20Campaigns&source=for-robot-teams">
+                    Discuss volume
                   </a>
                 </Button>
               </div>
             </TileGrid>
-            <ProofBoundary level="info" title="Policy Improvement Runs are source-access optional" className="mt-8">
-              Blueprint can deliver failure prioritization, scenario design, curriculum recommendations,
-              and a sealed regression pack from run evidence alone. Delivering an improved policy
-              artifact additionally requires an approved trainable interface—such as an adapter,
-              controller, reward, fine-tuning endpoint, or distillation path.
+            <ProofBoundary level="info" title="What the campaign is — and is not" className="mt-8">
+              A Policy Shortlist ranks candidates inside Blueprint&rsquo;s configured
+              evaluator and estimates their suitability for an onsite pilot. It does
+              not prove physical performance, safety, reliability, or deployment
+              readiness — you are buying a better pilot decision, not a guarantee.
               <a
-                href="/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=for-robot-teams"
+                href="/pricing"
                 className="ml-2 font-semibold text-blue-700"
               >
-                Scope an improvement run
+                See full pricing
               </a>
             </ProofBoundary>
           </div>
