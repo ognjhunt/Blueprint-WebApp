@@ -106,13 +106,7 @@ const pages = [
     path: "/for-robot-teams",
     title: "Start a Policy Evaluation",
     description:
-      "Simple four-step setup for choosing a site task, adding policies, naming the robot, choosing episodes, and attaching policy access details when available.",
-  },
-  {
-    path: "/robot-team/eval",
-    title: "Robot-Team Evaluation Submission",
-    description:
-      "Canonical structured submission route for robot teams to create an eligible hosted session or route request-gated modalities to contact intake without upgrading references into readiness proof.",
+      "The robot-team page and canonical structured submission route: read how a Task Evaluation Run works, then submit one on the same page — choose a site task, add policies, name the robot, choose episodes, and attach policy access details when available, without upgrading references into readiness proof.",
   },
   {
     path: "/sites",

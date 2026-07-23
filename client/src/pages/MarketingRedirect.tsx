@@ -10,10 +10,17 @@ export function MarketingRedirect({ to }: MarketingRedirectProps) {
 
   useEffect(() => {
     const search = typeof window !== "undefined" ? window.location.search : "";
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const incomingHash = typeof window !== "undefined" ? window.location.hash : "";
+    // Split the target so a forwarded query lands BEFORE any hash in `to`
+    // (e.g. `/for-robot-teams#intake` or `/#how-it-works`); appending the
+    // query after the hash would bury it in the fragment and break the anchor.
+    const [toBase, toHashRaw] = to.split("#");
+    const toHash = toHashRaw ? `#${toHashRaw}` : "";
     const query = search.replace(/^\?/, "");
-    const separator = query ? (to.includes("?") ? "&" : "?") : "";
-    setLocation(`${to}${separator}${query}${hash}`, { replace: true });
+    const separator = query ? (toBase.includes("?") ? "&" : "?") : "";
+    setLocation(`${toBase}${separator}${query}${toHash || incomingHash}`, {
+      replace: true,
+    });
   }, [setLocation, to]);
 
   return null;
