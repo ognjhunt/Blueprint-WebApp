@@ -50,7 +50,6 @@ describe("build output", () => {
       "pricing/index.html",
       "proof/index.html",
       "for-robot-teams/index.html",
-      "robot-team/eval/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
       "capture-app/index.html",
@@ -70,6 +69,7 @@ describe("build output", () => {
   it("does not prerender retired aliases or protected operations routes", () => {
     [
       "product/index.html",
+      "robot-team/eval/index.html",
       "readiness/index.html",
       "world-models/index.html",
       "contact/index.html",

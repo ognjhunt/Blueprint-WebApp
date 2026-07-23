@@ -243,20 +243,6 @@ const PrerenderCaptureLaunchAccessSummary = () => (
   />
 );
 
-const PrerenderRobotTeamEvalSummary = () => (
-  <MinimalStaticPage
-    title="Robot Team Evaluation | Blueprint"
-    description="Start a four-step policy evaluation request for a captured task pack."
-    heading="Start an evaluation"
-    body="Pick a site task, add policies, tell us the robot, and choose 100 or 500 episodes."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
-    primaryLabel="Start"
-    // The live RobotTeamEval page canonicalizes to /for-robot-teams (the
-    // advertised citation target), so the prerendered shell must match.
-    canonical="/for-robot-teams"
-  />
-);
-
 const PrerenderFallbackSummary = () => (
   <MinimalStaticPage
     title="Blueprint"
@@ -285,7 +271,6 @@ const staticRoutes: StaticRoute[] = [
   // sitemap and llms.txt, so crawlers must see the real page, not a summary
   // shell whose canonical points elsewhere.
   { path: "/for-robot-teams", component: ForRobotTeams },
-  { path: "/robot-team/eval", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
   // Live public pages (also advertised in the sitemap) prerender as their
   // real components so crawlers and no-JS agents see the actual content.
   { path: "/for-site-operators", component: ForSiteOperators },

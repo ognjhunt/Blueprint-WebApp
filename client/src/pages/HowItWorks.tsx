@@ -239,7 +239,7 @@ export default function HowItWorks() {
               How it works
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-              Capture first. Package the proof. Decide the next test.
+              How a Task Evaluation Run works.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
               Blueprint turns one real indoor capture into a versioned, rights-attached

@@ -1,6 +1,7 @@
 import { ArrowRight, Check } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import RobotTeamEval from "@/pages/RobotTeamEval";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import {
@@ -184,7 +185,7 @@ export default function ForRobotTeams() {
                     For Robot Teams
                   </Eyebrow>
                   <h1 className="mt-6 max-w-[40rem] font-display text-[clamp(3rem,5.4vw,5rem)] font-medium leading-[0.95] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-                    Rank robot policies on real sites before field time.
+                    Rank your policies on a real site — before field time.
                   </h1>
                   <p className="mt-6 max-w-[34rem] text-[1.1rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
                     Submit your checkpoints and compare them on a captured indoor
@@ -215,7 +216,7 @@ export default function ForRobotTeams() {
                   <p className="mt-4 text-sm text-[color:var(--text-on-ink)] opacity-75">
                     Already know the policy modalities and robot interface?{" "}
                     <a
-                      href="/robot-team/eval"
+                      href="#intake"
                       className="font-semibold underline underline-offset-4 hover:opacity-100"
                     >
                       Configure policy inputs
@@ -508,6 +509,9 @@ export default function ForRobotTeams() {
             </div>
           </div>
         </section>
+
+        {/* Robot-team evaluation intake — merged in from the former /robot-team/eval page */}
+        <RobotTeamEval embedded />
 
         {/* CTA band */}
         <section className="mx-auto max-w-[88rem] px-7 pb-20 pt-4">

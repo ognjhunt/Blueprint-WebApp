@@ -46,7 +46,8 @@ const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
 const CapturerSignUpFlow = lazyRoute(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
-const RobotTeamEval = lazyRoute(() => import("../pages/RobotTeamEval"));
+// /robot-team/eval merged into /for-robot-teams (#intake); keep the URL as a redirect.
+const RobotTeamEvalRedirect = () => <MarketingRedirect to="/for-robot-teams#intake" />;
 const Sites = lazyRoute(() => import("../pages/Sites"));
 const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
 const Pricing = lazyRoute(() => import("../pages/Pricing"));
@@ -242,7 +243,7 @@ export const appRoutes: AppRoute[] = [
   // Persona pages
   { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
   { path: "/for-robot-teams", layout: "public", component: ForRobotTeams },
-  { path: "/robot-team/eval", layout: "public", component: RobotTeamEval },
+  { path: "/robot-team/eval", layout: "public", component: RobotTeamEvalRedirect },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages

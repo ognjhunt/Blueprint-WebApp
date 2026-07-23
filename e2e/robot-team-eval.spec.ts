@@ -14,7 +14,17 @@ const policyApiFields = {
   "Policy API endpoint Owner contact": "robot-owner@example.com",
 };
 
-test("robot-team eval route is simple and submits normalized policy payload", async ({
+test("legacy /robot-team/eval redirects to the merged /for-robot-teams intake", async ({
+  page,
+}) => {
+  await page.goto("/robot-team/eval");
+  await expect(page).toHaveURL(/\/for-robot-teams/);
+  await expect(
+    page.getByRole("heading", { name: "Start with the essentials." }),
+  ).toBeVisible();
+});
+
+test("robot-team eval intake on /for-robot-teams submits a normalized policy payload", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -29,13 +39,8 @@ test("robot-team eval route is simple and submits normalized policy payload", as
     });
   });
 
-  await page.goto("/robot-team/eval");
+  await page.goto("/for-robot-teams");
 
-  await expect(
-    page.getByRole("heading", {
-      name: "Compare policies on one site task.",
-    }),
-  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Start with the essentials." })).toBeVisible();
   await expect(page.getByText("API").first()).toBeVisible();
   await expect(page.getByText("Docker").first()).toBeVisible();
@@ -143,14 +148,12 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   expect(submission.successCriteria).toBe("tote placed without safety event");
 });
 
-test("robot-team eval route is usable on mobile", async ({ page }) => {
+test("robot-team eval intake is usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/robot-team/eval");
+  await page.goto("/for-robot-teams");
 
   await expect(
-    page.getByRole("heading", {
-      name: "Compare policies on one site task.",
-    }),
+    page.getByRole("heading", { name: "Start with the essentials." }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Send request/i }),

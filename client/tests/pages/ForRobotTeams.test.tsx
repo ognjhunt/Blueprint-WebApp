@@ -7,12 +7,12 @@ describe("ForRobotTeams", () => {
     render(<ForRobotTeams />);
 
     expect(
-      screen.getByRole("heading", { name: /Rank robot policies on real sites before field time/i }),
+      screen.getByRole("heading", { name: /Rank your policies on a real site — before field time/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request evaluation/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Configure policy inputs/i })).toHaveAttribute(
       "href",
-      "/robot-team/eval",
+      "#intake",
     );
     const siteLinks = screen.getAllByRole("link", { name: /Browse site records/i });
     expect(siteLinks.length).toBeGreaterThan(0);

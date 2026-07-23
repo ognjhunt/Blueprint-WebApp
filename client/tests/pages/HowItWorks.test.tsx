@@ -8,7 +8,7 @@ describe("HowItWorks", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Capture first\. Package the proof\. Decide the next test\./i,
+        name: /How a Task Evaluation Run works\./i,
       }),
     ).toBeInTheDocument();
     expect(
