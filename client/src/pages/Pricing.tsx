@@ -15,13 +15,15 @@ import {
 } from "@/components/site/editorial";
 import { TileGrid } from "@/components/site/TileGrid";
 import {
-  robotPolicyScreeningValue,
+  blueprintPositioning,
+  rankingOutcomeCategories,
   robotPolicyEvaluationBeachhead,
 } from "@/data/robotPolicyEvaluationClaims";
 import { ArrowRight, Check } from "lucide-react";
 
-type Tier = {
+type Campaign = {
   name: string;
+  buyer: string;
   price: string;
   unit: string;
   tagline: string;
@@ -29,160 +31,106 @@ type Tier = {
   note: string;
   cta: string;
   href: string;
-  highlighted?: boolean;
 };
 
-// The primary front door: one service, two ways to buy it. Quick-look is the
-// lead first-purchase (cheap pre-pilot screening); the subscription is the
-// secondary scale-up once ranking is part of the development loop.
-const primaryTiers: Tier[] = [
+// The two — and only two — ways to buy the core service. Both are a single
+// fixed-price campaign that returns a shortlist for an onsite pilot. Everything
+// else on this page is infrastructure or a participation path, not another offer.
+const campaigns: Campaign[] = [
   {
-    name: "Quick-look eval",
-    price: "$5–8k",
-    unit: "/ eval",
-    tagline: "The first-purchase screen: rank a couple of policies on one captured site before you spend any field or pilot time.",
+    name: "Policy Shortlist",
+    buyer: "For robot teams",
+    price: "$3,000",
+    unit: "/ campaign",
+    tagline:
+      "Already have a site and several candidate policies? Blueprint evaluates them against the same captured site and task, then identifies the two or three strongest candidates for field testing.",
     features: [
-      "Up to 100 episodes on one packaged site",
-      "1–2 policies or checkpoints",
-      "Ranking-only report",
-      "Review-support media included",
+      "One site and deployment task",
+      "Up to five policies or checkpoints",
+      "Confidence-aware comparative evaluation",
+      "Failure patterns and review media",
+      "Onsite pilot recommendation",
     ],
-    note: "Failure taxonomy and calibration stay in subscription scope.",
-    cta: "Request a quick-look",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=100&source=pricing",
-    highlighted: true,
+    note: "Capture of a normal local site is included. Nonstandard travel, private-site legal work, or custom policy engineering is quoted separately.",
+    cta: "Rank my policies",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-shortlist&requestedOutputs=Policy%20Shortlist&source=pricing",
   },
   {
-    name: "Robot-team subscription",
-    price: "$15k",
-    unit: "/ mo",
-    tagline: "The scale-up: recurring comparison infrastructure once ranking policies is part of the development loop.",
+    name: "Robot Match",
+    buyer: "For site operators",
+    price: "$5,000",
+    unit: "/ campaign",
+    tagline:
+      "Want to pilot robots but do not know which teams belong onsite? Blueprint turns your workflow into a shared evaluation challenge, compares compatible robot teams against the same captured site, and recommends the two or three strongest for a field pilot.",
     features: [
-      "Compare team, checkpoint, and vendor policies",
-      "Unlimited eval cycles up to policy cap",
-      "Failure taxonomy and regression tracking",
-      "Overage pricing above the cap",
-      "Priority capture and recapture routing",
+      "Site and workflow assessment",
+      "Up to five qualified robot teams",
+      "Comparable site-specific evaluation",
+      "Integration and failure analysis",
+      "Shortlist and pilot brief",
     ],
-    note: "Overage pricing applies above the agreed policy cap.",
-    cta: "Start a subscription",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
+    note: "Robot-team participation is free during a sponsored campaign. Requirements discovery, candidate qualification, and coordinating several teams are why Robot Match is priced above Policy Shortlist.",
+    cta: "Find robot teams for my site",
+    href: "/contact/site-operator?buyerType=site_operator&interest=robot-match&requestedOutputs=Robot%20Match&source=pricing",
   },
 ];
 
-// Follow-on, on request — not part of the first-purchase decision.
-const policyImprovementRun: Tier = {
-  name: "Policy Improvement Run",
-  price: "Scoped",
-  unit: "/ run",
-  tagline: "Turn measured evaluation failures into the next policy-development loop.",
-  features: [
-    "Prioritized failure clusters and scenario design",
-    "Curriculum recommendations and sealed regression set",
-    "Source-code access is optional for analysis outputs",
-    "Improved policy artifact only with an approved trainable path",
-  ],
-  note: "Price and deliverables depend on the policy interface, evidence, and training authority in scope.",
-  cta: "Scope improvement",
-  href: "/contact/robot-team?persona=robot-team&interest=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing",
-};
-
-// Secondary supply-side / access-partner path for lighthouse operators — kept
-// present, but not a co-equal product tier for robot teams.
-const operatorTiers: Tier[] = [
-  {
-    name: "Site supply",
-    price: "$5k",
-    unit: "/ site",
-    tagline: "A supply-side path for operators with useful sites to make available.",
-    features: [
-      "Facility, access, and privacy review",
-      "Capture and commercialization posture",
-      "Rights packet drafted with the operator",
-      "Payout terms set before any buyer use",
-    ],
-    note: "No deployment or rights guarantee until the site is reviewed.",
-    cta: "Start a site review",
-    href: "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
-  },
-  {
-    name: "Site monitoring",
-    price: "$30–40k",
-    unit: "/ site / yr",
-    tagline: "Annual monitoring when a site needs repeated policy-update checks.",
-    features: [
-      "Multiple scoped checks up to annual cap",
-      "Internal-team and vendor comparisons",
-      "Per-site report card for change management",
-      "Lower per-check price than one-off evals",
-    ],
-    note: "Still bounded to the reviewed site, task, and access scope.",
-    cta: "Discuss monitoring",
-    href: "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing",
-  },
-];
-
-type AddOn = {
+type Participation = {
   name: string;
-  meter: string;
+  price: string;
+  unit: string;
   body: string;
   stage?: string;
 };
 
-const addOns: AddOn[] = [
+// How robot teams enter a site operator's Robot Match. Free while campaigns are
+// sponsored; a small, uniform later fee once a site benchmark is established.
+const participation: Participation[] = [
   {
-    name: "Per-task deep probe (PTDP)",
-    meter: "per_task · +$2.5k",
-    body: "An expanded probe on a single Task Card — more episodes and scenario variations to harden the ranking on the cases that matter most.",
+    name: "Sponsored participation",
+    price: "Free",
+    unit: "/ qualified submission",
+    body: "During a sponsored Robot Match, compatible robot teams enter one qualified submission at no cost. Keeping entry free protects competition — placement is never pay-to-play.",
   },
   {
-    name: "Hosted review session",
-    meter: "per_session · +$1.2k",
-    body: "A guided walk through a run's rank-fidelity output, failure clusters, and review media with the Blueprint evaluation team.",
-  },
-  {
-    name: "Generated media pack",
-    meter: "per_pack · +$800",
-    body: "Rendered support clips that help reviewers reason about a run. Always labeled as review support, never as real-world proof of an outcome.",
-  },
-  {
-    name: "Provenance-checked data package",
-    meter: "per_export · +$3k",
-    body: "An export-ready data package with provenance, rights packet, and coverage flags attached, scoped to your access window.",
-    stage: "Second product, later",
+    name: "Open-benchmark submission",
+    price: "$250–500",
+    unit: "/ submission",
+    body: "Once a site benchmark is established, later teams can submit to the same challenge for a small, uniform fee. The fee never affects ranking or placement.",
+    stage: "Later",
   },
 ];
 
 const faqItems = [
   {
-    question: "Which tier should we start with?",
+    question: "Which campaign is for me?",
     answer:
-      "Start with a quick-look eval — the cheap pre-pilot screen that ranks your policies on one captured site before you spend field time. The robot-team subscription is the scale-up for teams comparing policies continuously, where regression tracking and failure taxonomy live.",
+      "If you are a robot team that already has a prospective site and several candidate policies or checkpoints, start with a Policy Shortlist. If you are a site operator who wants to automate a workflow but does not know which robot teams belong onsite, start with a Robot Match. Both return the two or three strongest candidates for an onsite pilot.",
   },
   {
-    question: "What exactly am I paying for in an eval?",
+    question: "What is in the shortlist report?",
     answer:
-      "A rank-fidelity comparison of policies against a real captured site — episode runs, failure clusters, and review media. It is an estimate of relative readiness, not a guarantee of field success or a deployment-ready claim.",
+      "The top two or three candidates, with confidence and uncertainty, the major failure patterns, scenario-level performance, review media, and a recommended onsite pilot plan. A Robot Match also includes capability and integration gaps for each team.",
   },
   {
-    question: "How does site supply pricing work?",
+    question: "What if no candidate is strong enough?",
     answer:
-      "The $5k operator-side figure is a review fee covering facility, access, privacy, and commercialization posture; it is not a promised payout. Any separate payout terms are confirmed before robot-team use. Monitoring is a separate, recurring option.",
+      "The result may be “ranking inconclusive” or “no candidate met the threshold.” Blueprint reports that honestly and never manufactures a winner. You can extend the episode budget, narrow the scenario, or stop — you are buying a better pilot decision, not a guaranteed one.",
   },
   {
-    question: "Is generated media ever counted as proof?",
+    question: "Do robot teams pay to join a Robot Match?",
     answer:
-      "No. Generated and simulated media are review support only and are always labeled as such. The raw capture is the single source of ground truth across every tier and add-on.",
+      "No. Robot-team participation is free during a sponsored campaign. Later, once a site benchmark is established, teams can submit to it for a small, uniform $250–500 fee that never affects ranking or placement.",
   },
   {
-    question: "Are episode counts and prices fixed?",
+    question: "Are these prices fixed?",
     answer:
-      "The figures here are illustrative ranges. Final episode counts, policy caps, and pricing are set per engagement against the reviewed site, task, robot profile, and access scope.",
+      "They are launch prices held for the first ten paid campaigns, then reviewed against real delivery cost, integration hours, compute per candidate, inconclusive-ranking rate, and the share of campaigns that advance to an onsite pilot. Running repeated campaigns? Volume pricing is privately negotiated — for example, four campaigns for $10,000.",
   },
   {
-    question: "What happens after an eval?",
+    question: "Who captures the site, and who owns the rights?",
     answer:
-      "Every run ends in an actionable decision: export the data package, request a recapture, narrow the scenario, or move toward a field pilot — with the proof boundary attached.",
+      "Blueprint captures the relevant area under approved windows, or reuses an existing rights-approved capture. Provenance, rights, and privacy travel with the package and stay operator-controlled. No access is granted until the operator approves it.",
   },
 ];
 
@@ -191,14 +139,14 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Pricing for the Task Evaluation Run: rank your robot policies on a captured real-site task envelope before you spend field or pilot time. Buy it as a quick-look eval or a robot-team subscription — bounded to the reviewed site, task, and access scope."
+        description="Blueprint pricing: two fixed-price campaigns that rank candidates against the site where they may deploy. Policy Shortlist ($3,000) for robot teams; Robot Match ($5,000) for site operators. Each returns the two or three strongest candidates for an onsite pilot."
         canonical="/pricing"
         jsonLd={[
           webPageJsonLd({
             path: "/pricing",
             name: "Blueprint Pricing",
             description:
-              "Planning ranges for the robot-team Task Evaluation Run — a quick-look eval or a subscription that ranks policies on a captured real-site task envelope. Follow-on paths (policy improvement, operator site supply and monitoring) are secondary.",
+              "Two fixed-price site-specific ranking campaigns: Policy Shortlist ($3,000/campaign) for robot teams and Robot Match ($5,000/campaign) for site operators. Each returns the two or three strongest candidates for an onsite pilot.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -216,19 +164,20 @@ export default function Pricing() {
               Pricing
             </Eyebrow>
             <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-ink-900">
-              Priced as evaluation infrastructure.
+              Priced per campaign, not per seat.
             </h1>
             <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-ink-500">
-              {robotPolicyScreeningValue}
+              {blueprintPositioning}
             </p>
             <p className="mt-4 max-w-[34rem] text-[0.95rem] leading-[1.65] text-ink-400">
-              {robotPolicyEvaluationBeachhead} You are buying rank fidelity inside that
-              scope — never a guarantee or safety certification.
+              You are buying a shortlist before an expensive onsite pilot — one
+              fixed-price campaign, one clear decision. Never a deployment
+              guarantee, a safety certification, or a readiness claim.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
-              <ProofChip>Capture-backed comparisons</ProofChip>
-              <ProofChip>Rank fidelity, not guarantees</ProofChip>
-              <ProofChip>Scope-bounded access</ProofChip>
+              <ProofChip>Fixed-price campaigns</ProofChip>
+              <ProofChip>Top two or three, or none</ProofChip>
+              <ProofChip>Better pilot decision, not a guarantee</ProofChip>
             </div>
           </div>
           <MonochromeMedia
@@ -242,252 +191,47 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Tiers */}
+      {/* Two campaigns */}
       <section className="border-y border-line bg-paper">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialSectionIntro
-            eyebrow="How teams buy an evaluation run"
-            title="One service, two ways to buy it."
-            description="Start with a quick-look eval as your first purchase, then move to a subscription when ranking policies becomes part of the development loop. All figures are illustrative ranges, set per engagement."
+            eyebrow="The two ways to buy"
+            title="One service. Two ways to start a campaign."
+            description="A robot team ranks its own policies for a known site, or a site operator compares compatible robot teams for a desired deployment. Both end in the same place: the two or three candidates that deserve an onsite pilot."
           />
 
           <TileGrid cols={2} className="mt-12 rounded-lg">
-            {primaryTiers.map((tier) => {
-              const onInk = tier.highlighted;
-              return (
-                <article
-                  key={tier.name}
-                  className={
-                    onInk
-                      ? "flex h-full flex-col bg-ink p-6 text-[color:var(--text-on-ink)]"
-                      : "flex h-full flex-col bg-white p-6"
-                  }
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <Eyebrow tone={onInk ? "onInk" : "muted"}>Tier</Eyebrow>
-                    {onInk ? (
-                      <StatusChip
-                        tone="ink"
-                        square
-                        dot={false}
-                        className="border-brass/50 bg-transparent text-brass"
-                      >
-                        Primary
-                      </StatusChip>
-                    ) : null}
-                  </div>
-
-                  <h3
-                    className={
-                      onInk
-                        ? "mt-5 text-title-m font-semibold tracking-tight text-[color:var(--text-on-ink)]"
-                        : "mt-5 text-title-m font-semibold tracking-tight text-ink-900"
-                    }
-                  >
-                    {tier.name}
-                  </h3>
-
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span
-                      className={
-                        onInk
-                          ? "font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-[color:var(--text-on-ink)]"
-                          : "font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-ink-900"
-                      }
-                    >
-                      {tier.price}
-                    </span>
-                    <span
-                      className={
-                        onInk
-                          ? "font-mono text-[0.9rem] text-ink-300"
-                          : "font-mono text-[0.9rem] text-ink-400"
-                      }
-                    >
-                      {tier.unit}
-                    </span>
-                  </div>
-
-                  <p
-                    className={
-                      onInk
-                        ? "mt-4 text-sm leading-[1.6] text-[color:var(--text-on-ink)] opacity-80"
-                        : "mt-4 text-sm leading-[1.6] text-ink-500"
-                    }
-                  >
-                    {tier.tagline}
-                  </p>
-
-                  <ul className="mt-5 flex flex-col gap-2.5">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2.5">
-                        <Check
-                          className="mt-0.5 h-4 w-4 shrink-0 text-brass"
-                          strokeWidth={2}
-                          aria-hidden="true"
-                        />
-                        <span
-                          className={
-                            onInk
-                              ? "text-[13px] leading-[1.5] text-[color:var(--text-on-ink)] opacity-90"
-                              : "text-[13px] leading-[1.5] text-ink-700"
-                          }
-                        >
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <p
-                    className={
-                      onInk
-                        ? "mt-5 border-t border-white/10 pt-4 text-[12px] leading-[1.5] text-ink-300"
-                        : "mt-5 border-t border-line-soft pt-4 text-[12px] leading-[1.5] text-ink-400"
-                    }
-                  >
-                    {tier.note}
-                  </p>
-
-                  <div className="mt-auto pt-6">
-                    <Button
-                      asChild
-                      variant={onInk ? "brass" : "secondary"}
-                      size="md"
-                      full
-                    >
-                      <a href={tier.href}>
-                        {tier.cta}
-                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </a>
-                    </Button>
-                  </div>
-                </article>
-              );
-            })}
-          </TileGrid>
-
-          {/* Follow-on, on request — demoted out of the primary grid */}
-          <div className="mt-8 flex flex-col gap-3 border border-line bg-inset p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Eyebrow tone="muted">Later / on request</Eyebrow>
-                <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-500">
-                  {policyImprovementRun.price} {policyImprovementRun.unit}
-                </span>
-              </div>
-              <h3 className="mt-2 text-title-s font-semibold tracking-tight text-ink-900">
-                {policyImprovementRun.name}
-              </h3>
-              <p className="mt-1 max-w-[42rem] text-sm leading-[1.6] text-ink-500">
-                {policyImprovementRun.tagline} {policyImprovementRun.note}
-              </p>
-            </div>
-            <Button asChild variant="secondary" size="md">
-              <a href={policyImprovementRun.href}>
-                {policyImprovementRun.cta}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Add-ons */}
-      <section className="bg-canvas">
-        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
-          <EditorialSectionIntro
-            eyebrow="Add-ons"
-            title="Extend a run when you need more depth."
-            description="Optional units layered onto any tier. Each is metered and priced per use, with the proof boundary intact."
-          />
-
-          <TileGrid cols={2} className="mt-12">
-            {addOns.map((addOn) => (
-              <div key={addOn.name} className="flex h-full flex-col gap-3 bg-white p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-title-m font-semibold tracking-tight text-ink-900">
-                    {addOn.name}
-                  </h3>
-                  <span className="inline-flex items-center gap-2 border border-line bg-inset px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-600">
-                    <span
-                      aria-hidden="true"
-                      className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
-                    />
-                    {addOn.meter}
-                  </span>
-                </div>
-                {addOn.stage ? (
-                  <span className="inline-flex w-fit items-center border border-brass/50 bg-transparent px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-brass">
-                    {addOn.stage}
-                  </span>
-                ) : null}
-                <p className="text-sm leading-[1.65] text-ink-500">{addOn.body}</p>
-              </div>
-            ))}
-          </TileGrid>
-
-          <ProofBoundary
-            level="info"
-            title="What you're buying"
-            className="mt-10"
-          >
-            <p>
-              Every tier and add-on buys a capture-backed comparison against a real,
-              packaged site — rank fidelity, failure clusters, and review-support media.
-              It is an estimate of relative readiness, not a deployment-ready claim or a
-              guarantee of field success.
-            </p>
-            <p className="mt-3 font-mono text-[13px] text-ink-700">
-              All access is bounded to the reviewed site, task, robot profile,
-              policy-access mode, and proof boundary. Figures shown are illustrative
-              ranges; the final episode count, access mode, and price are written into the request.
-            </p>
-          </ProofBoundary>
-        </div>
-      </section>
-
-      {/* Operator / access partnership — secondary supply-side path */}
-      <section className="bg-canvas">
-        <div className="mx-auto max-w-[88rem] px-5 pb-8 sm:px-8 lg:px-10 lg:pb-12">
-          <EditorialSectionIntro
-            eyebrow="Operator / access partnership"
-            title="Have a site instead of a policy?"
-            description="A separate, secondary path for lighthouse operators who can make a useful site available. This is paid supply and access partnership — not a co-equal product tier for robot teams, and it opens only after a facility, access, and privacy review."
-          />
-
-          <TileGrid cols={2} className="mt-10">
-            {operatorTiers.map((tier) => (
+            {campaigns.map((campaign) => (
               <article
-                key={tier.name}
-                className="flex h-full flex-col bg-white p-6"
+                key={campaign.name}
+                className="flex h-full flex-col bg-white p-6 lg:p-8"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <Eyebrow tone="muted">Access partner</Eyebrow>
-                  <StatusChip tone="neutral" square dot={false}>
-                    Secondary
+                  <Eyebrow tone="muted">{campaign.buyer}</Eyebrow>
+                  <StatusChip tone="info" square dot={false}>
+                    Campaign
                   </StatusChip>
                 </div>
 
-                <h3 className="mt-5 text-title-m font-semibold tracking-tight text-ink-900">
-                  {tier.name}
+                <h3 className="mt-5 text-title-l font-semibold tracking-tight text-ink-900">
+                  {campaign.name}
                 </h3>
 
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-ink-900">
-                    {tier.price}
+                  <span className="font-mono text-[2.4rem] font-medium leading-none tracking-[-0.02em] text-ink-900">
+                    {campaign.price}
                   </span>
                   <span className="font-mono text-[0.9rem] text-ink-400">
-                    {tier.unit}
+                    {campaign.unit}
                   </span>
                 </div>
 
-                <p className="mt-4 text-sm leading-[1.6] text-ink-500">
-                  {tier.tagline}
+                <p className="mt-4 text-sm leading-[1.65] text-ink-500">
+                  {campaign.tagline}
                 </p>
 
                 <ul className="mt-5 flex flex-col gap-2.5">
-                  {tier.features.map((feature) => (
+                  {campaign.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2.5">
                       <Check
                         className="mt-0.5 h-4 w-4 shrink-0 text-brass"
@@ -502,13 +246,13 @@ export default function Pricing() {
                 </ul>
 
                 <p className="mt-5 border-t border-line-soft pt-4 text-[12px] leading-[1.5] text-ink-400">
-                  {tier.note}
+                  {campaign.note}
                 </p>
 
                 <div className="mt-auto pt-6">
-                  <Button asChild variant="secondary" size="md" full>
-                    <a href={tier.href}>
-                      {tier.cta}
+                  <Button asChild variant="brass" size="md" full>
+                    <a href={campaign.href}>
+                      {campaign.cta}
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </a>
                   </Button>
@@ -516,15 +260,136 @@ export default function Pricing() {
               </article>
             ))}
           </TileGrid>
+
+          {/* Repeat campaigns — no subscription until a real cadence exists */}
+          <div className="mt-8 flex flex-col gap-3 border border-line bg-inset p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Eyebrow tone="muted">Repeat campaigns</Eyebrow>
+              <h3 className="mt-2 text-title-s font-semibold tracking-tight text-ink-900">
+                Volume pricing is negotiated, not subscribed.
+              </h3>
+              <p className="mt-1 max-w-[46rem] text-sm leading-[1.6] text-ink-500">
+                Teams running repeated campaigns get privately negotiated volume
+                pricing — for example, four campaigns for $10,000 or a quarterly
+                commitment. Blueprint introduces a subscription only after a
+                customer shows a real recurring cadence.
+              </p>
+            </div>
+            <Button asChild variant="secondary" size="md">
+              <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=volume-campaigns&requestedOutputs=Volume%20Campaigns&source=pricing">
+                Discuss volume
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Robot-team participation in a Robot Match */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="For robot teams joining a Match"
+            title="Getting compared on a site costs a robot team nothing today."
+            description="Site operators pay for the Robot Match campaign. Robot teams enter the shared evaluation for free while campaigns are sponsored, so rankings never look pay-to-play."
+          />
+
+          <TileGrid cols={2} className="mt-12">
+            {participation.map((tier) => (
+              <div key={tier.name} className="flex h-full flex-col gap-3 bg-white p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-title-m font-semibold tracking-tight text-ink-900">
+                    {tier.name}
+                  </h3>
+                  <span className="inline-flex items-center gap-2 border border-line bg-inset px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-600">
+                    <span
+                      aria-hidden="true"
+                      className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
+                    />
+                    {tier.price} {tier.unit}
+                  </span>
+                </div>
+                {tier.stage ? (
+                  <span className="inline-flex w-fit items-center border border-brass/50 bg-transparent px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-brass">
+                    {tier.stage}
+                  </span>
+                ) : null}
+                <p className="text-sm leading-[1.65] text-ink-500">{tier.body}</p>
+              </div>
+            ))}
+          </TileGrid>
+
+          <div className="mt-8 flex flex-col gap-3 border border-line bg-inset p-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-[52rem] text-sm leading-[1.6] text-ink-500">
+              To be compared, a candidate provides one standard interface — a
+              Blueprint-compatible policy API, a sealed container implementing the
+              evaluation contract, or an approved private runner exposing the same
+              observation and action interface. No source code is required.
+            </p>
+            <Button asChild variant="secondary" size="md">
+              <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=robot-match-participation&requestedOutputs=Robot%20Match%20Participation&source=pricing">
+                Join a Match
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Methodology & honesty */}
+      <section className="border-y border-line bg-paper">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="How the ranking is called"
+            title="A confidence-aware verdict — not a guessed order."
+            description="Blueprint runs candidates against paired scenarios and seeds, spends more episodes only where the ranking is close, and stops when the result is confident or the campaign cap is reached. Every candidate receives one verdict."
+          />
+
+          <div className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8] sm:grid-cols-2 xl:grid-cols-3">
+            {rankingOutcomeCategories.map((row) => (
+              <div key={row.label} className="flex flex-col gap-2 bg-white p-6">
+                <h3 className="text-title-s font-semibold tracking-tight text-ink-900">
+                  {row.label}
+                </h3>
+                <p className="text-sm leading-[1.6] text-ink-500">{row.body}</p>
+              </div>
+            ))}
+            <div className="flex flex-col justify-center gap-2 bg-inset p-6">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-brass-deep">
+                Where the evidence is strongest today
+              </p>
+              <p className="text-sm leading-[1.6] text-ink-600">
+                {robotPolicyEvaluationBeachhead}
+              </p>
+            </div>
+          </div>
+
+          <ProofBoundary level="info" title="What you're buying" className="mt-10">
+            <p>
+              Every campaign buys a capture-backed comparison against the real
+              site where a robot may deploy — the two or three best-supported
+              candidates for an onsite pilot, with failure patterns and review
+              media. The result can be &ldquo;ranking inconclusive&rdquo; or
+              &ldquo;no candidate met the threshold.&rdquo; Blueprint never
+              manufactures a winner.
+            </p>
+            <p className="mt-3 font-mono text-[13px] text-ink-700">
+              The report separates the ranking inside Blueprint&rsquo;s configured
+              evaluator from estimated suitability for an onsite pilot — and from
+              unproven physical performance, safety, reliability, and deployment
+              readiness. You are buying a better pilot decision, not a deployment
+              guarantee.
+            </p>
+          </ProofBoundary>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="border-y border-line bg-paper">
+      <section className="bg-canvas">
         <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
           <EditorialFaq
             title="Pricing FAQ"
-            description="The model, the boundaries, and what the numbers do and do not promise."
+            description="The two campaigns, what a shortlist includes, and what the numbers do and do not promise."
             items={faqItems}
           />
         </div>
@@ -534,15 +399,15 @@ export default function Pricing() {
       <section className="bg-canvas">
         <div className="mx-auto max-w-[88rem] px-5 pb-20 sm:px-8 lg:px-10 lg:pb-28">
           <EditorialCtaBand
-            eyebrow="Pick your on-ramp"
-            title="Start with a quick-look or scope a subscription."
-            description="Tell us the site, task, and policies you want to compare. We'll come back with episode counts, a policy cap, and pricing for your scope."
+            eyebrow="Start a campaign"
+            title="Get to a shortlist before you spend a pilot season."
+            description="Tell us the site, the task, and the candidates — policies you already have, or robot teams you want compared. We come back with a scoped campaign and the fixed price for it."
             imageSrc="/redesign/pov/loading-dock.jpg"
             imageAlt="Warehouse loading dock — mobile-base navigation and rigid tote handling"
-            primaryHref="/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing"
-            primaryLabel="Request evaluation"
-            secondaryHref="/sites"
-            secondaryLabel="Browse site records"
+            primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-shortlist&source=pricing"
+            primaryLabel="Rank my policies"
+            secondaryHref="/for-site-operators"
+            secondaryLabel="Find robot teams for my site"
           />
         </div>
       </section>

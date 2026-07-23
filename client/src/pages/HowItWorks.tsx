@@ -261,7 +261,7 @@ export default function HowItWorks() {
           <EditorialSectionIntro
             eyebrow="The pipeline"
             title="Four steps from real site to a decision."
-            description="Blueprint sells robot and foundation-model teams one thing: a site-specific Task Evaluation Run. Capture first, package the proof, then rank your candidate policies — the shortlist is the destination, not a middle step. Nothing is asserted that the capture cannot support."
+            description="Blueprint sells one thing two ways: a Policy Shortlist for a robot team that brings its own candidates, or a Robot Match for a site operator comparing robot teams. Both capture the site first, package the proof, then rank candidates — the shortlist is the destination, not a middle step. Nothing is asserted that the capture cannot support."
           />
           <p className="mt-6 max-w-[46rem] text-[15px] leading-[1.7] text-ink-600">
             {robotPolicyScreeningValue}

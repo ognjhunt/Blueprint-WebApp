@@ -8,7 +8,42 @@ export const robotPolicyEvaluationBoundary =
 
 // The one-line value proposition for the primary buyer (robot / foundation-model teams).
 export const robotPolicyScreeningValue =
-  "Rank your candidate policies on a captured real-site task envelope so you know which to field-test first — cheap screening before you spend field or pilot time.";
+  "Rank your candidate policies on the captured site and task where they would deploy, so only the two or three strongest need onsite pilot time.";
+
+// The organizing idea for the whole webapp: what the customer is actually buying
+// is a shortlist before an expensive onsite pilot — not episodes, subscriptions,
+// or a deployment guarantee.
+export const blueprintPositioning =
+  "Blueprint ranks robot policies and robot teams against the site where they may be deployed, so only the strongest two or three candidates need an onsite pilot.";
+
+// Plain-language summary of the one core service — site-specific robot ranking.
+export const siteSpecificRankingSummary =
+  "Blueprint captures the actual site and task, evaluates comparable robot policies under the same protocol, and returns the best-supported two or three candidates for an onsite pilot.";
+
+// The verdict a candidate can receive. Every campaign resolves to one of these —
+// including outcomes where nothing is shortlisted. Blueprint never manufactures a winner.
+export const rankingOutcomeCategories = [
+  {
+    label: "Shortlisted",
+    body: "Strong, consistent evidence across scenario families — recommended for an onsite pilot.",
+  },
+  {
+    label: "Viable, below shortlist",
+    body: "Competent, but outranked under the same site, task, seeds, and scoring rules.",
+  },
+  {
+    label: "Insufficient evidence",
+    body: "Too few resolved episodes or too much uncertainty to place with confidence.",
+  },
+  {
+    label: "Incompatible",
+    body: "Failed the embodiment, observation, action, or task-compatibility gate before ranking.",
+  },
+  {
+    label: "Below minimum threshold",
+    body: "Did not clear the task's floor for completion or safety-relevant behavior.",
+  },
+] as const;
 
 // The evidence beachhead, stated plainly so the site claims where the science is
 // strongest and guards the over-promise boundary at the same time.

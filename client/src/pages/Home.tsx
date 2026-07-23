@@ -58,13 +58,13 @@ const steps: Array<{ num: string; title: string; body: string }> = [
   },
   {
     num: "04",
-    title: "Later — improve against failures",
-    body: "Follow-on, after the ranking: an optional Policy Improvement Run can turn failure clusters into scenarios, curriculum, and a sealed regression pack; an improved policy artifact requires an approved trainable path. Secondary to the run itself.",
+    title: "Return the shortlist",
+    body: "The run returns the two or three strongest candidates for an onsite pilot — with confidence, failure clusters, and review media. The result can also be “inconclusive”; Blueprint never manufactures a winner.",
   },
   {
     num: "05",
     title: "Decide the next test",
-    body: "Use the ranking, failure clusters, and missing-proof labels to pilot, tune, recapture, or hold. Any follow-on Post-Training Data Package export built from the same evidence is a secondary, optional aside — the ranking in step 03 is the product.",
+    body: "Use the shortlist, failure clusters, and missing-proof labels to run the onsite pilot, narrow the scenario, recapture, or hold. You are buying a better pilot decision, not a deployment guarantee.",
   },
 ];
 
@@ -359,7 +359,7 @@ export default function Home() {
             <EditorialCtaBand
               eyebrow="Request evaluation"
               title="Rank your policies before field time."
-              description="Bring your checkpoints, a teammate's policy, or a vendor runner. Start with a proof-bounded Task Evaluation Run, then use a Policy Improvement Run to turn measured failures into the next curriculum and regression test."
+              description="Bring your checkpoints, a teammate's policy, or a vendor runner. A Policy Shortlist ranks them on the captured site and task, then names the two or three strongest for an onsite pilot — the ranking is the product."
               imageSrc="/redesign/pov/route-scan.jpg"
               imageAlt="Monochrome capture of an indoor route scan"
               primaryHref={requestHref}

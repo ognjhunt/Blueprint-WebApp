@@ -82,7 +82,7 @@ describe("Contact page", () => {
     expect(
       screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We will recommend the right subscription, quick-look, or site-ops comparison path/i)).toBeInTheDocument();
+    expect(screen.getByText(/We scope one Policy Shortlist campaign/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Compare policies on a real site\./i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
@@ -112,7 +112,7 @@ describe("Contact page", () => {
     expect(
       screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We will recommend the right subscription, quick-look, or site-ops comparison path/i)).toBeInTheDocument();
+    expect(screen.getByText(/We scope one Policy Shortlist campaign/i)).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Harborview Grocery Distribution Annex")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Unitree G1")).not.toBeInTheDocument();
   });
@@ -155,9 +155,9 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Share a place for policy comparison\./i }),
+      screen.getByRole("heading", { name: /Find robot teams for your site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Start a \$5,000\/site supply review or scope yearly monitoring\. Access, rights, and pricing are confirmed per scope/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start a \$5,000 Robot Match — we compare compatible robot teams on your captured site/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Partner on lighthouse capture access/i)[0]).toBeInTheDocument();

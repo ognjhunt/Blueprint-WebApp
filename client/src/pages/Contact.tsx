@@ -58,22 +58,22 @@ export default function Contact() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const headline = isSiteOperator
-    ? "Share a place for policy comparison."
+    ? "Find robot teams for your site."
     : "Tell us what policies to compare.";
   const subhead = isSiteOperator
-    ? "Start a $5,000/site supply review or scope yearly monitoring. Access, rights, and pricing are confirmed per scope."
-    : "We will recommend the right subscription, quick-look, or site-ops comparison path. Request only — nothing is committed.";
+    ? "Start a $5,000 Robot Match — we compare compatible robot teams on your captured site and shortlist the two or three strongest. Access, rights, and pricing are confirmed per scope."
+    : "We scope one Policy Shortlist campaign — a single-site ranking of your candidate policies — and send back a fixed price. Request only; nothing is committed.";
 
   const intentOptions = isSiteOperator
     ? [
-        { value: "supply", label: "Supply a site for review" },
-        { value: "monitoring", label: "Scope yearly monitoring" },
+        { value: "robot-match", label: "Robot Match campaign" },
+        { value: "site-supply", label: "Register a site (free)" },
         { value: "rights", label: "Discuss rights and access" },
       ]
     : [
-        { value: "subscription", label: "Robot-team subscription" },
-        { value: "quick-look", label: "Quick-look evaluation" },
-        { value: "site-ops", label: "Site-ops comparison" },
+        { value: "policy-shortlist", label: "Policy Shortlist campaign" },
+        { value: "volume-campaigns", label: "Repeat / volume campaigns" },
+        { value: "join-robot-match", label: "Join a Robot Match" },
       ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -127,27 +127,27 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title={isSiteOperator ? "Submit a Site | Blueprint" : "Start a Policy Evaluation | Blueprint"}
+        title={isSiteOperator ? "Robot Match | Blueprint" : "Start a Policy Shortlist | Blueprint"}
         description={
           isSiteOperator
-            ? "Submit a site for Blueprint robot policy evaluation review. You control rights and access."
-            : "Start a Blueprint policy evaluation request for captured real-site tasks."
+            ? "Start a Robot Match: compare compatible robot teams against your captured site and shortlist the strongest for an onsite pilot. You control rights and access."
+            : "Start a Policy Shortlist: rank your candidate policies on a captured real-site task and get the two or three strongest for an onsite pilot."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
         jsonLd={[
           webPageJsonLd({
             path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
             name: isSiteOperator
-              ? "Submit a Site to Blueprint"
-              : "Start a Blueprint Policy Evaluation",
+              ? "Start a Blueprint Robot Match"
+              : "Start a Blueprint Policy Shortlist",
             description: isSiteOperator
-              ? "Structured intake for site operators submitting a facility for capture-backed robot evaluation review."
-              : "Structured intake for a robot-team Task Evaluation Run that ranks candidate policies on a captured real-site task envelope.",
+              ? "Structured intake for a site-operator Robot Match that compares compatible robot teams on a captured real site."
+              : "Structured intake for a robot-team Policy Shortlist that ranks candidate policies on a captured real-site task envelope.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             {
-              name: isSiteOperator ? "Submit a Site" : "Start a Policy Evaluation",
+              name: isSiteOperator ? "Robot Match" : "Policy Shortlist",
               path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
             },
           ]),
@@ -202,7 +202,7 @@ export default function Contact() {
                   </h3>
                   <p className="mt-2 text-[15px] leading-[1.7] text-ink-600">
                     {isSiteOperator
-                      ? "We will review the place and follow up to confirm access, rights, and scope. No access is granted until you approve it."
+                      ? "We will review the workflow and follow up to confirm compatible teams, access, rights, and scope. No capture happens until you approve it."
                       : "We will check the task, scope the comparison, and return a priced run plan. If approved, run records appear in the buyer app or a private request room after evidence and access are accepted."}
                   </p>
                 </div>
@@ -249,7 +249,7 @@ export default function Contact() {
                     rows={5}
                     placeholder={
                       isSiteOperator
-                        ? "Facility type, location, access windows, and any restricted zones."
+                        ? "The workflow you want to automate, facility type, location, access windows, and any restricted zones."
                         : "The site, the task, the policies to rank, and the threshold you care about — e.g. case pick-and-place or aisle navigation in a warehouse."
                     }
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
@@ -266,7 +266,7 @@ export default function Contact() {
                 ) : null}
                 {!isSiteOperator ? (
                   <p className="text-caption text-ink-500">
-                    A Task Evaluation Run returns a ranking to screen what to field-test first — never a guarantee, a safety certification, or a deployment-readiness claim.
+                    A Policy Shortlist returns the two or three strongest candidates for an onsite pilot — never a guarantee, a safety certification, or a deployment-readiness claim.
                   </p>
                 ) : null}
                 <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">

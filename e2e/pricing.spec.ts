@@ -1,43 +1,34 @@
 import { expect, test } from "@playwright/test";
 
-test("pricing page presents the subscription-first robot-team pricing ladder", async ({
+test("pricing page presents the two-campaign shortlist model", async ({
   page,
 }) => {
   await page.goto("/pricing");
 
   await expect(
     page.getByRole("heading", {
-      name: "Priced as evaluation infrastructure.",
+      name: "Priced per campaign, not per seat.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Robot-team subscription" }),
+    page.getByRole("heading", { name: "Policy Shortlist", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Quick-look eval" }),
+    page.getByRole("heading", { name: "Robot Match", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText(/^\$3,000$/)).toBeVisible();
+  await expect(page.getByText(/^\$5,000$/)).toBeVisible();
+  await expect(page.getByText(/\$250–500/).first()).toBeVisible();
+  await expect(page.getByText(/never\s+manufactures a winner/i).first()).toBeVisible();
+  // Each campaign CTA lands on the correct persona intake.
   await expect(
-    page.getByRole("heading", { name: "Site supply", exact: true }),
-  ).toBeVisible();
+    page.getByRole("link", { name: /Rank my policies/i }).first(),
+  ).toHaveAttribute("href", /\/contact\/robot-team/);
   await expect(
-    page.getByRole("heading", { name: "Site monitoring", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText(/^\$15k$/i)).toBeVisible();
-  await expect(page.getByText(/^\$5–8k$/i)).toBeVisible();
-  await expect(page.getByText(/^\$5k$/i)).toBeVisible();
-  await expect(page.getByText(/^\$30–40k$/i)).toBeVisible();
-  await expect(page.getByText(/Overage pricing above the cap/i)).toBeVisible();
-  await expect(page.getByText(/Multiple scoped checks up to annual cap/i)).toBeVisible();
-  await expect(page.getByText(/Monitoring is a separate, recurring option\./i)).toBeVisible();
-  await expect(
-    page.getByText(/not a deployment-ready claim or a/i),
-  ).toBeVisible();
-  // Site-operator tiers must land on the site-operator intake form, not the
-  // generic /contact redirect (which routes to the robot-team form).
-  await expect(
-    page.getByRole("link", { name: /Start a site review/i }).first(),
+    page.getByRole("link", { name: /Find robot teams for my site/i }).first(),
   ).toHaveAttribute("href", /\/contact\/site-operator/);
-  await expect(
-    page.getByRole("link", { name: /Discuss monitoring/i }).first(),
-  ).toHaveAttribute("href", /\/contact\/site-operator/);
+  // The retired subscription / supply-review / monitoring model is gone.
+  await expect(page.getByText(/Robot-team subscription/i)).toHaveCount(0);
+  await expect(page.getByText(/Quick-look/i)).toHaveCount(0);
+  await expect(page.getByText(/Site monitoring/i)).toHaveCount(0);
 });
