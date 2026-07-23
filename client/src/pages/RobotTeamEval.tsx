@@ -173,7 +173,7 @@ function intakeHref(params: {
   return `/contact/robot-team?${query.toString()}`;
 }
 
-export default function RobotTeamEval() {
+export default function RobotTeamEval({ embedded = false }: { embedded?: boolean } = {}) {
   const [requesterName, setRequesterName] = useState("");
   const [requesterEmail, setRequesterEmail] = useState("");
   const [requesterCompany, setRequesterCompany] = useState("");
@@ -406,6 +406,7 @@ export default function RobotTeamEval() {
 
   return (
     <>
+      {!embedded && (
       <SEO
         title="Policy Evaluation Run for Robot Teams | Blueprint"
         description="Create a capture-backed Policy Evaluation Run to compare your own checkpoints, other teams, or vendor policies on the same site/task envelope."
@@ -420,8 +421,10 @@ export default function RobotTeamEval() {
           url: "https://tryblueprint.io/for-robot-teams",
         }}
       />
+      )}
 
-      <div className="bg-white text-slate-950">
+      <div className="bg-white text-slate-950" id="intake">
+        {!embedded && (
         <section className="border-b border-slate-200">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
@@ -455,6 +458,7 @@ export default function RobotTeamEval() {
             />
           </div>
         </section>
+        )}
 
         <section className="border-b border-slate-200 bg-slate-50">
           <div className="mx-auto grid max-w-[88rem] gap-3 px-5 py-6 sm:grid-cols-5 md:px-8">

@@ -158,7 +158,7 @@ export default function ForSiteOperators() {
                     For Site Operators
                   </Eyebrow>
                   <h1 className="mt-6 max-w-[40rem] font-display text-[clamp(3rem,5.4vw,5rem)] font-medium leading-[0.95] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
-                    Supply a real site without losing the boundary.
+                    Offer a site. Keep the boundary.
                   </h1>
                   <p className="mt-6 max-w-[34rem] text-[1.1rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
                     Turn a facility into a captured evaluation site — and keep

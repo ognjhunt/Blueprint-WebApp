@@ -145,7 +145,7 @@ describe("Route registration", () => {
 
     expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: ForSiteOperators }');
     expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotTeams }');
-    expect(source).toContain('{ path: "/robot-team/eval", layout: "public", component: RobotTeamEval }');
+    expect(source).toContain('{ path: "/robot-team/eval", layout: "public", component: RobotTeamEvalRedirect }');
     expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
     expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
     expect(source).toContain('{ path: "/how-it-works", layout: "public", component: HowItWorks }');
