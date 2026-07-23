@@ -199,7 +199,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Public planning ranges: $15,000/month robot-team eval infrastructure subscriptions, $5,000-$8,000 lite quick-look evals, $5,000/site operator supply reviews, and yearly deployed-site monitoring. Agent-purchasable SKUs are quoted per site world through /api/agent-access/commerce/quote (hosted-session rental hours or site-world package access); the server-side quote is authoritative and live checkout rejects client-supplied prices. These are planning ranges, not custom-scope quotes.",
+      "Public pricing is two fixed-price campaigns, each returning the two or three strongest candidates for an onsite pilot: a $3,000/campaign Policy Shortlist for a robot team that already has a site and candidate policies (ranks up to five policies or checkpoints), and a $5,000/campaign Robot Match for a site operator comparing compatible robot teams. Robot-team participation in a sponsored Robot Match is free; a uniform $250-$500 open-benchmark submission fee applies only later and never affects placement. Repeat work uses privately negotiated volume pricing, not a subscription. Agent-purchasable SKUs are quoted per site world through /api/agent-access/commerce/quote (hosted-session rental hours or site-world package access); the server-side quote is authoritative and live checkout rejects client-supplied prices. Every campaign can return 'ranking inconclusive'; the price buys a better pilot decision, not a deployment guarantee.",
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [
       { description: "Quote a specific site world", method: "GET", endpoint: "/api/agent-access/commerce/quote?siteWorldId={id}", mcpTool: "blueprint.commerce.quote" },

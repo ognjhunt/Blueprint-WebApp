@@ -56,7 +56,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 
 - `/` - Homepage and core buyer story: test robot policies before field time.
 - `/sites` - Captured places and task packs for Policy Evaluation Run requests.
-- `/pricing` - Subscription-first pricing: $15,000/month robot-team eval infrastructure, $5,000-$8,000 lite quick-look evals, $5,000/site operator supply reviews, and yearly deployed-site monitoring.
+- `/pricing` - Two fixed-price campaigns: $3,000 Policy Shortlist (robot teams) and $5,000 Robot Match (site operators), each returning the two or three strongest candidates for an onsite pilot; sponsored robot-team participation is free, with a later uniform $250-$500 open-benchmark submission fee that never affects placement.
 - `/proof` - Short proof explainer separating website samples, request packets, and real robot validation.
 - `/for-robot-teams` - Four-step setup for site/task, policies, robot, episodes, and optional policy access details.
 - `/contact/robot-team` - Short intake for robot teams to tell Blueprint what to test.
