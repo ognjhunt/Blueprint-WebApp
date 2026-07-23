@@ -406,7 +406,7 @@ export default function Pricing() {
             imageAlt="Warehouse loading dock — mobile-base navigation and rigid tote handling"
             primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-shortlist&source=pricing"
             primaryLabel="Rank my policies"
-            secondaryHref="/for-site-operators"
+            secondaryHref="/contact/site-operator?buyerType=site_operator&interest=robot-match&source=pricing"
             secondaryLabel="Find robot teams for my site"
           />
         </div>

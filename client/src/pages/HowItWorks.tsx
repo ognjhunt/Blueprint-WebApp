@@ -67,7 +67,7 @@ const pipelineSteps: PipelineStep[] = [
     step: "03",
     badge: "Evaluate",
     title: "Evaluate policies against the site.",
-    body: "This is the payload of the run. Robot teams compare policies, checkpoints, and vendor runners on the packaged site, and the run returns a ranked shortlist that says which policy to field-test first. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success, and never a safety certification.",
+    body: "This is the payload of the run. Robot teams compare policies, checkpoints, and vendor runners on the packaged site, and the run returns the two or three strongest candidates for an onsite pilot — or reports that the ranking is inconclusive or that no candidate met the threshold. Blueprint never manufactures a winner. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success, and never a safety certification.",
     src: "/redesign/pov/loading-dock.jpg",
     alt: "Warehouse loading dock staging lane where mobile bases stage and move",
     proof: [
@@ -78,19 +78,6 @@ const pipelineSteps: PipelineStep[] = [
   },
   {
     step: "04",
-    badge: "Improve",
-    title: "Turn failures into the next policy loop.",
-    body: "A Policy Improvement Run converts measured failure clusters into prioritized scenarios, curriculum recommendations, and a sealed regression set. An improved policy artifact requires a separately approved trainable interface.",
-    src: "/redesign/pov/inspection-bench.jpg",
-    alt: "Robot policy failure review at an inspection bench",
-    proof: [
-      "Failure priorities",
-      "Curriculum recommendations",
-      "Sealed regression set",
-    ],
-  },
-  {
-    step: "05",
     badge: "Decide",
     title: "Decide the next test.",
     body: "Every run ends in a decision a team can act on: export the data package, request a recapture, narrow the scenario, or move to a field pilot. The proof boundary stays attached so the decision is grounded in what was actually captured.",

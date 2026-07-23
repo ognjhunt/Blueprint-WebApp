@@ -116,9 +116,9 @@ const pricingMetrics = [
     caption: "Compatible teams participate free during a sponsored campaign — never pay-to-play.",
   },
   {
-    label: "Site supply",
+    label: "No active project",
     value: "Free",
-    caption: "No active project yet? Registering your site as supply costs nothing.",
+    caption: "No campaign yet? Register interest to be considered for a future Robot Match — request-first, no self-serve listing.",
   },
   {
     label: "Provenance",
@@ -267,8 +267,9 @@ export default function ForSiteOperators() {
               <ProofBoundary level="info" title="Who pays">
                 You pay for the campaign. Robot teams participate free while
                 campaigns are sponsored, so the ranking never looks pay-to-play. No
-                active project yet? Registering your site as marketplace supply is
-                free — you are only charged when you commission a Robot Match.
+                active project yet? Registering interest is free and request-first —
+                not a self-serve supply listing — and you are only charged when you
+                commission a Robot Match.
               </ProofBoundary>
               <ProofBoundary level="warn" title="Not every robot solves the same problem">
                 A fixed arm, mobile manipulator, AMR, and humanoid solve different
@@ -377,7 +378,7 @@ export default function ForSiteOperators() {
             <EditorialSectionIntro
               eyebrow="Pricing"
               title="One campaign. $5,000. A shortlist you can pilot."
-              description="Robot Match is a single fixed-price campaign — requirements, capture, candidate qualification, evaluation, and a shortlist. Robot-team participation and ordinary site supply are free."
+              description="Robot Match is a single fixed-price campaign — requirements, capture, candidate qualification, evaluation, and a shortlist. Robot-team participation and registering interest are free."
               className="max-w-3xl"
             />
             <div className="mt-10 grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8] sm:grid-cols-2 xl:grid-cols-4">
