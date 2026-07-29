@@ -6,6 +6,7 @@ import submitToSheetsHandler from "./routes/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "./routes/api/upload-to-b2";
 import storageUploadsRouter from "./routes/storage-uploads";
+import captureUploadsRouter from "./routes/capture-uploads";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
@@ -205,6 +206,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     storageUploadsRouter,
+  );
+  app.use(
+    "/api/capture-uploads",
+    csrfProtection,
+    verifyFirebaseToken,
+    captureUploadsRouter,
   );
   app.post(
     "/api/post-signup-workflows",

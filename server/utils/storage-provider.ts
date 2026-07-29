@@ -19,6 +19,28 @@ export type StorageUploadResult = {
   bucketName: string | null;
 };
 
+export type ResumableCaptureUpload = {
+  provider: "backblaze";
+  fileId: string;
+  objectPath: string;
+  bucketName: string;
+  storageUri: string;
+};
+
+export type ResumableCapturePartAuthorization = {
+  provider: "backblaze";
+  fileId: string;
+  uploadUrl: string;
+  authorizationToken: string;
+  expiresAtIso: string;
+};
+
+export type StoredCapturePart = {
+  partNumber: number;
+  contentLength: number;
+  contentSha1: string;
+};
+
 type UploadTarget = {
   uploadUrl: string;
   authorizationToken: string;
@@ -190,4 +212,115 @@ export async function uploadToBackblaze(
     bucketName: config.bucketName,
     url: buildBackblazePublicUrl(config.bucketName, input.objectPath),
   };
+}
+
+export async function startBackblazeResumableCapture(input: {
+  objectPath: string;
+  contentType: string;
+}): Promise<ResumableCaptureUpload> {
+  const config = getBackblazeConfig();
+  if (!config.bucketId || !config.bucketName) {
+    throw new Error("Backblaze B2 bucket configuration is not complete.");
+  }
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().startLargeFile({
+    bucketId: config.bucketId,
+    fileName: input.objectPath,
+    contentType: input.contentType || "application/octet-stream",
+  });
+  const fileId = String(response?.data?.fileId || "").trim();
+  if (!fileId) {
+    throw new Error("Backblaze B2 did not return a large-file id.");
+  }
+  return {
+    provider: "backblaze",
+    fileId,
+    objectPath: input.objectPath,
+    bucketName: config.bucketName,
+    storageUri: `b2://${config.bucketName}/${input.objectPath}`,
+  };
+}
+
+export async function authorizeBackblazeCapturePart(
+  fileId: string,
+): Promise<ResumableCapturePartAuthorization> {
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().getUploadPartUrl({ fileId });
+  const uploadUrl = String(response?.data?.uploadUrl || "").trim();
+  const authorizationToken = String(
+    response?.data?.authorizationToken || "",
+  ).trim();
+  if (!uploadUrl || !authorizationToken) {
+    throw new Error("Backblaze B2 did not return a part upload authorization.");
+  }
+  return {
+    provider: "backblaze",
+    fileId,
+    uploadUrl,
+    authorizationToken,
+    // B2 documents a 24-hour validity. Keep the client refresh boundary
+    // conservative so a resumed browser does not depend on the final hour.
+    expiresAtIso: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+export async function listBackblazeCaptureParts(
+  fileId: string,
+): Promise<StoredCapturePart[]> {
+  await ensureBackblazeAuthorized();
+  const parts: StoredCapturePart[] = [];
+  let startPartNumber = 1;
+  for (let page = 0; page < 10; page += 1) {
+    const response = await getBackblazeClient().listParts({
+      fileId,
+      startPartNumber,
+      maxPartCount: 1000,
+    });
+    const rows = Array.isArray(response?.data?.parts) ? response.data.parts : [];
+    for (const row of rows) {
+      parts.push({
+        partNumber: Number(row.partNumber),
+        contentLength: Number(row.contentLength),
+        contentSha1: String(row.contentSha1 || "").toLowerCase(),
+      });
+    }
+    const next = Number(response?.data?.nextPartNumber || 0);
+    if (!Number.isInteger(next) || next <= 0) {
+      return parts;
+    }
+    startPartNumber = next;
+  }
+  throw new Error("Backblaze B2 part listing exceeded the supported page limit.");
+}
+
+export async function finishBackblazeResumableCapture(input: {
+  fileId: string;
+  partSha1Array: string[];
+}): Promise<void> {
+  await ensureBackblazeAuthorized();
+  await getBackblazeClient().finishLargeFile({
+    fileId: input.fileId,
+    partSha1Array: input.partSha1Array,
+  });
+}
+
+export async function getBackblazeCaptureFileInfo(fileId: string): Promise<{
+  fileId: string;
+  fileName: string;
+  contentLength: number;
+  action: string;
+}> {
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().getFileInfo(fileId);
+  return {
+    fileId: String(response?.data?.fileId || ""),
+    fileName: String(response?.data?.fileName || ""),
+    contentLength: Number(response?.data?.contentLength || 0),
+    action: String(response?.data?.action || ""),
+  };
+}
+
+export async function cancelBackblazeResumableCapture(fileId: string): Promise<void> {
+  await ensureBackblazeAuthorized();
+  await getBackblazeClient().cancelLargeFile({ fileId });
 }

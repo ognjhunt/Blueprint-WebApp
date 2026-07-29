@@ -9,6 +9,7 @@ Purpose: make authority boundaries explicit so engineers and agents do not confu
 Treat these as repo-authoritative definitions unless a newer explicit doctrine update supersedes them:
 
 - `AGENTS.md`: agent read order, working rules, human gates, CI posture, and graphify rules.
+- `docs/architecture/capture-upload-sessions.md`: secure resumable 360/monocular upload states, proof boundaries, and the server-verification handoff required before Pipeline intake.
 - `PLATFORM_CONTEXT.md`: platform doctrine, product center of gravity, cross-repo lifecycle, and truth hierarchy.
 - `WORLD_MODEL_STRATEGY_CONTEXT.md`: world-model strategy, swappable model posture, and product implications.
 - `AUTONOMOUS_ORG.md`: Blueprint autonomous org structure, Paperclip/Notion/repo truth roles, and loop closeout expectations.
