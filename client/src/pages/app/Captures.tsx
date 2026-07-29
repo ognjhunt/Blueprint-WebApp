@@ -4,14 +4,19 @@ import { AlertTriangle, CheckCircle2, UploadCloud } from "lucide-react";
 import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
+import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createCaptureUpload,
+  getCaptureTaskReview,
   getCaptureUpload,
   listCaptureUploads,
+  submitTaskDecisionCommand,
   uploadCaptureFile,
+  type CaptureTaskReview,
   type CaptureUploadSession,
   type CreateCaptureUploadSession,
+  type TaskDecisionCommandRequest,
   type WebCaptureAuthorityProfile,
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
@@ -70,9 +75,11 @@ function statusLabel(status: string) {
 function SessionHistory({
   sessions,
   onResume,
+  onReview,
 }: {
   sessions: CaptureUploadSession[];
   onResume: (session: CaptureUploadSession) => void;
+  onReview: (session: CaptureUploadSession) => void;
 }) {
   return (
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
@@ -92,9 +99,14 @@ function SessionHistory({
                 <td className="px-4 py-3 text-body-s text-ink-600">{profileCopy[session.capture_authority_profile].label}</td>
                 <td className="px-4 py-3"><StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip></td>
                 <td className="px-4 py-3 text-right">
-                  {["upload_pending", "uploading"].includes(session.status) ? (
-                    <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
-                  ) : null}
+                  <div className="flex justify-end gap-2">
+                    {["task_approval_required", "decision_pending_pipeline_validation"].includes(session.task_review.status) ? (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>Review tasks</Button>
+                    ) : null}
+                    {["upload_pending", "uploading"].includes(session.status) ? (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}</tbody>
@@ -121,6 +133,10 @@ export default function Captures() {
   const [identity, setIdentity] = useState(newUploadIdentity);
   const [activeSession, setActiveSession] = useState<CaptureUploadSession | null>(null);
   const [sessions, setSessions] = useState<CaptureUploadSession[]>([]);
+  const [reviewSession, setReviewSession] = useState<CaptureUploadSession | null>(null);
+  const [taskReview, setTaskReview] = useState<CaptureTaskReview | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -162,6 +178,49 @@ export default function Captures() {
     setProgress({ complete: session.uploaded_parts.length, total: session.expected_part_count });
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function reviewTasks(session: CaptureUploadSession) {
+    if (!currentUser) return;
+    setReviewSession(session);
+    setReviewLoading(true);
+    setTaskReview(null);
+    setError(null);
+    try {
+      const review = await getCaptureTaskReview(currentUser, session.session_id);
+      setTaskReview(review);
+      window.setTimeout(() => {
+        document.getElementById("task-review")?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  async function submitTaskDecision(
+    request: Omit<TaskDecisionCommandRequest, "idempotency_key">,
+  ) {
+    if (!currentUser || !reviewSession || !taskReview?.discovery) return;
+    setDecisionSubmitting(true);
+    setError(null);
+    try {
+      await submitTaskDecisionCommand(currentUser, reviewSession.session_id, {
+        ...request,
+        discovery_digest: taskReview.discovery.discovery_digest,
+        idempotency_key: `web-task-decision-${crypto.randomUUID()}`,
+      });
+      const [review] = await Promise.all([
+        getCaptureTaskReview(currentUser, reviewSession.session_id),
+        refresh(),
+      ]);
+      setTaskReview(review);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDecisionSubmitting(false);
+    }
   }
 
   function buildRequest(selectedFile: File): CreateCaptureUploadSession {
@@ -306,7 +365,19 @@ export default function Captures() {
           </aside>
         </form>
 
-        {loading ? <BuyerAppLoadingState /> : <SessionHistory sessions={sessions} onResume={resume} />}
+        {reviewLoading ? <BuyerAppLoadingState /> : taskReview?.discovery ? (
+          <div id="task-review">
+            <TaskCandidateReview
+              review={taskReview}
+              submitting={decisionSubmitting}
+              onSubmit={submitTaskDecision}
+            />
+          </div>
+        ) : null}
+
+        {loading ? <BuyerAppLoadingState /> : (
+          <SessionHistory sessions={sessions} onResume={resume} onReview={reviewTasks} />
+        )}
       </div>
     </AppShell>
   );

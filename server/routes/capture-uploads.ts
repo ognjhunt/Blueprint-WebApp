@@ -7,6 +7,11 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
+  parseVerifiedTaskDiscovery,
+  stableJson,
+  taskDecisionCommandSchema,
+} from "../utils/taskCandidateContract";
+import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
   finishBackblazeResumableCapture,
@@ -124,6 +129,8 @@ type SessionRecord = Record<string, unknown> & {
   storage_uri?: string;
   part_size_bytes: number;
   expected_part_count: number;
+  pipeline_task_discovery?: unknown;
+  latest_task_decision_command?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -219,6 +226,7 @@ function requestBlockers(request: SessionRequest, tenantId: string) {
 }
 
 function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[] = []) {
+  const taskReview = taskReviewProjection(record);
   return {
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
@@ -239,6 +247,11 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     content_addressing: record.content_addressing || {
       status: "pending_server_sha256_verification",
     },
+    task_review: {
+      status: taskReview.status,
+      candidate_count: taskReview.candidateCount,
+      latest_action: record.latest_task_decision_command?.action || null,
+    },
     claim_boundary: {
       capture_accepted: false,
       metric_scale_inherent: false,
@@ -249,6 +262,75 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function taskReviewProjection(record: SessionRecord) {
+  if (!record.pipeline_task_discovery) {
+    return {
+      status: "analysis_not_available" as const,
+      candidateCount: 0,
+      discovery: null,
+      blockers: [] as string[],
+    };
+  }
+  const parsed = parseVerifiedTaskDiscovery(record.pipeline_task_discovery);
+  if (!parsed.ok) {
+    return {
+      status: "pipeline_artifact_invalid" as const,
+      candidateCount: 0,
+      discovery: null,
+      blockers: parsed.blockers,
+    };
+  }
+  const blockers: string[] = [];
+  if (parsed.discovery.source_capture.intake_id !== record.request.intake_id) {
+    blockers.push("task_discovery_intake_mismatch");
+  }
+  const contentAddressing = record.content_addressing as
+    | { status?: unknown; sha256?: unknown }
+    | undefined;
+  if (
+    contentAddressing?.status === "verified" &&
+    contentAddressing.sha256 &&
+    contentAddressing.sha256 !== parsed.discovery.source_capture.capture_digest
+  ) {
+    blockers.push("task_discovery_capture_digest_mismatch");
+  }
+  if (blockers.length) {
+    return {
+      status: "pipeline_artifact_invalid" as const,
+      candidateCount: 0,
+      discovery: null,
+      blockers,
+    };
+  }
+  return {
+    status: record.latest_task_decision_command?.pipeline_approval_status ===
+      "pending_pipeline_validation"
+      ? "decision_pending_pipeline_validation" as const
+      : parsed.discovery.approval_state === "task_approval_required"
+        ? "task_approval_required" as const
+        : "no_candidates" as const,
+    candidateCount: parsed.discovery.task_candidates.length,
+    discovery: parsed.discovery,
+    blockers,
+  };
+}
+
+function publicTaskDecisionCommand(record: Record<string, unknown>) {
+  return {
+    schema_version: "task_candidate_decision_command_receipt.v1",
+    command_request_id: record.command_request_id,
+    capture_session_id: record.capture_session_id,
+    discovery_digest: record.discovery_digest,
+    task_candidate_id: record.task_candidate_id,
+    candidate_digest: record.candidate_digest,
+    action: record.action,
+    rationale: record.rationale,
+    edited_task: record.edited_task,
+    pipeline_approval_status: record.pipeline_approval_status,
+    created_at_iso: record.created_at_iso,
   };
 }
 
@@ -411,6 +493,205 @@ router.get("/:sessionId", async (req, res) => {
     }
   }
   return res.status(200).json(publicSession(result.record, parts));
+});
+
+router.get("/:sessionId/task-discovery", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  const review = taskReviewProjection(result.record);
+  res.set("Cache-Control", "no-store");
+  if (review.status === "pipeline_artifact_invalid") {
+    return res.status(409).json({
+      error: "Pipeline task-discovery artifact failed integrity validation",
+      blockers: review.blockers,
+    });
+  }
+  return res.status(200).json({
+    schema_version: "capture_task_review.v1",
+    session_id: result.record.session_id,
+    intake_id: result.record.request.intake_id,
+    status: review.status,
+    discovery: review.discovery,
+    latest_decision_command: result.record.latest_task_decision_command
+      ? publicTaskDecisionCommand(result.record.latest_task_decision_command)
+      : null,
+    claim_boundary: {
+      webapp_command_is_pipeline_approval: false,
+      decision_evidence_request_compiled: false,
+      task_success_established: false,
+    },
+  });
+});
+
+router.post("/:sessionId/task-decisions", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  const review = taskReviewProjection(result.record);
+  if (!review.discovery) {
+    return res.status(409).json({
+      error: "Task candidates are not available for customer review",
+      blockers: review.blockers,
+    });
+  }
+  const parsed = taskDecisionCommandSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Task decision command is invalid",
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+  const command = parsed.data;
+  if (command.discovery_digest !== review.discovery.discovery_digest) {
+    return res.status(409).json({ error: "Task discovery digest is stale" });
+  }
+  const matches = review.discovery.task_candidates.filter(
+    (candidate) =>
+      candidate.task_candidate_id === command.task_candidate_id &&
+      candidate.candidate_digest === command.candidate_digest,
+  );
+  if (matches.length !== 1) {
+    return res.status(409).json({ error: "Task candidate binding is stale or invalid" });
+  }
+  const commandRequestId = `task-command-${sha256Text(
+    `${user.uid}\u0000${result.record.session_id}\u0000${command.idempotency_key}`,
+  ).slice(0, 32)}`;
+  const fingerprint = `sha256:${sha256Text(stableJson({
+    user_id: user.uid,
+    capture_session_id: result.record.session_id,
+    command,
+  }))}`;
+  const commandRef = db!.collection("captureTaskDecisionCommands").doc(commandRequestId);
+  const sessionRef = db!.collection("captureUploadSessions").doc(result.record.session_id);
+  const now = new Date().toISOString();
+  const pending = {
+    schema_version: "task_candidate_decision_command_record.v1",
+    command_request_id: commandRequestId,
+    requester_user_id: user.uid,
+    actor: { role: "customer", identity: `firebase:${user.uid}` },
+    capture_session_id: result.record.session_id,
+    intake_id: result.record.request.intake_id,
+    discovery_digest: command.discovery_digest,
+    task_candidate_id: command.task_candidate_id,
+    candidate_digest: command.candidate_digest,
+    action: command.action,
+    rationale: command.rationale,
+    edited_task: command.edited_task,
+    request_fingerprint_sha256: fingerprint,
+    idempotency_key: command.idempotency_key,
+    pipeline_approval_status: "pending_pipeline_validation",
+    created_at_iso: now,
+  };
+  type TransactionOutcome =
+    | { kind: "created"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
+    | { kind: "replayed"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
+    | { kind: "idempotency_conflict" }
+    | { kind: "pending_conflict" }
+    | { kind: "stale_binding" }
+    | { kind: "not_found" };
+  let outcome: TransactionOutcome;
+  try {
+    outcome = await db!.runTransaction<TransactionOutcome>(async (transaction) => {
+      // Firestore requires every transaction read to happen before its writes.
+      const existing = await transaction.get(commandRef);
+      const session = await transaction.get(sessionRef);
+      if (!session.exists) return { kind: "not_found" };
+      const liveSession = session.data() as SessionRecord;
+      if (liveSession.owner_user_id !== user.uid) return { kind: "not_found" };
+      if (existing.exists) {
+        const record = existing.data() as Record<string, unknown>;
+        if (
+          record.requester_user_id !== user.uid ||
+          record.request_fingerprint_sha256 !== fingerprint
+        ) {
+          return { kind: "idempotency_conflict" };
+        }
+        const receipt = publicTaskDecisionCommand(record);
+        const projectedCommandId = liveSession.latest_task_decision_command?.command_request_id;
+        const liveReview = taskReviewProjection(liveSession);
+        const replayStillMatchesDiscovery = Boolean(
+          liveReview.discovery &&
+          liveReview.discovery.discovery_digest === receipt.discovery_digest &&
+          liveReview.discovery.task_candidates.some(
+            (candidate) =>
+              candidate.task_candidate_id === receipt.task_candidate_id &&
+              candidate.candidate_digest === receipt.candidate_digest,
+          ),
+        );
+        if (
+          replayStillMatchesDiscovery &&
+          (!projectedCommandId || projectedCommandId === receipt.command_request_id)
+        ) {
+          transaction.set(
+            sessionRef,
+            { latest_task_decision_command: receipt, updated_at_iso: now },
+            { merge: true },
+          );
+        }
+        return { kind: "replayed", receipt };
+      }
+      const liveReview = taskReviewProjection(liveSession);
+      if (
+        !liveReview.discovery ||
+        liveReview.discovery.discovery_digest !== command.discovery_digest ||
+        !liveReview.discovery.task_candidates.some(
+          (candidate) =>
+            candidate.task_candidate_id === command.task_candidate_id &&
+            candidate.candidate_digest === command.candidate_digest,
+        )
+      ) {
+        return { kind: "stale_binding" };
+      }
+      if (
+        liveSession.latest_task_decision_command?.pipeline_approval_status ===
+        "pending_pipeline_validation"
+      ) {
+        return { kind: "pending_conflict" };
+      }
+      const receipt = publicTaskDecisionCommand(pending);
+      transaction.create(commandRef, pending);
+      transaction.set(
+        sessionRef,
+        { latest_task_decision_command: receipt, updated_at_iso: now },
+        { merge: true },
+      );
+      return { kind: "created", receipt };
+    });
+  } catch (error) {
+    const failure = error instanceof Error
+      ? { name: error.name, message: error.message }
+      : { name: "UnknownError", message: "non-Error transaction failure" };
+    logger.error(
+      { sessionId: result.record.session_id, commandRequestId, err: failure },
+      "Failed to persist task decision transaction",
+    );
+    return res.status(503).json({ error: "Task decision command store is unavailable" });
+  }
+  if (outcome.kind === "not_found") {
+    return res.status(404).json({ error: "Capture upload not found" });
+  }
+  if (outcome.kind === "idempotency_conflict") {
+    return res.status(409).json({ error: "Task decision idempotency conflict" });
+  }
+  if (outcome.kind === "stale_binding") {
+    return res.status(409).json({ error: "Task discovery changed before command commit" });
+  }
+  if (outcome.kind === "pending_conflict") {
+    return res.status(409).json({
+      error: "A task decision command is already pending Pipeline validation",
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(outcome.kind === "replayed" ? 200 : 202).json({
+    ...outcome.receipt,
+    ...(outcome.kind === "replayed" ? { already_exists: true } : {}),
+  });
 });
 
 router.post("/:sessionId/parts/:partNumber/authorize", async (req, res) => {

@@ -41,6 +41,7 @@
     "pipeline:robot-eval-contract:verify": "bash scripts/pipeline/verify-contracts.sh",
     "pipeline:decision-evidence-contract:verify": "tsx scripts/pipeline/verify-decision-evidence-router-contract.ts",
     "pipeline:capture-intake-contract:verify": "tsx scripts/pipeline/verify-capture-intake-contract.ts",
+    "pipeline:task-candidate-contract:verify": "tsx scripts/pipeline/verify-task-candidate-contract.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",

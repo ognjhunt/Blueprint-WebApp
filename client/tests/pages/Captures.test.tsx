@@ -1,14 +1,16 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Captures from "@/pages/app/Captures";
-import type { CaptureUploadSession } from "@/lib/captureUploads";
+import type { CaptureTaskReview, CaptureUploadSession } from "@/lib/captureUploads";
 
 const state = vi.hoisted(() => ({
   list: vi.fn(),
   get: vi.fn(),
   create: vi.fn(),
   upload: vi.fn(),
+  review: vi.fn(),
+  decide: vi.fn(),
   currentUser: {
     uid: "buyer-1",
     email: "buyer@example.com",
@@ -33,6 +35,8 @@ vi.mock("@/lib/captureUploads", async (importOriginal) => {
     getCaptureUpload: state.get,
     createCaptureUpload: state.create,
     uploadCaptureFile: state.upload,
+    getCaptureTaskReview: state.review,
+    submitTaskDecisionCommand: state.decide,
   };
 });
 
@@ -56,6 +60,11 @@ const pendingSession: CaptureUploadSession = {
   upload_validation: { status: "pending" },
   malware_content_validation: { status: "pending" },
   content_addressing: { status: "pending_server_sha256_verification" },
+  task_review: {
+    status: "analysis_not_available",
+    candidate_count: 0,
+    latest_action: null,
+  },
   claim_boundary: {
     capture_accepted: false,
     metric_scale_inherent: false,
@@ -68,6 +77,74 @@ const pendingSession: CaptureUploadSession = {
   error: null,
 };
 
+const taskReview: CaptureTaskReview = {
+  schema_version: "capture_task_review.v1",
+  session_id: "capture-upload-1",
+  intake_id: "intake-1",
+  status: "task_approval_required",
+  discovery: {
+    schema_version: "task_candidate_discovery.v1",
+    discovery_id: "discovery-1",
+    discovery_digest: `sha256:${"d".repeat(64)}`,
+    source_capture: {
+      intake_id: "intake-1",
+      capture_digest: `sha256:${"a".repeat(64)}`,
+      capture_authority_profile: "camera_360_equirectangular",
+    },
+    scene_analysis: {
+      observed_site_facts: [{
+        description: "A blue tote is visible on the table.",
+      }],
+      inferred_objects_and_affordances: [{
+        description: "The tote may be graspable from its rim.",
+      }],
+      unsupported_or_occluded_regions: [{
+        description: "The rear grasp surface is occluded.",
+      }],
+      hazards: [],
+      privacy_sensitive_areas: [],
+    },
+    task_candidates: [{
+      task_candidate_id: "task-candidate-1",
+      candidate_digest: `sha256:${"c".repeat(64)}`,
+      description: "Move the blue tote into the marked box.",
+      observed_objects: [{ object_id: "tote-1", label: "blue tote" }],
+      target_regions: [{ region_id: "box-1", label: "marked box" }],
+      required_robot_capabilities: ["rigid-object grasp"],
+      likely_task_family: "rigid_object_pick_place",
+      proposed_measurable_success_condition: {
+        metric: "object_center_distance",
+        operator: "<=",
+        threshold: 0.05,
+        units: "m",
+      },
+      required_site_reset: "Return the tote to the table marker.",
+      supporting_frames: ["frame-10"],
+      supporting_3d_regions: ["region-table", "box-1"],
+      confidence: 0.94,
+      coverage: { task_object: 0.8 },
+      assumptions: ["The tote is movable."],
+      missing_evidence: ["Rear grasp surface is occluded."],
+      prohibited_claims: ["physical_task_success"],
+      estimated_evaluation_cost_usd: 2.5,
+      expected_customer_value: null,
+      approval_status: "approval_required",
+    }],
+    approval_state: "task_approval_required",
+    claim_boundaries: {
+      candidate_is_customer_intent: false,
+      candidate_is_task_success_evidence: false,
+      generated_or_inferred_content_upgrades_capture_authority: false,
+    },
+  },
+  latest_decision_command: null,
+  claim_boundary: {
+    webapp_command_is_pipeline_approval: false,
+    decision_evidence_request_compiled: false,
+    task_success_established: false,
+  },
+};
+
 describe("app/Captures", () => {
   beforeEach(() => {
     state.list.mockReset();
@@ -76,6 +153,22 @@ describe("app/Captures", () => {
     state.get.mockResolvedValue(pendingSession);
     state.create.mockReset();
     state.upload.mockReset();
+    state.review.mockReset();
+    state.review.mockResolvedValue(taskReview);
+    state.decide.mockReset();
+    state.decide.mockResolvedValue({
+      schema_version: "task_candidate_decision_command_receipt.v1",
+      command_request_id: "task-command-1",
+      capture_session_id: "capture-upload-1",
+      discovery_digest: taskReview.discovery!.discovery_digest,
+      task_candidate_id: "task-candidate-1",
+      candidate_digest: `sha256:${"c".repeat(64)}`,
+      action: "approve",
+      rationale: "This is our exact task.",
+      edited_task: null,
+      pipeline_approval_status: "pending_pipeline_validation",
+      created_at_iso: "2026-07-29T20:02:00.000Z",
+    });
   });
 
   it("renders one coherent capture entry, honest proof boundaries, and owner history", async () => {
@@ -110,5 +203,46 @@ describe("app/Captures", () => {
       Boolean(element.textContent?.includes("Stored parts are checked against the reselected file")),
     )).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resume upload" })).toBeDisabled();
+  });
+
+  it("renders Pipeline-authored candidates and records approval as pending Pipeline validation", async () => {
+    state.list.mockResolvedValue({
+      sessions: [{
+        ...pendingSession,
+        status: "uploaded_verification_pending",
+        task_review: {
+          status: "task_approval_required",
+          candidate_count: 1,
+          latest_action: null,
+        },
+      }],
+    });
+    render(<Captures />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review tasks" }));
+    expect(await screen.findByRole("heading", { name: "Review proposed tasks" })).toBeInTheDocument();
+    expect(screen.getByText("Direct observations")).toBeInTheDocument();
+    expect(screen.getByText("A blue tote is visible on the table.")).toBeInTheDocument();
+    expect(screen.getByText("Inferred objects and affordances")).toBeInTheDocument();
+    expect(screen.getByText(/WebApp records your exact command and digest binding/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve candidate" })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/Why this task is correct/i), {
+      target: { value: "This is our exact task." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Approve candidate" }));
+    await waitFor(() => expect(state.decide).toHaveBeenCalledWith(
+      state.currentUser,
+      "capture-upload-1",
+      expect.objectContaining({
+        discovery_digest: taskReview.discovery!.discovery_digest,
+        task_candidate_id: "task-candidate-1",
+        candidate_digest: `sha256:${"c".repeat(64)}`,
+        action: "approve",
+        rationale: "This is our exact task.",
+        edited_task: null,
+        idempotency_key: expect.stringMatching(/^web-task-decision-/),
+      }),
+    ));
   });
 });

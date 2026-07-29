@@ -32,6 +32,26 @@ Pipeline then owns media QA, authority assessment, recapture, task discovery,
 testbed compilation, and scientific state. WebApp must display those results; it
 must not recompute them.
 
+## Task Candidate Review
+
+When Pipeline attaches a valid `task_candidate_discovery.v1` artifact to the
+owner's capture session, WebApp verifies the canonical discovery/candidate
+digests and exact intake binding before display. It renders directly observed
+facts separately from inferred affordances, occlusions, hazards, and
+privacy-sensitive areas. Candidate confidence is proposal metadata only.
+
+An owner can approve, edit and approve, reject, or request more capture. WebApp
+stores that action as an append-only, idempotent
+`task_candidate_decision_command_record.v1` with exact discovery and candidate
+digests. The public receipt stays `pending_pipeline_validation`: a WebApp click
+is not a Pipeline `task_candidate_decision.v1`, an approved task, or a compiled
+Decision/Evidence Request. Pipeline must validate the command and return the
+successor authoritative artifacts. Edited tasks require an explicit metric,
+operator, threshold, units, and reset contract.
+
+The checked-in task-candidate schema is an exact byte mirror of Pipeline and is
+verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeline`.
+
 ## Deployment Requirements
 
 - Existing Backblaze credentials and a private bucket configured through the
@@ -43,6 +63,8 @@ must not recompute them.
   also applies.
 - A server-side SHA-256/content-validation worker and Pipeline handoff must be
   configured before the UI can advance past verification pending.
+- Pipeline-to-WebApp task-discovery publication and WebApp-command consumption
+  must be configured before real customer task approval can complete.
 - Retention and revocation execution must preserve a non-sensitive tombstone;
   completed uploads cannot be removed through the simple multipart-cancel route.
 

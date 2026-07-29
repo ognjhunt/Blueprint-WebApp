@@ -30,6 +30,11 @@ export type CaptureUploadSession = {
   upload_validation: { status: string; [key: string]: unknown };
   malware_content_validation: { status: string; [key: string]: unknown };
   content_addressing: { status: string; [key: string]: unknown };
+  task_review: {
+    status: string;
+    candidate_count: number;
+    latest_action: string | null;
+  };
   claim_boundary: {
     capture_accepted: false;
     metric_scale_inherent: false;
@@ -40,6 +45,101 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type TaskCandidate = {
+  task_candidate_id: string;
+  candidate_digest: string;
+  description: string;
+  observed_objects: Array<Record<string, unknown>>;
+  target_regions: Array<Record<string, unknown>>;
+  required_robot_capabilities: string[];
+  likely_task_family: string;
+  proposed_measurable_success_condition: {
+    metric: string;
+    operator: string;
+    threshold: unknown;
+    units: string;
+  };
+  required_site_reset: string;
+  supporting_frames: string[];
+  supporting_3d_regions: string[];
+  confidence: number;
+  coverage: Record<string, unknown>;
+  assumptions: string[];
+  missing_evidence: string[];
+  prohibited_claims: string[];
+  estimated_evaluation_cost_usd: number;
+  expected_customer_value: unknown;
+  approval_status: "approval_required";
+};
+
+export type TaskCandidateDiscovery = {
+  schema_version: "task_candidate_discovery.v1";
+  discovery_id: string;
+  discovery_digest: string;
+  source_capture: {
+    intake_id: string;
+    capture_digest: string;
+    capture_authority_profile: string;
+  };
+  scene_analysis: {
+    observed_site_facts: Array<Record<string, unknown>>;
+    inferred_objects_and_affordances: Array<Record<string, unknown>>;
+    unsupported_or_occluded_regions: Array<Record<string, unknown>>;
+    hazards: Array<Record<string, unknown>>;
+    privacy_sensitive_areas: Array<Record<string, unknown>>;
+  };
+  task_candidates: TaskCandidate[];
+  approval_state: "task_approval_required" | "no_candidates";
+  claim_boundaries: {
+    candidate_is_customer_intent: false;
+    candidate_is_task_success_evidence: false;
+    generated_or_inferred_content_upgrades_capture_authority: false;
+  };
+};
+
+export type TaskDecisionCommandReceipt = {
+  schema_version: "task_candidate_decision_command_receipt.v1";
+  command_request_id: string;
+  capture_session_id: string;
+  discovery_digest: string;
+  task_candidate_id: string;
+  candidate_digest: string;
+  action: "approve" | "edit_and_approve" | "reject" | "request_more_capture";
+  rationale: string;
+  edited_task: Record<string, unknown> | null;
+  pipeline_approval_status: "pending_pipeline_validation";
+  created_at_iso: string;
+};
+
+export type CaptureTaskReview = {
+  schema_version: "capture_task_review.v1";
+  session_id: string;
+  intake_id: string;
+  status:
+    | "analysis_not_available"
+    | "task_approval_required"
+    | "no_candidates"
+    | "decision_pending_pipeline_validation";
+  discovery: TaskCandidateDiscovery | null;
+  latest_decision_command: TaskDecisionCommandReceipt | null;
+  claim_boundary: {
+    webapp_command_is_pipeline_approval: false;
+    decision_evidence_request_compiled: false;
+    task_success_established: false;
+  };
+};
+
+export type TaskDecisionCommandRequest = {
+  schema_version: "task_candidate_decision_command.v1";
+  discovery_digest: string;
+  task_candidate_id: string;
+  candidate_digest: string;
+  action: TaskDecisionCommandReceipt["action"];
+  idempotency_key: string;
+  rationale: string;
+  edited_task: Record<string, unknown> | null;
 };
 
 export type CreateCaptureUploadSession = {
@@ -124,6 +224,25 @@ export function getCaptureUpload(currentUser: FirebaseUser, sessionId: string) {
   return apiRequest<CaptureUploadSession>(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}`,
+  );
+}
+
+export function getCaptureTaskReview(currentUser: FirebaseUser, sessionId: string) {
+  return apiRequest<CaptureTaskReview>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-discovery`,
+  );
+}
+
+export function submitTaskDecisionCommand(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  request: TaskDecisionCommandRequest,
+) {
+  return apiRequest<TaskDecisionCommandReceipt>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-decisions`,
+    { method: "POST", body: JSON.stringify(request) },
   );
 }
 

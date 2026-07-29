@@ -42,6 +42,11 @@ const session: CaptureUploadSession = {
   upload_validation: { status: "pending" },
   malware_content_validation: { status: "pending" },
   content_addressing: { status: "pending_server_sha256_verification" },
+  task_review: {
+    status: "analysis_not_available",
+    candidate_count: 0,
+    latest_action: null,
+  },
   claim_boundary: {
     capture_accepted: false,
     metric_scale_inherent: false,

@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, unknown>>(),
   start: vi.fn(),
@@ -15,11 +17,42 @@ const state = vi.hoisted(() => ({
   finish: vi.fn(),
   fileInfo: vi.fn(),
   cancel: vi.fn(),
+  beforeTransaction: null as (() => void) | null,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: {
+    runTransaction: async <T>(
+      callback: (transaction: {
+        get: (reference: { get: () => Promise<unknown> }) => Promise<unknown>;
+        create: (
+          reference: { create: (payload: Record<string, unknown>) => Promise<void> },
+          payload: Record<string, unknown>,
+        ) => void;
+        set: (
+          reference: {
+            set: (
+              payload: Record<string, unknown>,
+              options?: { merge?: boolean },
+            ) => Promise<void>;
+          },
+          payload: Record<string, unknown>,
+          options?: { merge?: boolean },
+        ) => void;
+      }) => Promise<T>,
+    ) => {
+      state.beforeTransaction?.();
+      return callback({
+        get: (reference) => reference.get(),
+        create: (reference, payload) => {
+          void reference.create(payload);
+        },
+        set: (reference, payload, options) => {
+          void reference.set(payload, options);
+        },
+      });
+    },
     collection: () => ({
       where: (_field: string, _operator: string, value: string) => ({
         limit: () => ({
@@ -130,6 +163,97 @@ function request(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function taskDiscovery() {
+  const candidate: Record<string, unknown> = {
+    description: "Move the blue tote from the table to the marked box.",
+    observed_objects: [{
+      object_id: "tote-1",
+      label: "blue tote",
+      observation_fact_ids: ["fact-tote"],
+    }],
+    target_regions: [{ region_id: "box-1", label: "marked box" }],
+    required_robot_capabilities: ["rigid-object grasp"],
+    likely_task_family: "rigid_object_pick_place",
+    proposed_measurable_success_condition: {
+      metric: "object_center_distance",
+      operator: "<=",
+      threshold: 0.05,
+      units: "m",
+    },
+    required_site_reset: "Return the tote to the table marker.",
+    supporting_frames: ["frame-10"],
+    supporting_3d_regions: ["region-table", "box-1"],
+    confidence: 0.94,
+    coverage: { task_object: 0.8 },
+    assumptions: ["The tote is movable."],
+    missing_evidence: ["Rear grasp surface is occluded."],
+    prohibited_claims: ["physical_task_success"],
+    estimated_evaluation_cost_usd: 2.5,
+    expected_customer_value: null,
+    proposal_method: {
+      method_id: "local-task-proposer",
+      version: "1",
+      implementation_digest: `sha256:${"c".repeat(64)}`,
+      proposer_identity: "provider:model-a",
+      origin: "model_provider",
+    },
+    approval_status: "approval_required",
+  };
+  candidate.task_candidate_id = "task-candidate-1";
+  candidate.candidate_digest = canonicalArtifactDigest(candidate, "candidate_digest");
+  const discovery: Record<string, unknown> = {
+    schema_version: "task_candidate_discovery.v1",
+    discovery_id: "discovery-1",
+    source_capture: {
+      intake_id: "intake-360-1",
+      capture_digest: `sha256:${"a".repeat(64)}`,
+      capture_authority_profile: "camera_360_equirectangular",
+    },
+    capture_qa_report_digest: `sha256:${"b".repeat(64)}`,
+    scene_analysis: {
+      observed_site_facts: [{
+        fact_id: "fact-tote",
+        description: "A blue tote is visible on the table.",
+        confidence: 0.98,
+        supporting_frames: ["frame-10"],
+        supporting_3d_regions: ["region-table"],
+        observation_status: "directly_observed",
+        row_digest: `sha256:${"d".repeat(64)}`,
+      }],
+      inferred_objects_and_affordances: [],
+      unsupported_or_occluded_regions: [],
+      hazards: [],
+      privacy_sensitive_areas: [],
+    },
+    proposal_method: candidate.proposal_method,
+    task_candidates: [candidate],
+    approval_state: "task_approval_required",
+    claim_boundaries: {
+      candidate_is_customer_intent: false,
+      candidate_is_task_success_evidence: false,
+      generated_or_inferred_content_upgrades_capture_authority: false,
+    },
+  };
+  discovery.discovery_digest = canonicalArtifactDigest(discovery, "discovery_digest");
+  return discovery;
+}
+
+function seededReviewSession() {
+  return {
+    schema_version: "capture_upload_session_record.v1",
+    session_id: "capture-review-1",
+    owner_user_id: "buyer-123",
+    status: "uploaded_verification_pending",
+    request: request(),
+    request_fingerprint_sha256: `sha256:${"e".repeat(64)}`,
+    part_size_bytes: 64 * 1024 * 1024,
+    expected_part_count: 3,
+    pipeline_task_discovery: taskDiscovery(),
+    created_at_iso: "2026-07-29T20:00:00.000Z",
+    updated_at_iso: "2026-07-29T20:01:00.000Z",
+  };
+}
+
 async function postJson(socketPath: string, requestPath: string, body: unknown) {
   const payload = JSON.stringify(body);
   return new Promise<{ status: number; cacheControl?: string; json: () => Promise<unknown> }>((resolve, reject) => {
@@ -188,6 +312,7 @@ afterEach(() => {
   state.finish.mockReset();
   state.fileInfo.mockReset();
   state.cancel.mockReset();
+  state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
 });
 
@@ -437,6 +562,235 @@ describe("resumable capture uploads", () => {
       expect(state.finish).not.toHaveBeenCalled();
     } finally {
       await stopServer(server, socketPath);
+    }
+  });
+
+  it("relays a digest-verified Pipeline discovery and records owner intent as pending", async () => {
+    state.records.set("capture-review-1", seededReviewSession());
+    const { server, socketPath } = await startServer();
+    try {
+      const reviewResponse = await getJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-discovery",
+      );
+      const review = (await reviewResponse.json()) as Record<string, any>;
+      expect(reviewResponse.status).toBe(200);
+      expect(review).toMatchObject({
+        schema_version: "capture_task_review.v1",
+        status: "task_approval_required",
+        discovery: {
+          discovery_id: "discovery-1",
+          task_candidates: [{
+            task_candidate_id: "task-candidate-1",
+            approval_status: "approval_required",
+          }],
+        },
+        claim_boundary: {
+          webapp_command_is_pipeline_approval: false,
+          decision_evidence_request_compiled: false,
+          task_success_established: false,
+        },
+      });
+      const candidate = review.discovery.task_candidates[0];
+      const command = {
+        schema_version: "task_candidate_decision_command.v1",
+        discovery_digest: review.discovery.discovery_digest,
+        task_candidate_id: candidate.task_candidate_id,
+        candidate_digest: candidate.candidate_digest,
+        action: "approve",
+        idempotency_key: "approve-task-candidate-1",
+        rationale: "This is the exact task we want evaluated.",
+        edited_task: null,
+      };
+      const decisionResponse = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        command,
+      );
+      const receipt = (await decisionResponse.json()) as Record<string, unknown>;
+      expect(decisionResponse.status).toBe(202);
+      expect(receipt).toMatchObject({
+        schema_version: "task_candidate_decision_command_receipt.v1",
+        action: "approve",
+        pipeline_approval_status: "pending_pipeline_validation",
+      });
+      expect(JSON.stringify(receipt)).not.toContain("approved_task_definition");
+      expect(JSON.stringify(receipt)).not.toContain("decision_evidence_request");
+
+      const refreshed = await getJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-discovery",
+      );
+      await expect(refreshed.json()).resolves.toMatchObject({
+        status: "decision_pending_pipeline_validation",
+        latest_decision_command: { action: "approve" },
+      });
+
+      // An exact replay repairs a missing session projection from the durable
+      // command without creating a second command.
+      const storedSession = state.records.get("capture-review-1");
+      expect(storedSession).toBeDefined();
+      delete storedSession!.latest_task_decision_command;
+      const replay = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        command,
+      );
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+      expect(state.records.get("capture-review-1")).toMatchObject({
+        latest_task_decision_command: {
+          action: "approve",
+          pipeline_approval_status: "pending_pipeline_validation",
+        },
+      });
+
+      const conflicting = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          ...command,
+          action: "reject",
+          idempotency_key: "reject-while-approval-is-pending",
+        },
+      );
+      expect(conflicting.status).toBe(409);
+      await expect(conflicting.json()).resolves.toMatchObject({
+        error: "A task decision command is already pending Pipeline validation",
+      });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("rejects stale candidate bindings and incomplete edited task thresholds", async () => {
+    state.records.set("capture-review-1", seededReviewSession());
+    const { server, socketPath } = await startServer();
+    try {
+      const discovery = taskDiscovery() as Record<string, any>;
+      const candidate = discovery.task_candidates[0];
+      const stale = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          schema_version: "task_candidate_decision_command.v1",
+          discovery_digest: discovery.discovery_digest,
+          task_candidate_id: candidate.task_candidate_id,
+          candidate_digest: `sha256:${"f".repeat(64)}`,
+          action: "approve",
+          idempotency_key: "stale-task-candidate-1",
+          rationale: "Stale command should fail.",
+          edited_task: null,
+        },
+      );
+      expect(stale.status).toBe(409);
+
+      const incompleteEdit = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          schema_version: "task_candidate_decision_command.v1",
+          discovery_digest: discovery.discovery_digest,
+          task_candidate_id: candidate.task_candidate_id,
+          candidate_digest: candidate.candidate_digest,
+          action: "edit_and_approve",
+          idempotency_key: "incomplete-edit-task-candidate-1",
+          rationale: "Use a tighter threshold.",
+          edited_task: {
+            description: "Move the tote into the box.",
+            task_family: "rigid_object_pick_place",
+            measurable_success_conditions: [{
+              metric: "object_center_distance",
+              operator: "<=",
+              threshold: 0.03,
+            }],
+            reset_contract: { instructions: "Return tote to table." },
+          },
+        },
+      );
+      expect(incompleteEdit.status).toBe(400);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("rejects a task command when Pipeline replaces discovery before commit", async () => {
+    state.records.set("capture-review-1", seededReviewSession());
+    const original = taskDiscovery() as Record<string, any>;
+    const candidate = original.task_candidates[0] as Record<string, unknown>;
+    state.beforeTransaction = () => {
+      const live = state.records.get("capture-review-1")!;
+      const replacement = taskDiscovery() as Record<string, any>;
+      replacement.discovery_id = "discovery-2";
+      replacement.task_candidates[0].description = "Inspect the tote without moving it.";
+      replacement.task_candidates[0].candidate_digest = canonicalArtifactDigest(
+        replacement.task_candidates[0],
+        "candidate_digest",
+      );
+      replacement.discovery_digest = canonicalArtifactDigest(replacement, "discovery_digest");
+      live.pipeline_task_discovery = replacement;
+      state.beforeTransaction = null;
+    };
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          schema_version: "task_candidate_decision_command.v1",
+          discovery_digest: original.discovery_digest,
+          task_candidate_id: candidate.task_candidate_id,
+          candidate_digest: candidate.candidate_digest,
+          action: "approve",
+          idempotency_key: "approval-raced-by-new-discovery",
+          rationale: "This was correct for the discovery I reviewed.",
+          edited_task: null,
+        },
+      );
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "Task discovery changed before command commit",
+      });
+      expect(
+        [...state.records.values()].filter(
+          (record) => record.schema_version === "task_candidate_decision_command_record.v1",
+        ),
+      ).toHaveLength(0);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("fails closed instead of displaying a tampered or cross-owner discovery", async () => {
+    const record = seededReviewSession();
+    const discovery = record.pipeline_task_discovery as Record<string, any>;
+    discovery.task_candidates[0].description = "Tampered after Pipeline digest";
+    state.records.set("capture-review-1", record);
+    const owner = await startServer();
+    try {
+      const invalid = await getJson(
+        owner.socketPath,
+        "/capture-uploads/capture-review-1/task-discovery",
+      );
+      expect(invalid.status).toBe(409);
+      const invalidBody = (await invalid.json()) as { blockers: string[] };
+      expect(invalidBody.blockers).toContain("task_discovery_digest_mismatch");
+      expect(invalidBody.blockers).toContain(
+        "task_candidate_digest_mismatch:task-candidate-1",
+      );
+    } finally {
+      await stopServer(owner.server, owner.socketPath);
+    }
+
+    const stranger = await startServer({ uid: "different-user" });
+    try {
+      const denied = await getJson(
+        stranger.socketPath,
+        "/capture-uploads/capture-review-1/task-discovery",
+      );
+      expect(denied.status).toBe(404);
+    } finally {
+      await stopServer(stranger.server, stranger.socketPath);
     }
   });
 });
