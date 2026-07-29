@@ -88,15 +88,15 @@ export default function About() {
                 {robotPolicyEvaluationBeachhead}
               </p>
               <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
-                We frame policy comparison as rank fidelity and an estimate — never a
-                guarantee, a safety certification, or a deployment-readiness claim. We are
-                not a generic AI marketplace or a model demo, so the next test is chosen on
-                evidence instead of assumption.
+                We report bounded per-claim decisions, partial decisions, or explicit
+                abstention—never a guaranteed ranking, safety certification, or
+                deployment-readiness claim. The next experiment is chosen from the evidence
+                gap instead of a fixed backend promise.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="brass" size="lg">
-                  <a href="/sites">
-                    Explore site packages
+                  <a href="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about">
+                    Request a Task Evaluation Run
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </a>
                 </Button>
@@ -197,14 +197,14 @@ export default function About() {
         <section className="mx-auto max-w-[88rem] px-5 pb-14 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Start with the public proof or bring one exact site."
-            description="Browse site packages to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
+            title="Start with the public proof or bring one exact site-task."
+            description="Browse captured sites as possible testbed inputs, or contact Blueprint when the decision question is already known."
             imageSrc="/redesign/pov/factory-conveyor.jpg"
             imageAlt="Captured warehouse conveyor site (review support, not real-world proof)"
-            primaryHref="/sites"
-            primaryLabel="Explore site packages"
-            secondaryHref="/contact/robot-team"
-            secondaryLabel="Request evaluation"
+            primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about-cta"
+            primaryLabel="Request a Task Evaluation Run"
+            secondaryHref="/sites"
+            secondaryLabel="Explore captured sites"
             dark
           />
         </section>

@@ -21,7 +21,7 @@ test("robot-team and site-operator pages describe one service and intake", async
     page.getByRole("heading", { name: "Turn one real task into a decision you can inspect." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
+    page.locator("main").getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
   ).toHaveAttribute("href", /\/contact\/site-operator/);
   await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
