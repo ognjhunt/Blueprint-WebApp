@@ -61,7 +61,7 @@ test('FAQ remains a real public destination', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/faq$/);
   await expect(
-    page.getByRole('heading', { name: /One product, explicit evidence boundaries\./i }),
+    page.getByRole('heading', { name: /One service, and the limits printed on it\./i }),
   ).toBeVisible();
 });
 

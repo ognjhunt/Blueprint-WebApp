@@ -55,7 +55,7 @@ describe("brand polish QA harness contract", () => {
     const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
     expect(faqRoute).toMatchObject({
       canonicalPath: "/faq",
-      expectedHeading: "One product, explicit evidence boundaries.",
+      expectedHeading: "One service, and the limits printed on it.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

@@ -7,22 +7,28 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /Proof stays scoped\./i }),
+      screen.getByRole("heading", { level: 1, name: /Proof stays scoped\./i }),
     ).toBeInTheDocument();
+
+    // The three evidence layers stay distinct and ranked.
+    expect(screen.getByRole("heading", { name: /^Raw capture$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Derived evidence$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Physical outcomes$/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/third-party research context, not a Blueprint result, accuracy claim, or deployment claim/i),
+      screen.getByText(/never quietly promoted to fact/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Research signal$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Owner proof$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Scopes one site, task, robot, policy set, and threshold/i)).toBeInTheDocument();
+
+    // External research is cited as category context only.
+    expect(
+      screen.getByText(/It is not a Blueprint result, not an accuracy/i),
+    ).toBeInTheDocument();
   });
 
   it("keeps the claim boundary and request CTA visible", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /What we do not claim\./i }),
+      screen.getByRole("heading", { name: /A run is evidence\. It is not permission\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Estimates are not physical guarantees, safety approval remains external/i),

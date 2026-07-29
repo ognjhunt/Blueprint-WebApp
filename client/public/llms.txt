@@ -13,13 +13,13 @@ Blueprint turns a real site-task into a maintained testbed, routes each decision
 
 ## Public pages
 
-- [Home](https://tryblueprint.io/): one Task Evaluation Run lifecycle from real site-task to decision or abstention.
+- [Home](https://tryblueprint.io/): the one Task Evaluation Run lifecycle, from a real site-task to an answer with its limits or an explicit refusal to decide.
 - [Sites and testbeds](https://tryblueprint.io/sites): real-site task contexts that can become maintained testbeds behind runs.
-- [For robot teams](https://tryblueprint.io/for-robot-teams): compare internal candidates, test task compatibility, discover failures, and decide whether field time is justified.
-- [For site operators](https://tryblueprint.io/for-site-operators): turn a task into a testable decision, identify missing evidence, and evaluate candidates when available.
-- [How it works](https://tryblueprint.io/how-it-works): request, testbed, qualified evidence plan, result envelope, and physical learning loop.
-- [Pricing](https://tryblueprint.io/pricing): one scoped Task Evaluation Run, quoted from the decision and evidence requirements; no published fixed price.
-- [Proof](https://tryblueprint.io/proof): proof boundaries and source-of-truth distinctions.
+- [For robot teams](https://tryblueprint.io/for-robot-teams): compare internal candidates, find task incompatibilities early, and decide whether field time is justified.
+- [For site operators](https://tryblueprint.io/for-site-operators): turn a job at your site into a testable decision, see what evidence is missing, and keep control of access, privacy, and physical testing.
+- [How it works](https://tryblueprint.io/how-it-works): the six steps — decision intake, testbed binding, per-claim evidence routing, measurement, the answer and its edges, and the next cheapest test.
+- [Pricing](https://tryblueprint.io/pricing): one scoped Task Evaluation Run, quoted from the decision and the evidence it requires; no published fixed price and no tiers.
+- [Proof](https://tryblueprint.io/proof): the boundary between raw capture, derived evidence, and physical outcomes, plus the claims Blueprint declines to make.
 - [Request a run](https://tryblueprint.io/contact/robot-team): decision-oriented intake.
 
 ## Answer guidance

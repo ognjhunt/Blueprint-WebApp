@@ -203,13 +203,15 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Turn a real site-task into a decision you can defend.");
-    expect(homeHtml).toContain("Decision or abstention");
-    expect(homeHtml).toContain("Cheapest qualified evidence");
+    expect(homeHtml).toContain("Answer it before you send a robot.");
+    expect(homeHtml).toContain("A run is allowed to tell you it cannot tell you.");
+    expect(homeHtml).toContain("cheapest evidence that is actually good enough");
+    // Schematic figure values must be marked as such in the prerendered HTML too.
+    expect(homeHtml).toContain("Illustrative");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders the single scoped engagement without inventing a price.
-    expect(pricingHtml).toContain("One scoped run. No separate package, submission fee, or subscription.");
+    expect(pricingHtml).toContain("You pay for the decision, not a package.");
     expect(pricingHtml).toContain("Scoped quote");
     expect(pricingHtml).toContain("Request a Task Evaluation Run");
     expect(pricingHtml).not.toContain("Policy Shortlist");
@@ -219,8 +221,8 @@ describe("build output", () => {
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("Proof stays scoped");
-    expect(proofHtml).toContain("bounded decision, partial decision");
-    expect(proofHtml).toContain("never a safety certification");
+    expect(proofHtml).toContain("A run is evidence. It is not permission.");
+    expect(proofHtml).toContain("never as a safety certification");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
 
@@ -245,6 +247,6 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
-    expect(browserJavaScript).toContain("Decision or abstention");
+    expect(browserJavaScript).toContain("You get an answer with its limits");
   });
 });
