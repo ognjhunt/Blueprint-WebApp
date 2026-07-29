@@ -9,7 +9,7 @@ It is no longer the product direction for `Blueprint-WebApp`.
 Current public product direction:
 
 1. `BlueprintCapture` supply-side capture
-2. Task Evaluation Runs, Post-Training Data Packages, and hosted access sold through `Blueprint-WebApp`
+2. One Task Evaluation Run sold through `Blueprint-WebApp`; qualifying evidence may carry explicit evaluation or post-training eligibility
 3. qualification / readiness as an optional downstream trust layer, not the lead story
 
 What is outdated in the archived spec:

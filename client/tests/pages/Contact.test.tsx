@@ -76,21 +76,19 @@ function submittedBody() {
 }
 
 describe("Contact page", () => {
-  it("renders the simple robot-team Policy Evaluation Run flow", () => {
+  it("renders the robot-team Task Evaluation Run flow", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
+      screen.getByRole("heading", { name: /Tell us the decision you need to make\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We scope one Policy Shortlist campaign/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Compare policies on a real site\./i })).toHaveAttribute(
+    expect(screen.getByText(/Request one scoped Task Evaluation Run/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Request a Task Evaluation Run\./i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
     );
-    // The operator lane is demoted to a low-emphasis reachable link, but stays
-    // reachable at the same site-operator intake href.
     expect(
-      screen.getByRole("link", { name: /Partner on lighthouse capture access/i }),
+      screen.getByRole("link", { name: /Operate a site\? Partner on lighthouse capture access/i }),
     ).toHaveAttribute("href", "/contact/site-operator#contact-intake");
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
@@ -98,26 +96,22 @@ describe("Contact page", () => {
     expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
   });
 
-  it("maps old world-model query params to the Policy Improvement Run form", () => {
+  it("maps old world-model query params to the same Task Evaluation Run form", () => {
     mockSearch =
       "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
 
     render(<Contact />);
 
-    // buyerType=robot_team keeps the persona on the robot-team branch, so the
-    // heading/subhead are identical to the default robot-team flow above —
-    // there is no separate "Policy Improvement Run" heading in the current
-    // component, and the prefilled siteName/targetRobotTeam values are parsed
-    // but never wired into any form field's value.
     expect(
-      screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
+      screen.getByRole("heading", { name: /Tell us the decision you need to make\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We scope one Policy Shortlist campaign/i)).toBeInTheDocument();
+    expect(screen.getByText(/Request one scoped Task Evaluation Run/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Policy Improvement Run/i)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Harborview Grocery Distribution Annex")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Unitree G1")).not.toBeInTheDocument();
   });
 
-  it("submits a robot-team Policy Evaluation Run payload", async () => {
+  it("submits a robot-team Task Evaluation Run contact request", async () => {
     render(<Contact />);
 
     fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
@@ -129,38 +123,37 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /About the task/i }), {
-      target: { value: "Tote transfer. Need a clear winner before field time." },
+    fireEvent.change(screen.getByRole("textbox", { name: /About the site-task and decision/i }), {
+      target: { value: "Tote transfer. Decide whether field time is justified." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
-    // The current Contact form is a mock submit with no backend — it does not
-    // call fetch, and instead flips local state to show a confirmation panel.
-    expect(global.fetch).not.toHaveBeenCalledWith(
-      "/api/inbound-request",
-      expect.anything(),
-    );
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/contact",
+      expect.objectContaining({ method: "POST" }),
+    ));
 
     expect(
       await screen.findByText(/Message received\./i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/We will check the task, scope the comparison, and return a priced run plan/i),
+      screen.getByText(/We will check the task, decision, thresholds, evidence, and constraints/i),
     ).toBeInTheDocument();
   });
 
-  it("site-operator contact path keeps the low-cost access-boundary lane visible", () => {
+  it("site-operator contact path uses the same Task Evaluation Run", () => {
     mockLocation = "/contact/site-operator";
 
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Find robot teams for your site\./i }),
+      screen.getByRole("heading", { name: /Turn your site-task into a testable decision\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Start a \$5,000 Robot Match — we compare compatible robot teams on your captured site/i)).toBeInTheDocument();
+    expect(screen.getByText(/Request the same Task Evaluation Run used by robot teams/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Partner on lighthouse capture access/i)[0]).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
   });
 });

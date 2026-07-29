@@ -20,7 +20,7 @@ describe("contactRequestPrefill", () => {
       workflow: "warehouse tote",
       taskStatement: "warehouse tote",
       message: "Need a review",
-      requestedOutputs: "Policy Evaluation Run",
+      requestedOutputs: "Task Evaluation Run",
       episodeCount: "500",
       validationMode: "comparative_policy_eval",
       primaryNeed: "123 Unknown St",
@@ -77,8 +77,8 @@ describe("contactRequestPrefill", () => {
     expect(url.pathname).toBe("/contact/robot-team");
     expect(url.searchParams.get("source")).toBe("site-worlds");
     expect(url.searchParams.get("buyerType")).toBe("robot_team");
-    expect(url.searchParams.get("interest")).toBe("policy-evaluation-run");
-    expect(url.searchParams.get("path")).toBe("policy-evaluation-run");
+    expect(url.searchParams.get("interest")).toBe("task-evaluation-run");
+    expect(url.searchParams.get("path")).toBe("task-evaluation-run");
     expect(url.searchParams.get("location")).toBe("123 Unknown St");
     expect(url.searchParams.get("siteLocation")).toBe("123 Unknown St");
     expect(url.searchParams.get("workflow")).toBe("warehouse tote");
@@ -94,7 +94,7 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.get("robotOrPolicy")).toBe("robot-team agent");
     expect(url.searchParams.get("preferredReviewPath")).toBe("Hosted review first.");
     expect(url.searchParams.get("validationExpectations")).toBe("Simulator traces and action logs.");
-    expect(url.searchParams.get("requestedOutputs")).toBe("Policy Evaluation Run");
+    expect(url.searchParams.get("requestedOutputs")).toBe("Task Evaluation Run");
     expect(url.searchParams.get("episodeCount")).toBe("100");
     expect(url.searchParams.get("validationMode")).toBe("virtual_preflight");
     expect(url.searchParams.get("proofPathPreference")).toBe("exact_site_required");
@@ -102,7 +102,7 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.has("access")).toBe(false);
   });
 
-  it("maps rebuilt Policy Evaluation Run query labels to hosted evaluation state", () => {
+  it("translates prior evaluation query labels to the Task Evaluation Run", () => {
     const prefill = parseContactRequestPrefill(
       "persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&validationMode=real_rollout_validated",
       "/contact/robot-team",
@@ -112,7 +112,7 @@ describe("contactRequestPrefill", () => {
       buyerType: "robot_team",
       requestPath: "hosted-review",
       commercialRequestPath: "hosted_evaluation",
-      requestedOutputs: "Policy Evaluation Run",
+      requestedOutputs: "Task Evaluation Run",
       episodeCount: "500",
       validationMode: "real_rollout_validated",
     });
@@ -125,13 +125,13 @@ describe("contactRequestPrefill", () => {
     expect(genericContactPrefill).toMatchObject({
       requestPath: "hosted-review",
       commercialRequestPath: "hosted_evaluation",
-      requestedOutputs: "Policy Evaluation Run",
+      requestedOutputs: "Task Evaluation Run",
       episodeCount: "100",
       validationMode: "virtual_preflight",
     });
   });
 
-  it("maps legacy world-model params to the Policy Improvement Run lane", () => {
+  it("maps legacy world-model params to the Task Evaluation Run compatibility lane", () => {
     const legacyPrefill = parseContactRequestPrefill(
       "persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Policy%20Improvement%20Run",
     );
@@ -140,7 +140,7 @@ describe("contactRequestPrefill", () => {
       buyerType: "robot_team",
       requestPath: "data-package",
       commercialRequestPath: "world_model",
-      requestedOutputs: "Policy Improvement Run",
+      requestedOutputs: "Task Evaluation Run",
     });
 
     const href = buildContactRequestUrl({
@@ -151,8 +151,9 @@ describe("contactRequestPrefill", () => {
     const url = new URL(href, "https://tryblueprint.local");
 
     expect(url.pathname).toBe("/contact/robot-team");
-    expect(url.searchParams.get("interest")).toBe("policy-improvement-run");
-    expect(url.searchParams.get("path")).toBe("policy-improvement-run");
+    expect(url.searchParams.get("interest")).toBe("task-evaluation-run");
+    expect(url.searchParams.get("path")).toBe("task-evaluation-run");
+    expect(url.searchParams.get("requestedOutputs")).toBe("Task Evaluation Run");
 
     const draft = buildAgentInboundRequestDraft({
       buyerType: "robot_team",
@@ -187,9 +188,9 @@ describe("contactRequestPrefill", () => {
     });
     const url = new URL(href, "https://tryblueprint.local");
 
-    expect(url.searchParams.get("interest")).toBe("policy-improvement-run");
-    expect(url.searchParams.get("path")).toBe("policy-improvement-run");
-    expect(url.searchParams.get("requestedOutputs")).toBe("Policy Improvement Run");
+    expect(url.searchParams.get("interest")).toBe("task-evaluation-run");
+    expect(url.searchParams.get("path")).toBe("task-evaluation-run");
+    expect(url.searchParams.get("requestedOutputs")).toBe("Task Evaluation Run");
   });
 
   it("creates an agent inbound-request draft without access, payment, provider, or hosted grants", () => {

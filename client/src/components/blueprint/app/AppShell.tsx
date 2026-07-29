@@ -3,12 +3,9 @@ import { Link } from "wouter";
 import {
   Bell,
   Boxes,
-  Database,
-  KeySquare,
   LayoutDashboard,
   ListChecks,
   Menu,
-  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,21 +36,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "overview", label: "Overview", href: "/app", Icon: LayoutDashboard },
-  { key: "runs", label: "Evaluation Runs", href: "/app/runs", Icon: ListChecks },
-  { key: "packs", label: "Site & Task Packs", href: "/app/packs", Icon: Boxes },
-  { key: "policies", label: "Policies", href: "/app/policies", Icon: Cpu },
-  { key: "data", label: "Data Packages", href: "/app/data", Icon: Database },
-  {
-    key: "entitlements",
-    label: "Entitlements",
-    href: "/app/entitlements",
-    Icon: KeySquare,
-  },
+  { key: "packs", label: "Testbeds", href: "/app/packs", Icon: Boxes },
+  { key: "runs", label: "Task Evaluation Runs", href: "/app/runs", Icon: ListChecks },
 ];
 
 const OPERATOR_NAV_ITEMS: NavItem[] = [
-  { key: "overview", label: "Site status", href: "/app", Icon: LayoutDashboard },
-  { key: "packs", label: "Submit another site", href: "/contact/site-operator", Icon: Boxes },
+  { key: "overview", label: "Overview", href: "/app", Icon: LayoutDashboard },
+  { key: "packs", label: "Testbeds", href: "/app/packs", Icon: Boxes },
+  { key: "runs", label: "Task Evaluation Runs", href: "/app/runs", Icon: ListChecks },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -122,23 +112,23 @@ function SidebarPlanCard() {
     return (
       <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">Operator record</div>
-        <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">Request-backed</div>
-        <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">Status comes from the linked intake and ops record; no buyer demand or approval is implied.</div>
+        <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">Run-scoped</div>
+        <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">Testbed, authorization, evidence, and decision states stay linked to each request.</div>
       </div>
     );
   }
   return (
     <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">
-        Entitlement access
+        Scoped engagement
       </div>
       <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">
-        Stripe-backed
+        Quote required
       </div>
 
       <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">
-        Routes unlock from marketplace entitlements written after payment
-        provisioning.
+        Each run is scoped to the decision, evidence, timing, compute, and any
+        physical requirements. Existing entitlements remain readable.
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ afterEach(async () => {
 });
 
 describe("robot agent dry-run commerce", () => {
-  it("publishes a credential-free agent discovery manifest with search, dry-run commerce, and truth labels", async () => {
+  it("publishes one-product discovery with legacy commerce read-only", async () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/api/agent-access`);
@@ -52,40 +52,34 @@ describe("robot agent dry-run commerce", () => {
       await expect(response.json()).resolves.toMatchObject({
         preferredTool: "blueprint.siteWorld.search",
         compatibilityTool: "blueprint.catalog.search",
-        dryRunCommerce: {
-          liveStripeTouched: false,
+        legacyCommerce: {
+          mode: "read_only_compatibility",
+          newPurchasesAccepted: false,
+          currentProduct: "Task Evaluation Run",
           endpoints: expect.objectContaining({
-            quote: "/api/agent-access/commerce/quote",
-            dryRunCheckout: "/api/agent-access/commerce/dry-run-checkout",
             entitlementReadiness: "/api/agent-access/commerce/entitlement-readiness",
           }),
         },
         requestCandidate: {
           grantsAccess: false,
         },
-        truthLabels: expect.arrayContaining(["capture_grounded", "request_gated", "dry_run_order"]),
+        truthLabels: expect.arrayContaining(["capture_grounded", "request_gated", "decision_or_abstention"]),
       });
     } finally {
       await stopServer(server);
     }
   });
 
-  it("quotes a hosted-session rental and creates a dry-run order with a provisioned entitlement", async () => {
+  it("retires quote and dry-run checkout without creating an order", async () => {
     const { server, baseUrl } = await startServer();
     try {
       const quote = await fetch(
         `${baseUrl}/api/agent-access/commerce/quote?siteWorldId=sw-chi-01&product=hosted_session_rental&sessionHours=2`,
       );
-      expect(quote.status).toBe(200);
+      expect(quote.status).toBe(410);
       await expect(quote.json()).resolves.toMatchObject({
-        quote: {
-          mode: "dry_run",
-          product: "hosted_session_rental",
-          siteWorldId: "sw-chi-01",
-          sku: "hosted-session-sw-chi-01",
-          quantity: 2,
-          totalAmountCents: 3600,
-        },
+        code: "standalone_commerce_retired",
+        current_product: "Task Evaluation Run",
       });
 
       const checkout = await fetch(`${baseUrl}/api/agent-access/commerce/dry-run-checkout`, {
@@ -99,61 +93,17 @@ describe("robot agent dry-run commerce", () => {
           buyer: { uid: "robot-team-1", email: "robot@example.com" },
         }),
       });
-      const checkoutPayload = (await checkout.json()) as Record<string, unknown>;
-      expect(checkout.status).toBe(201);
-      expect(checkoutPayload).toMatchObject({
-        order: {
-          status: "fulfilled",
-          payment_status: "dry_run_paid",
-          fulfillment_status: "provisioned",
-          item: { sku: "hosted-session-sw-chi-01", item_type: "hosted_session_rental" },
-        },
-        receipt: {
-          mode: "dry_run",
-          liveStripeTouched: false,
-        },
-        entitlement: {
-          access_state: "provisioned",
-          sku: "hosted-session-sw-chi-01",
-          license_term_hours: 2,
-          license_term_unit: "hour",
-        },
-      });
-
-      const orderId = String(((checkoutPayload.order as Record<string, unknown>) || {}).id || "");
-      const checkoutEntitlement = (checkoutPayload.entitlement as Record<string, unknown>) || {};
-      const entitlementId = String(checkoutEntitlement.id || "");
-      expect(orderId).toBeTruthy();
-      expect(entitlementId).toBeTruthy();
-      expect(checkoutEntitlement.expires_at).toEqual(expect.any(String));
-      const grantedAt = Date.parse(String(checkoutEntitlement.granted_at || ""));
-      const expiresAt = Date.parse(String(checkoutEntitlement.expires_at || ""));
-      expect(expiresAt - grantedAt).toBe(2 * 60 * 60 * 1000);
-
-      const order = await fetch(`${baseUrl}/api/agent-access/commerce/orders/${orderId}`);
-      expect(order.status).toBe(200);
-      await expect(order.json()).resolves.toMatchObject({
-        order: { id: orderId },
-        entitlement: { id: entitlementId },
-      });
-
-      const entitlement = await fetch(`${baseUrl}/api/agent-access/commerce/entitlements/${entitlementId}`);
-      expect(entitlement.status).toBe(200);
-      await expect(entitlement.json()).resolves.toMatchObject({
-        entitlement: {
-          id: entitlementId,
-          access_state: "provisioned",
-          dry_run: true,
-          license_term_hours: 2,
-          license_term_unit: "hour",
-        },
+      expect(checkout.status).toBe(410);
+      await expect(checkout.json()).resolves.toMatchObject({
+        code: "standalone_commerce_retired",
+        current_product: "Task Evaluation Run",
       });
     } finally {
       await stopServer(server);
     }
   });
 
-  it("advertises ask and live commerce in the discovery manifest", async () => {
+  it("advertises ask without current checkout tools", async () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/api/agent-access`);
@@ -163,24 +113,20 @@ describe("robot agent dry-run commerce", () => {
           endpoint: "/api/agent-access/ask",
           mcpTool: "blueprint.ask",
         },
-        liveCommerce: {
-          mode: "live",
-          liveStripeTouched: true,
-          serverPricedSku: true,
-          endpoints: {
-            liveCheckout: "/api/agent-access/commerce/live-checkout",
-            liveOrder: "/api/agent-access/commerce/live-orders/{orderId}",
-          },
-          tools: expect.arrayContaining(["blueprint.commerce.checkoutLive", "blueprint.commerce.liveOrder.get"]),
+        legacyCommerce: {
+          newPurchasesAccepted: false,
+          requestUrl: expect.stringContaining("task-evaluation-run"),
         },
-        truthLabels: expect.arrayContaining(["live_checkout"]),
       });
+      const payload = (await (await fetch(`${baseUrl}/api/agent-access`)).json()) as { mcpToolNames: string[] };
+      expect(payload.mcpToolNames).not.toContain("blueprint.commerce.checkoutLive");
+      expect(payload.mcpToolNames).not.toContain("blueprint.commerce.checkoutDryRun");
     } finally {
       await stopServer(server);
     }
   });
 
-  it("blocks live checkout with structured blockers instead of charging for non-purchasable supply", async () => {
+  it("retires live checkout without charging or creating an order", async () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/api/agent-access/commerce/live-checkout`, {
@@ -194,16 +140,12 @@ describe("robot agent dry-run commerce", () => {
           budgetCents: 100,
         }),
       });
-      expect(response.status).toBe(409);
+      expect(response.status).toBe(410);
       const payload = (await response.json()) as Record<string, unknown>;
       expect(payload).toMatchObject({
-        code: "live_checkout_blocked",
-        mode: "live",
-        withinBudget: false,
+        code: "standalone_commerce_retired",
+        current_product: "Task Evaluation Run",
       });
-      const blockerCodes = (payload.blockers as Array<{ code: string }>).map((blocker) => blocker.code);
-      expect(blockerCodes).toContain("budget_exceeded");
-      expect(blockerCodes.some((code) => code === "not_live_purchasable" || code === "site_world_not_found")).toBe(true);
     } finally {
       await stopServer(server);
     }
@@ -214,7 +156,7 @@ describe("robot agent dry-run commerce", () => {
     try {
       const response = await fetch(`${baseUrl}/api/agent-access/commerce/live-orders/not-a-real-order`);
       expect(response.status).toBe(404);
-      await expect(response.json()).resolves.toMatchObject({ error: "Live agent order not found" });
+      await expect(response.json()).resolves.toMatchObject({ error: "Historical agent order not found" });
     } finally {
       await stopServer(server);
     }
@@ -229,12 +171,12 @@ describe("robot agent dry-run commerce", () => {
       expect(response.status).toBe(200);
       const payload = (await response.json()) as Record<string, unknown>;
       expect(payload).toMatchObject({
-        bestAnswer: { id: "how-to-buy-live" },
+        bestAnswer: { id: "how-to-request-run" },
         noConfidentMatch: false,
       });
       const bestAnswer = payload.bestAnswer as { citations: string[]; actions: Array<{ endpoint: string }> };
       expect(bestAnswer.citations.length).toBeGreaterThan(0);
-      expect(bestAnswer.actions.map((action) => action.endpoint).join(" ")).toContain("live-checkout");
+      expect(bestAnswer.actions.map((action) => action.endpoint).join(" ")).toContain("task-evaluation-run");
 
       const missing = await fetch(`${baseUrl}/api/agent-access/ask`);
       expect(missing.status).toBe(400);

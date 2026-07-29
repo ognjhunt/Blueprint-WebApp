@@ -415,10 +415,10 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
-	                    Robot teams browse exact-site worlds and hosted review. Capturers use this path for approved paid assignments, lawful public-facing walkthroughs, and review-gated payout eligibility.
+	                    Robot teams request Task Evaluation Runs grounded in real site-tasks. Capturers use this path for approved paid assignments, lawful public-facing walkthroughs, and review-gated payout eligibility.
                   </p>
                   <a
-                    href="/world-models"
+                    href="/sites"
                     className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white"
                   >
                     Explore sites

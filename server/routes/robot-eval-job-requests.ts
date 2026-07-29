@@ -2,10 +2,10 @@ import { Request, Response, Router } from "express";
 import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
+import { csrfProtection } from "../middleware/csrf";
 import {
   forwardRobotEvalJobRequestToPipeline,
   robotEvalJobRequestForwardErrorMessage,
-  validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
 import {
@@ -23,6 +23,13 @@ import {
   parseBenchmarkProjection,
   type BenchmarkProjection,
 } from "../utils/benchmarkProjectionContract";
+import {
+  DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION,
+  decisionRequestIdentity,
+  normalizeDecisionEvidenceRequest,
+  physicalOutcomeJoinSchema,
+  projectDecisionEnvelope,
+} from "../utils/decisionEvidenceContract";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -123,6 +130,8 @@ function normalizedToken(value: unknown) {
 
 function robotEvalSiteTokens(jobRequest: Record<string, unknown>) {
   const sitePackage = asObject(jobRequest.site_package);
+  const testbed = asObject(jobRequest.testbed);
+  const siteTask = asObject(jobRequest.site_task);
   const tokens = new Set<string>();
   for (const field of [
     "site_slug",
@@ -136,13 +145,28 @@ function robotEvalSiteTokens(jobRequest: Record<string, unknown>) {
       tokens.add(token);
     }
   }
+  for (const value of [
+    testbed.testbed_id,
+    siteTask.site_id,
+    siteTask.site_name,
+    siteTask.task_id,
+  ]) {
+    const token = normalizedToken(value);
+    if (token) {
+      tokens.add(token);
+    }
+  }
   return tokens;
 }
 
 function robotEvalBetaScope(jobRequest: Record<string, unknown>) {
   const sitePackage = asObject(jobRequest.site_package);
+  const siteTask = asObject(jobRequest.site_task);
   return {
     market:
+      stringValue(siteTask.market) ||
+      stringValue(siteTask.site_name) ||
+      stringValue(siteTask.site_id) ||
       stringValue(sitePackage.market) ||
       stringValue(sitePackage.region_id) ||
       stringValue(sitePackage.regionId) ||
@@ -150,6 +174,7 @@ function robotEvalBetaScope(jobRequest: Record<string, unknown>) {
       stringValue(sitePackage.site_slug) ||
       null,
     siteType:
+      stringValue(siteTask.site_type) ||
       stringValue(sitePackage.site_type) ||
       stringValue(sitePackage.siteType) ||
       stringValue(sitePackage.location_type) ||
@@ -162,8 +187,10 @@ function robotEvalBetaScope(jobRequest: Record<string, unknown>) {
 
 function requestedEntitlementId(jobRequest: Record<string, unknown>) {
   const entitlement = asObject(jobRequest.entitlement);
+  const authorization = asObject(jobRequest.authorization);
   return stringValue(
-    entitlement.entitlement_id ||
+    authorization.entitlement_id ||
+      entitlement.entitlement_id ||
       entitlement.entitlementId ||
       jobRequest.entitlement_id ||
       jobRequest.entitlementId,
@@ -213,6 +240,17 @@ function jobRequestWithServerVerifiedEntitlement(
   entitlement: Record<string, unknown>,
 ) {
   const entitlementId = stringValue(entitlement.id);
+  if (jobRequest.schema_version === DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION) {
+    return {
+      ...jobRequest,
+      authorization: {
+        ...asObject(jobRequest.authorization),
+        entitlement_id: entitlementId,
+        access_state: "provisioned",
+        verified_by: "server_marketplace_entitlement",
+      },
+    };
+  }
   const rightsPrivacyScope = asObject(jobRequest.rights_privacy_scope);
   const submittedEntitlement = asObject(jobRequest.entitlement);
   return {
@@ -420,11 +458,25 @@ const BUYER_RUN_LIST_LIMIT = 200;
 // robotEvalJobRequests record. Nothing is synthesized for display.
 function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
   const entitlementProof = asObject(data.entitlement_proof);
+  const decisionRequest = asObject(data.decision_request || data.jobRequest);
+  const identity = decisionRequestIdentity(decisionRequest);
+  const testbed = asObject(decisionRequest.testbed);
+  const siteTask = asObject(decisionRequest.site_task);
   return {
     job_id: jobId,
+    request_id: identity.requestId || jobId,
+    decision_id: identity.decisionId || null,
+    contract_schema_version: stringValue(decisionRequest.schema_version) || null,
     status: stringValue(data.status) || null,
     pipeline_status: data.pipeline_status || null,
-    site_slug: stringValue(data.site_slug) || null,
+    site_slug:
+      stringValue(data.site_slug) ||
+      stringValue(siteTask.site_name) ||
+      stringValue(siteTask.site_id) ||
+      null,
+    testbed_id: stringValue(testbed.testbed_id) || null,
+    testbed_version: stringValue(testbed.version) || null,
+    decision_question: stringValue(decisionRequest.decision_question) || null,
     site_submission_id: stringValue(data.site_submission_id) || null,
     capture_job_id: stringValue(data.capture_job_id) || null,
     capture_id: stringValue(data.capture_id) || null,
@@ -438,7 +490,12 @@ function buyerRunSummary(jobId: string, data: Record<string, unknown>) {
 
 function statusResponse(jobId: string, data: Record<string, unknown>) {
   const pipelineResult = asObject(data.pipeline_result);
-  const jobRequest = asObject(data.jobRequest);
+  const jobRequest = asObject(data.decision_request || data.jobRequest);
+  const decisionEnvelopeValue =
+    data.decision_envelope || pipelineResult.decision_envelope || null;
+  const decisionProjection = decisionEnvelopeValue
+    ? projectDecisionEnvelope(decisionEnvelopeValue)
+    : null;
   const sitePackage = asObject(jobRequest.site_package);
   const robotProfile = asObject(jobRequest.robot_profile);
   const requestedTasks = Array.isArray(jobRequest.requested_tasks)
@@ -453,6 +510,7 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
     status: stringValue(data.status) || null,
     pipeline_status: data.pipeline_status || pipelineResult.status || null,
     result_artifacts: data.result_artifacts || pipelineResult.result_artifacts || {},
+    decision_projection: decisionProjection,
     proof_boundary: data.proof_boundary || pipelineResult.proof_boundary || {},
     error: data.error || pipelineResult.error || null,
     updated_at_iso: data.updated_at_iso || null,
@@ -460,6 +518,16 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
     pipeline_forward: data.pipeline_forward || null,
     benchmark: data.benchmark_projection || pipelineResult.benchmark_projection || null,
     request_summary: {
+      request_id:
+        stringValue(data.request_id) || stringValue(jobRequest.request_id) || jobId,
+      decision_id:
+        stringValue(data.decision_id) || stringValue(jobRequest.decision_id) || null,
+      decision_question: stringValue(jobRequest.decision_question) || null,
+      testbed: jobRequest.testbed || null,
+      site_task: jobRequest.site_task || null,
+      candidates: Array.isArray(jobRequest.candidates) ? jobRequest.candidates : [],
+      claims: Array.isArray(jobRequest.claims) ? jobRequest.claims : [],
+      thresholds: Array.isArray(jobRequest.thresholds) ? jobRequest.thresholds : [],
       buyer_request_id:
         stringValue(data.buyer_request_id) || stringValue(jobRequest.buyer_request_id),
       site_slug: stringValue(data.site_slug) || stringValue(sitePackage.site_slug),
@@ -477,20 +545,37 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
 // trigger pipeline forwarding. The buyer's uid is attributed to the record so the
 // status route can enforce ownership. (The machine-only /:jobId/pipeline-status
 // callback keeps its HMAC guard instead of a Firebase token.)
-router.post("/", verifyFirebaseToken, async (req, res) => {
+router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const submittedJobRequest = req.body;
-  const validation = validateRobotEvalJobRequest(submittedJobRequest);
-  if (!validation.ok) {
-    return res.status(400).json({
-      error: "Invalid robot_eval_job_request.v1",
-      validation_errors: validation.errors,
-    });
-  }
-
   const buyerUserId = String(
     (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
-  const betaScope = robotEvalBetaScope(submittedJobRequest);
+  const firebaseUser = res.locals.firebaseUser as
+    | { uid?: string; tenantId?: string; tenant_id?: string; localRouteProof?: boolean }
+    | undefined;
+  const receivedAtIso = new Date().toISOString();
+  const normalizedRequest = normalizeDecisionEvidenceRequest({
+    value: submittedJobRequest,
+    authenticatedUserId: buyerUserId,
+    authenticatedTenantId: stringValue(
+      firebaseUser?.tenantId || firebaseUser?.tenant_id,
+    ) || null,
+    sourceRoute: req.baseUrl || "/api/task-evaluation-runs",
+    receivedAtIso,
+  });
+  if (!normalizedRequest.ok) {
+    return res.status(400).json({
+      ok: false,
+      status: "blocked",
+      code: normalizedRequest.code,
+      error: "Task Evaluation Run request could not be accepted.",
+      migration_errors: normalizedRequest.errors,
+    });
+  }
+
+  const decisionRequest = normalizedRequest.request as unknown as Record<string, unknown>;
+  const identity = decisionRequestIdentity(decisionRequest);
+  const betaScope = robotEvalBetaScope(decisionRequest);
 
   // Beta cohort policy applies to buyer intake exactly like capture intake:
   // a denial must happen before any inbox record, Firestore write, or
@@ -499,7 +584,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   // forwarding mechanics and is exempt the same way it uses a local
   // entitlement proof instead of Firestore entitlements.
   const isLocalRouteProof = Boolean(
-    (res.locals.firebaseUser as { localRouteProof?: boolean } | undefined)?.localRouteProof,
+    firebaseUser?.localRouteProof,
   );
   const betaCohortDecision = isLocalRouteProof
     ? null
@@ -520,77 +605,125 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     });
   }
 
-  const entitlementCheck = await verifyRobotEvalEntitlement({
-    buyerUserId,
-    jobRequest: submittedJobRequest,
-  });
-  if (!entitlementCheck.ok) {
-    return res.status(entitlementCheck.status).json({
-      ok: false,
-      status: "robot_eval_entitlement_verification_failed",
-      code: entitlementCheck.code,
-      error: entitlementCheck.error,
-    });
+  const requestId = identity.requestId;
+  const decisionId = identity.decisionId;
+  const idempotency = asObject(decisionRequest.idempotency);
+  const idempotencyKey = stringValue(idempotency.key);
+  if (db) {
+    const existingSnapshot = await db
+      .collection("robotEvalJobRequests")
+      .doc(requestId)
+      .get();
+    if (existingSnapshot.exists) {
+      const existing = (existingSnapshot.data() || {}) as Record<string, unknown>;
+      const existingRequest = asObject(existing.decision_request || existing.jobRequest);
+      const existingKey = stringValue(
+        existing.idempotency_key || asObject(existingRequest.idempotency).key,
+      );
+      if (stringValue(existing.buyer_user_id) !== buyerUserId) {
+        return res.status(409).json({
+          ok: false,
+          status: "blocked",
+          code: "decision_request_id_conflict",
+          error: "The request id is already in use.",
+        });
+      }
+      if (existingKey && existingKey !== idempotencyKey) {
+        return res.status(409).json({
+          ok: false,
+          status: "blocked",
+          code: "decision_request_idempotency_conflict",
+          error: "The request id was already submitted with a different idempotency key.",
+        });
+      }
+      return res.status(200).json({
+        ...statusResponse(requestId, existing),
+        ok: true,
+        already_exists: true,
+        idempotency_key: existingKey || idempotencyKey,
+      });
+    }
   }
 
-  const jobRequest = entitlementCheck.jobRequest;
-  const entitlementProof = publicEntitlementProof(entitlementCheck.entitlement);
-  const jobId = String(jobRequest.job_id || "").trim();
-  const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
+  let jobRequest = decisionRequest;
+  let verifiedEntitlement: Record<string, unknown> | null = null;
+  let entitlementProof: Record<string, unknown> | null = null;
+  const entitlementRequested = Boolean(requestedEntitlementId(decisionRequest));
+  if (entitlementRequested) {
+    const entitlementCheck = await verifyRobotEvalEntitlement({
+      buyerUserId,
+      jobRequest: decisionRequest,
+    });
+    if (!entitlementCheck.ok) {
+      return res.status(entitlementCheck.status).json({
+        ok: false,
+        status: "awaiting_authorization",
+        code: entitlementCheck.code,
+        error: entitlementCheck.error,
+      });
+    }
+    jobRequest = entitlementCheck.jobRequest;
+    verifiedEntitlement = entitlementCheck.entitlement;
+    entitlementProof = publicEntitlementProof(entitlementCheck.entitlement);
+  }
 
-  const queuedAt = new Date().toISOString();
+  const queuedAt = receivedAtIso;
   const inbox = await writeRobotEvalJobRequestInbox({
     rootDir: process.env.ROBOT_EVAL_JOB_REQUEST_INBOX_DIR || DEFAULT_INBOX_DIR,
     jobRequest,
     queuedAt,
   });
-  const pipelineForward = await forwardRobotEvalJobRequestToPipeline({
-    jobRequest,
-    queuedAt,
-  });
+  const pipelineForward = verifiedEntitlement
+    ? await forwardRobotEvalJobRequestToPipeline({ jobRequest, queuedAt })
+    : {
+        status: "blocked" as const,
+        performed: false,
+        endpoint_configured: Boolean(
+          String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim(),
+        ),
+        required: false,
+        blockers: ["authorization_required_before_pipeline_submission"],
+      };
   const pipelineForwardBlocksAcceptance =
-    pipelineForward.required === true && pipelineForward.performed !== true;
-  const recordStatus = pipelineForwardBlocksAcceptance
-    ? "pipeline_forward_failed"
-    : "queued_for_pipeline";
+    Boolean(verifiedEntitlement) &&
+    pipelineForward.required === true &&
+    pipelineForward.performed !== true;
+  const recordStatus = !verifiedEntitlement
+    ? "awaiting_authorization"
+    : pipelineForwardBlocksAcceptance
+      ? "blocked"
+      : "submitted";
+  const siteTask = asObject(jobRequest.site_task);
+  const testbed = asObject(jobRequest.testbed);
   const record = {
-    jobRequest,
+    decision_request: jobRequest,
+    legacy_job_request: null,
+    compatibility: normalizedRequest.compatibility,
     schema_version: jobRequest.schema_version,
-    job_id: jobId,
+    job_id: requestId,
+    request_id: requestId,
+    decision_id: decisionId,
+    idempotency_key: idempotencyKey,
     buyer_user_id: buyerUserId,
-    buyer_request_id: buyerRequestId,
-    site_slug:
-      typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
-        ? String((jobRequest.site_package as Record<string, unknown>).site_slug || "")
-        : "",
-    site_submission_id:
-      typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
-        ? String((jobRequest.site_package as Record<string, unknown>).site_submission_id || "")
-        : "",
-    capture_job_id:
-      typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
-        ? String((jobRequest.site_package as Record<string, unknown>).capture_job_id || "")
-        : "",
-    capture_id:
-      typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
-        ? String((jobRequest.site_package as Record<string, unknown>).capture_id || "")
-        : "",
+    buyer_request_id: decisionId,
+    site_slug: stringValue(siteTask.site_name) || stringValue(siteTask.site_id),
+    testbed_id: stringValue(testbed.testbed_id),
+    testbed_version: stringValue(testbed.version),
     status: recordStatus,
     error: pipelineForwardBlocksAcceptance
       ? robotEvalJobRequestForwardErrorMessage(pipelineForward)
       : null,
-    pipeline_command: "blueprint-run-robot-eval-job",
+    pipeline_command: "blueprint-route-decision-evidence",
     pipeline_inbox: inbox,
     pipeline_forward: pipelineForward,
     entitlement_proof: entitlementProof,
     created_at_iso: queuedAt,
     updated_at_iso: queuedAt,
     proof_boundary: {
-      simulator_execution_proven: false,
-      rank_fidelity_result_proven: false,
-      robot_policy_execution_proven: false,
-      physics_contact_validated: false,
-      non_ranking_operational_claim_validated: false,
+      decision_proven: false,
+      physical_evidence_proven: false,
+      training_performed: false,
+      policy_improved: false,
       public_claim_upgrade_allowed: false,
     },
   };
@@ -600,7 +733,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   );
   let firestoreWritePerformed = false;
   if (db && !firestoreWriteDisabled) {
-    await db.collection("robotEvalJobRequests").doc(jobId).set(
+    await db.collection("robotEvalJobRequests").doc(requestId).set(
       {
         ...record,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -611,46 +744,36 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     firestoreWritePerformed = true;
   }
 
-  if (betaCohortDecision) {
-    await recordBetaCohortAdmission({
-      gate: "robot_eval_request",
-      admissionId: `robot_eval:${jobId}`,
-      decision: betaCohortDecision,
-      creatorId: buyerUserId || null,
-      source: "robot_eval_job_request_intake",
-    });
-  }
-
   const durableStore = buildDurableStoreProof({
     firestoreWritePerformed,
     firestoreWriteDisabled,
     firestoreCollection: "robotEvalJobRequests",
-    firestoreDocId: jobId,
+    firestoreDocId: requestId,
     inbox,
     pipelineForward,
   });
   if (pipelineForwardBlocksAcceptance) {
     await recordBetaOpsFailureSignal({
       kind: "intake_forwarding_failure",
-      scopeId: jobId || buyerRequestId || "robot-eval-job-request",
+      scopeId: requestId || decisionId || "task-evaluation-run-request",
       severity: "critical",
       summary: "Robot eval job request forwarding to Pipeline failed while forwarding was required.",
       details: {
-        job_id: jobId,
-        buyer_request_id: buyerRequestId,
+        request_id: requestId,
+        decision_id: decisionId,
         pipeline_forward: pipelineForward,
         durable_store: durableStore,
       },
     });
     return res.status(502).json({
       ok: false,
-      status: "pipeline_forward_failed",
+      status: "blocked",
       error: robotEvalJobRequestForwardErrorMessage(pipelineForward),
       durableStore,
       pipelineInbox: inbox,
       pipelineForward,
       entitlementProof,
-      jobRequest,
+      decisionRequest: jobRequest,
     });
   }
 
@@ -659,10 +782,10 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   // forward-failure path above — so one $-per-run purchase cannot be replayed
   // into unlimited runs. Back-office/site-package/hosted-session entitlements
   // are untouched.
-  const verifiedEntitlement = entitlementCheck.entitlement;
-  const verifiedEntitlementId = stringValue(verifiedEntitlement.id);
-  const verifiedEntitlementSku = normalizedToken(verifiedEntitlement.sku);
-  const isFirestoreBackedEntitlement = !stringValue(verifiedEntitlement.proof_source);
+  const verifiedEntitlementId = stringValue(verifiedEntitlement?.id);
+  const verifiedEntitlementSku = normalizedToken(verifiedEntitlement?.sku);
+  const isFirestoreBackedEntitlement =
+    Boolean(verifiedEntitlement) && !stringValue(verifiedEntitlement?.proof_source);
   if (
     db &&
     isFirestoreBackedEntitlement &&
@@ -673,7 +796,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
       {
         access_state: "consumed",
         consumed_at: queuedAt,
-        consumed_by_job_id: jobId,
+        consumed_by_job_id: requestId,
         updated_at: queuedAt,
       },
       { merge: true },
@@ -683,23 +806,23 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   if (betaCohortDecision) {
     await recordBetaCohortAdmission({
       gate: "robot_eval_request",
-      admissionId: `robot-eval:${jobId}`,
+      admissionId: `task-evaluation-run:${requestId}`,
       decision: betaCohortDecision,
       creatorId: buyerUserId,
       market: betaScope.market,
       siteType: betaScope.siteType,
-      source: "robot_eval_job_request",
+      source: "task_evaluation_run_request",
     });
   }
 
   return res.status(202).json({
     ok: true,
-    status: "queued_for_pipeline",
+    status: recordStatus,
     durableStore,
     pipelineInbox: inbox,
     pipelineForward,
     entitlementProof,
-    jobRequest,
+    decisionRequest: jobRequest,
   });
 });
 
@@ -783,6 +906,96 @@ router.get("/:jobId/status", verifyFirebaseToken, async (req, res) => {
 });
 
 router.post(
+  "/:jobId/physical-outcomes",
+  pipelineSyncRateLimiter,
+  requirePipelineSync,
+  async (req, res) => {
+    if (!db) {
+      return res.status(503).json({
+        error: "Task Evaluation Run status store is not configured.",
+        code: "task_evaluation_run_store_not_configured",
+      });
+    }
+    const requestId = String(req.params.jobId || "").trim();
+    const parsed = physicalOutcomeJoinSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Physical outcome join is invalid or lacks authoritative evidence.",
+        code: "invalid_physical_outcome_join",
+        violations: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      });
+    }
+    if (parsed.data.request_id !== requestId) {
+      return res.status(400).json({
+        error: "Physical outcome request_id does not match route request id.",
+        code: "physical_outcome_request_id_mismatch",
+      });
+    }
+    const artifactViolations = validatePipelineArtifactUris({
+      artifacts: [parsed.data.physical_artifact],
+    });
+    if (artifactViolations.length) {
+      return res.status(400).json({
+        error: "Physical outcome artifact is outside the allowed storage boundary.",
+        code: "invalid_pipeline_artifact_uri",
+        violations: artifactViolations,
+      });
+    }
+    const snapshot = await db.collection("robotEvalJobRequests").doc(requestId).get();
+    if (!snapshot.exists) {
+      return res.status(404).json({
+        error: "Task Evaluation Run request was not found.",
+        code: "task_evaluation_run_not_found",
+      });
+    }
+    const record = (snapshot.data() || {}) as Record<string, unknown>;
+    const storedRequest = asObject(record.decision_request || record.jobRequest);
+    const storedTestbed = asObject(storedRequest.testbed);
+    if (
+      stringValue(record.decision_id) !== parsed.data.decision_id ||
+      stringValue(storedTestbed.testbed_id) !== parsed.data.testbed.testbed_id ||
+      stringValue(storedTestbed.version) !== parsed.data.testbed.version ||
+      stringValue(storedTestbed.digest_sha256) !== parsed.data.testbed.digest_sha256
+    ) {
+      return res.status(409).json({
+        error: "Physical outcome join identifiers do not match the stored decision and testbed.",
+        code: "physical_outcome_join_identity_mismatch",
+      });
+    }
+    const existingJoins = Array.isArray(record.physical_outcome_joins)
+      ? record.physical_outcome_joins
+      : [];
+    const joins = [
+      ...existingJoins.filter(
+        (join) => asObject(join).join_id !== parsed.data.join_id,
+      ),
+      parsed.data,
+    ];
+    await db.collection("robotEvalJobRequests").doc(requestId).set(
+      {
+        physical_outcome_joins: joins,
+        physical_outcome_join_count: joins.length,
+        physical_outcomes_are_observations_only: true,
+        method_recalibration_performed_by_webapp: false,
+        updated_at_iso: new Date().toISOString(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    return res.status(202).json({
+      ok: true,
+      request_id: requestId,
+      join_id: parsed.data.join_id,
+      status: "recorded_for_pipeline_review",
+      method_recalibration_performed: false,
+    });
+  },
+);
+
+router.post(
   "/:jobId/pipeline-status",
   pipelineSyncRateLimiter,
   requirePipelineSync,
@@ -796,7 +1009,7 @@ router.post(
 
   const jobId = String(req.params.jobId || "").trim();
   const body = asObject(req.body);
-  const bodyJobId = String(body.job_id || jobId).trim();
+  const bodyJobId = String(body.request_id || body.job_id || jobId).trim();
   if (!jobId || bodyJobId !== jobId) {
     return res.status(400).json({
       error: "Pipeline status job_id does not match route job_id.",
@@ -804,9 +1017,28 @@ router.post(
     });
   }
 
-  const artifactViolations = validatePipelineArtifactUris({
-    artifacts: asObject(body.result_artifacts || body.artifacts),
-  });
+  const suppliedDecisionEnvelope = body.decision_envelope;
+  const decisionProjection = suppliedDecisionEnvelope
+    ? projectDecisionEnvelope(suppliedDecisionEnvelope)
+    : null;
+  if (decisionProjection && !decisionProjection.supported) {
+    return res.status(400).json({
+      error: decisionProjection.reason,
+      code: "unsupported_decision_envelope",
+      raw_state: decisionProjection.raw_state,
+    });
+  }
+  if (decisionProjection?.supported && decisionProjection.envelope.request_id !== jobId) {
+    return res.status(400).json({
+      error: "Decision envelope request_id does not match route request id.",
+      code: "decision_envelope_request_id_mismatch",
+    });
+  }
+
+  const artifactPayload = decisionProjection?.supported
+    ? decisionProjection.envelope.artifacts
+    : asObject(body.result_artifacts || body.artifacts);
+  const artifactViolations = validatePipelineArtifactUris({ artifacts: artifactPayload });
   if (artifactViolations.length > 0) {
     return res.status(400).json({
       error: "Pipeline status artifact URIs are outside the allowed storage boundary.",
@@ -832,28 +1064,74 @@ router.post(
 
   const nowIso = new Date().toISOString();
   const pipelineStatus = String(body.pipeline_status || body.status || "").trim();
-  const nextStatus =
-    pipelineStatus === "completed" || pipelineStatus === "succeeded"
-      ? "completed"
-      : pipelineStatus === "failed" || pipelineStatus === "blocked"
-        ? "failed"
-        : pipelineStatus || "pipeline_running";
+  const legacyStateMap: Record<string, string> = {
+    queued_for_pipeline: "submitted",
+    accepted: "accepted",
+    planning: "planning",
+    pipeline_running: "running",
+    running: "running",
+    aggregating: "aggregating",
+    failed: "failed",
+    blocked: "blocked",
+  };
+  const nextStatus = decisionProjection?.supported
+    ? decisionProjection.envelope.state
+    : legacyStateMap[pipelineStatus] || "blocked";
+  if (!decisionProjection && pipelineStatus && !legacyStateMap[pipelineStatus]) {
+    return res.status(400).json({
+      error:
+        "Pipeline status is unsupported without a blueprint.decision_envelope.v1 result.",
+      code: "unsupported_pipeline_state",
+      raw_state: pipelineStatus,
+    });
+  }
+  const existingSnapshot = await db
+    .collection("robotEvalJobRequests")
+    .doc(jobId)
+    .get();
+  if (!existingSnapshot.exists) {
+    return res.status(404).json({
+      error: "Task Evaluation Run request was not found.",
+      code: "task_evaluation_run_not_found",
+    });
+  }
+  const existingData = (existingSnapshot.data() || {}) as Record<string, unknown>;
+  if (
+    decisionProjection?.supported &&
+    stringValue(existingData.decision_id) &&
+    decisionProjection.envelope.decision_id !== stringValue(existingData.decision_id)
+  ) {
+    return res.status(400).json({
+      error: "Decision envelope decision_id does not match the stored request.",
+      code: "decision_envelope_decision_id_mismatch",
+    });
+  }
   const update = {
     status: nextStatus,
     pipeline_status: pipelineStatus || nextStatus,
-    result_artifacts: asObject(body.result_artifacts || body.artifacts),
+    result_artifacts: decisionProjection?.supported
+      ? decisionProjection.envelope.artifacts
+      : asObject(body.result_artifacts || body.artifacts),
+    ...(decisionProjection?.supported
+      ? { decision_envelope: decisionProjection.envelope }
+      : {}),
     pipeline_result: {
       job_id: bodyJobId,
       pipeline_status: pipelineStatus || nextStatus,
-      result_artifacts: asObject(body.result_artifacts || body.artifacts),
+      result_artifacts: decisionProjection?.supported
+        ? decisionProjection.envelope.artifacts
+        : asObject(body.result_artifacts || body.artifacts),
+      ...(decisionProjection?.supported
+        ? { decision_envelope: decisionProjection.envelope }
+        : {}),
       ...(body.proof_boundary ? { proof_boundary: asObject(body.proof_boundary) } : {}),
-      ...(body.error ? { error: body.error } : {}),
+      ...(body.error ? { error: "Pipeline reported a blocked or failed run." } : {}),
       ...(benchmarkProjection ? { benchmark_projection: benchmarkProjection } : {}),
       received_at_iso: nowIso,
     },
     ...(benchmarkProjection ? { benchmark_projection: benchmarkProjection } : {}),
     ...(body.proof_boundary ? { proof_boundary: body.proof_boundary } : {}),
-    ...(body.error ? { error: body.error } : {}),
+    ...(body.error ? { error: "Pipeline reported a blocked or failed run." } : {}),
     updated_at_iso: nowIso,
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
   };

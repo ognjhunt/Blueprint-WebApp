@@ -1,16 +1,16 @@
 # Blueprint-WebApp
 
-`Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for real-site robot evaluation runs and sim-only policy improvement runs. It is not the capture client and it is not the pipeline that creates the artifacts; it sells, gates, operates, and exposes the outputs that come from the capture and pipeline repos.
+`Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for real-site Task Evaluation Runs. It is not the capture client and it is not the Pipeline that qualifies evidence or creates scientific verdicts; it securely collects decision requests, gates and queues work, and projects Pipeline-owned results.
 
 ## System Position
 
 Blueprint is a three-repo product system:
 
 1. `BlueprintCapture` collects real-site capture evidence and upload bundles.
-2. `BlueprintCapturePipeline` turns those bundles into Site Cards, Task Cards, Scenario Cards, Eval Cards, policy-improvement artifacts, generated/model-derived support assets, hosted-session artifacts, and proof boundaries.
-3. `Blueprint-WebApp` exposes Task Evaluation Runs, Policy Improvement Runs, hosted access, licensing, entitlements, ops dashboards, Paperclip control-plane flows, and launch/runbooks.
+2. `BlueprintCapturePipeline` maintains Site-Task Testbeds, qualifies and routes evidence, normalizes results, creates Decision Envelopes, and links authoritative physical outcomes.
+3. `Blueprint-WebApp` exposes Task Evaluation Runs, testbed and evidence records, hosted review, licensing, entitlements, ops dashboards, Paperclip control-plane flows, and launch/runbooks.
 
-The product doctrine is capture-first and real-site robot-evaluation/policy-improvement first. World models, site-world routes, generated media, simulations, and readiness outputs are support layers. They help buyers inspect or improve a scoped run, but they are not the primary public offer.
+The product doctrine is capture-first and real-site decision-evaluation first. Task Evaluation Run is the sole customer-facing product. World models, provider tools, site-world internals, generated media, simulation, readiness, and post-training eligibility are evidence or support layers inside a run—not separate offers.
 
 ## Blueprint OS Quick Start
 

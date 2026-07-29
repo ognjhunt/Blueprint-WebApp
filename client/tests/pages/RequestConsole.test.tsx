@@ -132,7 +132,7 @@ describe("RequestConsole", () => {
     expect(screen.getByText("Next action")).toBeInTheDocument();
     expect(screen.getByText(/Provider preview state/i)).toBeInTheDocument();
     expect(screen.getByText(/Stripe, Render, fulfillment/i)).toBeInTheDocument();
-    expect(screen.getByText(/blocked until entitlement, hosted-session, payment, and backing runtime records support them/i)).toBeInTheDocument();
+    expect(screen.getByText(/Historical package or hosted-session access stays blocked until entitlement, payment, and backing runtime records support it/i)).toBeInTheDocument();
   });
 
   it("does not project missing owner-system fields as pending operational states", async () => {

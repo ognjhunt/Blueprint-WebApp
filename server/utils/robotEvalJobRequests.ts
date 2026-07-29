@@ -2,9 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildPipelineSyncSignature } from "./pipelineSyncSecurity";
+import {
+  DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION,
+  decisionRequestIdentity,
+} from "./decisionEvidenceContract";
 
 const JOB_REQUEST_SCHEMA_VERSION = "robot_eval_job_request.v1";
 const JOB_REQUEST_QUEUE_CONTRACT = "robot_eval_job_request_inbox.v1";
+const DECISION_REQUEST_QUEUE_CONTRACT =
+  "blueprint.decision_evidence_request_inbox.v1";
 const DEFAULT_FORWARD_TIMEOUT_MS = 60000;
 const FORWARD_REQUIRED_ENV = "ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED";
 const FORWARD_CAPTURE_ROOT_ENV = "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT";
@@ -356,6 +362,46 @@ function validateSelectedPolicyModality(
 
 function sanitizeFileStem(value: string) {
   return slugify(value).slice(0, 160) || "robot-eval-job-request";
+}
+
+function queueContractForRequest(jobRequest: Record<string, unknown>) {
+  return jobRequest.schema_version === DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION
+    ? DECISION_REQUEST_QUEUE_CONTRACT
+    : JOB_REQUEST_QUEUE_CONTRACT;
+}
+
+function pipelineCommandForRequest(jobRequest: Record<string, unknown>) {
+  return jobRequest.schema_version === DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION
+    ? "blueprint-route-decision-evidence"
+    : "blueprint-run-robot-eval-job";
+}
+
+function queuedEnvelopeForRequest(params: {
+  jobRequest: Record<string, unknown>;
+  queuedAt: string;
+}) {
+  const identity = decisionRequestIdentity(params.jobRequest);
+  const queueContract = queueContractForRequest(params.jobRequest);
+  const common = {
+    queue_contract: queueContract,
+    status: identity.isDecisionRequest ? "submitted" : "queued_for_pipeline",
+    queued_at_iso: params.queuedAt,
+    pipeline_command: pipelineCommandForRequest(params.jobRequest),
+    pipeline_consumer: "BlueprintCapturePipeline",
+  };
+  return identity.isDecisionRequest
+    ? {
+        ...common,
+        request_id: identity.requestId,
+        decision_id: identity.decisionId,
+        decision_request: params.jobRequest,
+      }
+    : {
+        ...common,
+        job_id: identity.requestId,
+        buyer_request_id: identity.decisionId,
+        job_request: params.jobRequest,
+      };
 }
 
 export function buildRobotEvalJobRequest(input: {
@@ -1222,21 +1268,12 @@ export async function writeRobotEvalJobRequestInbox(params: {
   jobRequest: Record<string, unknown>;
   queuedAt: string;
 }) {
-  const jobId = String(params.jobRequest.job_id || "").trim();
-  const buyerRequestId = String(params.jobRequest.buyer_request_id || "").trim();
-  const fileName = `${sanitizeFileStem(jobId)}.json`;
+  const identity = decisionRequestIdentity(params.jobRequest);
+  const fileName = `${sanitizeFileStem(identity.requestId)}.json`;
   const jobPath = path.join(params.rootDir, fileName);
   const indexPath = path.join(params.rootDir, "index.jsonl");
-  const exportEnvelope = {
-    queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
-    status: "queued_for_pipeline",
-    queued_at_iso: params.queuedAt,
-    job_id: jobId,
-    buyer_request_id: buyerRequestId,
-    pipeline_command: "blueprint-run-robot-eval-job",
-    pipeline_consumer: "BlueprintCapturePipeline",
-    job_request: params.jobRequest,
-  };
+  const queueContract = queueContractForRequest(params.jobRequest);
+  const exportEnvelope = queuedEnvelopeForRequest(params);
 
   await fs.mkdir(params.rootDir, { recursive: true });
   await fs.writeFile(jobPath, `${JSON.stringify(exportEnvelope, null, 2)}\n`, "utf8");
@@ -1244,17 +1281,18 @@ export async function writeRobotEvalJobRequestInbox(params: {
     indexPath,
     `${JSON.stringify({
       queued_at_iso: params.queuedAt,
-      job_id: jobId,
-      buyer_request_id: buyerRequestId,
+      ...(identity.isDecisionRequest
+        ? { request_id: identity.requestId, decision_id: identity.decisionId }
+        : { job_id: identity.requestId, buyer_request_id: identity.decisionId }),
       path: jobPath,
-      schema_version: JOB_REQUEST_SCHEMA_VERSION,
-      queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
+      schema_version: params.jobRequest.schema_version,
+      queue_contract: queueContract,
     })}\n`,
     "utf8",
   );
 
   return {
-    queue_contract: "robot_eval_job_request_inbox.v1",
+    queue_contract: queueContract,
     job_request_path: jobPath,
     index_path: indexPath,
   };
@@ -1347,6 +1385,9 @@ function parseCaptureRootBySiteEnv() {
 function captureRootOverrideForJobRequest(
   jobRequest: Record<string, unknown>,
 ): CaptureRootOverrideResolution {
+  if (jobRequest.schema_version === DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION) {
+    return { ok: true as const };
+  }
   const sitePackage = hasObject(jobRequest.site_package) ? jobRequest.site_package : {};
   const siteSlug = String(sitePackage.site_slug || "").trim();
   const bySite = parseCaptureRootBySiteEnv();
@@ -1384,6 +1425,9 @@ function isWebappSyncedArtifactCaptureRoot(value: string) {
 function jobRequestWithPipelineCaptureRoot(
   jobRequest: Record<string, unknown>,
 ): PipelineForwardJobRequestResolution {
+  if (jobRequest.schema_version === DECISION_EVIDENCE_REQUEST_SCHEMA_VERSION) {
+    return { ok: true as const, jobRequest, applied: false as const };
+  }
   const override = captureRootOverrideForJobRequest(jobRequest);
   if (!override.ok) {
     return override;
@@ -1496,18 +1540,10 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
   }
 
   const jobRequest = forwardJobRequest.jobRequest as Record<string, unknown>;
-  const jobId = String(jobRequest.job_id || "").trim();
-  const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
-  const envelope = {
-    queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
-    status: "queued_for_pipeline",
-    queued_at_iso: params.queuedAt,
-    job_id: jobId,
-    buyer_request_id: buyerRequestId,
-    pipeline_command: "blueprint-run-robot-eval-job",
-    pipeline_consumer: "BlueprintCapturePipeline",
-    job_request: jobRequest,
-  };
+  const envelope = queuedEnvelopeForRequest({
+    jobRequest,
+    queuedAt: params.queuedAt,
+  });
   const controller = new AbortController();
   const timeoutMs = forwardTimeoutMs(params.timeoutMs);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);

@@ -1,8 +1,10 @@
 # Real-Site Robot Eval Dataset Sync Boundary
 
+> Historical compatibility boundary for `robot_eval_job_request.v1`. It no longer defines the normal WebApp request or product. Native intake uses `blueprint.decision_evidence_request.v1`; Pipeline owns evidence routing. See `docs/architecture/task-evaluation-run-migration-2026-07-29.md`.
+
 Date: 2026-06-03
 
-Status: Active WebApp consumer boundary for the Pipeline robot-eval dataset lane.
+Status: Retained compatibility reference; superseded for native intake on 2026-07-29.
 
 ## Source System
 

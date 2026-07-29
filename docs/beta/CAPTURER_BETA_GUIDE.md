@@ -12,8 +12,8 @@ timestamps, poses, and provenance are treated as **authoritative truth**. Everyt
 
 ## What the beta is
 
-- A scoped beta where Blueprint packages the sites you capture into buyer artifacts
-  (Task Evaluation Runs and Post-Training Data Packages).
+- A scoped beta where Blueprint turns captured site-tasks into maintained testbeds and
+  Task Evaluation Runs. Post-training is only a permitted use of qualifying run evidence.
 - **Industrial-first**, but not industrial-only — see supported location types below.
 - Still being hardened. Expect rough edges, expect to be asked for a recapture sometimes, and
   expect to report bugs. That is what a beta is for.

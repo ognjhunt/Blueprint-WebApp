@@ -6,7 +6,7 @@ import type { Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildRobotEvalJobRequest } from "../utils/robotEvalJobRequests";
+import { validDecisionRequest } from "./helpers/decision-evidence-fixtures";
 
 const firestoreState = vi.hoisted(() => ({
   collectionDocData: {} as Record<string, Record<string, Record<string, unknown>>>,
@@ -140,75 +140,28 @@ async function startPipelineStub(
   };
 }
 
-function buildRequest(captureRoot: string) {
-  return buildRobotEvalJobRequest({
-    sitePackage: {
-      siteSlug: "sw-chi-01",
-      siteId: "site-sw-chi-01",
-      siteName: "Harborview Grocery Distribution Annex",
-      siteSubmissionId: "site-submission-sw-chi-01",
-      captureJobId: "capture-job-sw-chi-01",
-      captureId: "capture-sw-chi-01",
-      captureRoot,
-      pipelinePrefix: `${captureRoot}/pipeline`,
-      accessState: "request_gated",
-      artifactUris: {
-        manifestUri: `${captureRoot}/pipeline/robot_eval_dataset/robot_eval_dataset_manifest.json`,
-        taskCardsUri: `${captureRoot}/pipeline/robot_eval_dataset/task_cards.json`,
-        scenarioCardsUri: `${captureRoot}/pipeline/robot_eval_dataset/scenario_cards.json`,
-        evalCardsUri: `${captureRoot}/pipeline/robot_eval_dataset/eval_cards.json`,
-        proofBoundariesUri: `${captureRoot}/pipeline/robot_eval_dataset/proof_boundaries.json`,
-        taskThresholdsUri: `${captureRoot}/pipeline/robot_eval_dataset/task_thresholds.json`,
-        publicationReadinessUri: `${captureRoot}/pipeline/robot_eval_dataset/publication_readiness.json`,
-        sceneAssetInventoryUri: `${captureRoot}/pipeline/simulation_automation/scene_asset_inventory.json`,
-        sceneAssetDependencyAuditUri: `${captureRoot}/pipeline/simulation_automation/scene_asset_dependency_audit.json`,
-        cpuPreflightScorecardUri: `${captureRoot}/pipeline/simulation_automation/cpu_preflight_scorecard.json`,
-        episodeSpecManifestUri: `${captureRoot}/pipeline/simulation_automation/episode_spec_manifest.json`,
-        cpuSimulatorPreflightManifestUri: `${captureRoot}/pipeline/simulation_automation/cpu_simulator_preflight_manifest.json`,
-        gpuHandoffPacketUri: `${captureRoot}/pipeline/simulation_automation/gpu_handoff_packet.json`,
-      },
-      publication: {
-        readyToEvaluatePublishable: true,
-        publicationLabel: "Ready to evaluate",
-      },
-    },
-    selection: {
-      taskId: "place_return_in_bin",
-      scenarioId: "scenario_place_return_in_bin_mobile",
-      robotProfileId: "mobile_manipulator_rgb_v1",
-      policyId: "policy-api-fixture",
-    },
-    robotTeam: {
-      customerId: "robot-team-a",
-      companyName: "Robot Team A",
-      contactEmail: "robot-team@example.com",
-    },
-    entitlement: {
-      accessState: "request_gated",
-      approved: true,
-    },
-    policySubmission: {
-      policy_api_endpoint: {
-        endpoint_url: "https://robot-team.example/policy",
-        observation_schema_ref: "schemas/obs-v1.json",
-        action_schema_ref: "schemas/action-v1.json",
-      },
-    },
-    source: {
-      route: "/sites/sw-chi-01",
-      surface: "sites",
-    },
+function buildRequest(_captureRoot: string) {
+  return validDecisionRequest({
+    owner: { user_id: "robot-team-a", authenticated_by: "firebase" },
+    authorization: { entitlement_id: "ent-sw-chi-01" },
   });
 }
+
+const csrfHeaders = {
+  "content-type": "application/json",
+  authorization: "Bearer robot-team-a",
+  cookie: "csrf_token=route-test-token",
+  "x-csrf-token": "route-test-token",
+};
 
 function seedProvisionedEntitlement(overrides: Record<string, unknown> = {}) {
   firestoreState.collectionDocData.marketplaceEntitlements = {
     "ent-sw-chi-01": {
       id: "ent-sw-chi-01",
       buyer_user_id: "robot-team-a",
-      sku: "sw-chi-01",
+      sku: "testbed-001",
       access_state: "provisioned",
-      site_slug: "sw-chi-01",
+      site_id: "site-001",
       ...overrides,
     },
   };
@@ -230,6 +183,68 @@ afterEach(() => {
 });
 
 describe("robot-eval job request route forwarding", () => {
+  it("requires CSRF protection on authenticated browser intake", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "task-run-route-inbox-"));
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    const route = await startRobotEvalRoute();
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        body: JSON.stringify(buildRequest(inboxDir)),
+      });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({ error: "Invalid CSRF token" });
+      expect(firestoreState.collectionWrites).toHaveLength(0);
+    } finally {
+      await stopServer(route.server);
+      await fs.rm(inboxDir, { recursive: true, force: true });
+    }
+  });
+
+  it("durably records an unentitled request as awaiting authorization and is idempotent", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "task-run-route-inbox-"));
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    const request = buildRequest(inboxDir);
+    delete request.authorization;
+    const route = await startRobotEvalRoute();
+    try {
+      const first = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: csrfHeaders,
+        body: JSON.stringify(request),
+      });
+      expect(first.status).toBe(202);
+      await expect(first.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: true,
+          status: "awaiting_authorization",
+          pipelineForward: expect.objectContaining({
+            performed: false,
+            blockers: ["authorization_required_before_pipeline_submission"],
+          }),
+        }),
+      );
+      const second = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: csrfHeaders,
+        body: JSON.stringify(request),
+      });
+      expect(second.status).toBe(200);
+      await expect(second.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: true,
+          already_exists: true,
+          status: "awaiting_authorization",
+          idempotency_key: request.idempotency.key,
+        }),
+      );
+    } finally {
+      await stopServer(route.server);
+      await fs.rm(inboxDir, { recursive: true, force: true });
+    }
+  });
+
   it("fails closed when a local entitlement proof omits access_state", async () => {
     const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
     const jobRequest = buildRequest(path.join(inboxDir, "captures", "sw-chi-01"));
@@ -238,8 +253,8 @@ describe("robot-eval job request route forwarding", () => {
       "BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON",
       JSON.stringify({
         buyer_user_id: "robot-team-a",
-        sku: "sw-chi-01",
-        site_slug: "sw-chi-01",
+        sku: "testbed-001",
+        site_id: "site-001",
       }),
     );
     const route = await startRobotEvalRoute();
@@ -247,7 +262,7 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
@@ -256,7 +271,7 @@ describe("robot-eval job request route forwarding", () => {
       expect(payload).toEqual(
         expect.objectContaining({
           ok: false,
-          status: "robot_eval_entitlement_verification_failed",
+          status: "awaiting_authorization",
           code: "invalid_local_robot_eval_entitlement_proof",
           error: expect.stringContaining("must explicitly include access_state"),
         }),
@@ -278,7 +293,7 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
@@ -314,7 +329,7 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
@@ -323,7 +338,7 @@ describe("robot-eval job request route forwarding", () => {
       expect(payload).toEqual(
         expect.objectContaining({
           ok: false,
-          status: "robot_eval_entitlement_verification_failed",
+          status: "awaiting_authorization",
           code: "robot_eval_provisioned_entitlement_not_found",
         }),
       );
@@ -349,13 +364,13 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
 
       expect(response.status).toBe(502);
-      expect(payload.status).toBe("pipeline_forward_failed");
+      expect(payload.status).toBe("blocked");
       expect(payload.error).toMatch(/forwarding is not configured/i);
       expect(payload.durableStore).toEqual(
         expect.objectContaining({
@@ -368,7 +383,7 @@ describe("robot-eval job request route forwarding", () => {
           pipeline_inbox: expect.objectContaining({
             status: "stored",
             performed: true,
-            queue_contract: "robot_eval_job_request_inbox.v1",
+            queue_contract: "blueprint.decision_evidence_request_inbox.v1",
           }),
           pipeline_forward: expect.objectContaining({
             status: "not_configured",
@@ -423,13 +438,13 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
 
       expect(response.status).toBe(202);
-      expect(payload.status).toBe("queued_for_pipeline");
+      expect(payload.status).toBe("submitted");
       expect(payload.durableStore).toEqual(
         expect.objectContaining({
           status: "pipeline_inbox_only",
@@ -438,12 +453,12 @@ describe("robot-eval job request route forwarding", () => {
             status: "disabled",
             performed: false,
             collection: "robotEvalJobRequests",
-            doc_id: jobRequest.job_id,
+            doc_id: jobRequest.request_id,
           }),
           pipeline_inbox: expect.objectContaining({
             status: "stored",
             performed: true,
-            queue_contract: "robot_eval_job_request_inbox.v1",
+            queue_contract: "blueprint.decision_evidence_request_inbox.v1",
           }),
           pipeline_forward: expect.objectContaining({
             status: "forwarded",
@@ -463,7 +478,9 @@ describe("robot-eval job request route forwarding", () => {
           pipeline_status: "staged_for_control_plane",
         }),
       );
-      expect(payload.pipelineInbox.queue_contract).toBe("robot_eval_job_request_inbox.v1");
+      expect(payload.pipelineInbox.queue_contract).toBe(
+        "blueprint.decision_evidence_request_inbox.v1",
+      );
       await expect(fs.access(payload.pipelineInbox.job_request_path)).resolves.toBeUndefined();
       expect(pipeline.received).toHaveLength(1);
       expect(pipeline.received[0].headers.authorization).toBeUndefined();
@@ -478,29 +495,17 @@ describe("robot-eval job request route forwarding", () => {
       );
       expect(pipeline.received[0].body).toEqual(
         expect.objectContaining({
-          queue_contract: "robot_eval_job_request_inbox.v1",
+          queue_contract: "blueprint.decision_evidence_request_inbox.v1",
           pipeline_consumer: "BlueprintCapturePipeline",
-          job_id: jobRequest.job_id,
+          request_id: jobRequest.request_id,
         }),
       );
       expect(
-        (pipeline.received[0].body.job_request as Record<string, unknown>).rights_privacy_scope,
-      ).toEqual(
-        expect.objectContaining({
-          status: "cleared_for_robot_eval",
-          external_use_allowed: true,
-          entitlement_verified: true,
-          entitlement_id: "ent-sw-chi-01",
-          verification_source: "server_marketplace_entitlement",
-        }),
-      );
-      expect(
-        (pipeline.received[0].body.job_request as Record<string, unknown>).entitlement,
+        (pipeline.received[0].body.decision_request as Record<string, unknown>).authorization,
       ).toEqual(
         expect.objectContaining({
           entitlement_id: "ent-sw-chi-01",
           access_state: "provisioned",
-          approved: true,
           verified_by: "server_marketplace_entitlement",
         }),
       );
@@ -547,13 +552,13 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        headers: csrfHeaders,
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
 
       expect(response.status).toBe(502);
-      expect(payload.status).toBe("pipeline_forward_failed");
+      expect(payload.status).toBe("blocked");
       expect(payload.error).toMatch(/capture root does not match/i);
       expect(payload.durableStore).toEqual(
         expect.objectContaining({
@@ -563,12 +568,12 @@ describe("robot-eval job request route forwarding", () => {
             status: "disabled",
             performed: false,
             collection: "robotEvalJobRequests",
-            doc_id: jobRequest.job_id,
+            doc_id: jobRequest.request_id,
           }),
           pipeline_inbox: expect.objectContaining({
             status: "stored",
             performed: true,
-            queue_contract: "robot_eval_job_request_inbox.v1",
+            queue_contract: "blueprint.decision_evidence_request_inbox.v1",
           }),
           pipeline_forward: expect.objectContaining({
             status: "failed",
@@ -589,7 +594,9 @@ describe("robot-eval job request route forwarding", () => {
           ],
         }),
       );
-      expect(payload.pipelineInbox.queue_contract).toBe("robot_eval_job_request_inbox.v1");
+      expect(payload.pipelineInbox.queue_contract).toBe(
+        "blueprint.decision_evidence_request_inbox.v1",
+      );
       await expect(fs.access(payload.pipelineInbox.job_request_path)).resolves.toBeUndefined();
       expect(pipeline.received).toHaveLength(1);
       expect(JSON.stringify(payload)).not.toContain("test-forward-token");

@@ -59,7 +59,7 @@ export const capturerBetaGuide: BetaCohortGuide = {
     {
       title: "Review states",
       body:
-        "Every upload is reviewed before it can support buyer access, payout eligibility, package delivery, or downstream policy evaluation.",
+        "Every upload is reviewed before it can support run evidence, buyer access, payout eligibility, or a permitted downstream use.",
       items: [
         "Review required means Blueprint has the bundle but has not accepted its rights, privacy, quality, or package fit.",
         "Blocked means something must be fixed before downstream use, such as unclear permission, private content, missing route context, or upload failure.",
@@ -111,7 +111,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Cohort scope",
       body:
-        "The buyer beta is for request-scoped Task Evaluation Runs, Post-Training Data Package review, and hosted access around captured real-site evidence.",
+        "The buyer beta is for request-scoped Task Evaluation Runs and hosted access around captured real-site evidence. Post-training is only a permitted use when a run artifact is explicitly eligible.",
       items: [
         "Best-fit requests name the robot family, target site type, task, policy/checkpoint family, success criteria, and review timeline.",
         "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",
@@ -121,7 +121,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "First request path",
       body:
-        "A request starts with scope review before package delivery or hosted-session access. Missing rights, site context, or policy details can pause the run.",
+        "A request starts with scope review before run authorization or historical hosted-session access. Missing rights, site context, or policy details can pause the run.",
       items: [
         "Submit the site/task/policy context and any confidentiality or export limits up front.",
         "Blueprint confirms available capture/package evidence before promising a delivery path.",

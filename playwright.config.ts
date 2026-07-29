@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test';
 const port = Number(process.env.PLAYWRIGHT_PORT || 4173);
 const baseURL = `http://127.0.0.1:${port}`;
 const operatorQaFakeAuthEnabled = process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === '1';
+const taskEvaluationRunE2eEnabled = process.env.BLUEPRINT_TASK_EVAL_E2E === '1';
 const webServerEnvPrefix = [
   operatorQaFakeAuthEnabled ? 'VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1' : '',
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === '1'
@@ -21,7 +22,11 @@ export default defineConfig({
   // (scripts/qa/run-operator-surfaces.ts), which targets this file directly.
   // Exclude it from the default sweep so a plain `playwright test` run
   // doesn't try to load it without that bypass and fail on missing auth.
-  testIgnore: operatorQaFakeAuthEnabled ? undefined : ['**/operator-surfaces.spec.ts'],
+  testIgnore: operatorQaFakeAuthEnabled
+    ? taskEvaluationRunE2eEnabled
+      ? ['**/operator-surfaces.spec.ts']
+      : ['**/task-evaluation-run.spec.ts']
+    : ['**/operator-surfaces.spec.ts', '**/task-evaluation-run.spec.ts'],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

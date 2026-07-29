@@ -11,17 +11,14 @@ describe("captureGroundedLanguage", () => {
     const definition = captureGroundedPublicCopy.groundTruthDefinition.toLowerCase();
 
     for (const signal of captureGroundedRequiredSignals) {
-      const normalizedSignal = signal
-        .replace("timestamps and poses", "timestamps, poses")
-        .replace("runtime artifacts when available", "runtime artifacts")
-        .toLowerCase();
+      const normalizedSignal = signal.replace("native timestamps and poses", "native timestamps, poses").toLowerCase();
       expect(definition).toContain(normalizedSignal);
     }
 
     expect(definition).toContain("raw capture evidence");
     expect(definition).toContain("rights and privacy records");
-    expect(definition).toContain("package artifacts");
-    expect(definition).toContain("runtime artifacts");
+    expect(definition).toContain("runtime artifacts remain separately labeled evidence");
+    expect(definition).toContain("do not automatically upgrade the claim");
   });
 
   it("keeps support signals out of operational proof", () => {
@@ -29,7 +26,7 @@ describe("captureGroundedLanguage", () => {
 
     expect(boundary).toContain("samples");
     expect(boundary).toContain("generated previews");
-    expect(boundary).toContain("dry-run commerce");
+    expect(boundary).toContain("historical dry-run records");
     expect(boundary).toContain("support signals");
     for (const claim of captureGroundedBlockedClaims) {
       expect(boundary).toContain(claim.toLowerCase());
@@ -44,7 +41,7 @@ describe("captureGroundedLanguage", () => {
 
   it("names machine-readable truth labels used by public agent surfaces", () => {
     expect(captureGroundedTruthLabels).toEqual(
-      expect.arrayContaining(["capture_grounded", "provider_derived", "generated", "sample_demo", "request_gated"]),
+      expect.arrayContaining(["capture_grounded", "provider_derived", "generated", "sample_demo", "request_gated", "legacy_commerce_read_only", "decision_or_abstention"]),
     );
   });
 });

@@ -45,9 +45,9 @@ describe("brand polish QA harness contract", () => {
 
     const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
     expect(agentsRoute).toMatchObject({
-      expectedHeading: "Tell us what policies to compare.",
+      expectedHeading: "Tell us the decision you need to make.",
       requiredCtas: expect.arrayContaining([
-        { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+        { label: "Request a Task Evaluation Run.", hrefStartsWith: "/contact/robot-team" },
         { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
       ]),
     });
@@ -55,7 +55,7 @@ describe("brand polish QA harness contract", () => {
     const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
     expect(faqRoute).toMatchObject({
       canonicalPath: "/faq",
-      expectedHeading: "The questions that usually decide fit.",
+      expectedHeading: "One product, explicit evidence boundaries.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

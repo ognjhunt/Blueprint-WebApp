@@ -20,8 +20,9 @@ Storage, Stripe, Render, Redis, Notion, Paperclip, plus model/GPU providers.
   worker personal data captured on site. The DPA governs Blueprint's processing
   of site-operator data and of personal data incidental to on-site capture.
 - **Capturer** — supplier of capture evidence; separate capturer terms apply.
-- **Robot-team buyer** — recipient of licensed Task Evaluation Runs / Post-Training
-  Data Packages under the buyer license + this DPA's downstream-access terms.
+- **Robot-team buyer** — recipient of licensed Task Evaluation Run evidence artifacts
+  under the buyer license + this DPA's downstream-access terms. Post-training is a
+  permitted use only when an artifact explicitly carries that eligibility.
 
 ## 2. Subprocessor list (current stack — keep in sync with `.env.example`)
 

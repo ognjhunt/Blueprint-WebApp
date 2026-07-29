@@ -3,12 +3,12 @@ authority: derived
 source_system: repo
 source_urls:
   - 'repo:///PLATFORM_CONTEXT.md'
-last_verified_at: "2026-04-04"
+last_verified_at: "2026-07-29"
 owner: blueprint-ops-lead
 sensitivity: internal
 confidence: 0.95
 source_hashes:
-  PLATFORM_CONTEXT.md: "1f7104c08b213d"
+  PLATFORM_CONTEXT.md: "c82fa8af8c5de1751ff20bced116eef9db6fb29d"
 ---
 
 # Platform Doctrine — Core System Framing
@@ -26,16 +26,16 @@ This page mirrors `PLATFORM_CONTEXT.md`, the shared platform doctrine document t
 3. **Blueprint-WebApp** — Buyer, licensing, ops, and hosted-access surface around those packages.
 4. **BlueprintValidation** — Optional downstream infrastructure for deeper benchmarking, robot evaluation, and specialized runtime checks.
 
-The platform is capture-first and real-site robot-evaluation/policy-improvement first. World models are internal compatibility, generation, augmentation, or advisory support inside scoped packages and runs.
+The platform is capture-first and real-site-task decision first. The one customer-facing product is a Task Evaluation Run. World models are internal compatibility, generation, augmentation, or advisory evidence methods inside runs.
 
 ### Product Center of Gravity
 
 The center of gravity is:
 - Broad real-world capture coverage
 - Strong capture quality and provenance
-- Site-specific world models and hosted access for robot teams
+- Maintained Site-Task Testbeds behind decision-oriented runs
 - Rights, privacy, and commercialization controls
-- Buyer-facing product surfaces that make real sites easy to browse, buy, run, and manage
+- Buyer-facing surfaces that make requests, decisions, abstentions, evidence limits, and provenance easy to inspect
 
 The center of gravity is NOT:
 - Generic marketplace browsing as the main story
@@ -47,7 +47,7 @@ The center of gravity is NOT:
 
 The core business engine is two-sided:
 - **Capturers** supply real-site evidence packages.
-- **Robot teams** buy scoped real-site Task Evaluation Runs and sim-only Policy Improvement Runs; world-model artifacts may support those packages but are not the primary offer.
+- **Robot teams and site operators** use the same scoped Task Evaluation Run; candidates are optional at intake and evidence methods are selected by Pipeline.
 
 **Site operators** remain an optional third lane for access control, rights/consent/privacy boundaries, and commercialization/revenue sharing.
 
@@ -57,24 +57,24 @@ The platform must support lawful capture and packaging even when a site has not 
 
 1. Raw capture, timestamps, poses, device metadata, and provenance — authoritative
 2. Rights/privacy/consent metadata — authoritative
-3. Site-specific world-model packages and hosted-session artifacts — primary sellable downstream products
-4. Qualification/readiness/review outputs — optional trust layers
+3. Derived geometry, simulation, generated, provider, and runtime evidence — replaceable, explicitly classified support inside a run
+4. Pipeline-owned Decision Envelopes and authoritative Physical Outcome Joins — claim-scoped result evidence
 5. Downstream outputs must not rewrite capture truth or provenance truth
 
 ### Product Stack (Priority Order)
 
 1. Primary: capture supply and real-site coverage
-2. Second: site-specific world models and hosted access
-3. Third: optional trust/review/readiness outputs
-4. Fourth: deeper evaluation, managed tuning, licensing, and deployment support
+2. Second: maintained Site-Task Testbeds
+3. Third: one Task Evaluation Run with qualified evidence routing and a decision or abstention
+4. Fourth: eligible evidence uses and physical learning joins inside the run lifecycle
 
 ### Default Lifecycle
 
 1. Capture is sourced proactively or through a buyer/site/ops request
 2. BlueprintCapture records and uploads a truthful evidence bundle
-3. BlueprintCapturePipeline materializes site-specific packages, hosted artifacts, and optional trust outputs
-4. Blueprint-WebApp exposes those outputs through buyer, ops, licensing, and hosted-session surfaces
-5. Optional review, deeper evaluation, or managed support follows only when commercially useful
+3. BlueprintCapturePipeline maintains the testbed, qualifies evidence methods, routes claims, and emits normalized evidence and a Decision Envelope
+4. Blueprint-WebApp securely projects the request state, decision or abstention, evidence envelope, artifacts, and permitted uses
+5. Authoritative physical outcomes join exact identifiers and update the maintained learning loop when required
 
 ### Practical Rule for Agents
 

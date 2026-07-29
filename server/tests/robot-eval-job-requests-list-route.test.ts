@@ -127,9 +127,15 @@ describe("buyer-scoped robot eval run list route", () => {
       ]);
       expect(payload.job_requests[1]).toEqual({
         job_id: "job-older",
+        request_id: "job-older",
+        decision_id: null,
+        contract_schema_version: null,
         status: "completed",
         pipeline_status: "completed",
         site_slug: "atlanta-cafe",
+        testbed_id: null,
+        testbed_version: null,
+        decision_question: null,
         site_submission_id: "scene-1:capture-1",
         capture_job_id: "capture-job-1",
         capture_id: "capture-1",

@@ -152,20 +152,20 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Test robot policies before field time.",
+    expectedHeading: "Turn a real site-task into a decision you can defend.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact" },
-      { label: "See how it works", hrefStartsWith: "/how-it-works" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
+      { label: "How it works", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Test robot policies before field time.",
+    expectedHeading: "Turn a real site-task into a decision you can defend.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact" },
-      { label: "See how it works", hrefStartsWith: "/how-it-works" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
+      { label: "How it works", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
@@ -174,7 +174,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/sites",
     expectedHeading: "Evaluate where the work happens.",
     requiredCtas: [
-      { label: "Scope an evaluation", hrefStartsWith: "/contact" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "Capture a site", hrefStartsWith: "/signup/capturer" },
     ],
   },
@@ -182,9 +182,9 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Agents (legacy, redirects to Contact)",
     path: "/agents",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Tell us what policies to compare.",
+    expectedHeading: "Tell us the decision you need to make.",
     requiredCtas: [
-      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Request a Task Evaluation Run.", hrefStartsWith: "/contact/robot-team" },
       { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
@@ -192,10 +192,9 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Priced per campaign, not per seat.",
+    expectedHeading: "Price the decision and evidence it actually requires.",
     requiredCtas: [
-      { label: "Rank my policies", hrefStartsWith: "/contact" },
-      { label: "Find robot teams for my site", hrefStartsWith: "/" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
   },
   {
@@ -204,7 +203,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/proof",
     expectedHeading: "Proof stays scoped.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
   },
   {
@@ -221,9 +220,9 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Contact (redirects to /contact/robot-team)",
     path: "/contact",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Tell us what policies to compare.",
+    expectedHeading: "Tell us the decision you need to make.",
     requiredCtas: [
-      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Request a Task Evaluation Run.", hrefStartsWith: "/contact/robot-team" },
       { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
@@ -231,9 +230,9 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Careers (legacy, redirects to Contact)",
     path: "/careers",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Tell us what policies to compare.",
+    expectedHeading: "Tell us the decision you need to make.",
     requiredCtas: [
-      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Request a Task Evaluation Run.", hrefStartsWith: "/contact/robot-team" },
       { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
@@ -241,11 +240,8 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "FAQ",
     path: "/faq",
     canonicalPath: "/faq",
-    expectedHeading: "The questions that usually decide fit.",
-    requiredCtas: [
-      { label: "Talk to Blueprint about a real site", hrefStartsWith: "/contact/robot-team" },
-      { label: "Browse site packages", hrefStartsWith: "/sites" },
-    ],
+    expectedHeading: "One product, explicit evidence boundaries.",
+    requiredCtas: [],
   },
   {
     label: "About",
@@ -253,7 +249,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/about",
     expectedHeading: "Blueprint turns one real site into a decision a robot team can trust.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "See how it works", hrefStartsWith: "/how-it-works" },
     ],
   },
@@ -261,10 +257,10 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Test robot policies before field time.",
+    expectedHeading: "Turn a real site-task into a decision you can defend.",
     requiredCtas: [
-      { label: "Request evaluation", hrefStartsWith: "/contact" },
-      { label: "See how it works", hrefStartsWith: "/how-it-works" },
+      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
+      { label: "How it works", hrefStartsWith: "/how-it-works" },
     ],
   },
 ];

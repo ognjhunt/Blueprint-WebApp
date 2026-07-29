@@ -40,14 +40,7 @@ describe("Blueprint agent CLI", () => {
       sessionId: "session-1",
       options: { numEpisodes: 2 },
     });
-    expect(parseAgentCliArgs(["commerce", "quote", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental", "--session-hours", "2"])).toMatchObject({
-      command: "commerce:quote",
-      options: {
-        siteWorldId: "sw-chi-01",
-        product: "hosted-session-rental",
-        sessionHours: 2,
-      },
-    });
+    expect(() => parseAgentCliArgs(["commerce", "quote", "--site-world-id", "sw-chi-01"])).toThrow(/Standalone commerce is retired/i);
     expect(parseAgentCliArgs(["commerce", "entitlement-readiness", "--site-world-id", "sw-chi-01", "--entitlement-id", "dry-ent-1"])).toMatchObject({
       command: "commerce:entitlement-readiness",
       options: {
@@ -256,7 +249,7 @@ describe("Blueprint agent CLI", () => {
     );
   });
 
-  it("routes dry-run commerce commands through explicit agent-access endpoints", async () => {
+  it("rejects retired commerce write commands before any network call", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const path = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url).pathname;
       const payload =
@@ -270,37 +263,23 @@ describe("Blueprint agent CLI", () => {
     });
     const writes: string[] = [];
 
-    await runAgentCli(
+    await expect(runAgentCli(
       ["commerce", "quote", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental"],
       {
         env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
         fetchImpl: fetchMock,
         stdout: (line) => writes.push(line),
       },
-    );
-    await runAgentCli(
+    )).rejects.toThrow(/Standalone commerce is retired/i);
+    await expect(runAgentCli(
       ["commerce", "checkout", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental", "--mode", "dry_run"],
       {
         env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
         fetchImpl: fetchMock,
         stdout: (line) => writes.push(line),
       },
-    );
-
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "https://agent.example/api/agent-access/commerce/quote?siteWorldId=sw-chi-01&product=hosted_session_rental",
-      expect.objectContaining({ method: "GET" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "https://agent.example/api/agent-access/commerce/dry-run-checkout",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining("\"mode\":\"dry_run\""),
-      }),
-    );
-    expect(writes.join("\n")).toContain("dry-ent-1");
+    )).rejects.toThrow(/Standalone commerce is retired/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("routes entitlement readiness through the dry-run agent-access commerce endpoint", async () => {
@@ -630,7 +609,7 @@ describe("Blueprint agent CLI", () => {
     );
   });
 
-  it("plans the dry-run quote, order, entitlement, and readiness path for an exact hosted-review query", async () => {
+  it("plans one Task Evaluation Run request for an exact hosted-review query", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       if (url.pathname === "/api/site-worlds/search") {
@@ -710,26 +689,23 @@ describe("Blueprint agent CLI", () => {
       stdout: (line) => writes.push(line),
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/api/create-checkout-session"),
       expect.anything(),
     );
     const payload = JSON.parse(writes.join("\n"));
     expect(payload).toMatchObject({
-      mode: "dry_run",
       nextAction: {
-        kind: "dry_run_quote_order",
+        kind: "task_evaluation_run_request",
         siteWorldId: "siteworld-f5fd54898cfb",
         safeToRun: true,
       },
-      commerce: {
-        quoteId: "dry-quote-1",
-        orderId: "dry-order-1",
-        entitlementId: "dry-ent-1",
-        entitlementReadiness: {
-          launchable: true,
-        },
+      request: {
+        product: "Task Evaluation Run",
+        siteWorldId: "siteworld-f5fd54898cfb",
+        routingAuthority: "Pipeline",
+        methodSelectedByCustomer: false,
       },
       blockers: [],
       safeDefaults: {

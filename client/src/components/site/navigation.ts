@@ -1,9 +1,9 @@
 // Public chrome navigation model (redesign spec: SCREENS.md "Global chrome").
 // Exported names are preserved so Header/Footer imports stay stable; targets are repointed.
 //
-// Streamlined to a single front door: the robot-team Task Evaluation Run. Site
-// operators (a later demand-side gate / access partner) and capturers (paid
-// supply) are kept reachable but demoted below the primary buyer motion.
+// Streamlined to one product with a robot-team-first wedge. Site operators are
+// a second persona using the same Task Evaluation Run contract and intake;
+// capturers remain the paid-supply path.
 
 export const primaryNavLinks = [
   { href: "/for-robot-teams", label: "For Robot Teams" },
@@ -19,8 +19,8 @@ export const headerUtilityLinks = [
 
 // Primary header CTA — white-fill "Request evaluation" button.
 export const headerRequestEvaluation = {
-  href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",
-  label: "Request evaluation",
+  href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",
+  label: "Request a Task Evaluation Run",
 };
 
 // Footer columns: Product / Evidence / Company.
@@ -41,11 +41,10 @@ export const footerEvidenceLinks = [
 export const footerCompanyLinks = [
   { href: "/vision", label: "Vision" },
   {
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer",
-    label: "Request evaluation",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=footer",
+    label: "Request a Task Evaluation Run",
   },
-  // Demoted: site operators are a capture / access partner, not a co-equal buyer.
-  { href: "/for-site-operators", label: "Site access partners" },
+  { href: "/for-site-operators", label: "For Site Operators" },
   // Demoted: capture is paid supply the company recruits.
   { href: "/capture", label: "Get paid to capture" },
 ];

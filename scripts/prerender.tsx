@@ -159,17 +159,17 @@ function MinimalStaticPage({
 const PrerenderBusinessSignup = () => (
   <BareStaticPage
     title="Buyer Access Request | Blueprint"
-    description="Request buyer access for exact-site packages and hosted evaluation."
+    description="Request authenticated access to Blueprint Task Evaluation Runs."
     eyebrow="Buyer Access Request"
     heading="Request exact-site access"
-    body="Use this path when your team needs a site-specific world-model package, hosted review, or private buyer workflow grounded in one real facility."
+    body="Use this path when your team needs a private Task Evaluation Run workspace grounded in one real site-task."
     primaryHref="/signup/business"
     primaryLabel="Open buyer request"
-    secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=signup-prerender"
-    secondaryLabel="Request site review"
+    secondaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=signup-prerender"
+    secondaryLabel="Request a Task Evaluation Run"
     rows={[
       "Blueprint reviews organization, site, robot, workflow, and requested lane before opening access.",
-      "Package and hosted-review requests stay tied to capture provenance, rights, privacy, and export scope.",
+      "Run and historical hosted-review access stays tied to capture provenance, rights, privacy, and artifact scope.",
       "Existing portal users should sign in instead of creating a second account path.",
     ]}
     canonical="/signup/business"
@@ -222,11 +222,11 @@ const PrerenderForgotPassword = () => (
 const PrerenderProofSummary = () => (
   <MinimalStaticPage
     title="Proof | Blueprint"
-    description="Blueprint keeps policy evaluation claims scoped to the site, task, robot, and evidence behind each run."
+    description="Blueprint keeps Task Evaluation Run claims scoped to the site, task, robot, and evidence behind each run."
     heading="Proof stays scoped"
-    body="Generated clips help review. Real-world validation requires the matched robot, task, and site envelope."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
-    primaryLabel="Start"
+    body="A Task Evaluation Run may return a bounded decision, partial decision, or abstention inside its evidence envelope, never a safety certification. Physical claims still require authoritative physical evidence."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run"
+    primaryLabel="Request a Task Evaluation Run"
     canonical="/proof"
   />
 );

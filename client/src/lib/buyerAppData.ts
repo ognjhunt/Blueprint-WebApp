@@ -6,6 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { StatusChipProps } from "@/components/blueprint";
 import type { BenchmarkProjection } from "@/lib/benchmarkProjection";
+import type {
+  DecisionProjection,
+  DecisionRunState,
+  EvidenceArtifact,
+} from "@/lib/decisionEvidence";
 
 export type EntitlementAccessState =
   | "provisioned"
@@ -106,8 +111,14 @@ export function useBuyerAppEntitlements(): BuyerAppEntitlementsState {
 
 export type BuyerRunRecord = {
   job_id: string;
-  status: string | null;
+  request_id?: string | null;
+  decision_id?: string | null;
+  contract_schema_version?: string | null;
+  status: DecisionRunState | string | null;
   pipeline_status?: string | null;
+  testbed_id?: string | null;
+  testbed_version?: string | null;
+  decision_question?: string | null;
   site_slug?: string | null;
   site_submission_id?: string | null;
   capture_job_id?: string | null;
@@ -120,7 +131,18 @@ export type BuyerRunRecord = {
 };
 
 export type BuyerRunDetail = BuyerRunRecord & {
-  result_artifacts?: Record<string, unknown>;
+  result_artifacts?: EvidenceArtifact[] | Record<string, unknown>;
+  decision_projection?: DecisionProjection | null;
+  request_summary?: {
+    request_id?: string | null;
+    decision_id?: string | null;
+    decision_question?: string | null;
+    testbed?: Record<string, unknown> | null;
+    site_task?: Record<string, unknown> | null;
+    candidates?: Array<Record<string, unknown>>;
+    claims?: Array<Record<string, unknown>>;
+    thresholds?: Array<Record<string, unknown>>;
+  };
   proof_boundary?: Record<string, unknown>;
   pipeline_forward?: Record<string, unknown> | null;
   benchmark?: BenchmarkProjection | null;
@@ -139,7 +161,7 @@ export type BuyerAppRunsState = {
 };
 
 async function fetchBuyerRuns(currentUser: FirebaseUser): Promise<BuyerRunsResponse> {
-  const response = await fetch("/api/robot-eval/job-requests", {
+  const response = await fetch("/api/task-evaluation-runs", {
     credentials: "include",
     headers: await withFirebaseAuthHeaders(currentUser),
   });
@@ -187,7 +209,7 @@ async function fetchBuyerRunDetail(
   runId: string,
 ): Promise<BuyerRunDetail | null> {
   const response = await fetch(
-    `/api/robot-eval/job-requests/${encodeURIComponent(runId)}/status`,
+    `/api/task-evaluation-runs/${encodeURIComponent(runId)}/status`,
     {
       credentials: "include",
       headers: await withFirebaseAuthHeaders(currentUser),
@@ -227,21 +249,25 @@ export function useBuyerAppRunDetail(runId: string): BuyerAppRunDetailState {
 }
 
 export function runDisplayName(run: BuyerRunRecord) {
-  return run.site_slug || run.site_submission_id || run.capture_job_id || run.job_id;
+  return (
+    run.decision_question ||
+    run.site_slug ||
+    run.testbed_id ||
+    run.site_submission_id ||
+    run.capture_job_id ||
+    run.job_id
+  );
 }
 
 export function runStatusLabel(status: string | null | undefined) {
   if (!status || status === "unknown") {
     return "Not recorded";
   }
-  if (status === "queued_for_pipeline") {
-    return "Queued";
+  if (status === "decision_available") {
+    return "Decision available";
   }
-  if (status === "pipeline_running") {
-    return "Running";
-  }
-  if (status === "completed") {
-    return "Completed";
+  if (status === "awaiting_authorization") {
+    return "Awaiting authorization";
   }
   if (status === "failed") {
     return "Failed";
@@ -255,16 +281,16 @@ export function runStatusLabel(status: string | null | undefined) {
 export function runStatusTone(
   status: string | null | undefined,
 ): NonNullable<StatusChipProps["tone"]> {
-  if (status === "completed") {
+  if (status === "decision_available") {
     return "proof";
   }
-  if (status === "failed" || status === "pipeline_forward_failed") {
+  if (status === "failed" || status === "blocked" || status === "abstained") {
     return "block";
   }
-  if (status === "queued_for_pipeline") {
+  if (status === "submitted" || status === "accepted" || status === "awaiting_authorization") {
     return "warn";
   }
-  if (status === "pipeline_running") {
+  if (status === "planning" || status === "running" || status === "aggregating") {
     return "info";
   }
   return "neutral";

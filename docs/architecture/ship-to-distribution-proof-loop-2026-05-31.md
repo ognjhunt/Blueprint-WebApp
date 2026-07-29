@@ -138,7 +138,7 @@ type DraftDistributionPacket = {
     | "website_update"
     | "search_update"
     | "internal_summary";
-  wedge: "Generated-World Policy Evaluation" | "Exact-Site Hosted Review" | "Policy Improvement Run" | string;
+  wedge: "Task Evaluation Run" | string; // persisted historical values remain readable through compatibility translation
   audience: string;
   sourceEvidence: string[];
   proofLinks: string[];

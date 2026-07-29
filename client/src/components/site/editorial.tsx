@@ -16,6 +16,7 @@ type SectionIntroProps = {
   description?: string;
   light?: boolean;
   className?: string;
+  headingLevel?: "h1" | "h2";
 };
 
 type MonochromeMediaProps = {
@@ -141,11 +142,14 @@ export function EditorialSectionIntro({
   description,
   light = false,
   className,
+  headingLevel = "h2",
 }: SectionIntroProps) {
+  const Heading = headingLevel;
+
   return (
     <div className={className}>
       <EditorialSectionLabel light={light}>{eyebrow}</EditorialSectionLabel>
-      <h2
+      <Heading
         className={cn(
           "mt-4 font-display font-medium leading-[1.02] tracking-[-0.03em]",
           "text-[clamp(2rem,3.2vw,3.1rem)]",
@@ -153,7 +157,7 @@ export function EditorialSectionIntro({
         )}
       >
         {title}
-      </h2>
+      </Heading>
       {description ? (
         <p
           className={cn(

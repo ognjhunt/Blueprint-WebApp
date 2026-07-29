@@ -19,18 +19,18 @@ describe("About", () => {
     expect(screen.getByRole("heading", { name: /^Rights stay attached\.$/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Start with the public proof or bring one exact site\./i,
+        name: /Start with the public proof or bring one exact site-task\./i,
       }),
     ).toBeInTheDocument();
-    const siteLinks = screen.getAllByRole("link", { name: /Explore site packages/i });
+    const siteLinks = screen.getAllByRole("link", { name: /Explore captured sites/i });
     expect(siteLinks.length).toBeGreaterThanOrEqual(1);
     siteLinks.forEach((link) => {
       expect(link).toHaveAttribute("href", "/sites");
     });
-    const contactLinks = screen.getAllByRole("link", { name: /Request evaluation/i });
+    const contactLinks = screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i });
     expect(contactLinks.length).toBeGreaterThanOrEqual(1);
     contactLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", "/contact/robot-team");
+      expect(link.getAttribute("href")).toMatch(/^\/contact\/robot-team/);
     });
 
     expect(screen.queryByText(/Company fact/i)).not.toBeInTheDocument();

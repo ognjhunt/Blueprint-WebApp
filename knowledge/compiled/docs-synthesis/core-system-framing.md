@@ -7,16 +7,16 @@ source_urls:
   - 'repo:///AUTONOMOUS_ORG.md'
   - 'repo:///DEPLOYMENT.md'
   - 'repo:///AGENTS.md'
-last_verified_at: "2026-04-10"
+last_verified_at: "2026-07-29"
 owner: blueprint-ops-lead
 sensitivity: internal
 confidence: 0.94
 source_hashes:
-  PLATFORM_CONTEXT.md: "5069227c9a272d57a02d68eda25d7667ee25fde3"
-  WORLD_MODEL_STRATEGY_CONTEXT.md: "15e20534964c106d1062b300505180397eb6f9b4"
-  AUTONOMOUS_ORG.md: "d7c0aa339f38d4ab2a3d070094e043940874da81"
-  DEPLOYMENT.md: "a46b105406f2bfc8217de512b23684dbc8d8bcd3"
-  AGENTS.md: "eacfbd52566f2f474f36d010ecbd7eec4b59f063"
+  PLATFORM_CONTEXT.md: "c82fa8af8c5de1751ff20bced116eef9db6fb29d"
+  WORLD_MODEL_STRATEGY_CONTEXT.md: "570a45777111ce1540446b6524a15ba34cdf1a6c"
+  AUTONOMOUS_ORG.md: "48478889f255fcd3702c24512e4b6eac088139f9"
+  DEPLOYMENT.md: "e800f9ee4e10d422907145d9496ffb9320880562"
+  AGENTS.md: "34647eecbc3539c59079b146cea2edf2c178d552"
 ---
 
 # Core System Framing — Repo-Authoritative Doc Mirror
@@ -33,13 +33,13 @@ This page mirrors the five canonical system-framing documents that define how Bl
 
 **Key rules:**
 - `BlueprintCapture` = capture client and supply-side evidence collection
-- `BlueprintCapturePipeline` = turns captures into site-specific world-model packages and hosted-session artifacts
-- `Blueprint-WebApp` = buyer, licensing, ops, and hosted-access surface
+- `BlueprintCapturePipeline` = owns Site-Task Testbeds, evidence-method qualification and routing, normalized results, Decision Envelopes, and Physical Outcome Joins
+- `Blueprint-WebApp` = authenticated intake, authorization, durable state, redacted result projection, artifact access, buyer, and ops surface
 - `BlueprintValidation` = optional downstream infrastructure for benchmarking
-- Platform is capture-first and real-site robot-evaluation/policy-improvement first
-- Center of gravity: broad real-world capture coverage, strong capture quality/provenance, real-site Task Evaluation Runs, sim-only Policy Improvement Runs, rights/privacy/commercialization controls, and buyer-facing delivery surfaces
-- Market structure is two-sided: capturers supply provenance-backed evidence packages, while robot teams buy scoped real-site evaluation and policy-improvement runs
-- Truth hierarchy: raw capture > rights/privacy/consent > world-model packages > optional trust/qualification outputs
+- Platform is capture-first and real-site-task decision first
+- Center of gravity: broad real-world capture coverage, strong capture quality/provenance, maintained Site-Task Testbeds, one Task Evaluation Run product, rights/privacy controls, and inspectable decision or abstention results
+- Robot teams and site operators are personas using the same request contract, workflow, result model, pricing concept, and call to action
+- Truth hierarchy keeps immutable raw capture and authoritative rights/provenance distinct from replaceable derived geometry, simulation, generated, provider, and runtime evidence
 - Qualification/readiness are optional trust layers, not the center of the company
 
 ### 2. World Model Strategy (WORLD_MODEL_STRATEGY_CONTEXT.md)

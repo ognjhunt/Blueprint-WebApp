@@ -54,7 +54,7 @@ const rightsPacket: Array<{ label: string; value: string; mono?: boolean }> = [
   { label: "Packet ID", value: "RIGHTS-2049-08" },
   { label: "Facility", value: "SITE-2049 · Midwest DC" },
   { label: "Eval envelope", value: "Nav + rigid pick-and-place · dexterous out of scope" },
-  { label: "Rights class", value: "Evaluation now · licensed export later (Data Package)" },
+  { label: "Rights class", value: "Evaluation now · licensed evidence export only when eligible" },
   { label: "Export scope", value: "Buyer + 1 named policy team" },
   { label: "Restricted zones", value: "Checkout · employee corridor" },
   { label: "Retention", value: "Raw 90d · derived 365d", mono: true },
@@ -67,7 +67,7 @@ const guarantees = [
   "We keep rights, restricted zones, and export scope attached to the manifest, not the marketing.",
   "We separate public proof from example UI in every hosted-access surface.",
   "We label generated and simulated media as review support, never as real-world proof.",
-  "We frame policy comparison as rank fidelity and predicted success — never a deployment guarantee.",
+  "We report only the per-claim outcome supported by the run envelope — never a deployment guarantee.",
   "We honor takedown, refresh, redaction, and revocation requests on the published timeline.",
 ];
 
@@ -108,9 +108,9 @@ export default function Governance() {
                 Rights, privacy, and provenance — kept visible.
               </h1>
               <p className="mt-6 max-w-[36rem] text-lg leading-[1.7] text-[color:var(--text-on-ink)] opacity-75">
-                Blueprint sells one thing to robot and foundation-model teams: a
-                site-specific Task Evaluation Run that ranks their policies on a captured
-                real-site task envelope. This page is how that ranking&rsquo;s rights, privacy,
+                Blueprint offers robot teams and site operators one service: a
+                site-specific Task Evaluation Run that evaluates decision-relevant claims on a captured
+                real-site task envelope. This page is how the run&rsquo;s rights, privacy,
                 and provenance stay provable. Every Blueprint world model is built from a real
                 place, with readable proof of where, when, how, and under what rights it was
                 captured. The trust details are product surfaces, not promises.

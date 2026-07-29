@@ -14,9 +14,9 @@ function requestHref(site: SiteWorldCard) {
   const query = new URLSearchParams({
     persona: "robot-team",
     buyerType: "robot_team",
-    interest: "policy-evaluation-run",
-    path: "policy-evaluation-run",
-    requestedOutputs: "Policy Evaluation Run",
+    interest: "task-evaluation-run",
+    path: "task-evaluation-run",
+    requestedOutputs: "Task Evaluation Run",
     location: site.siteName,
     source: "site-detail-live-record",
   });
@@ -57,7 +57,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="Inspect a Pipeline-backed capture record for a Blueprint Policy Evaluation Run."
+        description="Inspect a Pipeline-backed capture record that may ground a Blueprint Task Evaluation Run."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[

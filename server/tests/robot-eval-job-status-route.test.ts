@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { validDecisionEnvelope } from "./helpers/decision-evidence-fixtures";
 
 const state = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
@@ -271,24 +272,19 @@ describe("robot eval job request status routes", () => {
     }
   });
 
-  it("accepts HMAC-signed pipeline status and result artifact callbacks", async () => {
+  it("accepts a signed Pipeline decision envelope with exact artifacts", async () => {
     vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
     vi.stubEnv("PIPELINE_SYNC_ALLOWED_GCS_PREFIXES", "gs://bucket/");
     state.docs.set("job-1", {
-      status: "queued_for_pipeline",
+      status: "running",
+      decision_id: "decision-001",
       created_at_iso: "2026-07-02T00:00:00.000Z",
     });
     const { server, baseUrl } = await startRoute();
     const signedRequest = signedPipelineRequest({
-      job_id: "job-1",
-      pipeline_status: "completed",
-      result_artifacts: {
-        policy_ranking_scorecard_uri: "gs://bucket/results/policy_ranking_scorecard.json",
-      },
-      proof_boundary: {
-        simulator_execution_proven: true,
-        physical_robot_deployment_claim_allowed: false,
-      },
+      request_id: "job-1",
+      pipeline_status: "decision_available",
+      decision_envelope: validDecisionEnvelope({ request_id: "job-1" }),
     });
 
     try {
@@ -305,22 +301,26 @@ describe("robot eval job request status routes", () => {
         expect.objectContaining({
           ok: true,
           job_id: "job-1",
-          status: "completed",
-          pipeline_status: "completed",
-          result_artifacts: expect.objectContaining({
-            policy_ranking_scorecard_uri:
-              "gs://bucket/results/policy_ranking_scorecard.json",
-          }),
+          status: "decision_available",
+          pipeline_status: "decision_available",
+          decision_projection: expect.objectContaining({ supported: true }),
+          result_artifacts: expect.arrayContaining([
+            expect.objectContaining({
+              artifact_id: "geometry-001",
+              version: "1.0.0",
+              digest_sha256: `sha256:${"a".repeat(64)}`,
+            }),
+          ]),
         }),
       );
       expect(state.docs.get("job-1")).toEqual(
         expect.objectContaining({
-          status: "completed",
-          pipeline_status: "completed",
+          status: "decision_available",
+          pipeline_status: "decision_available",
           updated_at: "SERVER_TIMESTAMP",
-          result_artifacts: expect.objectContaining({
-            policy_ranking_scorecard_uri:
-              "gs://bucket/results/policy_ranking_scorecard.json",
+          decision_envelope: expect.objectContaining({
+            schema_version: "blueprint.decision_envelope.v1",
+            overall: expect.objectContaining({ outcome: "partial" }),
           }),
         }),
       );
@@ -356,6 +356,103 @@ describe("robot eval job request status routes", () => {
       );
       expect(state.docs.get("job-1")?.pipeline_result).not.toEqual(
         expect.objectContaining({ internal_debug_payload: expect.anything() }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("fails closed on an unknown Pipeline state instead of rendering success", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
+    state.docs.set("job-1", { status: "running", decision_id: "decision-001" });
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/pipeline-status`,
+        {
+          method: "POST",
+          ...signedPipelineRequest({ request_id: "job-1", pipeline_status: "future_success" }),
+        },
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ code: "unsupported_pipeline_state", raw_state: "future_success" }),
+      );
+      expect(state.docs.get("job-1")?.status).toBe("running");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("records only an authoritative exact physical outcome join and never recalibrates in WebApp", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
+    vi.stubEnv("PIPELINE_SYNC_ALLOWED_GCS_PREFIXES", "gs://bucket/");
+    state.docs.set("job-1", {
+      status: "decision_available",
+      decision_id: "decision-001",
+      decision_request: {
+        testbed: {
+          testbed_id: "testbed-001",
+          version: "2026-07-29.1",
+          digest_sha256: `sha256:${"a".repeat(64)}`,
+        },
+      },
+    });
+    const { server, baseUrl } = await startRoute();
+    const join = {
+      schema_version: "blueprint.physical_outcome_join.v1",
+      join_id: "join-001",
+      request_id: "job-1",
+      decision_id: "decision-001",
+      testbed: {
+        testbed_id: "testbed-001",
+        version: "2026-07-29.1",
+        digest_sha256: `sha256:${"a".repeat(64)}`,
+      },
+      physical_artifact: {
+        artifact_id: "physical-001",
+        kind: "instrumented_physical_outcome",
+        uri: "gs://bucket/physical/outcome.json",
+        version: "1.0.0",
+        digest_sha256: `sha256:${"b".repeat(64)}`,
+        evidence_class: "physical",
+      },
+      observed_claim_ids: ["reach-target"],
+      outcome_summary: "Five supervised attempts were recorded.",
+      authoritative_source: {
+        system: "BlueprintCapturePipeline",
+        event_id: "physical-event-001",
+        captured_at_iso: "2026-07-29T15:00:00-05:00",
+      },
+      method_recalibration_allowed: false,
+    };
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/physical-outcomes`,
+        { method: "POST", ...signedPipelineRequest(join) },
+      );
+      expect(response.status).toBe(202);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          status: "recorded_for_pipeline_review",
+          method_recalibration_performed: false,
+        }),
+      );
+      expect(state.docs.get("job-1")).toEqual(
+        expect.objectContaining({
+          physical_outcome_joins: [expect.objectContaining({ join_id: "join-001" })],
+          physical_outcomes_are_observations_only: true,
+          method_recalibration_performed_by_webapp: false,
+        }),
+      );
+
+      const noteOnly = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/physical-outcomes`,
+        { method: "POST", ...signedPipelineRequest({ request_id: "job-1", outcome_summary: "looked good" }) },
+      );
+      expect(noteOnly.status).toBe(400);
+      await expect(noteOnly.json()).resolves.toEqual(
+        expect.objectContaining({ code: "invalid_physical_outcome_join" }),
       );
     } finally {
       await stopServer(server);

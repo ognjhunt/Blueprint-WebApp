@@ -62,18 +62,18 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "hosted-review",
-    label: "Robot Team Subscription",
+    label: "Task Evaluation Run",
     description:
-      "Scope recurring comparison for your own checkpoints, other teams, or vendor policies.",
-    cta: "Start evaluation scope",
+      "Scope a decision for a real site-task, with candidates when applicable.",
+    cta: "Request a Task Evaluation Run",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
   },
   {
     value: "data-package",
-    label: "Policy Improvement Run",
-    description: "Use comparison failures to plan the next policy update.",
-    cta: "Improve policy",
+    label: "Task Evaluation Run (legacy data path)",
+    description: "Translate a saved evidence-use request into the current decision contract.",
+    cta: "Request a Task Evaluation Run",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },
@@ -87,10 +87,10 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "site-question",
-    label: "Site Supply Review",
+    label: "Task Evaluation Run (site-operator intake)",
     description:
-      "Start a $5,000/site supply review or scope monitoring for repeated policy-update checks.",
-    cta: "Start site review",
+      "Turn a site-task and its missing evidence into the same scoped decision request.",
+    cta: "Request a Task Evaluation Run",
     buyerType: "site_operator",
     commercialRequestPath: "site_claim",
   },
@@ -219,15 +219,23 @@ export function requestPathToBuyerType(value: ContactRequestPath): BuyerType {
 }
 
 export function interestForRequestPath(value: ContactRequestPath): string {
-  if (value === "hosted-review") return "policy-evaluation-run";
   if (value === "new-capture") return "capture-access";
-  if (value === "site-question") return "site-review";
-  return "policy-improvement-run";
+  return "task-evaluation-run";
 }
 
 export function publicPathForRequestPath(value: ContactRequestPath): string {
-  if (value === "hosted-review") return "policy-evaluation-run";
-  return value === "data-package" ? "policy-improvement-run" : value;
+  return value === "new-capture" ? value : "task-evaluation-run";
+}
+
+function normalizeRequestedOutputs(value: string): string {
+  if (
+    /^(Policy Shortlist|Robot Match|Policy Evaluation Run|Policy Improvement Run|Post-Training Data Package|Post-Training \/ Policy Improvement Package)$/i.test(
+      value,
+    )
+  ) {
+    return "Task Evaluation Run";
+  }
+  return value;
 }
 
 export function defaultProofPathPreferenceForRequestPath(
@@ -447,7 +455,9 @@ export function parseContactRequestPrefill(
     taskStatement,
     targetRobotTeam: getParam(params, ["targetRobotTeam", "robot", "robotTeam"]),
     scenario: getParam(params, ["scenario"]),
-    requestedOutputs: getParam(params, ["requestedOutputs", "outputs"]),
+    requestedOutputs: normalizeRequestedOutputs(
+      getParam(params, ["requestedOutputs", "outputs"]),
+    ),
     episodeCount: getParam(params, ["episodeCount", "episodes"]),
     validationMode: getParam(params, ["validationMode", "validation"]),
     message,
@@ -471,16 +481,16 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   }
   if (workflow) return workflow;
   if (requestPath === "hosted-review" && primaryNeed) {
-    return `Request a Policy Evaluation Run for ${primaryNeed}.`;
+    return `Request a Task Evaluation Run for ${primaryNeed}.`;
   }
   if (requestPath === "new-capture" && primaryNeed) {
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
   if ((requestPath === "data-package" || requestPath === "world-model") && primaryNeed) {
-    return `Request a Policy Improvement Run for ${primaryNeed}.`;
+    return `Request a Task Evaluation Run for ${primaryNeed}, including any requested evidence-use eligibility.`;
   }
-  if (primaryNeed) return `Request a Policy Evaluation Run for ${primaryNeed}.`;
-  if (siteClass) return `Request a Policy Evaluation Run for ${siteClass}.`;
+  if (primaryNeed) return `Request a Task Evaluation Run for ${primaryNeed}.`;
+  if (siteClass) return `Request a Task Evaluation Run for ${siteClass}.`;
   return "";
 }
 
@@ -514,8 +524,9 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
   if (taskStatement) params.set("taskStatement", taskStatement);
   if (input.targetRobotTeam) params.set("targetRobotTeam", clean(input.targetRobotTeam));
   if (input.scenario) params.set("scenario", clean(input.scenario));
-  const requestedOutputs = clean(input.requestedOutputs) ||
-    (requestPath === "hosted-review" ? "Policy Evaluation Run" : "");
+  const requestedOutputs =
+    normalizeRequestedOutputs(clean(input.requestedOutputs)) ||
+    (requestPath === "new-capture" ? "" : "Task Evaluation Run");
   if (requestedOutputs) params.set("requestedOutputs", requestedOutputs);
   if (input.episodeCount) params.set("episodeCount", clean(input.episodeCount));
   if (input.validationMode) params.set("validationMode", clean(input.validationMode));

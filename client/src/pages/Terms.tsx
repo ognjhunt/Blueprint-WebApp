@@ -16,7 +16,7 @@ const sections = [
   {
     title: "Services",
     body:
-      "Blueprint provides software and related services for capture intake, Task Evaluation Runs, sim-only Policy Improvement Runs, hosted sessions, and supporting buyer or operator workflows. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
+      "Blueprint provides software and related services for capture intake, maintained Site-Task Testbeds, Task Evaluation Runs, hosted evidence review, and supporting buyer or operator workflows. Post-training is only a permitted use of qualifying run evidence, not a separate service promise. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
     icon: Briefcase,
   },
   {
@@ -43,8 +43,8 @@ const roleTerms = [
   {
     title: "Buyer schedule",
     items: [
-      "Package access, hosted sessions, exports, and license scope are controlled by the listing, checkout, order form, or written agreement.",
-      "Hosted evaluation is decision support scoped to the package and request artifacts.",
+      "Historical package access and hosted sessions remain controlled by their listing, checkout, order form, or written agreement; current run exports follow the run's permitted-use record.",
+      "A Task Evaluation Run is decision support scoped to its request, evidence, validation envelope, and artifacts.",
       "Buyer sharing, internal use, and downstream export rights must match the rights sheet or written terms.",
     ],
   },
@@ -71,14 +71,14 @@ export default function Terms() {
     <>
       <SEO
         title="Terms of Service | Blueprint"
-        description="Terms of service for Blueprint robot evaluation runs, sim-only policy improvement runs, hosted sessions, capture workflows, and related services."
+        description="Terms of service for Blueprint Task Evaluation Runs, hosted evidence review, capture workflows, and related services."
         canonical="/terms"
         jsonLd={[
           webPageJsonLd({
             path: "/terms",
             name: "Blueprint terms of service",
             description:
-              "Terms of service for Blueprint robot evaluation runs, policy improvement runs, hosted sessions, capture workflows, and related services.",
+              "Terms of service for Blueprint Task Evaluation Runs, hosted evidence review, capture workflows, and related services.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },

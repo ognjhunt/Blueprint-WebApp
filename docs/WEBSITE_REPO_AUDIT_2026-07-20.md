@@ -1,5 +1,7 @@
 # Website & Repo Deep Audit — 2026-07-20
 
+> Historical snapshot at `e6c3e20`, retained as audit evidence. It is not current product doctrine. Current doctrine is one scoped Task Evaluation Run; see `PLATFORM_CONTEXT.md` and `docs/architecture/task-evaluation-run-migration-2026-07-29.md`.
+
 Perspective: an investor doing pre-Series-A diligence, and three first-time users
 (robot-team buyer, capturer, site-ops coordinator/site lead) landing on
 https://tryblueprint.io with no prior context.

@@ -7,7 +7,7 @@ Review cadence: After each hire and quarterly.
 
 ## Welcome
 
-Blueprint builds the buyer, licensing, ops, and hosted-access system for real-site robot evaluation runs and post-training data packages. The company is capture-first and real-site robot-evaluation/data-package first: real-site capture evidence, rights/privacy/provenance controls, Task Evaluation Runs, Post-Training Data Packages, hosted access, and buyer workflows are the core.
+Blueprint builds the buyer, licensing, ops, and evidence-access system for real-site Task Evaluation Runs. The company is capture-first and real-site-task first: real-site capture evidence, rights/privacy/provenance controls, maintained testbeds, Task Evaluation Runs, bounded decisions or abstentions, and buyer workflows are the core. Post-training is only a permitted use of qualifying evidence.
 
 Your first job is to understand where truth lives before changing anything.
 

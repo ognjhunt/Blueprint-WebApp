@@ -47,7 +47,7 @@ function stubBuyerApi({ runs }: { runs: BuyerRunRecord[] }) {
     if (url.includes("/api/marketplace/entitlements/current")) {
       return jsonResponse({ entitlement: null, access: null, entitlements: [] });
     }
-    if (url.includes("/api/robot-eval/job-requests")) {
+    if (url.includes("/api/task-evaluation-runs")) {
       return jsonResponse({ ok: true, count: runs.length, job_requests: runs });
     }
     return jsonResponse({});
@@ -62,15 +62,17 @@ describe("app/Runs", () => {
       runs: [
         {
           job_id: "job-newer",
-          status: "queued_for_pipeline",
-          pipeline_status: null,
+          status: "planning",
+          pipeline_status: "planning",
+          decision_question: "Can the current policy service the cafe task?",
           site_slug: "atlanta-cafe",
           created_at_iso: "2026-07-02T00:00:00.000Z",
         },
         {
           job_id: "job-older",
-          status: "completed",
-          pipeline_status: "completed",
+          status: "decision_available",
+          pipeline_status: "decision_available",
+          decision_question: "Is the warehouse task compatible with this robot?",
           site_slug: "denver-warehouse",
           created_at_iso: "2026-07-01T00:00:00.000Z",
         },
@@ -79,11 +81,11 @@ describe("app/Runs", () => {
 
     renderWithQueryClient(<Runs />);
 
-    expect(await screen.findByText("atlanta-cafe")).toBeInTheDocument();
-    expect(screen.getByText("denver-warehouse")).toBeInTheDocument();
+    expect(await screen.findByText("Can the current policy service the cafe task?")).toBeInTheDocument();
+    expect(screen.getByText("Is the warehouse task compatible with this robot?")).toBeInTheDocument();
     expect(screen.getByText("job-newer")).toBeInTheDocument();
-    expect(screen.getByText("Queued")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.getAllByText("planning").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Decision available").length).toBeGreaterThan(0);
 
     const detailLinks = screen.getAllByRole("link", { name: /view run/i });
     expect(detailLinks[0]).toHaveAttribute("href", "/app/runs/job-newer");
@@ -91,7 +93,7 @@ describe("app/Runs", () => {
 
     // The run list request is authenticated with the Firebase id token.
     const runListCall = fetchMock.mock.calls.find(([input]) =>
-      requestUrl(input as RequestInfo | URL).includes("/api/robot-eval/job-requests"),
+      requestUrl(input as RequestInfo | URL).includes("/api/task-evaluation-runs"),
     );
     expect(runListCall).toBeDefined();
     expect(
@@ -99,15 +101,15 @@ describe("app/Runs", () => {
     ).toMatchObject({ Authorization: "Bearer token-1" });
   });
 
-  it("renders an honest empty state with a link to sites when no runs exist", async () => {
+  it("renders an honest empty state with a link to the shared intake when no runs exist", async () => {
     stubBuyerApi({ runs: [] });
 
     renderWithQueryClient(<Runs />);
 
     expect(await screen.findByText("No evaluation runs yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /browse sites/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /request a task evaluation run/i })[0]).toHaveAttribute(
       "href",
-      "/sites",
+      "/app/runs/new",
     );
     expect(screen.queryByRole("link", { name: /view run/i })).not.toBeInTheDocument();
   });

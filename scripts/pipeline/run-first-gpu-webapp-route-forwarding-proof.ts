@@ -513,8 +513,58 @@ function buildRequest(args: Args) {
     },
   });
 
+  const legacySitePackage = jobRequest.site_package as Record<string, unknown>;
+  const testbedDigest = createHash("sha256")
+    .update(
+      JSON.stringify({
+        site_slug: siteSlug,
+        site_submission_id: siteSubmissionId,
+        capture_job_id: captureJobId,
+        capture_id: captureId,
+        dataset_selection: datasetSelection,
+      }),
+    )
+    .digest("hex");
+  const localEntitlementId = `local-entitlement-${siteSlug}`;
+
   const requestWithRouteEvidence = {
     ...jobRequest,
+    site_package: {
+      ...legacySitePackage,
+      testbed_id: String(legacySitePackage.site_id || siteSlug),
+      testbed_version: "route-proof.v1",
+      testbed_digest_sha256: `sha256:${testbedDigest}`,
+    },
+    decision_question: `Can the submitted policy satisfy ${taskId} inside the stated site-task envelope?`,
+    claims: [
+      {
+        claim_id: `claim-${taskId}`,
+        statement: `The submitted policy satisfies ${taskId} inside the stated site-task envelope.`,
+        threshold_ids: [],
+      },
+    ],
+    thresholds: [],
+    false_safe: {
+      severity: "high",
+      consequence: "A false-safe result could send an unqualified policy into field testing.",
+    },
+    confidence_requirement: {
+      kind: "qualitative",
+      description: "Route-forwarding proof only; no scientific decision is requested from this harness.",
+    },
+    constraints: {
+      budget: { currency: "USD", hard_cap: true },
+      available_physical_evidence: [],
+      allowed_site_changes: [],
+      physical_testing_possible: false,
+      rights_privacy_provider_restrictions: [],
+    },
+    requested_audience: ["technical"],
+    idempotency_key: String(jobRequest.job_id),
+    entitlement: {
+      ...(jobRequest.entitlement as Record<string, unknown>),
+      entitlement_id: localEntitlementId,
+    },
     rights_privacy_scope: rightsPrivacyScope || jobRequest.rights_privacy_scope,
     source_kind: sourceKind,
     world_model_context: derived.worldModel,
@@ -559,11 +609,14 @@ async function postJobRequest(
   jobRequest: Record<string, unknown>,
   routeAuthToken: string,
 ) {
+  const csrfToken = "local-webapp-route-proof-csrf";
   const response = await fetch(routeUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${routeAuthToken}`,
+      "x-csrf-token": csrfToken,
+      cookie: `csrf_token=${csrfToken}`,
     },
     body: JSON.stringify(jobRequest),
   });
@@ -714,6 +767,7 @@ async function main() {
     const sitePackage = jobRequest.site_package as Record<string, unknown>;
     process.env.BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON = JSON.stringify({
       id: `local-entitlement-${String(sitePackage.site_slug || "route-proof")}`,
+      entitlement_id: `local-entitlement-${String(sitePackage.site_slug || "route-proof")}`,
       buyer_user_id: "local-webapp-route-proof",
       sku: sitePackage.site_slug,
       access_state: "provisioned",
@@ -745,6 +799,9 @@ async function main() {
     console.log(`[webapp-route-forwarding-proof] status=${proof.status}`);
     console.log(`[webapp-route-forwarding-proof] job_id=${jobRequest.job_id}`);
     if (proof.status !== "forwarded_to_pipeline_intake") {
+      console.error(
+        `[webapp-route-forwarding-proof] route_error status=${response.status} code=${String(responseBody.code || "unknown")} error=${String(responseBody.error || "blocked")} migration_errors=${JSON.stringify(responseBody.migration_errors || [])}`,
+      );
       process.exitCode = 1;
     }
     return;
@@ -778,6 +835,9 @@ async function main() {
     console.log(`[webapp-route-forwarding-proof] status=${proof.status}`);
     console.log(`[webapp-route-forwarding-proof] job_id=${jobRequest.job_id}`);
     if (proof.status !== "forwarded_to_pipeline_intake") {
+      console.error(
+        `[webapp-route-forwarding-proof] route_error status=${response.status} code=${String(responseBody.code || "unknown")} error=${String(responseBody.error || "blocked")} migration_errors=${JSON.stringify(responseBody.migration_errors || [])}`,
+      );
       process.exitCode = 1;
     }
   } finally {

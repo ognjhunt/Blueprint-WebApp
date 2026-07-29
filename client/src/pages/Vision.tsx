@@ -26,9 +26,9 @@ const rungs = [
   {
     step: "01",
     phase: "Today",
-    title: "Know which policy will actually work — before field time.",
-    body: `Blueprint's Task Evaluation Runs compare robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit. ${robotPolicyEvaluationBeachhead} Third-party 2026 research — SC3-Eval from NVIDIA and Physical Intelligence, and OSCAR from Peking University and NVIDIA — reports that video world models can predict real policy ordering. SC3-Eval's published 0.929 closed-loop Pearson correlation is category evidence, not a Blueprint run result.`,
-    proof: "Rank fidelity & predicted success — an estimate, never a guaranteed field outcome or safety certification.",
+    title: "Know what the evidence supports — before field time.",
+    body: `Blueprint's Task Evaluation Runs evaluate the decision-relevant claims on a real captured site against task, success, cycle-time, intervention, and risk thresholds. A run may rank candidates only when the evidence supports ordering; partial decisions and abstention are first-class outcomes. ${robotPolicyEvaluationBeachhead} External research can motivate methods, but it is not a Blueprint run result.`,
+    proof: "Per-claim evidence, validation envelope, and uncertainty — never a guaranteed field outcome or safety certification.",
   },
   {
     step: "02",
@@ -195,10 +195,10 @@ export default function Vision() {
               <p className="mt-6 max-w-[34rem] text-[15px] leading-[1.7] text-ink-600">
                 A single rigorous real-world evaluation of one policy can take thousands of rollouts
                 and a hundred hours of human labor. New research from NVIDIA, Physical Intelligence,
-                and leading universities — SC3-Eval and OSCAR (2026) — shows a generated world can now
-                predict real policy rankings, which is exactly what a neutral, site-specific evaluator
-                needs. That is where Blueprint starts, and the proprietary outcome data it generates is
-                what lets us climb.
+                and leading universities — SC3-Eval and OSCAR (2026) — suggests generated worlds may
+                support some policy-comparison claims. Those are external research signals, not a
+                Blueprint result. Blueprint starts with claim-specific qualification, a bounded decision
+                or abstention, and the proprietary physical outcome data that lets the evidence improve.
               </p>
             </div>
           </div>

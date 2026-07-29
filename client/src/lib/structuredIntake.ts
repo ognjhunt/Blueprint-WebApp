@@ -193,7 +193,7 @@ function buildProofPathSummary(params: {
   }
 
   if (params.proofPathOutcome === "exact_site") {
-    return "Exact-site proof path is specific enough for buyer-solutions triage; package access, rights, provider execution, and hosted availability still require backing proof.";
+    return "The site-task and decision path are specific enough for buyer-solutions triage; run authorization, rights, provider execution, and historical hosted availability still require backing proof.";
   }
 
   if (params.proofPathOutcome === "adjacent_site") {
@@ -205,7 +205,7 @@ function buildProofPathSummary(params: {
     return `Proof path needs clarification; ask for ${formatList(missingLabels)} before treating this as proof-ready.`;
   }
 
-  return "Proof path needs scoped follow-up before package, hosted review, or capture access can be confirmed.";
+  return "The request needs scoped follow-up before a Task Evaluation Run, historical hosted review, or capture access can be authorized.";
 }
 
 function buildRoutingSummary(params: {
@@ -531,7 +531,7 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
           : calendarDisposition === "recommended"
             ? "review structured intake and offer a scoping call because the request is specific enough to accelerate"
             : proofReadyDecision.proofReadyOutcome === "proof_ready_intake"
-              ? "handoff to buyer-solutions for proof-path triage; keep package access, hosted availability, rights clearance, and provider execution unclaimed until backed by proof"
+              ? "handoff to buyer-solutions for run-intake triage; keep run authorization, historical hosted availability, rights clearance, and provider execution unclaimed until backed by proof"
               : missingStructuredFieldLabels.length > 0
                 ? `ask for ${formatList(missingStructuredFieldLabels)} before suggesting a call`
                 : "review structured intake asynchronously and offer a call only if it accelerates a scoped buyer decision";

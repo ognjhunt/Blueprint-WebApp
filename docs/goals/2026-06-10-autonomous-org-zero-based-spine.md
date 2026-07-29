@@ -1,5 +1,7 @@
 # Zero-Based Autonomous Org Spine
 
+> Historical operating-design snapshot. Its multi-product wedge is superseded by the single Task Evaluation Run doctrine in `PLATFORM_CONTEXT.md` and `docs/architecture/task-evaluation-run-migration-2026-07-29.md`.
+
 Date: 2026-06-10
 Status: repo-local operating design; no live Paperclip, Notion, provider, payment, send, deploy, rights, hosted-session, or city activation mutation authorized
 

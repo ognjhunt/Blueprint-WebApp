@@ -1,5 +1,7 @@
 # Goal: Subscription-first Blueprint pricing
 
+> Superseded historical pricing hypothesis. Do not implement or cite these prices or SKUs as current. The current model is one scoped Task Evaluation Run with a request-for-quote intake; see `PLATFORM_CONTEXT.md` and `docs/architecture/task-evaluation-run-migration-2026-07-29.md`.
+
 ## Outcome
 
 Redesign and maintain the Blueprint pricing surfaces around recurring robot-team evaluation infrastructure, with cheap first-run, site-supply, and yearly site-monitoring paths that feed the subscription motion.

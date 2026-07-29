@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Blueprint Robot-Team Agent API",
-    "version": "2026-07-16",
-    "summary": "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
-    "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and protected hosted-session endpoints for robot-team agents. Hosted-session flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new session; existing sessions require creator ownership, admin access, or an active per-session share grant."
+    "version": "2026-07-29",
+    "summary": "Headless Task Evaluation Run discovery, request drafting, and legacy-read compatibility for robot-team agents.",
+    "description": "Blueprint exposes capture-backed testbed discovery and Task Evaluation Run intake. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired."
   },
   "servers": [
     {
@@ -30,16 +30,12 @@
       "description": "Public site-world catalog and detail endpoints."
     },
     {
-      "name": "Agent commerce",
-      "description": "Dry-run quote, order, receipt, and entitlement proof. Does not call live Stripe."
-    },
-    {
-      "name": "Live agent commerce",
-      "description": "Real Stripe Checkout for agents with a budget. Server-priced SKUs, structured blockers, webhook-provisioned entitlements."
+      "name": "Legacy commerce",
+      "description": "Read-only compatibility for historical orders and entitlements; new quote and checkout writes are retired."
     },
     {
       "name": "Hosted sessions",
-      "description": "Session lifecycle, rollout, render, and export endpoints."
+      "description": "Compatibility lifecycle for previously entitled hosted-session records."
     }
   ],
   "paths": {
@@ -50,7 +46,7 @@
         ],
         "operationId": "discoverAgentAccess",
         "summary": "Discover the robot-team agent access manifest.",
-        "description": "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, and documents the protected hosted-session boundary.",
+        "description": "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, and documents the Task Evaluation Run plus protected legacy-record boundaries.",
         "security": [
           {}
         ],
@@ -413,10 +409,11 @@
     "/api/agent-access/commerce/quote": {
       "get": {
         "tags": [
-          "Agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "quoteAgentCommerce",
-        "summary": "Quote a site-world package or hosted-session rental for agent planning.",
+        "summary": "Retired standalone quote endpoint.",
+        "deprecated": true,
         "security": [
           {}
         ],
@@ -454,18 +451,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "JSON response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentCommerceQuoteResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
+          "410": {
+            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -475,17 +462,17 @@
             }
           }
         },
-        "x-blueprint-dry-run-only": true,
-        "x-blueprint-truth-boundary": "Quotes are planning artifacts. They do not create live Stripe sessions, charge cards, grant live package access, or prove rights clearance."
+        "x-blueprint-truth-boundary": "This endpoint creates no quote, Stripe session, order, charge, or entitlement. Historical transactions remain readable."
       }
     },
     "/api/agent-access/commerce/dry-run-checkout": {
       "post": {
         "tags": [
-          "Agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "createAgentDryRunCheckout",
-        "summary": "Create a dry-run order and provisioned entitlement without live Stripe.",
+        "summary": "Retired standalone dry-run checkout endpoint.",
+        "deprecated": true,
         "security": [
           {}
         ],
@@ -500,18 +487,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Dry-run order created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentDryRunOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
+          "410": {
+            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -521,14 +498,13 @@
             }
           }
         },
-        "x-blueprint-dry-run-only": true,
-        "x-blueprint-truth-boundary": "This route reuses buyerOrders and marketplaceEntitlements response shapes for local/test proof only. It never calls live Stripe or opens live package access."
+        "x-blueprint-truth-boundary": "This endpoint creates no order or entitlement. Historical dry-run records remain readable through compatibility routes."
       }
     },
     "/api/agent-access/commerce/orders/{orderId}": {
       "get": {
         "tags": [
-          "Agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "getAgentDryRunOrder",
         "summary": "Read a dry-run order and receipt.",
@@ -573,7 +549,7 @@
     "/api/agent-access/commerce/entitlements/{entitlementId}": {
       "get": {
         "tags": [
-          "Agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "getAgentDryRunEntitlement",
         "summary": "Read a dry-run marketplace entitlement.",
@@ -618,7 +594,7 @@
     "/api/agent-access/commerce/entitlement-readiness": {
       "get": {
         "tags": [
-          "Agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "getAgentEntitlementReadiness",
         "summary": "Check whether a provisioned entitlement would unlock protected hosted-session launch.",
@@ -685,7 +661,7 @@
         ],
         "operationId": "askBlueprint",
         "summary": "Ask a grounded question about Blueprint and receive citation-backed answers with machine next-actions.",
-        "description": "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over public canonical content (product, search, live and dry-run commerce, entitlement-to-session flow, pricing ranges, proof boundaries, intake). Ranking combines alias, lexical, and embedding signals with a deterministic fallback. Responses never generate unsupported claims, grant access, or prove payment, rights clearance, provider execution, or fulfillment.",
+        "description": "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over current Task Evaluation Run doctrine, search, pricing, proof boundaries, intake, and legacy-record compatibility. Ranking combines alias, lexical, and embedding signals with a deterministic fallback.",
         "security": [
           {}
         ],
@@ -699,7 +675,7 @@
             },
             "examples": {
               "buy": {
-                "value": "How can an agent with a budget buy a hosted session?"
+                "value": "How can an agent request a Task Evaluation Run with a budget?"
               },
               "search": {
                 "value": "How do I filter sites by type and location?"
@@ -788,16 +764,14 @@
     "/api/agent-access/commerce/live-checkout": {
       "post": {
         "tags": [
-          "Live agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "createAgentLiveCheckout",
-        "summary": "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
-        "description": "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored; if the catalog has no parseable price for the product a price_unavailable blocker is returned instead of a fallback charge), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. A buyer identity is required so the paid entitlement binds to a usable account: send a Firebase bearer token, buyer.uid, or buyer.email (verified-email sign-in later unlocks email-bound entitlements). Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch.",
+        "summary": "Retired standalone live checkout endpoint.",
+        "deprecated": true,
+        "description": "New work is scoped and quoted as a Task Evaluation Run. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
         "security": [
-          {},
-          {
-            "BlueprintBearer": []
-          }
+          {}
         ],
         "requestBody": {
           "required": true,
@@ -810,18 +784,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Live Stripe checkout created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentLiveCheckoutResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
+          "410": {
+            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -829,30 +793,20 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "Live checkout blocked by eligibility, budget, or configuration",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentLiveCheckoutBlockedResponse"
-                }
-              }
-            }
           }
         },
-        "x-blueprint-live-stripe": true,
-        "x-blueprint-truth-boundary": "Live checkout creates a real Stripe session and order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights, provider execution, and hosted runtime proof remain owned by their normal systems."
+        "x-blueprint-live-stripe": false,
+        "x-blueprint-truth-boundary": "This endpoint creates no Stripe session, order, charge, or entitlement. Historical transactions remain readable."
       }
     },
     "/api/agent-access/commerce/live-orders/{orderId}": {
       "get": {
         "tags": [
-          "Live agent commerce"
+          "Legacy commerce"
         ],
         "operationId": "getAgentLiveOrderStatus",
-        "summary": "Poll a live agent order for payment and entitlement-provisioning status.",
-        "description": "Non-PII status projection of the buyer-order ledger for agent-commerce SKUs, behind the MCP tool blueprint.commerce.liveOrder.get. Poll after live checkout until paid=true and provisioned=true, then continue with entitlement-readiness and protected hosted-session launch.",
+        "summary": "Read historical agent order and entitlement-provisioning status.",
+        "description": "Non-PII read-only compatibility projection of a historical buyer-order ledger record behind blueprint.commerce.liveOrder.get.",
         "security": [
           {}
         ],
@@ -888,7 +842,7 @@
             }
           }
         },
-        "x-blueprint-live-stripe": true
+        "x-blueprint-live-stripe": false
       }
     },
     "/api/site-worlds/sessions": {
@@ -2006,8 +1960,7 @@
           "journeyPlanner",
           "requestCandidate",
           "requestLocationDraft",
-          "dryRunCommerce",
-          "liveCommerce",
+          "legacyCommerce",
           "protectedFlow",
           "truthLabels"
         ],
@@ -2054,9 +2007,6 @@
                 "blueprint.request.locationDraft",
                 "blueprint.siteWorld.get",
                 "blueprint.siteWorld.launchReadiness",
-                "blueprint.commerce.quote",
-                "blueprint.commerce.checkoutDryRun",
-                "blueprint.commerce.checkoutLive",
                 "blueprint.commerce.order.get",
                 "blueprint.commerce.liveOrder.get",
                 "blueprint.commerce.entitlement.get",
@@ -2114,11 +2064,7 @@
             "type": "object",
             "additionalProperties": true
           },
-          "dryRunCommerce": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "liveCommerce": {
+          "legacyCommerce": {
             "type": "object",
             "additionalProperties": true
           },
@@ -3186,7 +3132,7 @@
               "catalog",
               "default"
             ],
-            "description": "catalog means the amount was parsed from the public site-world package pricing; default means the planning fallback. Live checkout only charges catalog-grounded prices."
+            "description": "Persisted historical price-source field retained for transaction readability. New quote and checkout writes are retired."
           },
           "entitlementType": {
             "type": "string",
@@ -4306,7 +4252,7 @@
     "generated",
     "request_gated",
     "protected_robot_team",
-    "dry_run_order",
-    "live_checkout"
+    "legacy_commerce_read_only",
+    "decision_or_abstention"
   ]
 }

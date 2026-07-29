@@ -31,13 +31,13 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=robot_team&source=header-signup",
     label: "Robot team",
-    description: "Create an account to scope a site-specific evaluation run and rank your policies.",
+    description: "Create an account to scope a site-specific decision and evaluate candidates when applicable.",
     Icon: Bot,
   },
   {
     href: "/signup/business?buyerType=site_operator&source=header-signup",
     label: "Site operator",
-    description: "Submit a facility and set access boundaries for free.",
+    description: "Create an account to describe a site-task, decision, and access boundaries.",
     Icon: ShieldCheck,
   },
 ] as const;
@@ -112,8 +112,8 @@ export function Header() {
       badge: "Robot team",
       workspaceHref: userData?.finishedOnboarding ? "/app" : "/onboarding",
       workspaceLabel: userData?.finishedOnboarding ? "Open robot-team workspace" : "Finish robot-team onboarding",
-      secondaryHref: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=signed-in-header",
-      secondaryLabel: "Request another evaluation",
+      secondaryHref: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=signed-in-header",
+      secondaryLabel: "Request another Task Evaluation Run",
       requestHref,
     };
   }, [userData]);

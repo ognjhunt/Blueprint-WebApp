@@ -1,12 +1,12 @@
-export const ROBOT_AGENT_CONTRACT_VERSION = "2026-07-16";
+export const ROBOT_AGENT_CONTRACT_VERSION = "2026-07-29";
 export const ROBOT_AGENT_TRUTH_LABELS = [
   "capture_grounded",
   "provider_derived",
   "generated",
   "request_gated",
   "protected_robot_team",
-  "dry_run_order",
-  "live_checkout",
+  "legacy_commerce_read_only",
+  "decision_or_abstention",
 ] as const;
 export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.siteWorld.search",
@@ -15,9 +15,6 @@ export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.request.locationDraft",
   "blueprint.siteWorld.get",
   "blueprint.siteWorld.launchReadiness",
-  "blueprint.commerce.quote",
-  "blueprint.commerce.checkoutDryRun",
-  "blueprint.commerce.checkoutLive",
   "blueprint.commerce.order.get",
   "blueprint.commerce.liveOrder.get",
   "blueprint.commerce.entitlement.get",
@@ -38,10 +35,7 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I buy a hosted session with a budget?\"",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id <pipeline-site-world-id> --product hosted-session-rental --session-hours 1",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I request a Task Evaluation Run with a budget?\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id <pipeline-site-world-id> --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id <pipeline-site-world-id> --session-mode runtime_only --robot-profile-id <robot-profile-id> --task-id <task-id> --scenario-id <scenario-id> --start-state-id <start-state-id>",
@@ -65,7 +59,7 @@ export function buildRobotAgentAccessManifest() {
     credentiallessWorkflow: {
       requiredCredentials: false,
       summary:
-        "A headless robot-team agent can discover Blueprint, ask grounded questions, search live public site records, draft a new-location intake request, and create planning-only dry-run commerce records without credentials. Hosted sessions require a scoped robot-team or admin bearer token plus current entitlement and runtime proof.",
+        "A headless robot-team agent can discover Blueprint, ask grounded questions, search live public site records, and draft a Task Evaluation Run intake request without credentials. Historical orders and hosted sessions remain protected compatibility records.",
       cliCommands: ROBOT_AGENT_CLI_COMMANDS,
     },
     siteWorldSearch: {
@@ -103,12 +97,12 @@ export function buildRobotAgentAccessManifest() {
     journeyPlanner: {
       cliCommand:
         "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
-      defaultMode: "read_or_dry_run",
+      defaultMode: "read_or_request_draft",
       returnsCompactJson: true,
       nextActions: [
         "exact_catalog_match",
         "request_candidate",
-        "dry_run_quote_order",
+        "task_evaluation_run_request",
         "entitlement_readiness",
         "blocked_protected_session_path",
       ],
@@ -117,7 +111,7 @@ export function buildRobotAgentAccessManifest() {
       providerExecution: false,
       hostedSessionCreatedByPlanner: false,
       truth:
-        "The planner reads public search and may call dry-run agent commerce/readiness endpoints only. It returns the next safe machine action and structured blockers without creating live payment, private access, provider execution, or hosted-session fulfillment.",
+        "The planner reads public search and may draft Task Evaluation Run intake only. It returns the next safe machine action and structured blockers without creating payment, private access, provider execution, or hosted-session fulfillment.",
     },
     requestCandidate: {
       source: "site-worlds",
@@ -161,57 +155,33 @@ export function buildRobotAgentAccessManifest() {
       truth:
         "request location / blueprint.request.locationDraft builds a local draft for new site scan intake only. It does not write, scrape /contact, grant entitlement, prove payment, clear rights, run providers, fulfill hosted sessions, or open package access.",
     },
-    dryRunCommerce: {
-      mode: "dry_run",
-      liveStripeTouched: false,
-      createsLivePayment: false,
-      grantsLivePackageAccess: false,
+    legacyCommerce: {
+      mode: "read_only_compatibility",
+      newPurchasesAccepted: false,
+      currentProduct: "Task Evaluation Run",
+      requestUrl: "/contact/robot-team?interest=task-evaluation-run",
       endpoints: {
-        quote: "/api/agent-access/commerce/quote",
-        dryRunCheckout: "/api/agent-access/commerce/dry-run-checkout",
         order: "/api/agent-access/commerce/orders/{orderId}",
         entitlement: "/api/agent-access/commerce/entitlements/{entitlementId}",
+        liveOrder: "/api/agent-access/commerce/live-orders/{orderId}",
         entitlementReadiness: "/api/agent-access/commerce/entitlement-readiness",
       },
       tools: [
-        "blueprint.commerce.quote",
-        "blueprint.commerce.checkoutDryRun",
         "blueprint.commerce.order.get",
+        "blueprint.commerce.liveOrder.get",
         "blueprint.commerce.entitlement.get",
         "blueprint.commerce.entitlementReadiness",
       ],
       truth:
-        "Dry-run commerce reuses quote, order, receipt, and entitlement shapes for local/test proof only. It never calls live Stripe or proves fulfillment.",
-    },
-    liveCommerce: {
-      mode: "live",
-      liveStripeTouched: true,
-      paymentModel:
-        "The agent (or its operating team's wallet/payment method) completes a real Stripe Checkout Session; webhook fulfillment marks the order paid and provisions the marketplace entitlement automatically.",
-      budgetGuard:
-        "Optional budgetCents is enforced server-side: quotes above the declared budget return a structured budget_exceeded blocker and create no order or Stripe session.",
-      eligibility:
-        "Live checkout is offered only for Pipeline-backed site worlds. Any record without current owner-system identity returns a not_live_purchasable blocker with request-intake alternatives.",
-      priceGrounding:
-        "Only catalog-grounded prices are charged: when the public catalog has no parseable price for the requested product, live checkout returns a price_unavailable blocker instead of charging a fallback default.",
-      buyerIdentity:
-        "A Firebase bearer token, buyer.uid, or buyer.email is required so the webhook-provisioned entitlement binds to a usable account; email-bound entitlements unlock for a verified sign-in with the same email.",
-      serverPricedSku: true,
-      endpoints: {
-        liveCheckout: "/api/agent-access/commerce/live-checkout",
-        liveOrder: "/api/agent-access/commerce/live-orders/{orderId}",
-      },
-      tools: ["blueprint.commerce.checkoutLive", "blueprint.commerce.liveOrder.get"],
-      truth:
-        "Live checkout creates a real Stripe Checkout Session and buyer-order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights clearance, provider execution, and hosted runtime proof remain owned by their normal systems.",
+        "Historical orders and entitlements remain readable under their original access controls. Quote and checkout endpoints return 410 and never create a Stripe session, order, charge, or entitlement.",
     },
     protectedFlow: {
       requiresBearer: true,
       authModel: "Firebase robot_team or admin bearer token",
       accessModel: "provisioned entitlement for new protected launches; existing sessions require session ownership, admin access, or an active per-session share grant",
-      livePaymentPath: "/api/agent-access/commerce/live-checkout",
+      livePaymentPath: null,
       truth:
-        "Protected robot-team hosted sessions preserve Firebase, entitlement, session ownership, rights, runtime, and launch-readiness checks. Dry-run commerce is separate from live Stripe/payment/fulfillment.",
+        "Protected historical hosted sessions preserve Firebase, entitlement, session ownership, rights, runtime, and launch-readiness checks. New customer work begins with a Task Evaluation Run request.",
     },
     tools: {
       cli: "scripts/agent-access/blueprint-agent-cli.ts",
@@ -220,7 +190,7 @@ export function buildRobotAgentAccessManifest() {
     },
     truthLabels: ROBOT_AGENT_TRUTH_LABELS,
     truth:
-      "Hosted sessions require Firebase robot-team/admin bearer auth and current entitlement, package, runtime, and launch-readiness proof. Dry-run commerce never substitutes for live Stripe, rights, provider, package-access, or fulfillment proof.",
+      "Task Evaluation Runs return a bounded decision or explicit abstention. Historical hosted-session records require Firebase robot-team/admin bearer auth and current entitlement, runtime, and launch-readiness proof.",
   };
 }
 
@@ -249,9 +219,9 @@ export function buildRobotAgentOpenApiContract() {
     info: {
       title: "Blueprint Robot-Team Agent API",
       version: ROBOT_AGENT_CONTRACT_VERSION,
-      summary: "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
+      summary: "Headless Task Evaluation Run discovery, request drafting, and legacy-read compatibility for robot-team agents.",
       description:
-        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and protected hosted-session endpoints for robot-team agents. Hosted-session flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new session; existing sessions require creator ownership, admin access, or an active per-session share grant.",
+        "Blueprint exposes capture-backed testbed discovery and Task Evaluation Run intake. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired.",
     },
     servers: [
       {
@@ -267,9 +237,8 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Agent commerce", description: "Dry-run quote, order, receipt, and entitlement proof. Does not call live Stripe." },
-      { name: "Live agent commerce", description: "Real Stripe Checkout for agents with a budget. Server-priced SKUs, structured blockers, webhook-provisioned entitlements." },
-      { name: "Hosted sessions", description: "Session lifecycle, rollout, render, and export endpoints." },
+      { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; new quote and checkout writes are retired." },
+      { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
     paths: {
       "/api/agent-access": {
@@ -278,7 +247,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "discoverAgentAccess",
           summary: "Discover the robot-team agent access manifest.",
           description:
-            "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, and documents the protected hosted-session boundary.",
+            "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, and documents the Task Evaluation Run plus protected legacy-record boundaries.",
           security: [{}],
           responses: {
             "200": jsonResponse("#/components/schemas/AgentAccessManifest"),
@@ -391,9 +360,10 @@ export function buildRobotAgentOpenApiContract() {
       },
       "/api/agent-access/commerce/quote": {
         get: {
-          tags: ["Agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "quoteAgentCommerce",
-          summary: "Quote a site-world package or hosted-session rental for agent planning.",
+          summary: "Retired standalone quote endpoint.",
+          deprecated: true,
           security: [{}],
           parameters: [
             { name: "siteWorldId", in: "query", required: true, schema: { type: "string" } },
@@ -406,19 +376,18 @@ export function buildRobotAgentOpenApiContract() {
             { name: "sessionHours", in: "query", required: false, schema: { type: "integer", minimum: 1, default: 1 } },
           ],
           responses: {
-            "200": jsonResponse("#/components/schemas/AgentCommerceQuoteResponse"),
-            "400": errorResponses["400"],
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
           },
-          "x-blueprint-dry-run-only": true,
           "x-blueprint-truth-boundary":
-            "Quotes are planning artifacts. They do not create live Stripe sessions, charge cards, grant live package access, or prove rights clearance.",
+            "This endpoint creates no quote, Stripe session, order, charge, or entitlement. Historical transactions remain readable.",
         },
       },
       "/api/agent-access/commerce/dry-run-checkout": {
         post: {
-          tags: ["Agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "createAgentDryRunCheckout",
-          summary: "Create a dry-run order and provisioned entitlement without live Stripe.",
+          summary: "Retired standalone dry-run checkout endpoint.",
+          deprecated: true,
           security: [{}],
           requestBody: {
             required: true,
@@ -429,17 +398,15 @@ export function buildRobotAgentOpenApiContract() {
             },
           },
           responses: {
-            "201": jsonResponse("#/components/schemas/AgentDryRunOrderResponse", "Dry-run order created"),
-            "400": errorResponses["400"],
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
           },
-          "x-blueprint-dry-run-only": true,
           "x-blueprint-truth-boundary":
-            "This route reuses buyerOrders and marketplaceEntitlements response shapes for local/test proof only. It never calls live Stripe or opens live package access.",
+            "This endpoint creates no order or entitlement. Historical dry-run records remain readable through compatibility routes.",
         },
       },
       "/api/agent-access/commerce/orders/{orderId}": {
         get: {
-          tags: ["Agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "getAgentDryRunOrder",
           summary: "Read a dry-run order and receipt.",
           security: [{}],
@@ -455,7 +422,7 @@ export function buildRobotAgentOpenApiContract() {
       },
       "/api/agent-access/commerce/entitlements/{entitlementId}": {
         get: {
-          tags: ["Agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "getAgentDryRunEntitlement",
           summary: "Read a dry-run marketplace entitlement.",
           security: [{}],
@@ -471,7 +438,7 @@ export function buildRobotAgentOpenApiContract() {
       },
       "/api/agent-access/commerce/entitlement-readiness": {
         get: {
-          tags: ["Agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "getAgentEntitlementReadiness",
           summary: "Check whether a provisioned entitlement would unlock protected hosted-session launch.",
           security: [{}],
@@ -495,7 +462,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "askBlueprint",
           summary: "Ask a grounded question about Blueprint and receive citation-backed answers with machine next-actions.",
           description:
-            "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over public canonical content (product, search, live and dry-run commerce, entitlement-to-session flow, pricing ranges, proof boundaries, intake). Ranking combines alias, lexical, and embedding signals with a deterministic fallback. Responses never generate unsupported claims, grant access, or prove payment, rights clearance, provider execution, or fulfillment.",
+            "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over current Task Evaluation Run doctrine, search, pricing, proof boundaries, intake, and legacy-record compatibility. Ranking combines alias, lexical, and embedding signals with a deterministic fallback.",
           security: [{}],
           parameters: [
             {
@@ -504,7 +471,7 @@ export function buildRobotAgentOpenApiContract() {
               required: true,
               schema: { type: "string" },
               examples: {
-                buy: { value: "How can an agent with a budget buy a hosted session?" },
+                buy: { value: "How can an agent request a Task Evaluation Run with a budget?" },
                 search: { value: "How do I filter sites by type and location?" },
               },
             },
@@ -538,12 +505,13 @@ export function buildRobotAgentOpenApiContract() {
       },
       "/api/agent-access/commerce/live-checkout": {
         post: {
-          tags: ["Live agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "createAgentLiveCheckout",
-          summary: "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
+          summary: "Retired standalone live checkout endpoint.",
+          deprecated: true,
           description:
-            "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored; if the catalog has no parseable price for the product a price_unavailable blocker is returned instead of a fallback charge), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. A buyer identity is required so the paid entitlement binds to a usable account: send a Firebase bearer token, buyer.uid, or buyer.email (verified-email sign-in later unlocks email-bound entitlements). Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch.",
-          security: [{}, { BlueprintBearer: [] }],
+            "New work is scoped and quoted as a Task Evaluation Run. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
+          security: [{}],
           requestBody: {
             required: true,
             content: {
@@ -553,22 +521,20 @@ export function buildRobotAgentOpenApiContract() {
             },
           },
           responses: {
-            "201": jsonResponse("#/components/schemas/AgentLiveCheckoutResponse", "Live Stripe checkout created"),
-            "400": errorResponses["400"],
-            "409": jsonResponse("#/components/schemas/AgentLiveCheckoutBlockedResponse", "Live checkout blocked by eligibility, budget, or configuration"),
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
           },
-          "x-blueprint-live-stripe": true,
+          "x-blueprint-live-stripe": false,
           "x-blueprint-truth-boundary":
-            "Live checkout creates a real Stripe session and order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights, provider execution, and hosted runtime proof remain owned by their normal systems.",
+            "This endpoint creates no Stripe session, order, charge, or entitlement. Historical transactions remain readable.",
         },
       },
       "/api/agent-access/commerce/live-orders/{orderId}": {
         get: {
-          tags: ["Live agent commerce"],
+          tags: ["Legacy commerce"],
           operationId: "getAgentLiveOrderStatus",
-          summary: "Poll a live agent order for payment and entitlement-provisioning status.",
+          summary: "Read historical agent order and entitlement-provisioning status.",
           description:
-            "Non-PII status projection of the buyer-order ledger for agent-commerce SKUs, behind the MCP tool blueprint.commerce.liveOrder.get. Poll after live checkout until paid=true and provisioned=true, then continue with entitlement-readiness and protected hosted-session launch.",
+            "Non-PII read-only compatibility projection of a historical buyer-order ledger record behind blueprint.commerce.liveOrder.get.",
           security: [{}],
           parameters: [
             { name: "orderId", in: "path", required: true, schema: { type: "string" } },
@@ -577,7 +543,7 @@ export function buildRobotAgentOpenApiContract() {
             "200": jsonResponse("#/components/schemas/AgentLiveOrderStatus"),
             "404": errorResponses["404"],
           },
-          "x-blueprint-live-stripe": true,
+          "x-blueprint-live-stripe": false,
         },
       },
       "/api/site-worlds/sessions": {
@@ -796,8 +762,7 @@ function buildSchemas() {
         "journeyPlanner",
         "requestCandidate",
         "requestLocationDraft",
-        "dryRunCommerce",
-        "liveCommerce",
+        "legacyCommerce",
         "protectedFlow",
         "truthLabels",
       ],
@@ -830,8 +795,7 @@ function buildSchemas() {
         journeyPlanner: { type: "object", additionalProperties: true },
         requestCandidate: { type: "object", additionalProperties: true },
         requestLocationDraft: { type: "object", additionalProperties: true },
-        dryRunCommerce: { type: "object", additionalProperties: true },
-        liveCommerce: { type: "object", additionalProperties: true },
+        legacyCommerce: { type: "object", additionalProperties: true },
         protectedFlow: { type: "object", additionalProperties: true },
         tools: { type: "object", additionalProperties: true },
         truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },
@@ -1205,7 +1169,7 @@ function buildSchemas() {
           type: "string",
           enum: ["catalog", "default"],
           description:
-            "catalog means the amount was parsed from the public site-world package pricing; default means the planning fallback. Live checkout only charges catalog-grounded prices.",
+            "Persisted historical price-source field retained for transaction readability. New quote and checkout writes are retired.",
         },
         entitlementType: { type: "string", enum: ["package_access", "hosted_session"] },
         truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },

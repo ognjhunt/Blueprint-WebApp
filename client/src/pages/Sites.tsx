@@ -16,9 +16,9 @@ function requestHref(site?: SiteWorldCard) {
   const query = new URLSearchParams({
     persona: "robot-team",
     buyerType: "robot_team",
-    interest: "policy-evaluation-run",
-    path: "policy-evaluation-run",
-    requestedOutputs: "Policy Evaluation Run",
+    interest: "task-evaluation-run",
+    path: "task-evaluation-run",
+    requestedOutputs: "Task Evaluation Run",
     source: site ? "sites-live-card" : "sites-hero",
   });
   if (site) query.set("location", site.siteName);
@@ -59,8 +59,8 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
       </p>
       <p className="mt-4 flex-1 text-sm leading-6 text-slate-600">{site.summary}</p>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        A Task Evaluation Run ranks your candidate policies on this site&rsquo;s captured task
-        envelope to screen them before field or pilot time.
+        A Task Evaluation Run evaluates the decision-relevant claims on this site&rsquo;s captured
+        task envelope and may decide, partially decide, or abstain.
       </p>
       {tasks.length ? (
         <div className="mt-5 flex flex-wrap gap-2" aria-label="Recorded tasks">
@@ -85,7 +85,7 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
           href={requestHref(site)}
           className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-950 hover:bg-slate-50"
         >
-          Request evaluation
+          Request a Task Evaluation Run
         </a>
       </div>
     </article>
@@ -141,7 +141,7 @@ export default function Sites() {
     <>
       <SEO
         title="Captured Sites | Blueprint"
-        description="Browse owner-system-backed capture records available for robot Policy Evaluation Runs."
+        description="Browse owner-system-backed capture records available as Task Evaluation Run testbed inputs."
         canonical="/sites"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
@@ -178,15 +178,15 @@ export default function Sites() {
                 scope a new capture with its operator.
               </p>
               <p className="mt-4 max-w-lg text-sm leading-6 text-slate-500">
-                A Task Evaluation Run is a screening estimate that ranks policies by fidelity — not a
-                guarantee, safety certification, or deployment-readiness claim.
+                A Task Evaluation Run reports only the claims supported inside its validation envelope —
+                not a guarantee, safety certification, or deployment-readiness claim.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref()}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
                 >
-                  Scope an evaluation <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  Request a Task Evaluation Run <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
                   href="/signup/capturer"

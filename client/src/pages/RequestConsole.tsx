@@ -425,7 +425,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
                     <p className="text-sm font-semibold text-[#111110]">Stripe, Render, fulfillment</p>
                     <p className="mt-1 text-sm leading-6 text-black/60">
-                      Package access stays blocked until entitlement, hosted-session, payment, and backing runtime records support them.
+                      Historical package or hosted-session access stays blocked until entitlement, payment, and backing runtime records support it. Current run evidence follows the run's authorization and permitted-use record.
                     </p>
                   </div>
                 </div>

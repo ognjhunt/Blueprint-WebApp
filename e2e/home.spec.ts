@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test('homepage leads with the simple capture-backed policy evaluation story', async ({ page }) => {
+test('homepage leads with the single Task Evaluation Run story', async ({ page }) => {
   await page.goto('/');
 
   await expect(
     page.getByRole('heading', {
-      name: /Test robot policies before field time\./i,
+      name: /Turn a real site-task into a decision you can defend\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -15,15 +15,15 @@ test('homepage leads with the simple capture-backed policy evaluation story', as
   await expect(nav.getByRole('link', { name: /^How it works$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Pricing$/i })).toBeVisible();
   await expect(
-    page.getByRole('contentinfo').getByRole('link', { name: /^Site access partners$/i }),
+    page.getByRole('contentinfo').getByRole('link', { name: /^For Site Operators$/i }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Request evaluation$/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Request a Task Evaluation Run$/i }).first()).toBeVisible();
   await expect(
-    page.locator('main').getByText(/Compare your policy against earlier checkpoints/i),
+    page.locator('main').getByText(/One lifecycle from task to maintained evidence/i),
   ).toBeVisible();
-  await expect(page.getByText(/Capture the site/i)).toBeVisible();
-  await expect(page.getByText(/Run the comparison/i)).toBeVisible();
-  await expect(page.getByText(/Decide the next test/i).first()).toBeVisible();
-  await expect(page.getByText(/500 episodes/i).first()).toBeVisible();
-  await expect(page.getByText(/policy-ranking result outside the measured evaluation scope/i)).toBeVisible();
+  await expect(page.getByText(/^Real site-task$/i)).toBeVisible();
+  await expect(page.getByText(/^Maintained testbed$/i)).toBeVisible();
+  await expect(page.getByText(/^Decision or abstention$/i)).toBeVisible();
+  await expect(page.getByText(/A useful run does not have to name a winner/i)).toBeVisible();
+  await expect(page.getByText(/does not infer a winner from raw scores/i)).toBeVisible();
 });

@@ -10,7 +10,7 @@ This document is a support-layer integration map. `PLATFORM_CONTEXT.md` and
 `WORLD_MODEL_STRATEGY_CONTEXT.md` remain authoritative for product framing.
 Blueprint is capture-first and real-site robot-evaluation/data-package first. Qualification,
 readiness, and review outputs are optional trust layers around capture-backed
-Task Evaluation Runs, Post-Training Data Packages, and hosted access; they are not the default
+Task Evaluation Runs and scoped evidence artifacts; post-training is only a permitted evidence use and historical hosted access is not the default
 product center of gravity.
 
 ## Summary

@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="text-xs uppercase tracking-[0.3em] text-slate-400">404</p>
       <h1 className="text-3xl font-semibold text-slate-900">Page not found</h1>
       <p className="max-w-md text-sm text-slate-600">
-        The page you’re looking for has moved. Return home to continue with capture, robot evaluation, policy improvement, or hosted access.
+        The page you’re looking for has moved. Return home to continue with a Task Evaluation Run, capture access, or historical hosted access.
       </p>
       <a
         href="/"

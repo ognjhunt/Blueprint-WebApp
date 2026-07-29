@@ -1,187 +1,76 @@
 # World Model Strategy Context
 
-> **Source of truth:** [Blueprint Knowledge](https://www.notion.so/16d80154161d80db869bcfba4fe70be3) — World Model Strategy
-> This file is the repo-authoritative mirror of Blueprint Knowledge for world-model strategy framing.
-> All Blueprint agent roles and developers consuming this file should treat Notion as the canonical
-> operational surface and this file as the definitional source of truth within the repo.
-> When changes are made to Notion Knowledge, the Notion Manager agent is responsible for pushing
-> mirror updates to this file. When changes are made here, they should be reconciled back.
+> Repo-authoritative mirror of Blueprint world-model strategy. Reconcile material changes with Blueprint Knowledge.
 
 <!-- SHARED_WORLD_MODEL_STRATEGY_START -->
-## Strategic Doctrine
+## Strategic doctrine
 
-Blueprint should assume world models will improve rapidly and that multiple viable model providers, checkpoints, papers, and hosted services will exist over time.
+Blueprint assumes world models, simulators, providers, checkpoints, and inference methods will change rapidly. The company must not depend on owning or permanently selecting one backend.
 
-Blueprint should not build the company around owning one permanent model.
+Blueprint's durable moat is:
 
-Blueprint's durable moat should be:
+1. real-site capture supply and coverage;
+2. immutable, rights-safe, privacy-safe, provenance-linked raw evidence;
+3. maintained Site-Task Testbeds;
+4. Task Evaluation Runs with qualified claim-by-claim evidence routing;
+5. buyer and operator workflows around inspectable decisions, abstentions, and physical learning.
 
-1. capture supply and real-site coverage
-2. rights-safe, provenance-safe, privacy-safe data pipelines
-3. Task Evaluation Runs and Policy Improvement Runs grounded in real captured sites
-4. buyer, licensing, and ops product surfaces around those runs and packages
-5. a compounding capture -> package -> buyer usage -> more capture flywheel
+### World models are evidence methods, not the offer
 
-The model backend matters, but it should remain a replaceable engine behind stable capture, packaging, and product contracts.
+Task Evaluation Run is the sole customer-facing product. A world model may be selected by Pipeline when its Evidence Method Profile qualifies it for a claim and validation envelope. It is never automatically ground truth, the default first method, a customer-selected backend, or proof of physical success.
 
-## Core Belief
+Pipeline may combine:
 
-Blueprint is not qualification-first and not model-first.
+- fixture and contract evidence;
+- captured geometry;
+- real observations;
+- traditional simulation;
+- world models;
+- provider tools;
+- authoritative physical evidence.
 
-Blueprint is capture-first and real-site robot-evaluation/policy-improvement first.
+The routing objective is the least expensive currently qualified evidence for each decision-relevant claim, with stronger evidence requested only when needed.
 
-That means:
+### Stable contracts across backend swaps
 
-- real capture supply is the entry point
-- Task Evaluation Runs and Policy Improvement Runs are the primary sellable outputs
-- world models, site-world internals, generated media, simulation outputs, editing/augmentation assets, and model-derived artifacts are support substrates inside evaluation and improvement runs, not the primary public offer
-- `Blueprint-WebApp` can lead with real-site robot evaluation and sim-only policy improvement requests for pre-pilot and post-evaluation buyer decisions
-- those requests must stay grounded in capture-backed site packages, provenance, rights/privacy boundaries, robot profile, task scope, policy access, and threshold evidence
-- readiness can be an advisory support workflow without becoming unsupported ready-to-deploy, safety-validated, simulator-completed, or guaranteed-threshold proof
+Keep stable:
 
-## Practical Strategic Conclusion
+- raw capture bundle structure and native timelines;
+- timestamps, poses, intrinsics, depth, and device metadata;
+- consent, rights, privacy, and provenance;
+- Site-Task Testbed identity, version, and digest;
+- Decision/Evidence Request;
+- Evidence Plan and Method Profile;
+- normalized Evidence Result and Decision Envelope;
+- Physical Outcome Join;
+- hosted access, entitlements, redaction, and audit contracts.
 
-Do not overfit the platform to any one of:
+Keep replaceable:
 
-- a single model paper
-- a single checkpoint family
-- a single provider
-- a single inference trick
-- a single hardware profile
+- model checkpoints and providers;
+- simulators and inference services;
+- retrieval and conditioning strategies;
+- generation, editing, and augmentation methods;
+- training and export adapters.
 
-Instead, build the stack so that better model backends can be dropped in later with minimal changes above the model-adapter layer.
+### Post-training boundary
 
-## Current Product Truth
+Post-training is a permitted evidence use inside a Task Evaluation Run, never a separate product. Eligibility requires the Pipeline artifact to say so. An eligible export does not prove training occurred, a customer consumed it, or a policy improved.
 
-Today, the strongest near-term value comes from:
+### Proof and calibration boundary
 
-1. capturing real indoor spaces at scale
-2. turning those captures into site/task/scenario/eval artifacts for robot evaluation
-3. preserving strong rights, privacy, and provenance metadata around those assets
-4. giving robot teams clear buyer surfaces for Task Evaluation Runs before expensive pilots
-5. using curated robot POV clips, labels, generated/model-derived variations, failure cases, and export manifests inside Policy Improvement Runs
-6. using hosted access, site packages, model/runtime assets, and proof boundaries as the substrate for evidence-backed pilot and model-improvement decisions
+Simulation, world-model, provider, and generated evidence stays inside the stated validation envelope. External research may motivate method qualification but is not a Blueprint run result. Physical performance, deployment, safety, calibration, and onsite ordering claims require their own evidence. A physical outcome updates the learning loop only through an authoritative exact-ID join; WebApp does not recalibrate methods.
 
-Native SWM-like interaction remains an important direction, but it is not the only thing customers need in order for the product to be valuable now.
+### Build priorities
 
-## How To Think About The Runtime
+1. capture quality, synchronization, provenance, rights, and privacy;
+2. maintained versioned testbeds;
+3. decision-oriented intake and secure durable state;
+4. Pipeline qualification, routing, normalized evidence, and abstention;
+5. clear result projection and physical learning joins;
+6. swappable evidence backends that improve cost or claim coverage without becoming the product story.
 
-The runtime should be treated as a bridge architecture:
+### Decision rule
 
-- immediate interaction should come from truthful, site-grounded rendering and hosted-session paths
-- more generative continuation can sit behind that as optional refinement
-- the browser/runtime contract should not assume one model family
-
-This keeps the product useful now while preserving room for stronger native world-model behavior later.
-
-## What Must Stay Stable Across Model Swaps
-
-These should be treated as long-lived platform contracts:
-
-- raw capture bundle structure
-- timestamps, poses, intrinsics, depth, and device metadata
-- consent, rights, privacy, and provenance metadata
-- bridge materialization contract
-- GPU pipeline compatibility contract
-- site-specific package manifests
-- hosted-session and runtime session contracts
-- buyer attachment, licensing, and sync contracts
-- truth labeling in UI and APIs
-- Task Evaluation Run and Policy Improvement Run contracts
-
-Qualification / readiness outputs should stay compatible where they exist, but they should be treated as optional support contracts rather than the only source of product value.
-
-For the current WebApp wedge, Task Evaluation Runs and Policy Improvement Runs are the first-class commercial contracts. Readiness reports, world-model artifacts, and simulation outputs are allowed to support public buyer copy only when they remain advisory, site/task scoped, and bounded by capture/provenance and missing-proof labels.
-
-## What Must Remain Swappable
-
-These should be deliberately replaceable:
-
-- world-model checkpoints
-- world-model providers
-- inference services
-- retrieval-conditioned generation strategies
-- refinement models
-- training/export adapters
-
-No repo should assume one specific model or provider is permanent.
-
-## Platform Moat
-
-Blueprint's moat should come from assets that get stronger when models commoditize:
-
-- better real-site capture coverage
-- better capture quality and provenance
-- better rights / privacy / commercialization handling
-- better Task Evaluation Runs and Policy Improvement Runs
-- better buyer UX and operational surfaces
-- better feedback loops from real buyer usage on real sites
-
-If world models become easier to buy, proprietary real-site capture and product workflow should become more valuable, not less.
-
-## Product Implication
-
-The company should be able to say:
-
-- we do not depend on owning the single best world model
-- we are the best system for turning real sites into robot evaluation runs and sim-only policy improvement runs
-- we can use world models, hosted experiences, trust, review, and readiness layers when they materially improve pre-pilot or post-evaluation decisions, without making unsupported qualification or world models the center of the company
-
-## Build Priorities Right Now
-
-For the current stage, prioritize:
-
-1. capture quality and coverage
-2. packaging captures into strong site/task/scenario/eval artifacts
-3. Task Evaluation Runs, Policy Improvement Runs, hosted access, and buyer usability
-4. rights / privacy / provenance rigor
-5. stable product contracts that survive backend swaps
-6. generated/model-derived data, world-model, simulation, and readiness support where thresholds and evidence gaps matter
-
-Do not spend disproportionate time pushing generic qualification/readiness into the lead product story. The approved WebApp lead story is narrower: sim-only policy ranking for concrete warehouse, factory, material-handling, inspection, and vendor/site-operator evaluation loops.
-
-## Data Priority
-
-Collect and preserve data now as if future world-model training and evaluation will depend on it.
-
-That means preserving:
-
-- walkthrough video
-- motion / trajectory logs
-- camera poses
-- intrinsics
-- depth when available
-- timestamps and temporal alignment data
-- device / modality metadata
-- site / scenario / deployment context
-- privacy / consent / rights metadata
-- retrieval / reference relationships when derived
-
-Future model quality and package quality will depend heavily on data quality and structure.
-
-## Repo-Level Guidance
-
-Each repo should optimize for the same posture:
-
-- `BlueprintCapture`: capture the richest, cleanest, most reusable real-site evidence possible while keeping the bridge and GPU compatibility surfaces aligned with the raw bundle truth
-- `BlueprintCapturePipeline`: turn that evidence into Task Evaluation Run artifacts, Policy Improvement Run artifacts, hosted-session artifacts, generated/model-derived support assets, and optional trust layers without coupling the platform to one backend
-- `Blueprint-WebApp`: sell, deliver, and operate those runs and packages through clear buyer and ops surfaces
-
-## Non-Goal
-
-Do not assume the platform is "done" only when a perfect SWM runtime exists.
-
-The correct goal is:
-
-- build everything around capture, packaging, and buyer workflow so stronger world-model backends can be adopted later without a company-wide rebuild
-- keep world-model language as internal compatibility or generated/policy-improvement support unless a public surface clearly labels it as advisory support
-
-## Decision Rule For Future Sessions
-
-When choosing between:
-
-- investing in model-specific hacks
-- investing in reusable capture / packaging / product infrastructure
-
-default toward reusable infrastructure unless a model-specific change materially improves near-term user-visible value without increasing long-term coupling.
+Default toward reusable capture, contract, testbed, evidence, and product infrastructure. Adopt model-specific work only when it materially improves a qualified claim path without increasing long-term coupling or overstating evidence.
 <!-- SHARED_WORLD_MODEL_STRATEGY_END -->

@@ -66,6 +66,7 @@ describe("Route registration", () => {
     for (const route of [
       "/app",
       "/app/runs",
+      "/app/runs/new",
       "/app/runs/:runId",
       "/app/packs",
       "/app/packs/:siteId",
@@ -155,5 +156,22 @@ describe("Route registration", () => {
     expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');
     expect(source).toContain('{ path: "/blog", layout: "public", component: LegacyBlogRedirect }');
     expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');
+  });
+
+  it("redirects retired offer URLs to the one-product pricing surface", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    expect(source).toContain('<MarketingRedirect to="/pricing" />');
+    for (const route of [
+      "/policy-shortlist",
+      "/robot-match",
+      "/policy-improvement-run",
+      "/post-training-data-package",
+      "/post-training-policy-improvement-package",
+      "/data-packages",
+    ]) {
+      expect(source).toContain(`{ path: "${route}", layout: "public", component: LegacyOfferRedirect }`);
+    }
   });
 });

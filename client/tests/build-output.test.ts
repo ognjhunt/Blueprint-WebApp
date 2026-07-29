@@ -150,6 +150,11 @@ describe("build output", () => {
       "https://tryblueprint.io/updates",
       "https://tryblueprint.io/careers",
       "https://tryblueprint.io/help",
+      "https://tryblueprint.io/policy-shortlist",
+      "https://tryblueprint.io/robot-match",
+      "https://tryblueprint.io/policy-improvement-run",
+      "https://tryblueprint.io/post-training-data-package",
+      "https://tryblueprint.io/data-packages",
       "<loc>https://tryblueprint.io/contact</loc>",
       "<loc>https://tryblueprint.io/world-models/sw-chi-01/start</loc>",
       "<loc>https://tryblueprint.io/world-models/sw-chi-01</loc>",
@@ -169,26 +174,26 @@ describe("build output", () => {
     expect(robots).toContain("User-agent: *");
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Disallow: /world-models/*/workspace");
-    expect(llms).toContain("High-Priority Public Pages");
+    expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/sites");
     expect(llms).toContain("https://tryblueprint.io/pricing");
     expect(llms).toContain("https://tryblueprint.io/proof");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("capture-backed robot policy evaluation");
-    expect(llms).toContain("WAM/VLA");
-    expect(llms).toContain("Policy Evaluation Run");
-    expect(llms).toContain("source citation");
+    expect(llms).toContain("Task Evaluation Run");
+    expect(llms).toContain("decision or abstention");
+    expect(llms).toContain("Pipeline owns method qualification and routing");
+    expect(llms).not.toContain("Policy Evaluation Run");
     expect(llms).not.toContain("https://tryblueprint.io/product");
     expect(llms).not.toContain("https://tryblueprint.io/updates");
     expect(llms).not.toContain("[Robot-Team Evaluation Submission](https://tryblueprint.io/robot-team/eval)");
     expect(llms).not.toContain("[Contact](https://tryblueprint.io/contact):");
     expect(llms).not.toContain("/contact?source=sites-library");
-    expect(llmsFull).toContain("Secondary marketing URLs are not the primary public buyer surface");
-    expect(llmsFull).toContain("Answer And Citation Guidance");
-    expect(llmsFull).toContain("test and rank policies on captured real-site task packs");
-    expect(llmsFull).toContain("request Policy Evaluation Run");
-    expect(llmsFull).toContain("source citation output");
-    expect(llmsFull).toContain("Do not invent customer results");
+    expect(llmsFull).toContain("## Product model");
+    expect(llmsFull).toContain("## Proof boundaries");
+    expect(llmsFull).toContain("Task Evaluation Run");
+    expect(llmsFull).toContain("decision or abstention");
+    expect(llmsFull).toContain("Unknown future states fail closed");
+    expect(llmsFull).toContain("No winner is inferred from an abstained result");
     expect(llmsFull).not.toContain("`/robot-team/eval` - Direct structured submission URL");
     expect(llmsFull).not.toContain("`/contact` - Structured Task Evaluation Run");
   });
@@ -198,29 +203,24 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Test robot policies before field time.");
-    expect(homeHtml).toContain(
-      "Compare your policy against earlier checkpoints, another team, or a vendor runner on the same captured task pack",
-    );
-    expect(homeHtml).toContain("One captured envelope. A clear policy ranking.");
-    expect(homeHtml).toContain("Decide the next test");
+    expect(homeHtml).toContain("Turn a real site-task into a decision you can defend.");
+    expect(homeHtml).toContain("Decision or abstention");
+    expect(homeHtml).toContain("Cheapest qualified evidence");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    // /pricing prerenders the real page so crawlers and no-JS agents see the
-    // actual tiers, prices, and correct persona intake links.
-    expect(pricingHtml).toContain("Priced per campaign, not per seat.");
-    expect(pricingHtml).toContain("Policy Shortlist");
-    expect(pricingHtml).toContain("Robot Match");
-    expect(pricingHtml).toContain("$3,000");
-    expect(pricingHtml).toContain("$5,000");
-    expect(pricingHtml).toContain("/contact/site-operator?buyerType=site_operator");
+    // /pricing prerenders the single scoped engagement without inventing a price.
+    expect(pricingHtml).toContain("One scoped run. No separate package, submission fee, or subscription.");
+    expect(pricingHtml).toContain("Scoped quote");
+    expect(pricingHtml).toContain("Request a Task Evaluation Run");
+    expect(pricingHtml).not.toContain("Policy Shortlist");
+    expect(pricingHtml).not.toContain("Robot Match");
+    expect(pricingHtml).not.toContain("$3,000");
+    expect(pricingHtml).not.toContain("$5,000");
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("Proof stays scoped");
-    expect(proofHtml).toContain(
-      "Generated clips help review. Real-world validation requires the matched robot, task, and site envelope.",
-    );
-    expect(proofHtml).toContain("Start");
+    expect(proofHtml).toContain("bounded decision, partial decision");
+    expect(proofHtml).toContain("never a safety certification");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
 
@@ -244,7 +244,7 @@ describe("build output", () => {
     });
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
-    expect(browserJavaScript).toContain("Source a warehouse-type site");
-    expect(browserJavaScript).toContain("Request received. Blueprint will confirm the real site");
+    expect(browserJavaScript).toContain("Task Evaluation Run");
+    expect(browserJavaScript).toContain("Decision or abstention");
   });
 });
