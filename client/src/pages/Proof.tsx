@@ -1,33 +1,75 @@
+import { ArrowUpRight } from "lucide-react";
+
 import { SEO } from "@/components/SEO";
+import { ProofBoundary } from "@/components/blueprint";
+import { ClaimThresholdChart, EvidenceLadderChart } from "@/components/site/figures";
+import { Reveal } from "@/components/site/motion";
+import {
+  Band,
+  ClosingCta,
+  FullBleedMedia,
+  Inner,
+  NoteCards,
+  PageHero,
+  SectionHeader,
+} from "@/components/site/publicSections";
 import {
   robotPolicyEvaluationBeachhead,
   robotPolicyEvaluationBoundary,
   robotPolicyResearchSignals,
-  robotPolicyScreeningValue,
+  robotPolicyResearchSignalsNote,
 } from "@/data/robotPolicyEvaluationClaims";
-import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
-  breadcrumbJsonLd,
-  faqJsonLd,
-  webPageJsonLd,
-} from "@/lib/seoStructuredData";
-import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+  closingCta,
+  homeClaimMetricLabel,
+  homeClaimThreshold,
+  homeClaims,
+  homeEvidenceRungs,
+  homeLimits,
+} from "@/data/publicSiteCopy";
+import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
+import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const requestHref =
+const runHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof";
 
-const proofLayers = [
-  ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
-  ["Owner proof", "Adds simulator traces, action logs, or real rollouts when needed."],
-  ["Research signal", "A secondary, follow-on support layer: generated-observation review can back policy comparisons."],
+const sourceLayers = [
+  {
+    label: "Raw capture",
+    body:
+      "Timestamps, poses, rights and privacy records. This is the source of truth, and nothing derived from it is allowed to outrank it.",
+  },
+  {
+    label: "Derived evidence",
+    body:
+      "Simulation, generated observations, provider tools. Useful, bounded, and always labelled as derived — never quietly promoted to fact.",
+  },
+  {
+    label: "Physical outcomes",
+    body:
+      "Results from real hardware. The only thing that settles a physical claim, joined back to the exact decision and testbed version it belongs to.",
+  },
+];
+
+const faqEntries = [
+  {
+    question: "Does the 0.929 figure mean Blueprint claims 93% accuracy?",
+    answer:
+      "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. That is published third-party research about a category of method. It is not a Blueprint result, not an accuracy guarantee, and not a claim about your site.",
+  },
+  {
+    question: "What does a Task Evaluation Run actually return?",
+    answer:
+      "An outcome per claim, the evidence method behind each and why it was chosen, what it measured, the conditions the answer holds under, uncertainty, any disagreement between methods, the strongest claim the evidence permits, the cheapest next test, whether physical evidence is required, and exact artifact provenance. A ranking appears only when the evidence supports one.",
+  },
 ];
 
 export default function Proof() {
   return (
     <>
       <SEO
-        title="Proof | Blueprint"
-        description="Blueprint keeps policy evaluation claims scoped to the site, task, robot, and evidence behind each run."
+        title="Proof boundaries | Blueprint"
+        description="What Blueprint treats as evidence, what it treats as support, and the claims it will not make on either."
         canonical="/proof"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.rolloutStrip}`}
         jsonLd={[
@@ -35,114 +77,150 @@ export default function Proof() {
             path: "/proof",
             name: "Blueprint proof boundaries",
             description:
-              "Explains public samples, request packets, and real robot validation boundaries.",
+              "How Blueprint separates raw capture from derived evidence and physical outcomes, and which claims it declines to make.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             { name: "Proof", path: "/proof" },
           ]),
-          faqJsonLd([
-            {
-              question: "Does the 0.929 result mean Blueprint claims 93% external accuracy?",
-              answer:
-                "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites it as research evidence for ranking workflows, not as an external accuracy guarantee.",
-            },
-            {
-              question: "What does a Task Evaluation Run return?",
-              answer:
-                "It returns per-claim outcomes, selected evidence methods, a validation envelope, uncertainty, disagreements, a claim ceiling, the next experiment, physical-evidence needs, and exact artifacts. A ranking appears only when supported; abstention never implies a winner.",
-            },
-          ]),
+          faqJsonLd(faqEntries),
         ]}
       />
 
-      <div className="bg-white text-slate-950">
-        <section className="border-b border-slate-200">
-          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-                {robotPolicyEvaluationBeachhead}
-              </p>
-              <h1 className="mt-4 max-w-[16ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Proof stays scoped.
-              </h1>
-              <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                {robotPolicyScreeningValue}
-              </p>
-              <p className="mt-4 max-w-md text-sm leading-7 text-slate-500">
-                SC3-Eval's published 0.929 correlation is third-party research
-                context, not a Blueprint result, accuracy claim, or deployment claim.
-              </p>
-              <a
-                href={requestHref}
-                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Request a Task Evaluation Run
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </div>
-            <img
-              src={wamPolicyEvalAssets.rolloutStrip}
-              alt="Generated preview / review support: rollout frames of a mobile robot navigating a warehouse aisle and making a rigid tote pick"
-              className="aspect-[16/6] w-full rounded-lg border border-slate-200 object-cover"
+      <PageHero
+        eyebrow="Proof boundaries"
+        title="Proof stays scoped."
+        body="Every number a run returns carries the conditions it was measured under. Outside them it is not a weaker claim — it is not a claim. This page is the short version of what we will and will not say, and why."
+        chips={["Raw capture outranks derived", "Research is context, not result", "Safety approval stays external"]}
+        ctaHref={runHref}
+        ctaLabel="Request a Task Evaluation Run"
+        secondaryHref="/how-it-works"
+        secondaryLabel="How it works"
+        imageSrc="/redesign/pov/inspection-bench.jpg"
+        imageAlt="An inspection bench task at a real working site"
+        imageCaption="Real capture · source of truth"
+      />
+
+      <Band tone="ink">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="01"
+            eyebrow="Three kinds of evidence"
+            title="They are not interchangeable, and we do not let them blur."
+            lede={robotPolicyEvaluationBeachhead}
+            onInk
+          />
+          <div className="mt-14 grid gap-x-10 gap-y-10 lg:grid-cols-3">
+            {sourceLayers.map((layer, index) => (
+              <Reveal key={layer.label} delay={index * 0.07}>
+                <div className="border-t border-white/15 pt-6">
+                  <span className="font-mono text-[11px] tracking-[0.2em] text-brass">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="mt-4 font-display text-[1.5rem] font-medium leading-[1.15] tracking-[-0.03em] text-[color:var(--text-on-ink)]">
+                    {layer.label}
+                  </h3>
+                  <p className="mt-3.5 max-w-[42ch] text-[14.5px] leading-[1.72] text-ink-300">
+                    {layer.body}
+                  </p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </Inner>
+      </Band>
+
+      <Band tone="canvas">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="02"
+            eyebrow="The boundary in practice"
+            title="Where an answer stops being an answer."
+            lede="The threshold, the interval, and the claim that will not resolve — this is the mechanism behind every honest no on this site."
+          />
+          <Reveal className="mt-14">
+            <ClaimThresholdChart
+              claims={homeClaims}
+              threshold={homeClaimThreshold}
+              metricLabel={homeClaimMetricLabel}
             />
-          </div>
-        </section>
+          </Reveal>
+          <Reveal className="mt-14">
+            <EvidenceLadderChart rungs={homeEvidenceRungs} />
+          </Reveal>
+        </Inner>
+      </Band>
 
-        <section className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-3 md:px-8">
-          {proofLayers.map(([title, body]) => (
-            <article key={title} className="rounded-lg border border-slate-200 bg-white p-6">
-              <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
-              <h2 className="mt-5 text-3xl font-semibold">{title}</h2>
-              <p className="mt-3 text-base leading-7 text-slate-600">{body}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="border-y border-slate-200 bg-slate-50">
-          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-[0.34fr_0.66fr] md:px-8">
-            <div>
-              <h2 className="text-3xl font-semibold">What we cite.</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                These papers support the category: generated or virtual policy
-                rollouts can be useful for comparing policies and diagnosing
-                failures. Blueprint still requires request-scoped evidence for
-                stronger operational claims.
-              </p>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {robotPolicyResearchSignals.map((signal) => (
+      <Band tone="paper" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="03"
+            eyebrow="What we cite"
+            title="Research can motivate a method. It cannot stand in for a result."
+            lede={robotPolicyResearchSignalsNote}
+          />
+          <div className="mt-14 grid gap-5 lg:grid-cols-2">
+            {robotPolicyResearchSignals.map((signal, index) => (
+              <Reveal key={signal.label} delay={index * 0.07}>
                 <a
-                  key={signal.label}
                   href={signal.href}
-                  className="rounded-lg border border-slate-200 bg-white p-5 hover:bg-slate-50"
+                  className="group flex h-full flex-col rounded-lg border border-line bg-white p-6 transition-colors hover:bg-inset"
                 >
-                  <h3 className="text-xl font-semibold">{signal.label}</h3>
-                  <p className="mt-3 text-sm font-semibold text-blue-700">{signal.stat}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{signal.body}</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="font-display text-[1.5rem] font-medium leading-[1.15] tracking-[-0.03em] text-ink-900">
+                      {signal.label}
+                    </h3>
+                    <ArrowUpRight
+                      className="mt-1 h-4 w-4 shrink-0 text-ink-400 transition-colors group-hover:text-brass-deep"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-brass-deep">
+                    {signal.stat}
+                  </p>
+                  <p className="mt-3 text-[14px] leading-[1.7] text-ink-500">{signal.body}</p>
                 </a>
-              ))}
-            </div>
+              </Reveal>
+            ))}
           </div>
-        </section>
+          <div className="mt-10">
+            <Reveal>
+              <ProofBoundary level="warn" title="On the 0.929 figure specifically">
+                SC3-Eval's published 0.929 closed-loop correlation is third-party
+                research context. It is not a Blueprint result, not an accuracy
+                claim, and not a statement about any site or policy of yours.
+              </ProofBoundary>
+            </Reveal>
+          </div>
+        </Inner>
+      </Band>
 
-        <section className="border-y border-slate-200 bg-slate-950 text-white">
-          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 md:grid-cols-[auto_1fr] md:items-start md:px-8">
-            <ShieldCheck className="h-10 w-10 text-blue-300" aria-hidden="true" />
-            <div>
-              <h2 className="text-3xl font-semibold">What we do not claim.</h2>
-              <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-                {robotPolicyEvaluationBoundary} Provenance-linked run evidence reports
-                metrics only inside the matched robot, task, and site envelope.
-              </p>
-              <p className="mt-4 max-w-4xl text-sm font-semibold leading-7 text-slate-200">
-                A Task Evaluation Run returns only the bounded decision, partial decision,
-                or abstention supported by its evidence envelope — never a safety certification.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
+      <FullBleedMedia
+        src="/redesign/pov/route-scan.jpg"
+        alt="A captured route through a real working site"
+        eyebrow="What we do not claim"
+        title="A run is evidence. It is not permission."
+        body={`${robotPolicyEvaluationBoundary} A result reports metrics only inside the matched robot, task, and site envelope — and never as a safety certification.`}
+      />
+
+      <Band tone="ink">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader index="04" eyebrow="Where we stop" title="The limits, stated plainly." onInk />
+          <NoteCards items={homeLimits} onInk className="mt-14" />
+        </Inner>
+      </Band>
+
+      <ClosingCta
+        eyebrow={closingCta.eyebrow}
+        title={closingCta.title}
+        body={closingCta.body}
+        primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof-cta"
+        primaryLabel="Request a Task Evaluation Run"
+        secondaryHref="/faq"
+        secondaryLabel="Read the FAQ"
+        imageSrc="/redesign/pov/cold-storage.jpg"
+        imageAlt="A cold-storage aisle used as a real-site task context"
+      />
     </>
   );
 }

@@ -5,7 +5,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
 
   await expect(
     page.getByRole('heading', {
-      name: /Turn a real site-task into a decision you can defend\./i,
+      name: /Answer it before you send a robot\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -18,12 +18,20 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
     page.getByRole('contentinfo').getByRole('link', { name: /^For Site Operators$/i }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /^Request a Task Evaluation Run$/i }).first()).toBeVisible();
+
+  // One service, and the lifecycle behind it.
   await expect(
-    page.locator('main').getByText(/One lifecycle from task to maintained evidence/i),
+    page.locator('main').getByText(/One service\. Priced per decision\./i),
   ).toBeVisible();
-  await expect(page.getByText(/^Real site-task$/i)).toBeVisible();
-  await expect(page.getByText(/^Maintained testbed$/i)).toBeVisible();
-  await expect(page.getByText(/^Decision or abstention$/i)).toBeVisible();
-  await expect(page.getByText(/A useful run does not have to name a winner/i)).toBeVisible();
-  await expect(page.getByText(/does not infer a winner from raw scores/i)).toBeVisible();
+  await expect(page.getByText(/^Bring one real task$/i)).toBeVisible();
+  await expect(page.getByText(/^We build the testbed$/i)).toBeVisible();
+  await expect(page.getByText(/^You get an answer with its limits$/i)).toBeVisible();
+
+  // Declining to decide is stated on the page, not implied.
+  await expect(page.getByText(/A run is allowed to tell you it cannot tell you/i)).toBeVisible();
+  await expect(page.getByText(/^Not yet$/i).first()).toBeVisible();
+  await expect(page.getByText(/is not reported as one/i)).toBeVisible();
+
+  // Figures carrying schematic values are marked as illustrative.
+  await expect(page.getByText(/^Illustrative$/i).first()).toBeVisible();
 });
