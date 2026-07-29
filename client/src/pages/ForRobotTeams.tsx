@@ -154,7 +154,8 @@ export default function ForRobotTeams() {
           <SectionHeader
             index="04"
             eyebrow="How the budget is spent"
-            title="We climb the ladder only as far as the claim requires."
+            title="We pay for the method the claim needs, and no more."
+            lede="Methods are qualified per claim, not ranked against each other. A costlier derived method does not outrank real capture — it covers conditions the capture could not."
           />
           <Reveal className="mt-14">
             <EvidenceLadderChart rungs={homeEvidenceRungs} />

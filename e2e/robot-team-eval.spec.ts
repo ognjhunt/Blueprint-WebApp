@@ -4,7 +4,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
-    page.getByRole("heading", { name: "Decide what deserves scarce robot time." }),
+    page.getByRole("heading", { name: "Spend field time on the candidate that earned it." }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
@@ -13,12 +13,16 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
 
 test("robot-team and site-operator pages describe one service and intake", async ({ page }) => {
   await page.goto("/for-robot-teams");
-  await expect(page.getByText(/explicit abstention/i).first()).toBeVisible();
+  // Declining to decide is still presented as an outcome, not omitted.
+  await expect(page.getByText(/A ranking is not the promise/i).first()).toBeVisible();
+  await expect(page.getByText(/^Not yet$/i).first()).toBeVisible();
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);
 
   await page.goto("/for-site-operators");
   await expect(
-    page.getByRole("heading", { name: "Turn one real task into a decision you can inspect." }),
+    page.getByRole("heading", {
+      name: "Find out what a robot could do here, before anyone shows up.",
+    }),
   ).toBeVisible();
   await expect(
     page.locator("main").getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),

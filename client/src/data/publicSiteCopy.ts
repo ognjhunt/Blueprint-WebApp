@@ -109,30 +109,40 @@ export const homeOutcomes: readonly OutcomeBand[] = [
   },
 ];
 
+// Ordered by relative cost to run, NOT by authority. Real capture is the source
+// of truth; a costlier derived method never outranks it. Each entry carries an
+// explicit `basis` so the public figure cannot be read as a proof hierarchy.
 export const homeEvidenceRungs: readonly EvidenceRung[] = [
   {
     label: "Geometry and reach",
+    basis: "Computed from capture",
     cost: 0.12,
     answers: "Whether the robot physically fits, reaches, and clears the space at all.",
   },
   {
     label: "Recorded real observations",
+    basis: "Real capture",
     cost: 0.3,
-    answers: "What actually happens at this site — traffic, lighting, clutter, timing.",
+    answers:
+      "What actually happens at this site — traffic, lighting, clutter, timing. The reference every derived method is checked against.",
     stopped: true,
   },
   {
     label: "Simulated rollouts",
+    basis: "Derived",
     cost: 0.52,
-    answers: "How a policy behaves across many variations of the task.",
+    answers: "How a policy behaves across many variations of the task, inside a stated envelope.",
   },
   {
     label: "Generated and model-based evidence",
+    basis: "Derived",
     cost: 0.71,
-    answers: "Coverage of conditions the capture did not contain, inside a stated envelope.",
+    answers:
+      "Advisory coverage of conditions the capture did not contain. Support for a claim, never ground truth for it.",
   },
   {
     label: "Evidence from real hardware",
+    basis: "Real world",
     cost: 0.94,
     answers: "The only thing that settles a physical claim. Sometimes there is no substitute.",
   },

@@ -27,7 +27,6 @@ import {
 
 import {
   motion,
-  useInView,
   useReducedMotion,
   useScroll,
   useSpring,
@@ -275,20 +274,24 @@ export function DrawIn({
   duration?: number;
 } & Omit<SVGMotionProps<SVGPathElement>, "d" | "className" | "ref">) {
   const { ref, armed } = useArmedReveal<SVGPathElement>();
-  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
 
   // Static branch renders the path fully drawn, so prerendered SVG is never blank.
   if (!armed) {
     return <path ref={ref} d={d} className={className} {...(pathProps as object)} />;
   }
 
+  // `whileInView` is deliberate: arming swaps the plain <path> for this
+  // motion.path, which unmounts the node `ref` pointed at. Driving the animation
+  // from an external useInView(ref) would leave the ref null and the path stuck
+  // invisible, so viewport detection is left to framer's own internal ref.
   return (
     <motion.path
       d={d}
       className={className}
       pathLength={1}
       initial={{ pathLength: 0, opacity: 0 }}
-      animate={{ pathLength: inView ? 1 : 0, opacity: inView ? 1 : 0 }}
+      whileInView={{ pathLength: 1, opacity: 1 }}
+      viewport={{ once: true, margin: "-10% 0px" }}
       transition={{
         pathLength: { duration, delay, ease: EASE_OUT_BP },
         opacity: { duration: 0.2, delay },

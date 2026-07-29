@@ -197,7 +197,7 @@ export default function Home() {
             index="06"
             eyebrow="How we spend your budget"
             title="The cheapest evidence that is actually good enough."
-            lede="You will not be asked to choose a simulator, a world model, or a provider. That choice depends on what each claim needs, which is exactly the part you are paying us to know."
+            lede="You will not be asked to choose a simulator, a world model, or a provider. That choice depends on what each claim needs, which is exactly the part you are paying us to know. Cheaper is about cost, not about proving less — real capture stays the reference, and derived methods stay support."
           />
           <Reveal className="mt-14">
             <EvidenceLadderChart rungs={homeEvidenceRungs} />

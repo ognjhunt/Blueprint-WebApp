@@ -279,21 +279,42 @@ export function RunLifecycleRail({
 
 export interface EvidenceRung {
   label: string;
-  /** Relative cost/effort, 0–1. Encodes bar length only. */
+  /** Relative cost/effort, 0–1. Encodes bar length only — never authority. */
   cost: number;
-  /** What this rung can actually establish. */
+  /** What this method can actually establish. */
   answers: string;
-  /** Marks the rung the illustrative run stopped at. */
+  /**
+   * Where the method's evidence comes from. Rendered as a visible tag so the
+   * cost ordering is never read as a ranking of authority: real capture and
+   * physical outcomes are the source of truth regardless of what a derived
+   * method costs.
+   */
+  basis: "Real capture" | "Computed from capture" | "Derived" | "Real world";
+  /** Marks the method the illustrative run stopped at. */
   stopped?: boolean;
 }
 
+const basisTone: Record<EvidenceRung["basis"], { fg: string; fgOnInk: string }> = {
+  "Real capture": { fg: "#1f6b4f", fgOnInk: "#3a9170" },
+  "Real world": { fg: "#1f6b4f", fgOnInk: "#3a9170" },
+  "Computed from capture": { fg: "#45443d", fgOnInk: "#a8a496" },
+  Derived: { fg: "#9a6a16", fgOnInk: "#d09a2c" },
+};
+
 /**
- * EvidenceLadderChart — ordered rungs of evidence by relative cost.
+ * EvidenceLadderChart — evidence methods ordered by **relative cost only**.
  *
  * Form: horizontal bars, one measure, one axis. Colour job is **emphasis** —
- * the rung the run stopped at wears the accent, every other rung wears the
- * de-emphasis gray. Bar length already encodes cost, so a ramp across the rungs
+ * the method the run stopped at wears the accent, every other one wears the
+ * de-emphasis gray. Bar length already encodes cost, so a ramp across the rows
  * would double-encode length as hue; it is deliberately not used.
+ *
+ * Important framing constraint: this is **not** a proof hierarchy. Cost order
+ * is not authority order. A costlier derived method (simulation, generated or
+ * model-based evidence) does not outrank cheaper real capture, and nothing here
+ * may imply that it does — capture-first is repo doctrine, and simulated or
+ * generated output is never ground truth. Each row therefore carries a visible
+ * basis tag, and methods are qualified per claim rather than ranked.
  */
 export function EvidenceLadderChart({
   rungs,
@@ -309,17 +330,19 @@ export function EvidenceLadderChart({
   return (
     <Figure
       title="We buy the cheapest evidence that is actually good enough"
-      subtitle="Each rung costs more and can support more. A run climbs only until the claim is answered, then stops."
+      subtitle="Ordered by what each method costs to run — not by how much it proves. A run uses the cheapest method qualified for the claim in front of it and stops there."
       illustrative
       onInk={onInk}
       tableView={
         <table className="w-full text-left text-[13px]">
           <caption className="sr-only">
-            Evidence rungs by relative cost, and what each rung can establish
+            Evidence methods by relative cost, what each can establish, and where
+            its evidence comes from. Cost order is not authority order.
           </caption>
           <thead>
             <tr className={onInk ? "text-ink-300" : "text-ink-500"}>
-              <th scope="col" className="py-1 pr-4 font-semibold">Rung</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Method</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Basis</th>
               <th scope="col" className="py-1 pr-4 font-semibold">Relative cost</th>
               <th scope="col" className="py-1 font-semibold">What it can establish</th>
             </tr>
@@ -331,6 +354,7 @@ export function EvidenceLadderChart({
                   {rung.label}
                   {rung.stopped ? " (run stopped here)" : ""}
                 </th>
+                <td className="py-2 pr-4">{rung.basis}</td>
                 <td className="py-2 pr-4 font-mono">{Math.round(rung.cost * 100)}</td>
                 <td className="py-2">{rung.answers}</td>
               </tr>
@@ -353,7 +377,7 @@ export function EvidenceLadderChart({
               onBlur={() => setHovered(null)}
               tabIndex={0}
             >
-              <div className="flex items-baseline gap-2 sm:block">
+              <div className="flex flex-wrap items-baseline gap-x-2 sm:block">
                 <p
                   className={cn(
                     "text-[13px] font-semibold leading-snug",
@@ -362,9 +386,17 @@ export function EvidenceLadderChart({
                 >
                   {rung.label}
                 </p>
+                {/* Basis tag: keeps real capture distinguishable from derived
+                    methods so the cost ordering cannot read as a proof ranking. */}
+                <p
+                  className="font-mono text-[10px] uppercase tracking-[0.12em] sm:mt-1"
+                  style={{ color: onInk ? basisTone[rung.basis].fgOnInk : basisTone[rung.basis].fg }}
+                >
+                  {rung.basis}
+                </p>
                 {isStopped ? (
                   <p
-                    className="font-mono text-[10px] uppercase tracking-[0.14em]"
+                    className="font-mono text-[10px] uppercase tracking-[0.14em] sm:mt-0.5"
                     style={{ color: accent }}
                   >
                     Stopped here
@@ -408,15 +440,23 @@ export function EvidenceLadderChart({
         })}
       </div>
 
-      <p
+      <div
         className={cn(
-          "mt-6 border-t pt-4 text-[12.5px] leading-[1.65]",
+          "mt-6 space-y-2 border-t pt-4 text-[12.5px] leading-[1.65]",
           onInk ? "border-white/10 text-ink-300" : "border-line-soft text-ink-500",
         )}
       >
-        Bar length is relative cost only. Which rung a claim actually needs is
-        decided per run — you never pick the method.
-      </p>
+        <p>
+          Bar length is relative cost only. Which method a claim actually needs is
+          decided per run — you never pick it.
+        </p>
+        <p>
+          Cost is not authority. Real capture is the source of truth, and a
+          costlier derived method never outranks it: simulated, generated, and
+          model-based evidence is support that has to be qualified for the
+          specific claim, and it is not ground truth at any price.
+        </p>
+      </div>
     </Figure>
   );
 }
