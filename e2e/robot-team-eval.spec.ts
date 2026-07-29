@@ -4,7 +4,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
-    page.getByRole("heading", { name: "Decide what deserves scarce robot time." }),
+    page.getByRole("heading", { name: "Spend field time where it will actually pay." }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
@@ -18,7 +18,7 @@ test("robot-team and site-operator pages describe one service and intake", async
 
   await page.goto("/for-site-operators");
   await expect(
-    page.getByRole("heading", { name: "Turn one real task into a decision you can inspect." }),
+    page.getByRole("heading", { name: "Your site is the test. Keep control of it." }),
   ).toBeVisible();
   await expect(
     page.locator("main").getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),

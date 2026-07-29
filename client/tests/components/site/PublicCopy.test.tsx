@@ -35,14 +35,14 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Turn a real site-task into a decision you can defend/i,
+        name: /Know what the real site will do to your robot/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/Maintained testbed/i);
-    expect(container).toHaveTextContent(/Cheapest qualified evidence/i);
-    expect(container).toHaveTextContent(/Decision or abstention/i);
-    expect(container).toHaveTextContent(/Physical learning loop/i);
+    expect(container).toHaveTextContent(/Pin the testbed/i);
+    expect(container).toHaveTextContent(/Plan the evidence/i);
+    expect(container).toHaveTextContent(/Decide or abstain/i);
+    expect(container).toHaveTextContent(/Name the next test/i);
     expect(container).toHaveTextContent(/does not infer a winner from raw scores/i);
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);
     expect(container).not.toHaveTextContent(/Robot Match/i);

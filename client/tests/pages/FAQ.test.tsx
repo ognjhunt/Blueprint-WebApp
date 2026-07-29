@@ -8,7 +8,7 @@ describe("FAQ", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /One product, explicit evidence boundaries\./i,
+        name: /One product, and the boundaries printed on it\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/What does Blueprint sell\?/i)).toBeInTheDocument();

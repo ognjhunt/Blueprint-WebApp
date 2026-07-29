@@ -26,6 +26,7 @@ import Governance from "../client/src/pages/Governance";
 import FAQ from "../client/src/pages/FAQ";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotTeams from "../client/src/pages/ForRobotTeams";
+import Proof from "../client/src/pages/Proof";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -219,18 +220,6 @@ const PrerenderForgotPassword = () => (
   />
 );
 
-const PrerenderProofSummary = () => (
-  <MinimalStaticPage
-    title="Proof | Blueprint"
-    description="Blueprint keeps Task Evaluation Run claims scoped to the site, task, robot, and evidence behind each run."
-    heading="Proof stays scoped"
-    body="A Task Evaluation Run may return a bounded decision, partial decision, or abstention inside its evidence envelope, never a safety certification. Physical claims still require authoritative physical evidence."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run"
-    primaryLabel="Request a Task Evaluation Run"
-    canonical="/proof"
-  />
-);
-
 const PrerenderCaptureLaunchAccessSummary = () => (
   <MinimalStaticPage
     title="Capture Launch Access | Blueprint"
@@ -265,7 +254,9 @@ const staticRoutes: StaticRoute[] = [
   // them (WSPEC context: the summary shell made /pricing look price-free).
   { path: "/pricing", component: Pricing },
   { path: "/sites", component: Sites },
-  { path: "/proof", component: PrerenderProofSummary, shell: "bare" },
+  // /proof is a linked public page carrying the claim-ceiling boundaries, so it
+  // prerenders as the real component rather than a summary shell.
+  { path: "/proof", component: Proof },
   { path: "/faq", component: FAQ },
   // /for-robot-teams is the canonical citation target advertised in the
   // sitemap and llms.txt, so crawlers must see the real page, not a summary

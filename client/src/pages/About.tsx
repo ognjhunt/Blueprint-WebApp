@@ -1,51 +1,48 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { CinematicMedia, Reveal, Stagger } from "@/components/site/motion";
+import {
+  Accent,
+  BigCta,
+  MonoNote,
+  Section,
+  SectionHead,
+  StatementList,
+} from "@/components/site/publicSections";
+import {
+  robotPolicyEvaluationBeachhead,
+  robotPolicyScreeningValue,
+} from "@/data/robotPolicyEvaluationClaims";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-import { Button, Eyebrow } from "@/components/blueprint";
-import {
-  EditorialCtaBand,
-  EditorialSectionIntro,
-  MonochromeMedia,
-} from "@/components/site/editorial";
-import { TileGrid } from "@/components/site/TileGrid";
-import {
-  robotPolicyScreeningValue,
-  robotPolicyEvaluationBeachhead,
-} from "@/data/robotPolicyEvaluationClaims";
-
-const statStrip = [
-  { label: "Primary offer", value: "1", caption: "Task Evaluation Run" },
-  { label: "Valid outcomes", value: "4+", caption: "Positive · negative · partial · abstained" },
-  { label: "Method authority", value: "Pipeline", caption: "Qualified, claim-specific routing" },
-  { label: "Proof boundary", value: "Always on", caption: "Envelope, ceiling, and provenance" },
+const structuralFacts = [
+  { value: "1", label: "Customer-facing product", caption: "A Task Evaluation Run. Nothing else is sold." },
+  { value: "5", label: "Ways a run can end", caption: "Positive · negative · partial · abstained · next test named" },
+  { value: "0", label: "Backend choices you make", caption: "Method selection is per claim, and it is ours" },
+  { value: "∞", label: "Times a claim can be traced", caption: "Capture, rights, version, digest, permitted use" },
 ];
 
 const principles = [
   {
-    eyebrow: "Principle 01",
-    label: "Capture first, claim later.",
-    description:
-      "Every world model starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
+    title: "Capture first. Claim later.",
+    body: "Every testbed starts as one real place, walked and recorded with timestamps, poses, device metadata, and a rights record. Derived geometry, simulation, and generated media never outrank the capture they came from.",
   },
   {
-    eyebrow: "Principle 02",
-    label: "Estimates, never guarantees.",
-    description:
-      "Candidate comparison is reported only when the evidence supports ordering. We preserve partial decisions and abstention and do not promise field deployment or guaranteed outcomes.",
+    title: "An estimate is never a guarantee.",
+    body: "We report what the evidence supports inside a stated envelope. Partial decisions and explicit abstention are first-class results, and no run promises field success, deployment, or safety approval.",
   },
   {
-    eyebrow: "Principle 03",
-    label: "Generated media is review support.",
-    description:
-      "Simulated and generated frames help a team read a run. They are always labeled as review support — never presented as real-world proof.",
+    title: "Generated frames are review support.",
+    body: "Simulated and generated material helps a team read a run. It is labelled as review support everywhere it appears, and it is never shown as real-world proof.",
   },
   {
-    eyebrow: "Principle 04",
-    label: "Rights stay attached.",
-    description:
-      "Rights, privacy, provenance, and hosted-access boundaries travel with the listing and manifest, not with marketing copy.",
+    title: "Rights travel with the evidence.",
+    body: "Consent, privacy, restricted areas, and permitted use live on the artifact and the manifest — not in marketing copy, and not in someone's memory of a conversation.",
+  },
+  {
+    title: "The expensive resource is field time.",
+    body: "Everything we build exists to make one real site usable before that clock starts, and to be honest about the questions only a real robot on a real floor can settle.",
   },
 ];
 
@@ -70,145 +67,136 @@ export default function About() {
         ]}
       />
 
-      <div className="bg-canvas text-ink">
-        {/* Hero — prose, max-w-prose (44rem) */}
-        <section className="border-b border-line">
-          <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
-            <div className="max-w-prose">
-              <Eyebrow tone="brass" rule>
+      {/* ---------------------------------------------------------- hero ---- */}
+      <section className="relative isolate overflow-hidden bg-ink">
+        <div aria-hidden className="bp-evidence-grid absolute inset-0 opacity-[0.12]" />
+        <div className="relative mx-auto max-w-[88rem] px-5 pb-16 pt-16 sm:px-8 lg:px-10 lg:pb-20 lg:pt-24">
+          <Reveal y="1.75rem" className="max-w-[52rem]">
+            <div className="flex items-center gap-4">
+              <span aria-hidden className="h-px w-10 bg-brass/70" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-brass">
                 About Blueprint
-              </Eyebrow>
-              <h1 className="font-editorial mt-6 text-[clamp(2.6rem,5vw,4.2rem)] font-medium leading-[0.96] tracking-[-0.045em] text-ink">
-                Blueprint turns one real site into a decision a robot team can trust.
-              </h1>
-              <p className="mt-6 text-lg leading-[1.7] text-ink-600">
-                {robotPolicyScreeningValue}
-              </p>
-              <p className="mt-4 text-lg leading-[1.7] text-ink-600">
-                {robotPolicyEvaluationBeachhead}
-              </p>
-              <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
-                We report bounded per-claim decisions, partial decisions, or explicit
-                abstention—never a guaranteed ranking, safety certification, or
-                deployment-readiness claim. The next experiment is chosen from the evidence
-                gap instead of a fixed backend promise.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Button asChild variant="brass" size="lg">
-                  <a href="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about">
-                    Request a Task Evaluation Run
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </a>
-                </Button>
-                <Button asChild variant="secondary" size="lg">
-                  <a href="/how-it-works">See how it works</a>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4-col stat strip — mono values, hairline-separated */}
-        <section className="border-b border-line">
-          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-10">
-            <dl className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x lg:divide-line">
-              {statStrip.map((stat, index) => (
-                <div
-                  key={stat.label}
-                  className={
-                    "flex flex-col gap-2 py-8 lg:px-8 " +
-                    (index === 0 ? "lg:pl-0" : "") +
-                    (index % 2 === 1 ? " sm:border-l sm:border-line lg:border-l-0" : "")
-                  }
-                >
-                  <dt className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-                    {stat.label}
-                  </dt>
-                  <dd className="font-mono text-[2rem] font-medium leading-none tracking-tight text-ink">
-                    {stat.value}
-                  </dd>
-                  <p className="text-[13px] leading-snug text-ink-500">{stat.caption}</p>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        {/* Mission editorial — image + Newsreader pull quote */}
-        <section className="border-b border-line bg-white">
-          <div className="mx-auto grid max-w-[88rem] items-stretch gap-4 px-5 py-12 sm:px-8 lg:grid-cols-[0.46fr_0.54fr] lg:px-10 lg:py-16">
-            <MonochromeMedia
-              src="/redesign/robot-hero.png"
-              alt="Robot at work inside a captured real-world site (review support, not real-world proof)"
-              className="min-h-[24rem] lg:min-h-[30rem]"
-              imageClassName="min-h-[24rem] lg:min-h-[30rem]"
-              overlay="soft"
-            >
-              <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-sm border border-white/15 bg-black/40 px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[color:var(--text-on-ink)]">
-                Review support · not real-world proof
               </span>
-            </MonochromeMedia>
-            <div className="flex flex-col justify-center lg:pl-4">
-              <Eyebrow tone="muted" rule>
-                The mission
-              </Eyebrow>
-              <blockquote className="font-editorial mt-6 text-[clamp(1.8rem,3vw,2.8rem)] font-medium leading-[1.08] tracking-[-0.035em] text-ink">
-                “The expensive part of robotics is field time. Our job is to make one real
-                site usable before that clock starts — with proof a serious team can
-                actually read.”
-              </blockquote>
-              <p className="mt-6 max-w-[34rem] text-[15px] leading-[1.7] text-ink-600">
-                Blueprint was built by Nijel Hunt around the gap between an interesting
-                robotics demo and serious, site-specific deployment work. Background in
-                robotics simulation, 3D capture, and deployment operations.
-              </p>
             </div>
-          </div>
-        </section>
+            <h1 className="mt-7 font-display text-[clamp(2.5rem,5.2vw,4.8rem)] font-medium leading-[0.99] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
+              The gap between a good demo and a real building.
+            </h1>
+            <p className="mt-7 max-w-[40rem] text-[1.0625rem] leading-[1.75] text-white/70">
+              {robotPolicyScreeningValue}
+            </p>
+            <p className="mt-4 max-w-[40rem] text-[15px] leading-[1.75] text-white/55">
+              {robotPolicyEvaluationBeachhead}
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a
+                href="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about"
+                className="inline-flex h-12 items-center justify-center gap-2 bg-brass px-6 text-sm font-semibold tracking-[-0.01em] text-ink transition-colors duration-200 hover:bg-brass-lit"
+              >
+                Request a Task Evaluation Run
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href="/how-it-works"
+                className="inline-flex h-12 items-center justify-center border border-white/25 px-6 text-sm font-semibold tracking-[-0.01em] text-[color:var(--text-on-ink)] transition-colors duration-200 hover:border-white/50 hover:bg-white/5"
+              >
+                See how it works
+              </a>
+            </div>
+          </Reveal>
+        </div>
 
-        {/* Principles — 2-col TileGrid */}
-        <section className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
-          <EditorialSectionIntro
-            eyebrow="What we hold to"
-            title="Four principles that keep the product honest."
-            description="These are the rules that decide what Blueprint shows, what it labels, and what it refuses to claim."
-            className="max-w-3xl"
-          />
-          <TileGrid cols={2} className="mt-8">
-            {principles.map((item) => (
-              <div key={item.label} className="flex h-full flex-col gap-5 bg-white p-6 lg:p-8">
-                <span className="text-micro font-semibold uppercase tracking-eyebrow text-brass-deep">
-                  {item.eyebrow}
-                </span>
-                <div>
-                  <h3 className="font-editorial text-[1.7rem] leading-[1.02] tracking-[-0.035em] text-ink">
-                    {item.label}
-                  </h3>
-                  <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
-                    {item.description}
-                  </p>
-                </div>
+        {/* Structural facts — countable properties of the product, not traction. */}
+        <div className="relative border-t border-white/10">
+          <Stagger className="mx-auto grid max-w-[88rem] gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4" step={70}>
+            {structuralFacts.map((fact) => (
+              <div key={fact.label} className="bg-ink px-5 py-8 sm:px-8">
+                <p className="font-mono text-[2.5rem] font-medium leading-none text-brass">
+                  {fact.value}
+                </p>
+                <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
+                  {fact.label}
+                </p>
+                <p className="mt-2 text-[13px] leading-6 text-white/60">{fact.caption}</p>
               </div>
             ))}
-          </TileGrid>
-        </section>
+          </Stagger>
+        </div>
+      </section>
 
-        {/* CTA band */}
-        <section className="mx-auto max-w-[88rem] px-5 pb-14 sm:px-8 lg:px-10 lg:pb-20">
-          <EditorialCtaBand
-            eyebrow="Next step"
-            title="Start with the public proof or bring one exact site-task."
-            description="Browse captured sites as possible testbed inputs, or contact Blueprint when the decision question is already known."
-            imageSrc="/redesign/pov/factory-conveyor.jpg"
-            imageAlt="Captured warehouse conveyor site (review support, not real-world proof)"
-            primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about-cta"
-            primaryLabel="Request a Task Evaluation Run"
-            secondaryHref="/sites"
-            secondaryLabel="Explore captured sites"
-            dark
-          />
-        </section>
-      </div>
+      {/* -------------------------------------------------------- mission ---- */}
+      <Section tone="white" innerClassName="py-16 lg:py-24">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
+          <Reveal>
+            <CinematicMedia
+              src="/redesign/robot-hero.png"
+              alt="Robot at work inside a captured real-world site"
+              caption="Review support · not real-world proof"
+              meta="Illustrative"
+              wash="soft"
+              className="aspect-[4/5] w-full sm:aspect-[4/3] lg:aspect-[4/5]"
+            />
+          </Reveal>
+
+          <Reveal delay={100}>
+            <div className="flex items-center gap-4">
+              <span aria-hidden className="h-px w-10 bg-brass-deep/60" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-ink-500">
+                The mission
+              </span>
+            </div>
+            <blockquote className="mt-7 font-display text-[clamp(1.8rem,3.2vw,2.9rem)] font-medium leading-[1.08] tracking-[-0.035em] text-ink-900">
+              “The expensive part of robotics is field time. Our job is to make one real site
+              usable before that clock starts — with proof a serious team can actually read.”
+            </blockquote>
+            <p className="mt-7 max-w-[34rem] text-[15px] leading-[1.75] text-ink-600">
+              Blueprint was built by Nijel Hunt around the gap between an interesting robotics demo
+              and serious, site-specific deployment work. Background in robotics simulation, 3D
+              capture, and deployment operations.
+            </p>
+            <div className="mt-7">
+              <MonoNote label="Why one product">
+                Every extra SKU is another chance to sell a claim the evidence cannot carry. One
+                run, scoped to one decision, is harder to fake and easier to check.
+              </MonoNote>
+            </div>
+          </Reveal>
+        </div>
+      </Section>
+
+      {/* ----------------------------------------------------- principles ---- */}
+      <Section tone="canvas">
+        <SectionHead
+          index="01"
+          eyebrow="What we hold to"
+          title={
+            <>
+              Five rules that decide what we <Accent>refuse to say</Accent>.
+            </>
+          }
+          lede="These are the constraints behind every page on this site: what gets shown, what gets labelled, and what never gets claimed regardless of how well it would sell."
+          align="wide"
+        />
+        <div className="mt-12">
+          <StatementList items={principles} />
+        </div>
+      </Section>
+
+      <BigCta
+        eyebrow="Next step"
+        title={
+          <>
+            Bring one exact site-task. <br className="hidden sm:block" />
+            We will tell you what it can prove.
+          </>
+        }
+        body="Browse captured sites as possible testbed inputs, or come straight to us when the decision question is already known."
+        imageSrc="/redesign/pov/factory-conveyor.jpg"
+        imageAlt="Captured warehouse conveyor site"
+        primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=about-cta"
+        primaryLabel="Request a Task Evaluation Run"
+        secondaryHref="/sites"
+        secondaryLabel="Explore captured sites"
+      />
     </>
   );
 }

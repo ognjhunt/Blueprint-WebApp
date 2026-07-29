@@ -14,11 +14,11 @@ describe("Governance", () => {
 
     expect(screen.getAllByText(/^Rights stay explicit$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted access stays bounded$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^No claims beyond the listing$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^No claims beyond the record$/i).length).toBeGreaterThan(0);
 
     expect(
       screen.getByRole("heading", {
-        name: /Every world model passes the same four gates\./i,
+        name: /Every capture passes\s+the same four gates/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Rights$/i).length).toBeGreaterThan(0);
@@ -27,19 +27,19 @@ describe("Governance", () => {
     expect(screen.getAllByText(/^Scope limits$/i).length).toBeGreaterThan(0);
 
     expect(
-      screen.getByRole("heading", { name: /Six commitments we hold on every world model\./i }),
+      screen.getByRole("heading", { name: /Six commitments that hold\s+on every capture/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What stays attached to a listing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rights packet · example/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights packet · example/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/We label generated and simulated media as review support/i),
+      screen.getByText(/Generated and simulated media is labelled review support/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/We honor takedown, refresh, redaction, and revocation requests/i),
+      screen.getByText(/Takedown, refresh, redaction, and revocation requests are honored/i),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", { name: /The line we will not cross\./i }),
+      screen.getByRole("heading", { name: /The line we\s+will not cross/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/No capture of restricted or private areas/i),

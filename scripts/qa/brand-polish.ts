@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Turn a real site-task into a decision you can defend.",
+    expectedHeading: "Know what the real site will do to your robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Turn a real site-task into a decision you can defend.",
+    expectedHeading: "Know what the real site will do to your robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Price the decision and evidence it actually requires.",
+    expectedHeading: "You pay for the evidence the decision needs.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
@@ -201,7 +201,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Proof",
     path: "/proof",
     canonicalPath: "/proof",
-    expectedHeading: "Proof stays scoped.",
+    expectedHeading: "What we claim, and what we refuse to.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
@@ -240,14 +240,14 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "FAQ",
     path: "/faq",
     canonicalPath: "/faq",
-    expectedHeading: "One product, explicit evidence boundaries.",
+    expectedHeading: "One product, and the boundaries printed on it.",
     requiredCtas: [],
   },
   {
     label: "About",
     path: "/about",
     canonicalPath: "/about",
-    expectedHeading: "Blueprint turns one real site into a decision a robot team can trust.",
+    expectedHeading: "The gap between a good demo and a real building.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "See how it works", hrefStartsWith: "/how-it-works" },
@@ -257,7 +257,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Turn a real site-task into a decision you can defend.",
+    expectedHeading: "Know what the real site will do to your robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },

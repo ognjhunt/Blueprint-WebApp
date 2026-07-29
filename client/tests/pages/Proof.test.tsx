@@ -3,30 +3,37 @@ import { describe, expect, it } from "vitest";
 import Proof from "@/pages/Proof";
 
 describe("Proof page", () => {
-  it("renders the concise proof explainer", () => {
+  it("renders the claim-boundary explainer", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /Proof stays scoped\./i }),
+      screen.getByRole("heading", { name: /What we claim, and what we refuse to\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/third-party research context, not a Blueprint result, accuracy claim, or deployment claim/i),
+      screen.getByText(/not a Blueprint result, an accuracy claim, or a deployment claim/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Research signal$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Owner proof$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Scopes one site, task, robot, policy set, and threshold/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^The request packet$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^Evidence gathered for that packet$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^Research signals, clearly labelled$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/One site, one task, one decision/i)).toBeInTheDocument();
   });
 
-  it("keeps the claim boundary and request CTA visible", () => {
+  it("keeps the claim ceiling and request CTA visible", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /What we do not claim\./i }),
+      screen.getByRole("heading", { name: /What a run carries, and what sits above the line/i }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/Above the ceiling/i).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Estimates are not physical guarantees, safety approval remains external/i),
-    ).toBeInTheDocument();
+      screen.getAllByText(/Estimates are not physical guarantees, safety approval remains external/i)
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/never a safety certification/i)).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /^Request a Task Evaluation Run$/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));

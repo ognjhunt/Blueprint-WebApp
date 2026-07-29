@@ -7,15 +7,14 @@ test("pricing page presents one scoped Task Evaluation Run", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "Price the decision and evidence it actually requires.",
+      name: "You pay for the evidence the decision needs.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Scoped quote", exact: true }),
+    page.getByRole("heading", { name: "What no quote will include.", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "What the scope covers", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText(/Where a run sits on each axis/i)).toBeVisible();
+  await expect(page.getByText(/Conceptual ranges, not a price table/i)).toBeVisible();
   await expect(page.getByText(/\$3,000/)).toHaveCount(0);
   await expect(page.getByText(/\$5,000/)).toHaveCount(0);
   await expect(page.getByText(/No guaranteed outcome/i)).toBeVisible();

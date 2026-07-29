@@ -8,18 +8,18 @@ describe("About", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Blueprint turns one real site into a decision a robot team can trust\./i,
+        name: /The gap between a good demo and a real building\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/built by Nijel Hunt/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Four principles that keep the product honest\./i }),
+      screen.getByRole("heading", { name: /Five rules that decide what we\s+refuse to say/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Capture first, claim later\.$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Rights stay attached\.$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Capture first\. Claim later\.$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Rights travel with the evidence\.$/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Start with the public proof or bring one exact site-task\./i,
+        name: /Bring one exact site-task\./i,
       }),
     ).toBeInTheDocument();
     const siteLinks = screen.getAllByRole("link", { name: /Explore captured sites/i });
