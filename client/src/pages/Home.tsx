@@ -297,7 +297,7 @@ export default function Home() {
               Same run, same result contract, <Accent>different first question</Accent>.
             </>
           }
-          lede="Robot teams usually arrive with candidates and a field-time decision. Site operators usually arrive with a task and no candidates yet. Both end up in the same intake."
+          lede="The robot-team path starts from candidates and a field-time decision. The site-operator path starts from a task with no candidates yet. Both end in the same intake."
           align="wide"
         />
         <Stagger className="mt-14 grid gap-6 lg:grid-cols-2" step={110}>

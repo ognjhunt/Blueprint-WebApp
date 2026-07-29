@@ -9,9 +9,12 @@
 import {
   useEffect,
   useRef,
+  useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
+
+import { Pause, Play } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -252,7 +255,9 @@ type MarqueeItem = {
 
 /**
  * CapturedSitesMarquee — a continuously scrolling rail of large captured-site
- * stills. Pauses on hover/focus; static under reduced motion.
+ * stills. Static under reduced motion, pauses on hover, and carries an explicit
+ * keyboard-reachable pause control: hover and `:focus-within` alone cannot be
+ * triggered by a keyboard user, since the images are not focusable.
  */
 export function CapturedSitesMarquee({
   items,
@@ -264,6 +269,7 @@ export function CapturedSitesMarquee({
   durationSeconds?: number;
 }) {
   const doubled = [...items, ...items];
+  const [paused, setPaused] = useState(false);
 
   return (
     <div
@@ -273,7 +279,12 @@ export function CapturedSitesMarquee({
     >
       <div
         className="bp-marquee-track flex w-max gap-4"
-        style={{ "--bp-marquee-dur": `${durationSeconds}s` } as CSSProperties}
+        style={{
+          "--bp-marquee-dur": `${durationSeconds}s`,
+          // Only set the play state while paused, so the hover rule in
+          // index.css still wins for pointer users when it is running.
+          ...(paused ? { animationPlayState: "paused" } : null),
+        } as CSSProperties}
       >
         {doubled.map((item, index) => (
           <figure
@@ -295,6 +306,24 @@ export function CapturedSitesMarquee({
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-[linear-gradient(90deg,var(--bp-ink),transparent)]" />
       <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(270deg,var(--bp-ink),transparent)]" />
+
+      <button
+        type="button"
+        onClick={() => setPaused((previous) => !previous)}
+        aria-pressed={paused}
+        className={cn(
+          "absolute right-4 top-4 z-10 inline-flex items-center gap-2 border border-white/20 bg-ink/80 px-3 py-1.5",
+          "font-mono text-[10px] uppercase tracking-[0.18em] text-white/70 backdrop-blur-[2px] transition-colors",
+          "hover:border-white/45 hover:text-[color:var(--text-on-ink)]",
+          "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-brass",
+          // The rail does not move under reduced motion, so the control would
+          // be a no-op there.
+          "motion-reduce:hidden",
+        )}
+      >
+        {paused ? <Play className="h-3 w-3" aria-hidden /> : <Pause className="h-3 w-3" aria-hidden />}
+        {paused ? "Play rail" : "Pause rail"}
+      </button>
     </div>
   );
 }

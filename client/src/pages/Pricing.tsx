@@ -159,7 +159,7 @@ export default function Pricing() {
                   Seven things change the number. <Accent>None of them is a tier</Accent>.
                 </>
               }
-              lede="A screening question answered from geometry and existing capture sits at one end. A safety-adjacent question that needs a robot on the floor sits at the other. Most first runs land nearer the cheap end than teams expect, because the first useful answer is usually an elimination."
+              lede="A screening question answered from geometry and existing capture sits at one end. A safety-adjacent question that needs a robot on the floor sits at the other. A run can be scoped near the cheap end whenever an elimination would already settle the decision — a candidate that cannot fit or reach is answerable without simulation at all."
             />
             <div className="mt-8">
               <MonoNote label="Server-owned">
@@ -174,7 +174,7 @@ export default function Pricing() {
             eyebrow="Figure 01 — Scope drivers"
             title="Where a run sits on each axis"
             kind="concept"
-            note="Conceptual ranges, not a price table. Markers indicate where first runs commonly sit on each axis; your quote comes from your own decision and evidence, and no figure here implies a dollar amount."
+            note="Conceptual ranges, not a price table. The markers show one illustrative scoping across the axes, not a distribution of completed runs; your own quote comes from your own decision and evidence, and no figure here implies a dollar amount."
           >
             <ScopeDriverFigure />
           </FigureFrame>

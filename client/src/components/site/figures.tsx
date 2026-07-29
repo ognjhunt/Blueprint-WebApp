@@ -777,7 +777,10 @@ export type ScopeDriver = {
   factor: string;
   low: string;
   high: string;
-  /** Where a typical first run tends to sit, 0–100. Illustrative. */
+  /**
+   * Marker position for one illustrative scoping, 0–100. Not a distribution of
+   * completed runs — there is no operational record behind these positions.
+   */
   marker: number;
 };
 
@@ -793,7 +796,8 @@ export const scopeDrivers: ScopeDriver[] = [
 
 /**
  * ScopeDriverFigure — what moves a quote, without inventing a price. Each row
- * is a range with a marker for where a first run commonly sits.
+ * is a range with a marker showing one illustrative scoping along it. The
+ * markers are not a claim about where completed runs have landed.
  */
 export function ScopeDriverFigure({ drivers = scopeDrivers }: { drivers?: ScopeDriver[] }) {
   const ref = useInViewRef<HTMLDivElement>({ amount: 0.12 });

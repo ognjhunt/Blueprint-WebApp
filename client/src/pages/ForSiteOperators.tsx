@@ -136,7 +136,7 @@ export default function ForSiteOperators() {
               Start from the task. <Accent>Candidates are optional</Accent>.
             </>
           }
-          lede="Robot teams usually arrive with candidates. You can arrive with nothing but a workflow that has to keep running — and still get a decision you can defend."
+          lede="The robot-team path starts from candidates. Yours can start with nothing but a workflow that has to keep running — and still end in a decision you can defend."
           align="wide"
         />
         <div className="mt-12">
