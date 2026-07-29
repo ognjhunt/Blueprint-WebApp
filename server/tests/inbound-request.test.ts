@@ -468,7 +468,7 @@ describe("inbound request route", () => {
           "evidence_validation_needs",
         ]),
       );
-      expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/exact-site proof path/i);
+      expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/site-task and decision path/i);
       expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/recommended/i);
       expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_recommended_scoping_call");
       expect(logGrowthEvent).toHaveBeenCalledWith(

@@ -1,124 +1,47 @@
 import { render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
+import { describe, expect, it } from "vitest";
 
-import RunDetail from "@/pages/app/RunDetail";
+import { validDecisionEnvelope } from "../../../server/tests/helpers/decision-evidence-fixtures";
+import { DecisionResult } from "@/pages/app/RunDetail";
 
-const getIdToken = vi.fn(async () => "token-1");
-
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    currentUser: {
-      uid: "buyer-1",
-      email: "buyer@example.com",
-      displayName: "Buyer One",
-      getIdToken,
-    },
-    userData: null,
-    loading: false,
-  }),
-}));
-
-vi.mock("wouter", async () => {
-  const actual = await vi.importActual<typeof import("wouter")>("wouter");
-  return {
-    ...actual,
-    useParams: () => ({ runId: "job-1" }),
-  };
-});
-
-function renderWithQueryClient(ui: ReactElement) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function requestUrl(input: RequestInfo | URL): string {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.toString();
-  return input.url;
-}
-
-function stubRunDetailApi(handler: () => Response) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = requestUrl(input);
-    if (url.includes("/api/robot-eval/job-requests/job-1/status")) {
-      return handler();
-    }
-    if (url.includes("/api/marketplace/entitlements/current")) {
-      return jsonResponse({ entitlement: null, access: null, entitlements: [] });
-    }
-    return jsonResponse({});
-  });
-  global.fetch = fetchMock as unknown as typeof fetch;
-  return fetchMock;
-}
-
-describe("app/RunDetail", () => {
-  it("renders only the stored run record fields for a buyer-owned run", async () => {
-    stubRunDetailApi(() =>
-      jsonResponse({
-        ok: true,
-        job_id: "job-1",
-        status: "queued_for_pipeline",
-        pipeline_status: "staged_for_control_plane",
-        site_slug: "atlanta-cafe",
-        site_submission_id: "scene-1:capture-1",
-        entitlement_id: "ent-1",
-        entitlement_sku: "atlanta-cafe-robot-eval-run",
-        created_at_iso: "2026-07-02T00:00:00.000Z",
-        updated_at_iso: "2026-07-02T00:00:00.000Z",
-        error: null,
-        result_artifacts: {},
-        proof_boundary: { simulator_execution_proven: false },
-      }),
-    );
-
-    renderWithQueryClient(<RunDetail />);
-
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "atlanta-cafe" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("job-1")).toBeInTheDocument();
-    expect(screen.getAllByText("Queued").length).toBeGreaterThan(0);
-    expect(screen.getByText("staged_for_control_plane")).toBeInTheDocument();
-    expect(screen.getByText("scene-1:capture-1")).toBeInTheDocument();
-    expect(screen.getByText("ent-1")).toBeInTheDocument();
-    expect(screen.getAllByText("2026-07-02T00:00:00.000Z").length).toBe(2);
-    expect(screen.getByText("simulator execution proven")).toBeInTheDocument();
-    expect(screen.getByText("false")).toBeInTheDocument();
-    // No fabricated result sections when the store has none.
-    expect(screen.queryByText("Result artifacts")).not.toBeInTheDocument();
+describe("Task Evaluation Run result hierarchy", () => {
+  it("renders partial decision evidence, envelope, warnings, next experiment, and exact artifact", () => {
+    render(<DecisionResult envelope={validDecisionEnvelope()} />);
+    expect(screen.getByText("Partial decision")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Claims answered, rejected, and unresolved/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Validation envelope and unsupported conditions/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Disagreements and correlated evidence/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Claim ceiling/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Next cheapest experiment/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Physical evidence still needed/i })).toBeInTheDocument();
+    expect(screen.getByText(/version 1.0.0/i)).toBeInTheDocument();
+    expect(screen.getAllByText(`sha256:${"a".repeat(64)}`).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Post-training not eligible/i)).toBeInTheDocument();
   });
 
-  it("renders an honest not-found state when the server has no buyer-owned record", async () => {
-    stubRunDetailApi(() =>
-      jsonResponse(
-        { error: "Robot eval job request was not found.", code: "robot_eval_job_not_found" },
-        404,
-      ),
-    );
+  it("renders abstention explicitly and never infers a winner", () => {
+    const envelope = validDecisionEnvelope({
+      state: "abstained",
+      overall: {
+        outcome: "abstained",
+        summary: "The current evidence cannot decide between the candidates.",
+        decided_claim_ids: [],
+        unresolved_claim_ids: ["onsite-outperformance"],
+        selected_candidate_ids: [],
+      },
+    });
+    render(<DecisionResult envelope={envelope} />);
+    expect(screen.getByText("Explicit abstention")).toBeInTheDocument();
+    expect(screen.getByText(/No candidate or winner is inferred/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Selected winner/i)).not.toBeInTheDocument();
+  });
 
-    renderWithQueryClient(<RunDetail />);
-
-    expect(
-      await screen.findByText("No owned run record returned"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Run record not available" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /return to runs/i })).toHaveAttribute(
-      "href",
-      "/app/runs",
-    );
+  it.each([
+    ["bounded_positive", "Bounded positive decision"],
+    ["bounded_negative", "Bounded negative decision"],
+  ] as const)("renders a %s without reducing it to a score", (outcome, label) => {
+    render(<DecisionResult envelope={validDecisionEnvelope({ overall: { outcome, summary: `${label} inside the stated envelope.`, decided_claim_ids: ["reach-target"], unresolved_claim_ids: [], selected_candidate_ids: outcome === "bounded_positive" ? ["candidate-a"] : [] } })} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.queryByText(/Overall score/i)).not.toBeInTheDocument();
   });
 });

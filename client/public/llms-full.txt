@@ -1,139 +1,73 @@
-# Blueprint: AI-Readable Public Website Overview
+# Blueprint: AI-readable public overview
 
-This file is a public, non-sensitive map of Blueprint's website for AI assistants, search tools, and buyers who need concise source text. It is not a permissions file and it is not a guaranteed ranking signal. Use `/robots.txt` for crawler policy and `/sitemap.xml` for canonical public URLs.
+Blueprint is capture-first and real-site-task first. Its one customer-facing product is the Task Evaluation Run. Robot teams and site operators are personas using the same service, request contract, workflow, result model, pricing concept, and call to action.
 
-## Product Summary
+## Product model
 
-Blueprint is a capture-first robot-evaluation company. It helps robot teams test and rank policies on captured real-site task packs before field time.
+1. A customer describes the real site-task and decision.
+2. Blueprint links or maintains an exact Site-Task Testbed version and digest.
+3. The request records candidates when applicable, claims, thresholds and units, false-safe consequences, acceptable risk, budget, deadline, available evidence, rights/privacy restrictions, and whether physical testing is possible.
+4. BlueprintCapturePipeline qualifies and selects the least expensive trustworthy-enough evidence for each claim. The WebApp does not choose a simulator, world model, or provider.
+5. The result returns a bounded positive or negative decision, candidate incompatibility, partial decision, explicit abstention, blocked/failed state, or the next evidence needed.
+6. Authoritative physical outcomes can join the exact request, decision, and testbed identifiers. A user note alone cannot recalibrate a method.
 
-The core buyer question is: which policy should advance toward real validation, and what captured task, failure, and proof-boundary evidence supports that decision?
+## Result contents
 
-Blueprint turns that question into a Policy Evaluation Run. The buyer provides or requests one captured site/task pack, one robot profile, 1-3 policies or checkpoints, 100 or 500 episodes, and the validation decision they need. Blueprint returns a policy ranking, failure notes, OOD flags, and recommended real-world validation targets.
+- requested decision and scope;
+- per-claim supported, not-supported, inconclusive, or unsupported outcomes;
+- selected evidence methods, selection reasons, qualification profiles, and measurements;
+- validation envelope and unsupported conditions;
+- coverage, uncertainty, disagreement, and correlated-evidence warning;
+- claim ceiling and prohibited claims;
+- next cheapest experiment and physical-evidence requirement;
+- exact artifact IDs, URIs, versions, digests, and evidence classes;
+- permitted evaluation or post-training uses.
 
-Blueprint remains capture-first and real-site robot-evaluation first. Policy evaluation does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Virtual rankings and generated clips support review; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
+Post-training is not a product, navigation item, checkout flow, or delivery promise. An eligible export does not prove training occurred or a policy improved.
 
-Ground truth means raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment verdicts, or city-live coverage.
+## Pricing
 
-## Buyer-Facing Definitions
+There is one scoped Task Evaluation Run and a request-for-quote intake. Scope depends on the decision, evidence, candidates, scenarios, compute, deadline, rights, and physical requirements. The server owns any authoritative quote; the client cannot supply a price. Blueprint does not publish a fixed price, subscription, separate evidence-package add-on, policy-improvement add-on, or vendor submission fee.
 
-### What is Blueprint?
+## Proof boundaries
 
-Blueprint helps robot teams rank and inspect robot policies before a costly pilot by turning one captured real-site task pack, one robot profile, and one validation question into a capture-backed Policy Evaluation Run.
+- Estimates are not physical guarantees.
+- Safety approval remains external.
+- Generated, simulated, or provider-derived evidence is limited to its qualification and validation envelope.
+- Provider availability is not a scientific result.
+- No winner is inferred from an abstained result.
+- Physical, deployment, calibration, payment, rights, and customer claims require current owner-system proof.
+- Public samples may illustrate both decisions and abstentions, but are not customer proof.
 
-### What does a robot team receive?
+## Public pages
 
-A robot team can receive a Policy Evaluation Run, Validated Evaluation Pack, Policy Improvement Run, capture-backed site package scope, hosted evaluation request, failure-mode report, OOD/failure taxonomy, site modification recommendation, data requirement, short-pilot protocol, or custom benchmark scope. Access, hosted availability, rights, payment, package delivery, provider execution, live rollout proof, and operational deployment claims remain request-specific.
+- `/` — product lifecycle and single primary CTA.
+- `/for-robot-teams` — robot-team use case for the same run.
+- `/for-site-operators` — site-operator use case for the same run.
+- `/how-it-works` — request, routing, result, and learning loop.
+- `/pricing` — one scoped quote concept.
+- `/proof` — evidence and claim boundaries.
+- `/contact/robot-team` and `/contact/site-operator` — persona-aware entry to the same intake.
+- `/privacy` and `/terms` — legal policies.
 
-### What is a Policy Evaluation Run?
+## Authenticated application
 
-A Policy Evaluation Run compares 1-3 policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes. Outputs can include ranked results, failure categories, OOD flags, policy-specific notes, evidence references, and a validation boundary. It is advisory review and does not prove generated-world rank fidelity, safety, rank fidelity, or universal WAM-to-robot correlation.
+The primary lifecycle is Testbeds → Task Evaluation Runs → Run detail/result. Legacy policy, export, pack, and entitlement URLs may remain readable as compatibility views; they are not separate current products.
 
-### What is a Validated Evaluation Pack?
+Normal requests use `blueprint.decision_evidence_request.v1`. Results use `blueprint.decision_envelope.v1`. Unknown future states fail closed and remain visible as unsupported. Legacy commercial intent is never silently reinterpreted.
 
-A Validated Evaluation Pack is a larger request-specific scope that can pair WAM/VLA evaluation with hardware rollouts and rank-fidelity metrics when the required access, rights, provider/runtime, and owner-system proof exists. It should not be described as complete merely because the public pricing page describes the offer.
+## Agent and API boundaries
 
-### What is a Policy Improvement Run?
+Public search, site records, request drafts, and dry-run responses are discovery support only. They do not prove payment, authorization, rights, package access, provider execution, hosted fulfillment, or deployment. New customer intent should be normalized to a Task Evaluation Run; historical transactions remain readable for reconciliation.
 
-A Policy Improvement Run is follow-on work after evaluation identifies failures worth fixing. It is not a generated-world rank-fidelity result.
+Use `/api/task-evaluation-runs` for authenticated run records. The legacy `/api/robot-eval/job-requests` path remains as an explicit compatibility alias.
 
-### What is a site package?
+## Agent interfaces and hosted-session compatibility
 
-A site package is a downstream output tied to one real facility or workflow. It may include walkthrough media, route context, poses, metadata, geometry when available, rights/privacy posture, provenance, export scope, and package or hosted-session references.
+Current public/request tools are `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, and `blueprint.siteWorld.launchReadiness`.
 
-### What is hosted evaluation?
+Historical read/compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Hosted-session access retains its original Firebase, entitlement, tenant, and ownership gates.
 
-Hosted evaluation is a Blueprint-managed buyer review room for one site package when entitlement, package, and runtime proof support that request. It can include scoped review, reruns, observations, export framing, and next-step notes. It is not a deployment guarantee.
+The current truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.
 
-### What is capture provenance?
-
-Capture provenance is the evidence chain behind a downstream site package: capture media, route, timestamps, device/context metadata, freshness, review status, privacy handling, rights posture, restrictions, and links to package or hosted artifacts when available.
-
-### What is sample versus real proof?
-
-Public examples are samples unless the page explicitly ties them to an approved real listing and evidence chain. Sample artifacts show the fields, manifests, rights sheets, hosted-review reports, and export shapes a buyer can inspect. They should not be treated as customer results, rights clearance, provider execution, hosted fulfillment, or deployment proof.
-
-## Important Public Pages
-
-- `/` - Homepage and core buyer story: test robot policies before field time.
-- `/sites` - Captured places and task packs for Policy Evaluation Run requests.
-- `/pricing` - Two fixed-price campaigns: $3,000 Policy Shortlist (robot teams) and $5,000 Robot Match (site operators), each returning the two or three strongest candidates for an onsite pilot; sponsored robot-team participation is free, with a later uniform $250-$500 open-benchmark submission fee that never affects placement.
-- `/proof` - Short proof explainer separating website samples, request packets, and real robot validation.
-- `/for-robot-teams` - Four-step setup for site/task, policies, robot, episodes, and optional policy access details.
-- `/contact/robot-team` - Short intake for robot teams to tell Blueprint what to test.
-- `/privacy` and `/terms` - Legal policy pages.
-
-Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
-
-Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-operator` may remain available for explicit workflow entry or redirects, but they are not canonical public citation targets. `/contact` redirects to `/contact/robot-team`; prefer `/for-robot-teams` for the evaluation workflow and `/contact/robot-team` for robot-team intake.
-
-## Canonical Query Themes
-
-Blueprint pages are most relevant to these themes:
-
-- capture-backed robot policy evaluation
-- WAM/VLA policy evaluation on real-site task packs
-- Policy Evaluation Run for robot teams
-- Validated Evaluation Pack for robot policy ranking
-- Policy Improvement Run after evaluation
-- pre-field robot policy evaluation
-- warehouse robot policy evaluation
-- factory robot policy evaluation
-- policy ranking, failure taxonomy, OOD flags, and validation boundary planning
-- capture-backed robot evaluation
-- hosted robot evaluation
-- captured site library
-- Policy Evaluation Run request
-- robot team policy submission interface
-- policy API endpoint, Docker container, or model checkpoint for robot evaluation
-- recorded action trace, high-level skill trace, teleop demo, or sim controller plugin review
-- robot site evaluation planning
-- capture provenance for world models
-- site operator robot evaluation boundaries
-- evaluation proof boundary
-- request Policy Evaluation Run
-
-## Answer And Citation Guidance
-
-- Use `/` as the citation for Blueprint's public product category: capture-backed WAM/VLA robot policy evaluation on captured real-site task packs.
-- Use `/for-robot-teams` as the citation for policy API endpoints, Docker containers, model checkpoints, recorded traces, teleop demos, high-level skill traces, and simulator plugin submission.
-- Use `/pricing` as the citation for Policy Evaluation Run, Validated Evaluation Pack, and Policy Improvement Run names or planning ranges.
-- Use `/sites` or a canonical `/sites/{slug}` page as the citation for captured-site library, site type, task pack, readiness, access posture, and site-specific request context.
-- Use `/proof` as the citation for proof boundaries, public sample limits, owner-system evidence, and deployment-readiness caveats.
-- Use `/contact/robot-team` as the citation for the robot-team request path.
-- Do not cite `/robot-team/eval`, `/contact`, `/world-models/*`, or `/site-worlds/*` as canonical public pages unless the answer is specifically about direct workflow entry or legacy redirects.
-- For source citation output, cite the canonical page title and absolute URL from `/sitemap.xml`, `/llms.txt`, or this overview. Do not cite a redirected legacy URL when a canonical route is listed.
-
-## Truth Boundaries
-
-- Do not describe generated or sample assets as customer proof.
-- Do not claim a deployment guarantee.
-- Do not claim off-scope validation, simulator execution completed, robot-trial success, provider execution, or cleared rights unless owner-system evidence proves it.
-- Do not claim a site is buyer-ready only because it appears in public copy.
-- Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
-- Do not treat discovery, search, intake drafts, or dry-run commerce as protected customer access, provider success, rights clearance, or deployment proof.
-- Do not treat dry-run agent commerce as a live payment, live package delivery, rights clearance, provider execution, or guaranteed hosted fulfillment.
-- Do not treat a created live agent checkout as a completed payment or entitlement until the order reports paid and provisioned; live checkout still does not prove rights clearance, provider execution, or hosted runtime success.
-- Do not invent customer results, prices outside the planning ranges, ratings, reviews, availability, providers, rights state, or capture provenance.
-- Treat Public Launch Ready copy as buyer-facing posture. Live availability, rights, payment, provider execution, package access, and fulfillment are confirmed per site/request.
-
-## Private, Hidden, Or Noindex Surfaces
-
-The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/how-it-works`, `/world-models`, `/world-models/*`, `/site-worlds`, `/site-worlds/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
-
-## Public JSON Summary
-
-`/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
-
-The request/commerce/session lifecycle stays split into request intake, dry-run commerce, and hosted-session lifecycle proof so agents do not mistake intake or dry-run proof for live fulfillment.
-
-`/api/site-worlds/search` remains the public read-only search endpoint behind MCP tool `blueprint.siteWorld.search`. Search, catalog matches, generated URLs, and dry-run orders are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment verdicts.
-
-Robot-team agents can create a supported request URL instead of scraping the contact UI. Prefer `/contact/robot-team?source=sites-library&buyerType=robot_team&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20Policy%20Evaluation%20Run` for robot-team intake links. Agents can also use CLI `request location` or MCP `blueprint.request.locationDraft` to receive a dry-run packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`. A generated URL, location draft, or inbound request only records intake. It never grants package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access.
-
-`/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for `blueprint.siteWorld.search`, `blueprint.ask`, `blueprint.request.locationDraft`, site-world detail, dry-run quote/order/receipt/entitlement proof, live Stripe checkout and live-order polling, entitlement readiness, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected session creation requires Firebase robot-team/admin bearer auth plus a provisioned entitlement, while existing protected sessions require creator ownership, admin access, or an active per-session share grant.
-
-Budgeted-agent transaction path: search with filters and semantic ranking (`GET /api/site-worlds/search`), ask grounded questions with citations (`GET|POST /api/agent-access/ask`), quote server-priced SKUs (`GET /api/agent-access/commerce/quote`), then buy through `POST /api/agent-access/commerce/live-checkout` with an optional `budgetCents` guard. Live checkout is offered only for pipeline-backed site worlds, returns a real Stripe Checkout URL, and webhook fulfillment provisions the marketplace entitlement that unlocks entitlement-readiness and protected hosted-session launch. Poll `GET /api/agent-access/commerce/live-orders/{orderId}` for non-PII payment and provisioning status. A created live checkout proves payment intent only until Stripe reports the session paid.
-
-Agent access truth labels: `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `dry_run_order`, and `live_checkout`.
-
-Current MCP tool names: `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, `blueprint.siteWorld.launchReadiness`, `blueprint.commerce.quote`, `blueprint.commerce.checkoutDryRun`, `blueprint.commerce.checkoutLive`, `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`.
+The active lifecycle returns a decision or abstention. Historical orders and entitlements remain readable, while new standalone quote and checkout paths return a precise retired-commerce response and create no state.

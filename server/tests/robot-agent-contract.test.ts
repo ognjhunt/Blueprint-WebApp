@@ -77,36 +77,35 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(contract)).toContain("provider_derived");
   });
 
-  it("labels commerce endpoints as dry-run only and entitlement backed", () => {
+  it("labels commerce writes retired and historical records readable", () => {
     const contract = buildRobotAgentOpenApiContract();
     const quoteOperation = contract.paths["/api/agent-access/commerce/quote"].get;
     const checkoutOperation = contract.paths["/api/agent-access/commerce/dry-run-checkout"].post;
     const readinessOperation = contract.paths["/api/agent-access/commerce/entitlement-readiness"].get;
 
-    expect(quoteOperation.tags).toContain("Agent commerce");
-    expect(checkoutOperation["x-blueprint-dry-run-only"]).toBe(true);
-    expect(checkoutOperation.summary).toMatch(/dry-run/i);
+    expect(quoteOperation.tags).toContain("Legacy commerce");
+    expect(quoteOperation.deprecated).toBe(true);
+    expect(checkoutOperation.deprecated).toBe(true);
+    expect(checkoutOperation.responses).toHaveProperty("410");
+    expect(checkoutOperation.responses).not.toHaveProperty("201");
     expect(readinessOperation.summary).toMatch(/entitlement/i);
-    expect(JSON.stringify(contract)).toContain("dry_run_order");
-    expect(JSON.stringify(contract)).toContain("hosted_session_rental");
-    expect(JSON.stringify(contract)).toContain("site_world_package");
+    expect(JSON.stringify(contract)).toContain("Standalone commerce retired");
   });
 
-  it("documents live agent commerce with budget guard and ask as grounded public endpoints", () => {
+  it("documents retired live checkout and ask as grounded public endpoints", () => {
     const contract = buildRobotAgentOpenApiContract();
     const liveCheckoutOperation = contract.paths["/api/agent-access/commerce/live-checkout"].post;
     const liveOrderOperation = contract.paths["/api/agent-access/commerce/live-orders/{orderId}"].get;
     const askOperation = contract.paths["/api/agent-access/ask"].get;
 
-    expect(liveCheckoutOperation.tags).toContain("Live agent commerce");
-    expect(liveCheckoutOperation["x-blueprint-live-stripe"]).toBe(true);
-    expect(JSON.stringify(liveCheckoutOperation)).toContain("budgetCents");
-    expect(JSON.stringify(liveCheckoutOperation)).toContain("pipeline-backed");
-    expect(liveOrderOperation["x-blueprint-live-stripe"]).toBe(true);
+    expect(liveCheckoutOperation.tags).toContain("Legacy commerce");
+    expect(liveCheckoutOperation.deprecated).toBe(true);
+    expect(liveCheckoutOperation["x-blueprint-live-stripe"]).toBe(false);
+    expect(liveCheckoutOperation.responses).toHaveProperty("410");
+    expect(liveOrderOperation["x-blueprint-live-stripe"]).toBe(false);
     expect(askOperation.security).toEqual([{}]);
     expect(JSON.stringify(askOperation)).toContain("blueprint.ask");
-    expect(JSON.stringify(contract)).toContain("live_checkout");
-    expect(JSON.stringify(contract.components.schemas.AgentLiveCheckoutBlocker)).toContain("budget_exceeded");
+    expect(JSON.stringify(contract)).toContain("Task Evaluation Run");
   });
 
   it("documents credential-free discovery/search and protected hosted-session boundaries", () => {
@@ -126,8 +125,8 @@ describe("robot agent OpenAPI contract", () => {
       "generated",
       "request_gated",
       "protected_robot_team",
-      "dry_run_order",
-      "live_checkout",
+      "legacy_commerce_read_only",
+      "decision_or_abstention",
     ]);
   });
 });

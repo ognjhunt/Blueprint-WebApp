@@ -22,7 +22,7 @@ vi.mock("@/lib/experiments", () => ({
 }));
 
 describe("public real-site evaluation copy", () => {
-  it("keeps the buyer path centered on evaluation, proof, and free operator participation", { timeout: 10000 }, () => {
+  it("keeps the buyer path centered on one decision-oriented service", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -35,28 +35,20 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Test robot policies before field time\./i,
+        name: /Turn a real site-task into a decision you can defend/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /^Request evaluation$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/Compare your policy against earlier checkpoints/i);
-    expect(container).toHaveTextContent(/Capture the site/i);
-    expect(container).toHaveTextContent(/Run the comparison/i);
-    expect(container).toHaveTextContent(/Decide the next test/i);
-    expect(container).toHaveTextContent(/500 episodes/i);
-    expect(container).toHaveTextContent(/policy-ranking result outside the measured evaluation scope/i);
-    expect(container).not.toHaveTextContent(/WAM\/VLA/i);
-    expect(container).not.toHaveTextContent(/digital twin/i);
-    expect(container).not.toHaveTextContent(/SimReady/i);
-    expect(container).not.toHaveTextContent(/Scenario tests/i);
-    expect(container).not.toHaveTextContent(/Site Data Package/i);
-    expect(container).not.toHaveTextContent(/optional data exports/i);
+    expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
+    expect(container).toHaveTextContent(/Maintained testbed/i);
+    expect(container).toHaveTextContent(/Cheapest qualified evidence/i);
+    expect(container).toHaveTextContent(/Decision or abstention/i);
+    expect(container).toHaveTextContent(/Physical learning loop/i);
+    expect(container).toHaveTextContent(/does not infer a winner from raw scores/i);
+    expect(container).not.toHaveTextContent(/Policy Shortlist/i);
+    expect(container).not.toHaveTextContent(/Robot Match/i);
+    expect(container).not.toHaveTextContent(/\$3,000/i);
+    expect(container).not.toHaveTextContent(/\$5,000/i);
     expect(screen.queryByRole("link", { name: /^Environments$/i })).not.toBeInTheDocument();
-    expect(container).not.toHaveTextContent(/decision memo/i);
-
-    expect(container).not.toHaveTextContent(/adapter weights/i);
-    expect(container).not.toHaveTextContent(/\bLoRA\b/i);
-    expect(container).not.toHaveTextContent(/100\+ hours of training video/i);
-    expect(container).not.toHaveTextContent(/no 3D conversion/i);
+    expect(container).not.toHaveTextContent(/guaranteed winner/i);
   });
 });

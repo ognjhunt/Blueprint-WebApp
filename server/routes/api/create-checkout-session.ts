@@ -1,17 +1,7 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
-import { getPublicSiteWorldById } from "../../utils/site-worlds";
-import {
-  attachStripeCheckoutSessionToBuyerOrder,
-  createBuyerOrderDraft,
-  markBuyerOrderCheckoutFailure,
-} from "../../utils/accounting";
 import { stripeAvailable } from "../../constants/stripe";
 import { logger } from "../../logger";
-import {
-  betaDecisionForResponse,
-  evaluateBetaCohortGate,
-} from "../../utils/beta-cohort-policy";
 
 type PaymentSessionType =
   | "onboarding"
@@ -50,19 +40,7 @@ type CheckoutRequestBody = {
   totalCost?: number;
   hours?: number;
   costPerHour?: number;
-  robotEvalRun?: {
-    siteSlug?: string;
-  };
 };
-
-export const ROBOT_EVAL_RUN_SKU_SUFFIX = "-robot-eval-run";
-export const ROBOT_EVAL_RUN_PRICE_USD = 350;
-export const ROBOT_EVAL_RUN_DESCRIPTION =
-  "Capture-backed virtual policy evaluation with a queued Pipeline handoff and buyer-visible run status.";
-
-export function robotEvalRunSkuForSiteSlug(siteSlug: string) {
-  return `${siteSlug}${ROBOT_EVAL_RUN_SKU_SUFFIX}`;
-}
 
 function roundToCurrency(value: number): number {
   return Math.round(value * 100) / 100;
@@ -127,6 +105,17 @@ export default async function handler(req: Request, res: Response) {
 
   const body = (req.body || {}) as CheckoutRequestBody;
 
+  if (body.sessionType === "robot-eval-run") {
+    return res.status(410).json({
+      error: "The fixed-price robot-eval checkout is retired.",
+      code: "legacy_robot_eval_checkout_retired",
+      current_product: "Task Evaluation Run",
+      request_url: "/contact/robot-team?interest=task-evaluation-run",
+      truth:
+        "Historical orders and entitlements remain readable. New runs are scoped and quoted server-side; no Stripe session or charge was created.",
+    });
+  }
+
   try {
     // Check Stripe availability before proceeding
     if (!stripeAvailable) {
@@ -145,170 +134,6 @@ export default async function handler(req: Request, res: Response) {
     const originHeader = req.headers.origin as string | undefined;
     const originBase = resolveBaseOrigin(originHeader);
 
-    if (sessionType === "robot-eval-run") {
-      const firebaseUser = (res.locals.firebaseUser || {}) as {
-        uid?: string;
-        email?: string;
-      };
-      const buyerUserId =
-        typeof firebaseUser.uid === "string" ? firebaseUser.uid.trim() : "";
-      const buyerEmail =
-        typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : "";
-      if (!buyerUserId) {
-        return res.status(401).json({
-          error: "Sign in to purchase a policy evaluation run.",
-        });
-      }
-
-      const siteSlug = String(body.robotEvalRun?.siteSlug || "").trim();
-      if (!siteSlug) {
-        return res.status(400).json({
-          error: "A site slug is required for a policy evaluation run.",
-        });
-      }
-
-      const site = await getPublicSiteWorldById(siteSlug);
-      if (!site || site.dataSource !== "pipeline") {
-        return res.status(404).json({ error: "Unknown site for policy evaluation run." });
-      }
-      if (
-        site.evaluationReadiness?.robot_eval_dataset_summary
-          ?.ready_to_evaluate_publishable !== true ||
-        !site.siteSubmissionId ||
-        !site.captureId
-      ) {
-        return res.status(409).json({
-          error:
-            "This site does not have a publication-ready evaluation package yet, so a run cannot be purchased.",
-        });
-      }
-
-      // The intake route applies the robot_eval_request beta-cohort gate before
-      // queueing anything; run the same gate here so a buyer is never charged
-      // for a run the intake route would immediately reject.
-      const betaCohortDecision = await evaluateBetaCohortGate({
-        gate: "robot_eval_request",
-        creatorId: buyerUserId,
-        source: "robot_eval_run_checkout",
-      });
-      if (betaCohortDecision && !betaCohortDecision.allowed) {
-        return res.status(betaCohortDecision.statusCode).json({
-          error: betaCohortDecision.message,
-          code: betaCohortDecision.reason,
-          beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
-        });
-      }
-
-      if (!Number.isFinite(ROBOT_EVAL_RUN_PRICE_USD) || ROBOT_EVAL_RUN_PRICE_USD <= 0) {
-        return res.status(503).json({
-          error: "Policy evaluation run pricing is not configured.",
-        });
-      }
-      const priceUsd = roundToCurrency(ROBOT_EVAL_RUN_PRICE_USD);
-
-      const sku = robotEvalRunSkuForSiteSlug(site.id);
-      const successUrl = resolveUrl(
-        originBase,
-        body.successPath,
-        `/sites/${site.id}?robotEvalCheckout=success`,
-      );
-      const cancelUrl = resolveUrl(
-        originBase,
-        body.cancelPath,
-        `/sites/${site.id}?robotEvalCheckout=cancelled`,
-      );
-
-      const order = await createBuyerOrderDraft({
-        buyerUserId,
-        buyerEmail: buyerEmail || null,
-        sku,
-        title: `${site.siteName} — Policy Evaluation Run`,
-        description: ROBOT_EVAL_RUN_DESCRIPTION,
-        itemType: "robot_eval_run",
-        quantity: 1,
-        licenseTier: "commercial",
-        exclusivity: "non-exclusive",
-        addons: [],
-        inventorySource: "pipeline-site-world",
-        liveInventoryRecordId: site.siteSubmissionId,
-        // hosted_runtime is a provisionable delivery mode with no hourly
-        // expiry, so the paid webhook grants the marketplaceEntitlements doc
-        // that /api/robot-eval/job-requests requires — no manual review step.
-        deliveryMode: "hosted_runtime",
-        inventoryFulfillmentStatus: "auto_ready",
-        rightsStatus: null,
-        unitAmountCents: Math.round(priceUsd * 100),
-        totalAmountCents: Math.round(priceUsd * 100),
-        currency: "usd",
-        successUrl,
-        cancelUrl,
-      });
-      if (!order) {
-        return res.status(500).json({ error: "Order ledger is not available" });
-      }
-
-      let session: Stripe.Checkout.Session;
-      try {
-        session = await stripe.checkout.sessions.create({
-          client_reference_id: order.id,
-          mode: "payment",
-          payment_method_types: ["card"],
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `${site.siteName} — Policy Evaluation Run`,
-                  description:
-                    "Virtual policy-evaluation run on this captured site package. Blueprint queues the request and forwards it to Pipeline for scheduling.",
-                  metadata: {
-                    orderId: order.id,
-                    sku,
-                    itemType: "robot_eval_run",
-                    robotEvalSiteSlug: site.id,
-                  },
-                },
-                unit_amount: Math.round(priceUsd * 100),
-              },
-              quantity: 1,
-            },
-          ],
-          metadata: {
-            order_id: order.id,
-            sessionKind: "robot_eval_run",
-            marketplaceSku: sku,
-            robotEvalSiteSlug: site.id,
-            buyerUserId,
-          },
-          payment_intent_data: {
-            metadata: {
-              order_id: order.id,
-              marketplace_sku: sku,
-            },
-          },
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-        });
-      } catch (error) {
-        await markBuyerOrderCheckoutFailure({
-          orderId: order.id,
-          reason:
-            error instanceof Error
-              ? error.message
-              : "Stripe failed to create the checkout session.",
-        });
-        throw error;
-      }
-
-      await attachStripeCheckoutSessionToBuyerOrder({
-        orderId: order.id,
-        checkoutSessionId: session.id,
-        checkoutSessionUrl: typeof session.url === "string" ? session.url : null,
-        livemode: session.livemode,
-      });
-
-      return res.json({ sessionId: session.id, sessionUrl: session.url });
-    }
 
     if (sessionType === "onboarding") {
       const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 0;

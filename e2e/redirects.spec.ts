@@ -30,6 +30,21 @@ test('legacy contact route redirects to the canonical robot-team intake', async 
   );
 });
 
+test('retired public offer URLs redirect to the single scoped run', async ({ request }) => {
+  for (const path of [
+    '/policy-shortlist',
+    '/robot-match',
+    '/policy-improvement-run',
+    '/post-training-data-package',
+    '/post-training-policy-improvement-package',
+    '/data-packages',
+  ]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers().location).toBe('/pricing');
+  }
+});
+
 test('public routes work with trailing slashes', async ({ page }) => {
   await page.goto('/docs/');
 
@@ -46,7 +61,7 @@ test('FAQ remains a real public destination', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/faq$/);
   await expect(
-    page.getByRole('heading', { name: /The questions that usually decide fit\./i }),
+    page.getByRole('heading', { name: /One product, explicit evidence boundaries\./i }),
   ).toBeVisible();
 });
 

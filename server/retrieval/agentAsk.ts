@@ -62,7 +62,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      "Blueprint is a capture-first robot-evaluation company. It helps robot teams test and rank WAM/VLA robot policies on captured real-site task packs before field time. A Policy Evaluation Run compares 1-3 policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes and returns a ranking, failure notes, OOD flags, and validation boundaries. Virtual rankings support review; they are not deployment guarantees.",
+      "Blueprint sells one Task Evaluation Run. It turns a real site-task into a maintained testbed, asks the customer for the decision, claims, thresholds, false-safe consequence, evidence, budget, deadline, and restrictions, then lets Pipeline route each claim to the least expensive currently qualified evidence. A valid result may be positive, negative, partial, or an explicit abstention; Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -98,16 +98,15 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     ],
   },
   {
-    id: "how-to-buy-live",
-    title: "How agents buy with a budget (live checkout)",
+    id: "how-to-request-run",
+    title: "How agents request a Task Evaluation Run",
     aliases: [
       "buy",
       "purchase",
       "pay",
       "wallet",
       "budget",
-      "checkout",
-      "live checkout",
+      "request a run",
       "how do i pay",
       "stripe",
       "spend",
@@ -115,37 +114,34 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "how can an agent buy",
     ],
     answer:
-      "An agent with a budget buys through POST /api/agent-access/commerce/live-checkout. Send siteWorldId, product (hosted_session_rental or site_world_package), optional sessionHours, optional budgetCents, and a buyer identity (Firebase bearer token, buyer.uid, or buyer.email) so the paid entitlement binds to a usable account. The server prices the SKU from the owner-system-backed site record only — over-budget quotes return a budget_exceeded blocker and unpriced products return a price_unavailable blocker instead of a fallback charge. Eligible requests return a real Stripe Checkout URL plus an order id. After the payment method on file completes Stripe checkout, webhook fulfillment marks the order paid and provisions a marketplace entitlement automatically — poll GET /api/agent-access/commerce/live-orders/{orderId} until provisioned. Live checkout is only offered for Pipeline-backed site worlds; records without current owner-system identity return a not_live_purchasable blocker with a request-intake alternative.",
+      "Start at /contact/robot-team or /contact/site-operator and request the same Task Evaluation Run. Include the site-task, decision question, candidates when applicable, measurable thresholds, unacceptable failures, false-safe consequence, budget, deadline, existing evidence, rights/privacy restrictions, and whether physical testing is possible. Blueprint returns a scoped quote; no client-supplied price is authoritative. Standalone site-package and hosted-session checkout is retired and returns 410 without creating a Stripe session, order, charge, or entitlement.",
     citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`, `${CANONICAL_ORIGIN}/pricing`],
     actions: [
-      { description: "Get a quote first", method: "GET", endpoint: "/api/agent-access/commerce/quote?siteWorldId={id}&product=hosted_session_rental", mcpTool: "blueprint.commerce.quote" },
-      { description: "Create the live Stripe checkout", method: "POST", endpoint: "/api/agent-access/commerce/live-checkout", mcpTool: "blueprint.commerce.checkoutLive" },
-      { description: "Poll order/fulfillment status", method: "GET", endpoint: "/api/agent-access/commerce/live-orders/{orderId}", mcpTool: "blueprint.commerce.liveOrder.get" },
+      { description: "Open robot-team intake", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
+      { description: "Open site-operator intake", method: "GET", endpoint: "/contact/site-operator?interest=task-evaluation-run" },
     ],
   },
   {
-    id: "dry-run-commerce",
-    title: "Dry-run commerce for integration testing",
+    id: "run-result",
+    title: "What a Task Evaluation Run returns",
     aliases: [
-      "dry run",
-      "test checkout",
-      "sandbox",
-      "test order",
-      "without paying",
-      "simulate purchase",
-      "integration test",
+      "result",
+      "decision",
+      "abstention",
+      "partial decision",
+      "claim ceiling",
+      "next experiment",
     ],
     answer:
-      "POST /api/agent-access/commerce/dry-run-checkout creates a fulfilled dry-run order, receipt, and provisioned entitlement using the same response shapes as live commerce, without calling Stripe or granting live package access. Use it to validate an agent's purchase pipeline end-to-end before spending real budget, then switch to live-checkout for the real transaction.",
+      "A projected run result leads with the requested decision or explicit abstention, then shows per-claim outcomes, selected evidence methods and why, measurements, validation envelope, evidence coverage, uncertainty, disagreements, unsupported conditions, claim ceiling, next cheapest experiment, physical evidence still needed, exact artifact versions and digests, cost/time when available, and permitted evidence uses. The WebApp never infers a winner from raw scores when Pipeline abstains.",
     citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`],
     actions: [
-      { description: "Create a dry-run order", method: "POST", endpoint: "/api/agent-access/commerce/dry-run-checkout", mcpTool: "blueprint.commerce.checkoutDryRun" },
-      { description: "Read the dry-run order", method: "GET", endpoint: "/api/agent-access/commerce/orders/{orderId}", mcpTool: "blueprint.commerce.order.get" },
+      { description: "Read how results are interpreted", method: "GET", endpoint: "/how-it-works" },
     ],
   },
   {
-    id: "entitlement-to-session",
-    title: "Using a purchased entitlement to run evaluations",
+    id: "legacy-record-compatibility",
+    title: "Historical order and hosted-session compatibility",
     aliases: [
       "after purchase",
       "entitlement",
@@ -157,12 +153,10 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "run batch episodes",
     ],
     answer:
-      "Once an order is paid and provisioned, the entitlement unlocks protected hosted-session launch. Check GET /api/agent-access/commerce/entitlement-readiness with the buyer's Firebase bearer token, then POST /api/site-worlds/sessions with siteWorldId, entitlementId, orderId, robotProfileId, taskId, scenarioId, and startStateId. From there agents can reset, step, run headless batch rollouts, render explorer frames, and export dataset artifacts. Every hosted session requires Firebase robot-team/admin auth plus a provisioned entitlement and current owner-system readiness.",
+      "Historical orders, entitlements, and hosted-session records remain readable under their original authentication, tenant, ownership, and entitlement boundaries. Those compatibility paths do not create a current product or promise new fulfillment. New quote and checkout requests return 410 and direct the customer to one scoped Task Evaluation Run.",
     citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`],
     actions: [
-      { description: "Verify entitlement unlocks launch", method: "GET", endpoint: "/api/agent-access/commerce/entitlement-readiness?siteWorldId={id}&entitlementId={id}", mcpTool: "blueprint.commerce.entitlementReadiness" },
-      { description: "Create the hosted session", method: "POST", endpoint: "/api/site-worlds/sessions", mcpTool: "blueprint.session.create" },
-      { description: "Run a headless batch rollout", method: "POST", endpoint: "/api/site-worlds/sessions/{sessionId}/run-batch", mcpTool: "blueprint.session.runBatch" },
+      { description: "Read a historical order", method: "GET", endpoint: "/api/agent-access/commerce/live-orders/{orderId}", mcpTool: "blueprint.commerce.liveOrder.get" },
     ],
   },
   {
@@ -199,10 +193,10 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Public pricing is two fixed-price campaigns, each returning the two or three strongest candidates for an onsite pilot: a $3,000/campaign Policy Shortlist for a robot team that already has a site and candidate policies (ranks up to five policies or checkpoints), and a $5,000/campaign Robot Match for a site operator comparing compatible robot teams. Robot-team participation in a sponsored Robot Match is free; a uniform $250-$500 open-benchmark submission fee applies only later and never affects placement. Repeat work uses privately negotiated volume pricing, not a subscription. Agent-purchasable SKUs are quoted per site world through /api/agent-access/commerce/quote (hosted-session rental hours or site-world package access); the server-side quote is authoritative and live checkout rejects client-supplied prices. Every campaign can return 'ranking inconclusive'; the price buys a better pilot decision, not a deployment guarantee.",
+      "Blueprint sells one scoped Task Evaluation Run to robot teams and site operators. Each run is quoted from the requested decision, available evidence, candidates and scenarios, compute, deadline, rights constraints, and any physical work required. There is no published fixed price, separate data-package purchase, vendor submission fee, or subscription. The server-side quote is authoritative. A run may return a bounded positive or negative decision, a partial decision, an explicit abstention, or the next evidence required; it never guarantees a ranking, winner, deployment, or pilot outcome.",
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [
-      { description: "Quote a specific site world", method: "GET", endpoint: "/api/agent-access/commerce/quote?siteWorldId={id}", mcpTool: "blueprint.commerce.quote" },
+      { description: "Request a scoped quote", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
     ],
   },
   {
@@ -219,7 +213,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "provenance",
     ],
     answer:
-      "Every agent surface carries truth labels: capture_grounded, provider_derived, generated, request_gated, protected_robot_team, dry_run_order, and live_checkout. Ground truth means raw capture evidence, provenance, rights/privacy records, and runtime artifacts. Generated previews, dry-run commerce, catalog matches, and request drafts are support signals — they do not prove customer results, rights clearance, provider execution, payment, or deployment readiness. A paid live order proves payment and entitlement provisioning only.",
+      "Every active agent surface preserves evidence class and provenance. Raw capture, fixture, simulation, provider, and physical evidence remain distinct; generated previews, catalog matches, and request drafts do not prove customer results, rights clearance, provider execution, payment, deployment, or physical success. A result is valid only within its stated validation envelope and claim ceiling.",
     citations: [`${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the proof explainer", method: "GET", endpoint: "/proof" },
@@ -240,7 +234,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "tools",
     ],
     answer:
-      "Blueprint publishes /llms.txt and /llms-full.txt for orientation, /api/site-content for a JSON site summary, /api/agent-access for the agent manifest, and /agent-access.openapi.json (also served at /api/agent-access/openapi.json) for the full OpenAPI contract. A stdio MCP server (npm run agent:mcp) and a JSON-first CLI (npm run agent:cli) mirror the HTTP surface: search, ask, request drafting, dry-run and live commerce, entitlement readiness, and the hosted-session lifecycle.",
+      "Blueprint publishes /llms.txt and /llms-full.txt for orientation, /api/site-content for a JSON site summary, /api/agent-access for the agent manifest, and /agent-access.openapi.json (also served at /api/agent-access/openapi.json) for the full OpenAPI contract. The active workflow is discovery, grounded questions, and Task Evaluation Run request drafting. Historical order, entitlement, and hosted-session reads remain explicit compatibility paths.",
     citations: [`${CANONICAL_ORIGIN}/llms.txt`, `${CANONICAL_ORIGIN}/agent-access.openapi.json`],
     actions: [
       { description: "Fetch the OpenAPI contract", method: "GET", endpoint: "/api/agent-access/openapi.json" },

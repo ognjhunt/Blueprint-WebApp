@@ -22,9 +22,6 @@ describe("Blueprint MCP server", () => {
       "blueprint.request.locationDraft",
       "blueprint.siteWorld.get",
       "blueprint.siteWorld.launchReadiness",
-      "blueprint.commerce.quote",
-      "blueprint.commerce.checkoutDryRun",
-      "blueprint.commerce.checkoutLive",
       "blueprint.commerce.liveOrder.get",
       "blueprint.commerce.order.get",
       "blueprint.commerce.entitlement.get",
@@ -38,8 +35,9 @@ describe("Blueprint MCP server", () => {
       "blueprint.session.export",
     ]);
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.ask")?.inputSchema.required).toEqual(["q"]);
-    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.checkoutLive")?.inputSchema.properties).toHaveProperty("budgetCents");
-    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.checkoutLive")?.description).toContain("REAL Stripe Checkout Session");
+    expect(toolNames).not.toContain("blueprint.commerce.checkoutLive");
+    expect(toolNames).not.toContain("blueprint.commerce.checkoutDryRun");
+    expect(toolNames).not.toContain("blueprint.commerce.quote");
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.session.create")?.inputSchema.required).toEqual([
       "siteWorldId",
       "robotProfileId",
@@ -197,40 +195,9 @@ describe("Blueprint MCP server", () => {
     );
   });
 
-  it("routes commerce tools through quote and dry-run checkout client methods", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
-      const payload = url.pathname.endsWith("/quote")
-        ? { quote: { sku: "hosted-session-sw-chi-01", product: "hosted_session_rental" } }
-        : { order: { id: "dry-order-1", status: "fulfilled" }, entitlement: { id: "dry-ent-1" } };
-      return new Response(JSON.stringify(payload), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    });
-
-    await callBlueprintMcpTool("blueprint.commerce.quote", { siteWorldId: "sw-chi-01", product: "hosted_session_rental" }, {
-      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
-      fetchImpl: fetchMock,
-    });
-    const checkout = await callBlueprintMcpTool("blueprint.commerce.checkoutDryRun", { siteWorldId: "sw-chi-01", product: "hosted_session_rental" }, {
-      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
-      fetchImpl: fetchMock,
-    });
-
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "https://agent.example/api/agent-access/commerce/quote?siteWorldId=sw-chi-01&product=hosted_session_rental",
-      expect.objectContaining({ method: "GET" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "https://agent.example/api/agent-access/commerce/dry-run-checkout",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(JSON.parse(checkout.content[0].text)).toMatchObject({
-      entitlement: { id: "dry-ent-1" },
-    });
+  it("does not advertise retired quote or checkout tools", () => {
+    const toolNames = BLUEPRINT_MCP_TOOLS.map((tool) => tool.name);
+    expect(toolNames.filter((name) => /quote|checkout/i.test(name))).toEqual([]);
   });
 
   it("routes entitlement readiness through the dry-run agent-access endpoint", async () => {

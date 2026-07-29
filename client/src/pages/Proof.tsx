@@ -14,7 +14,7 @@ import {
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
 const requestHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof";
 
 const proofLayers = [
   ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
@@ -48,9 +48,9 @@ export default function Proof() {
                 "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites it as research evidence for ranking workflows, not as an external accuracy guarantee.",
             },
             {
-              question: "What does a Policy Evaluation Run return?",
+              question: "What does a Task Evaluation Run return?",
               answer:
-                "It returns a capture-backed evaluation artifact for one scoped site, task, robot, and threshold envelope. Any simulator-backed policy-ranking result stays advisory until request-scoped owner-system proof is attached and reported.",
+                "It returns per-claim outcomes, selected evidence methods, a validation envelope, uncertainty, disagreements, a claim ceiling, the next experiment, physical-evidence needs, and exact artifacts. A ranking appears only when supported; abstention never implies a winner.",
             },
           ]),
         ]}
@@ -77,7 +77,7 @@ export default function Proof() {
                 href={requestHref}
                 className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Request evaluation
+                Request a Task Evaluation Run
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
@@ -132,12 +132,12 @@ export default function Proof() {
             <div>
               <h2 className="text-3xl font-semibold">What we do not claim.</h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-                {robotPolicyEvaluationBoundary} Provenance-checked packs report metrics
-                only inside the matched robot, task, and site envelope.
+                {robotPolicyEvaluationBoundary} Provenance-linked run evidence reports
+                metrics only inside the matched robot, task, and site envelope.
               </p>
               <p className="mt-4 max-w-4xl text-sm font-semibold leading-7 text-slate-200">
-                A Task Evaluation Run returns a ranking / estimate — not a guarantee or
-                safety certification.
+                A Task Evaluation Run returns only the bounded decision, partial decision,
+                or abstention supported by its evidence envelope — never a safety certification.
               </p>
             </div>
           </div>

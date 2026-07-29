@@ -11,13 +11,13 @@ describe("agent grounded ask", () => {
     }
   });
 
-  it("routes buying-with-a-budget questions to the live checkout answer", async () => {
+  it("routes buying-with-a-budget questions to scoped run intake", async () => {
     const response = await answerAgentQuestion({
       question: "I have a wallet and a budget - how do I buy access?",
     });
-    expect(response.bestAnswer?.id).toBe("how-to-buy-live");
+    expect(response.bestAnswer?.id).toBe("how-to-request-run");
     expect(response.bestAnswer?.actions.map((action) => action.endpoint).join(" ")).toContain(
-      "/api/agent-access/commerce/live-checkout",
+      "task-evaluation-run",
     );
     expect(response.truthBoundary).toContain("curated");
   });

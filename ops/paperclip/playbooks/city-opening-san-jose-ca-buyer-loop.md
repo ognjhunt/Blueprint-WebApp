@@ -194,7 +194,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Boston Dynamics, I do not want to guess the wrong environment. If Blueprint captured one warehouse trailer, dock, pallet, or case-handling workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -214,7 +214,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Locus Robotics, I do not want to guess the wrong environment. If Blueprint captured one fulfillment pick aisle, induction, replenishment, or returns workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -234,7 +234,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Seegrid, I do not want to guess the wrong environment. If Blueprint captured one material-movement route, staging lane, or dock-to-line workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -254,7 +254,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Vecna Robotics, I do not want to guess the wrong environment. If Blueprint captured one warehouse route or fleet-coordination workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -274,7 +274,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Fox Robotics, I do not want to guess the wrong environment. If Blueprint captured one warehouse dock, trailer, or pallet movement workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -294,7 +294,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Diligent Robotics, I do not want to guess the wrong environment. If Blueprint captured one hospital supply, hallway, or nursing-unit support route for your team first, what exact site or workflow should we start with?
 > 
@@ -314,7 +314,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Gecko Robotics, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route or facility type for your team first, what exact site or workflow should we start with?
 > 
@@ -334,7 +334,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For ANYbotics, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route or facility type for your team first, what exact site or workflow should we start with?
 > 
@@ -354,7 +354,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Outrider, I do not want to guess the wrong environment. If Blueprint captured one yard, trailer movement, or distribution-center route for your team first, what exact site or workflow should we start with?
 > 
@@ -374,7 +374,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Covariant, I do not want to guess the wrong environment. If Blueprint captured one warehouse item-picking cell for your team first, what exact site or workflow should we start with?
 > 
@@ -394,7 +394,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For AutoStore, I do not want to guess the wrong environment. If Blueprint captured one goods-to-person fulfillment port for your team first, what exact site or workflow should we start with?
 > 
@@ -414,7 +414,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For GreyOrange, I do not want to guess the wrong environment. If Blueprint captured one warehouse fulfillment orchestration lane for your team first, what exact site or workflow should we start with?
 > 
@@ -434,7 +434,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Exotec, I do not want to guess the wrong environment. If Blueprint captured one goods-to-person picking station for your team first, what exact site or workflow should we start with?
 > 
@@ -454,7 +454,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Symbotic, I do not want to guess the wrong environment. If Blueprint captured one distribution-center case-handling lane for your team first, what exact site or workflow should we start with?
 > 
@@ -474,7 +474,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Ocado Technology, I do not want to guess the wrong environment. If Blueprint captured one grocery fulfillment pick workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -494,7 +494,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Berkshire Grey, I do not want to guess the wrong environment. If Blueprint captured one package sortation or fulfillment cell for your team first, what exact site or workflow should we start with?
 > 
@@ -514,7 +514,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For RightHand Robotics, I do not want to guess the wrong environment. If Blueprint captured one piece-picking workcell for your team first, what exact site or workflow should we start with?
 > 
@@ -534,7 +534,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Mujin, I do not want to guess the wrong environment. If Blueprint captured one truck unloading or depalletizing workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -554,7 +554,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Dexterity, I do not want to guess the wrong environment. If Blueprint captured one warehouse manipulation workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -574,7 +574,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Robust.AI, I do not want to guess the wrong environment. If Blueprint captured one collaborative warehouse cart workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -594,7 +594,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Zebra Robotics Automation, I do not want to guess the wrong environment. If Blueprint captured one warehouse AMR workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -614,7 +614,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Skydio, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route for your team first, what exact site or workflow should we start with?
 > 
@@ -634,7 +634,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Zipline, I do not want to guess the wrong environment. If Blueprint captured one autonomous delivery dispatch workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -654,7 +654,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Serve Robotics, I do not want to guess the wrong environment. If Blueprint captured one restaurant-to-sidewalk delivery handoff for your team first, what exact site or workflow should we start with?
 > 
@@ -674,7 +674,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Nuro, I do not want to guess the wrong environment. If Blueprint captured one curbside goods handoff workflow for your team first, what exact site or workflow should we start with?
 > 
@@ -694,7 +694,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Starship Technologies, I do not want to guess the wrong environment. If Blueprint captured one campus or retail delivery route for your team first, what exact site or workflow should we start with?
 > 
@@ -714,7 +714,7 @@
 
 > Hi,
 > 
-> I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Policy Improvement Runs, and hosted review sessions.
+> I am building Blueprint, a capture-backed way for robot teams to turn real sites into a maintained testbed and bounded decision through one Task Evaluation Run.
 > 
 > For Knightscope, I do not want to guess the wrong environment. If Blueprint captured one security patrol route for your team first, what exact site or workflow should we start with?
 > 

@@ -11,7 +11,7 @@ import {
 import { BLUEPRINT_MCP_TOOLS } from "./blueprint-mcp-server";
 
 const repoRoot = process.cwd();
-const expectedContractVersion = "2026-07-16";
+const expectedContractVersion = "2026-07-29";
 
 const readText = (relativePath: string) =>
   fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -23,17 +23,15 @@ const requiredCliFragments = [
   "plan --q",
   "site-world search",
   "request location",
-  "commerce quote",
-  "commerce checkout",
   "commerce entitlement-readiness",
   "session create",
 ] as const;
 
 const requiredLifecyclePhrases = [
-  "request/commerce/session lifecycle",
-  "request intake",
-  "dry-run commerce",
-  "hosted-session lifecycle",
+  "Task Evaluation Run",
+  "decision or abstention",
+  "historical",
+  "hosted-session",
 ] as const;
 
 function expectIncludesAll(label: string, text: string, terms: readonly string[]) {

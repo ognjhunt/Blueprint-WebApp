@@ -279,7 +279,7 @@ export default function ContactForm() {
           </h2>
           <p className="text-base md:text-xl text-slate-300 mt-3">
             Blueprint captures your space, packages site-specific evidence,
-            and helps your team scope hosted review around the exact environment that matters.
+            and helps your team scope a Task Evaluation Run around the exact environment and decision that matter.
           </p>
         </motion.div>
 
@@ -305,7 +305,7 @@ export default function ContactForm() {
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
                   Blueprint turns real retail, hospitality, workplace, and venue spaces into
-                  real-site robot evaluation, sim-only policy improvement runs, and hosted testing surfaces.
+                  real-site Task Evaluation Runs, maintained testbeds, and evidence-bound result review.
                 </p>
 
                 <div className="space-y-4">

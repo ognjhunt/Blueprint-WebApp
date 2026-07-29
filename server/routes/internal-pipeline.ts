@@ -958,88 +958,18 @@ function buildPlaceholderInboundRequest(params: {
   };
 }
 
-function marketplaceSkuFromPipeline(params: {
-  requestId: string;
-  captureId?: string | null;
-  sceneId?: string | null;
-}) {
-  const raw = String(params.captureId || params.sceneId || params.requestId || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `robot-eval-${raw || "package"}`;
-}
-
 async function publishQualifiedMarketplaceInventory(params: {
   requestId: string;
   currentData?: Record<string, unknown>;
   pipeline: PipelineAttachment;
   qualificationState: QualificationState;
   evaluationReadiness?: EvaluationReadinessSummary;
-}) {
-  if (!db) {
-    return null;
-  }
-  if (
-    params.qualificationState !== "qualified_ready" ||
-    !robotEvalPublicationPackageComplete(params.pipeline.artifacts)
-  ) {
-    return null;
-  }
-
-  const request = params.currentData?.request as Record<string, unknown> | undefined;
-  const context = params.currentData?.context as Record<string, unknown> | undefined;
-  const siteName = String(request?.siteName || params.pipeline.scene_id || params.requestId).trim();
-  const siteLocation = String(request?.siteLocation || context?.demandCity || "").trim();
-  const sku = marketplaceSkuFromPipeline({
-    requestId: params.requestId,
-    captureId: params.pipeline.capture_id,
-    sceneId: params.pipeline.scene_id,
-  });
-  const artifactUris = buildRobotEvalCardArtifactUris(params.pipeline.artifacts);
-  const record = {
-    sku,
-    type: "training",
-    itemType: "training",
-    title: `${siteName} robot evaluation package`,
-    description:
-      "Qualified captured-site robot evaluation artifact package. Publication means required dataset card artifacts are present; it is not a deployment approval or physical-robot safety validation.",
-    locationType: siteLocation || "Captured site",
-    objectTags: ["robot-evaluation", "captured-site", "qualified-ready"],
-    policySlugs: [],
-    tags: ["robot-evaluation", "capture-backed"],
-    deliverables: ["dataset cards", "proof boundaries", "rights packet"],
-    dataFormat: "Blueprint robot evaluation package",
-    trajectoryLength: "Captured-site artifact package",
-    sensorModalities: ["rgb", "metadata"],
-    price: 0,
-    inStock: true,
-    status: "published",
-    delivery_mode: "buyer_artifact_access",
-    fulfillment_status: "artifact_ready",
-    rights_status: "publishable_artifact_packet_present",
-    source: "pipeline_state_machine",
-    request_id: params.requestId,
-    site_submission_id:
-      String(params.currentData?.site_submission_id || params.requestId).trim() || params.requestId,
-    buyer_request_id:
-      String(params.pipeline.buyer_request_id || params.currentData?.buyer_request_id || "").trim() || null,
-    capture_job_id: String(params.pipeline.capture_job_id || "").trim() || null,
-    scene_id: String(params.pipeline.scene_id || "").trim() || null,
-    capture_id: String(params.pipeline.capture_id || "").trim() || null,
-    pipeline_prefix: String(params.pipeline.pipeline_prefix || "").trim() || null,
-    artifact_uris: artifactUris,
-    evaluation_readiness: params.evaluationReadiness || null,
-    published_at: admin.firestore.FieldValue.serverTimestamp(),
-    updated_at: admin.firestore.FieldValue.serverTimestamp(),
-  };
-
-  await Promise.all([
-    db.collection("publishedMarketplaceInventory").doc(sku).set(record, { merge: true }),
-    db.collection("marketplace_items").doc(sku).set(record, { merge: true }),
-  ]);
-  return { sku };
+}): Promise<{ sku: string } | null> {
+  // Compatibility reads for already-published marketplace records remain in
+  // place, but native/current pipeline attachments must not mint a separate
+  // SKU. Qualifying evidence is projected inside its Task Evaluation Run.
+  void params;
+  return null;
 }
 
 async function upsertCaptureCreatorLinkage(params: {

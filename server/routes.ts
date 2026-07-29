@@ -84,6 +84,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/slack", slackEventsRouter);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
+  app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);
 
   // API routes for Express

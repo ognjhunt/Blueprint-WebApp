@@ -22,7 +22,7 @@ export const privacyPolicySections = [
   {
     title: "Capture and site data",
     body:
-      "Blueprint may process walkthrough media, timestamps, poses, depth, device metadata, and site-level rights or privacy metadata when those records are part of a capture bundle, Task Evaluation Run, or Policy Improvement Run. That data is part of the product record and may be used to package, deliver, operate, refresh, or audit a listing or hosted session.",
+      "Blueprint may process walkthrough media, timestamps, poses, depth, device metadata, and site-level rights or privacy metadata when those records are part of a capture bundle, maintained testbed, or Task Evaluation Run. That data is part of the product record and may be used to package, deliver, operate, refresh, or audit the run and its authorized evidence review.",
     icon: Waypoints,
   },
   {
@@ -79,7 +79,7 @@ export const betaRetentionSchedule = [
     record: "Buyer package and hosted-session artifacts",
     defaultWindow: "365 days after package closeout or contract end",
     notes:
-      "Includes buyer-facing exports, hosted review media, Task Evaluation Run outputs, Policy Improvement Run support artifacts, and delivery manifests.",
+      "Includes buyer-facing evidence exports, hosted review media, Task Evaluation Run outputs, permitted-use records, and delivery manifests.",
   },
   {
     record: "Support, privacy request, and operational evidence",
@@ -137,14 +137,14 @@ export default function Privacy() {
     <>
       <SEO
         title="Privacy Policy | Blueprint"
-        description="Privacy policy for Blueprint's website, capture workflows, robot evaluation runs, sim-only policy improvement runs, hosted sessions, and related services."
+        description="Privacy policy for Blueprint's website, capture workflows, Task Evaluation Runs, evidence artifacts, historical compatibility records, and related services."
         canonical="/privacy"
         jsonLd={[
           webPageJsonLd({
             path: "/privacy",
             name: "Blueprint privacy policy",
             description:
-              "Privacy policy for Blueprint website, capture workflows, robot evaluation runs, policy improvement runs, hosted sessions, and related services.",
+              "Privacy policy for Blueprint website, capture workflows, Task Evaluation Runs, evidence artifacts, historical compatibility records, and related services.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },

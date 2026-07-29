@@ -285,7 +285,11 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     return { command: "ask", options: { ...options, q: options.q ?? positionals.join(" ") }, format };
   }
   if (primary === "commerce") {
-    if (secondaryOrId === "quote") return { command: "commerce:quote", options, format };
+    if (["quote", "checkout", "dry-run-checkout", "live-checkout", "checkout-live"].includes(secondaryOrId)) {
+      throw new AgentCliUsageError(
+        "Standalone commerce is retired. Request one scoped Task Evaluation Run through /contact/robot-team or /contact/site-operator.",
+      );
+    }
     if (secondaryOrId === "checkout" || secondaryOrId === "dry-run-checkout") {
       const mode = String(options.mode || "dry_run");
       if (secondaryOrId === "checkout" && mode === "live") {
@@ -461,7 +465,7 @@ function buildHelpPayload(topic: unknown) {
     name: "blueprint-agent-cli",
     topic: selectedTopic,
     summary:
-      "Headless Blueprint access for robot-team agents: discovery, site-world search, dry-run commerce proof, hosted-session setup, rollout, render, and export.",
+      "Headless Blueprint access for robot-team agents: Task Evaluation Run discovery and request drafting, plus read-only compatibility for historical orders and hosted sessions.",
     usage: "npm run agent:cli -- <command> [options] [--format json|ndjson|text]",
     globalOptions: [
       { flag: "--format json", description: "Default machine-readable JSON payload." },
@@ -470,14 +474,14 @@ function buildHelpPayload(topic: unknown) {
       { flag: "--help, -h", description: "Print this help payload without calling Blueprint APIs." },
     ],
     setupChecks: [
-      { command: "doctor", description: "Local no-network setup check for base URL, credentialless public flow, auth env, output formats, and safe dry-run defaults." },
+      { command: "doctor", description: "Local no-network setup check for base URL, credentialless public flow, auth env, output formats, and retired-commerce safety." },
       { command: "setup-auth", description: "Focused auth setup check. Add --require-auth when a protected robot-team/admin bearer token is mandatory." },
     ],
     commands: [
       { command: "help", description: "Print machine-readable CLI usage, setup, exit-code, and truth-boundary guidance." },
       { command: "doctor", description: "Run the local setup doctor without calling Blueprint APIs." },
       { command: "setup-auth", description: "Check optional protected-flow bearer auth setup; --require-auth makes missing auth fail." },
-      { command: "plan", description: "Plan the next safe robot-team action for a query: exact match, request candidate, dry-run commerce, entitlement readiness, or demo/protected session path." },
+      { command: "plan", description: "Plan the next safe robot-team action for a query: exact testbed match, Task Evaluation Run request, or protected historical-record path." },
       { command: "discover", description: "Fetch public site-content and agent-access manifests." },
       { command: "ask", description: "Ask a grounded question about Blueprint and get citation-backed answers with machine next-actions." },
       { command: "catalog list", description: "List public site-world catalog entries." },
@@ -485,12 +489,10 @@ function buildHelpPayload(topic: unknown) {
       { command: "site-world search", description: "First-class site-world search alias for robot-team agents." },
       { command: "request location", description: "Build a local intake-only new-site-scan draft and contact URL. Does not submit or write." },
       { command: "world get <siteWorldId>", description: "Fetch one public site-world detail payload." },
-      { command: "commerce quote", description: "Return a dry-run quote. Does not call Stripe." },
-      { command: "commerce checkout", description: "Create dry-run order, receipt, and entitlement proof by default. Add --mode live --budget-cents <n> to create a REAL Stripe Checkout Session for pipeline-backed site worlds." },
-      { command: "commerce live-order <orderId>", description: "Poll a live order's payment and entitlement-provisioning status." },
-      { command: "commerce order <orderId>", description: "Read a dry-run commerce order." },
-      { command: "commerce entitlement <entitlementId>", description: "Read a dry-run entitlement." },
-      { command: "commerce entitlement-readiness", description: "Check dry-run entitlement linkage for hosted-session launch." },
+      { command: "commerce live-order <orderId>", description: "Read a historical order's payment and entitlement-provisioning status." },
+      { command: "commerce order <orderId>", description: "Read a historical dry-run order." },
+      { command: "commerce entitlement <entitlementId>", description: "Read a historical dry-run entitlement." },
+      { command: "commerce entitlement-readiness", description: "Check a historical entitlement under its original access controls." },
       { command: "readiness", description: "Read launch-readiness for a site world." },
       { command: "session create|get|reset|step|batch|control", description: "Operate eligible hosted sessions through existing APIs." },
       { command: "explorer-render", description: "Render an explorer frame for an existing session." },
@@ -498,7 +500,7 @@ function buildHelpPayload(topic: unknown) {
     ],
     environment: {
       BLUEPRINT_API_BASE_URL: "Optional. Defaults to http://localhost:5000.",
-      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery and dry-run commerce; required for hosted-session and other protected robot-team/admin flows.",
+      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery and request drafting; required for protected historical hosted-session and entitlement flows.",
       BLUEPRINT_FIREBASE_ID_TOKEN: "Fallback bearer token env var for protected flows.",
     },
     examples: [
@@ -508,17 +510,15 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- plan --q \"Whole Foods near Durham\" --want hosted-review",
       "npm run agent:cli -- discover --format ndjson",
       "npm run agent:cli -- site-world search --q \"Whole Foods near Durham\" --limit 5",
-      "npm run agent:cli -- ask --q \"How do I buy a hosted session with a budget?\"",
+      "npm run agent:cli -- ask --q \"How do I request a Task Evaluation Run with a budget?\"",
       "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
-      "npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run",
-      "npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
       "npm run agent:cli -- commerce live-order <live-order-id>",
     ],
     exitCodes: AGENT_CLI_EXIT_CODES,
     truthBoundaries: [
-      "Public discovery, public search, ask, and dry-run commerce never grant package access, live payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
-      "commerce checkout --mode live creates a real Stripe Checkout Session for pipeline-backed site worlds; payment completes at the returned URL and webhook fulfillment provisions the entitlement.",
-      "Hosted-session creation requires existing Firebase robot_team/admin bearer auth plus a matching provisioned entitlement.",
+      "Public discovery, search, ask, and request drafting never grant package access, payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
+      "Standalone quote and checkout commands are retired and create no Stripe session, order, charge, or entitlement.",
+      "Historical hosted-session access requires existing Firebase robot_team/admin bearer auth plus a matching provisioned entitlement.",
       "Existing protected session operations require session ownership, admin access, or an active per-session share grant.",
     ],
   };
@@ -563,7 +563,7 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
     id: "credentialless_public_flow",
     ok: true,
     level: "pass",
-    message: "Public discovery, catalog search, ask, and dry-run commerce can run without credentials.",
+    message: "Public discovery, catalog search, ask, and Task Evaluation Run request drafting can run without credentials.",
     value: true,
   });
 
@@ -589,11 +589,11 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
         value: true,
       },
       {
-        id: "safe_commerce_default",
+        id: "standalone_commerce_retired",
         ok: true,
         level: "pass",
-        message: "Agent commerce checkout defaults to dry_run and does not call live Stripe unless --mode live is passed explicitly.",
-        value: "dry_run",
+        message: "Standalone quote and checkout commands are retired; historical order and entitlement reads remain compatibility paths.",
+        value: "read_only_compatibility",
       },
     );
   }

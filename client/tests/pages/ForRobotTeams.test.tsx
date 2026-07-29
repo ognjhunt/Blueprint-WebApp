@@ -3,21 +3,12 @@ import { describe, expect, it } from "vitest";
 import ForRobotTeams from "@/pages/ForRobotTeams";
 
 describe("ForRobotTeams", () => {
-  it("offers both request-led and API-backed site-record entry paths", () => {
+  it("explains the robot-team use case for the single Task Evaluation Run", () => {
     render(<ForRobotTeams />);
-
-    expect(
-      screen.getByRole("heading", { name: /Rank your policies on a real site — before field time/i }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request evaluation/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Configure policy inputs/i })).toHaveAttribute(
-      "href",
-      "#intake",
-    );
-    const siteLinks = screen.getAllByRole("link", { name: /Browse site records/i });
-    expect(siteLinks.length).toBeGreaterThan(0);
-    for (const link of siteLinks) {
-      expect(link).toHaveAttribute("href", "/sites");
-    }
+    expect(screen.getByRole("heading", { name: /Decide what deserves scarce robot time/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/A ranking is not guaranteed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pipeline chooses the least expensive currently qualified evidence/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
   });
 });

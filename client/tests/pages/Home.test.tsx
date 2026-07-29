@@ -3,35 +3,16 @@ import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Home", () => {
-  it("renders the simplified capture-backed policy evaluation story", () => {
+  it("renders one Task Evaluation Run lifecycle with abstention and one primary CTA", () => {
     render(<Home />);
-
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: /Test robot policies before field time\./i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Compare your policy against earlier checkpoints/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /^Request evaluation$/i })[0]).toHaveAttribute(
-      "href",
-      expect.stringContaining("/contact/robot-team"),
-    );
-    expect(screen.getByText(/Capture the site/i)).toBeInTheDocument();
-    expect(screen.getByText(/Run the comparison/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Decide the next test/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/500 episodes/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^Illustrative run$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Illustrative readout\. Generated and simulated media/i)).toBeInTheDocument();
-    expect(screen.getByText(/Illustrative values\. Correlation reference 0\.929 \(SC3-Eval\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Review media, not real-world proof/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/policies submitted by other teams and vendors/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("heading", { name: /One captured envelope\. A clear policy ranking\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/First-person POV clips/i)).toBeInTheDocument();
-    expect(screen.getByText(/policy-ranking result outside the measured evaluation scope/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/WAM\/VLA/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /Turn a real site-task into a decision you can defend/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Maintained testbed$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Cheapest qualified evidence$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Decision or abstention/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Explicit abstention$/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not infer a winner from raw scores/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
   });
 });

@@ -8,7 +8,7 @@ Purpose: fast orientation for a new engineer or agent entering `Blueprint-WebApp
 
 | Surface | Primary files | Responsibility |
 |---|---|---|
-| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ForRobotTeams.tsx`, `client/src/pages/Sites.tsx`, `client/src/pages/SiteDetail.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/FAQ.tsx`, `client/src/pages/Contact.tsx` | Explain and route the buyer workflow for capture-backed Task Evaluation Runs, Policy Improvement Runs, post-training data packages, and proof-bounded decisions. |
+| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ForRobotTeams.tsx`, `client/src/pages/ForSiteOperators.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/FAQ.tsx`, `client/src/pages/Contact.tsx` | Explain and route one capture-backed Task Evaluation Run for both personas, including decisions, abstentions, proof boundaries, and scoped quotes. |
 | Captured-site inventory | `client/src/pages/Sites.tsx`, `client/src/pages/SiteDetail.tsx`, `server/routes/site-worlds.ts`, `server/utils/site-worlds.ts`, `server/routes/admin-site-worlds.ts` | Publish only current Pipeline-backed capture records; keep static fixture catalogs out of public listing and checkout paths. |
 | Buyer run status | `client/src/pages/app/Runs.tsx`, `client/src/pages/app/RunDetail.tsx`, `client/src/lib/buyerAppData.ts`, `server/routes/robot-eval-job-requests.ts` | List and poll the signed-in buyer's persisted run requests without upgrading queue, provider, or artifact state. |
 | Buyer intake and request console | `client/src/pages/Contact.tsx`, `client/src/pages/RequestConsole.tsx`, `client/src/lib/structuredIntake.ts`, `server/routes/inbound-request.ts`, `server/routes/requests.ts`, `server/types/inbound-request.ts` | Capture buyer/site/operator context, persist request state, and expose proof/readiness/preview progress. |
@@ -93,7 +93,7 @@ Use graphify to find navigation hotspots. Do not use it to decide product truth,
 - `world model`: model/runtime substrate for a site-specific package or hosted experience built from real capture evidence.
 - `site world`: existing internal naming for many data contracts, routes, IDs, files, and runtime objects. Do not rename internals just because public copy says "world models."
 - `site package`: capture-backed downstream output sold, hosted, or used as the substrate for a real-site robot eval dataset.
-- `hosted session`: request/runtime surface for interacting with a Task Evaluation Run, Policy Improvement Run, or site-world/world-model compatibility artifact.
+- `hosted session`: optional access surface for reviewing evidence inside a Task Evaluation Run; not a separate primary product.
 - `real-site robot eval dataset`: current WebApp public buyer story for one real site, one robot task, one threshold set, Site/Task/Scenario/Eval Cards, and proof blockers.
 - `qualification` / `readiness`: support-layer vocabulary for site/task scoped and capture-grounded review; unsupported ready-to-deploy or safety-validated verdicts remain blocked.
 - `provenance`: capture source, timestamps, device metadata, poses, and derivation trail.

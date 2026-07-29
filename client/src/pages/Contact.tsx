@@ -36,8 +36,8 @@ const routeCards = [
     persona: "robot_team" as const,
     href: "/contact/robot-team#contact-intake",
     eyebrow: "Robot teams",
-    title: "Compare policies on a real site.",
-    body: "Bring one site and one task. We scope the run and return a priced plan.",
+    title: "Request a Task Evaluation Run.",
+    body: "Bring the site-task and decision. Candidates are optional and the evidence plan is scoped with you.",
     Icon: Bot,
   },
 ];
@@ -58,22 +58,20 @@ export default function Contact() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const headline = isSiteOperator
-    ? "Find robot teams for your site."
-    : "Tell us what policies to compare.";
+    ? "Turn your site-task into a testable decision."
+    : "Tell us the decision you need to make.";
   const subhead = isSiteOperator
-    ? "Start a $5,000 Robot Match — we compare compatible robot teams on your captured site and shortlist the two or three strongest. Access, rights, and pricing are confirmed per scope."
-    : "We scope one Policy Shortlist campaign — a single-site ranking of your candidate policies — and send back a fixed price. Request only; nothing is committed.";
+    ? "Request the same Task Evaluation Run used by robot teams. We scope the task, evidence, candidates when available, rights, physical requirements, timing, and quote."
+    : "Request one scoped Task Evaluation Run for a real site-task. Bring candidates or checkpoints when applicable; a ranking or winner is never guaranteed.";
 
   const intentOptions = isSiteOperator
     ? [
-        { value: "robot-match", label: "Robot Match campaign" },
-        { value: "site-supply", label: "Register a site (free)" },
+        { value: "task-evaluation-run", label: "Task Evaluation Run" },
         { value: "rights", label: "Discuss rights and access" },
       ]
     : [
-        { value: "policy-shortlist", label: "Policy Shortlist campaign" },
-        { value: "volume-campaigns", label: "Repeat / volume campaigns" },
-        { value: "join-robot-match", label: "Join a Robot Match" },
+        { value: "task-evaluation-run", label: "Task Evaluation Run" },
+        { value: "repeat-runs", label: "Repeated evaluation runs" },
       ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -127,27 +125,25 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title={isSiteOperator ? "Robot Match | Blueprint" : "Start a Policy Shortlist | Blueprint"}
+        title="Request a Task Evaluation Run | Blueprint"
         description={
           isSiteOperator
-            ? "Start a Robot Match: compare compatible robot teams against your captured site and shortlist the strongest for an onsite pilot. You control rights and access."
-            : "Start a Policy Shortlist: rank your candidate policies on a captured real-site task and get the two or three strongest for an onsite pilot."
+            ? "Turn a site-task into a maintained testbed and bounded decision, with operator-controlled rights and access."
+            : "Request a decision-oriented evaluation of candidates or policies against a real site-task."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
         jsonLd={[
           webPageJsonLd({
             path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
-            name: isSiteOperator
-              ? "Start a Blueprint Robot Match"
-              : "Start a Blueprint Policy Shortlist",
+            name: "Request a Blueprint Task Evaluation Run",
             description: isSiteOperator
-              ? "Structured intake for a site-operator Robot Match that compares compatible robot teams on a captured real site."
-              : "Structured intake for a robot-team Policy Shortlist that ranks candidate policies on a captured real-site task envelope.",
+              ? "Structured Task Evaluation Run intake for a site operator."
+              : "Structured Task Evaluation Run intake for a robot team.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             {
-              name: isSiteOperator ? "Robot Match" : "Policy Shortlist",
+              name: "Task Evaluation Run",
               path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
             },
           ]),
@@ -202,8 +198,8 @@ export default function Contact() {
                   </h3>
                   <p className="mt-2 text-[15px] leading-[1.7] text-ink-600">
                     {isSiteOperator
-                      ? "We will review the workflow and follow up to confirm compatible teams, access, rights, and scope. No capture happens until you approve it."
-                      : "We will check the task, scope the comparison, and return a priced run plan. If approved, run records appear in the buyer app or a private request room after evidence and access are accepted."}
+                      ? "We will review the workflow, decision, evidence gaps, access, rights, and scope, then return a scoped run plan and quote. No capture happens until you approve it."
+                      : "We will check the task, decision, thresholds, evidence, and constraints, then return a scoped run plan and quote. If approved, the run record appears in the authenticated app after authorization."}
                   </p>
                 </div>
                 <Button variant="secondary" size="md" onClick={() => setSubmitted(false)}>
@@ -241,7 +237,7 @@ export default function Contact() {
                     htmlFor="contact-message"
                     className="text-caption font-semibold text-ink-800"
                   >
-                    {isSiteOperator ? "About the place" : "About the task"}
+                      About the site-task and decision
                   </label>
                   <textarea
                     id="contact-message"
@@ -249,8 +245,8 @@ export default function Contact() {
                     rows={5}
                     placeholder={
                       isSiteOperator
-                        ? "The workflow you want to automate, facility type, location, access windows, and any restricted zones."
-                        : "The site, the task, the policies to rank, and the threshold you care about — e.g. case pick-and-place or aisle navigation in a warehouse."
+                        ? "The workflow, decision you need, facility conditions, thresholds, unacceptable failures, access windows, and restricted zones."
+                        : "The site-task, decision, candidates or checkpoints when applicable, success thresholds, false-safe consequence, budget, deadline, and evidence you already have."
                     }
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />
@@ -264,11 +260,7 @@ export default function Contact() {
                     .
                   </p>
                 ) : null}
-                {!isSiteOperator ? (
-                  <p className="text-caption text-ink-500">
-                    A Policy Shortlist returns the two or three strongest candidates for an onsite pilot — never a guarantee, a safety certification, or a deployment-readiness claim.
-                  </p>
-                ) : null}
+                <p className="text-caption text-ink-500">A valid result may be positive, negative, partial, or an explicit abstention. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.</p>
                 <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-caption text-ink-500">
                     Request only. Access, pricing, rights, and execution are confirmed per scope.

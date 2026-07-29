@@ -177,38 +177,37 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
       expect(received).toHaveLength(1);
       expect(received[0]).toEqual(
         expect.objectContaining({
-          queue_contract: "robot_eval_job_request_inbox.v1",
-          status: "queued_for_pipeline",
+          queue_contract: "blueprint.decision_evidence_request_inbox.v1",
+          status: "submitted",
           pipeline_consumer: "BlueprintCapturePipeline",
         }),
       );
       const envelope = received[0];
-      const forwardedRequest = envelope.job_request as Record<string, unknown>;
+      const forwardedRequest = envelope.decision_request as Record<string, unknown>;
       expect(forwardedRequest).toEqual(
         expect.objectContaining({
-          schema_version: "robot_eval_job_request.v1",
-          source_kind: "webapp_route_forwarding_proof",
-          buyer_request_id: "buyer-request-route-proof-20260611",
+          schema_version: "blueprint.decision_evidence_request.v1",
+          decision_id: "buyer-request-route-proof-20260611",
+          routing_authority: {
+            system: "BlueprintCapturePipeline",
+            method_selection: "pipeline_qualified_least_cost_sufficient_evidence",
+            webapp_backend_selection_allowed: false,
+          },
         }),
       );
-      expect(forwardedRequest.requested_tasks).toEqual([
+      expect(forwardedRequest.claims).toEqual([
         expect.objectContaining({
-          task_id: "first-gpu-walkthrough-2",
-          scenario_ids: ["scenario_first_gpu_walkthrough_2_humanoid_dual_camera_v1"],
+          claim_id: "claim-first-gpu-walkthrough-2",
         }),
       ]);
-      expect((forwardedRequest.source as Record<string, unknown>).selection_state).toEqual(
+      expect(forwardedRequest.testbed).toEqual(
         expect.objectContaining({
-          dataset_selection: expect.objectContaining({
-            source: "pipeline_robot_eval_dataset_cards",
-            taskId: "first-gpu-walkthrough-2",
-            scenarioId: "scenario_first_gpu_walkthrough_2_humanoid_dual_camera_v1",
-            taskCardCount: 1,
-            scenarioCardCount: 2,
-          }),
+          testbed_id: "site-first-gpu-walkthrough-2",
+          version: "route-proof.v1",
+          digest_sha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
       );
-      expect(forwardedRequest.local_rehearsal_only).not.toBe(true);
+      expect(forwardedRequest).not.toHaveProperty("simulator_preference");
 
       const proof = JSON.parse(await fs.readFile(outputPath, "utf8"));
       expect(proof).toEqual(
@@ -408,29 +407,24 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
       expect(stdout).toContain("[webapp-route-forwarding-proof] status=forwarded_to_pipeline_intake");
       expectNoAdcActivity(stdout, stderr);
       expect(received).toHaveLength(1);
-      const forwardedRequest = (received[0].job_request as Record<string, unknown>);
-      const sitePackage = forwardedRequest.site_package as Record<string, unknown>;
-      const rightsPrivacyScope = forwardedRequest.rights_privacy_scope as Record<string, unknown>;
-      expect(forwardedRequest.source_kind).toBe("owner_agent_codex_request");
-      expect(forwardedRequest.buyer_request_id).toMatch(/^owner-agent-buyer-first-gpu-walkthrough-2-/);
-      expect(sitePackage.site_submission_id).toMatch(/^owner-agent-site-first-gpu-walkthrough-2-/);
-      expect(sitePackage.capture_job_id).toMatch(/^owner-agent-capture-first-gpu-walkthrough-2-/);
-      expect(rightsPrivacyScope).toEqual(
+      const forwardedRequest = (received[0].decision_request as Record<string, unknown>);
+      expect(forwardedRequest.schema_version).toBe("blueprint.decision_evidence_request.v1");
+      expect(forwardedRequest.decision_id).toMatch(/^owner-agent-buyer-first-gpu-walkthrough-2-/);
+      expect(forwardedRequest.testbed).toEqual(
         expect.objectContaining({
-          status: "cleared_for_robot_eval",
-          external_use_allowed: true,
-          source: "capture_descriptor.metadata.capture_rights",
-          scope_limited_to_simulator_eval: true,
-          public_claim_upgrade_allowed: false,
+          testbed_id: "site-first-gpu-walkthrough-2",
+          version: "route-proof.v1",
+          digest_sha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
       );
-      expect(forwardedRequest.world_model_context).toEqual(
+      expect(forwardedRequest.routing_authority).toEqual(
         expect.objectContaining({
-          world_id: "97b00832-7418-4d73-b58f-9b72e6b47562",
-          privacy_safe_input: true,
-          raw_video_bypass_used: false,
-          advisory_sample_reused: false,
+          system: "BlueprintCapturePipeline",
+          webapp_backend_selection_allowed: false,
         }),
+      );
+      expect(JSON.stringify(forwardedRequest)).not.toContain(
+        "97b00832-7418-4d73-b58f-9b72e6b47562",
       );
       const proof = JSON.parse(await fs.readFile(outputPath, "utf8"));
       expect(proof.job_request.source_kind).toBe("owner_agent_codex_request");

@@ -93,7 +93,7 @@ export default function Runs() {
   return (
     <AppShell active="runs" breadcrumb="runs">
       <Helmet>
-        <title>Evaluation Runs · Blueprint</title>
+        <title>Task Evaluation Runs · Blueprint</title>
         <meta
           name="description"
           content="Buyer evaluation run records for authenticated Blueprint accounts."
@@ -104,18 +104,17 @@ export default function Runs() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-1.5">
             <Eyebrow tone="brass" rule>
-              Evaluation runs
+              Task Evaluation Runs
             </Eyebrow>
             <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
-              Runs
+              Task Evaluation Runs
             </h1>
             <p className="text-body-s text-ink-500">
-              Evaluation job requests submitted by this buyer account, read from
-              Blueprint&apos;s durable run store.
+              Decision requests and Pipeline-owned results for this authenticated account.
             </p>
           </div>
           <Button asChild variant="action" iconLeft={<Plus />}>
-            <Link href="/app/packs">Request a run</Link>
+            <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
           </Button>
         </header>
 
@@ -133,12 +132,12 @@ export default function Runs() {
             ) : (
               <Card pad="lg" className="flex flex-col gap-4">
                 <ProofBoundary level="info" title="No evaluation runs yet" icon={ShieldCheck}>
-                  Runs appear here after a paid evaluation request for one of
-                  your licensed sites is accepted. Nothing is simulated on this
-                  page — each row is a stored run record owned by this account.
+                  Runs appear here as soon as a decision request is durably accepted.
+                  Authorization, planning, evidence collection, decisions, and
+                  abstentions remain distinct states.
                 </ProofBoundary>
                 <Button asChild variant="action" className="w-fit">
-                  <Link href="/sites">Browse sites</Link>
+                  <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
                 </Button>
               </Card>
             )}

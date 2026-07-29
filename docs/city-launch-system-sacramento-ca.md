@@ -3,7 +3,7 @@
 - city: Sacramento, CA
 - status: founder_approved_activation_ready
 - planning_state: completed
-- doctrine: capture-first, real-site robot-evaluation/policy-improvement first, Task Evaluation Run and Policy Improvement Run wedge
+- doctrine: capture-first, real-site-task first, with one Task Evaluation Run and decision-bound evidence reuse
 
 ## Objective
 

@@ -23,17 +23,14 @@ const mockContactSubmission = async (page: import('@playwright/test').Page) => {
   return submissions;
 };
 
-test('contact page leads with a simple robot-team Policy Evaluation Run flow', async ({ page }) => {
+test('contact page leads with the robot-team Task Evaluation Run flow', async ({ page }) => {
   await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Tell us what policies to compare\./i }),
+    page.getByRole('heading', { name: /Tell us the decision you need to make\./i }),
   ).toBeVisible();
   await expect(
-    page.locator('main').getByRole('link', { name: /Compare policies on a real site\./i }).first(),
-  ).toBeVisible();
-  await expect(
-    page.locator('main').getByRole('link', { name: /Partner on lighthouse capture access/i }).first(),
+    page.getByText(/Request one scoped Task Evaluation Run for a real site-task/i),
   ).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Work email/i })).toBeVisible();
@@ -42,24 +39,22 @@ test('contact page leads with a simple robot-team Policy Evaluation Run flow', a
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
 
-test('site-operator contact path presents the Robot Match lane', async ({ page }) => {
+test('site-operator contact path presents the same Task Evaluation Run', async ({ page }) => {
   await page.goto('/contact/site-operator', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Find robot teams for your site\./i }),
+    page.getByRole('heading', { name: /Turn your site-task into a testable decision\./i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Start a \$5,000 Robot Match — we compare compatible robot teams on your captured site/i),
+    page.getByText(/Request the same Task Evaluation Run used by robot teams/i),
   ).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Organization/i })).toBeVisible();
-  await expect(
-    page.locator('main').getByRole('link', { name: /Partner on lighthouse capture access/i }).first(),
-  ).toBeVisible();
   await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
+  await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
 
-test('robot-team contact form submits a Policy Evaluation Run payload through a mocked endpoint', async ({ page }) => {
+test('robot-team contact form submits a Task Evaluation Run payload through a mocked endpoint', async ({ page }) => {
   const submissions = await mockContactSubmission(page);
 
   await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
@@ -68,14 +63,14 @@ test('robot-team contact form submits a Policy Evaluation Run payload through a 
   await page.getByRole('textbox', { name: /Work email/i }).fill('ada@example.com');
   await page.getByRole('textbox', { name: /Robot team \/ company/i }).fill('Analytical Engines');
   await page
-    .getByRole('textbox', { name: /About the task/i })
-    .fill('Tote transfer at a Chicago warehouse. Need a clear winner before field time.');
+    .getByRole('textbox', { name: /About the site-task and decision/i })
+    .fill('Tote transfer at a Chicago warehouse. Need to decide whether field time is justified.');
 
   await page.getByRole('button', { name: /Send message/i }).click();
 
   await expect(page.getByRole('heading', { name: /Message received\./i })).toBeVisible();
   await expect(
-    page.getByText(/We will check the task, scope the comparison, and return a priced run plan\./i),
+    page.getByText(/We will check the task, decision, thresholds, evidence, and constraints/i),
   ).toBeVisible();
 
   expect(submissions).toHaveLength(1);

@@ -11,6 +11,8 @@ top of — and never overrides — [`PLATFORM_CONTEXT.md`](PLATFORM_CONTEXT.md) 
 and sellable **today**. Where this document describes rungs 3–5, treat them as **direction and
 bets**, not current capability. Every forward claim carries an explicit proof boundary.
 
+> Current-product correction (2026-07-29): the sole customer-facing product is one scoped Task Evaluation Run. It may return a bounded positive or negative decision, candidate elimination, a partial decision, explicit abstention, or the next evidence needed. Ranking is conditional, not guaranteed. Post-training is only a permitted use of qualifying evidence inside a run, never a separate SKU or proof that training occurred. Any older rung language below that calls ranking or policy-improvement/data packages "shipping today" is retained long-horizon strategy text and is superseded for current product and commercial behavior by `PLATFORM_CONTEXT.md`.
+
 <!-- SHARED_VISION_START -->
 
 ## The one-sentence version
@@ -64,16 +66,18 @@ rungs; we earn each one with the data the previous rung produces.
 
 ---
 
-### Rung 1 — The wedge: eval ranking that correlates to real-world performance
+### Rung 1 — The wedge: claim-bounded Task Evaluation Runs
 
-**What it is (shipping today).** Blueprint's **Task Evaluation Runs**: take a real captured site, a
-task suite, a robot profile, and success/cycle-time/intervention thresholds, and return an
-**evidence-backed ranking** of which policy is most likely to hit them — *before* anyone spends field
-time. This is the current PMF wedge (see the [Commercial Wedge Overlay](PLATFORM_CONTEXT.md)).
+**What it is (shipping today).** Blueprint's **Task Evaluation Run** turns a real site-task into a
+maintained testbed and routes each decision-relevant claim to the least expensive currently
+qualified evidence. It returns a bounded positive or negative decision, candidate elimination,
+partial decision, explicit abstention, or the next evidence needed. Candidate ordering appears only
+when the evidence supports it; it is not guaranteed. This is the current PMF wedge (see the
+[Commercial Wedge Overlay](PLATFORM_CONTEXT.md)).
 
-**Why it is credible, not hand-waving — the two papers our case rests on.** Evaluating a policy
-inside a *generated world* can now predict its real-world ranking, and as of June 2026 two results
-make the case concrete:
+**Why it is credible enough to qualify methods, not to assume verdicts — two research signals.**
+Evaluating a policy inside a *generated world* may support some comparison claims. As of June 2026,
+two external results motivate method qualification without becoming Blueprint run evidence:
 
 - **SC3-Eval** (NVIDIA · Physical Intelligence · Toronto/Vector · Stanford · UC Berkeley,
   arXiv:2606.18610) adapts a pre-trained video foundation model into a *closed-loop* policy evaluator
@@ -92,13 +96,13 @@ make the case concrete:
   world-model adapter (see [`WORLD_MODEL_STRATEGY_CONTEXT.md`](WORLD_MODEL_STRATEGY_CONTEXT.md)).
 
 Earlier work corroborates the direction (SIMPLER r ≈ 0.924; AutoEval r ≈ 0.942 while cutting human
-supervision >99%). **The 0.929 rank fidelity Blueprint reports lives in exactly this regime — and it
-is the SC3-Eval headline number**, not a marketing figure. Ranking is the honest, defensible unit;
-the honest caveat is that the in-distribution 0.98 becomes ~0.85–0.87 cross-embodiment / OOD — which
-is precisely the gap rung 3b has to close.
+supervision >99%). **The 0.929 figure is SC3-Eval's external headline correlation, not a Blueprint
+result.** The in-distribution 0.98 becomes ~0.85–0.87 cross-embodiment / OOD, which is precisely why
+Pipeline must qualify each method for the requested claim and may abstain.
 
-**Proof boundary (non-negotiable).** We sell **rank fidelity and predicted success on captured
-tasks** — an estimate. We do **not** sell a guaranteed field outcome, an off-scope validation, or a
+**Proof boundary (non-negotiable).** We sell an inspectable decision or abstention with per-claim
+outcomes, validation envelope, uncertainty, disagreement, claim ceiling, next experiment, and exact
+provenance. We do **not** sell a guaranteed ranking or field outcome, an off-scope validation, or a
 claim that we ran the buyer's real robot unless request-scoped owner-system proof exists. Generated
 frames are review support, never real-world proof.
 
@@ -141,8 +145,10 @@ conflict-of-interest firewall** — the same discipline that keeps a ratings age
 
 Two capabilities grow out of the data rungs 1–2 produce. They are **partly shipping, partly bets.**
 
-**3a — Post-training data generation & policy improvement (shipping as Policy Improvement Runs /
-Post-Training Data Packages).** Robotics is data-starved in a way language never was: usable
+**3a — Post-training data generation and policy improvement (permitted evidence use today; future
+capability beyond that).** Post-training is not a separate current product. A run may mark exact
+qualifying evidence eligible for post-training use, which does not prove that training occurred or
+that a policy improved. Robotics is data-starved in a way language never was: usable
 open-source real-world interaction data is **<5,000 hours** vs. trillions of text tokens; Bessemer
 calls robot data **"~a billion times smaller than internet text"** and projects **>$3B** of industry
 data spend in two years. High-quality teleoperation still costs **~$118–340/hour**. Two things follow:

@@ -179,7 +179,7 @@ The budget compression above remains the declared config envelope, but future ch
 
 | Tier | Role in the `$173` Paperclip envelope | Budget posture |
 |---|---|---|
-| P0 active | Direct product/proof, demand/sales, and reliability owners for real-site robot evaluation runs and sim-only policy improvement runs. | Protected first; do not reduce below current proof-bearing operating spine without replacing the function with deterministic software. |
+| P0 active | Direct product/proof, demand/sales, and reliability owners for real-site Task Evaluation Runs and evidence-bound results. | Protected first; do not reduce below current proof-bearing operating spine without replacing the function with deterministic software. |
 | P1 event-only/reduced cadence | Lanes that are useful when a concrete issue, live request, proof packet, or weekly synthesis need exists. | Keep paused or reduced cadence; no broad discovery runs. |
 | P2 dormant/merged | Historical, duplicate, writing/reporting, broad supply/growth, or release orchestration lanes. | Keep paused, merged into a stronger owner, or compatibility-only until proof justifies restart. |
 

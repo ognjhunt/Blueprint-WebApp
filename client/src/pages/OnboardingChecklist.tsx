@@ -208,14 +208,14 @@ export default function OnboardingChecklist() {
             },
             {
               id: "package-path",
-              title: "Pick package or hosted path",
+              title: "Define the evaluation decision",
               description:
-                "Confirm whether the request starts with package access, a policy evaluation set, data licensing, or guidance.",
+                "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, budget, deadline, evidence, and restrictions.",
               completed: Boolean(progress.packageOrHostedPathSelected || progress.defineSiteSubmission),
               icon: FileSearch,
               action: {
-                label: "Open world models",
-                href: "/world-models",
+                label: "Start run intake",
+                href: "/app/runs/new",
                 updateField: "onboardingProgress.packageOrHostedPathSelected",
               },
             },
@@ -343,7 +343,7 @@ export default function OnboardingChecklist() {
         id: "review",
         title: "Route the submission for review",
         description:
-          "The request enters the intake review queue before a package, hosted review, or operator call opens.",
+          "The request enters intake review before authorization, evidence planning, or an operator call begins.",
         completed: progress.completeIntakeReview,
         icon: ClipboardCheck,
         action: {

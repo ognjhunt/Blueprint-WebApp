@@ -2,7 +2,7 @@
 
 ## Mission
 
-`Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface for Blueprint's real-site robot evaluation runs and post-training data packages.
+`Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface for Blueprint's Task Evaluation Runs. Post-training is a permitted use of qualifying run evidence, not a separate product.
 
 This repo must reinforce the platform doctrine in:
 
@@ -32,7 +32,7 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
 
 - Keep Blueprint capture-first and real-site robot-evaluation/data-package first.
 - Do not reframe the company as qualification-first or model-checkpoint-first.
-- Do not reframe world models as the primary public offer; they are internal compatibility, generated/editing/augmentation, or advisory support inside data packages.
+- Do not reframe world models as the primary public offer; they are internal compatibility, generated/editing/augmentation, or advisory evidence methods inside Task Evaluation Runs.
 - Do not overstate simulated or generated outputs as ground truth.
 - Buyer, licensing, hosted-session, and ops flows should stay anchored to real capture provenance.
 - Qualification and readiness surfaces are support layers, not the center of the product.

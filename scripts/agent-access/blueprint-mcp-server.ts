@@ -145,53 +145,6 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     },
   },
   {
-    name: "blueprint.commerce.quote",
-    description: "Create a dry-run quote for a site-world package or hosted-session rental without calling live Stripe.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        siteWorldId: stringProp("Site-world id."),
-        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
-        sessionHours: integerProp("Hosted-session hours for rental quotes."),
-      },
-      required: ["siteWorldId"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "blueprint.commerce.checkoutDryRun",
-    description: "Create a dry-run order and entitlement for agent commerce verification. Does not call live Stripe.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        siteWorldId: stringProp("Site-world id."),
-        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
-        sessionHours: integerProp("Hosted-session hours for rental checkout."),
-        buyer: objectProp("Optional dry-run buyer identity with uid/email."),
-      },
-      required: ["siteWorldId"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "blueprint.commerce.checkoutLive",
-    description: "Create a REAL Stripe Checkout Session for an agent purchase with an optional server-enforced budget guard. Only pipeline-backed site worlds are live-purchasable; blocked requests return structured blockers and create no order or charge. Payment completes at the returned checkout URL and webhook fulfillment provisions the entitlement.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        siteWorldId: stringProp("Site-world id."),
-        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
-        sessionHours: integerProp("Hosted-session hours for rental checkout."),
-        budgetCents: integerProp("Optional agent budget in USD cents. Quotes above this are rejected with a budget_exceeded blocker."),
-        successPath: stringProp("Optional site-relative success redirect path."),
-        cancelPath: stringProp("Optional site-relative cancel redirect path."),
-        buyer: objectProp("Optional buyer identity with uid/email for anonymous agents; a Firebase bearer token takes precedence."),
-      },
-      required: ["siteWorldId"],
-      additionalProperties: false,
-    },
-  },
-  {
     name: "blueprint.commerce.liveOrder.get",
     description: "Poll a live agent order's non-PII payment and entitlement-provisioning status by order id.",
     inputSchema: {
@@ -234,8 +187,8 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
       type: "object",
       properties: {
         siteWorldId: stringProp("Site-world id."),
-        entitlementId: stringProp("Dry-run entitlement id."),
-        buyerUserId: stringProp("Optional dry-run buyer uid. Defaults to agent-dry-run-buyer."),
+        entitlementId: stringProp("Historical entitlement id."),
+        buyerUserId: stringProp("Optional historical buyer uid."),
         product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
       },
       required: ["siteWorldId", "entitlementId"],
@@ -250,8 +203,8 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
       properties: {
         siteWorldId: stringProp("Site-world id."),
         entitlementId: stringProp("Optional provisioned entitlement id for protected hosted-session launch."),
-        orderId: stringProp("Optional dry-run order id associated with the entitlement."),
-        commerceMode: { type: "string", enum: ["dry_run"], description: "Optional dry-run commerce mode marker." },
+        orderId: stringProp("Optional historical order id associated with the entitlement."),
+        commerceMode: { type: "string", enum: ["dry_run"], description: "Persisted compatibility marker for a historical test order." },
         robotProfileId: stringProp("Robot profile id from the site-world runtime catalog."),
         taskId: stringProp("Task id from the task catalog."),
         scenarioId: stringProp("Scenario id from the scenario catalog."),

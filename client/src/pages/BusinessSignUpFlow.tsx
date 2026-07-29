@@ -860,7 +860,7 @@ export default function BusinessSignUpFlow() {
         description={
           isSiteOperatorSignup
             ? "Create a Blueprint site-operator account to submit a facility, define access boundaries, and review robot-team use."
-            : "Create a Blueprint robot-team account for exact-site robot evaluation runs, hosted review, and sim-only policy improvement runs."
+            : "Create a Blueprint robot-team account for capture-backed Task Evaluation Runs, maintained testbeds, and compatible historical records."
         }
         canonical="/signup/business"
         noIndex
@@ -1363,9 +1363,8 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <p className="mt-3 leading-7">
                               Blueprint routes the request into the intake review hub so the team
-                              can confirm the site, workflow, commercial lane, and whether a
-                              scoping call is actually needed before opening a hosted review or
-                              package path.
+                              can confirm the site, task, requested decision, constraints, and whether a
+                              scoping call is needed before authorizing a Task Evaluation Run.
                             </p>
                           </div>
 

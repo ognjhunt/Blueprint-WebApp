@@ -16,10 +16,10 @@ import {
 } from "@/data/robotPolicyEvaluationClaims";
 
 const statStrip = [
-  { label: "Episodes / run", value: "100–500", caption: "Per policy evaluation" },
-  { label: "Evidence layers", value: "3", caption: "Capture · run · owner proof" },
-  { label: "Core service", value: "1", caption: "Task Evaluation Run — ranks which policy to field-test first" },
-  { label: "Proof boundary", value: "Always on", caption: "Review support, not proof" },
+  { label: "Primary offer", value: "1", caption: "Task Evaluation Run" },
+  { label: "Valid outcomes", value: "4+", caption: "Positive · negative · partial · abstained" },
+  { label: "Method authority", value: "Pipeline", caption: "Qualified, claim-specific routing" },
+  { label: "Proof boundary", value: "Always on", caption: "Envelope, ceiling, and provenance" },
 ];
 
 const principles = [
@@ -33,7 +33,7 @@ const principles = [
     eyebrow: "Principle 02",
     label: "Estimates, never guarantees.",
     description:
-      "Policy comparison is framed as rank fidelity and predicted success on captured tasks. We do not promise field deployment or guaranteed outcomes.",
+      "Candidate comparison is reported only when the evidence supports ordering. We preserve partial decisions and abstention and do not promise field deployment or guaranteed outcomes.",
   },
   {
     eyebrow: "Principle 03",
@@ -54,14 +54,14 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible."
+        description="Why Blueprint exists: turning one real site-task into a maintained testbed and bounded decision with rights, privacy, and provenance kept visible."
         canonical="/about"
         jsonLd={[
           webPageJsonLd({
             path: "/about",
             name: "About Blueprint",
             description:
-              "Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible.",
+              "Why Blueprint exists: turning one real site-task into a maintained testbed and bounded decision with rights, privacy, and provenance kept visible.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },

@@ -12,21 +12,17 @@ proof.
 
 ---
 
-## The two products
+## The product
 
-**Task Evaluation Run** — Evaluate a task/policy against one real captured site in a
-**sim/review-grade** setting. It answers a narrow pre-pilot question: how does this policy look
-against this real-site task before expensive field time? You get an advisory scorecard plus the
-evidence behind it (site/task/scenario context, run notes, observation frames).
+**Task Evaluation Run** — Submit a decision about one real site-task, including candidates when
+applicable, claims, thresholds, false-safe consequences, risk tolerance, evidence, budget, timing,
+and rights constraints. Blueprint returns a bounded decision, partial decision, explicit abstention,
+or the next evidence required, with the validation envelope and exact provenance.
 
-**Post-Training Data Package** — A structured, capture-grounded package for a real site: site card,
-task cards, scenario cards, eval cards, curated clips, generated/model-derived scenario variations,
-an export manifest, and a rights packet — with provenance attached so you can inspect the basis of
-every artifact.
-
-Policy Improvement Runs are **source-access optional**: you can engage via API endpoint, container,
-private-cloud runner, sim plugin, adapter hooks, or recorded action traces — you do not have to
-hand over weights or source.
+Evidence inside a run may be marked eligible for evaluation or post-training use. That eligibility
+is not a separate purchase and does not prove training occurred or a policy improved. Candidate
+references can use approved APIs, containers, private runners, plugins, or traces; never paste secrets
+or raw weights into intake.
 
 ---
 
@@ -57,16 +53,17 @@ request-scoped owner-system proof.
 
 ---
 
-## The flow: discover → request → run → receive → download
+## The flow: testbed → request → plan → decision → evidence use
 
 1. **Discover** — browse real-site coverage on the buyer surface, filtered by location type and
    task (industrial-first; factory/warehouse facets are still being rounded out).
-2. **Request** — open a structured request for a Task Evaluation Run or a Post-Training Data
-   Package. Provide the site/task scope, robot profile, and policy access method.
-3. **Run** — Blueprint runs the sim/review-grade evaluation or assembles the package, keeping
-   provenance and rights attached.
-4. **Receive** — you're granted an **entitlement** to the resulting artifact once it's provisioned.
-5. **Download** — access the package via a **signed, time-limited download URL**.
+2. **Request** — state the decision, claims, candidates when applicable, thresholds, constraints,
+   evidence, and exact testbed version/digest.
+3. **Plan** — Pipeline selects the least expensive qualified evidence for each claim.
+4. **Decide or abstain** — read per-claim outcomes, unknowns, disagreements, claim ceiling, and
+   next cheapest experiment.
+5. **Use eligible evidence** — access exact artifacts through signed links only when the result,
+   rights, and entitlement allow it.
 
 ---
 

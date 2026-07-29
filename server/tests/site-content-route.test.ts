@@ -36,27 +36,27 @@ describe("site-content route", () => {
         safety: string;
       };
 
-      expect(payload.summary).toContain("real-site robot evaluation dataset and workflow");
-      expect(payload.summary).toContain("lawful indoor capture");
-      expect(payload.summary).toContain("Site, Task, Scenario, Eval, and comparison artifacts");
+      expect(payload.summary).toContain("Task Evaluation Run");
+      expect(payload.summary).toContain("bounded decision or explicit abstention");
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            term: "Real-site robot eval dataset",
-            definition: expect.stringContaining("Site Card"),
+            term: "Task Evaluation Run",
+            definition: expect.stringContaining("one customer-facing service"),
           }),
           expect.objectContaining({
-            term: "Eval Cards",
-            definition: expect.stringContaining("blocked proof upgrades"),
+            term: "Decision/Evidence Request",
+            definition: expect.stringContaining("does not select a simulator"),
           }),
           expect.objectContaining({
             term: "Ground-truth boundary",
-            definition: expect.stringContaining("Ground truth means raw capture evidence"),
+            definition: expect.stringContaining("Ground truth means immutable raw capture evidence"),
           }),
         ]),
       );
       expect(payload.safety).toContain("provider execution");
       expect(payload.safety).toContain("owner-system evidence");
+      expect(JSON.stringify(payload)).not.toMatch(/Policy Shortlist|Robot Match|Policy Improvement Run|Post-Training Data Package/);
       expect(payload.safety).not.toMatch(/coming soon|not launched|not ready|placeholder/i);
     } finally {
       await stopServer(server);

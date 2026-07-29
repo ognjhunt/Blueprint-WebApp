@@ -36,12 +36,12 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 
 | Claim Type | Allowed Language | Guardrail |
 |---|---|---|
-| Product category | Blueprint is a real-site robot evaluation dataset and workflow built on capture-backed site packages, hosted review paths, and buyer workflows. | Category language is allowed; do not imply every package is fulfilled, every hosted path is live, or any robot is ranked in generated-world policy evaluation. |
-| Workflow | Request a real-site eval dataset, request Site/Task/Scenario/Eval Cards, book hosted evaluation, view pricing, inspect proof, browse site packages. | Requests can be confident; fulfillment state is confirmed after review. |
-| Intended buyer value | Robot teams and site operators use exact-site packages and eval cards to estimate whether a robot can hit required success rate, cycle time, intervention rate, and safety thresholds before field time. | Do not guarantee deployment success, safety certification, simulator execution, robot trials, or production performance. |
-| Eval dataset deliverable | Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, proof-boundary packet, generated-world rank fidelity advisory, failure-mode report, site modification recommendation, data requirement, short-pilot protocol. | The deliverable is advisory until owner-system proof supports a stronger claim. |
+| Product category | Blueprint turns a real site-task into a maintained testbed and Task Evaluation Run that returns a bounded decision or explicit abstention. | Task Evaluation Run is the sole customer-facing product; testbeds and evidence methods are substrate, not separate offers. |
+| Workflow | Request one Task Evaluation Run, inspect its testbed and evidence plan, then read the per-claim decision envelope and next experiment. | Requests can be confident; authorization, execution, physical work, and fulfillment remain owner-system states. |
+| Intended buyer value | Robot teams compare candidates and decide whether field time is justified; site operators turn a task into a testable decision and identify missing evidence. | Do not guarantee ranking, winner, deployment, safety certification, simulator execution, robot trials, or production performance. |
+| Run result | Decision or abstention, per-claim outcomes, selected evidence methods, measurements, validation envelope, uncertainty, disagreements, claim ceiling, next experiment, physical requirements, exact artifacts, and permitted uses. | Never collapse the result into one score or infer a winner from abstention. |
 | Structured robot-team submission | A public route may let robot teams reference a policy API endpoint, Docker container, recorded action trace, high-level skill trace, teleop demo, or sim controller plugin for hosted-session review. | A submitted reference is an artifact pointer and review input. It does not prove policy execution, simulator completion, hardware execution, off-scope validation, rights/privacy clearance, or generated-world rank fidelity. |
-| Request paths | Forms and CTAs can route buyers to eval datasets, card packets, package access, hosted evaluation, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, off-scope validation, robot trial, or fulfillment start. |
+| Request paths | Forms and CTAs route both personas to the same Task Evaluation Run intake and scoped quote. | A request is not a payment, entitlement grant, provider job, off-scope validation, robot trial, or fulfillment start. |
 | Demo/sample framing | Public samples and representative packets can show product shape, UI quality, proof structure, and buyer workflow. | Label sample/demo material in proof/detail areas; do not present it as a customer result. |
 | Launch-quality UI language | The site may use polished present-tense interface labels and confident buyer language. | Do not add broad apology copy solely because operations are still request-specific. |
 | Request/access review | Request eval dataset, request package access, book hosted evaluation, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, safety proof, and fulfillment are confirmed per site/request. |
@@ -53,7 +53,7 @@ Public visuals may be polished, premium, and specific to the first PMF wedge. Th
 | Visual Type | Allowed Public Use | Guardrail |
 |---|---|---|
 | Humanoid robot scenes | Default public robot imagery for the first PMF wedge: a humanoid robot evaluating, carrying, picking, inspecting, or routing through an exact indoor site. | Do not imply the pictured robot completed a live trial, passed safety review, ran the buyer's robot policy, or is ranked in generated-world policy evaluation. |
-| Generated eval-card dashboards | Show product shape: routes, thresholds, blockers, card status, proof packets, hosted review rooms, and advisory score concepts. | Treat generated dashboards as sample/advisory UI unless owner-system proof exists for that request. |
+| Illustrative run results | Show decisions, partial decisions, abstentions, claims, envelope, unknowns, and next experiments. | Clearly label illustrative UI; do not use a ranking card that implies proven physical rank fidelity. |
 | Proof boards and card visuals | Show the structure of provenance, rights, route, blocker, annotation, and threshold evidence that Blueprint packages for buyers. | Do not present representative boards as customer outcomes, cleared rights, robot trials, or completed provider runs. |
 | Non-humanoid robot visuals | Use when a page explicitly discusses AMRs, arms, drones, or another robot class. | Do not let generic wheeled robot imagery become the default public robot posture for the humanoid readiness wedge. |
 
@@ -65,14 +65,14 @@ Use these only when the page, listing, packet, or request has supporting proof. 
 |---|---|---|
 | Available | Current listing, package, entitlement, or request state supports access. | `available after request review`, `request access`, or `availability confirmed per site/request`. |
 | Live hosted session | Runtime/session artifacts, entitlement path, and hosted-session availability support it. | `book hosted review` or `hosted review is confirmed per site/request`. |
-| Generated-world rank fidelity | Site-specific simulator traces, action logs, accepted anchor rows, rights/privacy proof, support path, and runtime proof support evaluator comparison. | `real-site eval cards for advisory review`, `generated-world rank fidelity advisory`, `pre-pilot readiness estimate`, `task-specific confidence packet`, or `generated-world rank fidelity confirmed after review`. |
+| Candidate ranking | The exact Decision Envelope supports ordering, selected candidate IDs, validation envelope, and artifact provenance. | `candidate ordering unresolved`, `partial decision`, or `explicit abstention`; never infer ordering from raw scores. |
 | Non-ranking validated | Safety owner review/signoff, exact-site risk controls, robot-stack evidence, and request-scoped records support the claim. | `safety threshold scoped`, `safety review required`, or `safety posture reviewed per request`. |
 | Simulator execution completed | Provider/runtime artifacts, run logs, scenario manifest, robot policy linkage, and exact request linkage exist. | `simulator traces required`, `hosted evaluation requested`, or `execution confirmed per request`. |
 | Guaranteed success/cycle/intervention threshold | Current exact-site evidence, robot trials or action logs, agreed threshold methodology, and buyer-approved proof support the guarantee. | `threshold scoped`, `advisory estimate`, or `requires simulator traces/action logs/robot trials for operational readiness`. |
 | Rights-cleared | Rights/privacy/consent/commercialization record exists for that exact site and use. | `rights reviewed per request` or `rights posture attached when available`. |
 | Provider-ready | Provider execution path, artifacts, or adapter proof exists for the request. | `provider-swappable`, `provider path selected after review`, or `provider execution confirmed per request`. |
 | City live | Supported-city or city-launch activation truth says the city is live. | `request the city`, `planned city`, or `capture access reviewed by city`. |
-| Package access open | Package, entitlement, rights, and access state support opening files. | `request package access` or `package access confirmed after review`. |
+| Evidence download eligible | Decision Envelope permitted-use fields, exact artifacts, entitlement, rights, and signed access support it. | `evidence eligibility pending` or `download confirmed inside the run`. |
 
 ## Disallowed Until Proven
 

@@ -38,7 +38,8 @@
     "pipeline:first-gpu:owner-agent-request": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
     "pipeline:first-gpu:production-route-proof": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
     "pipeline:forwarding:preflight": "tsx scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
-    "pipeline:robot-eval-contract:verify": "tsx scripts/pipeline/verify-robot-eval-job-request-contract.ts",
+    "pipeline:robot-eval-contract:verify": "tsx scripts/pipeline/verify-robot-eval-job-request-contract.ts && tsx scripts/pipeline/verify-decision-evidence-router-contract.ts",
+    "pipeline:decision-evidence-contract:verify": "tsx scripts/pipeline/verify-decision-evidence-router-contract.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",
@@ -102,7 +103,7 @@
     "paperclip:sweep:run-failures": "tsx scripts/paperclip/sweep-agent-run-failures.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test && tsx scripts/qa/run-task-evaluation-run-e2e.ts",
     "alpha:check": "node scripts/alpha-check.mjs",
     "alpha:preflight": "node scripts/launch-preflight.mjs",
     "alpha:env": "node scripts/launch-env-audit.mjs",
@@ -201,8 +202,5 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  },
-  "overrides": {
-    "fast-uri": "3.1.4"
   }
 }

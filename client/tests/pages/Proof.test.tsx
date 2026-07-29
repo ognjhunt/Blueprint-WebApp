@@ -25,10 +25,10 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /What we do not claim\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/does not turn a virtual score into a universal accuracy guarantee/i),
+      screen.getByText(/Estimates are not physical guarantees, safety approval remains external/i),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /^Request evaluation$/i })[0],
+      screen.getAllByRole("link", { name: /^Request a Task Evaluation Run$/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
   });
 });

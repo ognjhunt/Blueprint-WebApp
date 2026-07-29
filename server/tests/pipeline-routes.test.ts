@@ -635,9 +635,7 @@ describe("pipeline integration routes", () => {
       const json = await response.json();
       expect(json).toEqual(
         expect.objectContaining({
-          marketplace_publication: {
-            sku: "robot-eval-cap-1",
-          },
+          marketplace_publication: null,
           capture_creator_linkage: {
             capture_id: "cap-1",
             creator_id: "creator-auth-123",
@@ -651,30 +649,10 @@ describe("pipeline integration routes", () => {
           },
         }),
       );
-      for (const collection of ["publishedMarketplaceInventory", "marketplace_items"]) {
-        expect(findCollectionWrites(collection)).toEqual([
-          expect.objectContaining({
-            id: "robot-eval-cap-1",
-            payload: expect.objectContaining({
-              sku: "robot-eval-cap-1",
-              itemType: "training",
-              status: "published",
-              fulfillment_status: "artifact_ready",
-              request_id: "req-1",
-              capture_id: "cap-1",
-              artifact_uris: expect.objectContaining({
-                post_training_data_package_uri:
-                  "gs://bucket/marketplace-artifacts/ent-robot-eval-1/post_training_data_package.tar.gz",
-                delivery_manifest_uri:
-                  "gs://bucket/marketplace-artifacts/ent-robot-eval-1/delivery_manifest.json",
-                publication_readiness_uri:
-                  "gs://bucket/robot-eval/publication_readiness.json",
-              }),
-            }),
-            options: { merge: true },
-          }),
-        ]);
-      }
+      // Existing marketplace records remain readable, but a current pipeline
+      // attachment never mints a standalone product or zero-price SKU.
+      expect(findCollectionWrites("publishedMarketplaceInventory")).toEqual([]);
+      expect(findCollectionWrites("marketplace_items")).toEqual([]);
       expect(findCollectionWrites("creatorProfiles")).toEqual([
         expect.objectContaining({
           id: "creator-auth-123",

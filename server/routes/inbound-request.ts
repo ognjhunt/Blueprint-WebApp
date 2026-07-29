@@ -356,14 +356,11 @@ function normalizeCommercialRequestPath(params: {
     return "world_model";
   }
 
-  if (
-    params.requestedLanes.includes("deeper_evaluation") ||
-    params.requestedLanes.includes("data_licensing")
-  ) {
+  if (params.requestedLanes.includes("data_licensing")) {
     return "world_model";
   }
 
-  return "world_model";
+  return "hosted_evaluation";
 }
 
 function normalizeProofPathPreference(
@@ -712,9 +709,9 @@ function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): st
   }
 
   return [
-    "We route the request as a Policy Improvement Run path tied to the submitted buyer, site, task, robot, policy, and threshold context.",
-    "We check baseline-eval fit, policy access method, rights/privacy, capture availability, candidate improvement scope, sealed-test plan, and export format before promising access.",
-    "If the record supports it, we move toward sim-only improvement scoping, hosted review, capture planning, or a scoped buyer handoff.",
+    "We normalize the intake into a Task Evaluation Run decision request tied to the submitted buyer, site, task, candidates, claims, thresholds, and constraints.",
+    "We check testbed provenance, rights/privacy, available evidence, authorization, and the validation strength the decision requires before promising execution or access.",
+    "If the current evidence is insufficient, the run remains blocked or abstains with the next evidence needed instead of fabricating a result.",
   ];
 }
 
@@ -772,7 +769,7 @@ function generateConfirmationEmailHtml(
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/product" style="color:#4f46e5;text-decoration:none;font-size:14px;">Product</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, Policy Improvement Runs, hosted review, and proof boundaries</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, decisions or abstentions, and proof boundaries</span>
                       </td>
                     </tr>
                     <tr>

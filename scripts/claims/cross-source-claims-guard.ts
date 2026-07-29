@@ -357,9 +357,9 @@ const rules: ClaimRule[] = [
   {
     type: "stale_root_doctrine",
     ownerProofRequired:
-      "Current cross-repo doctrine: Blueprint sells real-site robot Task Evaluation Runs and sim-only Policy Improvement Runs; world-model language is internal compatibility or generated/advisory policy-improvement support.",
+      "Current doctrine: Blueprint sells one real-site Task Evaluation Run; world-model, simulation, provider, and post-training language is claim-scoped evidence or permitted-use support inside the run.",
     safeReplacement:
-      "Use `capture-first and real-site robot-evaluation/policy-improvement first`; describe world models as support artifacts inside scoped runs, not the primary public offer.",
+      "Use `capture-first and real-site Task Evaluation Run first`; describe world models as qualified evidence methods inside scoped runs, not a product or guaranteed proof.",
     matches: (line, context) =>
       isRootDoctrineFile(context.relativeFile) && hasStaleRootDoctrineClaim(line),
     allowed: (line) => hasGuardrailContext(line) || hasWorldModelSupportContext(line),

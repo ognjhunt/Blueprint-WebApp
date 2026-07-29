@@ -88,7 +88,7 @@ Use Blueprint-native framing:
 
 - capture-first;
 - real-site robot-evaluation/data-package first;
-- Task Evaluation Run artifacts and Post-Training Data Package artifacts;
+- Task Evaluation Run artifacts and qualifying evidence artifacts, including explicit permitted-use metadata;
 - hosted access;
 - rights/privacy/provenance truth;
 - qualification/readiness as optional support layers.

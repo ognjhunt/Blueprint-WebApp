@@ -8,7 +8,7 @@ import {
 export type AgentJourneyWant =
   | "catalog_match"
   | "hosted_review"
-  | "dry_run_order"
+  | "task_evaluation_run"
   | "entitlement_readiness"
   | "session";
 
@@ -64,8 +64,8 @@ const SUPPRESSED_ACTIONS = [
 ] as const;
 
 const TRUTH_BOUNDARIES = [
-  "This planner only reads public/search data and calls dry-run agent commerce endpoints when requested.",
-  "It does not create live payment, private package access, rights clearance, provider execution, or hosted-session fulfillment.",
+  "This planner only reads public/search data and drafts Task Evaluation Run intake.",
+  "It does not create payment, private package access, rights clearance, provider execution, or hosted-session fulfillment.",
   "Protected hosted-session execution still requires Firebase robot-team/admin bearer auth plus session ownership or a matching provisioned entitlement.",
 ] as const;
 
@@ -121,10 +121,13 @@ function normalizeWant(value: unknown): AgentJourneyWant {
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
   if (["hosted_review", "hosted_evaluation", "hosted_review_path"].includes(normalized)) {
-    return "hosted_review";
+    return "task_evaluation_run";
   }
   if (["dry_run_order", "dry_run_quote", "commerce", "quote", "order"].includes(normalized)) {
-    return "dry_run_order";
+    return "task_evaluation_run";
+  }
+  if (["task_evaluation_run", "evaluation", "decision"].includes(normalized)) {
+    return "task_evaluation_run";
   }
   if (["entitlement_readiness", "readiness"].includes(normalized)) {
     return "entitlement_readiness";
@@ -252,7 +255,7 @@ function entitlementBlocker(): AgentJourneyBlocker {
     severity: "blocked",
     ownerSystem: "marketplace_entitlements",
     message: "A provisioned hosted-session entitlement is required before protected site-world launch.",
-    retryAction: "Run dry-run commerce first for planning, or provide a real provisioned entitlement for an authorized protected flow.",
+    retryAction: "Provide an existing provisioned entitlement for an authorized historical compatibility flow, or request a Task Evaluation Run.",
   };
 }
 
@@ -262,7 +265,7 @@ function missingEntitlementIdBlocker(): AgentJourneyBlocker {
     severity: "blocked",
     ownerSystem: "agent_cli_input",
     message: "Entitlement-readiness planning requires --entitlement-id.",
-    retryAction: "Run dry-run commerce first or pass an existing entitlement id.",
+    retryAction: "Pass an existing historical entitlement id or request a Task Evaluation Run.",
   };
 }
 
@@ -397,43 +400,23 @@ export async function planAgentJourney(
     };
   }
 
-  if (want === "hosted_review" || want === "dry_run_order") {
-    const product = normalizeProduct(input.product);
-    const buyerUserId = clean(input.buyerUserId) || DEFAULT_BUYER_USER_ID;
-    const buyer = parseBuyer(input.buyer, buyerUserId);
-    const quotePayload = await client.quoteCommerce({
-      siteWorldId: topMatch.siteWorldId,
-      product,
-      sessionHours: input.sessionHours,
-    });
-    const checkoutPayload = await client.createDryRunCheckout({
-      siteWorldId: topMatch.siteWorldId,
-      product,
-      sessionHours: input.sessionHours,
-      mode: "dry_run",
-      buyer,
-    });
-    const entitlementId = nestedString(asRecord(checkoutPayload), ["entitlement", "id"]);
-    const readinessPayload = entitlementId
-      ? await client.entitlementReadiness({
-          siteWorldId: topMatch.siteWorldId,
-          entitlementId,
-          buyerUserId,
-          product,
-        })
-      : null;
-    const blockers = readinessBlockers(readinessPayload);
-
+  if (want === "task_evaluation_run") {
     return {
       ...base,
       nextAction: {
-        kind: "dry_run_quote_order",
+        kind: "task_evaluation_run_request",
         siteWorldId: topMatch.siteWorldId,
-        safeToRun: blockers.length === 0,
-        command: `npm run agent:cli -- commerce entitlement-readiness --site-world-id ${topMatch.siteWorldId} --entitlement-id ${entitlementId || "<dry-entitlement-id>"}`,
+        safeToRun: true,
+        command: `npm run agent:cli -- request location --location ${shellQuote(query)}`,
       },
-      commerce: compactCommercePayload({ quotePayload, checkoutPayload, readinessPayload }),
-      blockers,
+      request: {
+        product: "Task Evaluation Run",
+        siteWorldId: topMatch.siteWorldId,
+        requestUrl: `/contact/robot-team?interest=task-evaluation-run&siteWorldId=${encodeURIComponent(topMatch.siteWorldId)}`,
+        routingAuthority: "Pipeline",
+        methodSelectedByCustomer: false,
+      },
+      blockers: [],
     };
   }
 

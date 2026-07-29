@@ -1,93 +1,77 @@
-// Canonical, single-source copy for the one core service (Task Evaluation Run /
-// policy ranking) and its proof boundary. Imported across public pages so the
-// service framing, the beachhead scope, and the honesty language stay identical
-// everywhere. Keep export names stable — several pages consume these.
+// Canonical public framing for Blueprint's single customer-facing product.
+// Pipeline owns method qualification, routing, and scientific verdicts; WebApp
+// collects the decision request and projects the returned evidence envelope.
 
 export const robotPolicyEvaluationBoundary =
-  "A Task Evaluation Run ranks robot policies on a captured real-site task envelope as an estimate and decision-support screen — never a guarantee, a safety certification, or a deployment-readiness claim. It holds as rank fidelity inside the measured site, task, robot, and threshold scope; policy-evaluation research is cited as external category evidence, and it does not turn a virtual score into a universal accuracy guarantee or public policy-ranking result outside the measured evaluation scope.";
+  "A Task Evaluation Run returns only the decisions supported inside its stated validation envelope. Estimates are not physical guarantees, safety approval remains external, and claims that cannot be supported virtually still require physical evidence.";
 
-// The one-line value proposition for the primary buyer (robot / foundation-model teams).
 export const robotPolicyScreeningValue =
-  "Rank your candidate policies on the captured site and task where they would deploy, so only the two or three strongest need onsite pilot time.";
+  "Test candidate policies or checkpoints against a prospective real-site task, discover failure conditions, and decide whether field time is justified.";
 
-// The organizing idea for the whole webapp: what the customer is actually buying
-// is a shortlist before an expensive onsite pilot — not episodes, subscriptions,
-// or a deployment guarantee.
 export const blueprintPositioning =
-  "Blueprint ranks robot policies and robot teams against the site where they may be deployed, so only the strongest two or three candidates need an onsite pilot.";
+  "Blueprint turns a real site-task into a maintained testbed, routes each claim to the least expensive currently qualified evidence, and returns a bounded decision or an explicit abstention.";
 
-// Plain-language summary of the one core service — site-specific robot ranking.
 export const siteSpecificRankingSummary =
-  "Blueprint captures the actual site and task, evaluates comparable robot policies under the same protocol, and returns the best-supported two or three candidates for an onsite pilot.";
+  "Blueprint captures the site-task, maintains the testbed, evaluates the decision-relevant claims, and reports what is supported, rejected, unresolved, or still needs physical evidence.";
 
-// The verdict a candidate can receive. Every campaign resolves to one of these —
-// including outcomes where nothing is shortlisted. Blueprint never manufactures a winner.
 export const rankingOutcomeCategories = [
   {
-    label: "Shortlisted",
-    body: "Strong, consistent evidence across scenario families — recommended for an onsite pilot.",
+    label: "Bounded positive decision",
+    body: "The requested action is supported only inside the stated conditions and claim ceiling.",
   },
   {
-    label: "Viable, below shortlist",
-    body: "Competent, but outranked under the same site, task, seeds, and scoring rules.",
+    label: "Bounded negative decision",
+    body: "The evidence supports rejecting an option or action inside the stated scope.",
   },
   {
-    label: "Insufficient evidence",
-    body: "Too few resolved episodes or too much uncertainty to place with confidence.",
+    label: "Partial decision",
+    body: "Some claims are resolved while other decision-relevant claims remain unknown.",
   },
   {
-    label: "Incompatible",
-    body: "Failed the embodiment, observation, action, or task-compatibility gate before ranking.",
+    label: "Explicit abstention",
+    body: "The current evidence is not trustworthy enough to support the requested decision.",
   },
   {
-    label: "Below minimum threshold",
-    body: "Did not clear the task's floor for completion or safety-relevant behavior.",
+    label: "Next evidence required",
+    body: "Blueprint identifies the least expensive stronger experiment needed to move the decision forward.",
   },
 ] as const;
 
-// The evidence beachhead, stated plainly so the site claims where the science is
-// strongest and guards the over-promise boundary at the same time.
 export const robotPolicyEvaluationBeachhead =
-  "Today the evidence is strongest for navigation and mobile-base movement plus rigid pick-and-place in warehouse and logistics spaces. Dexterous, contact-rich manipulation is out of scope for now.";
+  "Current virtual evidence is strongest for navigation, mobile-base movement, and rigid pick-and-place in warehouse and logistics spaces. Contact-rich or safety-critical claims require a stronger validation envelope and may require physical evidence.";
 
 export const robotPolicyBeachheadShort =
-  "Warehouse & logistics — navigation and rigid pick-and-place";
+  "Warehouse and logistics tasks, with claim-specific evidence boundaries";
 
 export const robotPolicyComparisonUseCases = [
   {
-    title: "Compare your own checkpoints",
-    body:
-      "Rank current, previous, and candidate policies on the same captured task envelope before spending scarce robot time.",
+    title: "Compare internal candidates",
+    body: "Evaluate checkpoints or policies under one decision, task, threshold, and provenance scope.",
   },
   {
-    title: "Screen what earns pilot slots",
-    body:
-      "Rank an incoming base or foundation checkpoint, another internal team's policy, or a vendor runner under one shared task and threshold scope — so only the strongest earns field time.",
+    title: "Test task compatibility",
+    body: "Find reach, embodiment, observation, action, and environmental incompatibilities before field time.",
   },
   {
-    title: "Decide the next test",
-    body:
-      "Use the ranking, failure clusters, OOD flags, and missing-proof labels to choose a pilot, tune, recapture, or hold path.",
+    title: "Choose the next experiment",
+    body: "Use unresolved claims, uncertainty, and the claim ceiling to decide whether to test physically, recapture, narrow the task, or stop.",
   },
 ] as const;
 
-// External, third-party research — cited as category evidence, never as a Blueprint result.
 export const robotPolicyResearchSignalsNote =
-  "External, third-party research cited as category evidence that generated-world evaluation can track real-world policy ranking. Correlation supports the ordering (rank fidelity) — not a calibrated per-policy accuracy, and only when anchored to real trials.";
+  "External research can motivate an evidence method, but it is not a Blueprint result. Each method must be qualified for the claim and validation envelope in the current run.";
 
 export const robotPolicyResearchSignals = [
   {
     label: "SC3-Eval",
     href: "https://arxiv.org/html/2606.18610v3",
-    stat: "0.929 closed-loop Pearson correlation",
-    body:
-      "Third-party result across seven real-world VLA policies — external category evidence for ranking order, not a Blueprint accuracy result.",
+    stat: "External policy-evaluation research",
+    body: "Category evidence for generated-world evaluation, not a Blueprint physical or ranking-fidelity claim.",
   },
   {
     label: "OSCAR",
     href: "https://arxiv.org/html/2606.04463v2",
-    stat: "RoboArena eval-to-real correlation",
-    body:
-      "Third-party evidence of correlation between generated-world policy evaluation and real-world RoboArena ranking.",
+    stat: "External policy-evaluation research",
+    body: "Category evidence that may inform method qualification, not a universal accuracy guarantee.",
   },
 ] as const;

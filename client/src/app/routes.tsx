@@ -81,6 +81,7 @@ const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
+const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
 const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
 const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
@@ -176,7 +177,11 @@ const LegacyProofStoryRedirect = () => (
 );
 
 const LegacyBookExactSiteReviewRedirect = () => (
-  <MarketingRedirect to="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review" />
+  <MarketingRedirect to="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&source=book-exact-site-review" />
+);
+
+const LegacyOfferRedirect = () => (
+  <MarketingRedirect to="/pricing" />
 );
 
 const LegacyBlogRedirect = () => (
@@ -252,6 +257,12 @@ export const appRoutes: AppRoute[] = [
   { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
   { path: "/agents", layout: "public", component: ContactRedirect },
   { path: "/pricing", layout: "public", component: Pricing },
+  { path: "/policy-shortlist", layout: "public", component: LegacyOfferRedirect },
+  { path: "/robot-match", layout: "public", component: LegacyOfferRedirect },
+  { path: "/policy-improvement-run", layout: "public", component: LegacyOfferRedirect },
+  { path: "/post-training-data-package", layout: "public", component: LegacyOfferRedirect },
+  { path: "/post-training-policy-improvement-package", layout: "public", component: LegacyOfferRedirect },
+  { path: "/data-packages", layout: "public", component: LegacyOfferRedirect },
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/sample-deliverables", layout: "public", component: ProofRedirect },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
@@ -335,6 +346,7 @@ export const appRoutes: AppRoute[] = [
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
+  { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppSiteDetail },
