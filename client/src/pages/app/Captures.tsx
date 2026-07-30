@@ -654,7 +654,7 @@ export default function Captures() {
         <header className="flex flex-col gap-1.5">
           <Eyebrow tone="brass" rule>Capture intake</Eyebrow>
           <h1 className="text-[1.65rem] font-semibold tracking-tight text-ink-900">New Capture</h1>
-          <p className="max-w-3xl text-body-s text-ink-500">Upload one rights-cleared capture. Blueprint keeps the original file, validates it, and returns either a precise recapture request or a testbed-ready result.</p>
+          <p className="max-w-3xl text-body-s text-ink-500">Upload one capture and attach its rights, consent, and allowed-use posture. Blueprint keeps the original file, validates it, and returns either a precise recapture request or a testbed-ready result.</p>
         </header>
 
         <ProofBoundary level="info" title="What upload completion means" icon={AlertTriangle}>
