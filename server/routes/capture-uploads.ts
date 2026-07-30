@@ -400,11 +400,13 @@ async function processCompletedCaptureIntake(record: SessionRecord): Promise<Ses
     error_name: forwardResult.error_name || null,
   };
   const receipt = forwardResult.receipt;
-  const updates = receipt
+  const captureQa = forwardResult.captureQaPublication;
+  const updates = receipt && captureQa
     ? {
         pipeline_capture_handoff: handoff,
         pipeline_capture_intake_receipt: receipt,
-        pipeline_capture_state: receipt.state,
+        pipeline_capture_qa: captureQa,
+        pipeline_capture_state: captureQa.state,
         upload_validation: {
           ...(record.upload_validation as Record<string, unknown>),
           status: "server_bytes_verified",

@@ -3,6 +3,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { stableJson } from "./taskCandidateContract";
+import { parseVerifiedCaptureQaPublication } from "./captureQaContract";
 import type { CaptureDownloadGrant } from "./storage-provider";
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -26,16 +27,23 @@ const receiptSchema = z.object({
     status: z.literal("passed"),
     scanner: z.string().min(1),
   }).passthrough(),
+  capture_qa_report: z.record(z.string(), z.unknown()),
   already_exists: z.boolean(),
   proof_boundary: z.object({
     server_sha256_verified: z.literal(true),
     raw_input_content_addressed: z.literal(true),
-    capture_qa_completed: z.literal(false),
+    capture_qa_completed: z.literal(true),
     task_success_established: z.literal(false),
     physical_task_success_established: z.literal(false),
     deployment_or_safety_approved: z.literal(false),
     comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
   }).strict(),
+}).strict();
+
+const processingResultSchema = z.object({
+  schema_version: z.literal("capture_upload_processing_result.v1"),
+  receipt: receiptSchema,
+  capture_qa_publication: z.unknown(),
 }).strict();
 
 export type CaptureUploadIntakeReceipt = z.infer<typeof receiptSchema>;
@@ -49,6 +57,7 @@ export type CaptureUploadForwardResult = {
   blocker?: string;
   error_name?: string;
   receipt?: CaptureUploadIntakeReceipt;
+  captureQaPublication?: Record<string, any>;
 };
 
 function text(value: unknown) {
@@ -155,7 +164,7 @@ export async function forwardCaptureUploadToPipeline(params: {
       http_status: response.status,
       blocker: "pipeline_capture_upload_intake_rejected",
     };
-    const parsed = receiptSchema.safeParse(payload);
+    const parsed = processingResultSchema.safeParse(payload);
     if (!parsed.success) return {
       status: "failed",
       performed: false,
@@ -164,7 +173,19 @@ export async function forwardCaptureUploadToPipeline(params: {
       http_status: response.status,
       blocker: "pipeline_capture_upload_receipt_invalid",
     };
-    const receipt = parsed.data;
+    const receipt = parsed.data.receipt;
+    const verifiedQa = parseVerifiedCaptureQaPublication(
+      parsed.data.capture_qa_publication,
+    );
+    if (!verifiedQa.ok) return {
+      status: "failed",
+      performed: false,
+      required: isRequired,
+      endpoint_configured: true,
+      http_status: response.status,
+      blocker: verifiedQa.blockers.join(","),
+    };
+    const qa = verifiedQa.publication;
     const expectedRequestDigest = digest({
       capture_session_id: params.captureSessionId,
       customer_id: params.customerId,
@@ -183,6 +204,11 @@ export async function forwardCaptureUploadToPipeline(params: {
       || receipt.size_bytes !== Number((params.request.original_file as any)?.size_bytes)
       || receipt.artifact_reference.envelope_digest !== receipt.envelope_digest
       || receipt.state !== expectedState
+      || qa.capture_session_id !== params.captureSessionId
+      || qa.intake_id !== receipt.intake_id
+      || qa.capture_authority_profile !== params.request.capture_authority_profile
+      || qa.envelope_digest !== receipt.envelope_digest
+      || qa.qa_report_digest !== receipt.capture_qa_report.qa_report_digest
     ) return {
       status: "failed",
       performed: false,
@@ -198,6 +224,7 @@ export async function forwardCaptureUploadToPipeline(params: {
       endpoint_configured: true,
       http_status: response.status,
       receipt,
+      captureQaPublication: qa,
     };
   } catch (error) {
     return {

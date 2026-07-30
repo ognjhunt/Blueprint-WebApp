@@ -1563,25 +1563,50 @@ describe("resumable capture uploads", () => {
         envelope_digest: `sha256:${"2".repeat(64)}`,
       },
       malware_content_validation: { status: "passed", scanner: "clamdscan" },
+      capture_qa_report: {},
       already_exists: false,
       proof_boundary: {
         server_sha256_verified: true,
         raw_input_content_addressed: true,
-        capture_qa_completed: false,
+        capture_qa_completed: true,
         task_success_established: false,
         physical_task_success_established: false,
         deployment_or_safety_approved: false,
         comparative_policy_ranking_verdict: "thesis_not_supported",
       },
     };
-    state.intakeForward.mockImplementation(async (params: Record<string, any>) => ({
-      status: "forwarded",
-      performed: true,
-      required: false,
-      endpoint_configured: true,
-      http_status: 200,
-      receipt: { ...receipt, capture_session_id: params.captureSessionId },
-    }));
+    state.intakeForward.mockImplementation(async (params: Record<string, any>) => {
+      const qa = captureQaPublication(params.captureSessionId) as Record<string, any>;
+      qa.report.status = "accepted";
+      qa.report.state = "capture_accepted";
+      qa.report.checks = [];
+      qa.report.recapture_plan = [];
+      qa.report.qa_report_digest = canonicalArtifactDigest(
+        qa.report,
+        "qa_report_digest",
+      );
+      qa.status = "accepted";
+      qa.state = "capture_accepted";
+      qa.qa_report_digest = qa.report.qa_report_digest;
+      return {
+        status: "forwarded",
+        performed: true,
+        required: false,
+        endpoint_configured: true,
+        http_status: 200,
+        receipt: {
+          ...receipt,
+          capture_session_id: params.captureSessionId,
+          envelope_digest: qa.envelope_digest,
+          artifact_reference: {
+            ...receipt.artifact_reference,
+            envelope_digest: qa.envelope_digest,
+          },
+          capture_qa_report: qa.report,
+        },
+        captureQaPublication: qa,
+      };
+    });
     const { server, socketPath } = await startServer();
     try {
       const created = await createSession(socketPath);
@@ -1605,7 +1630,7 @@ describe("resumable capture uploads", () => {
           sha256: `sha256:${"3".repeat(64)}`,
           raw_input_content_addressed: true,
         },
-        claim_boundary: { capture_accepted: false },
+        claim_boundary: { capture_accepted: true },
       });
       expect(state.downloadGrant).toHaveBeenCalledTimes(1);
       expect(state.intakeForward).toHaveBeenCalledWith(expect.objectContaining({

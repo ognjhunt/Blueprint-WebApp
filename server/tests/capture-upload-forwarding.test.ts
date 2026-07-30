@@ -4,7 +4,7 @@ import { createHash, createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { forwardCaptureUploadToPipeline } from "../utils/captureUploadForwarding";
-import { stableJson } from "../utils/taskCandidateContract";
+import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 
 const request = {
   schema_version: "capture_upload_session_request.v1",
@@ -31,6 +31,29 @@ function receipt(overrides: Record<string, unknown> = {}) {
     organization_id: "org-1",
     request,
   });
+  const report: Record<string, any> = {
+    schema_version: "capture_qa_report.v1",
+    intake_id: "intake-1",
+    envelope_digest: `sha256:${"2".repeat(64)}`,
+    capture_authority_profile: "monocular_video",
+    status: "accepted",
+    state: "capture_accepted",
+    checks: [],
+    recapture_plan: [],
+    missing_evidence: ["metric_scale"],
+    required_analysis: [],
+    next_cheapest_experiment: null,
+    quality_observations_digest: null,
+    quality_analysis_errors: [],
+    claim_ceiling: {
+      physical_task_success: false,
+      deployment_readiness: false,
+      safety_certification: false,
+    },
+    prohibited_claims: ["physical_task_success"],
+    comparative_policy_ranking_verdict: "thesis_not_supported",
+  };
+  report.qa_report_digest = canonicalArtifactDigest(report, "qa_report_digest");
   return {
     schema_version: "capture_upload_intake_receipt.v1",
     capture_session_id: "capture-session-1",
@@ -47,17 +70,43 @@ function receipt(overrides: Record<string, unknown> = {}) {
       envelope_digest: `sha256:${"2".repeat(64)}`,
     },
     malware_content_validation: { status: "passed", scanner: "clamdscan" },
+    capture_qa_report: report,
     already_exists: false,
     proof_boundary: {
       server_sha256_verified: true,
       raw_input_content_addressed: true,
-      capture_qa_completed: false,
+      capture_qa_completed: true,
       task_success_established: false,
       physical_task_success_established: false,
       deployment_or_safety_approved: false,
       comparative_policy_ranking_verdict: "thesis_not_supported",
     },
     ...overrides,
+  };
+}
+
+function processingResult(receiptOverrides: Record<string, unknown> = {}) {
+  const value = receipt(receiptOverrides) as Record<string, any>;
+  return {
+    schema_version: "capture_upload_processing_result.v1",
+    receipt: value,
+    capture_qa_publication: {
+      schema_version: "capture_qa_publication.v1",
+      capture_session_id: value.capture_session_id,
+      intake_id: value.intake_id,
+      capture_authority_profile: "monocular_video",
+      envelope_digest: value.envelope_digest,
+      qa_report_digest: value.capture_qa_report.qa_report_digest,
+      status: "accepted",
+      state: "capture_accepted",
+      report: value.capture_qa_report,
+      proof_boundary: {
+        qa_is_task_success: false,
+        qa_is_physical_success: false,
+        deployment_or_safety_approved: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    },
   };
 }
 
@@ -85,7 +134,7 @@ describe("Capture upload Pipeline forwarding", () => {
           authorization: "ephemeral-download-grant",
         },
       });
-      return new Response(JSON.stringify(receipt()), {
+      return new Response(JSON.stringify(processingResult()), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
@@ -109,12 +158,13 @@ describe("Capture upload Pipeline forwarding", () => {
 
     expect(result.status).toBe("forwarded");
     expect(result.receipt?.capture_digest).toBe(`sha256:${"3".repeat(64)}`);
+    expect(result.captureQaPublication?.status).toBe("accepted");
     expect(JSON.stringify(result)).not.toContain("ephemeral-download-grant");
     expect(JSON.stringify(result)).not.toContain("download.example.test");
   });
 
   it("fails closed on a receipt bound to another request", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(receipt({
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(processingResult({
       request_digest: `sha256:${"9".repeat(64)}`,
     })), { status: 200 })));
     const result = await forwardCaptureUploadToPipeline({

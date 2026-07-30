@@ -502,7 +502,7 @@ export default function Captures() {
               <Button type="button" variant="secondary" onClick={retryProcessing} disabled={submitting}>Retry secure processing</Button>
               {activeSession.pipeline_handoff.blocker ? <p className="text-body-xs text-ink-500">Current blocker: {activeSession.pipeline_handoff.blocker.replace(/_/g, " ")}</p> : null}
             </> : null}
-            {activeSession?.pipeline_handoff.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake created" icon={CheckCircle2}>Pipeline verified the server-side size and SHA-256, received a clean malware-scanner result, and content-addressed the raw input. Capture QA, reconstruction, and task success are still separate gates.</ProofBoundary> : null}
+            {activeSession?.pipeline_handoff.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake and Capture QA recorded" icon={CheckCircle2}>Pipeline verified server-side size and SHA-256, received a clean malware-scanner result, content-addressed the raw input, and returned a separate deterministic Capture QA result. Reconstruction and task success remain separate gates.</ProofBoundary> : null}
           </aside>
         </form>
 

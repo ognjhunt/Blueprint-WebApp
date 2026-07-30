@@ -31,10 +31,12 @@ HMAC-authenticated Pipeline seam. Pipeline validates an explicit download-host
 allowlist, streams into quarantine without persisting the URL or grant, verifies
 the exact server-side byte count and media container shape, requires a configured
 malware scanner to return clean, computes whole-file SHA-256, and materializes
-the immutable `capture_intake_envelope.v1`. Exact retries return the prior bound
-receipt without downloading again. Pipeline then owns media QA, authority
-assessment, recapture, task discovery, testbed compilation, and scientific
-state. WebApp displays those results; it does not recompute them.
+the immutable `capture_intake_envelope.v1`, runs deterministic media/quality QA,
+and returns the byte-intake receipt plus a separately digest-validated
+`capture_qa_publication.v1`. Exact retries return the prior bound artifacts
+without downloading again. Pipeline continues to own authority assessment,
+recapture, task discovery, testbed compilation, and scientific state. WebApp
+stores and displays those results; it does not recompute them.
 
 ## Task Candidate Review
 
