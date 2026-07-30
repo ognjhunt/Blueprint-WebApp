@@ -12,6 +12,7 @@ import {
   taskDecisionCommandSchema,
 } from "../utils/taskCandidateContract";
 import { parseVerifiedMaintainedSiteTaskTestbed } from "../utils/siteTaskTestbedContract";
+import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateForwarding";
 import {
   authorizeBackblazeCapturePart,
@@ -134,6 +135,7 @@ type SessionRecord = Record<string, unknown> & {
   pipeline_task_discovery?: unknown;
   latest_task_decision_command?: Record<string, unknown>;
   pipeline_site_task_testbed?: Record<string, unknown>;
+  pipeline_task_evaluation_run?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -231,6 +233,7 @@ function requestBlockers(request: SessionRequest, tenantId: string) {
 function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[] = []) {
   const taskReview = taskReviewProjection(record);
   const testbed = siteTaskTestbedProjection(record);
+  const taskEvaluationRun = taskEvaluationRunProjection(record);
   return {
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
@@ -257,6 +260,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
       latest_action: record.latest_task_decision_command?.action || null,
     },
     site_task_testbed: testbed.summary,
+    task_evaluation_run: taskEvaluationRun.summary,
     claim_boundary: {
       capture_accepted: false,
       metric_scale_inherent: false,
@@ -267,6 +271,52 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function taskEvaluationRunProjection(record: SessionRecord) {
+  const stored = record.pipeline_task_evaluation_run;
+  if (!stored) {
+    return {
+      summary: { state: "not_available" as const },
+      publication: null,
+      blockers: [] as string[],
+    };
+  }
+  const parsed = parseVerifiedTaskEvaluationRunPublication(stored.publication);
+  if (!parsed.ok) {
+    return {
+      summary: { state: "pipeline_artifact_invalid" as const },
+      publication: null,
+      blockers: parsed.blockers,
+    };
+  }
+  const publication = parsed.publication;
+  const blockers: string[] = [];
+  if (publication.capture_session_id !== record.session_id) blockers.push("run_capture_session_mismatch");
+  if (publication.intake_id !== record.request.intake_id) blockers.push("run_intake_mismatch");
+  const testbedDigest = (record.pipeline_site_task_testbed as { testbed_digest?: unknown } | undefined)?.testbed_digest;
+  if (publication.testbed_digest !== testbedDigest) blockers.push("run_testbed_mismatch");
+  if (blockers.length) {
+    return {
+      summary: { state: "pipeline_artifact_invalid" as const },
+      publication: null,
+      blockers: blockers.sort(),
+    };
+  }
+  return {
+    summary: {
+      state: publication.state,
+      run_id: publication.run_id,
+      request_digest: publication.request_digest,
+      plan_digest: publication.plan_digest,
+      decision_envelope_digest: publication.decision_envelope.decision_envelope_digest,
+      overall_outcome: publication.decision_envelope.overall_outcome,
+      next_cheapest_experiment: publication.decision_envelope.next_cheapest_experiment,
+      proof_boundary: publication.proof_boundary,
+    },
+    publication,
+    blockers,
   };
 }
 
@@ -630,6 +680,31 @@ router.get("/:sessionId/testbed", async (req, res) => {
     artifact_reference: projection.summary.artifact_reference,
     testbed: projection.testbed,
     proof_boundary: projection.testbed.proof_boundary,
+  });
+});
+
+router.get("/:sessionId/task-evaluation-run", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  const projection = taskEvaluationRunProjection(result.record);
+  res.set("Cache-Control", "no-store");
+  if (projection.summary.state === "not_available") {
+    return res.status(404).json({ error: "Task Evaluation Run is not available" });
+  }
+  if (projection.summary.state === "pipeline_artifact_invalid" || !projection.publication) {
+    return res.status(409).json({
+      error: "Pipeline Task Evaluation Run artifact failed integrity validation",
+      blockers: projection.blockers,
+    });
+  }
+  return res.status(200).json({
+    schema_version: "capture_task_evaluation_run_inspection.v1",
+    session_id: result.record.session_id,
+    intake_id: result.record.request.intake_id,
+    status: projection.publication.state,
+    publication: projection.publication,
   });
 });
 

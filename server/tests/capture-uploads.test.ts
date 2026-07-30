@@ -396,6 +396,88 @@ function maintainedTestbedFixture() {
   return value;
 }
 
+function taskEvaluationRunPublication(testbedDigest: string) {
+  const plan: Record<string, any> = {
+    schema_version: "evidence_plan.v1",
+    plan_id: "plan-owner-1",
+    request_id: "request-owner-1",
+    decision_id: "decision-owner-1",
+    request_digest: `sha256:${"8".repeat(64)}`,
+    testbed_id: "testbed-1",
+    testbed_version: "v1",
+    testbed_digest: testbedDigest,
+    claim_plans: [{ claim_id: "reach", status: "planned" }],
+    execution_order: ["step-reach"],
+    physical_evidence_requests: [{ claim_id: "physical", description: "Run one instrumented robot attempt." }],
+    budget_status: { projected_cost_usd: 0, within_budget: true },
+    router_policy: {
+      deterministic: true,
+      provider_identity_is_qualification: false,
+      visual_realism_is_qualification: false,
+      agreement_is_independence: false,
+      uncalibrated_methods_are_debug_only: true,
+      cross_domain_transfer_enabled: false,
+      policy_ranking_thesis_verdict: "thesis_not_supported",
+    },
+  };
+  plan.plan_digest = canonicalArtifactDigest(plan, "plan_digest");
+  const envelope: Record<string, any> = {
+    schema_version: "decision_envelope.v1",
+    decision_id: plan.decision_id,
+    request_id: plan.request_id,
+    request_digest: plan.request_digest,
+    plan_digest: plan.plan_digest,
+    testbed_digest: plan.testbed_digest,
+    decision_question: "Can the robot reach, see, and move the item?",
+    overall_outcome: "partial_decision",
+    per_claim_verdicts: [{
+      claim_id: "reach",
+      claim_type: "reachability",
+      verdict: "supported",
+      rationale: "qualified_analytic_evidence",
+      accepted_result_digests: [`sha256:${"9".repeat(64)}`],
+      claim_ceiling: { physical_success: false, deployment_readiness: false, safety_certification: false },
+    }],
+    evidence_accepted: [`sha256:${"9".repeat(64)}`],
+    evidence_rejected: [],
+    validation_envelope: { exact_scope: true },
+    unsupported_conditions: ["physical_task_success"],
+    uncertainty: { maximum: 0.4, ranking_science_boundary: "thesis_not_supported" },
+    cross_method_disagreements: [],
+    shared_dependency_warnings: [],
+    claim_ceiling: {
+      physical_success: false,
+      deployment_readiness: false,
+      safety_certification: false,
+      generated_artifact_upgrades_raw_or_physical_claim: false,
+    },
+    next_cheapest_experiment: "capture_robot_base_measurement",
+    physical_evidence_still_required: [{ claim_id: "physical", description: "Run one instrumented robot attempt." }],
+    deployment_approval: false,
+    safety_certification: false,
+    raw_policy_values_persisted: false,
+    raw_secret_values_persisted: false,
+  };
+  envelope.decision_envelope_digest = canonicalArtifactDigest(envelope, "decision_envelope_digest");
+  return {
+    schema_version: "task_evaluation_run_publication.v1",
+    capture_session_id: "capture-run-owner-1",
+    intake_id: "intake-360-1",
+    run_id: "run-owner-1",
+    testbed_digest: testbedDigest,
+    request_digest: plan.request_digest,
+    plan_digest: plan.plan_digest,
+    state: "partially_decided",
+    evidence_plan: plan,
+    decision_envelope: envelope,
+    proof_boundary: {
+      simulation_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+}
+
 async function postJson(socketPath: string, requestPath: string, body: unknown) {
   const payload = JSON.stringify(body);
   return new Promise<{ status: number; cacheControl?: string; json: () => Promise<unknown> }>((resolve, reject) => {
@@ -563,6 +645,84 @@ describe("resumable capture uploads", () => {
       expect(response.status).toBe(404);
     } finally {
       await stopServer(outsider.server, outsider.socketPath);
+    }
+  });
+
+  it("projects and exposes only the exact owner-bound Pipeline Decision Envelope", async () => {
+    const testbed = maintainedTestbedFixture();
+    const publication = taskEvaluationRunPublication(testbed.testbed_digest);
+    state.records.set("capture-run-owner-1", {
+      session_id: "capture-run-owner-1",
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"e".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_site_task_testbed: {
+        testbed_digest: testbed.testbed_digest,
+      },
+      pipeline_task_evaluation_run: {
+        schema_version: "capture_task_evaluation_run_record.v1",
+        publication,
+      },
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const session = await getJson(socketPath, "/capture-uploads/capture-run-owner-1");
+      expect(session.status).toBe(200);
+      await expect(session.json()).resolves.toMatchObject({
+        task_evaluation_run: {
+          state: "partially_decided",
+          run_id: "run-owner-1",
+          decision_envelope_digest: publication.decision_envelope.decision_envelope_digest,
+          next_cheapest_experiment: "capture_robot_base_measurement",
+          proof_boundary: { comparative_policy_ranking_verdict: "thesis_not_supported" },
+        },
+      });
+      const inspection = await getJson(
+        socketPath,
+        "/capture-uploads/capture-run-owner-1/task-evaluation-run",
+      );
+      expect(inspection.status).toBe(200);
+      await expect(inspection.json()).resolves.toMatchObject({
+        status: "partially_decided",
+        publication: {
+          plan_digest: publication.plan_digest,
+          decision_envelope: {
+            decision_envelope_digest: publication.decision_envelope.decision_envelope_digest,
+            next_cheapest_experiment: "capture_robot_base_measurement",
+          },
+        },
+      });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+
+    const outsider = await startServer({ uid: "different-user" });
+    try {
+      const denied = await getJson(
+        outsider.socketPath,
+        "/capture-uploads/capture-run-owner-1/task-evaluation-run",
+      );
+      expect(denied.status).toBe(404);
+    } finally {
+      await stopServer(outsider.server, outsider.socketPath);
+    }
+
+    publication.decision_envelope.next_cheapest_experiment = "tampered";
+    const owner = await startServer();
+    try {
+      const invalid = await getJson(
+        owner.socketPath,
+        "/capture-uploads/capture-run-owner-1/task-evaluation-run",
+      );
+      expect(invalid.status).toBe(409);
+      await expect(invalid.json()).resolves.toMatchObject({
+        blockers: ["decision_envelope_digest_mismatch"],
+      });
+    } finally {
+      await stopServer(owner.server, owner.socketPath);
     }
   });
 

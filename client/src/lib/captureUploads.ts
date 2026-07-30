@@ -47,6 +47,18 @@ export type CaptureUploadSession = {
         known_unsupported_conditions: string[];
         proof_boundary: Record<string, unknown>;
       };
+  task_evaluation_run?:
+    | { state: "not_available" | "pipeline_artifact_invalid" }
+    | {
+        state: "decided" | "partially_decided" | "abstained";
+        run_id: string;
+        request_digest: string;
+        plan_digest: string;
+        decision_envelope_digest: string;
+        overall_outcome: "decision" | "partial_decision" | "abstention";
+        next_cheapest_experiment: string;
+        proof_boundary: TaskEvaluationRunProofBoundary;
+      };
   claim_boundary: {
     capture_accepted: false;
     metric_scale_inherent: false;
@@ -57,6 +69,49 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type TaskEvaluationRunProofBoundary = {
+  simulation_is_physical_success: false;
+  deployment_or_safety_approved: false;
+  comparative_policy_ranking_verdict: "thesis_not_supported";
+};
+
+export type CaptureTaskEvaluationRunInspection = {
+  schema_version: "capture_task_evaluation_run_inspection.v1";
+  session_id: string;
+  intake_id: string;
+  status: "decided" | "partially_decided" | "abstained";
+  publication: {
+    schema_version: "task_evaluation_run_publication.v1";
+    capture_session_id: string;
+    intake_id: string;
+    run_id: string;
+    testbed_digest: string;
+    request_digest: string;
+    plan_digest: string;
+    state: "decided" | "partially_decided" | "abstained";
+    evidence_plan: Record<string, any> & {
+      plan_digest: string;
+      physical_evidence_requests: Array<Record<string, unknown>>;
+    };
+    decision_envelope: Record<string, any> & {
+      decision_envelope_digest: string;
+      overall_outcome: "decision" | "partial_decision" | "abstention";
+      per_claim_verdicts: Array<{
+        claim_id: string;
+        claim_type: string;
+        verdict: "supported" | "not_supported" | "abstention";
+        rationale: string;
+        claim_ceiling: Record<string, unknown>;
+      }>;
+      unsupported_conditions: string[];
+      next_cheapest_experiment: string;
+      physical_evidence_still_required: Array<Record<string, unknown>>;
+      cross_method_disagreements: Array<Record<string, unknown>>;
+    };
+    proof_boundary: TaskEvaluationRunProofBoundary;
+  };
 };
 
 export type CaptureSiteTaskTestbedInspection = {
@@ -277,6 +332,13 @@ export function getCaptureSiteTaskTestbed(currentUser: FirebaseUser, sessionId: 
   return apiRequest<CaptureSiteTaskTestbedInspection>(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}/testbed`,
+  );
+}
+
+export function getCaptureTaskEvaluationRun(currentUser: FirebaseUser, sessionId: string) {
+  return apiRequest<CaptureTaskEvaluationRunInspection>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-evaluation-run`,
   );
 }
 

@@ -6,17 +6,20 @@ import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
 import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
+import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createCaptureUpload,
   getCaptureSiteTaskTestbed,
   getCaptureTaskReview,
+  getCaptureTaskEvaluationRun,
   getCaptureUpload,
   listCaptureUploads,
   submitTaskDecisionCommand,
   uploadCaptureFile,
   type CaptureTaskReview,
   type CaptureSiteTaskTestbedInspection,
+  type CaptureTaskEvaluationRunInspection,
   type CaptureUploadSession,
   type CreateCaptureUploadSession,
   type TaskDecisionCommandRequest,
@@ -103,8 +106,8 @@ function SessionHistory({
                 <td className="px-4 py-3"><StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
-                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || session.site_task_testbed?.state === "testbed_ready" ? (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : "Review tasks"}</Button>
+                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || session.site_task_testbed?.state === "testbed_ready" || ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? "View decision" : session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : "Review tasks"}</Button>
                     ) : null}
                     {["upload_pending", "uploading"].includes(session.status) ? (
                       <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
@@ -139,6 +142,7 @@ export default function Captures() {
   const [reviewSession, setReviewSession] = useState<CaptureUploadSession | null>(null);
   const [taskReview, setTaskReview] = useState<CaptureTaskReview | null>(null);
   const [testbedInspection, setTestbedInspection] = useState<CaptureSiteTaskTestbedInspection | null>(null);
+  const [runInspection, setRunInspection] = useState<CaptureTaskEvaluationRunInspection | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -190,16 +194,21 @@ export default function Captures() {
     setReviewLoading(true);
     setTaskReview(null);
     setTestbedInspection(null);
+    setRunInspection(null);
     setError(null);
     try {
-      const [review, inspection] = await Promise.all([
+      const [review, inspection, run] = await Promise.all([
         getCaptureTaskReview(currentUser, session.session_id),
         session.site_task_testbed?.state === "testbed_ready"
           ? getCaptureSiteTaskTestbed(currentUser, session.session_id)
           : Promise.resolve(null),
+        ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "")
+          ? getCaptureTaskEvaluationRun(currentUser, session.session_id)
+          : Promise.resolve(null),
       ]);
       setTaskReview(review);
       setTestbedInspection(inspection);
+      setRunInspection(run);
       window.setTimeout(() => {
         document.getElementById("task-review")?.scrollIntoView({ behavior: "smooth" });
       }, 0);
@@ -389,6 +398,8 @@ export default function Captures() {
         ) : null}
 
         {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
+
+        {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
 
         {loading ? <BuyerAppLoadingState /> : (
           <SessionHistory sessions={sessions} onResume={resume} onReview={reviewTasks} />
