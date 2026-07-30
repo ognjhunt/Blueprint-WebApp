@@ -26,7 +26,11 @@ export default defineConfig({
     ? taskEvaluationRunE2eEnabled
       ? ['**/operator-surfaces.spec.ts']
       : ['**/task-evaluation-run.spec.ts']
-    : ['**/operator-surfaces.spec.ts', '**/task-evaluation-run.spec.ts'],
+    : [
+        '**/operator-surfaces.spec.ts',
+        '**/task-evaluation-run.spec.ts',
+        '**/capture-task-review.spec.ts',
+      ],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

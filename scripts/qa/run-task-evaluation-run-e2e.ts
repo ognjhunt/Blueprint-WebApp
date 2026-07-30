@@ -20,7 +20,13 @@ async function getAvailablePort() {
 const port = await getAvailablePort();
 const child = spawn(
   "npx",
-  ["playwright", "test", "e2e/task-evaluation-run.spec.ts", "--reporter=line"],
+  [
+    "playwright",
+    "test",
+    "e2e/task-evaluation-run.spec.ts",
+    "e2e/capture-task-review.spec.ts",
+    "--reporter=line",
+  ],
   {
     stdio: "inherit",
     env: {

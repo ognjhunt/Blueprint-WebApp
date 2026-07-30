@@ -6,6 +6,7 @@ import submitToSheetsHandler from "./routes/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "./routes/api/upload-to-b2";
 import storageUploadsRouter from "./routes/storage-uploads";
+import captureUploadsRouter from "./routes/capture-uploads";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
@@ -38,6 +39,10 @@ import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
 import requestsRouter from "./routes/requests";
 import internalPipelineRouter from "./routes/internal-pipeline";
+import internalCaptureTaskControlPlaneRouter from "./routes/internal-capture-task-control-plane";
+import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
+import internalCaptureTaskEvaluationRunsRouter from "./routes/internal-capture-task-evaluation-runs";
+import internalCaptureQaRouter from "./routes/internal-capture-qa";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
 import internalHumanRepliesRouter from "./routes/internal-human-replies";
@@ -77,6 +82,10 @@ export function registerRoutes(app: Express) {
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
+  app.use("/api/internal/pipeline", internalCaptureTaskControlPlaneRouter);
+  app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
+  app.use("/api/internal/pipeline", internalCaptureTaskEvaluationRunsRouter);
+  app.use("/api/internal/pipeline", internalCaptureQaRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
@@ -205,6 +214,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     storageUploadsRouter,
+  );
+  app.use(
+    "/api/capture-uploads",
+    csrfProtection,
+    verifyFirebaseToken,
+    captureUploadsRouter,
   );
   app.post(
     "/api/post-signup-workflows",

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Menu,
+  UploadCloud,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 /** Stable keys for the active nav item — screens pass one to `active`. */
 export type AppView =
   | "overview"
+  | "captures"
   | "runs"
   | "packs"
   | "policies"
@@ -36,12 +38,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "overview", label: "Overview", href: "/app", Icon: LayoutDashboard },
+  { key: "captures", label: "Captures", href: "/app/captures", Icon: UploadCloud },
   { key: "packs", label: "Testbeds", href: "/app/packs", Icon: Boxes },
   { key: "runs", label: "Task Evaluation Runs", href: "/app/runs", Icon: ListChecks },
 ];
 
 const OPERATOR_NAV_ITEMS: NavItem[] = [
   { key: "overview", label: "Overview", href: "/app", Icon: LayoutDashboard },
+  { key: "captures", label: "Captures", href: "/app/captures", Icon: UploadCloud },
   { key: "packs", label: "Testbeds", href: "/app/packs", Icon: Boxes },
   { key: "runs", label: "Task Evaluation Runs", href: "/app/runs", Icon: ListChecks },
 ];

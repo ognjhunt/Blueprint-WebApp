@@ -25,6 +25,8 @@ client/src/pages/Sites.tsx
 client/src/pages/SiteDetail.tsx
 client/src/pages/app/Runs.tsx
 client/src/pages/app/RunDetail.tsx
+client/src/pages/app/Captures.tsx
+client/src/lib/captureUploads.ts
 client/src/pages/CapturerAccount.tsx
 client/src/pages/AdminCapturers.tsx
 client/src/pages/app/OperatorOverview.tsx
@@ -32,6 +34,8 @@ client/src/lib/buyerAppData.ts
 server/routes/site-worlds.ts
 server/routes/site-world-sessions.ts
 server/routes/robot-eval-job-requests.ts
+server/routes/capture-uploads.ts
+server/utils/storage-provider.ts
 server/routes/admin-field-ops.ts
 server/routes/operator-status.ts
 
@@ -41,5 +45,8 @@ server/tests/public-launch-route.test.ts
 server/tests/city-launch-status.test.ts
 server/tests/city-launch-capture-targets.test.ts
 server/tests/robot-eval-job-status-route.test.ts
+server/tests/capture-uploads.test.ts
+client/tests/pages/Captures.test.tsx
+client/tests/lib/captureUploads.test.ts
 server/tests/admin-capturer-applications-route.test.ts
 server/tests/operator-status-route.test.ts

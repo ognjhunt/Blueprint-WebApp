@@ -19,6 +19,43 @@ export type StorageUploadResult = {
   bucketName: string | null;
 };
 
+export type ResumableCaptureUpload = {
+  provider: "backblaze";
+  fileId: string;
+  objectPath: string;
+  bucketName: string;
+  storageUri: string;
+};
+
+export type ResumableCapturePartAuthorization = {
+  provider: "backblaze";
+  fileId: string;
+  uploadUrl: string;
+  authorizationToken: string;
+  expiresAtIso: string;
+};
+
+export type StoredCapturePart = {
+  partNumber: number;
+  contentLength: number;
+  contentSha1: string;
+};
+
+export type CaptureDownloadGrant = {
+  provider: "backblaze";
+  url: string;
+  authorizationToken: string;
+  expiresAtIso: string;
+};
+
+export type CaptureDeletionReceipt = {
+  provider: "backblaze";
+  fileId: string;
+  fileName: string;
+  deletedAtIso: string;
+  alreadyAbsent: boolean;
+};
+
 type UploadTarget = {
   uploadUrl: string;
   authorizationToken: string;
@@ -137,6 +174,19 @@ function buildBackblazePublicUrl(bucketName: string, objectPath: string) {
   return `https://f005.backblazeb2.com/file/${encodeURIComponent(bucketName)}/${encodedPath}`;
 }
 
+function buildBackblazeAuthorizedDownloadUrl(bucketName: string, objectPath: string) {
+  const client = getBackblazeClient();
+  const base = String(client.downloadUrl || "").trim();
+  if (!base.startsWith("https://")) {
+    throw new Error("Backblaze B2 did not provide a secure download endpoint.");
+  }
+  const encodedPath = objectPath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${base.replace(/\/+$/, "")}/file/${encodeURIComponent(bucketName)}/${encodedPath}`;
+}
+
 export function sanitizeStorageObjectPath(value: string): string | null {
   const normalized = value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
   if (
@@ -190,4 +240,184 @@ export async function uploadToBackblaze(
     bucketName: config.bucketName,
     url: buildBackblazePublicUrl(config.bucketName, input.objectPath),
   };
+}
+
+export async function startBackblazeResumableCapture(input: {
+  objectPath: string;
+  contentType: string;
+}): Promise<ResumableCaptureUpload> {
+  const config = getBackblazeConfig();
+  if (!config.bucketId || !config.bucketName) {
+    throw new Error("Backblaze B2 bucket configuration is not complete.");
+  }
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().startLargeFile({
+    bucketId: config.bucketId,
+    fileName: input.objectPath,
+    contentType: input.contentType || "application/octet-stream",
+  });
+  const fileId = String(response?.data?.fileId || "").trim();
+  if (!fileId) {
+    throw new Error("Backblaze B2 did not return a large-file id.");
+  }
+  return {
+    provider: "backblaze",
+    fileId,
+    objectPath: input.objectPath,
+    bucketName: config.bucketName,
+    storageUri: `b2://${config.bucketName}/${input.objectPath}`,
+  };
+}
+
+export async function authorizeBackblazeCapturePart(
+  fileId: string,
+): Promise<ResumableCapturePartAuthorization> {
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().getUploadPartUrl({ fileId });
+  const uploadUrl = String(response?.data?.uploadUrl || "").trim();
+  const authorizationToken = String(
+    response?.data?.authorizationToken || "",
+  ).trim();
+  if (!uploadUrl || !authorizationToken) {
+    throw new Error("Backblaze B2 did not return a part upload authorization.");
+  }
+  return {
+    provider: "backblaze",
+    fileId,
+    uploadUrl,
+    authorizationToken,
+    // B2 documents a 24-hour validity. Keep the client refresh boundary
+    // conservative so a resumed browser does not depend on the final hour.
+    expiresAtIso: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+export async function listBackblazeCaptureParts(
+  fileId: string,
+): Promise<StoredCapturePart[]> {
+  await ensureBackblazeAuthorized();
+  const parts: StoredCapturePart[] = [];
+  let startPartNumber = 1;
+  for (let page = 0; page < 10; page += 1) {
+    const response = await getBackblazeClient().listParts({
+      fileId,
+      startPartNumber,
+      maxPartCount: 1000,
+    });
+    const rows = Array.isArray(response?.data?.parts) ? response.data.parts : [];
+    for (const row of rows) {
+      parts.push({
+        partNumber: Number(row.partNumber),
+        contentLength: Number(row.contentLength),
+        contentSha1: String(row.contentSha1 || "").toLowerCase(),
+      });
+    }
+    const next = Number(response?.data?.nextPartNumber || 0);
+    if (!Number.isInteger(next) || next <= 0) {
+      return parts;
+    }
+    startPartNumber = next;
+  }
+  throw new Error("Backblaze B2 part listing exceeded the supported page limit.");
+}
+
+export async function finishBackblazeResumableCapture(input: {
+  fileId: string;
+  partSha1Array: string[];
+}): Promise<void> {
+  await ensureBackblazeAuthorized();
+  await getBackblazeClient().finishLargeFile({
+    fileId: input.fileId,
+    partSha1Array: input.partSha1Array,
+  });
+}
+
+export async function getBackblazeCaptureFileInfo(fileId: string): Promise<{
+  fileId: string;
+  fileName: string;
+  contentLength: number;
+  action: string;
+}> {
+  await ensureBackblazeAuthorized();
+  const response = await getBackblazeClient().getFileInfo(fileId);
+  return {
+    fileId: String(response?.data?.fileId || ""),
+    fileName: String(response?.data?.fileName || ""),
+    contentLength: Number(response?.data?.contentLength || 0),
+    action: String(response?.data?.action || ""),
+  };
+}
+
+export async function createBackblazeCaptureDownloadGrant(input: {
+  objectPath: string;
+  validDurationSeconds?: number;
+}): Promise<CaptureDownloadGrant> {
+  const config = getBackblazeConfig();
+  if (!config.bucketId || !config.bucketName) {
+    throw new Error("Backblaze B2 bucket configuration is not complete.");
+  }
+  await ensureBackblazeAuthorized();
+  const validDurationSeconds = Math.max(
+    60,
+    Math.min(Number(input.validDurationSeconds || 15 * 60), 60 * 60),
+  );
+  const response = await getBackblazeClient().getDownloadAuthorization({
+    bucketId: config.bucketId,
+    fileNamePrefix: input.objectPath,
+    validDurationInSeconds: validDurationSeconds,
+  });
+  const authorizationToken = String(
+    response?.data?.authorizationToken || "",
+  ).trim();
+  if (!authorizationToken) {
+    throw new Error("Backblaze B2 did not return a download authorization.");
+  }
+  return {
+    provider: "backblaze",
+    url: buildBackblazeAuthorizedDownloadUrl(config.bucketName, input.objectPath),
+    authorizationToken,
+    expiresAtIso: new Date(Date.now() + validDurationSeconds * 1000).toISOString(),
+  };
+}
+
+export async function cancelBackblazeResumableCapture(fileId: string): Promise<void> {
+  await ensureBackblazeAuthorized();
+  await getBackblazeClient().cancelLargeFile({ fileId });
+}
+
+export async function deleteBackblazeCaptureFile(input: {
+  fileId: string;
+  fileName: string;
+}): Promise<CaptureDeletionReceipt> {
+  const fileId = String(input.fileId || "").trim();
+  const fileName = sanitizeStorageObjectPath(String(input.fileName || ""));
+  if (!fileId || !fileName) {
+    throw new Error("Backblaze B2 capture deletion binding is invalid.");
+  }
+  await ensureBackblazeAuthorized();
+  try {
+    await getBackblazeClient().deleteFileVersion({ fileId, fileName });
+    return {
+      provider: "backblaze",
+      fileId,
+      fileName,
+      deletedAtIso: new Date().toISOString(),
+      alreadyAbsent: false,
+    };
+  } catch (error) {
+    const status = Number(
+      (error as any)?.response?.status
+        || (error as any)?.response?.statusCode
+        || (error as any)?.status
+        || 0,
+    );
+    if (status !== 404) throw error;
+    return {
+      provider: "backblaze",
+      fileId,
+      fileName,
+      deletedAtIso: new Date().toISOString(),
+      alreadyAbsent: true,
+    };
+  }
 }

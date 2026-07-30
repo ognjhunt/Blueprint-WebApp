@@ -80,6 +80,7 @@ const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
+const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
@@ -345,6 +346,7 @@ export const appRoutes: AppRoute[] = [
 
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
+  { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
