@@ -137,6 +137,10 @@ export function TaskCandidateReview({
   const discovery = review.discovery;
   if (!discovery) return null;
   const pending = review.status === "decision_pending_pipeline_validation";
+  const approved = review.status === "task_approved";
+  const rejected = review.status === "task_rejected";
+  const recaptureRequested = review.status === "recapture_requested";
+  const actionsAvailable = review.status === "task_approval_required";
   return (
     <section className="flex flex-col gap-5" aria-labelledby="task-candidate-heading">
       <div>
@@ -152,6 +156,24 @@ export function TaskCandidateReview({
       {pending && review.latest_decision_command ? (
         <ProofBoundary level="proof" title="Decision command recorded" icon={CheckCircle2}>
           Your “{review.latest_decision_command.action.replace(/_/g, " ")}” command is pending Pipeline validation. No evaluation has started from this command yet.
+        </ProofBoundary>
+      ) : null}
+
+      {approved && review.latest_decision_command ? (
+        <ProofBoundary level="proof" title="Task intent approved by Pipeline" icon={CheckCircle2}>
+          Pipeline validated the exact customer command and emitted an approved task definition. No Decision/Evidence Request or task-success result exists until the immutable testbed is compiled.
+        </ProofBoundary>
+      ) : null}
+
+      {rejected ? (
+        <ProofBoundary level="info" title="Candidate rejected" icon={XCircle}>
+          Pipeline recorded the rejection. This candidate will not become a customer decision request.
+        </ProofBoundary>
+      ) : null}
+
+      {recaptureRequested ? (
+        <ProofBoundary level="info" title="More capture requested" icon={RotateCcw}>
+          Pipeline recorded the request for supplemental capture. The current proposal remains unapproved.
         </ProofBoundary>
       ) : null}
 
@@ -185,7 +207,7 @@ export function TaskCandidateReview({
               </dl>
               {candidate.missing_evidence.length ? <p className="mt-4 text-body-s text-warn"><strong>Missing evidence:</strong> {candidate.missing_evidence.join(" ")}</p> : null}
               {candidate.prohibited_claims.length ? <p className="mt-2 text-body-s text-ink-500"><strong>Prohibited claims:</strong> {candidate.prohibited_claims.join(", ")}</p> : null}
-              {!pending ? <CandidateActionPanel candidate={candidate} submitting={submitting} onSubmit={onSubmit} /> : null}
+              {actionsAvailable ? <CandidateActionPanel candidate={candidate} submitting={submitting} onSubmit={onSubmit} /> : null}
             </Card>
           );
         })}

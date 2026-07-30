@@ -145,8 +145,113 @@ export const taskDecisionCommandSchema = z
     }
   });
 
+export const pipelineTaskDiscoveryPublicationSchema = z
+  .object({
+    schema_version: z.literal("task_candidate_discovery_publication.v1"),
+    capture_session_id: identifier,
+    intake_id: identifier,
+    discovery_digest: sha256,
+    pipeline_task_discovery: taskCandidateDiscoverySchema,
+    proof_boundary: z
+      .object({
+        candidate_is_customer_intent: z.literal(false),
+        decision_evidence_request_compiled: z.literal(false),
+        task_success_established: z.literal(false),
+      })
+      .strict(),
+  })
+  .strict();
+
+const taskCandidateDecisionSchema = z
+  .object({
+    schema_version: z.literal("task_candidate_decision.v1"),
+    discovery_id: identifier,
+    discovery_digest: sha256,
+    task_candidate_id: identifier,
+    candidate_digest: sha256,
+    action: z.enum(["approve", "edit_and_approve", "reject", "request_more_capture"]),
+    actor: z
+      .object({ role: z.enum(["customer", "operator"]), identity: nonEmpty })
+      .passthrough(),
+    idempotency_key: nonEmpty,
+    rationale: nonEmpty,
+    edited_task: measurableTaskSchema.nullable(),
+    decision_id: identifier,
+    decision_digest: sha256,
+  })
+  .strict();
+
+const approvedTaskDefinitionSchema = z
+  .object({
+    schema_version: z.literal("approved_task_definition.v1"),
+    approved_task_id: identifier,
+    source_capture: z
+      .object({
+        intake_id: identifier,
+        capture_digest: sha256,
+        capture_authority_profile: nonEmpty,
+      })
+      .passthrough(),
+    discovery_id: identifier.nullable(),
+    discovery_digest: sha256.nullable(),
+    task_candidate_id: identifier.nullable(),
+    candidate_digest: sha256.nullable(),
+    approval_decision_id: identifier,
+    approval_decision_digest: sha256,
+    approval_actor: z
+      .object({ role: z.enum(["customer", "operator"]), identity: nonEmpty })
+      .passthrough(),
+    intent_source: z.enum([
+      "customer_approved_candidate",
+      "customer_edited_candidate",
+      "customer_supplied",
+    ]),
+    task: measurableTaskSchema,
+    proposer_identity: z.string(),
+    prohibited_evaluator_identities: z.array(nonEmpty),
+    approval_status: z.literal("approved"),
+    approved_task_digest: sha256,
+  })
+  .strict();
+
+export const pipelineTaskDecisionProcessingResultSchema = z
+  .object({
+    schema_version: z.literal("task_candidate_decision_processing_result.v1"),
+    status: z.literal("processed"),
+    accepted: z.literal(true),
+    already_exists: z.boolean(),
+    capture_session_id: identifier,
+    intake_id: identifier,
+    command_request_id: identifier,
+    submission_fingerprint_sha256: sha256,
+    pipeline_approval_status: z.enum(["approved", "rejected", "recapture_requested"]),
+    pipeline_task_decision: taskCandidateDecisionSchema,
+    approved_task_definition: approvedTaskDefinitionSchema.nullable(),
+    decision_evidence_request: z.null(),
+    processed_at_iso: nonEmpty,
+    proof_boundary: z
+      .object({
+        webapp_command_is_pipeline_approval: z.literal(false),
+        pipeline_decision_recorded: z.literal(true),
+        approved_task_exists: z.boolean(),
+        decision_evidence_request_compiled: z.literal(false),
+        testbed_required_before_request_compilation: z.literal(true),
+        task_success_established: z.literal(false),
+        physical_success_established: z.literal(false),
+        comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
+      })
+      .strict(),
+  })
+  .strict();
+
 export type TaskCandidateDiscovery = z.infer<typeof taskCandidateDiscoverySchema>;
 export type TaskDecisionCommand = z.infer<typeof taskDecisionCommandSchema>;
+export type PipelineTaskDiscoveryPublication = z.infer<
+  typeof pipelineTaskDiscoveryPublicationSchema
+>;
+export type PipelineTaskDecisionProcessingResult = z.infer<
+  typeof pipelineTaskDecisionProcessingResultSchema
+>;
 
 export function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -197,4 +302,69 @@ export function parseVerifiedTaskDiscovery(value: unknown) {
     return { ok: false as const, blockers: [...new Set(blockers)].sort() };
   }
   return { ok: true as const, discovery };
+}
+
+export function parseVerifiedPipelineTaskDecisionResult(value: unknown) {
+  const parsed = pipelineTaskDecisionProcessingResultSchema.safeParse(value);
+  if (!parsed.success) {
+    return { ok: false as const, blockers: ["pipeline_task_decision_result_schema_invalid"] };
+  }
+  const result = parsed.data;
+  const blockers: string[] = [];
+  if (
+    canonicalArtifactDigest(
+      result.pipeline_task_decision as unknown as Record<string, unknown>,
+      "decision_digest",
+    ) !== result.pipeline_task_decision.decision_digest
+  ) {
+    blockers.push("pipeline_task_decision_digest_mismatch");
+  }
+  if (
+    result.approved_task_definition &&
+    canonicalArtifactDigest(
+      result.approved_task_definition as unknown as Record<string, unknown>,
+      "approved_task_digest",
+    ) !== result.approved_task_definition.approved_task_digest
+  ) {
+    blockers.push("approved_task_definition_digest_mismatch");
+  }
+  const approved = result.approved_task_definition;
+  const decision = result.pipeline_task_decision;
+  if (
+    approved &&
+    (
+      approved.discovery_id !== decision.discovery_id ||
+      approved.discovery_digest !== decision.discovery_digest ||
+      approved.task_candidate_id !== decision.task_candidate_id ||
+      approved.candidate_digest !== decision.candidate_digest ||
+      approved.approval_decision_id !== decision.decision_id ||
+      approved.approval_decision_digest !== decision.decision_digest ||
+      stableJson(approved.approval_actor) !== stableJson(decision.actor)
+    )
+  ) {
+    blockers.push("approved_task_decision_binding_mismatch");
+  }
+  if (
+    approved &&
+    approved.proposer_identity &&
+    !approved.prohibited_evaluator_identities.includes(approved.proposer_identity)
+  ) {
+    blockers.push("approved_task_proposer_self_grading_boundary_missing");
+  }
+  if (
+    result.proof_boundary.approved_task_exists !==
+    Boolean(result.approved_task_definition)
+  ) {
+    blockers.push("approved_task_presence_boundary_mismatch");
+  }
+  if (
+    ["approved"].includes(result.pipeline_approval_status) !==
+    Boolean(result.approved_task_definition)
+  ) {
+    blockers.push("pipeline_approval_status_artifact_mismatch");
+  }
+  if (blockers.length) {
+    return { ok: false as const, blockers: [...new Set(blockers)].sort() };
+  }
+  return { ok: true as const, result };
 }

@@ -39,6 +39,7 @@ import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
 import requestsRouter from "./routes/requests";
 import internalPipelineRouter from "./routes/internal-pipeline";
+import internalCaptureTaskControlPlaneRouter from "./routes/internal-capture-task-control-plane";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
 import internalHumanRepliesRouter from "./routes/internal-human-replies";
@@ -78,6 +79,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
+  app.use("/api/internal/pipeline", internalCaptureTaskControlPlaneRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);

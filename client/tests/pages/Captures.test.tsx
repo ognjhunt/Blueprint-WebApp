@@ -167,6 +167,10 @@ describe("app/Captures", () => {
       rationale: "This is our exact task.",
       edited_task: null,
       pipeline_approval_status: "pending_pipeline_validation",
+      pipeline_task_decision: null,
+      approved_task_definition: null,
+      decision_evidence_request: null,
+      pipeline_result_proof_boundary: null,
       created_at_iso: "2026-07-29T20:02:00.000Z",
     });
   });

@@ -11,6 +11,7 @@ import {
   stableJson,
   taskDecisionCommandSchema,
 } from "../utils/taskCandidateContract";
+import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateForwarding";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -309,6 +310,13 @@ function taskReviewProjection(record: SessionRecord) {
     status: record.latest_task_decision_command?.pipeline_approval_status ===
       "pending_pipeline_validation"
       ? "decision_pending_pipeline_validation" as const
+      : record.latest_task_decision_command?.pipeline_approval_status === "approved"
+        ? "task_approved" as const
+        : record.latest_task_decision_command?.pipeline_approval_status === "rejected"
+          ? "task_rejected" as const
+          : record.latest_task_decision_command?.pipeline_approval_status ===
+              "recapture_requested"
+            ? "recapture_requested" as const
       : parsed.discovery.approval_state === "task_approval_required"
         ? "task_approval_required" as const
         : "no_candidates" as const,
@@ -330,6 +338,10 @@ function publicTaskDecisionCommand(record: Record<string, unknown>) {
     rationale: record.rationale,
     edited_task: record.edited_task,
     pipeline_approval_status: record.pipeline_approval_status,
+    pipeline_task_decision: record.pipeline_task_decision || null,
+    approved_task_definition: record.approved_task_definition || null,
+    decision_evidence_request: record.decision_evidence_request || null,
+    pipeline_result_proof_boundary: record.pipeline_result_proof_boundary || null,
     created_at_iso: record.created_at_iso,
   };
 }
@@ -589,8 +601,16 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
     created_at_iso: now,
   };
   type TransactionOutcome =
-    | { kind: "created"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
-    | { kind: "replayed"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
+    | {
+        kind: "created";
+        receipt: ReturnType<typeof publicTaskDecisionCommand>;
+        record: Record<string, unknown>;
+      }
+    | {
+        kind: "replayed";
+        receipt: ReturnType<typeof publicTaskDecisionCommand>;
+        record: Record<string, unknown>;
+      }
     | { kind: "idempotency_conflict" }
     | { kind: "pending_conflict" }
     | { kind: "stale_binding" }
@@ -634,7 +654,7 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
             { merge: true },
           );
         }
-        return { kind: "replayed", receipt };
+        return { kind: "replayed", receipt, record };
       }
       const liveReview = taskReviewProjection(liveSession);
       if (
@@ -661,7 +681,7 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
         { latest_task_decision_command: receipt, updated_at_iso: now },
         { merge: true },
       );
-      return { kind: "created", receipt };
+      return { kind: "created", receipt, record: pending };
     });
   } catch (error) {
     const failure = error instanceof Error
@@ -687,10 +707,92 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
       error: "A task decision command is already pending Pipeline validation",
     });
   }
+  let receipt = outcome.receipt;
+  let pipelineResolutionPersistenceFailed = false;
+  const pipelineForward = receipt.pipeline_approval_status === "pending_pipeline_validation"
+    ? await forwardTaskCandidateDecisionToPipeline({
+        captureSessionId: result.record.session_id,
+        intakeId: result.record.request.intake_id,
+        discoveryId: review.discovery.discovery_id,
+        sourceCaptureDigest: review.discovery.source_capture.capture_digest,
+        command: outcome.record,
+      })
+    : null;
+  if (pipelineForward?.pipeline_result) {
+    const pipelineResult = pipelineForward.pipeline_result;
+    const { pipeline_result: _pipelineResult, ...forwardAudit } = pipelineForward;
+    type ResolutionOutcome =
+      | { kind: "resolved"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
+      | { kind: "stale" };
+    try {
+      const resolution = await db!.runTransaction<ResolutionOutcome>(async (transaction) => {
+        const commandSnapshot = await transaction.get(commandRef);
+        const sessionSnapshot = await transaction.get(sessionRef);
+        if (!commandSnapshot.exists || !sessionSnapshot.exists) return { kind: "stale" };
+        const liveCommand = commandSnapshot.data() as Record<string, unknown>;
+        const liveSession = sessionSnapshot.data() as SessionRecord;
+        if (
+          liveCommand.request_fingerprint_sha256 !== fingerprint ||
+          liveSession.owner_user_id !== user.uid ||
+          liveSession.latest_task_decision_command?.command_request_id !== commandRequestId
+        ) {
+          return { kind: "stale" };
+        }
+        const resolvedRecord = {
+          ...liveCommand,
+          pipeline_approval_status: pipelineResult.pipeline_approval_status,
+          pipeline_task_decision: pipelineResult.pipeline_task_decision,
+          approved_task_definition: pipelineResult.approved_task_definition,
+          decision_evidence_request: pipelineResult.decision_evidence_request,
+          pipeline_result_proof_boundary: pipelineResult.proof_boundary,
+          pipeline_processed_at_iso: pipelineResult.processed_at_iso,
+          pipeline_forward: forwardAudit,
+        };
+        const resolvedReceipt = publicTaskDecisionCommand(resolvedRecord);
+        transaction.set(commandRef, resolvedRecord, { merge: false });
+        transaction.set(
+          sessionRef,
+          {
+            latest_task_decision_command: resolvedReceipt,
+            pipeline_task_decision: pipelineResult.pipeline_task_decision,
+            approved_task_definition: pipelineResult.approved_task_definition,
+            decision_evidence_request: pipelineResult.decision_evidence_request,
+            task_decision_proof_boundary: pipelineResult.proof_boundary,
+            updated_at_iso: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+        return { kind: "resolved", receipt: resolvedReceipt };
+      });
+      if (resolution.kind === "resolved") receipt = resolution.receipt;
+    } catch (error) {
+      pipelineResolutionPersistenceFailed = true;
+      const failure = error instanceof Error
+        ? { name: error.name, message: error.message }
+        : { name: "UnknownError", message: "non-Error transaction failure" };
+      logger.error(
+        { sessionId: result.record.session_id, commandRequestId, err: failure },
+        "Pipeline processed task decision but WebApp could not persist the resolution",
+      );
+    }
+  }
   res.set("Cache-Control", "no-store");
-  return res.status(outcome.kind === "replayed" ? 200 : 202).json({
-    ...outcome.receipt,
+  const pipelineResolved = receipt.pipeline_approval_status !== "pending_pipeline_validation";
+  return res.status(pipelineResolved || outcome.kind === "replayed" ? 200 : 202).json({
+    ...receipt,
     ...(outcome.kind === "replayed" ? { already_exists: true } : {}),
+    ...(pipelineForward
+      ? {
+          pipeline_forward: {
+            status: pipelineForward.status,
+            performed: pipelineForward.performed,
+            required: pipelineForward.required,
+            blocker: pipelineResolutionPersistenceFailed
+              ? "pipeline_task_decision_resolution_persistence_failed"
+              : pipelineForward.blocker || null,
+          },
+        }
+      : {}),
   });
 });
 

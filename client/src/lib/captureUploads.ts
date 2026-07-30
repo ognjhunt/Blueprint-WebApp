@@ -109,7 +109,15 @@ export type TaskDecisionCommandReceipt = {
   action: "approve" | "edit_and_approve" | "reject" | "request_more_capture";
   rationale: string;
   edited_task: Record<string, unknown> | null;
-  pipeline_approval_status: "pending_pipeline_validation";
+  pipeline_approval_status:
+    | "pending_pipeline_validation"
+    | "approved"
+    | "rejected"
+    | "recapture_requested";
+  pipeline_task_decision: Record<string, unknown> | null;
+  approved_task_definition: Record<string, unknown> | null;
+  decision_evidence_request: null;
+  pipeline_result_proof_boundary: Record<string, unknown> | null;
   created_at_iso: string;
 };
 
@@ -121,7 +129,10 @@ export type CaptureTaskReview = {
     | "analysis_not_available"
     | "task_approval_required"
     | "no_candidates"
-    | "decision_pending_pipeline_validation";
+    | "decision_pending_pipeline_validation"
+    | "task_approved"
+    | "task_rejected"
+    | "recapture_requested";
   discovery: TaskCandidateDiscovery | null;
   latest_decision_command: TaskDecisionCommandReceipt | null;
   claim_boundary: {

@@ -40,14 +40,27 @@ digests and exact intake binding before display. It renders directly observed
 facts separately from inferred affordances, occlusions, hazards, and
 privacy-sensitive areas. Candidate confidence is proposal metadata only.
 
+Pipeline publishes that artifact through the HMAC-authenticated internal route
+`POST /api/internal/pipeline/capture-task-discoveries`. The route verifies the
+canonical artifact digest, exact capture session/intake binding, and immutable
+replay before advancing the owner-visible session projection.
+
 An owner can approve, edit and approve, reject, or request more capture. WebApp
 stores that action as an append-only, idempotent
 `task_candidate_decision_command_record.v1` with exact discovery and candidate
-digests. The public receipt stays `pending_pipeline_validation`: a WebApp click
-is not a Pipeline `task_candidate_decision.v1`, an approved task, or a compiled
-Decision/Evidence Request. Pipeline must validate the command and return the
-successor authoritative artifacts. Edited tasks require an explicit metric,
-operator, threshold, units, and reset contract.
+digests, then forwards it to Pipeline using a timestamp/client/nonce/body HMAC.
+Until Pipeline returns and WebApp persists a digest-verified result, the public
+receipt stays `pending_pipeline_validation`: a WebApp click is not a Pipeline
+`task_candidate_decision.v1`, an approved task, or a compiled Decision/Evidence
+Request. An interrupted local persistence step keeps the command pending and an
+exact retry safely retrieves the Pipeline result. Edited tasks require an
+explicit metric, operator, threshold, units, and reset contract.
+
+Pipeline is the only authority that can return `approved`, `rejected`, or
+`recapture_requested`. WebApp checks the response's digests and exact requester,
+actor, session, intake, discovery, candidate, action, rationale, edited task, and
+idempotency bindings before storing it. Even an approved task exposes
+`decision_evidence_request: null` until an immutable testbed is compiled.
 
 The checked-in task-candidate schema is an exact byte mirror of Pipeline and is
 verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeline`.
@@ -61,6 +74,12 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
 - Firebase authentication and the existing CSRF middleware remain mandatory for
   every session-management endpoint. The service-wide production rate limiter
   also applies.
+- Set `PIPELINE_SYNC_TOKEN` on WebApp for signed discovery publication. Set
+  `TASK_CANDIDATE_DECISION_FORWARD_URL`,
+  `TASK_CANDIDATE_DECISION_FORWARD_TOKEN`, and optionally
+  `TASK_CANDIDATE_DECISION_FORWARD_CLIENT_ID` for the command return path.
+  Production treats forwarding as required; non-production may set
+  `TASK_CANDIDATE_DECISION_FORWARD_REQUIRED=false` for fixture-only work.
 - A server-side SHA-256/content-validation worker and Pipeline handoff must be
   configured before the UI can advance past verification pending.
 - Pipeline-to-WebApp task-discovery publication and WebApp-command consumption
@@ -69,5 +88,5 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
   completed uploads cannot be removed through the simple multipart-cancel route.
 
 No live bucket CORS, large-file transfer, server-side content verification,
-Pipeline handoff, retention deletion, or revocation execution is proven by the
-hermetic route and component tests alone.
+deployed Pipeline handoff configuration, retention deletion, or revocation
+execution is proven by the hermetic route and component tests alone.

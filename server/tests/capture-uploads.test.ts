@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   finish: vi.fn(),
   fileInfo: vi.fn(),
   cancel: vi.fn(),
+  forward: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -96,6 +97,10 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
     cancelBackblazeResumableCapture: state.cancel,
   };
 });
+
+vi.mock("../utils/taskCandidateForwarding", () => ({
+  forwardTaskCandidateDecisionToPipeline: state.forward,
+}));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
   const { default: router } = await import("../routes/capture-uploads");
@@ -254,6 +259,78 @@ function seededReviewSession() {
   };
 }
 
+function pipelineDecisionResult(discovery: Record<string, any>) {
+  const candidate = discovery.task_candidates[0] as Record<string, any>;
+  const decision: Record<string, unknown> = {
+    schema_version: "task_candidate_decision.v1",
+    discovery_id: discovery.discovery_id,
+    discovery_digest: discovery.discovery_digest,
+    task_candidate_id: candidate.task_candidate_id,
+    candidate_digest: candidate.candidate_digest,
+    action: "approve",
+    actor: { role: "customer", identity: "firebase:buyer-123" },
+    idempotency_key: "approve-task-candidate-1",
+    rationale: "This is the exact task we want evaluated.",
+    edited_task: null,
+    decision_id: "task-decision-1",
+  };
+  decision.decision_digest = canonicalArtifactDigest(decision, "decision_digest");
+  const approved: Record<string, unknown> = {
+    schema_version: "approved_task_definition.v1",
+    approved_task_id: "approved-task-1",
+    source_capture: discovery.source_capture,
+    discovery_id: discovery.discovery_id,
+    discovery_digest: discovery.discovery_digest,
+    task_candidate_id: candidate.task_candidate_id,
+    candidate_digest: candidate.candidate_digest,
+    approval_decision_id: decision.decision_id,
+    approval_decision_digest: decision.decision_digest,
+    approval_actor: decision.actor,
+    intent_source: "customer_approved_candidate",
+    task: {
+      description: candidate.description,
+      task_family: candidate.likely_task_family,
+      measurable_success_conditions: [candidate.proposed_measurable_success_condition],
+      reset_contract: { instructions: candidate.required_site_reset },
+      task_objects: candidate.observed_objects,
+      target_regions: candidate.target_regions,
+      required_robot_capabilities: candidate.required_robot_capabilities,
+    },
+    proposer_identity: discovery.proposal_method.proposer_identity,
+    prohibited_evaluator_identities: [discovery.proposal_method.proposer_identity],
+    approval_status: "approved",
+  };
+  approved.approved_task_digest = canonicalArtifactDigest(
+    approved,
+    "approved_task_digest",
+  );
+  return {
+    schema_version: "task_candidate_decision_processing_result.v1",
+    status: "processed",
+    accepted: true,
+    already_exists: false,
+    capture_session_id: "capture-review-1",
+    intake_id: "intake-360-1",
+    command_request_id: "task-command-placeholder",
+    submission_fingerprint_sha256: `sha256:${"f".repeat(64)}`,
+    pipeline_approval_status: "approved",
+    pipeline_task_decision: decision,
+    approved_task_definition: approved,
+    decision_evidence_request: null,
+    processed_at_iso: "2026-07-29T22:00:00Z",
+    proof_boundary: {
+      webapp_command_is_pipeline_approval: false,
+      pipeline_decision_recorded: true,
+      approved_task_exists: true,
+      decision_evidence_request_compiled: false,
+      testbed_required_before_request_compilation: true,
+      task_success_established: false,
+      physical_success_established: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+}
+
 async function postJson(socketPath: string, requestPath: string, body: unknown) {
   const payload = JSON.stringify(body);
   return new Promise<{ status: number; cacheControl?: string; json: () => Promise<unknown> }>((resolve, reject) => {
@@ -312,6 +389,7 @@ afterEach(() => {
   state.finish.mockReset();
   state.fileInfo.mockReset();
   state.cancel.mockReset();
+  state.forward.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
 });
@@ -614,8 +692,10 @@ describe("resumable capture uploads", () => {
         action: "approve",
         pipeline_approval_status: "pending_pipeline_validation",
       });
-      expect(JSON.stringify(receipt)).not.toContain("approved_task_definition");
-      expect(JSON.stringify(receipt)).not.toContain("decision_evidence_request");
+      expect(receipt).toMatchObject({
+        approved_task_definition: null,
+        decision_evidence_request: null,
+      });
 
       const refreshed = await getJson(
         socketPath,
@@ -709,6 +789,123 @@ describe("resumable capture uploads", () => {
         },
       );
       expect(incompleteEdit.status).toBe(400);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("stores a verified authoritative Pipeline approval without inventing a request", async () => {
+    const reviewSession = seededReviewSession();
+    const discovery = reviewSession.pipeline_task_discovery as Record<string, any>;
+    state.records.set("capture-review-1", reviewSession);
+    state.forward.mockImplementation(async (params: Record<string, any>) => {
+      const result = pipelineDecisionResult(discovery);
+      result.command_request_id = params.command.command_request_id;
+      return {
+        status: "forwarded",
+        performed: true,
+        required: true,
+        endpoint_configured: true,
+        http_status: 200,
+        pipeline_result: result,
+      };
+    });
+    const candidate = discovery.task_candidates[0];
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          schema_version: "task_candidate_decision_command.v1",
+          discovery_digest: discovery.discovery_digest,
+          task_candidate_id: candidate.task_candidate_id,
+          candidate_digest: candidate.candidate_digest,
+          action: "approve",
+          idempotency_key: "approve-task-candidate-1",
+          rationale: "This is the exact task we want evaluated.",
+          edited_task: null,
+        },
+      );
+      const receipt = (await response.json()) as Record<string, any>;
+      expect(response.status).toBe(200);
+      expect(receipt).toMatchObject({
+        pipeline_approval_status: "approved",
+        pipeline_task_decision: { action: "approve" },
+        approved_task_definition: { approval_status: "approved" },
+        decision_evidence_request: null,
+        pipeline_result_proof_boundary: {
+          decision_evidence_request_compiled: false,
+          task_success_established: false,
+          comparative_policy_ranking_verdict: "thesis_not_supported",
+        },
+      });
+      const session = state.records.get("capture-review-1") as Record<string, any>;
+      expect(session.latest_task_decision_command.pipeline_approval_status).toBe("approved");
+      expect(session.decision_evidence_request).toBeNull();
+
+      const review = await getJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-discovery",
+      );
+      await expect(review.json()).resolves.toMatchObject({ status: "task_approved" });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("keeps an exact-retryable pending command when Pipeline resolution persistence fails", async () => {
+    const reviewSession = seededReviewSession();
+    const discovery = reviewSession.pipeline_task_discovery as Record<string, any>;
+    state.records.set("capture-review-1", reviewSession);
+    state.forward.mockImplementation(async (params: Record<string, any>) => {
+      const result = pipelineDecisionResult(discovery);
+      result.command_request_id = params.command.command_request_id;
+      return {
+        status: "forwarded",
+        performed: true,
+        required: true,
+        endpoint_configured: true,
+        http_status: 200,
+        pipeline_result: result,
+      };
+    });
+    let transactionCount = 0;
+    state.beforeTransaction = () => {
+      transactionCount += 1;
+      if (transactionCount === 2) throw new Error("simulated Firestore interruption");
+    };
+    const candidate = discovery.task_candidates[0];
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(
+        socketPath,
+        "/capture-uploads/capture-review-1/task-decisions",
+        {
+          schema_version: "task_candidate_decision_command.v1",
+          discovery_digest: discovery.discovery_digest,
+          task_candidate_id: candidate.task_candidate_id,
+          candidate_digest: candidate.candidate_digest,
+          action: "approve",
+          idempotency_key: "approval-with-local-interruption",
+          rationale: "This is the exact task we want evaluated.",
+          edited_task: null,
+        },
+      );
+      expect(response.status).toBe(202);
+      await expect(response.json()).resolves.toMatchObject({
+        pipeline_approval_status: "pending_pipeline_validation",
+        pipeline_forward: {
+          status: "forwarded",
+          performed: true,
+          blocker: "pipeline_task_decision_resolution_persistence_failed",
+        },
+      });
+      expect(state.records.get("capture-review-1")).toMatchObject({
+        latest_task_decision_command: {
+          pipeline_approval_status: "pending_pipeline_validation",
+        },
+      });
     } finally {
       await stopServer(server, socketPath);
     }
