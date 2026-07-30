@@ -11,6 +11,7 @@ import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEval
 import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluationRunControl";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  applyCompletedCaptureLifecycle,
   createCaptureUpload,
   authorizeCaptureTaskEvaluationRun,
   executeCaptureTaskEvaluationRun,
@@ -68,6 +69,8 @@ function newUploadIdentity() {
 }
 
 function statusTone(status: string): "proof" | "warn" | "block" | "neutral" {
+  if (status === "revoked") return "block";
+  if (status === "revocation_in_progress") return "warn";
   if (["uploaded_verification_pending", "validating", "capture_accepted", "rejected_or_recapture_required"].includes(status)) return "warn";
   if (["failed", "cancelled"].includes(status)) return "block";
   if (["upload_pending", "uploading"].includes(status)) return "neutral";
@@ -85,6 +88,8 @@ function statusLabel(status: string) {
     rejected_or_recapture_required: "Recapture review required",
     cancelled: "Cancelled",
     failed: "Failed",
+    revocation_in_progress: "Deletion in progress",
+    revoked: "Deleted and revoked",
   };
   return labels[status] || status.replace(/_/g, " ");
 }
@@ -93,10 +98,14 @@ function SessionHistory({
   sessions,
   onResume,
   onReview,
+  onRevoke,
+  lifecycleSubmitting,
 }: {
   sessions: CaptureUploadSession[];
   onResume: (session: CaptureUploadSession) => void;
   onReview: (session: CaptureUploadSession) => void;
+  onRevoke: (session: CaptureUploadSession) => void;
+  lifecycleSubmitting: string | null;
 }) {
   return (
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
@@ -122,6 +131,17 @@ function SessionHistory({
                     ) : null}
                     {["upload_pending", "uploading"].includes(session.status) ? (
                       <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
+                    ) : null}
+                    {session.pipeline_handoff?.status === "forwarded" && session.completed_capture_lifecycle?.state === "active" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={lifecycleSubmitting === session.session_id}
+                        onClick={() => onRevoke(session)}
+                      >
+                        {lifecycleSubmitting === session.session_id ? "Deleting…" : "Delete capture"}
+                      </Button>
                     ) : null}
                   </div>
                 </td>
@@ -158,6 +178,7 @@ export default function Captures() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const [runControlSubmitting, setRunControlSubmitting] = useState(false);
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -444,6 +465,30 @@ export default function Captures() {
     }
   }
 
+  async function revokeCompletedCapture(session: CaptureUploadSession) {
+    if (!currentUser) return;
+    const confirmed = window.confirm(
+      "Permanently delete this completed capture and revoke future processing? Historical non-sensitive digests remain so prior decisions can still be explained.",
+    );
+    if (!confirmed) return;
+    setLifecycleSubmitting(session.session_id);
+    setError(null);
+    try {
+      await applyCompletedCaptureLifecycle(
+        currentUser,
+        session.session_id,
+        "operator_deletion_request",
+        `web-delete-${session.session_id}`,
+      );
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setLifecycleSubmitting(null);
+    }
+  }
+
   return (
     <AppShell active="captures" breadcrumb="captures">
       <Helmet><title>Captures · Blueprint</title><meta name="description" content="Secure, resumable capture upload for Task Evaluation Runs." /></Helmet>
@@ -497,12 +542,12 @@ export default function Captures() {
 
           <aside className="flex flex-col gap-4">
             <Card pad="md"><h2 className="font-semibold text-ink-900">Capture guidance</h2><ul className="mt-3 list-disc space-y-2 pl-5 text-body-s text-ink-600"><li>Move slowly and use overlapping passes.</li><li>Show the robot placement area and access path.</li><li>Capture close orbits around task objects, including rear and underside views.</li><li>Keep people, screens, documents, and moving objects out when possible.</li><li>Include a measured calibration board when metric scale matters.</li></ul><p className="mt-3 text-body-s font-semibold text-ink-700">These are advisory hints, not reconstruction or task-success claims.</p></Card>
-            {activeSession?.upload_status === "uploaded_verification_pending" && activeSession.pipeline_handoff.status !== "forwarded" ? <>
+            {activeSession?.upload_status === "uploaded_verification_pending" && activeSession.pipeline_handoff?.status !== "forwarded" ? <>
               <ProofBoundary level="warn" title="Upload retained · Pipeline intake pending" icon={CheckCircle2}>The provider-listed parts are complete, but server SHA-256, malware/content validation, and immutable intake have not all completed. Capture QA and any recapture decision remain pending.</ProofBoundary>
               <Button type="button" variant="secondary" onClick={retryProcessing} disabled={submitting}>Retry secure processing</Button>
-              {activeSession.pipeline_handoff.blocker ? <p className="text-body-xs text-ink-500">Current blocker: {activeSession.pipeline_handoff.blocker.replace(/_/g, " ")}</p> : null}
+              {activeSession.pipeline_handoff?.blocker ? <p className="text-body-xs text-ink-500">Current blocker: {activeSession.pipeline_handoff.blocker.replace(/_/g, " ")}</p> : null}
             </> : null}
-            {activeSession?.pipeline_handoff.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake and Capture QA recorded" icon={CheckCircle2}>Pipeline verified server-side size and SHA-256, received a clean malware-scanner result, content-addressed the raw input, and returned a separate deterministic Capture QA result. Reconstruction and task success remain separate gates.</ProofBoundary> : null}
+            {activeSession?.pipeline_handoff?.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake and Capture QA recorded" icon={CheckCircle2}>Pipeline verified server-side size and SHA-256, received a clean malware-scanner result, content-addressed the raw input, and returned a separate deterministic Capture QA result. Reconstruction and task success remain separate gates.</ProofBoundary> : null}
           </aside>
         </form>
 
@@ -533,7 +578,13 @@ export default function Captures() {
         {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
 
         {loading ? <BuyerAppLoadingState /> : (
-          <SessionHistory sessions={sessions} onResume={resume} onReview={reviewTasks} />
+          <SessionHistory
+            sessions={sessions}
+            onResume={resume}
+            onReview={reviewTasks}
+            onRevoke={revokeCompletedCapture}
+            lifecycleSubmitting={lifecycleSubmitting}
+          />
         )}
       </div>
     </AppShell>

@@ -18,11 +18,15 @@ const state = vi.hoisted(() => ({
   fileInfo: vi.fn(),
   downloadGrant: vi.fn(),
   cancel: vi.fn(),
+  deleteCapture: vi.fn(),
   forward: vi.fn(),
   planForward: vi.fn(),
   authorizationForward: vi.fn(),
   executionForward: vi.fn(),
   intakeForward: vi.fn(),
+  lifecycleApply: vi.fn(),
+  lifecycleEvidence: vi.fn(),
+  lifecycleInspect: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -101,6 +105,7 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
     getBackblazeCaptureFileInfo: state.fileInfo,
     createBackblazeCaptureDownloadGrant: state.downloadGrant,
     cancelBackblazeResumableCapture: state.cancel,
+    deleteBackblazeCaptureFile: state.deleteCapture,
   };
 });
 
@@ -120,6 +125,12 @@ vi.mock("../utils/taskEvaluationRunForwarding", () => ({
   forwardTaskEvaluationRunPlanToPipeline: state.planForward,
   forwardTaskEvaluationRunAuthorizationToPipeline: state.authorizationForward,
   forwardTaskEvaluationRunExecutionToPipeline: state.executionForward,
+}));
+
+vi.mock("../utils/captureLifecycleForwarding", () => ({
+  applyCompletedCaptureLifecycleToPipeline: state.lifecycleApply,
+  recordCaptureExternalRevocationEvidenceInPipeline: state.lifecycleEvidence,
+  inspectCompletedCaptureLifecycleInPipeline: state.lifecycleInspect,
 }));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
@@ -813,11 +824,15 @@ afterEach(() => {
   state.fileInfo.mockReset();
   state.downloadGrant.mockReset();
   state.cancel.mockReset();
+  state.deleteCapture.mockReset();
   state.forward.mockReset();
   state.planForward.mockReset();
   state.authorizationForward.mockReset();
   state.executionForward.mockReset();
   state.intakeForward.mockReset();
+  state.lifecycleApply.mockReset();
+  state.lifecycleEvidence.mockReset();
+  state.lifecycleInspect.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
   delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL;
@@ -826,6 +841,194 @@ afterEach(() => {
 });
 
 describe("resumable capture uploads", () => {
+  it("revokes a completed capture across Pipeline, object storage, and WebApp with retry-safe evidence", async () => {
+    const sessionId = "capture-lifecycle-owner-1";
+    const captureDigest = `sha256:${"3".repeat(64)}`;
+    const envelopeDigest = `sha256:${"2".repeat(64)}`;
+    const tombstoneDigest = `sha256:${"4".repeat(64)}`;
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"1".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      provider_file_id: "b2-completed-file-1",
+      object_path: `captures/buyer-123/intakes/${sessionId}/capture.mp4`,
+      storage_uri: "b2://blueprint-private/capture.mp4",
+      pipeline_capture_intake_receipt: {
+        capture_session_id: sessionId,
+        intake_id: "intake-360-1",
+        capture_digest: captureDigest,
+        envelope_digest: envelopeDigest,
+      },
+    });
+    const tombstone = {
+      schema_version: "capture_lifecycle_tombstone.v1",
+      capture_digest: captureDigest,
+      envelope_digest: envelopeDigest,
+      action: "consent_revoked",
+      tombstone_digest: tombstoneDigest,
+      serve_allowed: false,
+      future_processing_allowed: false,
+      local_payload_deletion_complete: true,
+      external_revocation_complete: false,
+    };
+    state.lifecycleApply.mockResolvedValue({
+      status: "forwarded", performed: true, endpoint_configured: true, value: tombstone,
+    });
+    state.deleteCapture.mockResolvedValue({
+      provider: "backblaze",
+      fileId: "b2-completed-file-1",
+      fileName: `captures/buyer-123/intakes/${sessionId}/capture.mp4`,
+      deletedAtIso: "2026-07-30T12:00:00.000Z",
+      alreadyAbsent: false,
+    });
+    state.lifecycleEvidence.mockImplementation(async (input: Record<string, any>) => ({
+      status: "forwarded",
+      performed: true,
+      endpoint_configured: true,
+      value: {
+        schema_version: "capture_external_revocation_evidence.v1",
+        tombstone_digest: tombstoneDigest,
+        action: input.action,
+        target_system: input.targetSystem,
+        receipt_digest: input.receiptDigest,
+        external_revocation_evidence_digest: `sha256:${(
+          input.action.startsWith("sync") ? "5" : "6"
+        ).repeat(64)}`,
+      },
+    }));
+    state.lifecycleInspect.mockResolvedValue({
+      status: "forwarded",
+      performed: true,
+      endpoint_configured: true,
+      value: {
+        schema_version: "capture_lifecycle_inspection.v1",
+        state: "tombstoned",
+        tombstone,
+        provider_deletion_complete: true,
+        external_revocation_complete: true,
+        local_payload_deletion_complete: true,
+        lifecycle_complete: true,
+        serve_allowed: false,
+        future_processing_allowed: false,
+      },
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const command = {
+        schema_version: "completed_capture_lifecycle_command.v1",
+        action: "consent_revoked",
+        idempotency_key: "revoke-capture-owner-1",
+      };
+      const response = await postJson(socketPath, `/capture-uploads/${sessionId}/lifecycle`, command);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        state: "revoked",
+        local_payload_deletion_complete: true,
+        object_store_deletion_complete: true,
+        webapp_access_denied: true,
+        external_revocation_complete: true,
+        lifecycle_complete: true,
+      });
+      expect(state.deleteCapture).toHaveBeenCalledWith({
+        fileId: "b2-completed-file-1",
+        fileName: `captures/buyer-123/intakes/${sessionId}/capture.mp4`,
+      });
+      expect(state.lifecycleEvidence).toHaveBeenCalledTimes(2);
+      expect(state.records.get(sessionId)).toMatchObject({
+        status: "revoked",
+        provider_file_id: null,
+        object_path: null,
+        storage_uri: null,
+        capture_access: { serve_allowed: false, future_processing_allowed: false },
+      });
+      const ownerProjection = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+      expect(ownerProjection.status).toBe(200);
+      await expect(ownerProjection.json()).resolves.toMatchObject({
+        status: "revoked",
+        upload_status: "revoked",
+        storage_uri: null,
+        completed_capture_lifecycle: {
+          state: "revoked",
+          lifecycle_complete: true,
+        },
+      });
+
+      const replay = await postJson(socketPath, `/capture-uploads/${sessionId}/lifecycle`, command);
+      expect(replay.status).toBe(200);
+      expect(state.lifecycleApply).toHaveBeenCalledTimes(1);
+      expect(state.deleteCapture).toHaveBeenCalledTimes(1);
+      expect(state.lifecycleEvidence).toHaveBeenCalledTimes(2);
+      expect(state.lifecycleInspect).toHaveBeenCalledTimes(2);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("denies future access and preserves a retryable tombstone when object-store deletion fails", async () => {
+    const sessionId = "capture-lifecycle-retry-1";
+    const captureDigest = `sha256:${"a".repeat(64)}`;
+    const envelopeDigest = `sha256:${"b".repeat(64)}`;
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"c".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      provider_file_id: "b2-completed-file-retry",
+      object_path: `captures/buyer-123/intakes/${sessionId}/capture.mp4`,
+      pipeline_capture_intake_receipt: {
+        capture_session_id: sessionId,
+        intake_id: "intake-360-1",
+        capture_digest: captureDigest,
+        envelope_digest: envelopeDigest,
+      },
+    });
+    state.lifecycleApply.mockResolvedValue({
+      status: "forwarded",
+      performed: true,
+      endpoint_configured: true,
+      value: {
+        schema_version: "capture_lifecycle_tombstone.v1",
+        capture_digest: captureDigest,
+        envelope_digest: envelopeDigest,
+        action: "operator_deletion_request",
+        tombstone_digest: `sha256:${"d".repeat(64)}`,
+        serve_allowed: false,
+        future_processing_allowed: false,
+        local_payload_deletion_complete: true,
+        external_revocation_complete: false,
+      },
+    });
+    state.deleteCapture.mockRejectedValue(new Error("provider unavailable"));
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(socketPath, `/capture-uploads/${sessionId}/lifecycle`, {
+        schema_version: "completed_capture_lifecycle_command.v1",
+        action: "operator_deletion_request",
+        idempotency_key: "delete-capture-retry-1",
+      });
+      expect(response.status).toBe(502);
+      expect(state.records.get(sessionId)).toMatchObject({
+        status: "revocation_in_progress",
+        capture_access: { serve_allowed: false, future_processing_allowed: false },
+        completed_capture_lifecycle: {
+          status: "revocation_in_progress",
+          blocker: "capture_object_store_deletion_failed",
+          pipeline_tombstone: { local_payload_deletion_complete: true },
+        },
+      });
+      expect(state.lifecycleEvidence).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
   it("projects authoritative Capture QA and exact recapture instructions to the owner", async () => {
     const sessionId = "capture-qa-owner-1";
     const publication = captureQaPublication(sessionId);

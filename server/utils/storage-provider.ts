@@ -48,6 +48,14 @@ export type CaptureDownloadGrant = {
   expiresAtIso: string;
 };
 
+export type CaptureDeletionReceipt = {
+  provider: "backblaze";
+  fileId: string;
+  fileName: string;
+  deletedAtIso: string;
+  alreadyAbsent: boolean;
+};
+
 type UploadTarget = {
   uploadUrl: string;
   authorizationToken: string;
@@ -375,4 +383,41 @@ export async function createBackblazeCaptureDownloadGrant(input: {
 export async function cancelBackblazeResumableCapture(fileId: string): Promise<void> {
   await ensureBackblazeAuthorized();
   await getBackblazeClient().cancelLargeFile({ fileId });
+}
+
+export async function deleteBackblazeCaptureFile(input: {
+  fileId: string;
+  fileName: string;
+}): Promise<CaptureDeletionReceipt> {
+  const fileId = String(input.fileId || "").trim();
+  const fileName = sanitizeStorageObjectPath(String(input.fileName || ""));
+  if (!fileId || !fileName) {
+    throw new Error("Backblaze B2 capture deletion binding is invalid.");
+  }
+  await ensureBackblazeAuthorized();
+  try {
+    await getBackblazeClient().deleteFileVersion({ fileId, fileName });
+    return {
+      provider: "backblaze",
+      fileId,
+      fileName,
+      deletedAtIso: new Date().toISOString(),
+      alreadyAbsent: false,
+    };
+  } catch (error) {
+    const status = Number(
+      (error as any)?.response?.status
+        || (error as any)?.response?.statusCode
+        || (error as any)?.status
+        || 0,
+    );
+    if (status !== 404) throw error;
+    return {
+      provider: "backblaze",
+      fileId,
+      fileName,
+      deletedAtIso: new Date().toISOString(),
+      alreadyAbsent: true,
+    };
+  }
 }

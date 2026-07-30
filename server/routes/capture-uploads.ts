@@ -28,6 +28,11 @@ import {
   forwardCaptureUploadToPipeline,
 } from "../utils/captureUploadForwarding";
 import {
+  applyCompletedCaptureLifecycleToPipeline,
+  inspectCompletedCaptureLifecycleInPipeline,
+  recordCaptureExternalRevocationEvidenceInPipeline,
+} from "../utils/captureLifecycleForwarding";
+import {
   forwardTaskEvaluationRunAuthorizationToPipeline,
   forwardTaskEvaluationRunExecutionToPipeline,
   forwardTaskEvaluationRunPlanToPipeline,
@@ -36,6 +41,7 @@ import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
   createBackblazeCaptureDownloadGrant,
+  deleteBackblazeCaptureFile,
   finishBackblazeResumableCapture,
   getBackblazeCaptureFileInfo,
   listBackblazeCaptureParts,
@@ -157,6 +163,12 @@ const taskEvaluationRunExecutionCommandSchema = z.object({
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
 }).strict();
 
+const completedCaptureLifecycleCommandSchema = z.object({
+  schema_version: z.literal("completed_capture_lifecycle_command.v1"),
+  action: z.enum(["consent_revoked", "operator_deletion_request"]),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
 type SessionRequest = z.infer<typeof sessionRequestSchema>;
 type SessionRecord = Record<string, unknown> & {
   session_id: string;
@@ -179,6 +191,8 @@ type SessionRecord = Record<string, unknown> & {
   pipeline_capture_intake_receipt?: Record<string, unknown>;
   pipeline_capture_handoff?: Record<string, unknown>;
   pipeline_capture_state?: string;
+  completed_capture_lifecycle?: Record<string, any>;
+  capture_access?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -283,7 +297,10 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
     intake_id: record.request.intake_id,
-    status: captureQa.publication?.state || record.pipeline_capture_state || record.status,
+    status: record.completed_capture_lifecycle?.status
+      || captureQa.publication?.state
+      || record.pipeline_capture_state
+      || record.status,
     upload_status: record.status,
     capture_authority_profile: record.request.capture_authority_profile,
     source_type: record.request.source_type,
@@ -304,6 +321,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
       status: "not_started",
       performed: false,
     },
+    completed_capture_lifecycle: completedCaptureLifecycleProjection(record),
     capture_qa: captureQa.summary,
     task_review: {
       status: taskReview.status,
@@ -323,6 +341,27 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function completedCaptureLifecycleProjection(record: SessionRecord) {
+  const lifecycle = record.completed_capture_lifecycle;
+  if (!lifecycle) return { state: "active" as const, lifecycle_complete: false };
+  return {
+    state: String(lifecycle.status || "revocation_in_progress"),
+    action: String(lifecycle.action || ""),
+    local_payload_deletion_complete: Boolean(
+      lifecycle.pipeline_inspection?.local_payload_deletion_complete
+        || lifecycle.pipeline_tombstone?.local_payload_deletion_complete,
+    ),
+    object_store_deletion_complete: Boolean(lifecycle.storage_deletion_receipt),
+    webapp_access_denied: record.capture_access?.serve_allowed === false,
+    external_revocation_complete: Boolean(
+      lifecycle.pipeline_inspection?.external_revocation_complete,
+    ),
+    lifecycle_complete: Boolean(lifecycle.pipeline_inspection?.lifecycle_complete),
+    blocker: lifecycle.blocker || null,
+    updated_at_iso: lifecycle.updated_at_iso || null,
   };
 }
 
@@ -1604,6 +1643,266 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
           },
         }
       : {}),
+  });
+});
+
+router.get("/:sessionId/lifecycle", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "completed_capture_lifecycle_inspection.v1",
+    session_id: owned.record.session_id,
+    intake_id: owned.record.request.intake_id,
+    ...completedCaptureLifecycleProjection(owned.record),
+  });
+});
+
+router.post("/:sessionId/lifecycle", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Capture lifecycle store is unavailable" });
+  const command = completedCaptureLifecycleCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Completed capture lifecycle command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const record = owned.record;
+  const intakeReceipt = record.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+  const captureDigest = String(intakeReceipt?.capture_digest || "");
+  const envelopeDigest = String(intakeReceipt?.envelope_digest || "");
+  if (
+    !intakeReceipt
+    || intakeReceipt.capture_session_id !== record.session_id
+    || intakeReceipt.intake_id !== record.request.intake_id
+    || !/^sha256:[0-9a-f]{64}$/.test(captureDigest)
+    || !/^sha256:[0-9a-f]{64}$/.test(envelopeDigest)
+  ) {
+    return res.status(409).json({ error: "A bound completed Pipeline intake receipt is required" });
+  }
+  let lifecycle = record.completed_capture_lifecycle
+    ? structuredClone(record.completed_capture_lifecycle)
+    : null;
+  if (lifecycle?.action && lifecycle.action !== command.data.action) {
+    return res.status(409).json({ error: "Completed capture already has a different terminal lifecycle action" });
+  }
+  if (
+    lifecycle?.idempotency_key_digest
+    && lifecycle.idempotency_key_digest !== `sha256:${sha256Text(command.data.idempotency_key)}`
+  ) {
+    return res.status(409).json({ error: "Completed capture lifecycle idempotency conflict" });
+  }
+  const sessionRef = db.collection("captureUploadSessions").doc(record.session_id);
+  if (!lifecycle?.pipeline_tombstone) {
+    const applied = await applyCompletedCaptureLifecycleToPipeline({
+      captureSessionId: record.session_id,
+      intakeId: record.request.intake_id,
+      captureDigest,
+      envelopeDigest,
+      action: command.data.action,
+      idempotencyKey: command.data.idempotency_key,
+    });
+    if (applied.status !== "forwarded" || !applied.value) {
+      return res.status(applied.status === "not_configured" || applied.status === "blocked" ? 503 : 502).json({
+        error: "Pipeline could not apply the completed capture lifecycle action",
+        blocker: applied.blocker,
+      });
+    }
+    lifecycle = {
+      schema_version: "completed_capture_lifecycle_record.v1",
+      action: command.data.action,
+      status: "revocation_in_progress",
+      idempotency_key_digest: `sha256:${sha256Text(command.data.idempotency_key)}`,
+      pipeline_tombstone: applied.value,
+      updated_at_iso: new Date().toISOString(),
+    };
+    await sessionRef.set({
+      status: "revocation_in_progress",
+      pipeline_capture_state: "revocation_in_progress",
+      capture_access: { serve_allowed: false, future_processing_allowed: false },
+      completed_capture_lifecycle: lifecycle,
+      updated_at_iso: lifecycle.updated_at_iso,
+    }, { merge: true });
+  }
+  if (!lifecycle.storage_deletion_receipt) {
+    if (!record.provider_file_id || !record.object_path) {
+      lifecycle = {
+        ...lifecycle,
+        status: "revocation_in_progress",
+        blocker: "capture_object_store_binding_missing",
+        updated_at_iso: new Date().toISOString(),
+      };
+      await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+      return res.status(409).json({
+        error: "Capture object-store deletion binding is missing",
+        blocker: lifecycle.blocker,
+      });
+    }
+    try {
+      const providerReceipt = await deleteBackblazeCaptureFile({
+        fileId: record.provider_file_id,
+        fileName: record.object_path,
+      });
+      const storageReceipt: Record<string, unknown> = {
+        schema_version: "capture_storage_deletion_receipt.v1",
+        provider: providerReceipt.provider,
+        file_id_digest: `sha256:${sha256Text(providerReceipt.fileId)}`,
+        object_path_digest: `sha256:${sha256Text(providerReceipt.fileName)}`,
+        deleted_at_iso: providerReceipt.deletedAtIso,
+        already_absent: providerReceipt.alreadyAbsent,
+        signed_download_access_disabled: true,
+      };
+      storageReceipt.receipt_digest = canonicalArtifactDigest(storageReceipt, "receipt_digest");
+      lifecycle = {
+        ...lifecycle,
+        storage_deletion_receipt: storageReceipt,
+        blocker: null,
+        updated_at_iso: new Date().toISOString(),
+      };
+      await sessionRef.set({
+        status: "revoked",
+        pipeline_capture_state: "revoked",
+        provider_file_id: null,
+        object_path: null,
+        storage_uri: null,
+        completed_capture_lifecycle: lifecycle,
+        updated_at_iso: lifecycle.updated_at_iso,
+      }, { merge: true });
+    } catch (error) {
+      logger.error({ sessionId: record.session_id, err: error }, "Failed to delete completed capture from object storage");
+      lifecycle = {
+        ...lifecycle,
+        status: "revocation_in_progress",
+        blocker: "capture_object_store_deletion_failed",
+        updated_at_iso: new Date().toISOString(),
+      };
+      await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+      return res.status(502).json({
+        error: "Capture object store could not delete the completed upload",
+        blocker: lifecycle.blocker,
+      });
+    }
+  }
+  if (!lifecycle.webapp_revocation_receipt) {
+    const completedAt = new Date().toISOString();
+    const webappReceipt: Record<string, unknown> = {
+      schema_version: "capture_webapp_revocation_receipt.v1",
+      capture_session_id_digest: `sha256:${sha256Text(record.session_id)}`,
+      intake_id_digest: `sha256:${sha256Text(record.request.intake_id)}`,
+      tombstone_digest: lifecycle.pipeline_tombstone.tombstone_digest,
+      action: command.data.action,
+      serve_allowed: false,
+      future_processing_allowed: false,
+      completed_at_iso: completedAt,
+    };
+    webappReceipt.receipt_digest = canonicalArtifactDigest(webappReceipt, "receipt_digest");
+    lifecycle = {
+      ...lifecycle,
+      webapp_revocation_receipt: webappReceipt,
+      updated_at_iso: completedAt,
+    };
+    await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+  }
+  const evidenceRequests = [
+    {
+      key: "webapp_external_evidence",
+      action: "sync_webapp_revocation_verdict" as const,
+      targetSystem: "Blueprint-WebApp",
+      receipt: lifecycle.webapp_revocation_receipt,
+      verificationMethod: "signed_webapp_receipt" as const,
+    },
+    {
+      key: "storage_external_evidence",
+      action: "disable_signed_download_access" as const,
+      targetSystem: "capture-object-store",
+      receipt: lifecycle.storage_deletion_receipt,
+      verificationMethod: "storage_access_revocation_receipt" as const,
+    },
+  ];
+  for (const evidence of evidenceRequests) {
+    if (lifecycle[evidence.key]) continue;
+    const forwarded = await recordCaptureExternalRevocationEvidenceInPipeline({
+      captureSessionId: record.session_id,
+      intakeId: record.request.intake_id,
+      action: evidence.action,
+      targetSystem: evidence.targetSystem,
+      receiptDigest: String(evidence.receipt.receipt_digest),
+      completedAt: String(evidence.receipt.completed_at_iso || evidence.receipt.deleted_at_iso),
+      verificationMethod: evidence.verificationMethod,
+      idempotencyKey: `external-${sha256Text(
+        `${command.data.idempotency_key}\u0000${evidence.action}`,
+      ).slice(0, 48)}`,
+    });
+    if (
+      forwarded.status !== "forwarded"
+      || !forwarded.value
+      || forwarded.value.action !== evidence.action
+      || forwarded.value.receipt_digest !== evidence.receipt.receipt_digest
+      || forwarded.value.tombstone_digest !== lifecycle.pipeline_tombstone.tombstone_digest
+    ) {
+      lifecycle = {
+        ...lifecycle,
+        status: "revocation_in_progress",
+        blocker: forwarded.blocker || "pipeline_external_revocation_evidence_binding_mismatch",
+        updated_at_iso: new Date().toISOString(),
+      };
+      await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+      return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+        error: "Pipeline did not accept external revocation evidence",
+        blocker: lifecycle.blocker,
+      });
+    }
+    lifecycle = {
+      ...lifecycle,
+      [evidence.key]: forwarded.value,
+      blocker: null,
+      updated_at_iso: new Date().toISOString(),
+    };
+    await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+  }
+  const inspected = await inspectCompletedCaptureLifecycleInPipeline({
+    captureSessionId: record.session_id,
+    intakeId: record.request.intake_id,
+  });
+  if (
+    inspected.status !== "forwarded"
+    || !inspected.value
+    || inspected.value.tombstone?.tombstone_digest !== lifecycle.pipeline_tombstone.tombstone_digest
+  ) {
+    lifecycle = {
+      ...lifecycle,
+      status: "revocation_in_progress",
+      blocker: inspected.blocker || "pipeline_capture_lifecycle_inspection_binding_mismatch",
+      updated_at_iso: new Date().toISOString(),
+    };
+    await sessionRef.set({ completed_capture_lifecycle: lifecycle }, { merge: true });
+    return res.status(inspected.status === "not_configured" || inspected.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline lifecycle inspection is unavailable",
+      blocker: lifecycle.blocker,
+    });
+  }
+  lifecycle = {
+    ...lifecycle,
+    status: inspected.value.lifecycle_complete ? "revoked" : "revocation_in_progress",
+    pipeline_inspection: inspected.value,
+    blocker: inspected.value.lifecycle_complete ? null : "capture_lifecycle_external_actions_incomplete",
+    updated_at_iso: new Date().toISOString(),
+  };
+  await sessionRef.set({
+    status: lifecycle.status,
+    pipeline_capture_state: lifecycle.status,
+    completed_capture_lifecycle: lifecycle,
+    updated_at_iso: lifecycle.updated_at_iso,
+  }, { merge: true });
+  const refreshed = await readOwnedSession(record.session_id, user.uid);
+  if (!refreshed.record) return res.status(503).json({ error: "Capture lifecycle state could not be reloaded" });
+  res.set("Cache-Control", "no-store");
+  return res.status(inspected.value.lifecycle_complete ? 200 : 202).json({
+    schema_version: "completed_capture_lifecycle_inspection.v1",
+    session_id: record.session_id,
+    intake_id: record.request.intake_id,
+    ...completedCaptureLifecycleProjection(refreshed.record),
   });
 });
 

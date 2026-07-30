@@ -20,7 +20,8 @@ Contract V3/V3.1+ bundle. Web upload does not replace that higher-authority lane
 ## State and Proof Boundary
 
 The upload session states are `provider_start_pending`, `upload_pending`,
-`uploading`, `uploaded_verification_pending`, `cancelled`, and `failed`.
+`uploading`, `uploaded_verification_pending`, `revocation_in_progress`,
+`revoked`, `cancelled`, and `failed`.
 `uploaded_verification_pending` means only that B2 accepted the expected ordered
 parts and WebApp verified their sizes and SHA-1 receipts against B2's own part
 listing. It is not capture acceptance.
@@ -110,6 +111,18 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
   must be configured before real customer task approval can complete.
 - Retention and revocation execution must preserve a non-sensitive tombstone;
   completed uploads cannot be removed through the simple multipart-cancel route.
+  The owner-facing completed-capture deletion command first obtains an exact
+  Pipeline tombstone, immediately denies WebApp serving and future processing,
+  deletes the exact B2 file version, and submits separate HMAC-authenticated
+  receipts for the WebApp verdict and storage-access revocation. Partial failure
+  remains `revocation_in_progress` with a specific blocker and can be retried
+  without repeating completed destructive steps. `lifecycle_complete` is shown
+  only when Pipeline confirms local deletion, provider obligations, and both
+  external actions.
+- Set `CAPTURE_LIFECYCLE_PIPELINE_BASE_URL` when the lifecycle API cannot be
+  derived from `CAPTURE_UPLOAD_INTAKE_FORWARD_URL`. It must point at the
+  Pipeline `/api/live-pipeline` base; lifecycle calls reuse the capture-intake
+  HMAC token and client identity.
 
 No live bucket CORS, large-file transfer, deployed download-grant transfer,
 scanner configuration, retention deletion, or revocation execution is proven by

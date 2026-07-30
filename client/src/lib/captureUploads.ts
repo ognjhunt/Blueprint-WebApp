@@ -38,6 +38,7 @@ export type CaptureUploadSession = {
     blocker?: string | null;
     [key: string]: unknown;
   };
+  completed_capture_lifecycle: CompletedCaptureLifecycleSummary;
   capture_qa?: CaptureQaSummary;
   task_review: {
     status: string;
@@ -80,6 +81,24 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type CompletedCaptureLifecycleSummary = {
+  state: "active" | "revocation_in_progress" | "revoked" | string;
+  action?: "consent_revoked" | "operator_deletion_request" | string;
+  local_payload_deletion_complete?: boolean;
+  object_store_deletion_complete?: boolean;
+  webapp_access_denied?: boolean;
+  external_revocation_complete?: boolean;
+  lifecycle_complete: boolean;
+  blocker?: string | null;
+  updated_at_iso?: string | null;
+};
+
+export type CompletedCaptureLifecycleInspection = CompletedCaptureLifecycleSummary & {
+  schema_version: "completed_capture_lifecycle_inspection.v1";
+  session_id: string;
+  intake_id: string;
 };
 
 export type CaptureQaSummary =
@@ -554,6 +573,26 @@ export function retryCaptureUploadProcessing(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}/process`,
     { method: "POST", body: "{}" },
+  );
+}
+
+export function applyCompletedCaptureLifecycle(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  action: "consent_revoked" | "operator_deletion_request",
+  idempotencyKey: string,
+) {
+  return apiRequest<CompletedCaptureLifecycleInspection>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/lifecycle`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "completed_capture_lifecycle_command.v1",
+        action,
+        idempotency_key: idempotencyKey,
+      }),
+    },
   );
 }
 

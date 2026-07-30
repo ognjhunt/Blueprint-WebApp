@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   upload: vi.fn(),
   review: vi.fn(),
   decide: vi.fn(),
+  lifecycle: vi.fn(),
   currentUser: {
     uid: "buyer-1",
     email: "buyer@example.com",
@@ -37,6 +38,7 @@ vi.mock("@/lib/captureUploads", async (importOriginal) => {
     uploadCaptureFile: state.upload,
     getCaptureTaskReview: state.review,
     submitTaskDecisionCommand: state.decide,
+    applyCompletedCaptureLifecycle: state.lifecycle,
   };
 });
 
@@ -45,6 +47,7 @@ const pendingSession: CaptureUploadSession = {
   session_id: "capture-upload-1",
   intake_id: "intake-1",
   status: "uploading",
+  upload_status: "uploading",
   capture_authority_profile: "camera_360_equirectangular",
   source_type: "camera_360_equirectangular",
   scene_id: "warehouse-cell-a",
@@ -60,6 +63,8 @@ const pendingSession: CaptureUploadSession = {
   upload_validation: { status: "pending" },
   malware_content_validation: { status: "pending" },
   content_addressing: { status: "pending_server_sha256_verification" },
+  pipeline_handoff: { status: "not_started", performed: false },
+  completed_capture_lifecycle: { state: "active", lifecycle_complete: false },
   task_review: {
     status: "analysis_not_available",
     candidate_count: 0,
@@ -156,6 +161,14 @@ describe("app/Captures", () => {
     state.review.mockReset();
     state.review.mockResolvedValue(taskReview);
     state.decide.mockReset();
+    state.lifecycle.mockReset();
+    state.lifecycle.mockResolvedValue({
+      schema_version: "completed_capture_lifecycle_inspection.v1",
+      session_id: "capture-upload-1",
+      intake_id: "intake-1",
+      state: "revoked",
+      lifecycle_complete: true,
+    });
     state.decide.mockResolvedValue({
       schema_version: "task_candidate_decision_command_receipt.v1",
       command_request_id: "task-command-1",
@@ -248,5 +261,29 @@ describe("app/Captures", () => {
         idempotency_key: expect.stringMatching(/^web-task-decision-/),
       }),
     ));
+  });
+
+  it("requires explicit confirmation before requesting completed-capture deletion", async () => {
+    state.list.mockResolvedValue({
+      sessions: [{
+        ...pendingSession,
+        status: "capture_accepted",
+        upload_status: "uploaded_verification_pending",
+        pipeline_handoff: { status: "forwarded", performed: true },
+        completed_capture_lifecycle: { state: "active", lifecycle_complete: false },
+      }],
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<Captures />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete capture" }));
+    await waitFor(() => expect(state.lifecycle).toHaveBeenCalledWith(
+      state.currentUser,
+      "capture-upload-1",
+      "operator_deletion_request",
+      "web-delete-capture-upload-1",
+    ));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Permanently delete"));
+    confirm.mockRestore();
   });
 });
