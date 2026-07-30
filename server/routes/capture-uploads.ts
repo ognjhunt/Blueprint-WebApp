@@ -7,13 +7,26 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
+  canonicalArtifactDigest,
   parseVerifiedTaskDiscovery,
   stableJson,
   taskDecisionCommandSchema,
 } from "../utils/taskCandidateContract";
-import { parseVerifiedMaintainedSiteTaskTestbed } from "../utils/siteTaskTestbedContract";
-import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
+import {
+  nativeDecisionEvidenceRequestSchema,
+  parseVerifiedMaintainedSiteTaskTestbed,
+} from "../utils/siteTaskTestbedContract";
+import {
+  parseVerifiedTaskEvaluationRunAuthorization,
+  parseVerifiedTaskEvaluationRunPreparation,
+  parseVerifiedTaskEvaluationRunPublication,
+} from "../utils/taskEvaluationRunContract";
 import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateForwarding";
+import {
+  forwardTaskEvaluationRunAuthorizationToPipeline,
+  forwardTaskEvaluationRunExecutionToPipeline,
+  forwardTaskEvaluationRunPlanToPipeline,
+} from "../utils/taskEvaluationRunForwarding";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -120,6 +133,23 @@ const completionSchema = z
   })
   .strict();
 
+const taskEvaluationRunPlanCommandSchema = z.object({
+  schema_version: z.literal("capture_task_evaluation_run_plan_command.v1"),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const taskEvaluationRunAuthorizationCommandSchema = z.object({
+  schema_version: z.literal("capture_task_evaluation_run_authorization_command.v1"),
+  plan_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  authorized_adapter_references: z.array(z.string().trim().min(1).max(512)).max(64),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const taskEvaluationRunExecutionCommandSchema = z.object({
+  schema_version: z.literal("capture_task_evaluation_run_execution_command.v1"),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
 type SessionRequest = z.infer<typeof sessionRequestSchema>;
 type SessionRecord = Record<string, unknown> & {
   session_id: string;
@@ -136,6 +166,7 @@ type SessionRecord = Record<string, unknown> & {
   latest_task_decision_command?: Record<string, unknown>;
   pipeline_site_task_testbed?: Record<string, unknown>;
   pipeline_task_evaluation_run?: Record<string, unknown>;
+  pipeline_task_evaluation_run_plan?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -234,6 +265,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
   const taskReview = taskReviewProjection(record);
   const testbed = siteTaskTestbedProjection(record);
   const taskEvaluationRun = taskEvaluationRunProjection(record);
+  const taskEvaluationRunControl = taskEvaluationRunControlProjection(record, testbed);
   return {
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
@@ -260,6 +292,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
       latest_action: record.latest_task_decision_command?.action || null,
     },
     site_task_testbed: testbed.summary,
+    task_evaluation_run_control: taskEvaluationRunControl.summary,
     task_evaluation_run: taskEvaluationRun.summary,
     claim_boundary: {
       capture_accepted: false,
@@ -271,6 +304,93 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function taskEvaluationRunControlProjection(
+  record: SessionRecord,
+  testbedProjection = siteTaskTestbedProjection(record),
+) {
+  const stored = record.pipeline_task_evaluation_run_plan as Record<string, any> | undefined;
+  if (!stored) return {
+    summary: { state: "not_available" as const },
+    preparation: null,
+    authorization: null,
+    blockers: [] as string[],
+  };
+  if (!stored.pipeline_preparation) return {
+    summary: {
+      state: stored.status === "planning_failed" ? "planning_failed" as const : "planning" as const,
+      run_id: String(stored.run_id || ""),
+      blocker: String(stored.pipeline_forward?.blocker || "") || null,
+    },
+    preparation: null,
+    authorization: null,
+    blockers: [] as string[],
+  };
+  if (!testbedProjection.testbed || !testbedProjection.decisionRequest) return {
+    summary: { state: "pipeline_artifact_invalid" as const },
+    preparation: null,
+    authorization: null,
+    blockers: ["run_control_testbed_or_request_missing"],
+  };
+  const verified = parseVerifiedTaskEvaluationRunPreparation({
+    value: stored.pipeline_preparation,
+    expectedCaptureSessionId: record.session_id,
+    expectedIntakeId: record.request.intake_id,
+    expectedRunId: String(stored.run_id || ""),
+    expectedRequestDigest: testbedProjection.decisionRequest.request_digest,
+    expectedTestbed: testbedProjection.testbed,
+  });
+  if (!verified.ok) return {
+    summary: { state: "pipeline_artifact_invalid" as const },
+    preparation: null,
+    authorization: null,
+    blockers: verified.blockers,
+  };
+  const preparation = verified.preparation;
+  const blockers: string[] = [];
+  if (
+    stored.request_digest !== preparation.request.request_digest ||
+    stored.testbed_digest !== preparation.evidence_plan.testbed_digest
+  ) blockers.push("run_control_binding_mismatch");
+  let authorization: Record<string, any> | null = null;
+  if (stored.pipeline_authorization) {
+    const verifiedAuthorization = parseVerifiedTaskEvaluationRunAuthorization({
+      value: stored.pipeline_authorization,
+      expectedRunId: preparation.run_id,
+      expectedPlanDigest: preparation.evidence_plan.plan_digest,
+      expectedAdapterReferences: stored.pipeline_authorization.authorized_adapter_references || [],
+      expectedActorRole: "customer",
+      expectedActorIdentity: `firebase:${record.owner_user_id}`,
+    });
+    if (!verifiedAuthorization.ok) blockers.push(...verifiedAuthorization.blockers);
+    else authorization = verifiedAuthorization.authorization;
+  }
+  if (stored.status === "authorized" && !authorization) {
+    blockers.push("run_control_authorization_missing");
+  }
+  if (blockers.length) return {
+    summary: { state: "pipeline_artifact_invalid" as const },
+    preparation: null,
+    authorization: null,
+    blockers: [...new Set(blockers)].sort(),
+  };
+  return {
+    summary: {
+      state: stored.status as "authorization_required" | "authorization_failed" | "authorized",
+      run_id: preparation.run_id,
+      plan_digest: preparation.evidence_plan.plan_digest,
+      method_catalog: preparation.method_catalog,
+      authorization_candidates: preparation.authorization_candidates,
+      authorization_digest: authorization?.authorization_digest || null,
+      authorized_adapter_references: authorization?.authorized_adapter_references || [],
+      blocker: String(stored.authorization_forward?.blocker || "") || null,
+      proof_boundary: preparation.proof_boundary,
+    },
+    preparation,
+    authorization,
+    blockers,
   };
 }
 
@@ -326,6 +446,7 @@ function siteTaskTestbedProjection(record: SessionRecord) {
     return {
       summary: { state: "not_available" as const },
       testbed: null,
+      decisionRequest: null,
       blockers: [] as string[],
     };
   }
@@ -334,17 +455,33 @@ function siteTaskTestbedProjection(record: SessionRecord) {
     return {
       summary: { state: "pipeline_artifact_invalid" as const },
       testbed: null,
+      decisionRequest: null,
       blockers: parsed.blockers,
     };
   }
   const testbed = parsed.testbed;
   const blockers: string[] = [];
+  const requestResult = nativeDecisionEvidenceRequestSchema.safeParse(
+    stored.decision_evidence_request,
+  );
+  const decisionRequest = requestResult.success ? requestResult.data : null;
+  if (stored.decision_evidence_request && !requestResult.success) {
+    blockers.push("decision_evidence_request_schema_invalid");
+  }
   if (stored.intake_id !== record.request.intake_id) blockers.push("testbed_intake_mismatch");
   if (stored.testbed_id !== testbed.testbed_id) blockers.push("testbed_id_mismatch");
   if (stored.version !== testbed.version) blockers.push("testbed_version_mismatch");
   if (stored.testbed_digest !== testbed.testbed_digest) blockers.push("testbed_digest_mismatch");
   if (stored.approved_task_digest !== testbed.approved_task_definition.digest) {
     blockers.push("testbed_approved_task_mismatch");
+  }
+  if (decisionRequest && (
+    canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest ||
+    decisionRequest.testbed_id !== testbed.testbed_id ||
+    decisionRequest.testbed_version !== testbed.version ||
+    decisionRequest.testbed_digest !== testbed.testbed_digest
+  )) {
+    blockers.push("decision_evidence_request_binding_invalid");
   }
   const authoritativeApproved = record.approved_task_definition as
     | { approved_task_digest?: unknown }
@@ -363,6 +500,7 @@ function siteTaskTestbedProjection(record: SessionRecord) {
     return {
       summary: { state: "pipeline_artifact_invalid" as const },
       testbed: null,
+      decisionRequest: null,
       blockers: blockers.sort(),
     };
   }
@@ -378,9 +516,11 @@ function siteTaskTestbedProjection(record: SessionRecord) {
         digest: testbed.testbed_digest,
       },
       known_unsupported_conditions: testbed.known_unsupported_conditions,
+      request_digest: decisionRequest?.request_digest || null,
       proof_boundary: testbed.proof_boundary,
     },
     testbed,
+    decisionRequest,
     blockers,
   };
 }
@@ -679,6 +819,7 @@ router.get("/:sessionId/testbed", async (req, res) => {
     status: "testbed_ready",
     artifact_reference: projection.summary.artifact_reference,
     testbed: projection.testbed,
+    decision_evidence_request: projection.decisionRequest,
     proof_boundary: projection.testbed.proof_boundary,
   });
 });
@@ -705,6 +846,318 @@ router.get("/:sessionId/task-evaluation-run", async (req, res) => {
     intake_id: result.record.request.intake_id,
     status: projection.publication.state,
     publication: projection.publication,
+  });
+});
+
+router.post("/:sessionId/task-evaluation-runs/plan", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const command = taskEvaluationRunPlanCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Task Evaluation Run plan command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const projection = siteTaskTestbedProjection(owned.record);
+  if (!projection.testbed || !projection.decisionRequest) {
+    return res.status(409).json({
+      error: "An authoritative testbed and Decision/Evidence Request are required",
+      blockers: projection.blockers,
+    });
+  }
+  const runId = `task-run-${sha256Text(
+    `${user.uid}\u0000${owned.record.session_id}\u0000${command.data.idempotency_key}`,
+  ).slice(0, 32)}`;
+  const planRecordId = `capture-plan-${sha256Text(
+    `${owned.record.session_id}\u0000${runId}`,
+  ).slice(0, 32)}`;
+  const fingerprint = `sha256:${sha256Text(stableJson({
+    capture_session_id: owned.record.session_id,
+    intake_id: owned.record.request.intake_id,
+    run_id: runId,
+    request_digest: projection.decisionRequest.request_digest,
+    testbed_digest: projection.testbed.testbed_digest,
+    idempotency_key: command.data.idempotency_key,
+  }))}`;
+  const planRef = db.collection("captureTaskEvaluationRunPlans").doc(planRecordId);
+  const sessionRef = db.collection("captureUploadSessions").doc(owned.record.session_id);
+  const existing = await planRef.get();
+  const baseRecord = {
+    schema_version: "capture_task_evaluation_run_plan_record.v1",
+    plan_record_id: planRecordId,
+    owner_user_id: user.uid,
+    capture_session_id: owned.record.session_id,
+    intake_id: owned.record.request.intake_id,
+    run_id: runId,
+    request_digest: projection.decisionRequest.request_digest,
+    testbed_digest: projection.testbed.testbed_digest,
+    request_fingerprint_sha256: fingerprint,
+    status: "planning",
+    created_at_iso: new Date().toISOString(),
+  };
+  if (existing.exists) {
+    const record = existing.data() as Record<string, any>;
+    if (record.owner_user_id !== user.uid || record.request_fingerprint_sha256 !== fingerprint) {
+      return res.status(409).json({ error: "Task Evaluation Run plan idempotency conflict" });
+    }
+    if (record.status === "authorization_required" && record.pipeline_preparation) {
+      return res.status(200).json({
+        schema_version: "capture_task_evaluation_run_plan_receipt.v1",
+        already_exists: true,
+        status: record.status,
+        run_id: runId,
+        pipeline_preparation: record.pipeline_preparation,
+      });
+    }
+  } else {
+    try {
+      await planRef.create(baseRecord);
+      await sessionRef.set({ pipeline_task_evaluation_run_plan: baseRecord }, { merge: true });
+    } catch {
+      return res.status(409).json({ error: "Task Evaluation Run plan idempotency conflict" });
+    }
+  }
+  const forwarded = await forwardTaskEvaluationRunPlanToPipeline({
+    captureSessionId: owned.record.session_id,
+    intakeId: owned.record.request.intake_id,
+    runId,
+    request: projection.decisionRequest,
+    testbed: projection.testbed,
+    idempotencyKey: command.data.idempotency_key,
+  });
+  const resolved = {
+    status: forwarded.status === "forwarded" ? "authorization_required" : "planning_failed",
+    pipeline_preparation: forwarded.preparation || null,
+    pipeline_forward: {
+      status: forwarded.status,
+      performed: forwarded.performed,
+      required: forwarded.required,
+      blocker: forwarded.blocker || null,
+      http_status: forwarded.http_status || null,
+    },
+    updated_at_iso: new Date().toISOString(),
+  };
+  await planRef.set(resolved, { merge: true });
+  await sessionRef.set({
+    pipeline_task_evaluation_run_plan: {
+      ...(existing.exists ? existing.data() : baseRecord),
+      ...resolved,
+      run_id: runId,
+      request_digest: projection.decisionRequest.request_digest,
+      testbed_digest: projection.testbed.testbed_digest,
+    },
+  }, { merge: true });
+  if (forwarded.status !== "forwarded" || !forwarded.preparation) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not plan the Task Evaluation Run",
+      blocker: forwarded.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(201).json({
+    schema_version: "capture_task_evaluation_run_plan_receipt.v1",
+    already_exists: false,
+    status: "authorization_required",
+    run_id: runId,
+    pipeline_preparation: forwarded.preparation,
+  });
+});
+
+router.post("/:sessionId/task-evaluation-runs/:runId/authorize", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const command = taskEvaluationRunAuthorizationCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Task Evaluation Run authorization command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const planRecord = owned.record.pipeline_task_evaluation_run_plan as Record<string, any> | undefined;
+  const currentProjection = siteTaskTestbedProjection(owned.record);
+  const controlProjection = taskEvaluationRunControlProjection(owned.record, currentProjection);
+  const preparation = controlProjection.preparation;
+  if (
+    !planRecord || !preparation ||
+    planRecord.run_id !== req.params.runId ||
+    preparation.run_id !== req.params.runId ||
+    preparation.evidence_plan?.plan_digest !== command.data.plan_digest ||
+    planRecord.request_digest !== preparation.request?.request_digest ||
+    planRecord.testbed_digest !== preparation.evidence_plan?.testbed_digest ||
+    !currentProjection.testbed || !currentProjection.decisionRequest ||
+    currentProjection.testbed.testbed_digest !== planRecord.testbed_digest ||
+    currentProjection.decisionRequest.request_digest !== planRecord.request_digest
+  ) {
+    return res.status(409).json({ error: "Task Evaluation Run plan is stale or not awaiting authorization" });
+  }
+  const candidates = Array.isArray(preparation.authorization_candidates)
+    ? preparation.authorization_candidates as Array<Record<string, unknown>>
+    : [];
+  const allowed = new Set(candidates.map((candidate) => String(candidate.adapter_reference || "")));
+  const requested = [...new Set(command.data.authorized_adapter_references)].sort();
+  if (requested.some((reference) => !allowed.has(reference))) {
+    return res.status(409).json({ error: "Authorization includes an adapter not selected by Pipeline" });
+  }
+  const authorizationFingerprint = `sha256:${sha256Text(stableJson({
+    run_id: req.params.runId,
+    plan_digest: command.data.plan_digest,
+    authorized_adapter_references: requested,
+    actor: { role: "customer", identity: `firebase:${user.uid}` },
+    idempotency_key: command.data.idempotency_key,
+  }))}`;
+  if (planRecord.status === "authorized" && planRecord.pipeline_authorization) {
+    if (planRecord.authorization_request_fingerprint_sha256 !== authorizationFingerprint) {
+      return res.status(409).json({ error: "Task Evaluation Run authorization idempotency conflict" });
+    }
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "capture_task_evaluation_run_authorization_receipt.v1",
+      already_exists: true,
+      status: "authorized",
+      run_id: req.params.runId,
+      plan_digest: command.data.plan_digest,
+      pipeline_authorization: planRecord.pipeline_authorization,
+    });
+  }
+  if (planRecord.status !== "authorization_required" && planRecord.status !== "authorization_failed") {
+    return res.status(409).json({ error: "Task Evaluation Run plan is not awaiting authorization" });
+  }
+  const forwarded = await forwardTaskEvaluationRunAuthorizationToPipeline({
+    runId: req.params.runId,
+    planDigest: command.data.plan_digest,
+    authorizedAdapterReferences: requested,
+    actor: { role: "customer", identity: `firebase:${user.uid}` },
+    idempotencyKey: command.data.idempotency_key,
+  });
+  const resolved = {
+    ...planRecord,
+    status: forwarded.status === "forwarded" ? "authorized" : "authorization_failed",
+    authorization_request_fingerprint_sha256: authorizationFingerprint,
+    pipeline_authorization: forwarded.authorization || null,
+    authorization_forward: {
+      status: forwarded.status,
+      performed: forwarded.performed,
+      required: forwarded.required,
+      blocker: forwarded.blocker || null,
+      http_status: forwarded.http_status || null,
+    },
+    updated_at_iso: new Date().toISOString(),
+  };
+  if (planRecord.plan_record_id) {
+    await db.collection("captureTaskEvaluationRunPlans").doc(String(planRecord.plan_record_id))
+      .set(resolved, { merge: false });
+  }
+  await db.collection("captureUploadSessions").doc(owned.record.session_id).set(
+    { pipeline_task_evaluation_run_plan: resolved },
+    { merge: true },
+  );
+  if (forwarded.status !== "forwarded" || !forwarded.authorization) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not authorize the Task Evaluation Run",
+      blocker: forwarded.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "capture_task_evaluation_run_authorization_receipt.v1",
+    already_exists: false,
+    status: "authorized",
+    run_id: req.params.runId,
+    plan_digest: command.data.plan_digest,
+    pipeline_authorization: forwarded.authorization,
+  });
+});
+
+router.post("/:sessionId/task-evaluation-runs/:runId/execute", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const command = taskEvaluationRunExecutionCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Task Evaluation Run execution command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const existingTerminal = taskEvaluationRunProjection(owned.record);
+  if (
+    existingTerminal.publication?.run_id === req.params.runId &&
+    ["decided", "partially_decided", "abstained"].includes(existingTerminal.publication.state)
+  ) {
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "capture_task_evaluation_run_execution_receipt.v1",
+      already_exists: true,
+      status: existingTerminal.publication.state,
+      run_id: req.params.runId,
+      decision_envelope_digest:
+        existingTerminal.publication.decision_envelope.decision_envelope_digest,
+    });
+  }
+  const control = taskEvaluationRunControlProjection(owned.record);
+  if (
+    control.summary.state !== "authorized" ||
+    !control.preparation || !control.authorization ||
+    control.preparation.run_id !== req.params.runId
+  ) {
+    return res.status(409).json({
+      error: "Task Evaluation Run is not authorized for execution",
+      blockers: control.blockers,
+    });
+  }
+  const preparation = control.preparation;
+  const forwarded = await forwardTaskEvaluationRunExecutionToPipeline({
+    runId: req.params.runId,
+    planDigest: preparation.evidence_plan.plan_digest,
+    requestDigest: preparation.request.request_digest,
+    testbedDigest: preparation.evidence_plan.testbed_digest,
+  });
+  const planRecord = owned.record.pipeline_task_evaluation_run_plan as Record<string, any>;
+  const executionForward = {
+    status: forwarded.status,
+    performed: forwarded.performed,
+    required: forwarded.required,
+    blocker: forwarded.blocker || null,
+    http_status: forwarded.http_status || null,
+    idempotency_key: command.data.idempotency_key,
+    result_state: forwarded.result?.state || null,
+    decision_envelope_digest:
+      forwarded.result?.decision_envelope?.decision_envelope_digest || null,
+    updated_at_iso: new Date().toISOString(),
+  };
+  const resolved = { ...planRecord, execution_forward: executionForward };
+  if (planRecord.plan_record_id) {
+    await db.collection("captureTaskEvaluationRunPlans").doc(String(planRecord.plan_record_id))
+      .set(resolved, { merge: false });
+  }
+  await db.collection("captureUploadSessions").doc(owned.record.session_id).set(
+    { pipeline_task_evaluation_run_plan: resolved },
+    { merge: true },
+  );
+  if (forwarded.status !== "forwarded" || !forwarded.result) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not execute the Task Evaluation Run",
+      blocker: forwarded.blocker,
+    });
+  }
+  const refreshed = await readOwnedSession(req.params.sessionId, user.uid);
+  const terminal = refreshed.record ? taskEvaluationRunProjection(refreshed.record) : null;
+  if (
+    !terminal?.publication ||
+    terminal.publication.run_id !== req.params.runId ||
+    terminal.publication.state !== forwarded.result.state ||
+    terminal.publication.decision_envelope.decision_envelope_digest !==
+      forwarded.result.decision_envelope.decision_envelope_digest
+  ) {
+    return res.status(502).json({
+      error: "Pipeline execution finished but authoritative terminal publication is pending",
+      blocker: "task_evaluation_run_terminal_publication_missing",
+      run_id: req.params.runId,
+      pipeline_state: forwarded.result.state,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "capture_task_evaluation_run_execution_receipt.v1",
+    already_exists: forwarded.result.already_exists,
+    status: terminal.publication.state,
+    run_id: req.params.runId,
+    decision_envelope_digest:
+      terminal.publication.decision_envelope.decision_envelope_digest,
   });
 });
 

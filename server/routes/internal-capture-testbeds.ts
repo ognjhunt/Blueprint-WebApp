@@ -4,6 +4,7 @@ import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   exactTestbedPublicationFingerprint,
   parseVerifiedMaintainedSiteTaskTestbed,
@@ -53,6 +54,7 @@ router.post(
       });
     }
     const testbed = verified.testbed;
+    const decisionRequest = publication.decision_evidence_request;
     if (
       publication.testbed_id !== testbed.testbed_id ||
       publication.version !== testbed.version ||
@@ -63,6 +65,16 @@ router.post(
         exactTestbedPublicationFingerprint(testbed.proof_boundary)
     ) {
       return res.status(409).json({ error: "Pipeline testbed publication binding mismatch" });
+    }
+    if (
+      decisionRequest && (
+        canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest ||
+        decisionRequest.testbed_id !== testbed.testbed_id ||
+        decisionRequest.testbed_version !== testbed.version ||
+        decisionRequest.testbed_digest !== testbed.testbed_digest
+      )
+    ) {
+      return res.status(409).json({ error: "Decision/Evidence Request binding mismatch" });
     }
     const sourceBundles = testbed.source_capture_bundles.filter(
       (bundle) => bundle.bundle_id === publication.intake_id,
@@ -132,6 +144,7 @@ router.post(
           testbed_digest: publication.testbed_digest,
           artifact_reference: publication.artifact_reference,
           testbed,
+          decision_evidence_request: decisionRequest || null,
           status: "testbed_ready",
           proof_boundary: publication.proof_boundary,
         };
@@ -178,6 +191,7 @@ router.post(
       testbed_digest: publication.testbed_digest,
       artifact_reference: publication.artifact_reference,
       proof_boundary: publication.proof_boundary,
+      request_digest: decisionRequest?.request_digest || null,
     });
   },
 );

@@ -25,6 +25,27 @@ const cardSchema = z
   .object({ schema_version: nonEmpty, card_digest: digest })
   .passthrough();
 
+export const nativeDecisionEvidenceRequestSchema = z.object({
+  schema_version: z.literal("decision_evidence_request.v1"),
+  request_id: identifier,
+  decision_id: identifier,
+  testbed_id: identifier,
+  testbed_version: identifier,
+  testbed_digest: digest,
+  decision_question: nonEmpty,
+  candidates: z.array(z.record(z.string(), z.unknown())),
+  claims: z.array(z.record(z.string(), z.unknown())).min(1),
+  budget: z.object({ max_cost_usd: z.number().min(0) }).passthrough(),
+  deadline: nonEmpty,
+  available_physical_evidence: z.array(z.unknown()),
+  permitted_evidence_methods: z.array(nonEmpty).min(1),
+  restrictions: z.record(z.string(), z.unknown()),
+  requested_result_audience: nonEmpty,
+  provenance: z.object({ caller_identity: nonEmpty }).passthrough(),
+  idempotency_key: nonEmpty,
+  request_digest: digest,
+}).passthrough();
+
 export const maintainedSiteTaskTestbedSchema = z
   .object({
     schema_version: z.literal("maintained_site_task_testbed.v1"),
@@ -92,6 +113,7 @@ export const siteTaskTestbedPublicationSchema = z
     testbed_digest: digest,
     artifact_reference: artifactReferenceSchema,
     testbed: maintainedSiteTaskTestbedSchema,
+    decision_evidence_request: nativeDecisionEvidenceRequestSchema.optional(),
     status: z.literal("testbed_ready"),
     proof_boundary: maintainedSiteTaskTestbedSchema.shape.proof_boundary,
   })

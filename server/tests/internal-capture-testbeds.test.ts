@@ -124,6 +124,39 @@ function testbed(version = "v1", predecessor: string | null = null) {
   return value;
 }
 
+function decisionRequest(value: ReturnType<typeof testbed>) {
+  const request: Record<string, any> = {
+    schema_version: "decision_evidence_request.v1",
+    request_id: `request-${value.version}`,
+    decision_id: `decision-${value.version}`,
+    testbed_id: value.testbed_id,
+    testbed_version: value.version,
+    testbed_digest: value.testbed_digest,
+    decision_question: "Can the exact robot reach the approved target?",
+    candidates: [{ robot_id: "robot-1" }],
+    claims: [{
+      claim_id: "reach",
+      claim_type: "reachability",
+      subject: "robot-1:item-1:target-1",
+      measurable_threshold: { operator: ">=", value: 0.9, units: "fraction" },
+      false_safe_consequence: "moderate",
+      acceptable_false_safe_risk: 0.05,
+      desired_confidence_or_coverage: { minimum_coverage: 0.9 },
+      permitted_abstention_behavior: { allowed: true },
+    }],
+    budget: { max_cost_usd: 0 },
+    deadline: "2026-07-30T00:00:00Z",
+    available_physical_evidence: [],
+    permitted_evidence_methods: ["analytic_geometry_kinematics"],
+    restrictions: { external_processing_allowed: false },
+    requested_result_audience: "design_partner",
+    provenance: { caller_identity: "pipeline:testbed-compiler" },
+    idempotency_key: `request-${value.version}`,
+  };
+  request.request_digest = canonicalArtifactDigest(request, "request_digest");
+  return request;
+}
+
 function publication(value = testbed()) {
   return {
     schema_version: "site_task_testbed_publication.v1",
@@ -138,6 +171,7 @@ function publication(value = testbed()) {
       digest: value.testbed_digest,
     },
     testbed: value,
+    decision_evidence_request: decisionRequest(value),
     status: "testbed_ready",
     proof_boundary: value.proof_boundary,
   };
@@ -218,6 +252,7 @@ describe("internal Pipeline maintained testbed publication", () => {
         status: "testbed_ready",
         already_exists: false,
         testbed_digest: body.testbed_digest,
+        request_digest: body.decision_evidence_request.request_digest,
       });
       expect(state.collections.get("captureUploadSessions")?.get("capture-testbed-1"))
         .toMatchObject({ pipeline_testbed_state: "testbed_ready" });
@@ -264,6 +299,12 @@ describe("internal Pipeline maintained testbed publication", () => {
       const secretResponse = await postSigned(socketPath, secretBearing);
       expect(secretResponse.status).toBe(400);
       expect(secretResponse.body.blockers).toContain("maintained_testbed_secret_value_forbidden");
+
+      const requestTamper = publication();
+      requestTamper.decision_evidence_request.decision_question = "Tampered question";
+      const requestTamperResponse = await postSigned(socketPath, requestTamper);
+      expect(requestTamperResponse.status).toBe(409);
+      expect(requestTamperResponse.body.error).toBe("Decision/Evidence Request binding mismatch");
 
       const credentialUri = publication();
       credentialUri.testbed.artifact_references.evaluator.uri =

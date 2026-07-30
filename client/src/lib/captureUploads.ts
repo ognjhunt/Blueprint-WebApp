@@ -45,8 +45,10 @@ export type CaptureUploadSession = {
         lifecycle_state: string;
         artifact_reference: { uri: string; digest: string };
         known_unsupported_conditions: string[];
+        request_digest: string | null;
         proof_boundary: Record<string, unknown>;
       };
+  task_evaluation_run_control?: TaskEvaluationRunControlSummary;
   task_evaluation_run?:
     | { state: "not_available" | "pipeline_artifact_invalid" }
     | {
@@ -69,6 +71,73 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type TaskEvaluationRunAuthorizationCandidate = {
+  adapter_reference: string;
+  method_id: string;
+  method_version: string;
+  method_profile_digest: string;
+  method_family: string;
+  expected_cost_usd: number;
+  proof_tier: string;
+  execution_authorized: false;
+};
+
+export type TaskEvaluationRunPreparedControl = {
+  state: "authorization_required" | "authorization_failed" | "authorized";
+  run_id: string;
+  plan_digest: string;
+  method_catalog: {
+    catalog_id: string;
+    version: string;
+    catalog_digest: string;
+    pipeline_owned: true;
+  };
+  authorization_candidates: TaskEvaluationRunAuthorizationCandidate[];
+  authorization_digest: string | null;
+  authorized_adapter_references: string[];
+  blocker: string | null;
+  proof_boundary: Record<string, unknown>;
+};
+
+export type TaskEvaluationRunControlSummary =
+  | { state: "not_available" | "pipeline_artifact_invalid" }
+  | { state: "planning" | "planning_failed"; run_id: string; blocker: string | null }
+  | TaskEvaluationRunPreparedControl;
+
+export type CaptureTaskEvaluationRunPlanReceipt = {
+  schema_version: "capture_task_evaluation_run_plan_receipt.v1";
+  already_exists: boolean;
+  status: "authorization_required";
+  run_id: string;
+  pipeline_preparation: Record<string, any> & {
+    evidence_plan: { plan_digest: string };
+    authorization_candidates: TaskEvaluationRunAuthorizationCandidate[];
+  };
+};
+
+export type CaptureTaskEvaluationRunAuthorizationReceipt = {
+  schema_version: "capture_task_evaluation_run_authorization_receipt.v1";
+  already_exists: boolean;
+  status: "authorized";
+  run_id: string;
+  plan_digest: string;
+  pipeline_authorization: Record<string, any> & {
+    authorization_digest: string;
+    authorized_adapter_references: string[];
+    live_provider_execution: false;
+    paid_compute_authorized: false;
+    physical_robot_run_authorized: false;
+  };
+};
+
+export type CaptureTaskEvaluationRunExecutionReceipt = {
+  schema_version: "capture_task_evaluation_run_execution_receipt.v1";
+  already_exists: boolean;
+  status: "decided" | "partially_decided" | "abstained";
+  run_id: string;
+  decision_envelope_digest: string;
 };
 
 export type TaskEvaluationRunProofBoundary = {
@@ -121,6 +190,7 @@ export type CaptureSiteTaskTestbedInspection = {
   status: "testbed_ready";
   artifact_reference: { uri: string; digest: string };
   testbed: Record<string, any>;
+  decision_evidence_request: Record<string, any> | null;
   proof_boundary: {
     appearance_is_collision_truth: false;
     generated_completion_is_observed_truth: false;
@@ -339,6 +409,65 @@ export function getCaptureTaskEvaluationRun(currentUser: FirebaseUser, sessionId
   return apiRequest<CaptureTaskEvaluationRunInspection>(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-evaluation-run`,
+  );
+}
+
+export function planCaptureTaskEvaluationRun(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  idempotencyKey: string,
+) {
+  return apiRequest<CaptureTaskEvaluationRunPlanReceipt>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-evaluation-runs/plan`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_task_evaluation_run_plan_command.v1",
+        idempotency_key: idempotencyKey,
+      }),
+    },
+  );
+}
+
+export function authorizeCaptureTaskEvaluationRun(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  runId: string,
+  request: {
+    plan_digest: string;
+    authorized_adapter_references: string[];
+    idempotency_key: string;
+  },
+) {
+  return apiRequest<CaptureTaskEvaluationRunAuthorizationReceipt>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-evaluation-runs/${encodeURIComponent(runId)}/authorize`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_task_evaluation_run_authorization_command.v1",
+        ...request,
+      }),
+    },
+  );
+}
+
+export function executeCaptureTaskEvaluationRun(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  runId: string,
+) {
+  return apiRequest<CaptureTaskEvaluationRunExecutionReceipt>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-evaluation-runs/${encodeURIComponent(runId)}/execute`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_task_evaluation_run_execution_command.v1",
+        idempotency_key: `web-execute-${runId}`,
+      }),
+    },
   );
 }
 

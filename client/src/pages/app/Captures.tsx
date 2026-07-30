@@ -7,14 +7,18 @@ import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint
 import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
 import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
 import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
+import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluationRunControl";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createCaptureUpload,
+  authorizeCaptureTaskEvaluationRun,
+  executeCaptureTaskEvaluationRun,
   getCaptureSiteTaskTestbed,
   getCaptureTaskReview,
   getCaptureTaskEvaluationRun,
   getCaptureUpload,
   listCaptureUploads,
+  planCaptureTaskEvaluationRun,
   submitTaskDecisionCommand,
   uploadCaptureFile,
   type CaptureTaskReview,
@@ -145,6 +149,7 @@ export default function Captures() {
   const [runInspection, setRunInspection] = useState<CaptureTaskEvaluationRunInspection | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
+  const [runControlSubmitting, setRunControlSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -242,6 +247,83 @@ export default function Captures() {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setDecisionSubmitting(false);
+    }
+  }
+
+  async function planTaskEvaluationRun() {
+    if (!currentUser || !reviewSession) return;
+    setRunControlSubmitting(true);
+    setError(null);
+    try {
+      await planCaptureTaskEvaluationRun(
+        currentUser,
+        reviewSession.session_id,
+        `web-plan-${reviewSession.session_id}`,
+      );
+      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id);
+      setReviewSession(latestSession);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setRunControlSubmitting(false);
+    }
+  }
+
+  async function authorizeTaskEvaluationRun(adapterReferences: string[]) {
+    if (!currentUser || !reviewSession) return;
+    const control = reviewSession.task_evaluation_run_control;
+    if (!control || (
+      control.state !== "authorization_required" && control.state !== "authorization_failed"
+    )) return;
+    setRunControlSubmitting(true);
+    setError(null);
+    try {
+      await authorizeCaptureTaskEvaluationRun(
+        currentUser,
+        reviewSession.session_id,
+        control.run_id,
+        {
+          plan_digest: control.plan_digest,
+          authorized_adapter_references: adapterReferences,
+          idempotency_key: `web-authorize-${control.run_id}`,
+        },
+      );
+      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id);
+      setReviewSession(latestSession);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setRunControlSubmitting(false);
+    }
+  }
+
+  async function executeTaskEvaluationRun() {
+    if (!currentUser || !reviewSession) return;
+    const control = reviewSession.task_evaluation_run_control;
+    if (!control || control.state !== "authorized") return;
+    setRunControlSubmitting(true);
+    setError(null);
+    try {
+      await executeCaptureTaskEvaluationRun(
+        currentUser,
+        reviewSession.session_id,
+        control.run_id,
+      );
+      const [latestSession, inspection] = await Promise.all([
+        getCaptureUpload(currentUser, reviewSession.session_id),
+        getCaptureTaskEvaluationRun(currentUser, reviewSession.session_id),
+      ]);
+      setReviewSession(latestSession);
+      setRunInspection(inspection);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id).catch(() => null);
+      if (latestSession) setReviewSession(latestSession);
+    } finally {
+      setRunControlSubmitting(false);
     }
   }
 
@@ -398,6 +480,16 @@ export default function Captures() {
         ) : null}
 
         {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
+
+        {testbedInspection?.decision_evidence_request && !runInspection ? (
+          <TaskEvaluationRunControl
+            control={reviewSession?.task_evaluation_run_control}
+            busy={runControlSubmitting}
+            onPlan={planTaskEvaluationRun}
+            onAuthorize={authorizeTaskEvaluationRun}
+            onExecute={executeTaskEvaluationRun}
+          />
+        ) : null}
 
         {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
 

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import {
+  maintainedSiteTaskTestbedSchema,
+  nativeDecisionEvidenceRequestSchema,
+} from "./siteTaskTestbedContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -94,6 +98,68 @@ export const taskEvaluationRunPublicationSchema = z.object({
   }).passthrough(),
 }).strict();
 
+export const taskEvaluationRunPreparationSchema = z.object({
+  schema_version: z.literal("task_evaluation_run_preparation.v1"),
+  run_id: identifier,
+  capture_session_id: identifier,
+  intake_id: identifier,
+  state: z.literal("authorization_required"),
+  request: nativeDecisionEvidenceRequestSchema,
+  evidence_plan: nativeEvidencePlanSchema,
+  method_catalog: z.object({
+    catalog_id: identifier,
+    version: identifier,
+    catalog_digest: digest,
+    pipeline_owned: z.literal(true),
+  }).strict(),
+  authorization_candidates: z.array(z.object({
+    adapter_reference: nonEmpty,
+    method_id: identifier,
+    method_version: identifier,
+    method_profile_digest: digest,
+    method_family: nonEmpty,
+    expected_cost_usd: z.number().min(0),
+    proof_tier: nonEmpty,
+    execution_authorized: z.literal(false),
+  }).strict()),
+  execution_started: z.literal(false),
+  proof_boundary: z.object({
+    state_is_scientific_verdict: z.literal(false),
+    simulation_is_physical_success: z.literal(false),
+    deployment_or_safety_approved: z.literal(false),
+    comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
+  }).passthrough(),
+}).passthrough();
+
+export const taskEvaluationRunAuthorizationSchema = z.object({
+  schema_version: z.literal("task_evaluation_run_execution_authorization.v1"),
+  run_id: identifier,
+  plan_digest: digest,
+  authorized_adapter_references: z.array(nonEmpty),
+  actor: z.record(z.string(), z.unknown()),
+  idempotency_key: identifier,
+  live_provider_execution: z.literal(false),
+  paid_compute_authorized: z.literal(false),
+  physical_robot_run_authorized: z.literal(false),
+  proof_boundary: z.object({
+    authorization_is_method_qualification: z.literal(false),
+    simulation_is_physical_success: z.literal(false),
+    comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
+  }).passthrough(),
+  authorization_digest: digest,
+}).strict();
+
+export const taskEvaluationRunExecutionResultSchema = z.object({
+  schema_version: z.literal("task_evaluation_run_execution_result.v1"),
+  run_id: identifier,
+  state: z.enum(["decided", "partially_decided", "abstained"]),
+  already_exists: z.boolean(),
+  decision_envelope: nativeDecisionEnvelopeSchema,
+  execution_manifest: z.record(z.string(), z.unknown()).optional(),
+  evidence_results: z.array(z.record(z.string(), z.unknown())).optional(),
+  webapp_sync: z.record(z.string(), z.unknown()),
+}).passthrough();
+
 function sensitivePaths(value: unknown, prefix = ""): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((child, index) => sensitivePaths(child, `${prefix}[${index}]`));
@@ -137,4 +203,99 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown) {
   return blockers.length
     ? { ok: false as const, blockers: [...new Set(blockers)].sort() }
     : { ok: true as const, publication };
+}
+
+export function parseVerifiedTaskEvaluationRunPreparation(params: {
+  value: unknown;
+  expectedCaptureSessionId: string;
+  expectedIntakeId: string;
+  expectedRunId: string;
+  expectedRequestDigest: string;
+  expectedTestbed: unknown;
+}) {
+  const parsed = taskEvaluationRunPreparationSchema.safeParse(params.value);
+  if (!parsed.success) return { ok: false as const, blockers: ["run_preparation_schema_invalid"] };
+  const preparation = parsed.data;
+  const testbed = maintainedSiteTaskTestbedSchema.safeParse(params.expectedTestbed);
+  if (!testbed.success) return { ok: false as const, blockers: ["run_preparation_testbed_invalid"] };
+  const blockers: string[] = [];
+  if (canonicalArtifactDigest(preparation.evidence_plan, "plan_digest") !== preparation.evidence_plan.plan_digest) {
+    blockers.push("run_preparation_plan_digest_mismatch");
+  }
+  if (
+    preparation.capture_session_id !== params.expectedCaptureSessionId ||
+    preparation.intake_id !== params.expectedIntakeId ||
+    preparation.run_id !== params.expectedRunId ||
+    preparation.request.request_digest !== params.expectedRequestDigest ||
+    preparation.evidence_plan.request_digest !== params.expectedRequestDigest ||
+    preparation.request.testbed_digest !== testbed.data.testbed_digest ||
+    preparation.evidence_plan.testbed_digest !== testbed.data.testbed_digest ||
+    preparation.evidence_plan.plan_id.length === 0
+  ) blockers.push("run_preparation_binding_mismatch");
+  if (sensitivePaths(preparation).length) blockers.push("run_preparation_secret_value_forbidden");
+  return blockers.length
+    ? { ok: false as const, blockers: [...new Set(blockers)].sort() }
+    : { ok: true as const, preparation };
+}
+
+export function parseVerifiedTaskEvaluationRunAuthorization(params: {
+  value: unknown;
+  expectedRunId: string;
+  expectedPlanDigest: string;
+  expectedAdapterReferences: string[];
+  expectedActorRole: string;
+  expectedActorIdentity: string;
+}) {
+  const parsed = taskEvaluationRunAuthorizationSchema.safeParse(params.value);
+  if (!parsed.success) return { ok: false as const, blockers: ["run_authorization_schema_invalid"] };
+  const authorization = parsed.data;
+  const blockers: string[] = [];
+  if (canonicalArtifactDigest(authorization, "authorization_digest") !== authorization.authorization_digest) {
+    blockers.push("run_authorization_digest_mismatch");
+  }
+  if (
+    authorization.run_id !== params.expectedRunId ||
+    authorization.plan_digest !== params.expectedPlanDigest ||
+    String(authorization.actor.role || "") !== params.expectedActorRole ||
+    String(authorization.actor.identity || "") !== params.expectedActorIdentity ||
+    JSON.stringify([...authorization.authorized_adapter_references].sort()) !==
+      JSON.stringify([...params.expectedAdapterReferences].sort())
+  ) blockers.push("run_authorization_binding_mismatch");
+  if (sensitivePaths(authorization).length) blockers.push("run_authorization_secret_value_forbidden");
+  return blockers.length
+    ? { ok: false as const, blockers: [...new Set(blockers)].sort() }
+    : { ok: true as const, authorization };
+}
+
+export function parseVerifiedTaskEvaluationRunExecutionResult(params: {
+  value: unknown;
+  expectedRunId: string;
+  expectedPlanDigest: string;
+  expectedRequestDigest: string;
+  expectedTestbedDigest: string;
+}) {
+  const parsed = taskEvaluationRunExecutionResultSchema.safeParse(params.value);
+  if (!parsed.success) return { ok: false as const, blockers: ["run_execution_result_schema_invalid"] };
+  const result = parsed.data;
+  const envelope = result.decision_envelope;
+  const blockers: string[] = [];
+  if (canonicalArtifactDigest(envelope, "decision_envelope_digest") !== envelope.decision_envelope_digest) {
+    blockers.push("run_execution_decision_envelope_digest_mismatch");
+  }
+  const expectedState = envelope.overall_outcome === "decision"
+    ? "decided"
+    : envelope.overall_outcome === "partial_decision"
+      ? "partially_decided"
+      : "abstained";
+  if (
+    result.run_id !== params.expectedRunId ||
+    result.state !== expectedState ||
+    envelope.plan_digest !== params.expectedPlanDigest ||
+    envelope.request_digest !== params.expectedRequestDigest ||
+    envelope.testbed_digest !== params.expectedTestbedDigest
+  ) blockers.push("run_execution_result_binding_mismatch");
+  if (sensitivePaths(result).length) blockers.push("run_execution_result_secret_value_forbidden");
+  return blockers.length
+    ? { ok: false as const, blockers: [...new Set(blockers)].sort() }
+    : { ok: true as const, result };
 }

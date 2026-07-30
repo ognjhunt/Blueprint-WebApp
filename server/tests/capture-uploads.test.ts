@@ -18,6 +18,9 @@ const state = vi.hoisted(() => ({
   fileInfo: vi.fn(),
   cancel: vi.fn(),
   forward: vi.fn(),
+  planForward: vi.fn(),
+  authorizationForward: vi.fn(),
+  executionForward: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -100,6 +103,12 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
 
 vi.mock("../utils/taskCandidateForwarding", () => ({
   forwardTaskCandidateDecisionToPipeline: state.forward,
+}));
+
+vi.mock("../utils/taskEvaluationRunForwarding", () => ({
+  forwardTaskEvaluationRunPlanToPipeline: state.planForward,
+  forwardTaskEvaluationRunAuthorizationToPipeline: state.authorizationForward,
+  forwardTaskEvaluationRunExecutionToPipeline: state.executionForward,
 }));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
@@ -478,6 +487,202 @@ function taskEvaluationRunPublication(testbedDigest: string) {
   };
 }
 
+function decisionEvidenceRequest(testbed: ReturnType<typeof maintainedTestbedFixture>) {
+  const value: Record<string, any> = {
+    schema_version: "decision_evidence_request.v1",
+    request_id: "request-testbed-owner-1",
+    decision_id: "decision-testbed-owner-1",
+    testbed_id: testbed.testbed_id,
+    testbed_version: testbed.version,
+    testbed_digest: testbed.testbed_digest,
+    decision_question: "Can the exact robot reach the approved target?",
+    candidates: [{ robot_id: "fixture-arm" }],
+    claims: [{
+      claim_id: "reach",
+      claim_type: "reachability",
+      subject: "fixture-arm:item-1:tote-1",
+      measurable_threshold: { operator: ">=", value: 0.9, units: "fraction" },
+      false_safe_consequence: "moderate",
+      acceptable_false_safe_risk: 0.05,
+      desired_confidence_or_coverage: { minimum_coverage: 0.9 },
+      permitted_abstention_behavior: { allowed: true },
+    }],
+    budget: { max_cost_usd: 0 },
+    deadline: "2026-07-30T00:00:00Z",
+    available_physical_evidence: [],
+    permitted_evidence_methods: ["analytic_geometry_kinematics"],
+    restrictions: { external_processing_allowed: false },
+    requested_result_audience: "design_partner",
+    provenance: { caller_identity: "pipeline:testbed-compiler" },
+    idempotency_key: "request-testbed-owner-1",
+  };
+  value.request_digest = canonicalArtifactDigest(value, "request_digest");
+  return value;
+}
+
+function runPreparation(
+  sessionId: string,
+  intakeId: string,
+  runId: string,
+  request: ReturnType<typeof decisionEvidenceRequest>,
+  testbed: ReturnType<typeof maintainedTestbedFixture>,
+  authorizationCandidates: Array<Record<string, unknown>> = [],
+) {
+  const plan: Record<string, any> = {
+    schema_version: "evidence_plan.v1",
+    plan_id: "plan-owner-1",
+    request_id: request.request_id,
+    decision_id: request.decision_id,
+    request_digest: request.request_digest,
+    testbed_id: testbed.testbed_id,
+    testbed_version: testbed.version,
+    testbed_digest: testbed.testbed_digest,
+    claim_plans: [{ claim_id: "reach", selected_methods: [] }],
+    execution_order: [],
+    physical_evidence_requests: [],
+    budget_status: { projected_cost_usd: 0, within_budget: true },
+    router_policy: {
+      deterministic: true,
+      provider_identity_is_qualification: false,
+      visual_realism_is_qualification: false,
+      agreement_is_independence: false,
+      uncalibrated_methods_are_debug_only: true,
+      cross_domain_transfer_enabled: false,
+      policy_ranking_thesis_verdict: "thesis_not_supported",
+    },
+  };
+  plan.plan_digest = canonicalArtifactDigest(plan, "plan_digest");
+  return {
+    schema_version: "task_evaluation_run_preparation.v1",
+    run_id: runId,
+    capture_session_id: sessionId,
+    intake_id: intakeId,
+    state: "authorization_required",
+    request,
+    evidence_plan: plan,
+    method_catalog: {
+      catalog_id: "local-beta-methods",
+      version: "1",
+      catalog_digest: `sha256:${"7".repeat(64)}`,
+      pipeline_owned: true,
+    },
+    authorization_candidates: authorizationCandidates,
+    execution_started: false,
+    proof_boundary: {
+      state_is_scientific_verdict: false,
+      simulation_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+}
+
+function runAuthorization(
+  runId: string,
+  planDigest: string,
+  adapterReferences: string[],
+  actor: Record<string, unknown>,
+  idempotencyKey: string,
+) {
+  const value: Record<string, any> = {
+    schema_version: "task_evaluation_run_execution_authorization.v1",
+    run_id: runId,
+    plan_digest: planDigest,
+    authorized_adapter_references: [...adapterReferences].sort(),
+    actor,
+    idempotency_key: idempotencyKey,
+    live_provider_execution: false,
+    paid_compute_authorized: false,
+    physical_robot_run_authorized: false,
+    proof_boundary: {
+      authorization_is_method_qualification: false,
+      simulation_is_physical_success: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+  value.authorization_digest = canonicalArtifactDigest(value, "authorization_digest");
+  return value;
+}
+
+function runExecutionResult(preparation: Record<string, any>) {
+  const plan = preparation.evidence_plan as Record<string, any>;
+  const envelope: Record<string, any> = {
+    schema_version: "decision_envelope.v1",
+    decision_id: plan.decision_id,
+    request_id: plan.request_id,
+    request_digest: plan.request_digest,
+    plan_digest: plan.plan_digest,
+    testbed_digest: plan.testbed_digest,
+    decision_question: "Can the specified robot reach the item?",
+    overall_outcome: "partial_decision",
+    per_claim_verdicts: [{
+      claim_id: "reach",
+      claim_type: "reachability",
+      verdict: "supported",
+      rationale: "qualified_local_analytic_evidence",
+      accepted_result_digests: [`sha256:${"9".repeat(64)}`],
+      claim_ceiling: {
+        physical_success: false,
+        deployment_readiness: false,
+        safety_certification: false,
+      },
+    }],
+    evidence_accepted: [`sha256:${"9".repeat(64)}`],
+    evidence_rejected: [],
+    validation_envelope: { exact_testbed_only: true },
+    unsupported_conditions: ["physical_task_success"],
+    uncertainty: { maximum: 0.4, ranking_science_boundary: "thesis_not_supported" },
+    cross_method_disagreements: [],
+    shared_dependency_warnings: [],
+    claim_ceiling: {
+      deployment_readiness: false,
+      safety_certification: false,
+      generated_artifact_upgrades_raw_or_physical_claim: false,
+    },
+    next_cheapest_experiment: "run_one_instrumented_physical_attempt",
+    physical_evidence_still_required: [{
+      claim_id: "physical-success",
+      description: "Run one instrumented physical attempt.",
+    }],
+    deployment_approval: false,
+    safety_certification: false,
+    raw_policy_values_persisted: false,
+    raw_secret_values_persisted: false,
+  };
+  envelope.decision_envelope_digest = canonicalArtifactDigest(
+    envelope,
+    "decision_envelope_digest",
+  );
+  const result = {
+    schema_version: "task_evaluation_run_execution_result.v1",
+    run_id: preparation.run_id,
+    state: "partially_decided",
+    already_exists: false,
+    execution_manifest: { status: "complete" },
+    evidence_results: [],
+    decision_envelope: envelope,
+    webapp_sync: { status: "forwarded", performed: true },
+  };
+  const publication = {
+    schema_version: "task_evaluation_run_publication.v1",
+    capture_session_id: preparation.capture_session_id,
+    intake_id: preparation.intake_id,
+    run_id: preparation.run_id,
+    testbed_digest: plan.testbed_digest,
+    request_digest: plan.request_digest,
+    plan_digest: plan.plan_digest,
+    state: "partially_decided",
+    evidence_plan: plan,
+    decision_envelope: envelope,
+    proof_boundary: {
+      simulation_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+  return { result, publication };
+}
+
 async function postJson(socketPath: string, requestPath: string, body: unknown) {
   const payload = JSON.stringify(body);
   return new Promise<{ status: number; cacheControl?: string; json: () => Promise<unknown> }>((resolve, reject) => {
@@ -537,6 +742,9 @@ afterEach(() => {
   state.fileInfo.mockReset();
   state.cancel.mockReset();
   state.forward.mockReset();
+  state.planForward.mockReset();
+  state.authorizationForward.mockReset();
+  state.executionForward.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
 });
@@ -584,6 +792,7 @@ describe("resumable capture uploads", () => {
 
   it("projects a lightweight testbed status and exposes the exact artifact only to its owner", async () => {
     const testbed = maintainedTestbedFixture();
+    const decisionRequest = decisionEvidenceRequest(testbed);
     state.records.set("capture-testbed-1", {
       session_id: "capture-testbed-1",
       owner_user_id: "buyer-123",
@@ -604,6 +813,7 @@ describe("resumable capture uploads", () => {
           digest: testbed.testbed_digest,
         },
         testbed,
+        decision_evidence_request: decisionRequest,
       },
     });
     const { server, socketPath } = await startServer();
@@ -617,6 +827,7 @@ describe("resumable capture uploads", () => {
           version: "v1",
           testbed_digest: testbed.testbed_digest,
           known_unsupported_conditions: ["physical_task_success"],
+          request_digest: decisionRequest.request_digest,
           proof_boundary: { comparative_policy_ranking_verdict: "thesis_not_supported" },
         },
       });
@@ -630,6 +841,10 @@ describe("resumable capture uploads", () => {
         testbed: {
           testbed_digest: testbed.testbed_digest,
           compiled_cards: { site_card: { id: "site-1" } },
+        },
+        decision_evidence_request: {
+          request_digest: decisionRequest.request_digest,
+          testbed_digest: testbed.testbed_digest,
         },
       });
     } finally {
@@ -723,6 +938,299 @@ describe("resumable capture uploads", () => {
       });
     } finally {
       await stopServer(owner.server, owner.socketPath);
+    }
+  });
+
+  it("requests a provider-neutral Pipeline-owned plan without selecting methods", async () => {
+    const testbed = maintainedTestbedFixture();
+    const decisionRequest = decisionEvidenceRequest(testbed);
+    state.records.set("capture-plan-owner-1", {
+      session_id: "capture-plan-owner-1",
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"e".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_site_task_testbed: {
+        capture_session_id: "capture-plan-owner-1",
+        intake_id: "intake-360-1",
+        approved_task_digest: testbed.approved_task_definition.digest,
+        testbed_id: testbed.testbed_id,
+        version: testbed.version,
+        testbed_digest: testbed.testbed_digest,
+        testbed,
+        decision_evidence_request: decisionRequest,
+      },
+    });
+    state.planForward.mockImplementation(async (params: Record<string, any>) => ({
+      status: "forwarded",
+      performed: true,
+      required: true,
+      endpoint_configured: true,
+      http_status: 200,
+      preparation: runPreparation(
+        params.captureSessionId,
+        params.intakeId,
+        params.runId,
+        params.request,
+        params.testbed,
+      ),
+    }));
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(
+        socketPath,
+        "/capture-uploads/capture-plan-owner-1/task-evaluation-runs/plan",
+        {
+          schema_version: "capture_task_evaluation_run_plan_command.v1",
+          idempotency_key: "plan-owner-request-1",
+        },
+      );
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body).toMatchObject({
+        status: "authorization_required",
+        pipeline_preparation: {
+          method_catalog: { pipeline_owned: true },
+          execution_started: false,
+        },
+      });
+      expect(state.planForward).toHaveBeenCalledTimes(1);
+      const forwarded = state.planForward.mock.calls[0][0];
+      expect(forwarded.request.request_digest).toBe(decisionRequest.request_digest);
+      expect(forwarded.testbed.testbed_digest).toBe(testbed.testbed_digest);
+      expect(forwarded).not.toHaveProperty("method_profiles");
+      expect(forwarded).not.toHaveProperty("qualifications");
+
+      const replay = await postJson(
+        socketPath,
+        "/capture-uploads/capture-plan-owner-1/task-evaluation-runs/plan",
+        {
+          schema_version: "capture_task_evaluation_run_plan_command.v1",
+          idempotency_key: "plan-owner-request-1",
+        },
+      );
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+      expect(state.planForward).toHaveBeenCalledTimes(1);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("authorizes only Pipeline-selected adapters with an owner-bound idempotent command", async () => {
+    const testbed = maintainedTestbedFixture();
+    const decisionRequest = decisionEvidenceRequest(testbed);
+    const adapterReference = "blueprint://local/analytic-reachability@1";
+    const sessionId = "capture-authorize-owner-1";
+    const publication = {
+      capture_session_id: sessionId,
+      intake_id: "intake-360-1",
+      approved_task_digest: testbed.approved_task_definition.digest,
+      testbed_id: testbed.testbed_id,
+      version: testbed.version,
+      testbed_digest: testbed.testbed_digest,
+      testbed,
+      decision_evidence_request: decisionRequest,
+    };
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"e".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_site_task_testbed: publication,
+    });
+    state.planForward.mockImplementation(async (params: Record<string, any>) => ({
+      status: "forwarded",
+      performed: true,
+      required: true,
+      endpoint_configured: true,
+      http_status: 200,
+      preparation: runPreparation(
+        params.captureSessionId,
+        params.intakeId,
+        params.runId,
+        params.request,
+        params.testbed,
+        [{
+          adapter_reference: adapterReference,
+          method_id: "analytic-reachability",
+          method_version: "1",
+          method_profile_digest: `sha256:${"6".repeat(64)}`,
+          method_family: "analytic_geometry_kinematics",
+          expected_cost_usd: 0,
+          proof_tier: "analytic",
+          execution_authorized: false,
+        }],
+      ),
+    }));
+    state.authorizationForward.mockImplementation(async (params: Record<string, any>) => ({
+      status: "forwarded",
+      performed: true,
+      required: true,
+      endpoint_configured: true,
+      http_status: 200,
+      authorization: runAuthorization(
+        params.runId,
+        params.planDigest,
+        params.authorizedAdapterReferences,
+        params.actor,
+        params.idempotencyKey,
+      ),
+    }));
+    state.executionForward.mockImplementation(async (params: Record<string, any>) => {
+      const stored = state.records.get(sessionId) as Record<string, any>;
+      const preparation = stored.pipeline_task_evaluation_run_plan.pipeline_preparation;
+      const execution = runExecutionResult(preparation);
+      expect(params).toMatchObject({
+        runId: preparation.run_id,
+        planDigest: preparation.evidence_plan.plan_digest,
+        requestDigest: preparation.request.request_digest,
+        testbedDigest: preparation.evidence_plan.testbed_digest,
+      });
+      state.records.set(sessionId, {
+        ...stored,
+        pipeline_task_evaluation_run: { publication: execution.publication },
+      });
+      return {
+        status: "forwarded",
+        performed: true,
+        required: true,
+        endpoint_configured: true,
+        http_status: 200,
+        result: execution.result,
+      };
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const planned = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/plan`,
+        {
+          schema_version: "capture_task_evaluation_run_plan_command.v1",
+          idempotency_key: "plan-authorize-owner-1",
+        },
+      );
+      expect(planned.status).toBe(201);
+      const plannedBody = await planned.json() as Record<string, any>;
+      const runId = String(plannedBody.run_id);
+      const planDigest = String(plannedBody.pipeline_preparation.evidence_plan.plan_digest);
+
+      const currentSession = structuredClone(state.records.get(sessionId)!);
+      const staleSession = structuredClone(currentSession) as Record<string, any>;
+      staleSession.pipeline_site_task_testbed.testbed.testbed_digest = `sha256:${"0".repeat(64)}`;
+      state.records.set(sessionId, staleSession);
+      const stale = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/authorize`,
+        {
+          schema_version: "capture_task_evaluation_run_authorization_command.v1",
+          plan_digest: planDigest,
+          authorized_adapter_references: [adapterReference],
+          idempotency_key: "authorize-owner-1",
+        },
+      );
+      expect(stale.status).toBe(409);
+      expect(state.authorizationForward).not.toHaveBeenCalled();
+      state.records.set(sessionId, currentSession);
+
+      const unknown = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/authorize`,
+        {
+          schema_version: "capture_task_evaluation_run_authorization_command.v1",
+          plan_digest: planDigest,
+          authorized_adapter_references: ["provider://caller-selected"],
+          idempotency_key: "authorize-owner-1",
+        },
+      );
+      expect(unknown.status).toBe(409);
+      expect(state.authorizationForward).not.toHaveBeenCalled();
+
+      const authorized = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/authorize`,
+        {
+          schema_version: "capture_task_evaluation_run_authorization_command.v1",
+          plan_digest: planDigest,
+          authorized_adapter_references: [adapterReference],
+          idempotency_key: "authorize-owner-1",
+        },
+      );
+      expect(authorized.status).toBe(200);
+      await expect(authorized.json()).resolves.toMatchObject({
+        already_exists: false,
+        status: "authorized",
+        run_id: runId,
+        pipeline_authorization: {
+          actor: { role: "customer", identity: "firebase:buyer-123" },
+          paid_compute_authorized: false,
+          physical_robot_run_authorized: false,
+        },
+      });
+      expect(state.authorizationForward).toHaveBeenCalledTimes(1);
+      expect(state.authorizationForward.mock.calls[0][0]).toMatchObject({
+        actor: { role: "customer", identity: "firebase:buyer-123" },
+        authorizedAdapterReferences: [adapterReference],
+      });
+      const publicSession = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+      expect(publicSession.status).toBe(200);
+      await expect(publicSession.json()).resolves.toMatchObject({
+        task_evaluation_run_control: {
+          state: "authorized",
+          run_id: runId,
+          plan_digest: planDigest,
+          authorized_adapter_references: [adapterReference],
+        },
+      });
+
+      const replay = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/authorize`,
+        {
+          schema_version: "capture_task_evaluation_run_authorization_command.v1",
+          plan_digest: planDigest,
+          authorized_adapter_references: [adapterReference],
+          idempotency_key: "authorize-owner-1",
+        },
+      );
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+      expect(state.authorizationForward).toHaveBeenCalledTimes(1);
+
+      const executed = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/execute`,
+        {
+          schema_version: "capture_task_evaluation_run_execution_command.v1",
+          idempotency_key: `execute-${runId}`,
+        },
+      );
+      expect(executed.status).toBe(200);
+      await expect(executed.json()).resolves.toMatchObject({
+        already_exists: false,
+        status: "partially_decided",
+        run_id: runId,
+      });
+      expect(state.executionForward).toHaveBeenCalledTimes(1);
+
+      const executionReplay = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/task-evaluation-runs/${runId}/execute`,
+        {
+          schema_version: "capture_task_evaluation_run_execution_command.v1",
+          idempotency_key: `execute-${runId}`,
+        },
+      );
+      expect(executionReplay.status).toBe(200);
+      await expect(executionReplay.json()).resolves.toMatchObject({ already_exists: true });
+      expect(state.executionForward).toHaveBeenCalledTimes(1);
+    } finally {
+      await stopServer(server, socketPath);
     }
   });
 
