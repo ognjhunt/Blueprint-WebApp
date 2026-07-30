@@ -5,10 +5,18 @@ const sha = (character: string) => `sha256:${character.repeat(64)}`;
 test("customer reviews Pipeline-authored task intent without a false approval", async ({ page }, testInfo) => {
   const consoleProblems: string[] = [];
   page.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) consoleProblems.push(message.text());
+    if (
+      ["error", "warning"].includes(message.type()) &&
+      !/WebSocket connection to 'ws:\/\/127\.0\.0\.1:\d+\/\?token=.*failed/i.test(
+        message.text(),
+      )
+    ) {
+      consoleProblems.push(message.text());
+    }
   });
   let submittedCommand: Record<string, unknown> | null = null;
   let commandRecorded = false;
+  const unmockedApiRequests: string[] = [];
   const candidate = {
     task_candidate_id: "task-candidate-1",
     candidate_digest: sha("c"),
@@ -116,6 +124,10 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ csrfToken: "e2e-csrf" }) });
       return;
     }
+    if (path === "/api/analytics/ingest" && request.method() === "POST") {
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
     if (path === "/api/capture-uploads" && request.method() === "GET") {
       await route.fulfill({
         status: 200,
@@ -130,6 +142,26 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
             latest_action: commandRecorded ? "approve" : null,
           },
         }] }),
+      });
+      return;
+    }
+    if (
+      path === `/api/capture-uploads/${session.session_id}` &&
+      request.method() === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...session,
+          task_review: {
+            ...session.task_review,
+            status: commandRecorded
+              ? "decision_pending_pipeline_validation"
+              : "task_approval_required",
+            latest_action: commandRecorded ? "approve" : null,
+          },
+        }),
       });
       return;
     }
@@ -165,6 +197,7 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
       });
       return;
     }
+    unmockedApiRequests.push(`${request.method()} ${path}`);
     await route.fulfill({
       status: 599,
       contentType: "application/json",
@@ -197,6 +230,7 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     edited_task: null,
   });
   expect(JSON.stringify(submittedCommand)).not.toMatch(/selected_provider|approved_task_definition|decision_evidence_request/i);
+  expect(unmockedApiRequests).toEqual([]);
   expect(consoleProblems).toEqual([]);
   await page.screenshot({
     path: testInfo.outputPath("capture-task-review.png"),
