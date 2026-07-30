@@ -247,7 +247,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "About",
     path: "/about",
     canonicalPath: "/about",
-    expectedHeading: "Blueprint turns one real site into a decision a robot team can trust.",
+    expectedHeading: "The gap between a good demo and a real building.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "See how it works", hrefStartsWith: "/how-it-works" },

@@ -401,6 +401,144 @@ export const pricingBoundaries = [
   },
 ] as const;
 
+/* ------------------------------------------------------------- about page */
+
+export const aboutHero = {
+  eyebrow: "About Blueprint",
+  title: "The gap between a good demo and a real building.",
+  body:
+    "A policy that works in a lab and a policy that works in this warehouse, on this shift, around these people are different claims. Blueprint exists to make the second one testable before anyone spends a week finding out the hard way.",
+  chips: ["Capture first", "Estimates, never guarantees", "Rights travel with the evidence"],
+} as const;
+
+export const aboutStats: readonly StatTile[] = [
+  {
+    label: "Customer-facing services",
+    value: "One",
+    detail: "A Task Evaluation Run. Every other product name is retired, not renamed.",
+  },
+  {
+    label: "Ways a run can end",
+    value: "Five",
+    detail: "Yes, no, partly, not yet — and the cheapest test that would settle it.",
+  },
+  {
+    label: "Backends you pick",
+    value: "Zero",
+    detail: "Which method is qualified for which claim is the judgement, and it is ours.",
+  },
+  {
+    label: "Claims without provenance",
+    value: "None",
+    detail: "Every figure traces to a capture, a version, a digest, and a permitted use.",
+  },
+];
+
+export const aboutPrinciples = [
+  {
+    title: "Capture first. Claim later.",
+    body:
+      "Every testbed starts as one real place, recorded with timestamps, poses, device metadata, and a rights record. Derived geometry, simulation, and generated media never outrank the capture they came from.",
+  },
+  {
+    title: "An estimate is never a guarantee",
+    body:
+      "We report what the evidence supports inside stated conditions. Partial answers and outright refusals to decide are first-class results, not failures to be dressed up.",
+  },
+  {
+    title: "Generated frames are review support",
+    body:
+      "Simulated and generated material helps a team read a run. It is labelled that way everywhere it appears, and it is never shown as real-world proof.",
+  },
+  {
+    title: "Rights travel with the evidence",
+    body:
+      "Consent, privacy, restricted areas, and permitted use live on the artifact and the manifest — not in marketing copy, and not in anyone's memory of a conversation.",
+  },
+  {
+    title: "Field time is the scarce resource",
+    body:
+      "Everything here exists to make one real site usable before that clock starts, and to be honest about the questions only a real robot on a real floor can settle.",
+  },
+] as const;
+
+export const aboutMission = {
+  quote:
+    "The expensive part of robotics is field time. Our job is to make one real site usable before that clock starts — with proof a serious team can actually read.",
+  body:
+    "Blueprint was built by Nijel Hunt around the gap between an interesting robotics demo and serious, site-specific deployment work. Background in robotics simulation, 3D capture, and deployment operations.",
+  note:
+    "Every extra product name is another chance to sell a claim the evidence cannot carry. One service, scoped to one decision, is harder to fake and easier to check.",
+} as const;
+
+/* -------------------------------------------------------- governance page */
+
+export const governanceHero = {
+  eyebrow: "Governance",
+  title: "Rights, privacy, and provenance — kept visible.",
+  body:
+    "One service runs against a captured real site-task, so the questions that matter are who allowed the capture, what may be done with it, and how anyone checks. Those answers are product surfaces here, not promises.",
+  chips: ["Rights stay explicit", "Hosted access stays bounded", "No claims beyond the record"],
+} as const;
+
+export const governanceGates = [
+  {
+    title: "Rights",
+    body:
+      "Rights class, export entitlements, and sharing limits are attached to the capture record and manifest, never inferred from copy. What is licensed is readable before anyone gets access.",
+  },
+  {
+    title: "Privacy",
+    body:
+      "Records state whether privacy processing ran, whether raw media is retained, and what stays visible or exportable. Restricted, private, and employee-only areas are out of scope by default.",
+  },
+  {
+    title: "Provenance",
+    body:
+      "Facility identifier, capture timing, freshness, approval path, and evidence depth travel with the testbed, so a site counts as current only when it actually is.",
+  },
+  {
+    title: "Scope limits",
+    body:
+      "Hosted review separates what can be launched, what stays human-gated, and which outputs are labelled examples rather than confirmed exports.",
+  },
+] as const;
+
+export const governanceOperatorControls = [
+  { title: "Capture windows", body: "When anyone is on site, and for how long." },
+  { title: "Restricted areas", body: "What is never captured, and what is redacted afterwards." },
+  {
+    title: "Permitted evidence use",
+    body: "Whether an artifact may be used for evaluation, and whether post-training use is allowed at all.",
+  },
+  { title: "Physical access", body: "Whether a robot may ever run here, and under whose supervision." },
+  {
+    title: "Safety approval",
+    body: "Yours and your regulator's. Never ours, and never implied by a result.",
+  },
+] as const;
+
+export const governanceCommitments = [
+  "Evidence depth, freshness, and commercial status are shown before access, not after.",
+  "Rights, restricted zones, and export scope stay attached to the manifest, not the marketing.",
+  "Public proof and example UI are separated on every hosted-access surface.",
+  "Generated and simulated media is labelled review support, never real-world proof.",
+  "Only the per-claim outcome the run envelope supports is reported — never a deployment guarantee.",
+  "Takedown, refresh, redaction, and revocation requests are honoured on the published timeline.",
+] as const;
+
+export const governanceRightsPacket: readonly { label: string; value: string }[] = [
+  { label: "Packet ID", value: "RIGHTS-2049-08" },
+  { label: "Facility", value: "SITE-2049 · Midwest DC" },
+  { label: "Eval envelope", value: "Nav + rigid pick-and-place · dexterous out of scope" },
+  { label: "Rights class", value: "Evaluation now · licensed evidence export only when eligible" },
+  { label: "Export scope", value: "Buyer + 1 named policy team" },
+  { label: "Restricted zones", value: "Checkout · employee corridor" },
+  { label: "Retention", value: "Raw 90d · derived 365d" },
+  { label: "Approval path", value: "Operator → Blueprint review" },
+  { label: "Revocation", value: "Takedown honoured ≤ 5 business days" },
+];
+
 /* ----------------------------------------------------------------- shared */
 
 export const closingCta = {
