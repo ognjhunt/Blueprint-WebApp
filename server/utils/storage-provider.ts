@@ -41,6 +41,13 @@ export type StoredCapturePart = {
   contentSha1: string;
 };
 
+export type CaptureDownloadGrant = {
+  provider: "backblaze";
+  url: string;
+  authorizationToken: string;
+  expiresAtIso: string;
+};
+
 type UploadTarget = {
   uploadUrl: string;
   authorizationToken: string;
@@ -157,6 +164,19 @@ function buildBackblazePublicUrl(bucketName: string, objectPath: string) {
     return `${config.publicBaseUrl.replace(/\/+$/, "")}/${encodedPath}`;
   }
   return `https://f005.backblazeb2.com/file/${encodeURIComponent(bucketName)}/${encodedPath}`;
+}
+
+function buildBackblazeAuthorizedDownloadUrl(bucketName: string, objectPath: string) {
+  const client = getBackblazeClient();
+  const base = String(client.downloadUrl || "").trim();
+  if (!base.startsWith("https://")) {
+    throw new Error("Backblaze B2 did not provide a secure download endpoint.");
+  }
+  const encodedPath = objectPath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${base.replace(/\/+$/, "")}/file/${encodeURIComponent(bucketName)}/${encodedPath}`;
 }
 
 export function sanitizeStorageObjectPath(value: string): string | null {
@@ -317,6 +337,38 @@ export async function getBackblazeCaptureFileInfo(fileId: string): Promise<{
     fileName: String(response?.data?.fileName || ""),
     contentLength: Number(response?.data?.contentLength || 0),
     action: String(response?.data?.action || ""),
+  };
+}
+
+export async function createBackblazeCaptureDownloadGrant(input: {
+  objectPath: string;
+  validDurationSeconds?: number;
+}): Promise<CaptureDownloadGrant> {
+  const config = getBackblazeConfig();
+  if (!config.bucketId || !config.bucketName) {
+    throw new Error("Backblaze B2 bucket configuration is not complete.");
+  }
+  await ensureBackblazeAuthorized();
+  const validDurationSeconds = Math.max(
+    60,
+    Math.min(Number(input.validDurationSeconds || 15 * 60), 60 * 60),
+  );
+  const response = await getBackblazeClient().getDownloadAuthorization({
+    bucketId: config.bucketId,
+    fileNamePrefix: input.objectPath,
+    validDurationInSeconds: validDurationSeconds,
+  });
+  const authorizationToken = String(
+    response?.data?.authorizationToken || "",
+  ).trim();
+  if (!authorizationToken) {
+    throw new Error("Backblaze B2 did not return a download authorization.");
+  }
+  return {
+    provider: "backblaze",
+    url: buildBackblazeAuthorizedDownloadUrl(config.bucketName, input.objectPath),
+    authorizationToken,
+    expiresAtIso: new Date(Date.now() + validDurationSeconds * 1000).toISOString(),
   };
 }
 

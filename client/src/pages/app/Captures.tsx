@@ -21,6 +21,7 @@ import {
   getCaptureUpload,
   listCaptureUploads,
   planCaptureTaskEvaluationRun,
+  retryCaptureUploadProcessing,
   submitTaskDecisionCommand,
   uploadCaptureFile,
   type CaptureTaskReview,
@@ -67,7 +68,7 @@ function newUploadIdentity() {
 }
 
 function statusTone(status: string): "proof" | "warn" | "block" | "neutral" {
-  if (status === "uploaded_verification_pending") return "warn";
+  if (["uploaded_verification_pending", "validating", "capture_accepted", "rejected_or_recapture_required"].includes(status)) return "warn";
   if (["failed", "cancelled"].includes(status)) return "block";
   if (["upload_pending", "uploading"].includes(status)) return "neutral";
   return "neutral";
@@ -79,6 +80,9 @@ function statusLabel(status: string) {
     upload_pending: "Ready to upload",
     uploading: "Upload in progress",
     uploaded_verification_pending: "Uploaded · verification pending",
+    validating: "Capture validation in progress",
+    capture_accepted: "Intake admitted · capture QA pending",
+    rejected_or_recapture_required: "Recapture review required",
     cancelled: "Cancelled",
     failed: "Failed",
   };
@@ -421,6 +425,25 @@ export default function Captures() {
     }
   }
 
+  async function retryProcessing() {
+    if (!currentUser || !activeSession) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const processed = await retryCaptureUploadProcessing(
+        currentUser,
+        activeSession.session_id,
+      );
+      setActiveSession(processed);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <AppShell active="captures" breadcrumb="captures">
       <Helmet><title>Captures · Blueprint</title><meta name="description" content="Secure, resumable capture upload for Task Evaluation Runs." /></Helmet>
@@ -474,7 +497,12 @@ export default function Captures() {
 
           <aside className="flex flex-col gap-4">
             <Card pad="md"><h2 className="font-semibold text-ink-900">Capture guidance</h2><ul className="mt-3 list-disc space-y-2 pl-5 text-body-s text-ink-600"><li>Move slowly and use overlapping passes.</li><li>Show the robot placement area and access path.</li><li>Capture close orbits around task objects, including rear and underside views.</li><li>Keep people, screens, documents, and moving objects out when possible.</li><li>Include a measured calibration board when metric scale matters.</li></ul><p className="mt-3 text-body-s font-semibold text-ink-700">These are advisory hints, not reconstruction or task-success claims.</p></Card>
-            {activeSession?.status === "uploaded_verification_pending" ? <ProofBoundary level="proof" title="Upload retained" icon={CheckCircle2}>The provider-listed bytes are complete. Content hashing, malware/content validation, capture QA, and any recapture decision remain pending.</ProofBoundary> : null}
+            {activeSession?.upload_status === "uploaded_verification_pending" && activeSession.pipeline_handoff.status !== "forwarded" ? <>
+              <ProofBoundary level="warn" title="Upload retained · Pipeline intake pending" icon={CheckCircle2}>The provider-listed parts are complete, but server SHA-256, malware/content validation, and immutable intake have not all completed. Capture QA and any recapture decision remain pending.</ProofBoundary>
+              <Button type="button" variant="secondary" onClick={retryProcessing} disabled={submitting}>Retry secure processing</Button>
+              {activeSession.pipeline_handoff.blocker ? <p className="text-body-xs text-ink-500">Current blocker: {activeSession.pipeline_handoff.blocker.replace(/_/g, " ")}</p> : null}
+            </> : null}
+            {activeSession?.pipeline_handoff.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake created" icon={CheckCircle2}>Pipeline verified the server-side size and SHA-256, received a clean malware-scanner result, and content-addressed the raw input. Capture QA, reconstruction, and task success are still separate gates.</ProofBoundary> : null}
           </aside>
         </form>
 

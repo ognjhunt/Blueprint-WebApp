@@ -16,11 +16,13 @@ const state = vi.hoisted(() => ({
   listParts: vi.fn(),
   finish: vi.fn(),
   fileInfo: vi.fn(),
+  downloadGrant: vi.fn(),
   cancel: vi.fn(),
   forward: vi.fn(),
   planForward: vi.fn(),
   authorizationForward: vi.fn(),
   executionForward: vi.fn(),
+  intakeForward: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -97,6 +99,7 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
     listBackblazeCaptureParts: state.listParts,
     finishBackblazeResumableCapture: state.finish,
     getBackblazeCaptureFileInfo: state.fileInfo,
+    createBackblazeCaptureDownloadGrant: state.downloadGrant,
     cancelBackblazeResumableCapture: state.cancel,
   };
 });
@@ -104,6 +107,14 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
 vi.mock("../utils/taskCandidateForwarding", () => ({
   forwardTaskCandidateDecisionToPipeline: state.forward,
 }));
+
+vi.mock("../utils/captureUploadForwarding", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/captureUploadForwarding")>();
+  return {
+    ...actual,
+    forwardCaptureUploadToPipeline: state.intakeForward,
+  };
+});
 
 vi.mock("../utils/taskEvaluationRunForwarding", () => ({
   forwardTaskEvaluationRunPlanToPipeline: state.planForward,
@@ -800,13 +811,18 @@ afterEach(() => {
   state.listParts.mockReset();
   state.finish.mockReset();
   state.fileInfo.mockReset();
+  state.downloadGrant.mockReset();
   state.cancel.mockReset();
   state.forward.mockReset();
   state.planForward.mockReset();
   state.authorizationForward.mockReset();
   state.executionForward.mockReset();
+  state.intakeForward.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
+  delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL;
+  delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN;
+  delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_REQUIRED;
 });
 
 describe("resumable capture uploads", () => {
@@ -1503,6 +1519,118 @@ describe("resumable capture uploads", () => {
         fileId: "b2-large-file-1",
         partSha1Array: hashes,
       });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("hands completed bytes to Pipeline, persists only the bound receipt, and exact-replays", async () => {
+    process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES = String(64 * 1024 * 1024);
+    process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL = "https://pipeline.example.test/capture-upload-intakes";
+    process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN = "fixture-forward-token";
+    state.start.mockImplementation(async ({ objectPath }: { objectPath: string }) => ({
+      fileId: "b2-large-file-1",
+      objectPath,
+      bucketName: "blueprint-private",
+      storageUri: `b2://blueprint-private/${objectPath}`,
+    }));
+    const hashes = ["a".repeat(40), "b".repeat(40), "c".repeat(40)];
+    state.listParts.mockResolvedValue([
+      { partNumber: 1, contentLength: 64 * 1024 * 1024, contentSha1: hashes[0] },
+      { partNumber: 2, contentLength: 64 * 1024 * 1024, contentSha1: hashes[1] },
+      { partNumber: 3, contentLength: 2 * 1024 * 1024, contentSha1: hashes[2] },
+    ]);
+    state.finish.mockResolvedValue(undefined);
+    state.downloadGrant.mockResolvedValue({
+      provider: "backblaze",
+      url: "https://download.example.test/file/private/capture.mp4",
+      authorizationToken: "ephemeral-download-secret",
+      expiresAtIso: "2026-07-30T12:00:00.000Z",
+    });
+    const receipt = {
+      schema_version: "capture_upload_intake_receipt.v1",
+      capture_session_id: "",
+      intake_id: "intake-360-1",
+      request_digest: `sha256:${"1".repeat(64)}`,
+      envelope_digest: `sha256:${"2".repeat(64)}`,
+      capture_digest: `sha256:${"3".repeat(64)}`,
+      size_bytes: 130 * 1024 * 1024,
+      admission_status: "accepted",
+      state: "capture_accepted",
+      claim_ceiling: { physical_task_success: false },
+      artifact_reference: {
+        uri: "intakes/intake-360-1/fixture",
+        envelope_digest: `sha256:${"2".repeat(64)}`,
+      },
+      malware_content_validation: { status: "passed", scanner: "clamdscan" },
+      already_exists: false,
+      proof_boundary: {
+        server_sha256_verified: true,
+        raw_input_content_addressed: true,
+        capture_qa_completed: false,
+        task_success_established: false,
+        physical_task_success_established: false,
+        deployment_or_safety_approved: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    };
+    state.intakeForward.mockImplementation(async (params: Record<string, any>) => ({
+      status: "forwarded",
+      performed: true,
+      required: false,
+      endpoint_configured: true,
+      http_status: 200,
+      receipt: { ...receipt, capture_session_id: params.captureSessionId },
+    }));
+    const { server, socketPath } = await startServer();
+    try {
+      const created = await createSession(socketPath);
+      const response = await postJson(
+        socketPath,
+        `/capture-uploads/${created.session_id}/complete`,
+        {
+          schema_version: "capture_upload_completion_request.v1",
+          part_sha1_array: hashes,
+        },
+      );
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        status: "capture_accepted",
+        upload_status: "uploaded_verification_pending",
+        pipeline_handoff: { status: "forwarded", performed: true },
+        upload_validation: { status: "server_bytes_verified", server_size_verified: true },
+        malware_content_validation: { status: "passed", scanner: "clamdscan" },
+        content_addressing: {
+          status: "passed",
+          sha256: `sha256:${"3".repeat(64)}`,
+          raw_input_content_addressed: true,
+        },
+        claim_boundary: { capture_accepted: false },
+      });
+      expect(state.downloadGrant).toHaveBeenCalledTimes(1);
+      expect(state.intakeForward).toHaveBeenCalledWith(expect.objectContaining({
+        captureSessionId: created.session_id,
+        customerId: "buyer-123",
+        organizationId: "org-1",
+        request: expect.objectContaining({ intake_id: "intake-360-1" }),
+        transfer: expect.objectContaining({ authorizationToken: "ephemeral-download-secret" }),
+      }));
+      const persisted = JSON.stringify([...state.records.values()]);
+      expect(persisted).not.toContain("ephemeral-download-secret");
+      expect(persisted).not.toContain("download.example.test");
+
+      const replay = await postJson(
+        socketPath,
+        `/capture-uploads/${created.session_id}/process`,
+        {},
+      );
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({
+        status: "capture_accepted",
+        pipeline_handoff: { status: "forwarded" },
+      });
+      expect(state.downloadGrant).toHaveBeenCalledTimes(1);
+      expect(state.intakeForward).toHaveBeenCalledTimes(1);
     } finally {
       await stopServer(server, socketPath);
     }

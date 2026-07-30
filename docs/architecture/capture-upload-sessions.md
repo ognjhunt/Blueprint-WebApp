@@ -25,12 +25,16 @@ The upload session states are `provider_start_pending`, `upload_pending`,
 parts and WebApp verified their sizes and SHA-1 receipts against B2's own part
 listing. It is not capture acceptance.
 
-Before WebApp may create a Pipeline `capture_intake_envelope.v1`, a trusted
-server-side verifier must still compute the whole-file SHA-256, run malware and
-content admission, and bind the immutable storage object to the exact schema.
-Pipeline then owns media QA, authority assessment, recapture, task discovery,
-testbed compilation, and scientific state. WebApp must display those results; it
-must not recompute them.
+After provider part finalization, WebApp creates a short-lived B2 download grant
+scoped to the exact randomized object prefix and submits it through an
+HMAC-authenticated Pipeline seam. Pipeline validates an explicit download-host
+allowlist, streams into quarantine without persisting the URL or grant, verifies
+the exact server-side byte count and media container shape, requires a configured
+malware scanner to return clean, computes whole-file SHA-256, and materializes
+the immutable `capture_intake_envelope.v1`. Exact retries return the prior bound
+receipt without downloading again. Pipeline then owns media QA, authority
+assessment, recapture, task discovery, testbed compilation, and scientific
+state. WebApp displays those results; it does not recompute them.
 
 ## Task Candidate Review
 
@@ -93,13 +97,18 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
   Production requires this path. WebApp submits the exact testbed/request and
   explicit customer authorization only; it never submits method profiles,
   qualification records, or provider choices.
-- A server-side SHA-256/content-validation worker and Pipeline handoff must be
-  configured before the UI can advance past verification pending.
+- Set `CAPTURE_UPLOAD_INTAKE_FORWARD_URL`,
+  `CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN`, and
+  `CAPTURE_UPLOAD_INTAKE_FORWARD_CLIENT_ID` on WebApp. Production requires this
+  path. Pipeline must configure `PIPELINE_CAPTURE_INTAKE_STORE_ROOT`, an exact
+  `PIPELINE_CAPTURE_TRANSFER_ALLOWED_HOSTS` list, and an absolute scanner argv in
+  `PIPELINE_CAPTURE_MALWARE_SCANNER_ARGV_JSON` before the UI can advance past
+  verification pending.
 - Pipeline-to-WebApp task-discovery publication and WebApp-command consumption
   must be configured before real customer task approval can complete.
 - Retention and revocation execution must preserve a non-sensitive tombstone;
   completed uploads cannot be removed through the simple multipart-cancel route.
 
-No live bucket CORS, large-file transfer, server-side content verification,
-deployed Pipeline handoff configuration, retention deletion, or revocation
-execution is proven by the hermetic route and component tests alone.
+No live bucket CORS, large-file transfer, deployed download-grant transfer,
+scanner configuration, retention deletion, or revocation execution is proven by
+the hermetic route and component tests alone.

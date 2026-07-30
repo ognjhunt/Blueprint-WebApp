@@ -13,6 +13,7 @@ export type CaptureUploadSession = {
   session_id: string;
   intake_id: string;
   status: string;
+  upload_status: string;
   capture_authority_profile: WebCaptureAuthorityProfile;
   source_type: WebCaptureAuthorityProfile;
   scene_id: string;
@@ -30,6 +31,13 @@ export type CaptureUploadSession = {
   upload_validation: { status: string; [key: string]: unknown };
   malware_content_validation: { status: string; [key: string]: unknown };
   content_addressing: { status: string; [key: string]: unknown };
+  pipeline_handoff: {
+    status: string;
+    performed: boolean;
+    required?: boolean;
+    blocker?: string | null;
+    [key: string]: unknown;
+  };
   capture_qa?: CaptureQaSummary;
   task_review: {
     status: string;
@@ -536,6 +544,17 @@ export function createCaptureUpload(
     method: "POST",
     body: JSON.stringify(request),
   });
+}
+
+export function retryCaptureUploadProcessing(
+  currentUser: FirebaseUser,
+  sessionId: string,
+) {
+  return apiRequest<CaptureUploadSession>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/process`,
+    { method: "POST", body: "{}" },
+  );
 }
 
 async function authorizePart(

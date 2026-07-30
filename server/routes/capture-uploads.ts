@@ -24,6 +24,10 @@ import {
 } from "../utils/taskEvaluationRunContract";
 import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateForwarding";
 import {
+  captureUploadIntakeForwardingReadiness,
+  forwardCaptureUploadToPipeline,
+} from "../utils/captureUploadForwarding";
+import {
   forwardTaskEvaluationRunAuthorizationToPipeline,
   forwardTaskEvaluationRunExecutionToPipeline,
   forwardTaskEvaluationRunPlanToPipeline,
@@ -31,6 +35,7 @@ import {
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
+  createBackblazeCaptureDownloadGrant,
   finishBackblazeResumableCapture,
   getBackblazeCaptureFileInfo,
   listBackblazeCaptureParts,
@@ -49,6 +54,7 @@ const MIN_PART_BYTES = 5 * MEBIBYTE;
 const DEFAULT_PART_BYTES = 64 * MEBIBYTE;
 const MAX_PARTS = 10_000;
 const SHA1_PATTERN = /^[0-9a-f]{40}$/;
+const PATH_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 const webCaptureProfiles = [
   "camera_360_equirectangular",
@@ -66,11 +72,11 @@ const streamSchema = z
 const sessionRequestSchema = z
   .object({
     schema_version: z.literal("capture_upload_session_request.v1"),
-    intake_id: z.string().trim().min(1).max(128),
+    intake_id: z.string().trim().regex(PATH_IDENTIFIER_PATTERN),
     idempotency_key: z.string().trim().min(8).max(256),
     capture_authority_profile: z.enum(webCaptureProfiles),
     source_type: z.enum(webCaptureProfiles),
-    scene_id: z.string().trim().min(1).max(128),
+    scene_id: z.string().trim().regex(PATH_IDENTIFIER_PATTERN),
     organization_id: z.string().trim().min(1).max(128).optional(),
     original_file: z
       .object({
@@ -155,6 +161,7 @@ type SessionRequest = z.infer<typeof sessionRequestSchema>;
 type SessionRecord = Record<string, unknown> & {
   session_id: string;
   owner_user_id: string;
+  organization_id?: string;
   status: string;
   request_fingerprint_sha256: string;
   request: SessionRequest;
@@ -169,6 +176,9 @@ type SessionRecord = Record<string, unknown> & {
   pipeline_task_evaluation_run?: Record<string, unknown>;
   pipeline_task_evaluation_run_plan?: Record<string, unknown>;
   pipeline_capture_qa?: Record<string, unknown>;
+  pipeline_capture_intake_receipt?: Record<string, unknown>;
+  pipeline_capture_handoff?: Record<string, unknown>;
+  pipeline_capture_state?: string;
 };
 
 function stable(value: unknown): string {
@@ -273,7 +283,8 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
     intake_id: record.request.intake_id,
-    status: record.status,
+    status: captureQa.publication?.state || record.pipeline_capture_state || record.status,
+    upload_status: record.status,
     capture_authority_profile: record.request.capture_authority_profile,
     source_type: record.request.source_type,
     scene_id: record.request.scene_id,
@@ -288,6 +299,10 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     malware_content_validation: record.malware_content_validation || { status: "pending" },
     content_addressing: record.content_addressing || {
       status: "pending_server_sha256_verification",
+    },
+    pipeline_handoff: record.pipeline_capture_handoff || {
+      status: "not_started",
+      performed: false,
     },
     capture_qa: captureQa.summary,
     task_review: {
@@ -309,6 +324,107 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
   };
+}
+
+async function processCompletedCaptureIntake(record: SessionRecord): Promise<SessionRecord> {
+  if (record.pipeline_capture_intake_receipt) return record;
+  const readiness = captureUploadIntakeForwardingReadiness();
+  if (!readiness.endpointConfigured) {
+    const updates = {
+      pipeline_capture_handoff: {
+        status: "not_configured",
+        performed: false,
+        required: readiness.required,
+        blocker: "capture_upload_intake_forward_url_missing",
+      },
+      updated_at_iso: new Date().toISOString(),
+    };
+    await db!.collection("captureUploadSessions").doc(record.session_id).set(updates, { merge: true });
+    return { ...record, ...updates };
+  }
+  if (!readiness.tokenConfigured) {
+    const updates = {
+      pipeline_capture_handoff: {
+        status: "blocked",
+        performed: false,
+        required: readiness.required,
+        blocker: "capture_upload_intake_forward_token_missing",
+      },
+      updated_at_iso: new Date().toISOString(),
+    };
+    await db!.collection("captureUploadSessions").doc(record.session_id).set(updates, { merge: true });
+    return { ...record, ...updates };
+  }
+  if (!record.object_path) {
+    const updates = {
+      pipeline_capture_handoff: {
+        status: "blocked",
+        performed: false,
+        required: readiness.required,
+        blocker: "capture_storage_object_path_missing",
+      },
+      updated_at_iso: new Date().toISOString(),
+    };
+    await db!.collection("captureUploadSessions").doc(record.session_id).set(updates, { merge: true });
+    return { ...record, ...updates };
+  }
+  let forwardResult;
+  try {
+    const transfer = await createBackblazeCaptureDownloadGrant({
+      objectPath: record.object_path,
+    });
+    forwardResult = await forwardCaptureUploadToPipeline({
+      captureSessionId: record.session_id,
+      customerId: record.owner_user_id,
+      organizationId: record.organization_id || `user:${record.owner_user_id}`,
+      request: record.request,
+      transfer,
+    });
+  } catch (error) {
+    forwardResult = {
+      status: "failed" as const,
+      performed: false,
+      required: readiness.required,
+      endpoint_configured: true,
+      blocker: "capture_upload_transfer_grant_failed",
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    };
+  }
+  const handoff = {
+    status: forwardResult.status,
+    performed: forwardResult.performed,
+    required: forwardResult.required,
+    endpoint_configured: forwardResult.endpoint_configured,
+    http_status: forwardResult.http_status || null,
+    blocker: forwardResult.blocker || null,
+    error_name: forwardResult.error_name || null,
+  };
+  const receipt = forwardResult.receipt;
+  const updates = receipt
+    ? {
+        pipeline_capture_handoff: handoff,
+        pipeline_capture_intake_receipt: receipt,
+        pipeline_capture_state: receipt.state,
+        upload_validation: {
+          ...(record.upload_validation as Record<string, unknown>),
+          status: "server_bytes_verified",
+          server_size_verified: true,
+        },
+        malware_content_validation: receipt.malware_content_validation,
+        content_addressing: {
+          status: "passed",
+          sha256: receipt.capture_digest,
+          envelope_digest: receipt.envelope_digest,
+          raw_input_content_addressed: true,
+        },
+        updated_at_iso: new Date().toISOString(),
+      }
+    : {
+        pipeline_capture_handoff: handoff,
+        updated_at_iso: new Date().toISOString(),
+      };
+  await db!.collection("captureUploadSessions").doc(record.session_id).set(updates, { merge: true });
+  return { ...record, ...updates } as SessionRecord;
 }
 
 function captureQaProjection(record: SessionRecord) {
@@ -1573,7 +1689,8 @@ router.post("/:sessionId/complete", async (req, res) => {
   if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
   const record = result.record;
   if (record.status === "uploaded_verification_pending") {
-    return res.status(200).json({ ...publicSession(record), already_complete: true });
+    const processed = await processCompletedCaptureIntake(record);
+    return res.status(200).json({ ...publicSession(processed), already_complete: true });
   }
   if (!["upload_pending", "uploading"].includes(record.status) || !record.provider_file_id) {
     return res.status(409).json({ error: "Capture upload cannot be completed from its current state" });
@@ -1614,11 +1731,24 @@ router.post("/:sessionId/complete", async (req, res) => {
       error: null,
     };
     await db!.collection("captureUploadSessions").doc(record.session_id).set(completed, { merge: false });
-    return res.status(200).json(publicSession(completed, parts));
+    const processed = await processCompletedCaptureIntake(completed);
+    return res.status(200).json(publicSession(processed, parts));
   } catch (error) {
     logger.error({ sessionId: record.session_id, err: error }, "Failed to complete capture upload");
     return res.status(502).json({ error: "Capture storage provider could not finalize the upload" });
   }
+});
+
+router.post("/:sessionId/process", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  if (result.record.status !== "uploaded_verification_pending") {
+    return res.status(409).json({ error: "Capture upload bytes are not ready for Pipeline intake" });
+  }
+  const processed = await processCompletedCaptureIntake(result.record);
+  return res.status(200).json(publicSession(processed));
 });
 
 router.delete("/:sessionId", async (req, res) => {
