@@ -6,6 +6,7 @@ import {
   forwardReconstructionAuthorizationToPipeline,
   forwardReconstructionExecutionToPipeline,
   forwardReconstructionPlanToPipeline,
+  forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
 } from "../utils/reconstructionForwarding";
 
@@ -129,7 +130,32 @@ function artifacts() {
       comparative_policy_ranking_verdict: "thesis_not_supported",
     },
   };
-  return { plan, planResult, authorization, execution, inspection };
+  const compilation = {
+    schema_version: "site_task_testbed_compilation_response.v1",
+    status: "testbed_ready",
+    capture_session_id: "capture-session-1",
+    intake_id: "intake-1",
+    testbed_id: "testbed-1",
+    version: "1",
+    testbed_digest: `sha256:${"8".repeat(64)}`,
+    already_exists: false,
+    artifact_reference: {
+      uri: "testbed://testbed-1/1/fixture.json",
+      digest: `sha256:${"8".repeat(64)}`,
+    },
+    testbed: { approved_task_definition: { digest: `sha256:${"9".repeat(64)}` } },
+    decision_evidence_request: { request_digest: `sha256:${"a".repeat(64)}` },
+    decision_evidence_request_artifact: {},
+    webapp_sync: { status: "succeeded" },
+    proof_boundary: {
+      appearance_is_collision_truth: false,
+      generated_completion_is_observed_truth: false,
+      simulation_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  } as const;
+  return { plan, planResult, authorization, execution, inspection, compilation };
 }
 
 afterEach(() => {
@@ -147,6 +173,7 @@ describe("reconstruction forwarding", () => {
       if (url.endsWith("/reconstructions/plan")) return Response.json(value.planResult);
       if (url.endsWith("/authorize")) return Response.json(value.authorization);
       if (url.endsWith("/execute")) return Response.json(value.execution);
+      if (url.endsWith("/testbeds/compile")) return Response.json(value.compilation);
       expect(init.method).toBe("GET");
       return Response.json(value.inspection);
     });
@@ -181,7 +208,27 @@ describe("reconstruction forwarding", () => {
       captureDigest,
     });
     expect(inspected.status).toBe("forwarded");
-    expect(fetch).toHaveBeenCalledTimes(4);
+    const compiled = await forwardTestbedCompilationToPipeline({
+      captureSessionId: "capture-session-1",
+      intakeId: "intake-1",
+      testbedId: "testbed-1",
+      version: "1",
+      approvedTaskDigest: `sha256:${"9".repeat(64)}`,
+      reconstructionPlanId: "reconstruction-1",
+      reconstructionExecutionResultDigest: value.execution.execution_result_digest,
+      robotBinding: { robot_id: "fixture-arm" },
+      decisionRequestConstraints: { claims: [] },
+    });
+    expect(compiled.status).toBe("forwarded");
+    const compileCall = fetch.mock.calls.find(([url]) => String(url).endsWith("/testbeds/compile"));
+    const compileBody = JSON.parse(String((compileCall?.[1] as RequestInit | undefined)?.body));
+    expect(compileBody).toMatchObject({
+      schema_version: "site_task_testbed_compilation_submission.v2",
+      robot_binding: { robot_id: "fixture-arm" },
+    });
+    expect(compileBody).not.toHaveProperty("simready_decision");
+    expect(compileBody).not.toHaveProperty("robot_placement_result");
+    expect(fetch).toHaveBeenCalledTimes(5);
   });
 
   it("rejects a validly shaped plan bound to another capture digest", async () => {

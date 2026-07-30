@@ -287,6 +287,42 @@ export type CaptureSiteTaskTestbedInspection = {
   };
 };
 
+export type CaptureTestbedCompilationCommand = {
+  schema_version: "capture_testbed_compilation_command.v1";
+  testbed_id: string;
+  version: string;
+  robot_binding: {
+    robot_id: string;
+    embodiment_version: string;
+    base_footprint: { shape: "circle"; radius_m: number };
+    sensors: Record<string, string>;
+    controller_id: string;
+    end_effector_id: string;
+    reach_envelope: { minimum_m: number; maximum_m: number };
+  };
+  false_safe_consequence: "low" | "moderate" | "high" | "critical";
+  acceptable_false_safe_risk: number;
+  minimum_coverage: number;
+  minimum_independent_methods: number;
+  max_cost_usd: number;
+  max_latency_seconds: number;
+  deadline: string;
+  requested_result_audience: string;
+  idempotency_key: string;
+};
+
+export type CaptureTestbedCompilationReceipt = {
+  schema_version: "capture_testbed_compilation_receipt.v1";
+  already_exists: boolean;
+  status: "testbed_ready";
+  testbed_id: string;
+  version: string;
+  testbed_digest: string;
+  artifact_reference: { uri: string; digest: string };
+  request_digest: string | null;
+  proof_boundary: CaptureSiteTaskTestbedInspection["proof_boundary"];
+};
+
 export type TaskCandidate = {
   task_candidate_id: string;
   candidate_digest: string;
@@ -621,7 +657,7 @@ export function applyCompletedCaptureLifecycle(
 export function planCaptureReconstruction(
   currentUser: FirebaseUser,
   sessionId: string,
-  requestedClaimTypes: Array<"perception_visibility" | "task_discovery">,
+  requestedClaimTypes: Array<"perception_visibility" | "task_discovery" | "reachability">,
   idempotencyKey: string,
 ) {
   return apiRequest<Record<string, any>>(
@@ -635,6 +671,18 @@ export function planCaptureReconstruction(
         idempotency_key: idempotencyKey,
       }),
     },
+  );
+}
+
+export function compileCaptureTestbed(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  command: CaptureTestbedCompilationCommand,
+) {
+  return apiRequest<CaptureTestbedCompilationReceipt>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/testbed/compile`,
+    { method: "POST", body: JSON.stringify(command) },
   );
 }
 

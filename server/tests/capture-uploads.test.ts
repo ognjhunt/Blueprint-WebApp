@@ -31,6 +31,7 @@ const state = vi.hoisted(() => ({
   reconstructionAuthorization: vi.fn(),
   reconstructionExecution: vi.fn(),
   reconstructionInspect: vi.fn(),
+  testbedCompile: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -142,6 +143,7 @@ vi.mock("../utils/reconstructionForwarding", () => ({
   forwardReconstructionAuthorizationToPipeline: state.reconstructionAuthorization,
   forwardReconstructionExecutionToPipeline: state.reconstructionExecution,
   inspectReconstructionInPipeline: state.reconstructionInspect,
+  forwardTestbedCompilationToPipeline: state.testbedCompile,
 }));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
@@ -848,6 +850,7 @@ afterEach(() => {
   state.reconstructionAuthorization.mockReset();
   state.reconstructionExecution.mockReset();
   state.reconstructionInspect.mockReset();
+  state.testbedCompile.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
   delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL;
@@ -1277,6 +1280,140 @@ describe("resumable capture uploads", () => {
           },
         },
       });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("submits only robot and decision inputs while Pipeline owns testbed science", async () => {
+    const sessionId = "testbed-compile-owner-1";
+    const approvedTaskDigest = `sha256:${"d".repeat(64)}`;
+    const reconstructionPlanDigest = `sha256:${"e".repeat(64)}`;
+    const executionDigest = `sha256:${"f".repeat(64)}`;
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "capture_accepted",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"1".repeat(64)}`,
+      approved_task_definition: {
+        schema_version: "approved_task_definition.v1",
+        approval_status: "approved",
+        approved_task_digest: approvedTaskDigest,
+        task: {
+          description: "Move the tote into the box.",
+          task_family: "rigid_object_pick_place",
+          measurable_success_conditions: [{
+            metric: "object_center_distance",
+            operator: "<=",
+            threshold: 0.05,
+            units: "m",
+          }],
+          task_objects: [{ object_id: "tote-1" }],
+          target_regions: [{ region_id: "box-1" }],
+        },
+      },
+      pipeline_reconstruction: {
+        status: "completed",
+        pipeline_plan: {
+          plan_id: "reconstruction-testbed-1",
+          reconstruction_plan: {
+            reconstruction_plan_digest: reconstructionPlanDigest,
+            requested_claim_types: ["perception_visibility", "reachability"],
+          },
+        },
+        pipeline_execution: {
+          state: "completed",
+          execution_result_digest: executionDigest,
+        },
+      },
+    });
+    state.testbedCompile.mockResolvedValue({
+      status: "forwarded",
+      performed: true,
+      endpoint_configured: true,
+      value: {
+        schema_version: "site_task_testbed_compilation_response.v1",
+        status: "testbed_ready",
+        capture_session_id: sessionId,
+        intake_id: "intake-360-1",
+        testbed_id: "testbed-scene-1",
+        version: "1",
+        testbed_digest: `sha256:${"9".repeat(64)}`,
+        already_exists: false,
+        artifact_reference: {
+          uri: "testbed://testbed-scene-1/1/fixture.json",
+          digest: `sha256:${"9".repeat(64)}`,
+        },
+        testbed: { approved_task_definition: { digest: approvedTaskDigest } },
+        decision_evidence_request: { request_digest: `sha256:${"8".repeat(64)}` },
+        decision_evidence_request_artifact: {},
+        webapp_sync: { status: "succeeded" },
+        proof_boundary: {
+          appearance_is_collision_truth: false,
+          generated_completion_is_observed_truth: false,
+          simulation_is_physical_success: false,
+          deployment_or_safety_approved: false,
+          comparative_policy_ranking_verdict: "thesis_not_supported",
+        },
+      },
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/testbed/compile`,
+        {
+          schema_version: "capture_testbed_compilation_command.v1",
+          testbed_id: "testbed-scene-1",
+          version: "1",
+          robot_binding: {
+            robot_id: "fixture-arm",
+            embodiment_version: "1",
+            base_footprint: { shape: "circle", radius_m: 0.4 },
+            sensors: { primary: "rgb-v1" },
+            controller_id: "joint-position-v1",
+            end_effector_id: "parallel-gripper-v1",
+            reach_envelope: { minimum_m: 0.1, maximum_m: 1.0 },
+          },
+          false_safe_consequence: "moderate",
+          acceptable_false_safe_risk: 0.05,
+          minimum_coverage: 0.9,
+          minimum_independent_methods: 1,
+          max_cost_usd: 0,
+          max_latency_seconds: 60,
+          deadline: "2026-08-06T00:00:00Z",
+          requested_result_audience: "design_partner",
+          idempotency_key: "compile-testbed-owner-1",
+        },
+      );
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        status: "testbed_ready",
+        request_digest: `sha256:${"8".repeat(64)}`,
+        proof_boundary: { comparative_policy_ranking_verdict: "thesis_not_supported" },
+      });
+      expect(state.testbedCompile).toHaveBeenCalledWith(expect.objectContaining({
+        captureSessionId: sessionId,
+        approvedTaskDigest,
+        reconstructionExecutionResultDigest: executionDigest,
+        robotBinding: expect.objectContaining({ robot_id: "fixture-arm" }),
+        decisionRequestConstraints: expect.objectContaining({
+          permitted_evidence_methods: expect.arrayContaining([
+            "analytic_geometry_kinematics",
+            "captured_real_observation",
+          ]),
+          restrictions: expect.objectContaining({
+            webapp_provider_selection_allowed: false,
+            live_robot_execution_allowed: false,
+            paid_compute_authorized: false,
+          }),
+        }),
+      }));
+      const forwardedBody = state.testbedCompile.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(forwardedBody).not.toHaveProperty("simready_decision");
+      expect(forwardedBody).not.toHaveProperty("robot_placement_result");
+      expect(forwardedBody).not.toHaveProperty("supported_condition_ranges");
     } finally {
       await stopServer(server, socketPath);
     }

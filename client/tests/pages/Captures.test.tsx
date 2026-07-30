@@ -328,7 +328,7 @@ describe("app/Captures", () => {
     await waitFor(() => expect(state.reconstructionPlan).toHaveBeenCalledWith(
       state.currentUser,
       "capture-upload-1",
-      ["task_discovery", "perception_visibility"],
+      ["perception_visibility", "reachability"],
       "web-reconstruction-plan-capture-upload-1",
     ));
   });

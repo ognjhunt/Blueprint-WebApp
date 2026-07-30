@@ -9,10 +9,12 @@ import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateRev
 import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
 import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
 import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluationRunControl";
+import { TestbedCompilationControl } from "@/components/blueprint/app/TestbedCompilationControl";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   applyCompletedCaptureLifecycle,
   authorizeCaptureReconstruction,
+  compileCaptureTestbed,
   createCaptureUpload,
   executeCaptureReconstruction,
   authorizeCaptureTaskEvaluationRun,
@@ -32,6 +34,7 @@ import {
   type CaptureQaInspection as CaptureQaInspectionValue,
   type CaptureSiteTaskTestbedInspection,
   type CaptureTaskEvaluationRunInspection,
+  type CaptureTestbedCompilationCommand,
   type CaptureUploadSession,
   type CreateCaptureUploadSession,
   type TaskDecisionCommandRequest,
@@ -240,6 +243,7 @@ export default function Captures() {
   const [runControlSubmitting, setRunControlSubmitting] = useState(false);
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState<string | null>(null);
   const [reconstructionSubmitting, setReconstructionSubmitting] = useState<string | null>(null);
+  const [testbedCompiling, setTestbedCompiling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -558,7 +562,7 @@ export default function Captures() {
       await planCaptureReconstruction(
         currentUser,
         session.session_id,
-        ["task_discovery", "perception_visibility"],
+        ["perception_visibility", "reachability"],
         `web-reconstruction-plan-${session.session_id}`,
       );
       await refresh();
@@ -619,6 +623,27 @@ export default function Captures() {
       await refresh().catch(() => undefined);
     } finally {
       setReconstructionSubmitting(null);
+    }
+  }
+
+  async function compileTestbed(command: CaptureTestbedCompilationCommand) {
+    if (!currentUser || !reviewSession) return;
+    setTestbedCompiling(true);
+    setError(null);
+    try {
+      await compileCaptureTestbed(currentUser, reviewSession.session_id, command);
+      const [latestSession, inspection] = await Promise.all([
+        getCaptureUpload(currentUser, reviewSession.session_id),
+        getCaptureSiteTaskTestbed(currentUser, reviewSession.session_id),
+        refresh(),
+      ]);
+      setReviewSession(latestSession);
+      setTestbedInspection(inspection);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setTestbedCompiling(false);
     }
   }
 
@@ -695,6 +720,16 @@ export default function Captures() {
         ) : null}
 
         {captureQaInspection ? <CaptureQaInspection inspection={captureQaInspection} /> : null}
+
+        {reviewSession?.task_review.status === "task_approved"
+          && ["completed", "partial", "abstained"].includes(reviewSession.reconstruction.state)
+          && !testbedInspection ? (
+            <TestbedCompilationControl
+              sceneId={reviewSession.scene_id}
+              busy={testbedCompiling}
+              onCompile={compileTestbed}
+            />
+          ) : null}
 
         {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
 

@@ -122,10 +122,37 @@ const inspectionSchema = z.object({
   }).strict(),
 }).strict();
 
+const testbedCompilationSchema = z.object({
+  schema_version: z.literal("site_task_testbed_compilation_response.v1"),
+  status: z.literal("testbed_ready"),
+  capture_session_id: z.string().min(1),
+  intake_id: z.string().min(1),
+  testbed_id: z.string().min(1),
+  version: z.string().min(1),
+  testbed_digest: z.string().regex(DIGEST),
+  already_exists: z.boolean(),
+  artifact_reference: z.object({
+    uri: z.string().min(1),
+    digest: z.string().regex(DIGEST),
+  }).strict(),
+  testbed: z.record(z.string(), z.unknown()),
+  decision_evidence_request: z.record(z.string(), z.unknown()).nullable(),
+  decision_evidence_request_artifact: z.record(z.string(), z.unknown()).nullable(),
+  webapp_sync: z.record(z.string(), z.unknown()),
+  proof_boundary: z.object({
+    appearance_is_collision_truth: z.literal(false),
+    generated_completion_is_observed_truth: z.literal(false),
+    simulation_is_physical_success: z.literal(false),
+    deployment_or_safety_approved: z.literal(false),
+    comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
+  }).strict(),
+}).strict();
+
 export type ReconstructionPlanResult = z.infer<typeof planResultSchema>;
 export type ReconstructionExecutionAuthorization = z.infer<typeof authorizationSchema>;
 export type ReconstructionExecutionResult = z.infer<typeof executionSchema>;
 export type ReconstructionInspection = z.infer<typeof inspectionSchema>;
+export type TestbedCompilationResult = z.infer<typeof testbedCompilationSchema>;
 
 type ForwardResult<T> = {
   status: "forwarded" | "not_configured" | "blocked" | "failed";
@@ -329,5 +356,55 @@ export async function inspectReconstructionInPipeline(params: {
     || inspection.source_binding.capture_digest !== params.captureDigest
   )) return { ...result, status: "failed" as const, performed: false, value: undefined,
     blocker: "pipeline_reconstruction_inspection_binding_mismatch" };
+  return result;
+}
+
+export async function forwardTestbedCompilationToPipeline(params: {
+  captureSessionId: string;
+  intakeId: string;
+  testbedId: string;
+  version: string;
+  approvedTaskDigest: string;
+  reconstructionPlanId: string;
+  reconstructionExecutionResultDigest: string;
+  robotBinding: Record<string, unknown>;
+  decisionRequestConstraints: Record<string, unknown>;
+}) {
+  const result = await signedRequest({
+    path: "/testbeds/compile",
+    method: "POST",
+    body: {
+      schema_version: "site_task_testbed_compilation_submission.v2",
+      capture_session_id: params.captureSessionId,
+      intake_id: params.intakeId,
+      testbed_id: params.testbedId,
+      version: params.version,
+      approved_task_digest: params.approvedTaskDigest,
+      reconstruction_plan_id: params.reconstructionPlanId,
+      reconstruction_execution_result_digest: params.reconstructionExecutionResultDigest,
+      robot_binding: params.robotBinding,
+      decision_request_constraints: params.decisionRequestConstraints,
+    },
+    schema: testbedCompilationSchema,
+    blocker: "pipeline_testbed_compilation_rejected",
+  });
+  const compilation = result.value;
+  const approved = compilation?.testbed.approved_task_definition as
+    | Record<string, unknown>
+    | undefined;
+  if (compilation && (
+    compilation.capture_session_id !== params.captureSessionId
+    || compilation.intake_id !== params.intakeId
+    || compilation.testbed_id !== params.testbedId
+    || compilation.version !== params.version
+    || compilation.testbed_digest !== compilation.artifact_reference.digest
+    || approved?.digest !== params.approvedTaskDigest
+  )) return {
+    ...result,
+    status: "failed" as const,
+    performed: false,
+    value: undefined,
+    blocker: "pipeline_testbed_compilation_binding_mismatch",
+  };
   return result;
 }

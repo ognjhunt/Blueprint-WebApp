@@ -88,6 +88,18 @@ is explicitly local, unpaid, and non-physical. A decoded observation index does
 not establish calibration or metric geometry; derived output remains below raw
 capture authority and never establishes physical task success.
 
+After approved task intent and a terminal reconstruction result exist, the
+owner can compile the maintained testbed from the same capture workspace. The
+form collects an exact robot binding plus false-safe risk, evidence coverage,
+budget, latency, deadline, and audience constraints. WebApp derives a
+provider-neutral Decision/Evidence Request candidate from the Pipeline-approved
+task and sends no SimReady decision, placement score, evaluator/reset artifact,
+supported-condition claim, provider choice, or predecessor manifest. Pipeline
+must compile the immutable version and successfully publish its exact digest
+back through the signed testbed publication seam before WebApp reports
+`testbed_ready`. Missing qualified robot-placement evidence remains an explicit
+abstention and next experiment, not a pass.
+
 ## Deployment Requirements
 
 - Existing Backblaze credentials and a private bucket configured through the
@@ -125,6 +137,12 @@ capture authority and never establishes physical task success.
   verification pending.
 - Pipeline-to-WebApp task-discovery publication and WebApp-command consumption
   must be configured before real customer task approval can complete.
+- Testbed compilation reuses `RECONSTRUCTION_PIPELINE_BASE_URL`,
+  `RECONSTRUCTION_FORWARD_TOKEN`, and `RECONSTRUCTION_FORWARD_CLIENT_ID` for the
+  signed owner command. Pipeline-to-WebApp publication must use
+  `PIPELINE_TESTBED_WEBAPP_URL` and `PIPELINE_SYNC_TOKEN`, with required sync
+  enabled in production; a successful compile without the exact publication
+  receipt remains a visible failure.
 - Retention and revocation execution must preserve a non-sensitive tombstone;
   completed uploads cannot be removed through the simple multipart-cancel route.
   The owner-facing completed-capture deletion command first obtains an exact

@@ -41,6 +41,7 @@ import {
   forwardReconstructionAuthorizationToPipeline,
   forwardReconstructionExecutionToPipeline,
   forwardReconstructionPlanToPipeline,
+  forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
 } from "../utils/reconstructionForwarding";
 import {
@@ -206,6 +207,52 @@ const reconstructionAuthorizationCommandSchema = z.object({
 
 const reconstructionExecutionCommandSchema = z.object({
   schema_version: z.literal("capture_reconstruction_execution_command.v1"),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const robotBindingSchema = z.object({
+  robot_id: z.string().trim().min(1).max(128),
+  embodiment_version: z.string().trim().min(1).max(128),
+  base_footprint: z.object({
+    shape: z.enum(["circle", "rectangle"]),
+    radius_m: z.number().positive().max(10).optional(),
+    length_m: z.number().positive().max(20).optional(),
+    width_m: z.number().positive().max(20).optional(),
+  }).strict().superRefine((value, context) => {
+    if (value.shape === "circle" && value.radius_m === undefined) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["radius_m"], message: "required for circle" });
+    }
+    if (value.shape === "rectangle" && (value.length_m === undefined || value.width_m === undefined)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["length_m"], message: "length and width required for rectangle" });
+    }
+  }),
+  sensors: z.record(z.string(), z.string().trim().min(1)).refine(
+    (value) => Object.keys(value).length > 0,
+    "at least one sensor is required",
+  ),
+  controller_id: z.string().trim().min(1).max(128),
+  end_effector_id: z.string().trim().min(1).max(128),
+  reach_envelope: z.object({
+    minimum_m: z.number().nonnegative().max(20),
+    maximum_m: z.number().positive().max(20),
+  }).strict().refine((value) => value.maximum_m > value.minimum_m, {
+    message: "maximum reach must exceed minimum reach",
+  }),
+}).strict();
+
+const testbedCompilationCommandSchema = z.object({
+  schema_version: z.literal("capture_testbed_compilation_command.v1"),
+  testbed_id: z.string().trim().regex(PATH_IDENTIFIER_PATTERN),
+  version: z.string().trim().regex(PATH_IDENTIFIER_PATTERN),
+  robot_binding: robotBindingSchema,
+  false_safe_consequence: z.enum(["low", "moderate", "high", "critical"]),
+  acceptable_false_safe_risk: z.number().min(0).max(1),
+  minimum_coverage: z.number().positive().max(1),
+  minimum_independent_methods: z.number().int().positive().max(8),
+  max_cost_usd: z.number().nonnegative().max(100_000),
+  max_latency_seconds: z.number().positive().max(30 * 24 * 60 * 60),
+  deadline: z.string().datetime({ offset: true }),
+  requested_result_audience: z.string().trim().min(1).max(128),
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
 }).strict();
 
@@ -1066,6 +1113,160 @@ router.get("/:sessionId/task-discovery", async (req, res) => {
       decision_evidence_request_compiled: false,
       task_success_established: false,
     },
+  });
+});
+
+router.post("/:sessionId/testbed/compile", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Testbed control store is unavailable" });
+  const command = testbedCompilationCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Testbed compilation command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const record = owned.record;
+  if (record.capture_access?.future_processing_allowed === false || record.completed_capture_lifecycle) {
+    return res.status(410).json({ error: "Capture is revoked or pending deletion" });
+  }
+  if (siteTaskTestbedProjection(record).summary.state === "testbed_ready") {
+    return res.status(409).json({ error: "An immutable testbed version already exists for this capture" });
+  }
+  const approved = record.approved_task_definition as Record<string, any> | undefined;
+  const reconstruction = record.pipeline_reconstruction;
+  const planResult = reconstruction?.pipeline_plan;
+  const plan = planResult?.reconstruction_plan;
+  const execution = reconstruction?.pipeline_execution;
+  if (
+    !approved
+    || approved.approval_status !== "approved"
+    || !/^sha256:[0-9a-f]{64}$/.test(String(approved.approved_task_digest || ""))
+  ) {
+    return res.status(409).json({ error: "Pipeline-approved task intent is required" });
+  }
+  if (
+    !planResult?.plan_id
+    || !plan
+    || !execution
+    || !["completed", "partial", "abstained"].includes(String(execution.state || ""))
+    || !/^sha256:[0-9a-f]{64}$/.test(String(execution.execution_result_digest || ""))
+  ) {
+    return res.status(409).json({ error: "A terminal Pipeline reconstruction result is required" });
+  }
+  const task = approved.task as Record<string, any> | undefined;
+  const condition = Array.isArray(task?.measurable_success_conditions)
+    ? task.measurable_success_conditions.find((row: unknown) => row && typeof row === "object")
+    : undefined;
+  const taskObject = Array.isArray(task?.task_objects)
+    ? task.task_objects.find((row: unknown) => row && typeof row === "object")
+    : undefined;
+  const targetRegion = Array.isArray(task?.target_regions)
+    ? task.target_regions.find((row: unknown) => row && typeof row === "object")
+    : undefined;
+  if (!task || !condition || !taskObject?.object_id || !targetRegion?.region_id) {
+    return res.status(409).json({ error: "Approved task lacks an exact condition, object, or target" });
+  }
+  const claimTypes = [...new Set(
+    (Array.isArray(plan.requested_claim_types) ? plan.requested_claim_types : [])
+      .map(String)
+      .filter(Boolean),
+  )].sort();
+  if (!claimTypes.length) return res.status(409).json({ error: "Reconstruction plan has no bound claims" });
+  const measurableThreshold = {
+    operator: String(condition.operator || ""),
+    value: condition.threshold,
+    units: String(condition.units || ""),
+    metric: String(condition.metric || ""),
+  };
+  const robot = command.data.robot_binding;
+  const decisionIdentity = sha256Text(command.data.idempotency_key).slice(0, 32);
+  const decisionRequestConstraints = {
+    request_id: `request-${decisionIdentity}`,
+    decision_id: `decision-${decisionIdentity}`,
+    candidates: [{
+      robot_id: robot.robot_id,
+      embodiment_version: robot.embodiment_version,
+      robot_binding: robot,
+    }],
+    claims: claimTypes.map((claimType) => ({
+      claim_id: `claim-${sha256Text(stableJson({
+        claim_type: claimType,
+        object_id: taskObject.object_id,
+        region_id: targetRegion.region_id,
+      })).slice(0, 32)}`,
+      claim_type: claimType,
+      subject: `${robot.robot_id}:${taskObject.object_id}:${targetRegion.region_id}`,
+      measurable_threshold: measurableThreshold,
+      false_safe_consequence: command.data.false_safe_consequence,
+      acceptable_false_safe_risk: command.data.acceptable_false_safe_risk,
+      desired_confidence_or_coverage: {
+        minimum_coverage: command.data.minimum_coverage,
+        minimum_independent_methods: command.data.minimum_independent_methods,
+      },
+      permitted_abstention_behavior: { allowed: true },
+      task_family: String(task.task_family || ""),
+      site_domain_conditions: { scope: "accepted_capture_observation" },
+      embodiment: {
+        robot_id: robot.robot_id,
+        version: robot.embodiment_version,
+        base_footprint: robot.base_footprint,
+        reach_envelope: robot.reach_envelope,
+        end_effector_id: robot.end_effector_id,
+      },
+      sensors: robot.sensors,
+      controller_action_representation: { controller_id: robot.controller_id },
+    })),
+    budget: {
+      max_cost_usd: command.data.max_cost_usd,
+      max_latency_seconds: command.data.max_latency_seconds,
+    },
+    deadline: command.data.deadline,
+    permitted_evidence_methods: [
+      "analytic_geometry_kinematics",
+      "captured_real_observation",
+      "traditional_simulation",
+      "physical_evidence",
+      "owner_attested_operational_input",
+    ],
+    restrictions: {
+      ...record.request.governance.provider_constraints,
+      webapp_provider_selection_allowed: false,
+      live_robot_execution_allowed: false,
+      paid_compute_authorized: false,
+    },
+    requested_result_audience: command.data.requested_result_audience,
+    idempotency_key: command.data.idempotency_key,
+  };
+  const forwarded = await forwardTestbedCompilationToPipeline({
+    captureSessionId: record.session_id,
+    intakeId: record.request.intake_id,
+    testbedId: command.data.testbed_id,
+    version: command.data.version,
+    approvedTaskDigest: approved.approved_task_digest,
+    reconstructionPlanId: planResult.plan_id,
+    reconstructionExecutionResultDigest: execution.execution_result_digest,
+    robotBinding: robot,
+    decisionRequestConstraints,
+  });
+  const syncStatus = String(forwarded.value?.webapp_sync?.status || "");
+  if (forwarded.status !== "forwarded" || !forwarded.value || syncStatus !== "succeeded") {
+    return res.status(
+      forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502,
+    ).json({
+      error: "Pipeline could not compile and publish the testbed",
+      blocker: forwarded.blocker || `pipeline_testbed_webapp_sync_${syncStatus || "missing"}`,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(forwarded.value.already_exists ? 200 : 201).json({
+    schema_version: "capture_testbed_compilation_receipt.v1",
+    already_exists: forwarded.value.already_exists,
+    status: "testbed_ready",
+    testbed_id: forwarded.value.testbed_id,
+    version: forwarded.value.version,
+    testbed_digest: forwarded.value.testbed_digest,
+    artifact_reference: forwarded.value.artifact_reference,
+    request_digest: forwarded.value.decision_evidence_request?.request_digest || null,
+    proof_boundary: forwarded.value.proof_boundary,
   });
 });
 
