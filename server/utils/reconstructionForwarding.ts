@@ -148,6 +148,124 @@ const testbedCompilationSchema = z.object({
   }).strict(),
 }).strict();
 
+const baseFootprintSchema = z.discriminatedUnion("shape", [
+  z.object({
+    shape: z.literal("circle"),
+    radius_m: z.number().positive().max(10),
+  }).strict(),
+  z.object({
+    shape: z.literal("rectangle"),
+    length_m: z.number().positive().max(20),
+    width_m: z.number().positive().max(20),
+  }).strict(),
+]);
+const reachEnvelopeSchema = z.object({
+  minimum_m: z.number().nonnegative().max(20),
+  maximum_m: z.number().positive().max(20),
+}).strict().refine((value) => value.maximum_m > value.minimum_m);
+const compilationRobotBindingSchema = z.object({
+  robot_id: z.string().min(1).max(128),
+  embodiment_version: z.string().min(1).max(128),
+  base_footprint: baseFootprintSchema,
+  sensors: z.record(z.string(), z.string().min(1).max(512)).refine(
+    (value) => Object.keys(value).length >= 1 && Object.keys(value).length <= 32,
+  ),
+  controller_id: z.string().min(1).max(128),
+  end_effector_id: z.string().min(1).max(128),
+  reach_envelope: reachEnvelopeSchema,
+}).strict();
+const compilationClaimTypeSchema = z.enum([
+  "perception_visibility", "task_discovery", "appearance_review", "reachability",
+  "robot_placement", "navigation_clearance", "collision_contact", "grasp_contact",
+  "articulation", "containment", "mass_inertia", "friction_compliance",
+  "object_state_transition",
+]);
+const compilationEvidenceMethodSchema = z.enum([
+  "analytic_geometry_kinematics", "captured_real_observation", "traditional_simulation",
+  "learned_world_model", "external_provider_tool", "physical_evidence",
+  "owner_attested_operational_input",
+]);
+const testbedCompilationSubmissionSchema = z.object({
+  schema_version: z.literal("site_task_testbed_compilation_submission.v2"),
+  capture_session_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  intake_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  testbed_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  version: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  approved_task_digest: z.string().regex(DIGEST),
+  reconstruction_plan_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  reconstruction_execution_result_digest: z.string().regex(DIGEST),
+  robot_binding: compilationRobotBindingSchema,
+  decision_request_constraints: z.object({
+    request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+    decision_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+    candidates: z.array(z.object({
+      robot_id: z.string().min(1).max(128),
+      embodiment_version: z.string().min(1).max(128),
+      robot_binding: compilationRobotBindingSchema,
+    }).strict()).min(1).max(16),
+    claims: z.array(z.object({
+      claim_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+      claim_type: compilationClaimTypeSchema,
+      subject: z.string().min(1).max(512),
+      measurable_threshold: z.object({
+        operator: z.string().min(1).max(32),
+        value: z.unknown(),
+        units: z.string().min(1).max(64),
+        metric: z.string().min(1).max(128),
+      }).strict(),
+      false_safe_consequence: z.enum(["low", "moderate", "high", "critical"]),
+      acceptable_false_safe_risk: z.number().min(0).max(1),
+      desired_confidence_or_coverage: z.object({
+        minimum_coverage: z.number().positive().max(1),
+        minimum_independent_methods: z.number().int().positive().max(8),
+      }).strict(),
+      permitted_abstention_behavior: z.object({ allowed: z.literal(true) }).strict(),
+      task_family: z.string().min(1).max(128),
+      site_domain_conditions: z.object({
+        scope: z.literal("accepted_capture_observation"),
+      }).strict(),
+      embodiment: z.object({
+        robot_id: z.string().min(1).max(128),
+        version: z.string().min(1).max(128),
+        base_footprint: baseFootprintSchema,
+        reach_envelope: reachEnvelopeSchema,
+        end_effector_id: z.string().min(1).max(128),
+      }).strict(),
+      sensors: z.record(z.string(), z.string().min(1).max(512)).refine(
+        (value) => Object.keys(value).length >= 1 && Object.keys(value).length <= 32,
+      ),
+      controller_action_representation: z.object({
+        controller_id: z.string().min(1).max(128),
+      }).strict(),
+    }).strict()).min(1).max(16),
+    budget: z.object({
+      max_cost_usd: z.number().nonnegative().max(100_000),
+      max_latency_seconds: z.number().positive().max(2_592_000),
+    }).strict(),
+    deadline: z.string().datetime({ offset: true }),
+    permitted_evidence_methods: z.array(compilationEvidenceMethodSchema).min(1).max(7),
+    restrictions: z.object({
+      webapp_provider_selection_allowed: z.literal(false),
+      live_robot_execution_allowed: z.literal(false),
+      paid_compute_authorized: z.literal(false),
+    }).passthrough().superRefine((value, context) => {
+      for (const key of [
+        "selected_method", "selected_provider", "selected_simulator", "runtime_provider_profile",
+      ]) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: "WebApp cannot select evaluation methods or providers",
+          });
+        }
+      }
+    }),
+    requested_result_audience: z.string().min(1).max(128),
+    idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+  }).strict(),
+}).strict();
+
 export type ReconstructionPlanResult = z.infer<typeof planResultSchema>;
 export type ReconstructionExecutionAuthorization = z.infer<typeof authorizationSchema>;
 export type ReconstructionExecutionResult = z.infer<typeof executionSchema>;
@@ -370,21 +488,28 @@ export async function forwardTestbedCompilationToPipeline(params: {
   robotBinding: Record<string, unknown>;
   decisionRequestConstraints: Record<string, unknown>;
 }) {
+  const submission = testbedCompilationSubmissionSchema.safeParse({
+    schema_version: "site_task_testbed_compilation_submission.v2",
+    capture_session_id: params.captureSessionId,
+    intake_id: params.intakeId,
+    testbed_id: params.testbedId,
+    version: params.version,
+    approved_task_digest: params.approvedTaskDigest,
+    reconstruction_plan_id: params.reconstructionPlanId,
+    reconstruction_execution_result_digest: params.reconstructionExecutionResultDigest,
+    robot_binding: params.robotBinding,
+    decision_request_constraints: params.decisionRequestConstraints,
+  });
+  if (!submission.success) return {
+    status: "failed" as const,
+    performed: false,
+    endpoint_configured: Boolean(baseUrl()),
+    blocker: "pipeline_testbed_compilation_submission_invalid",
+  };
   const result = await signedRequest({
     path: "/testbeds/compile",
     method: "POST",
-    body: {
-      schema_version: "site_task_testbed_compilation_submission.v2",
-      capture_session_id: params.captureSessionId,
-      intake_id: params.intakeId,
-      testbed_id: params.testbedId,
-      version: params.version,
-      approved_task_digest: params.approvedTaskDigest,
-      reconstruction_plan_id: params.reconstructionPlanId,
-      reconstruction_execution_result_digest: params.reconstructionExecutionResultDigest,
-      robot_binding: params.robotBinding,
-      decision_request_constraints: params.decisionRequestConstraints,
-    },
+    body: submission.data,
     schema: testbedCompilationSchema,
     blocker: "pipeline_testbed_compilation_rejected",
   });

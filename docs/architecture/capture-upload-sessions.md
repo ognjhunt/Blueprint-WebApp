@@ -100,6 +100,14 @@ back through the signed testbed publication seam before WebApp reports
 `testbed_ready`. Missing qualified robot-placement evidence remains an explicit
 abstention and next experiment, not a pass.
 
+The signed outbound body is validated against the closed
+`site_task_testbed_compilation_submission.v2` shape before any network call.
+The checked-in schema at
+`contracts/pipeline/site-task-testbed-compilation-submission.v2.schema.json` is
+an exact byte mirror of Pipeline and is verified with
+`npm run pipeline:testbed-compilation-contract:verify -- --require-pipeline`.
+Unknown or caller-owned scientific fields do not cross the service boundary.
+
 ## Deployment Requirements
 
 - Existing Backblaze credentials and a private bucket configured through the

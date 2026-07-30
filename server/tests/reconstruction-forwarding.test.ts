@@ -13,6 +13,65 @@ import {
 const captureDigest = `sha256:${"1".repeat(64)}`;
 const contextDigest = `sha256:${"2".repeat(64)}`;
 
+function compilationInputs() {
+  const robotBinding = {
+    robot_id: "fixture-arm",
+    embodiment_version: "1",
+    base_footprint: { shape: "circle", radius_m: 0.4 },
+    sensors: { primary: "rgb-v1" },
+    controller_id: "joint-position-v1",
+    end_effector_id: "parallel-gripper-v1",
+    reach_envelope: { minimum_m: 0.1, maximum_m: 1.0 },
+  };
+  return {
+    robotBinding,
+    decisionRequestConstraints: {
+      request_id: "request-testbed-1",
+      decision_id: "decision-testbed-1",
+      candidates: [{
+        robot_id: robotBinding.robot_id,
+        embodiment_version: robotBinding.embodiment_version,
+        robot_binding: robotBinding,
+      }],
+      claims: [{
+        claim_id: "claim-reach-1",
+        claim_type: "reachability",
+        subject: "fixture-arm:item-1:tote-1",
+        measurable_threshold: {
+          operator: ">=", value: 0.95, units: "fraction", metric: "reach_fraction",
+        },
+        false_safe_consequence: "moderate",
+        acceptable_false_safe_risk: 0.05,
+        desired_confidence_or_coverage: {
+          minimum_coverage: 0.9, minimum_independent_methods: 1,
+        },
+        permitted_abstention_behavior: { allowed: true },
+        task_family: "rigid_object_pick_place",
+        site_domain_conditions: { scope: "accepted_capture_observation" },
+        embodiment: {
+          robot_id: robotBinding.robot_id,
+          version: robotBinding.embodiment_version,
+          base_footprint: robotBinding.base_footprint,
+          reach_envelope: robotBinding.reach_envelope,
+          end_effector_id: robotBinding.end_effector_id,
+        },
+        sensors: robotBinding.sensors,
+        controller_action_representation: { controller_id: robotBinding.controller_id },
+      }],
+      budget: { max_cost_usd: 0, max_latency_seconds: 60 },
+      deadline: "2026-08-06T00:00:00Z",
+      permitted_evidence_methods: ["analytic_geometry_kinematics"],
+      restrictions: {
+        webapp_provider_selection_allowed: false,
+        live_robot_execution_allowed: false,
+        paid_compute_authorized: false,
+      },
+      requested_result_audience: "design_partner",
+      idempotency_key: "compile-testbed-forward-1",
+    },
+  };
+}
+
 function artifacts() {
   const plan: Record<string, any> = {
     schema_version: "reconstruction_plan.v1",
@@ -208,6 +267,7 @@ describe("reconstruction forwarding", () => {
       captureDigest,
     });
     expect(inspected.status).toBe("forwarded");
+    const compilation = compilationInputs();
     const compiled = await forwardTestbedCompilationToPipeline({
       captureSessionId: "capture-session-1",
       intakeId: "intake-1",
@@ -216,19 +276,48 @@ describe("reconstruction forwarding", () => {
       approvedTaskDigest: `sha256:${"9".repeat(64)}`,
       reconstructionPlanId: "reconstruction-1",
       reconstructionExecutionResultDigest: value.execution.execution_result_digest,
-      robotBinding: { robot_id: "fixture-arm" },
-      decisionRequestConstraints: { claims: [] },
+      robotBinding: compilation.robotBinding,
+      decisionRequestConstraints: compilation.decisionRequestConstraints,
     });
     expect(compiled.status).toBe("forwarded");
     const compileCall = fetch.mock.calls.find(([url]) => String(url).endsWith("/testbeds/compile"));
     const compileBody = JSON.parse(String((compileCall?.[1] as RequestInit | undefined)?.body));
     expect(compileBody).toMatchObject({
       schema_version: "site_task_testbed_compilation_submission.v2",
-      robot_binding: { robot_id: "fixture-arm" },
+      robot_binding: { robot_id: "fixture-arm", embodiment_version: "1" },
     });
     expect(compileBody).not.toHaveProperty("simready_decision");
     expect(compileBody).not.toHaveProperty("robot_placement_result");
     expect(fetch).toHaveBeenCalledTimes(5);
+  });
+
+  it("fails closed before network forwarding when compilation inputs violate v2", async () => {
+    process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
+    process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const input = compilationInputs();
+    input.decisionRequestConstraints.claims[0].site_domain_conditions.scope =
+      "caller_selected_science";
+
+    const result = await forwardTestbedCompilationToPipeline({
+      captureSessionId: "capture-session-1",
+      intakeId: "intake-1",
+      testbedId: "testbed-1",
+      version: "1",
+      approvedTaskDigest: `sha256:${"9".repeat(64)}`,
+      reconstructionPlanId: "reconstruction-1",
+      reconstructionExecutionResultDigest: `sha256:${"a".repeat(64)}`,
+      robotBinding: input.robotBinding,
+      decisionRequestConstraints: input.decisionRequestConstraints,
+    });
+
+    expect(result).toMatchObject({
+      status: "failed",
+      performed: false,
+      blocker: "pipeline_testbed_compilation_submission_invalid",
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rejects a validly shaped plan bound to another capture digest", async () => {
