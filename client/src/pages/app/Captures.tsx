@@ -12,7 +12,9 @@ import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluat
 import { useAuth } from "@/contexts/AuthContext";
 import {
   applyCompletedCaptureLifecycle,
+  authorizeCaptureReconstruction,
   createCaptureUpload,
+  executeCaptureReconstruction,
   authorizeCaptureTaskEvaluationRun,
   executeCaptureTaskEvaluationRun,
   getCaptureSiteTaskTestbed,
@@ -22,6 +24,7 @@ import {
   getCaptureUpload,
   listCaptureUploads,
   planCaptureTaskEvaluationRun,
+  planCaptureReconstruction,
   retryCaptureUploadProcessing,
   submitTaskDecisionCommand,
   uploadCaptureFile,
@@ -90,6 +93,11 @@ function statusLabel(status: string) {
     failed: "Failed",
     revocation_in_progress: "Deletion in progress",
     revoked: "Deleted and revoked",
+    authorization_required: "Reconstruction authorization required",
+    authorized: "Reconstruction authorized",
+    completed: "Reconstruction complete",
+    partial: "Partial reconstruction",
+    abstained: "Reconstruction abstained",
   };
   return labels[status] || status.replace(/_/g, " ");
 }
@@ -100,12 +108,20 @@ function SessionHistory({
   onReview,
   onRevoke,
   lifecycleSubmitting,
+  onPlanReconstruction,
+  onAuthorizeReconstruction,
+  onExecuteReconstruction,
+  reconstructionSubmitting,
 }: {
   sessions: CaptureUploadSession[];
   onResume: (session: CaptureUploadSession) => void;
   onReview: (session: CaptureUploadSession) => void;
   onRevoke: (session: CaptureUploadSession) => void;
   lifecycleSubmitting: string | null;
+  onPlanReconstruction: (session: CaptureUploadSession) => void;
+  onAuthorizeReconstruction: (session: CaptureUploadSession) => void;
+  onExecuteReconstruction: (session: CaptureUploadSession) => void;
+  reconstructionSubmitting: string | null;
 }) {
   return (
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
@@ -123,7 +139,24 @@ function SessionHistory({
               <tr key={session.session_id} className="border-b border-line-soft last:border-0">
                 <td className="px-4 py-3"><span className="block text-body-s font-semibold text-ink-900">{session.original_filename}</span><span className="font-mono text-[0.68rem] text-ink-400">{session.intake_id}</span></td>
                 <td className="px-4 py-3 text-body-s text-ink-600">{profileCopy[session.capture_authority_profile].label}</td>
-                <td className="px-4 py-3"><StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip></td>
+                <td className="px-4 py-3">
+                  <StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip>
+                  {session.reconstruction?.state && session.reconstruction.state !== "not_planned" ? (
+                    <span className="mt-1 block text-body-xs text-ink-500">
+                      {statusLabel(session.reconstruction.state)}
+                      {session.reconstruction.missing_representations?.length
+                        ? ` · missing ${session.reconstruction.missing_representations.join(", ")}`
+                        : ""}
+                    </span>
+                  ) : null}
+                  {session.reconstruction?.authorization_candidates?.length ? (
+                    <span className="mt-1 block max-w-sm text-body-xs text-ink-500">
+                      Planned methods: {session.reconstruction.authorization_candidates
+                        .map((candidate) => `${candidate.method_id} (${candidate.adapter_reference})`)
+                        .join(", ")} · estimated ${Number(session.reconstruction.cost_usd || 0).toFixed(2)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
                     {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || !["not_available", undefined].includes(session.capture_qa?.state) || session.site_task_testbed?.state === "testbed_ready" || ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? (
@@ -142,6 +175,33 @@ function SessionHistory({
                       >
                         {lifecycleSubmitting === session.session_id ? "Deleting…" : "Delete capture"}
                       </Button>
+                    ) : null}
+                    {session.capture_qa?.state === "capture_accepted" && session.reconstruction?.state === "not_planned" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={reconstructionSubmitting === session.session_id}
+                        onClick={() => onPlanReconstruction(session)}
+                      >Plan reconstruction</Button>
+                    ) : null}
+                    {session.reconstruction?.state === "authorization_required" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={reconstructionSubmitting === session.session_id}
+                        onClick={() => onAuthorizeReconstruction(session)}
+                      >Authorize reconstruction</Button>
+                    ) : null}
+                    {session.reconstruction?.state === "authorized" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={reconstructionSubmitting === session.session_id}
+                        onClick={() => onExecuteReconstruction(session)}
+                      >Run reconstruction</Button>
                     ) : null}
                   </div>
                 </td>
@@ -179,6 +239,7 @@ export default function Captures() {
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const [runControlSubmitting, setRunControlSubmitting] = useState(false);
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState<string | null>(null);
+  const [reconstructionSubmitting, setReconstructionSubmitting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -489,6 +550,78 @@ export default function Captures() {
     }
   }
 
+  async function planReconstruction(session: CaptureUploadSession) {
+    if (!currentUser) return;
+    setReconstructionSubmitting(session.session_id);
+    setError(null);
+    try {
+      await planCaptureReconstruction(
+        currentUser,
+        session.session_id,
+        ["task_discovery", "perception_visibility"],
+        `web-reconstruction-plan-${session.session_id}`,
+      );
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setReconstructionSubmitting(null);
+    }
+  }
+
+  async function authorizeReconstruction(session: CaptureUploadSession) {
+    if (!currentUser) return;
+    const reconstruction = session.reconstruction;
+    const references = reconstruction.authorization_candidates
+      ?.map((candidate) => candidate.adapter_reference)
+      .filter(Boolean) || [];
+    if (!reconstruction.plan_id || !reconstruction.reconstruction_plan_digest || !references.length) {
+      setError("Pipeline did not provide an executable reconstruction candidate.");
+      return;
+    }
+    setReconstructionSubmitting(session.session_id);
+    setError(null);
+    try {
+      await authorizeCaptureReconstruction(
+        currentUser,
+        session.session_id,
+        reconstruction.plan_id,
+        {
+          reconstruction_plan_digest: reconstruction.reconstruction_plan_digest,
+          authorized_adapter_references: references,
+          idempotency_key: `web-reconstruction-authorize-${session.session_id}`,
+        },
+      );
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setReconstructionSubmitting(null);
+    }
+  }
+
+  async function executeReconstruction(session: CaptureUploadSession) {
+    if (!currentUser || !session.reconstruction.plan_id) return;
+    setReconstructionSubmitting(session.session_id);
+    setError(null);
+    try {
+      await executeCaptureReconstruction(
+        currentUser,
+        session.session_id,
+        session.reconstruction.plan_id,
+        `web-reconstruction-execute-${session.session_id}`,
+      );
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh().catch(() => undefined);
+    } finally {
+      setReconstructionSubmitting(null);
+    }
+  }
+
   return (
     <AppShell active="captures" breadcrumb="captures">
       <Helmet><title>Captures · Blueprint</title><meta name="description" content="Secure, resumable capture upload for Task Evaluation Runs." /></Helmet>
@@ -584,6 +717,10 @@ export default function Captures() {
             onReview={reviewTasks}
             onRevoke={revokeCompletedCapture}
             lifecycleSubmitting={lifecycleSubmitting}
+            onPlanReconstruction={planReconstruction}
+            onAuthorizeReconstruction={authorizeReconstruction}
+            onExecuteReconstruction={executeReconstruction}
+            reconstructionSubmitting={reconstructionSubmitting}
           />
         )}
       </div>

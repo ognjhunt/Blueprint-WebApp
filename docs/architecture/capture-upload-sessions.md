@@ -72,6 +72,22 @@ idempotency bindings before storing it. Even an approved task exposes
 The checked-in task-candidate schema is an exact byte mirror of Pipeline and is
 verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeline`.
 
+## Reconstruction Control
+
+After Pipeline accepts a capture, the owner can request a reconstruction plan
+for named claim types. WebApp forwards only the exact session, intake, capture
+digest, claim types, and idempotency key. Pipeline owns the replaceable method
+catalog, provider eligibility, capture-authority gates, cheapest-sufficient
+selection, and missing-representation experiments.
+
+WebApp displays Pipeline's exact authorization candidates and requires a
+separate customer action before execution. It rejects adapter references not
+selected by Pipeline, binds authorization and execution to the immutable plan
+digest, and refuses processing after revocation. The currently executable lane
+is explicitly local, unpaid, and non-physical. A decoded observation index does
+not establish calibration or metric geometry; derived output remains below raw
+capture authority and never establishes physical task success.
+
 ## Deployment Requirements
 
 - Existing Backblaze credentials and a private bucket configured through the
@@ -123,6 +139,11 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
   derived from `CAPTURE_UPLOAD_INTAKE_FORWARD_URL`. It must point at the
   Pipeline `/api/live-pipeline` base; lifecycle calls reuse the capture-intake
   HMAC token and client identity.
+- Reconstruction control reuses that Pipeline base and HMAC identity by
+  default. `RECONSTRUCTION_PIPELINE_BASE_URL`, `RECONSTRUCTION_FORWARD_TOKEN`,
+  `RECONSTRUCTION_FORWARD_CLIENT_ID`, and `RECONSTRUCTION_FORWARD_TIMEOUT_MS`
+  are optional exact overrides. No browser-selected command, provider URL,
+  filesystem path, credential, or executor crosses this seam.
 
 No live bucket CORS, large-file transfer, deployed download-grant transfer,
 scanner configuration, retention deletion, or revocation execution is proven by

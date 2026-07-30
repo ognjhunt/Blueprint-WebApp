@@ -27,6 +27,10 @@ const state = vi.hoisted(() => ({
   lifecycleApply: vi.fn(),
   lifecycleEvidence: vi.fn(),
   lifecycleInspect: vi.fn(),
+  reconstructionPlan: vi.fn(),
+  reconstructionAuthorization: vi.fn(),
+  reconstructionExecution: vi.fn(),
+  reconstructionInspect: vi.fn(),
   beforeTransaction: null as (() => void) | null,
 }));
 
@@ -131,6 +135,13 @@ vi.mock("../utils/captureLifecycleForwarding", () => ({
   applyCompletedCaptureLifecycleToPipeline: state.lifecycleApply,
   recordCaptureExternalRevocationEvidenceInPipeline: state.lifecycleEvidence,
   inspectCompletedCaptureLifecycleInPipeline: state.lifecycleInspect,
+}));
+
+vi.mock("../utils/reconstructionForwarding", () => ({
+  forwardReconstructionPlanToPipeline: state.reconstructionPlan,
+  forwardReconstructionAuthorizationToPipeline: state.reconstructionAuthorization,
+  forwardReconstructionExecutionToPipeline: state.reconstructionExecution,
+  inspectReconstructionInPipeline: state.reconstructionInspect,
 }));
 
 async function startServer(firebaseUser: Record<string, unknown> = { uid: "buyer-123" }) {
@@ -833,6 +844,10 @@ afterEach(() => {
   state.lifecycleApply.mockReset();
   state.lifecycleEvidence.mockReset();
   state.lifecycleInspect.mockReset();
+  state.reconstructionPlan.mockReset();
+  state.reconstructionAuthorization.mockReset();
+  state.reconstructionExecution.mockReset();
+  state.reconstructionInspect.mockReset();
   state.beforeTransaction = null;
   delete process.env.CAPTURE_UPLOAD_PART_SIZE_BYTES;
   delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL;
@@ -1024,6 +1039,244 @@ describe("resumable capture uploads", () => {
         },
       });
       expect(state.lifecycleEvidence).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("plans, authorizes, executes, and inspects only Pipeline-selected local reconstruction adapters", async () => {
+    const sessionId = "capture-reconstruction-owner-1";
+    const captureDigest = `sha256:${"7".repeat(64)}`;
+    const qa = captureQaPublication(sessionId) as Record<string, any>;
+    qa.report.status = "accepted";
+    qa.report.state = "capture_accepted";
+    qa.report.checks = [];
+    qa.report.recapture_plan = [];
+    qa.report.qa_report_digest = canonicalArtifactDigest(qa.report, "qa_report_digest");
+    qa.status = "accepted";
+    qa.state = "capture_accepted";
+    qa.qa_report_digest = qa.report.qa_report_digest;
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"8".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_capture_qa: qa,
+      pipeline_capture_intake_receipt: {
+        capture_session_id: sessionId,
+        intake_id: "intake-360-1",
+        capture_digest: captureDigest,
+        envelope_digest: qa.envelope_digest,
+      },
+    });
+    const reconstructionPlan: Record<string, any> = {
+      schema_version: "reconstruction_plan.v1",
+      source_capture: {
+        intake_id: "intake-360-1",
+        capture_digest: captureDigest,
+        capture_authority_profile: "camera_360_equirectangular",
+      },
+      requested_claim_types: ["perception_visibility", "task_discovery"],
+      required_representations: ["decoded_observation_frames"],
+      selected_methods: [{
+        representations: ["decoded_observation_frames"],
+        method_id: "local-decoded-observation-index",
+        method_version: "1",
+        method_profile_digest: `sha256:${"9".repeat(64)}`,
+        provider_identity: "local",
+        adapter_reference: "local://decoded-observation-index-v1",
+        expected_cost_usd: 0,
+      }],
+      missing_representations: [],
+      estimated_cost_usd: 0,
+      status: "planned",
+      proof_boundary: {
+        provider_availability_is_qualification: false,
+        generated_completion_upgrades_metric_or_physics_claims: false,
+        physical_task_success_established: false,
+      },
+    };
+    reconstructionPlan.reconstruction_plan_digest = canonicalArtifactDigest(
+      reconstructionPlan,
+      "reconstruction_plan_digest",
+    );
+    const planId = "reconstruction-owner-1";
+    const contextDigest = `sha256:${"a".repeat(64)}`;
+    const planResult = {
+      schema_version: "reconstruction_control_plane_plan_result.v1",
+      plan_id: planId,
+      state: "authorization_required",
+      context_digest: contextDigest,
+      reconstruction_plan: reconstructionPlan,
+      authorization_candidates: [{
+        method_id: "local-decoded-observation-index",
+        method_profile_digest: `sha256:${"9".repeat(64)}`,
+        adapter_reference: "local://decoded-observation-index-v1",
+        execution_authorized: false,
+      }],
+      next_cheapest_experiments: [],
+      proof_boundary: {
+        plan_is_execution_authorization: false,
+        derived_reconstruction_upgrades_raw_capture: false,
+        physical_task_success_established: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    };
+    state.reconstructionPlan.mockResolvedValue({
+      status: "forwarded", performed: true, endpoint_configured: true, value: planResult,
+    });
+    const authorization: Record<string, any> = {
+      schema_version: "reconstruction_execution_authorization.v1",
+      plan_id: planId,
+      reconstruction_plan_digest: reconstructionPlan.reconstruction_plan_digest,
+      context_digest: contextDigest,
+      authorized_adapter_references: ["local://decoded-observation-index-v1"],
+      actor: { role: "customer", identity: "firebase:buyer-123" },
+      idempotency_key: "authorize-reconstruction-owner-1",
+      live_provider_execution: false,
+      paid_compute_authorized: false,
+      physical_robot_run_authorized: false,
+      proof_boundary: {
+        authorization_is_method_qualification: false,
+        simulation_is_physical_success: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    };
+    authorization.authorization_digest = canonicalArtifactDigest(
+      authorization,
+      "authorization_digest",
+    );
+    state.reconstructionAuthorization.mockResolvedValue({
+      status: "forwarded", performed: true, endpoint_configured: true, value: authorization,
+    });
+    const execution: Record<string, any> = {
+      schema_version: "reconstruction_control_plane_execution_result.v1",
+      plan_id: planId,
+      state: "completed",
+      reconstruction_plan_digest: reconstructionPlan.reconstruction_plan_digest,
+      authorization_digest: authorization.authorization_digest,
+      context_digest: contextDigest,
+      results: [{
+        schema_version: "reconstruction_result.v1",
+        reconstruction_result_digest: `sha256:${"b".repeat(64)}`,
+      }],
+      errors: [],
+      missing_representations: [],
+      next_cheapest_experiments: [],
+      cost_usd: 0,
+      proof_boundary: {
+        execution_was_local_and_explicitly_authorized: true,
+        derived_reconstruction_upgrades_raw_capture: false,
+        physical_task_success_established: false,
+        deployment_or_safety_approved: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+      already_exists: false,
+    };
+    execution.execution_result_digest = canonicalArtifactDigest(
+      execution,
+      "execution_result_digest",
+    );
+    state.reconstructionExecution.mockResolvedValue({
+      status: "forwarded", performed: true, endpoint_configured: true, value: execution,
+    });
+    const inspection = {
+      schema_version: "reconstruction_control_plane_inspection.v1",
+      plan_id: planId,
+      state: "completed",
+      source_binding: {
+        capture_session_id: sessionId,
+        intake_id: "intake-360-1",
+        capture_digest: captureDigest,
+        envelope_digest: qa.envelope_digest,
+        qa_report_digest: qa.qa_report_digest,
+        object_manifest_digest: `sha256:${"c".repeat(64)}`,
+        context_digest: contextDigest,
+      },
+      reconstruction_plan: reconstructionPlan,
+      execution_authorization: authorization,
+      execution_result: execution,
+      proof_boundary: {
+        inspection_recomputes_scientific_truth: false,
+        physical_task_success_established: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    };
+    state.reconstructionInspect.mockResolvedValue({
+      status: "forwarded", performed: true, endpoint_configured: true, value: inspection,
+    });
+
+    const { server, socketPath } = await startServer();
+    try {
+      const planned = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/plan`, {
+        schema_version: "capture_reconstruction_plan_command.v1",
+        requested_claim_types: ["task_discovery", "perception_visibility"],
+        idempotency_key: "plan-reconstruction-owner-1",
+      });
+      expect(planned.status).toBe(201);
+      await expect(planned.json()).resolves.toMatchObject({
+        status: "authorization_required",
+        pipeline_plan: { plan_id: planId },
+      });
+      expect(state.reconstructionPlan).toHaveBeenCalledWith(expect.objectContaining({
+        captureSessionId: sessionId,
+        captureDigest,
+        requestedClaimTypes: ["perception_visibility", "task_discovery"],
+      }));
+
+      const authorized = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/reconstructions/${planId}/authorize`,
+        {
+          schema_version: "capture_reconstruction_authorization_command.v1",
+          reconstruction_plan_digest: reconstructionPlan.reconstruction_plan_digest,
+          authorized_adapter_references: ["local://decoded-observation-index-v1"],
+          idempotency_key: "authorize-reconstruction-owner-1",
+        },
+      );
+      expect(authorized.status).toBe(200);
+      expect(state.reconstructionAuthorization).toHaveBeenCalledWith(expect.objectContaining({
+        actor: { role: "customer", identity: "firebase:buyer-123" },
+      }));
+
+      const executed = await postJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/reconstructions/${planId}/execute`,
+        {
+          schema_version: "capture_reconstruction_execution_command.v1",
+          idempotency_key: "execute-reconstruction-owner-1",
+        },
+      );
+      expect(executed.status).toBe(200);
+      await expect(executed.json()).resolves.toMatchObject({
+        status: "completed",
+        pipeline_execution: { execution_result_digest: execution.execution_result_digest },
+      });
+
+      const inspected = await getJson(
+        socketPath,
+        `/capture-uploads/${sessionId}/reconstructions/${planId}`,
+      );
+      expect(inspected.status).toBe(200);
+      await expect(inspected.json()).resolves.toMatchObject({
+        inspection: { plan_id: planId, state: "completed" },
+      });
+      const ownerProjection = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+      await expect(ownerProjection.json()).resolves.toMatchObject({
+        reconstruction: {
+          state: "completed",
+          plan_id: planId,
+          result_count: 1,
+          cost_usd: 0,
+          proof_boundary: {
+            physical_task_success_established: false,
+            comparative_policy_ranking_verdict: "thesis_not_supported",
+          },
+        },
+      });
     } finally {
       await stopServer(server, socketPath);
     }

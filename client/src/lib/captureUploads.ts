@@ -39,6 +39,7 @@ export type CaptureUploadSession = {
     [key: string]: unknown;
   };
   completed_capture_lifecycle: CompletedCaptureLifecycleSummary;
+  reconstruction: CaptureReconstructionSummary;
   capture_qa?: CaptureQaSummary;
   task_review: {
     status: string;
@@ -99,6 +100,27 @@ export type CompletedCaptureLifecycleInspection = CompletedCaptureLifecycleSumma
   schema_version: "completed_capture_lifecycle_inspection.v1";
   session_id: string;
   intake_id: string;
+};
+
+export type ReconstructionAuthorizationCandidate = {
+  method_id: string;
+  method_profile_digest: string;
+  adapter_reference: string;
+  execution_authorized: false;
+};
+
+export type CaptureReconstructionSummary = {
+  state: "not_planned" | "authorization_required" | "authorized" | "completed" | "partial" | "abstained" | string;
+  plan_id?: string;
+  reconstruction_plan_digest?: string | null;
+  authorization_candidates?: ReconstructionAuthorizationCandidate[];
+  authorized_adapter_references?: string[];
+  result_count?: number;
+  missing_representations?: string[];
+  next_cheapest_experiments?: string[];
+  cost_usd?: number;
+  blocker?: string | null;
+  proof_boundary?: Record<string, unknown>;
 };
 
 export type CaptureQaSummary =
@@ -590,6 +612,68 @@ export function applyCompletedCaptureLifecycle(
       body: JSON.stringify({
         schema_version: "completed_capture_lifecycle_command.v1",
         action,
+        idempotency_key: idempotencyKey,
+      }),
+    },
+  );
+}
+
+export function planCaptureReconstruction(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  requestedClaimTypes: Array<"perception_visibility" | "task_discovery">,
+  idempotencyKey: string,
+) {
+  return apiRequest<Record<string, any>>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/reconstructions/plan`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_reconstruction_plan_command.v1",
+        requested_claim_types: requestedClaimTypes,
+        idempotency_key: idempotencyKey,
+      }),
+    },
+  );
+}
+
+export function authorizeCaptureReconstruction(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  planId: string,
+  request: {
+    reconstruction_plan_digest: string;
+    authorized_adapter_references: string[];
+    idempotency_key: string;
+  },
+) {
+  return apiRequest<Record<string, any>>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/reconstructions/${encodeURIComponent(planId)}/authorize`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_reconstruction_authorization_command.v1",
+        ...request,
+      }),
+    },
+  );
+}
+
+export function executeCaptureReconstruction(
+  currentUser: FirebaseUser,
+  sessionId: string,
+  planId: string,
+  idempotencyKey: string,
+) {
+  return apiRequest<Record<string, any>>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/reconstructions/${encodeURIComponent(planId)}/execute`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schema_version: "capture_reconstruction_execution_command.v1",
         idempotency_key: idempotencyKey,
       }),
     },

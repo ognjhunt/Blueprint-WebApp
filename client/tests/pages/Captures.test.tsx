@@ -12,6 +12,9 @@ const state = vi.hoisted(() => ({
   review: vi.fn(),
   decide: vi.fn(),
   lifecycle: vi.fn(),
+  reconstructionPlan: vi.fn(),
+  reconstructionAuthorization: vi.fn(),
+  reconstructionExecution: vi.fn(),
   currentUser: {
     uid: "buyer-1",
     email: "buyer@example.com",
@@ -39,6 +42,9 @@ vi.mock("@/lib/captureUploads", async (importOriginal) => {
     getCaptureTaskReview: state.review,
     submitTaskDecisionCommand: state.decide,
     applyCompletedCaptureLifecycle: state.lifecycle,
+    planCaptureReconstruction: state.reconstructionPlan,
+    authorizeCaptureReconstruction: state.reconstructionAuthorization,
+    executeCaptureReconstruction: state.reconstructionExecution,
   };
 });
 
@@ -65,6 +71,7 @@ const pendingSession: CaptureUploadSession = {
   content_addressing: { status: "pending_server_sha256_verification" },
   pipeline_handoff: { status: "not_started", performed: false },
   completed_capture_lifecycle: { state: "active", lifecycle_complete: false },
+  reconstruction: { state: "not_planned" },
   task_review: {
     status: "analysis_not_available",
     candidate_count: 0,
@@ -169,6 +176,10 @@ describe("app/Captures", () => {
       state: "revoked",
       lifecycle_complete: true,
     });
+    state.reconstructionPlan.mockReset();
+    state.reconstructionPlan.mockResolvedValue({ status: "authorization_required" });
+    state.reconstructionAuthorization.mockReset();
+    state.reconstructionExecution.mockReset();
     state.decide.mockResolvedValue({
       schema_version: "task_candidate_decision_command_receipt.v1",
       command_request_id: "task-command-1",
@@ -285,5 +296,40 @@ describe("app/Captures", () => {
     ));
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Permanently delete"));
     confirm.mockRestore();
+  });
+
+  it("requests Pipeline planning for an accepted capture without selecting a provider", async () => {
+    state.list.mockResolvedValue({
+      sessions: [{
+        ...pendingSession,
+        status: "capture_accepted",
+        upload_status: "uploaded_verification_pending",
+        pipeline_handoff: { status: "forwarded", performed: true },
+        capture_qa: {
+          state: "capture_accepted",
+          status: "accepted",
+          qa_report_digest: `sha256:${"a".repeat(64)}`,
+          recapture_plan: [],
+          missing_evidence: [],
+          next_cheapest_experiment: null,
+          proof_boundary: {
+            qa_is_task_success: false,
+            qa_is_physical_success: false,
+            deployment_or_safety_approved: false,
+            comparative_policy_ranking_verdict: "thesis_not_supported",
+          },
+        },
+        reconstruction: { state: "not_planned" },
+      }],
+    });
+    render(<Captures />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Plan reconstruction" }));
+    await waitFor(() => expect(state.reconstructionPlan).toHaveBeenCalledWith(
+      state.currentUser,
+      "capture-upload-1",
+      ["task_discovery", "perception_visibility"],
+      "web-reconstruction-plan-capture-upload-1",
+    ));
   });
 });

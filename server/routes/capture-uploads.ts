@@ -38,6 +38,12 @@ import {
   forwardTaskEvaluationRunPlanToPipeline,
 } from "../utils/taskEvaluationRunForwarding";
 import {
+  forwardReconstructionAuthorizationToPipeline,
+  forwardReconstructionExecutionToPipeline,
+  forwardReconstructionPlanToPipeline,
+  inspectReconstructionInPipeline,
+} from "../utils/reconstructionForwarding";
+import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
   createBackblazeCaptureDownloadGrant,
@@ -169,6 +175,40 @@ const completedCaptureLifecycleCommandSchema = z.object({
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
 }).strict();
 
+const reconstructionClaimTypeSchema = z.enum([
+  "perception_visibility",
+  "task_discovery",
+  "appearance_review",
+  "reachability",
+  "robot_placement",
+  "navigation_clearance",
+  "collision_contact",
+  "grasp_contact",
+  "articulation",
+  "containment",
+  "mass_inertia",
+  "friction_compliance",
+  "object_state_transition",
+]);
+
+const reconstructionPlanCommandSchema = z.object({
+  schema_version: z.literal("capture_reconstruction_plan_command.v1"),
+  requested_claim_types: z.array(reconstructionClaimTypeSchema).min(1).max(16),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const reconstructionAuthorizationCommandSchema = z.object({
+  schema_version: z.literal("capture_reconstruction_authorization_command.v1"),
+  reconstruction_plan_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  authorized_adapter_references: z.array(z.string().trim().min(1).max(512)).min(1).max(16),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const reconstructionExecutionCommandSchema = z.object({
+  schema_version: z.literal("capture_reconstruction_execution_command.v1"),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
 type SessionRequest = z.infer<typeof sessionRequestSchema>;
 type SessionRecord = Record<string, unknown> & {
   session_id: string;
@@ -193,6 +233,7 @@ type SessionRecord = Record<string, unknown> & {
   pipeline_capture_state?: string;
   completed_capture_lifecycle?: Record<string, any>;
   capture_access?: Record<string, unknown>;
+  pipeline_reconstruction?: Record<string, any>;
 };
 
 function stable(value: unknown): string {
@@ -322,6 +363,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
       performed: false,
     },
     completed_capture_lifecycle: completedCaptureLifecycleProjection(record),
+    reconstruction: reconstructionProjection(record),
     capture_qa: captureQa.summary,
     task_review: {
       status: taskReview.status,
@@ -362,6 +404,37 @@ function completedCaptureLifecycleProjection(record: SessionRecord) {
     lifecycle_complete: Boolean(lifecycle.pipeline_inspection?.lifecycle_complete),
     blocker: lifecycle.blocker || null,
     updated_at_iso: lifecycle.updated_at_iso || null,
+  };
+}
+
+function reconstructionProjection(record: SessionRecord) {
+  const reconstruction = record.pipeline_reconstruction;
+  if (!reconstruction) return { state: "not_planned" as const };
+  const plan = reconstruction.pipeline_plan;
+  const execution = reconstruction.pipeline_execution;
+  return {
+    state: String(execution?.state || reconstruction.status || plan?.state || "planning_failed"),
+    plan_id: String(plan?.plan_id || reconstruction.plan_id || ""),
+    reconstruction_plan_digest: plan?.reconstruction_plan?.reconstruction_plan_digest || null,
+    authorization_candidates: plan?.authorization_candidates || [],
+    authorized_adapter_references:
+      reconstruction.pipeline_authorization?.authorized_adapter_references || [],
+    result_count: Array.isArray(execution?.results) ? execution.results.length : 0,
+    missing_representations: execution?.missing_representations
+      || plan?.reconstruction_plan?.missing_representations?.map(
+        (row: Record<string, unknown>) => row.representation,
+      )
+      || [],
+    next_cheapest_experiments: execution?.next_cheapest_experiments
+      || plan?.next_cheapest_experiments
+      || [],
+    cost_usd: execution?.cost_usd ?? plan?.reconstruction_plan?.estimated_cost_usd ?? 0,
+    blocker: reconstruction.blocker || null,
+    proof_boundary: execution?.proof_boundary || plan?.proof_boundary || {
+      derived_reconstruction_upgrades_raw_capture: false,
+      physical_task_success_established: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
   };
 }
 
@@ -1643,6 +1716,275 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
           },
         }
       : {}),
+  });
+});
+
+router.post("/:sessionId/reconstructions/plan", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Reconstruction control store is unavailable" });
+  const command = reconstructionPlanCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Reconstruction plan command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const record = owned.record;
+  const qa = captureQaProjection(record);
+  if (qa.publication?.status !== "accepted" || qa.publication.state !== "capture_accepted") {
+    return res.status(409).json({ error: "Capture must be accepted before reconstruction planning" });
+  }
+  if (record.capture_access?.future_processing_allowed === false || record.completed_capture_lifecycle) {
+    return res.status(410).json({ error: "Capture is revoked or pending deletion" });
+  }
+  const intakeReceipt = record.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+  const captureDigest = String(intakeReceipt?.capture_digest || "");
+  if (
+    !intakeReceipt
+    || intakeReceipt.capture_session_id !== record.session_id
+    || intakeReceipt.intake_id !== record.request.intake_id
+    || !/^sha256:[0-9a-f]{64}$/.test(captureDigest)
+  ) {
+    return res.status(409).json({ error: "A bound completed Pipeline intake receipt is required" });
+  }
+  const claims = [...new Set(command.data.requested_claim_types)].sort();
+  const fingerprint = `sha256:${sha256Text(stableJson({
+    capture_session_id: record.session_id,
+    intake_id: record.request.intake_id,
+    capture_digest: captureDigest,
+    requested_claim_types: claims,
+    idempotency_key: command.data.idempotency_key,
+  }))}`;
+  const existing = record.pipeline_reconstruction;
+  if (existing?.request_fingerprint_sha256 && existing.request_fingerprint_sha256 !== fingerprint) {
+    return res.status(409).json({ error: "Reconstruction plan idempotency conflict" });
+  }
+  if (existing?.pipeline_plan && ["authorization_required", "abstained"].includes(existing.status)) {
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "capture_reconstruction_plan_receipt.v1",
+      already_exists: true,
+      status: existing.status,
+      pipeline_plan: existing.pipeline_plan,
+    });
+  }
+  const forwarded = await forwardReconstructionPlanToPipeline({
+    captureSessionId: record.session_id,
+    intakeId: record.request.intake_id,
+    captureDigest,
+    requestedClaimTypes: claims,
+    idempotencyKey: command.data.idempotency_key,
+  });
+  const reconstruction = {
+    schema_version: "capture_reconstruction_control_record.v1",
+    request_fingerprint_sha256: fingerprint,
+    requested_claim_types: claims,
+    status: forwarded.value?.state || "planning_failed",
+    plan_id: forwarded.value?.plan_id || null,
+    pipeline_plan: forwarded.value || null,
+    blocker: forwarded.blocker || null,
+    updated_at_iso: new Date().toISOString(),
+  };
+  await db.collection("captureUploadSessions").doc(record.session_id).set(
+    { pipeline_reconstruction: reconstruction, updated_at_iso: reconstruction.updated_at_iso },
+    { merge: true },
+  );
+  if (forwarded.status !== "forwarded" || !forwarded.value) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not plan reconstruction",
+      blocker: forwarded.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(201).json({
+    schema_version: "capture_reconstruction_plan_receipt.v1",
+    already_exists: false,
+    status: forwarded.value.state,
+    pipeline_plan: forwarded.value,
+  });
+});
+
+router.post("/:sessionId/reconstructions/:planId/authorize", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Reconstruction control store is unavailable" });
+  const command = reconstructionAuthorizationCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Reconstruction authorization command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const reconstruction = owned.record.pipeline_reconstruction;
+  const plan = reconstruction?.pipeline_plan;
+  if (
+    !plan
+    || plan.plan_id !== req.params.planId
+    || plan.reconstruction_plan?.reconstruction_plan_digest !== command.data.reconstruction_plan_digest
+    || !["authorization_required", "authorization_failed"].includes(reconstruction.status)
+  ) {
+    return res.status(409).json({ error: "Reconstruction plan is stale or not awaiting authorization" });
+  }
+  const allowed = new Set(
+    (plan.authorization_candidates || []).map(
+      (candidate: Record<string, unknown>) => String(candidate.adapter_reference || ""),
+    ),
+  );
+  const references = [...new Set(command.data.authorized_adapter_references)].sort();
+  if (references.some((reference) => !allowed.has(reference))) {
+    return res.status(409).json({ error: "Authorization includes an adapter not selected by Pipeline" });
+  }
+  const authorizationFingerprint = `sha256:${sha256Text(stableJson({
+    plan_id: req.params.planId,
+    reconstruction_plan_digest: command.data.reconstruction_plan_digest,
+    authorized_adapter_references: references,
+    actor: { role: "customer", identity: `firebase:${user.uid}` },
+    idempotency_key: command.data.idempotency_key,
+  }))}`;
+  if (reconstruction.pipeline_authorization) {
+    if (reconstruction.authorization_request_fingerprint_sha256 !== authorizationFingerprint) {
+      return res.status(409).json({ error: "Reconstruction authorization idempotency conflict" });
+    }
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "capture_reconstruction_authorization_receipt.v1",
+      already_exists: true,
+      status: "authorized",
+      plan_id: req.params.planId,
+      pipeline_authorization: reconstruction.pipeline_authorization,
+    });
+  }
+  const forwarded = await forwardReconstructionAuthorizationToPipeline({
+    planId: req.params.planId,
+    reconstructionPlanDigest: command.data.reconstruction_plan_digest,
+    authorizedAdapterReferences: references,
+    actor: { role: "customer", identity: `firebase:${user.uid}` },
+    idempotencyKey: command.data.idempotency_key,
+  });
+  const resolved = {
+    ...reconstruction,
+    status: forwarded.value ? "authorized" : "authorization_failed",
+    authorization_request_fingerprint_sha256: authorizationFingerprint,
+    pipeline_authorization: forwarded.value || null,
+    blocker: forwarded.blocker || null,
+    updated_at_iso: new Date().toISOString(),
+  };
+  await db.collection("captureUploadSessions").doc(owned.record.session_id).set(
+    { pipeline_reconstruction: resolved, updated_at_iso: resolved.updated_at_iso },
+    { merge: true },
+  );
+  if (forwarded.status !== "forwarded" || !forwarded.value) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not authorize reconstruction",
+      blocker: forwarded.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "capture_reconstruction_authorization_receipt.v1",
+    already_exists: false,
+    status: "authorized",
+    plan_id: req.params.planId,
+    pipeline_authorization: forwarded.value,
+  });
+});
+
+router.post("/:sessionId/reconstructions/:planId/execute", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Reconstruction control store is unavailable" });
+  const command = reconstructionExecutionCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Reconstruction execution command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  if (owned.record.capture_access?.future_processing_allowed === false || owned.record.completed_capture_lifecycle) {
+    return res.status(410).json({ error: "Capture is revoked or pending deletion" });
+  }
+  const reconstruction = owned.record.pipeline_reconstruction;
+  const plan = reconstruction?.pipeline_plan;
+  const authorization = reconstruction?.pipeline_authorization;
+  if (
+    !plan
+    || !authorization
+    || plan.plan_id !== req.params.planId
+    || authorization.plan_id !== req.params.planId
+    || !["authorized", "execution_failed"].includes(reconstruction.status)
+  ) {
+    return res.status(409).json({ error: "Reconstruction is not authorized for execution" });
+  }
+  const executionKeyDigest = `sha256:${sha256Text(command.data.idempotency_key)}`;
+  if (
+    reconstruction.execution_idempotency_key_digest
+    && reconstruction.execution_idempotency_key_digest !== executionKeyDigest
+  ) {
+    return res.status(409).json({ error: "Reconstruction execution idempotency conflict" });
+  }
+  if (reconstruction.pipeline_execution) {
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "capture_reconstruction_execution_receipt.v1",
+      already_exists: true,
+      status: reconstruction.pipeline_execution.state,
+      plan_id: req.params.planId,
+      pipeline_execution: reconstruction.pipeline_execution,
+    });
+  }
+  const forwarded = await forwardReconstructionExecutionToPipeline({
+    planId: req.params.planId,
+    reconstructionPlanDigest: plan.reconstruction_plan.reconstruction_plan_digest,
+    authorizationDigest: authorization.authorization_digest,
+  });
+  const resolved = {
+    ...reconstruction,
+    status: forwarded.value?.state || "execution_failed",
+    execution_idempotency_key_digest: executionKeyDigest,
+    pipeline_execution: forwarded.value || null,
+    blocker: forwarded.blocker || null,
+    updated_at_iso: new Date().toISOString(),
+  };
+  await db.collection("captureUploadSessions").doc(owned.record.session_id).set(
+    { pipeline_reconstruction: resolved, updated_at_iso: resolved.updated_at_iso },
+    { merge: true },
+  );
+  if (forwarded.status !== "forwarded" || !forwarded.value) {
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline could not execute reconstruction",
+      blocker: forwarded.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "capture_reconstruction_execution_receipt.v1",
+    already_exists: forwarded.value.already_exists,
+    status: forwarded.value.state,
+    plan_id: req.params.planId,
+    pipeline_execution: forwarded.value,
+  });
+});
+
+router.get("/:sessionId/reconstructions/:planId", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const reconstruction = owned.record.pipeline_reconstruction;
+  const receipt = owned.record.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+  if (!reconstruction?.pipeline_plan || reconstruction.pipeline_plan.plan_id !== req.params.planId) {
+    return res.status(404).json({ error: "Reconstruction plan is not available" });
+  }
+  const inspected = await inspectReconstructionInPipeline({
+    planId: req.params.planId,
+    captureSessionId: owned.record.session_id,
+    intakeId: owned.record.request.intake_id,
+    captureDigest: String(receipt?.capture_digest || ""),
+  });
+  if (inspected.status !== "forwarded" || !inspected.value) {
+    return res.status(inspected.status === "not_configured" || inspected.status === "blocked" ? 503 : 502).json({
+      error: "Pipeline reconstruction inspection is unavailable",
+      blocker: inspected.blocker,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json({
+    schema_version: "capture_reconstruction_inspection.v1",
+    session_id: owned.record.session_id,
+    intake_id: owned.record.request.intake_id,
+    inspection: inspected.value,
   });
 });
 
