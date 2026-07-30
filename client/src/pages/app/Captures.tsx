@@ -5,15 +5,18 @@ import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/b
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
+import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createCaptureUpload,
+  getCaptureSiteTaskTestbed,
   getCaptureTaskReview,
   getCaptureUpload,
   listCaptureUploads,
   submitTaskDecisionCommand,
   uploadCaptureFile,
   type CaptureTaskReview,
+  type CaptureSiteTaskTestbedInspection,
   type CaptureUploadSession,
   type CreateCaptureUploadSession,
   type TaskDecisionCommandRequest,
@@ -100,8 +103,8 @@ function SessionHistory({
                 <td className="px-4 py-3"><StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
-                    {["task_approval_required", "decision_pending_pipeline_validation"].includes(session.task_review.status) ? (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>Review tasks</Button>
+                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || session.site_task_testbed?.state === "testbed_ready" ? (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : "Review tasks"}</Button>
                     ) : null}
                     {["upload_pending", "uploading"].includes(session.status) ? (
                       <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
@@ -135,6 +138,7 @@ export default function Captures() {
   const [sessions, setSessions] = useState<CaptureUploadSession[]>([]);
   const [reviewSession, setReviewSession] = useState<CaptureUploadSession | null>(null);
   const [taskReview, setTaskReview] = useState<CaptureTaskReview | null>(null);
+  const [testbedInspection, setTestbedInspection] = useState<CaptureSiteTaskTestbedInspection | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -185,10 +189,17 @@ export default function Captures() {
     setReviewSession(session);
     setReviewLoading(true);
     setTaskReview(null);
+    setTestbedInspection(null);
     setError(null);
     try {
-      const review = await getCaptureTaskReview(currentUser, session.session_id);
+      const [review, inspection] = await Promise.all([
+        getCaptureTaskReview(currentUser, session.session_id),
+        session.site_task_testbed?.state === "testbed_ready"
+          ? getCaptureSiteTaskTestbed(currentUser, session.session_id)
+          : Promise.resolve(null),
+      ]);
       setTaskReview(review);
+      setTestbedInspection(inspection);
       window.setTimeout(() => {
         document.getElementById("task-review")?.scrollIntoView({ behavior: "smooth" });
       }, 0);
@@ -211,11 +222,13 @@ export default function Captures() {
         discovery_digest: taskReview.discovery.discovery_digest,
         idempotency_key: `web-task-decision-${crypto.randomUUID()}`,
       });
-      const [review] = await Promise.all([
+      const [review, latestSession] = await Promise.all([
         getCaptureTaskReview(currentUser, reviewSession.session_id),
+        getCaptureUpload(currentUser, reviewSession.session_id),
         refresh(),
       ]);
       setTaskReview(review);
+      setReviewSession(latestSession);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -374,6 +387,8 @@ export default function Captures() {
             />
           </div>
         ) : null}
+
+        {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
 
         {loading ? <BuyerAppLoadingState /> : (
           <SessionHistory sessions={sessions} onResume={resume} onReview={reviewTasks} />

@@ -331,6 +331,71 @@ function pipelineDecisionResult(discovery: Record<string, any>) {
   };
 }
 
+function maintainedTestbedFixture() {
+  const makeCard = (schemaVersion: string, id: string) => {
+    const value: Record<string, unknown> = { schema_version: schemaVersion, id };
+    value.card_digest = canonicalArtifactDigest(value, "card_digest");
+    return value;
+  };
+  const site = makeCard("site_card.v1", "site-1");
+  const task = makeCard("task_card.v1", "task-1");
+  const scenario = makeCard("scenario_card.v1", "scenario-1");
+  const evaluation = makeCard("eval_card.v1", "eval-1");
+  const ref = (name: string, digest: unknown) => ({
+    uri: `testbed://testbed-1/v1/${name}.json`,
+    digest,
+  });
+  const value: Record<string, any> = {
+    schema_version: "maintained_site_task_testbed.v1",
+    testbed_id: "testbed-1",
+    version: "v1",
+    predecessor_testbed_digest: null,
+    supersedes: [],
+    source_capture_bundles: [{
+      bundle_id: "intake-360-1",
+      digest: `sha256:${"a".repeat(64)}`,
+    }],
+    artifact_references: {
+      site_card: ref("site_card", site.card_digest),
+      task_cards: [ref("task_card", task.card_digest)],
+      scenario_cards: [ref("scenario_card", scenario.card_digest)],
+      eval_cards: [ref("eval_card", evaluation.card_digest)],
+      evaluator: ref("evaluator", evaluation.card_digest),
+      reset: ref("reset", task.card_digest),
+    },
+    compiled_cards: {
+      site_card: site,
+      task_cards: [task],
+      scenario_cards: [scenario],
+      eval_cards: [evaluation],
+    },
+    approved_task_definition: {
+      approved_task_id: "approved-task-1",
+      digest: `sha256:${"b".repeat(64)}`,
+      approval_decision_digest: `sha256:${"c".repeat(64)}`,
+    },
+    task_distribution: { task_family: "rigid_object_pick_place" },
+    supported_condition_ranges: { scene: "captured" },
+    robot_sensor_controller_bindings: { robot_id: "robot-1" },
+    governance: { privacy: "cleared" },
+    evidence_inventory: [{ evidence_id: "raw_capture", authority: "camera_360_equirectangular" }],
+    validation_envelope: { capture_accepted: true },
+    known_unsupported_conditions: ["physical_task_success"],
+    invalidation_triggers: ["layout_changed"],
+    physical_outcome_history_refs: [],
+    lifecycle_state: "active",
+    proof_boundary: {
+      appearance_is_collision_truth: false,
+      generated_completion_is_observed_truth: false,
+      simulation_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+  value.testbed_digest = canonicalArtifactDigest(value, "testbed_digest");
+  return value;
+}
+
 async function postJson(socketPath: string, requestPath: string, body: unknown) {
   const payload = JSON.stringify(body);
   return new Promise<{ status: number; cacheControl?: string; json: () => Promise<unknown> }>((resolve, reject) => {
@@ -432,6 +497,72 @@ describe("resumable capture uploads", () => {
       expect(JSON.stringify(body)).not.toContain("must-not-leak");
     } finally {
       await stopServer(server, socketPath);
+    }
+  });
+
+  it("projects a lightweight testbed status and exposes the exact artifact only to its owner", async () => {
+    const testbed = maintainedTestbedFixture();
+    state.records.set("capture-testbed-1", {
+      session_id: "capture-testbed-1",
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"e".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_site_task_testbed: {
+        capture_session_id: "capture-testbed-1",
+        intake_id: "intake-360-1",
+        approved_task_digest: testbed.approved_task_definition.digest,
+        testbed_id: testbed.testbed_id,
+        version: testbed.version,
+        testbed_digest: testbed.testbed_digest,
+        artifact_reference: {
+          uri: "testbed://testbed-1/v1/testbed.json",
+          digest: testbed.testbed_digest,
+        },
+        testbed,
+      },
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const session = await getJson(socketPath, "/capture-uploads/capture-testbed-1");
+      expect(session.status).toBe(200);
+      await expect(session.json()).resolves.toMatchObject({
+        site_task_testbed: {
+          state: "testbed_ready",
+          testbed_id: "testbed-1",
+          version: "v1",
+          testbed_digest: testbed.testbed_digest,
+          known_unsupported_conditions: ["physical_task_success"],
+          proof_boundary: { comparative_policy_ranking_verdict: "thesis_not_supported" },
+        },
+      });
+      const inspection = await getJson(
+        socketPath,
+        "/capture-uploads/capture-testbed-1/testbed",
+      );
+      expect(inspection.status).toBe(200);
+      await expect(inspection.json()).resolves.toMatchObject({
+        status: "testbed_ready",
+        testbed: {
+          testbed_digest: testbed.testbed_digest,
+          compiled_cards: { site_card: { id: "site-1" } },
+        },
+      });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+
+    const outsider = await startServer({ uid: "different-user" });
+    try {
+      const response = await getJson(
+        outsider.socketPath,
+        "/capture-uploads/capture-testbed-1/testbed",
+      );
+      expect(response.status).toBe(404);
+    } finally {
+      await stopServer(outsider.server, outsider.socketPath);
     }
   });
 

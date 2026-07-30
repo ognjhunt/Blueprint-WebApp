@@ -11,6 +11,7 @@ import {
   stableJson,
   taskDecisionCommandSchema,
 } from "../utils/taskCandidateContract";
+import { parseVerifiedMaintainedSiteTaskTestbed } from "../utils/siteTaskTestbedContract";
 import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateForwarding";
 import {
   authorizeBackblazeCapturePart,
@@ -132,6 +133,7 @@ type SessionRecord = Record<string, unknown> & {
   expected_part_count: number;
   pipeline_task_discovery?: unknown;
   latest_task_decision_command?: Record<string, unknown>;
+  pipeline_site_task_testbed?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -228,6 +230,7 @@ function requestBlockers(request: SessionRequest, tenantId: string) {
 
 function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[] = []) {
   const taskReview = taskReviewProjection(record);
+  const testbed = siteTaskTestbedProjection(record);
   return {
     schema_version: "capture_upload_session.v1",
     session_id: record.session_id,
@@ -253,6 +256,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
       candidate_count: taskReview.candidateCount,
       latest_action: record.latest_task_decision_command?.action || null,
     },
+    site_task_testbed: testbed.summary,
     claim_boundary: {
       capture_accepted: false,
       metric_scale_inherent: false,
@@ -263,6 +267,71 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function siteTaskTestbedProjection(record: SessionRecord) {
+  const stored = record.pipeline_site_task_testbed;
+  if (!stored) {
+    return {
+      summary: { state: "not_available" as const },
+      testbed: null,
+      blockers: [] as string[],
+    };
+  }
+  const parsed = parseVerifiedMaintainedSiteTaskTestbed(stored.testbed);
+  if (!parsed.ok) {
+    return {
+      summary: { state: "pipeline_artifact_invalid" as const },
+      testbed: null,
+      blockers: parsed.blockers,
+    };
+  }
+  const testbed = parsed.testbed;
+  const blockers: string[] = [];
+  if (stored.intake_id !== record.request.intake_id) blockers.push("testbed_intake_mismatch");
+  if (stored.testbed_id !== testbed.testbed_id) blockers.push("testbed_id_mismatch");
+  if (stored.version !== testbed.version) blockers.push("testbed_version_mismatch");
+  if (stored.testbed_digest !== testbed.testbed_digest) blockers.push("testbed_digest_mismatch");
+  if (stored.approved_task_digest !== testbed.approved_task_definition.digest) {
+    blockers.push("testbed_approved_task_mismatch");
+  }
+  const authoritativeApproved = record.approved_task_definition as
+    | { approved_task_digest?: unknown }
+    | undefined;
+  if (
+    authoritativeApproved?.approved_task_digest &&
+    authoritativeApproved.approved_task_digest !== testbed.approved_task_definition.digest
+  ) {
+    blockers.push("testbed_authoritative_task_mismatch");
+  }
+  const sourceMatches = testbed.source_capture_bundles.filter(
+    (bundle) => bundle.bundle_id === record.request.intake_id,
+  );
+  if (sourceMatches.length !== 1) blockers.push("testbed_source_capture_mismatch");
+  if (blockers.length) {
+    return {
+      summary: { state: "pipeline_artifact_invalid" as const },
+      testbed: null,
+      blockers: blockers.sort(),
+    };
+  }
+  return {
+    summary: {
+      state: "testbed_ready" as const,
+      testbed_id: testbed.testbed_id,
+      version: testbed.version,
+      testbed_digest: testbed.testbed_digest,
+      lifecycle_state: testbed.lifecycle_state,
+      artifact_reference: {
+        uri: `testbed://${testbed.testbed_id}/${testbed.version}/${testbed.testbed_digest.slice(7)}.json`,
+        digest: testbed.testbed_digest,
+      },
+      known_unsupported_conditions: testbed.known_unsupported_conditions,
+      proof_boundary: testbed.proof_boundary,
+    },
+    testbed,
+    blockers,
   };
 }
 
@@ -534,6 +603,33 @@ router.get("/:sessionId/task-discovery", async (req, res) => {
       decision_evidence_request_compiled: false,
       task_success_established: false,
     },
+  });
+});
+
+router.get("/:sessionId/testbed", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  const projection = siteTaskTestbedProjection(result.record);
+  res.set("Cache-Control", "no-store");
+  if (projection.summary.state === "not_available") {
+    return res.status(404).json({ error: "Maintained Site-Task Testbed is not available" });
+  }
+  if (projection.summary.state === "pipeline_artifact_invalid" || !projection.testbed) {
+    return res.status(409).json({
+      error: "Pipeline testbed artifact failed integrity validation",
+      blockers: projection.blockers,
+    });
+  }
+  return res.status(200).json({
+    schema_version: "capture_site_task_testbed_inspection.v1",
+    session_id: result.record.session_id,
+    intake_id: result.record.request.intake_id,
+    status: "testbed_ready",
+    artifact_reference: projection.summary.artifact_reference,
+    testbed: projection.testbed,
+    proof_boundary: projection.testbed.proof_boundary,
   });
 });
 

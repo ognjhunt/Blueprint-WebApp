@@ -35,6 +35,18 @@ export type CaptureUploadSession = {
     candidate_count: number;
     latest_action: string | null;
   };
+  site_task_testbed?:
+    | { state: "not_available" | "pipeline_artifact_invalid" }
+    | {
+        state: "testbed_ready";
+        testbed_id: string;
+        version: string;
+        testbed_digest: string;
+        lifecycle_state: string;
+        artifact_reference: { uri: string; digest: string };
+        known_unsupported_conditions: string[];
+        proof_boundary: Record<string, unknown>;
+      };
   claim_boundary: {
     capture_accepted: false;
     metric_scale_inherent: false;
@@ -45,6 +57,22 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type CaptureSiteTaskTestbedInspection = {
+  schema_version: "capture_site_task_testbed_inspection.v1";
+  session_id: string;
+  intake_id: string;
+  status: "testbed_ready";
+  artifact_reference: { uri: string; digest: string };
+  testbed: Record<string, any>;
+  proof_boundary: {
+    appearance_is_collision_truth: false;
+    generated_completion_is_observed_truth: false;
+    simulation_is_physical_success: false;
+    deployment_or_safety_approved: false;
+    comparative_policy_ranking_verdict: "thesis_not_supported";
+  };
 };
 
 export type TaskCandidate = {
@@ -242,6 +270,13 @@ export function getCaptureTaskReview(currentUser: FirebaseUser, sessionId: strin
   return apiRequest<CaptureTaskReview>(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}/task-discovery`,
+  );
+}
+
+export function getCaptureSiteTaskTestbed(currentUser: FirebaseUser, sessionId: string) {
+  return apiRequest<CaptureSiteTaskTestbedInspection>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/testbed`,
   );
 }
 
