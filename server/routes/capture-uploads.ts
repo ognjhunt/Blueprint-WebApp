@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { parseVerifiedCaptureQaPublication } from "../utils/captureQaContract";
 import {
   canonicalArtifactDigest,
   parseVerifiedTaskDiscovery,
@@ -167,6 +168,7 @@ type SessionRecord = Record<string, unknown> & {
   pipeline_site_task_testbed?: Record<string, unknown>;
   pipeline_task_evaluation_run?: Record<string, unknown>;
   pipeline_task_evaluation_run_plan?: Record<string, unknown>;
+  pipeline_capture_qa?: Record<string, unknown>;
 };
 
 function stable(value: unknown): string {
@@ -263,6 +265,7 @@ function requestBlockers(request: SessionRequest, tenantId: string) {
 
 function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[] = []) {
   const taskReview = taskReviewProjection(record);
+  const captureQa = captureQaProjection(record);
   const testbed = siteTaskTestbedProjection(record);
   const taskEvaluationRun = taskEvaluationRunProjection(record);
   const taskEvaluationRunControl = taskEvaluationRunControlProjection(record, testbed);
@@ -286,6 +289,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     content_addressing: record.content_addressing || {
       status: "pending_server_sha256_verification",
     },
+    capture_qa: captureQa.summary,
     task_review: {
       status: taskReview.status,
       candidate_count: taskReview.candidateCount,
@@ -295,7 +299,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     task_evaluation_run_control: taskEvaluationRunControl.summary,
     task_evaluation_run: taskEvaluationRun.summary,
     claim_boundary: {
-      capture_accepted: false,
+      capture_accepted: captureQa.publication?.status === "accepted",
       metric_scale_inherent: false,
       collision_geometry_established: false,
       physical_task_success_established: false,
@@ -304,6 +308,45 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     created_at_iso: record.created_at_iso || null,
     updated_at_iso: record.updated_at_iso || null,
     error: record.error || null,
+  };
+}
+
+function captureQaProjection(record: SessionRecord) {
+  if (!record.pipeline_capture_qa) return {
+    summary: { state: "not_available" as const },
+    publication: null,
+    blockers: [] as string[],
+  };
+  const verified = parseVerifiedCaptureQaPublication(record.pipeline_capture_qa);
+  if (!verified.ok) return {
+    summary: { state: "pipeline_artifact_invalid" as const },
+    publication: null,
+    blockers: verified.blockers,
+  };
+  const publication = verified.publication;
+  const blockers: string[] = [];
+  if (publication.capture_session_id !== record.session_id) blockers.push("capture_qa_session_mismatch");
+  if (publication.intake_id !== record.request.intake_id) blockers.push("capture_qa_intake_mismatch");
+  if (publication.capture_authority_profile !== record.request.capture_authority_profile) {
+    blockers.push("capture_qa_profile_mismatch");
+  }
+  if (blockers.length) return {
+    summary: { state: "pipeline_artifact_invalid" as const },
+    publication: null,
+    blockers: blockers.sort(),
+  };
+  return {
+    summary: {
+      state: publication.state,
+      status: publication.status,
+      qa_report_digest: publication.qa_report_digest,
+      recapture_plan: publication.report.recapture_plan,
+      missing_evidence: publication.report.missing_evidence,
+      next_cheapest_experiment: publication.report.next_cheapest_experiment,
+      proof_boundary: publication.proof_boundary,
+    },
+    publication,
+    blockers,
   };
 }
 
@@ -821,6 +864,32 @@ router.get("/:sessionId/testbed", async (req, res) => {
     testbed: projection.testbed,
     decision_evidence_request: projection.decisionRequest,
     proof_boundary: projection.testbed.proof_boundary,
+  });
+});
+
+router.get("/:sessionId/capture-qa", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const result = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
+  const projection = captureQaProjection(result.record);
+  res.set("Cache-Control", "no-store");
+  if (projection.summary.state === "not_available") {
+    return res.status(404).json({ error: "Capture QA is not available" });
+  }
+  if (projection.summary.state === "pipeline_artifact_invalid" || !projection.publication) {
+    return res.status(409).json({
+      error: "Pipeline Capture QA artifact failed integrity validation",
+      blockers: projection.blockers,
+    });
+  }
+  return res.status(200).json({
+    schema_version: "capture_qa_inspection.v1",
+    session_id: result.record.session_id,
+    intake_id: result.record.request.intake_id,
+    status: projection.publication.status,
+    state: projection.publication.state,
+    publication: projection.publication,
   });
 });
 

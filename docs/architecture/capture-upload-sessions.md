@@ -80,6 +80,19 @@ verified by `npm run pipeline:task-candidate-contract:verify -- --require-pipeli
   `TASK_CANDIDATE_DECISION_FORWARD_CLIENT_ID` for the command return path.
   Production treats forwarding as required; non-production may set
   `TASK_CANDIDATE_DECISION_FORWARD_REQUIRED=false` for fixture-only work.
+- Pipeline publishes immutable Capture QA to
+  `/api/internal/pipeline/capture-qa` with the same HMAC/replay controls. The
+  owner projection displays exact checks, missing evidence, targeted recapture
+  steps, the next cheapest experiment, and the report digest. Capture
+  acceptance still does not establish reconstruction, task success, physical
+  success, deployment, safety, or policy-ranking support.
+- Set `TASK_EVALUATION_RUN_PLAN_URL`,
+  `TASK_EVALUATION_RUN_AUTHORIZE_URL`, `TASK_EVALUATION_RUN_EXECUTE_URL`,
+  `TASK_EVALUATION_RUN_FORWARD_TOKEN`, and
+  `TASK_EVALUATION_RUN_FORWARD_CLIENT_ID` for the customer control path.
+  Production requires this path. WebApp submits the exact testbed/request and
+  explicit customer authorization only; it never submits method profiles,
+  qualification records, or provider choices.
 - A server-side SHA-256/content-validation worker and Pipeline handoff must be
   configured before the UI can advance past verification pending.
 - Pipeline-to-WebApp task-discovery publication and WebApp-command consumption

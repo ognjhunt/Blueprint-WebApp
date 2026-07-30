@@ -604,6 +604,66 @@ function runAuthorization(
   return value;
 }
 
+function captureQaPublication(sessionId: string) {
+  const report: Record<string, any> = {
+    schema_version: "capture_qa_report.v1",
+    intake_id: "intake-360-1",
+    envelope_digest: `sha256:${"a".repeat(64)}`,
+    capture_authority_profile: "camera_360_equirectangular",
+    status: "recapture_required",
+    state: "rejected_or_recapture_required",
+    checks: [{
+      check_id: "robot_placement_area_covered",
+      status: "fail",
+      evidence_source: "local_analyzer",
+      measurement: false,
+      threshold: true,
+      claim_impact: ["robot_placement"],
+      recapture_code: "robot_placement_area_missing",
+      recapture_instruction: "Capture the robot placement area and access path.",
+    }],
+    recapture_plan: [{
+      code: "robot_placement_area_missing",
+      instruction: "Capture the robot placement area and access path.",
+      reason: "The proposed placement area is outside captured coverage.",
+    }],
+    missing_evidence: ["scale_anchor_verified"],
+    required_analysis: [],
+    next_cheapest_experiment: {
+      kind: "targeted_recapture",
+      instruction: "Capture the robot placement area and access path.",
+    },
+    quality_observations_digest: `sha256:${"b".repeat(64)}`,
+    quality_analysis_errors: [],
+    claim_ceiling: {
+      capture_admitted: false,
+      physical_task_success: false,
+      deployment_readiness: false,
+      safety_certification: false,
+    },
+    prohibited_claims: ["physical_task_success", "deployment_readiness", "safety_certification"],
+    comparative_policy_ranking_verdict: "thesis_not_supported",
+  };
+  report.qa_report_digest = canonicalArtifactDigest(report, "qa_report_digest");
+  return {
+    schema_version: "capture_qa_publication.v1",
+    capture_session_id: sessionId,
+    intake_id: report.intake_id,
+    capture_authority_profile: report.capture_authority_profile,
+    envelope_digest: report.envelope_digest,
+    qa_report_digest: report.qa_report_digest,
+    status: report.status,
+    state: report.state,
+    report,
+    proof_boundary: {
+      qa_is_task_success: false,
+      qa_is_physical_success: false,
+      deployment_or_safety_approved: false,
+      comparative_policy_ranking_verdict: "thesis_not_supported",
+    },
+  };
+}
+
 function runExecutionResult(preparation: Record<string, any>) {
   const plan = preparation.evidence_plan as Record<string, any>;
   const envelope: Record<string, any> = {
@@ -750,6 +810,44 @@ afterEach(() => {
 });
 
 describe("resumable capture uploads", () => {
+  it("projects authoritative Capture QA and exact recapture instructions to the owner", async () => {
+    const sessionId = "capture-qa-owner-1";
+    const publication = captureQaPublication(sessionId);
+    state.records.set(sessionId, {
+      session_id: sessionId,
+      owner_user_id: "buyer-123",
+      status: "uploaded_verification_pending",
+      request: request(),
+      request_fingerprint_sha256: `sha256:${"a".repeat(64)}`,
+      part_size_bytes: 64 * 1024 * 1024,
+      expected_part_count: 3,
+      pipeline_capture_qa: publication,
+    });
+    const { server, socketPath } = await startServer();
+    try {
+      const session = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+      expect(session.status).toBe(200);
+      await expect(session.json()).resolves.toMatchObject({
+        capture_qa: {
+          state: "rejected_or_recapture_required",
+          status: "recapture_required",
+          qa_report_digest: publication.qa_report_digest,
+          recapture_plan: [{ code: "robot_placement_area_missing" }],
+        },
+        claim_boundary: { capture_accepted: false },
+      });
+      const inspection = await getJson(socketPath, `/capture-uploads/${sessionId}/capture-qa`);
+      expect(inspection.status).toBe(200);
+      await expect(inspection.json()).resolves.toMatchObject({
+        status: "recapture_required",
+        state: "rejected_or_recapture_required",
+        publication: { qa_report_digest: publication.qa_report_digest },
+      });
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
   it("lists only owner sessions and exposes no provider file ID or credential", async () => {
     state.records.set("owned", {
       session_id: "owned",

@@ -30,6 +30,7 @@ export type CaptureUploadSession = {
   upload_validation: { status: string; [key: string]: unknown };
   malware_content_validation: { status: string; [key: string]: unknown };
   content_addressing: { status: string; [key: string]: unknown };
+  capture_qa?: CaptureQaSummary;
   task_review: {
     status: string;
     candidate_count: number;
@@ -62,7 +63,7 @@ export type CaptureUploadSession = {
         proof_boundary: TaskEvaluationRunProofBoundary;
       };
   claim_boundary: {
-    capture_accepted: false;
+    capture_accepted: boolean;
     metric_scale_inherent: false;
     collision_geometry_established: false;
     physical_task_success_established: false;
@@ -71,6 +72,43 @@ export type CaptureUploadSession = {
   created_at_iso: string | null;
   updated_at_iso: string | null;
   error: string | null;
+};
+
+export type CaptureQaSummary =
+  | { state: "not_available" | "pipeline_artifact_invalid" }
+  | {
+      state: "capture_accepted" | "validating" | "rejected_or_recapture_required" | "failed";
+      status: "accepted" | "analysis_required" | "recapture_required" | "rejected";
+      qa_report_digest: string;
+      recapture_plan: Array<{ code: string; instruction: string; reason: string }>;
+      missing_evidence: string[];
+      next_cheapest_experiment: Record<string, unknown> | null;
+      proof_boundary: CaptureQaProofBoundary;
+    };
+
+export type CaptureQaProofBoundary = {
+  qa_is_task_success: false;
+  qa_is_physical_success: false;
+  deployment_or_safety_approved: false;
+  comparative_policy_ranking_verdict: "thesis_not_supported";
+};
+
+export type CaptureQaInspection = {
+  schema_version: "capture_qa_inspection.v1";
+  session_id: string;
+  intake_id: string;
+  status: "accepted" | "analysis_required" | "recapture_required" | "rejected";
+  state: "capture_accepted" | "validating" | "rejected_or_recapture_required" | "failed";
+  publication: Record<string, any> & {
+    qa_report_digest: string;
+    report: Record<string, any> & {
+      checks: Array<Record<string, unknown>>;
+      recapture_plan: Array<{ code: string; instruction: string; reason: string }>;
+      missing_evidence: string[];
+      next_cheapest_experiment: Record<string, unknown> | null;
+      claim_ceiling: Record<string, unknown>;
+    };
+  };
 };
 
 export type TaskEvaluationRunAuthorizationCandidate = {
@@ -402,6 +440,13 @@ export function getCaptureSiteTaskTestbed(currentUser: FirebaseUser, sessionId: 
   return apiRequest<CaptureSiteTaskTestbedInspection>(
     currentUser,
     `/api/capture-uploads/${encodeURIComponent(sessionId)}/testbed`,
+  );
+}
+
+export function getCaptureQa(currentUser: FirebaseUser, sessionId: string) {
+  return apiRequest<CaptureQaInspection>(
+    currentUser,
+    `/api/capture-uploads/${encodeURIComponent(sessionId)}/capture-qa`,
   );
 }
 

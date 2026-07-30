@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, UploadCloud } from "lucide-react";
 import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
+import { CaptureQaInspection } from "@/components/blueprint/app/CaptureQaInspection";
 import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
 import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
 import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
@@ -14,6 +15,7 @@ import {
   authorizeCaptureTaskEvaluationRun,
   executeCaptureTaskEvaluationRun,
   getCaptureSiteTaskTestbed,
+  getCaptureQa,
   getCaptureTaskReview,
   getCaptureTaskEvaluationRun,
   getCaptureUpload,
@@ -22,6 +24,7 @@ import {
   submitTaskDecisionCommand,
   uploadCaptureFile,
   type CaptureTaskReview,
+  type CaptureQaInspection as CaptureQaInspectionValue,
   type CaptureSiteTaskTestbedInspection,
   type CaptureTaskEvaluationRunInspection,
   type CaptureUploadSession,
@@ -110,8 +113,8 @@ function SessionHistory({
                 <td className="px-4 py-3"><StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
-                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || session.site_task_testbed?.state === "testbed_ready" || ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? "View decision" : session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : "Review tasks"}</Button>
+                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || !["not_available", undefined].includes(session.capture_qa?.state) || session.site_task_testbed?.state === "testbed_ready" || ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? "View decision" : session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : session.capture_qa?.state === "rejected_or_recapture_required" ? "View recapture" : session.capture_qa?.state && session.capture_qa.state !== "not_available" ? "View capture QA" : "Review tasks"}</Button>
                     ) : null}
                     {["upload_pending", "uploading"].includes(session.status) ? (
                       <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
@@ -145,6 +148,7 @@ export default function Captures() {
   const [sessions, setSessions] = useState<CaptureUploadSession[]>([]);
   const [reviewSession, setReviewSession] = useState<CaptureUploadSession | null>(null);
   const [taskReview, setTaskReview] = useState<CaptureTaskReview | null>(null);
+  const [captureQaInspection, setCaptureQaInspection] = useState<CaptureQaInspectionValue | null>(null);
   const [testbedInspection, setTestbedInspection] = useState<CaptureSiteTaskTestbedInspection | null>(null);
   const [runInspection, setRunInspection] = useState<CaptureTaskEvaluationRunInspection | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -198,12 +202,16 @@ export default function Captures() {
     setReviewSession(session);
     setReviewLoading(true);
     setTaskReview(null);
+    setCaptureQaInspection(null);
     setTestbedInspection(null);
     setRunInspection(null);
     setError(null);
     try {
-      const [review, inspection, run] = await Promise.all([
+      const [review, qa, inspection, run] = await Promise.all([
         getCaptureTaskReview(currentUser, session.session_id),
+        session.capture_qa?.state && session.capture_qa.state !== "not_available"
+          ? getCaptureQa(currentUser, session.session_id)
+          : Promise.resolve(null),
         session.site_task_testbed?.state === "testbed_ready"
           ? getCaptureSiteTaskTestbed(currentUser, session.session_id)
           : Promise.resolve(null),
@@ -212,6 +220,7 @@ export default function Captures() {
           : Promise.resolve(null),
       ]);
       setTaskReview(review);
+      setCaptureQaInspection(qa);
       setTestbedInspection(inspection);
       setRunInspection(run);
       window.setTimeout(() => {
@@ -478,6 +487,8 @@ export default function Captures() {
             />
           </div>
         ) : null}
+
+        {captureQaInspection ? <CaptureQaInspection inspection={captureQaInspection} /> : null}
 
         {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
 
