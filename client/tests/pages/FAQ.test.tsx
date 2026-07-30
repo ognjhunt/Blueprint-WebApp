@@ -8,16 +8,26 @@ describe("FAQ", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /One product, and the boundaries printed on it\./i,
+        level: 1,
+        name: /One service, and the limits printed on it\./i,
       }),
     ).toBeInTheDocument();
+
     expect(screen.getByText(/What does Blueprint sell\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Do robot teams and site operators use different products\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Does every run return a ranking or winner\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Do robot teams and site operators use different products\?/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Does every run produce a ranking\?/i)).toBeInTheDocument();
     expect(screen.getByText(/Is post-training a separate product\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/One customer-facing service: a Task Evaluation Run/i)).toBeInTheDocument();
-    expect(screen.getByText(/Valid outcomes include bounded positive or negative decisions/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/What happened to the other products\?/i)).toBeInTheDocument();
+
+    expect(screen.getByText(/One service: a Task Evaluation Run/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/manufacture a winner after the evidence has declined to produce one/i),
+    ).toBeInTheDocument();
+    // Withdrawn names may be described as withdrawn, but never offered.
+    expect(
+      screen.getByText(/no longer offered as current products/i),
+    ).toBeInTheDocument();
   });
 });

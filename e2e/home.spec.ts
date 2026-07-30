@@ -5,7 +5,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
 
   await expect(
     page.getByRole('heading', {
-      name: /Know what the real site will do to your robot\./i,
+      name: /Answer it before you send a robot\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -18,15 +18,20 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
     page.getByRole('contentinfo').getByRole('link', { name: /^For Site Operators$/i }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /^Request a Task Evaluation Run$/i }).first()).toBeVisible();
-  // The one-lifecycle story is carried by the run-lifecycle figure.
+
+  // One service, and the lifecycle behind it.
   await expect(
-    page.locator('main').getByText(/From a stated decision to a bounded answer/i),
+    page.locator('main').getByText(/One service\. Priced per decision\./i),
   ).toBeVisible();
-  await expect(page.getByText(/^Pin the testbed$/i)).toBeVisible();
-  await expect(page.getByText(/^Decide or abstain$/i)).toBeVisible();
-  await expect(page.getByText(/^Name the next test$/i)).toBeVisible();
-  await expect(page.getByText(/Five ways a run can end/i).first()).toBeVisible();
-  await expect(page.getByText(/does not infer a winner from raw scores/i)).toBeVisible();
-  // Figures label what they are, so nothing reads as a measured Blueprint result.
-  await expect(page.getByText(/Conceptual ordering/i).first()).toBeVisible();
+  await expect(page.getByText(/^Bring one real task$/i)).toBeVisible();
+  await expect(page.getByText(/^We build the testbed$/i)).toBeVisible();
+  await expect(page.getByText(/^You get an answer with its limits$/i)).toBeVisible();
+
+  // Declining to decide is stated on the page, not implied.
+  await expect(page.getByText(/A run is allowed to tell you it cannot tell you/i)).toBeVisible();
+  await expect(page.getByText(/^Not yet$/i).first()).toBeVisible();
+  await expect(page.getByText(/is not reported as one/i)).toBeVisible();
+
+  // Figures carrying schematic values are marked as illustrative.
+  await expect(page.getByText(/^Illustrative$/i).first()).toBeVisible();
 });

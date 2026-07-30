@@ -14,7 +14,7 @@ test('legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/proof$/);
   await expect(
-    page.getByRole('heading', { name: /What we claim, and what we refuse to\./i }),
+    page.getByRole('heading', { name: /Proof stays scoped\./i }),
   ).toBeVisible();
 });
 
@@ -51,7 +51,7 @@ test('public routes work with trailing slashes', async ({ page }) => {
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole('heading', {
-      name: /What we claim, and what we refuse to\./i,
+      name: /Proof stays scoped\./i,
     }),
   ).toBeVisible();
 });
@@ -61,7 +61,7 @@ test('FAQ remains a real public destination', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/faq$/);
   await expect(
-    page.getByRole('heading', { name: /One product, and the boundaries printed on it\./i }),
+    page.getByRole('heading', { name: /One service, and the limits printed on it\./i }),
   ).toBeVisible();
 });
 

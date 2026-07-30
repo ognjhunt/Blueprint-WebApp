@@ -1,12 +1,23 @@
-// Public-site motion primitives.
-//
-// The rule for this layer: prerendered HTML is the finished state. Every
-// entrance style lives behind `html.bp-motion` (see index.css), a class this
-// module adds on the client, so static output, no-JS visitors, and the QA
-// sweep never see a blank or half-drawn page. `prefers-reduced-motion: reduce`
-// short-circuits to the same finished state.
-
+/**
+ * Public-site motion primitives.
+ *
+ * Two invariants, because the public pages are prerendered to static HTML by
+ * `scripts/prerender.tsx` and must be readable with no JavaScript at all:
+ *
+ * 1. **Never ship hidden content.** These helpers render their children plainly
+ *    and fully visible on the server and on the first client paint. The enter
+ *    animation is only armed after mount, and only for elements that are still
+ *    outside the viewport at that moment — so above-the-fold content is never
+ *    animated from `opacity: 0` (which would flash) and prerendered HTML never
+ *    contains invisible text.
+ * 2. **Reduced motion wins outright.** Under `prefers-reduced-motion: reduce`
+ *    nothing here animates; every helper stays in its static branch.
+ *
+ * Transforms and opacity only, so nothing here triggers layout.
+ */
 import {
+  Children,
+  isValidElement,
   useEffect,
   useRef,
   useState,
@@ -14,316 +25,335 @@ import {
   type ReactNode,
 } from "react";
 
-import { Pause, Play } from "lucide-react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+  type MotionStyle,
+  type SVGMotionProps,
+} from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
-if (typeof document !== "undefined") {
-  document.documentElement.classList.add("bp-motion");
-}
-
-type RevealTag = "div" | "section" | "article" | "li" | "ol" | "ul" | "span" | "figure" | "header";
-
-type InViewOptions = {
-  /** Stop observing after the first entrance. Default true. */
-  once?: boolean;
-  /** Visible fraction that counts as "in view". Default 0.18. */
-  amount?: number;
-  rootMargin?: string;
-};
+const EASE_OUT_BP = [0.16, 1, 0.3, 1] as const;
 
 /**
- * Adds the `bp-in` class to the referenced element once it scrolls into view.
- * Falls back to the finished state when IntersectionObserver is unavailable.
+ * useArmedReveal — decides whether an element may animate in.
+ *
+ * Returns a ref to attach to the static element, and `armed`. `armed` starts
+ * false (server render, first paint, reduced motion, and anything already on
+ * screen) and only flips true after mount for elements still below the fold.
+ * Callers render plain markup while `armed` is false.
  */
-export function useInViewRef<T extends HTMLElement>({
-  once = true,
-  amount = 0.18,
-  rootMargin = "0px 0px -10% 0px",
-}: InViewOptions = {}) {
+function useArmedReveal<T extends Element>() {
   const ref = useRef<T | null>(null);
+  const shouldReduce = useReducedMotion();
+  const [armed, setArmed] = useState(false);
 
   useEffect(() => {
+    if (shouldReduce || typeof window === "undefined") return;
     const node = ref.current;
     if (!node) return;
-
-    if (typeof IntersectionObserver === "undefined") {
-      node.classList.add("bp-in");
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("bp-in");
-            if (once) observer.unobserve(entry.target);
-          } else if (!once) {
-            entry.target.classList.remove("bp-in");
-          }
-        }
-      },
-      { threshold: amount, rootMargin },
-    );
-
-    observer.observe(node);
-    // Elements already past the fold on load (deep links, restored scroll)
-    // still need the class even if no intersection event fires immediately.
     const rect = node.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      node.classList.add("bp-in");
-      if (once) observer.unobserve(node);
-    }
+    const alreadyVisible = rect.top < window.innerHeight && rect.bottom > 0;
+    // Only arm what the reader has not seen yet; anything on screen stays put.
+    if (!alreadyVisible) setArmed(true);
+  }, [shouldReduce]);
 
-    return () => observer.disconnect();
-  }, [once, amount, rootMargin]);
-
-  return ref;
+  return { ref, armed };
 }
 
-type RevealProps = {
+type RevealDirection = "up" | "left" | "right" | "none";
+
+export interface RevealProps {
   children: ReactNode;
-  as?: RevealTag;
   className?: string;
-  /** Entrance delay in ms. */
+  /** Seconds of delay before the reveal starts. */
   delay?: number;
-  /** Rise distance, any CSS length. Default 1.5rem. */
-  y?: string;
-  amount?: number;
-  style?: CSSProperties;
+  /** Seconds the reveal takes. */
+  duration?: number;
+  /** Offset direction the element travels from. */
+  from?: RevealDirection;
+  /** Travel distance in px. */
+  distance?: number;
+  /** Render as a different element (default `div`). */
+  as?: "div" | "li" | "section" | "article" | "span";
+}
+
+const offsetFor = (from: RevealDirection, distance: number) => {
+  switch (from) {
+    case "left":
+      return { x: -distance, y: 0 };
+    case "right":
+      return { x: distance, y: 0 };
+    case "none":
+      return { x: 0, y: 0 };
+    default:
+      return { x: 0, y: distance };
+  }
 };
 
-/** Single element that rises into place when it enters the viewport. */
+/**
+ * Reveal — fades and slides a block in the first time it enters the viewport.
+ */
 export function Reveal({
   children,
-  as: Tag = "div",
   className,
   delay = 0,
-  y,
-  amount,
-  style,
+  duration = 0.7,
+  from = "up",
+  distance = 22,
+  as = "div",
 }: RevealProps) {
-  const ref = useInViewRef<HTMLElement>({ amount });
+  const { ref, armed } = useArmedReveal<HTMLElement>();
+  const offset = offsetFor(from, distance);
 
+  // Static branch: server render, first paint, reduced motion, and anything
+  // already on screen. Content is fully visible here.
+  if (!armed) {
+    const Tag = as;
+    return (
+      <Tag ref={ref as React.Ref<never>} className={className}>
+        {children}
+      </Tag>
+    );
+  }
+
+  const MotionTag = motion[as];
   return (
-    <Tag
-      ref={ref as never}
-      data-bp-reveal=""
+    <MotionTag
       className={className}
-      style={{
-        ...style,
-        "--bp-reveal-delay": `${delay}ms`,
-        ...(y ? { "--bp-reveal-y": y } : null),
-      } as CSSProperties}
+      initial={{ opacity: 0, ...offset }}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      viewport={{ once: true, margin: "-12% 0px -8% 0px" }}
+      transition={{ duration, delay, ease: EASE_OUT_BP }}
     >
       {children}
-    </Tag>
+    </MotionTag>
   );
 }
 
-type StaggerProps = {
+export interface RevealStaggerProps {
   children: ReactNode;
-  as?: RevealTag;
   className?: string;
-  /** Per-child delay step in ms. Default 80. */
+  /** Seconds between each child. */
   step?: number;
-  y?: string;
-  amount?: number;
-  style?: CSSProperties;
-};
+  /** Seconds before the first child. */
+  delay?: number;
+  from?: RevealDirection;
+  distance?: number;
+  /** Element for the wrapper and each child slot. */
+  as?: "div" | "ol" | "ul";
+  childAs?: "div" | "li" | "article";
+}
 
-/** Container whose direct children enter one after another. */
-export function Stagger({
+/**
+ * RevealStagger — wraps each direct child in a Reveal with an increasing delay,
+ * so grids and lists arrive in reading order instead of all at once.
+ */
+export function RevealStagger({
   children,
-  as: Tag = "div",
   className,
-  step = 80,
-  y,
-  amount,
-  style,
-}: StaggerProps) {
-  const ref = useInViewRef<HTMLElement>({ amount });
+  step = 0.07,
+  delay = 0,
+  from = "up",
+  distance = 18,
+  as: Wrapper = "div",
+  childAs = "div",
+}: RevealStaggerProps) {
+  const items = Children.toArray(children).filter(isValidElement);
 
   return (
-    <Tag
-      ref={ref as never}
-      data-bp-stagger=""
-      className={className}
-      style={{
-        ...style,
-        "--bp-stagger": `${step}ms`,
-        ...(y ? { "--bp-reveal-y": y } : null),
-      } as CSSProperties}
-    >
-      {children}
-    </Tag>
+    <Wrapper className={className}>
+      {items.map((child, index) => (
+        <Reveal
+          key={child.key ?? index}
+          as={childAs}
+          from={from}
+          distance={distance}
+          delay={delay + index * step}
+        >
+          {child}
+        </Reveal>
+      ))}
+    </Wrapper>
   );
 }
 
-type CinematicMediaProps = {
-  src: string;
-  alt: string;
-  /** Mono strip printed across the bottom of the frame. */
-  caption?: string;
-  /** Right-hand mono token in the caption strip. */
-  meta?: string;
-  className?: string;
-  imageClassName?: string;
-  /** Corner registration marks + hairline frame. Default true. */
-  frame?: boolean;
-  priority?: boolean;
-  /** Dark wash strength over the image. */
-  wash?: "none" | "soft" | "deep";
-  children?: ReactNode;
-};
-
-const washClass = {
-  none: "",
-  soft: "bg-[linear-gradient(180deg,rgba(13,13,11,0.04),rgba(13,13,11,0.34))]",
-  deep: "bg-[linear-gradient(180deg,rgba(13,13,11,0.12),rgba(13,13,11,0.72))]",
-} as const;
-
 /**
- * CinematicMedia — the large picture treatment for the public site: a full
- * hairline frame, corner registration marks, a mono caption rail, and a slow
- * settle from a 7% over-scale on entrance.
+ * ParallaxMedia — nudges large media against the scroll direction. The shift is
+ * deliberately small (default 40px total) so the frame never detaches from its
+ * caption. Under reduced motion the child renders in place.
  */
-export function CinematicMedia({
-  src,
-  alt,
-  caption,
-  meta,
-  className,
-  imageClassName,
-  frame = true,
-  priority = false,
-  wash = "soft",
+export function ParallaxMedia({
   children,
-}: CinematicMediaProps) {
-  const ref = useInViewRef<HTMLDivElement>({ amount: 0.05 });
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "relative isolate overflow-hidden bg-ink",
-        frame && "border border-line-strong/70",
-        className,
-      )}
-    >
-      <img
-        src={src}
-        alt={alt}
-        loading={priority ? "eager" : "lazy"}
-        decoding={priority ? "sync" : "async"}
-        data-bp-media-zoom=""
-        className={cn(
-          "h-full w-full object-cover grayscale contrast-[1.06] brightness-[0.86]",
-          imageClassName,
-        )}
-      />
-      {wash !== "none" ? (
-        <div aria-hidden className={cn("pointer-events-none absolute inset-0", washClass[wash])} />
-      ) : null}
-
-      {frame ? (
-        <>
-          <span aria-hidden className="pointer-events-none absolute left-3 top-3 h-4 w-4 border-l border-t border-brass/80" />
-          <span aria-hidden className="pointer-events-none absolute right-3 top-3 h-4 w-4 border-r border-t border-brass/80" />
-          <span aria-hidden className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 border-b border-l border-brass/80" />
-          <span aria-hidden className="pointer-events-none absolute bottom-3 right-3 h-4 w-4 border-b border-r border-brass/80" />
-        </>
-      ) : null}
-
-      {caption || meta ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-4 border-t border-white/12 bg-ink/70 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.22em] text-white/70 backdrop-blur-[2px]">
-          <span className="truncate">{caption}</span>
-          {meta ? <span className="shrink-0 text-brass">{meta}</span> : null}
-        </div>
-      ) : null}
-
-      {children}
-    </div>
-  );
-}
-
-type MarqueeItem = {
-  src: string;
-  alt: string;
-  label: string;
-};
-
-/**
- * CapturedSitesMarquee — a continuously scrolling rail of large captured-site
- * stills. Static under reduced motion, pauses on hover, and carries an explicit
- * keyboard-reachable pause control: hover and `:focus-within` alone cannot be
- * triggered by a keyboard user, since the images are not focusable.
- */
-export function CapturedSitesMarquee({
-  items,
   className,
-  durationSeconds = 68,
+  shift = 40,
 }: {
-  items: MarqueeItem[];
+  children: ReactNode;
   className?: string;
-  durationSeconds?: number;
+  shift?: number;
 }) {
-  const doubled = [...items, ...items];
-  const [paused, setPaused] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const shouldReduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], [shift, -shift]);
 
   return (
-    <div
-      className={cn("bp-marquee relative overflow-hidden", className)}
-      role="group"
-      aria-label="Captured real-site task environments"
-    >
-      <div
-        className="bp-marquee-track flex w-max gap-4"
-        style={{
-          "--bp-marquee-dur": `${durationSeconds}s`,
-          // Only set the play state while paused, so the hover rule in
-          // index.css still wins for pointer users when it is running.
-          ...(paused ? { animationPlayState: "paused" } : null),
-        } as CSSProperties}
+    <div ref={ref} className={cn("overflow-hidden", className)}>
+      <motion.div
+        className="h-full w-full"
+        style={shouldReduce ? undefined : ({ y } as MotionStyle)}
       >
-        {doubled.map((item, index) => (
-          <figure
-            key={`${item.src}-${index}`}
-            className="relative w-[19rem] shrink-0 overflow-hidden border border-white/10 bg-ink sm:w-[26rem] lg:w-[32rem]"
-            aria-hidden={index >= items.length}
-          >
-            <img
-              src={item.src}
-              alt={index >= items.length ? "" : item.alt}
-              loading="lazy"
-              className="aspect-[16/10] w-full object-cover grayscale contrast-[1.05] brightness-[0.8]"
-            />
-            <figcaption className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-ink/75 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70">
-              {item.label}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-[linear-gradient(90deg,var(--bp-ink),transparent)]" />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(270deg,var(--bp-ink),transparent)]" />
-
-      <button
-        type="button"
-        onClick={() => setPaused((previous) => !previous)}
-        aria-pressed={paused}
-        className={cn(
-          "absolute right-4 top-4 z-10 inline-flex items-center gap-2 border border-white/20 bg-ink/80 px-3 py-1.5",
-          "font-mono text-[10px] uppercase tracking-[0.18em] text-white/70 backdrop-blur-[2px] transition-colors",
-          "hover:border-white/45 hover:text-[color:var(--text-on-ink)]",
-          "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-brass",
-          // The rail does not move under reduced motion, so the control would
-          // be a no-op there.
-          "motion-reduce:hidden",
-        )}
-      >
-        {paused ? <Play className="h-3 w-3" aria-hidden /> : <Pause className="h-3 w-3" aria-hidden />}
-        {paused ? "Play rail" : "Pause rail"}
-      </button>
+        {children}
+      </motion.div>
     </div>
   );
+}
+
+/**
+ * ScrollProgressRail — a vertical hairline whose brass fill tracks how far the
+ * reader has scrolled through the wrapped section. Used to bind long stepped
+ * sections together. Renders a static full rail under reduced motion.
+ */
+export function ScrollProgressRail({
+  children,
+  className,
+  railClassName,
+}: {
+  children: ReactNode;
+  className?: string;
+  railClassName?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const shouldReduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start 70%", "end 60%"],
+  });
+  const scaleY = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.4 });
+
+  return (
+    <div ref={ref} className={cn("relative", className)}>
+      <div
+        aria-hidden="true"
+        className={cn("absolute bottom-0 top-0 w-px bg-line", railClassName)}
+      >
+        <motion.div
+          className="h-full w-full origin-top bg-brass-deep"
+          style={shouldReduce ? { transform: "scaleY(1)" } : ({ scaleY } as MotionStyle)}
+        />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * DrawIn — animates an SVG path's `stroke-dashoffset` from hidden to drawn once
+ * the path scrolls into view. The path renders fully drawn under reduced motion.
+ *
+ * Callers pass the same props they would give `<path>`; `pathLength={1}`
+ * normalises the dash math so no measurement pass is needed.
+ */
+export function DrawIn({
+  d,
+  className,
+  delay = 0,
+  duration = 1.4,
+  ...pathProps
+}: {
+  d: string;
+  className?: string;
+  delay?: number;
+  duration?: number;
+} & Omit<SVGMotionProps<SVGPathElement>, "d" | "className" | "ref">) {
+  const { ref, armed } = useArmedReveal<SVGPathElement>();
+
+  // Static branch renders the path fully drawn, so prerendered SVG is never blank.
+  if (!armed) {
+    return <path ref={ref} d={d} className={className} {...(pathProps as object)} />;
+  }
+
+  // `whileInView` is deliberate: arming swaps the plain <path> for this
+  // motion.path, which unmounts the node `ref` pointed at. Driving the animation
+  // from an external useInView(ref) would leave the ref null and the path stuck
+  // invisible, so viewport detection is left to framer's own internal ref.
+  return (
+    <motion.path
+      d={d}
+      className={className}
+      pathLength={1}
+      initial={{ pathLength: 0, opacity: 0 }}
+      whileInView={{ pathLength: 1, opacity: 1 }}
+      viewport={{ once: true, margin: "-10% 0px" }}
+      transition={{
+        pathLength: { duration, delay, ease: EASE_OUT_BP },
+        opacity: { duration: 0.2, delay },
+      }}
+      {...pathProps}
+    />
+  );
+}
+
+/**
+ * GrowIn — scales a mark from its baseline when scrolled into view. `origin`
+ * picks which edge stays pinned, so bars grow out of their axis rather than
+ * out of their own centre.
+ */
+export function GrowIn({
+  children,
+  className,
+  delay = 0,
+  duration = 0.75,
+  origin = "left",
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  duration?: number;
+  origin?: "left" | "bottom";
+  style?: CSSProperties;
+}) {
+  const { ref, armed } = useArmedReveal<HTMLDivElement>();
+  const axis = origin === "left" ? "scaleX" : "scaleY";
+
+  // Static branch renders the mark at full size, so a prerendered bar is not
+  // collapsed to zero width.
+  if (!armed) {
+    return (
+      <div ref={ref} className={className} style={style}>
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className={className}
+      style={{ ...style, transformOrigin: origin === "left" ? "left center" : "bottom center" }}
+      initial={{ [axis]: 0, opacity: 0.35 }}
+      whileInView={{ [axis]: 1, opacity: 1 }}
+      viewport={{ once: true, margin: "-8% 0px" }}
+      transition={{ duration, delay, ease: EASE_OUT_BP }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/**
+ * useHasMounted — guards client-only motion so prerendered HTML and the first
+ * client paint agree. The prerender pass ships the resolved layout.
+ */
+export function useHasMounted(): boolean {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted;
 }

@@ -6,14 +6,23 @@ describe("ForRobotTeams", () => {
   it("explains the robot-team use case for the single Task Evaluation Run", () => {
     render(<ForRobotTeams />);
     expect(
-      screen.getByRole("heading", { name: /Spend field time where it will actually pay/i }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: /Spend field time on the candidate that earned it/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
-    expect(screen.getByText(/A ranking is not promised/i)).toBeInTheDocument();
     expect(
-      screen.getAllByText(/least expensive method currently qualified/i).length,
+      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
     ).toBeGreaterThan(0);
-    expect(screen.getAllByText(/explicit abstention/i).length).toBeGreaterThan(0);
+
+    // A ranking is explicitly not the promise.
+    expect(screen.getByText(/A ranking is not the promise/i)).toBeInTheDocument();
+    // The buyer does not select the evidence backend.
+    expect(screen.getByText(/Why you do not pick the backend/i)).toBeInTheDocument();
+    // Abstention survives as a named outcome on the persona page too.
+    expect(screen.getByText(/^Not yet$/i)).toBeInTheDocument();
+
     expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$3,000/)).not.toBeInTheDocument();
   });
 });

@@ -13,10 +13,10 @@ describe("About", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/built by Nijel Hunt/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Five rules that decide what we\s+refuse to say/i }),
+      screen.getByRole("heading", { name: /Five rules that decide what we refuse to say\./i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Capture first\. Claim later\.$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Rights travel with the evidence\.$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Rights travel with the evidence$/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: /Bring one exact site-task\./i,

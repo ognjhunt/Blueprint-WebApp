@@ -254,8 +254,9 @@ const staticRoutes: StaticRoute[] = [
   // them (WSPEC context: the summary shell made /pricing look price-free).
   { path: "/pricing", component: Pricing },
   { path: "/sites", component: Sites },
-  // /proof is a linked public page carrying the claim-ceiling boundaries, so it
-  // prerenders as the real component rather than a summary shell.
+  // /proof states the claim boundaries the rest of the site depends on, so
+  // crawlers and no-JS agents must see the real page rather than a summary that
+  // paraphrases them.
   { path: "/proof", component: Proof },
   { path: "/faq", component: FAQ },
   // /for-robot-teams is the canonical citation target advertised in the

@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Know what the real site will do to your robot.",
+    expectedHeading: "Answer it before you send a robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Know what the real site will do to your robot.",
+    expectedHeading: "Answer it before you send a robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "You pay for the evidence the decision needs.",
+    expectedHeading: "You pay for the decision, not a package.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
@@ -201,7 +201,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Proof",
     path: "/proof",
     canonicalPath: "/proof",
-    expectedHeading: "What we claim, and what we refuse to.",
+    expectedHeading: "Proof stays scoped.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
     ],
@@ -240,7 +240,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "FAQ",
     path: "/faq",
     canonicalPath: "/faq",
-    expectedHeading: "One product, and the boundaries printed on it.",
+    expectedHeading: "One service, and the limits printed on it.",
     requiredCtas: [],
   },
   {
@@ -257,7 +257,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Know what the real site will do to your robot.",
+    expectedHeading: "Answer it before you send a robot.",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },

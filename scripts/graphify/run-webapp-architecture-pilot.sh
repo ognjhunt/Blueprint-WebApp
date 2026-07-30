@@ -207,7 +207,16 @@ fi
 
 echo "[graphify pilot] running staged AST pilot"
 SCAN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/blueprint-webapp-graphify-corpus.XXXXXX")"
-rsync -a --delete "$CORPUS_DIR/" "$SCAN_DIR/"
+# The scan dir is a fresh mktemp -d, so a plain recursive copy is equivalent to
+# `rsync -a --delete` here. rsync stays the fast path where it exists; some
+# minimal container images (including CI/agent sandboxes) do not ship it.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete "$CORPUS_DIR/" "$SCAN_DIR/"
+else
+  rm -rf "$SCAN_DIR"
+  mkdir -p "$SCAN_DIR"
+  cp -a "$CORPUS_DIR/." "$SCAN_DIR/"
+fi
 
 # graphify walks up to the nearest VCS root and honors ancestor .graphifyignore
 # files. The canonical staged corpus lives under derived/graphify/, which the
