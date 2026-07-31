@@ -91,6 +91,42 @@ describe("RunFilm", () => {
     expect(container).toHaveTextContent(/not yet/i);
   });
 
+  it.each([["stepped", useNarrowViewport], ["scrub", useWideViewport]])(
+    "exposes the claim-level results to assistive technology in %s mode",
+    (_mode, setViewport) => {
+      setViewport();
+      const { container } = render(<RunFilm />);
+
+      // `toHaveTextContent` ignores aria-hidden, so asserting on the container
+      // alone would pass on content a screen reader never receives. The stage is
+      // decorative; the evidence has to live outside it.
+      const accessible = [...container.querySelectorAll("div.sr-only > table")].filter(
+        (node) => node.closest('[aria-hidden="true"]') === null,
+      );
+      expect(accessible).toHaveLength(1);
+      const summary = accessible[0] as HTMLElement;
+
+      for (const route of runFilmRoutes) {
+        const row = within(summary).getByRole("rowheader", { name: route.short });
+        expect(row).toBeInTheDocument();
+      }
+      // Verdict, routed rung, basis, refusal reason and next test all reachable.
+      for (const label of ["Supported", "Rejected", "Unresolved"]) {
+        expect(summary).toHaveTextContent(label);
+      }
+      const gated = runFilmRoutes.find((route) => route.gate)!;
+      expect(summary).toHaveTextContent(gated.gate!.reason.slice(0, 40));
+      expect(summary).toHaveTextContent(/Next test that would settle it/i);
+      expect(summary).toHaveTextContent(runFilmRungs[gated.rung].label);
+      expect(summary).toHaveTextContent(runFilmRungs[gated.rung].basis);
+
+      // `sr-only` on a <table> does not contain it — a table's intrinsic
+      // minimum width beats `width: 1px` and blows out horizontal scroll.
+      expect(container.querySelector("table.sr-only")).toBeNull();
+      expect(summary.parentElement).toHaveClass("sr-only");
+    },
+  );
+
   it("shows each claim stopping at its own rung, and one being refused a rung", () => {
     useNarrowViewport();
     const { container } = render(<RunFilm />);

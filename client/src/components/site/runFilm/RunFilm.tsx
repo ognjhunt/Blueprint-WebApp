@@ -19,7 +19,7 @@
  * The swap happens in a layout effect, before the browser paints, so it is never
  * visible as a flash and never moves the scroll position out from under anyone.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { motion } from "framer-motion";
 import { RotateCcw } from "lucide-react";
@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 import { RunFilmStage } from "./acts";
 import { FilmScreen } from "./FilmScreen";
-import { ActList, RunFilmLimits, RunFilmStatic } from "./RunFilmStatic";
+import { ActList, ClaimSummary, RunFilmLimits, RunFilmStatic } from "./RunFilmStatic";
 import { LAST_ACT, useActProgress, useRunFilmMode } from "./useActProgress";
 
 export interface RunFilmProps {
@@ -180,24 +180,86 @@ function RunFilmScrub({ compact, className }: { compact: boolean; className?: st
       <div className="sr-only">
         <ActList />
       </div>
+      <ClaimSummary />
     </div>
   );
 }
 
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+/**
+ * Keeps the reader where they were when the telling changes.
+ *
+ * The two tellings are wildly different heights — a 560vh scroll track versus a
+ * page-flow block — so a reader who resizes across the mode boundary (or toggles
+ * reduced motion) part-way through the film would otherwise be dumped into an
+ * unrelated section, because the browser holds `scrollY` while the document
+ * shrinks underneath it.
+ *
+ * Rather than freezing the mode after mount, which would mean ignoring a
+ * `prefers-reduced-motion` change, this records how far through the film the
+ * reader is and restores that position after the swap. It only acts when the
+ * film was actually on screen: someone reading the footer when they resize
+ * should stay at the footer, not get yanked back up.
+ */
+function useFilmScrollAnchor(mode: string) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef(0);
+  const wasOnScreenRef = useRef(false);
+  const lastModeRef = useRef(mode);
+
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node || typeof window === "undefined") return;
+
+    const record = () => {
+      const rect = node.getBoundingClientRect();
+      wasOnScreenRef.current = rect.top < window.innerHeight && rect.bottom > 0;
+      const scrollable = node.offsetHeight - window.innerHeight;
+      progressRef.current =
+        scrollable > 0
+          ? Math.min(1, Math.max(0, (window.scrollY - node.offsetTop) / scrollable))
+          : 0;
+    };
+
+    record();
+    window.addEventListener("scroll", record, { passive: true });
+    return () => window.removeEventListener("scroll", record);
+  }, []);
+
+  useIsomorphicLayoutEffect(() => {
+    if (lastModeRef.current === mode) return;
+    lastModeRef.current = mode;
+
+    const node = wrapperRef.current;
+    if (!node || !wasOnScreenRef.current || typeof window === "undefined") return;
+    const scrollable = node.offsetHeight - window.innerHeight;
+    if (scrollable <= 0) return;
+    // Jump, never smooth-scroll: this is a correction for a layout change the
+    // reader did not ask for, so it should be invisible rather than animated.
+    window.scrollTo({ top: node.offsetTop + scrollable * progressRef.current });
+  }, [mode]);
+
+  return wrapperRef;
+}
+
 export function RunFilm({ variant = "full", className }: RunFilmProps) {
   const mode = useRunFilmMode();
+  const wrapperRef = useFilmScrollAnchor(mode);
   const compact = variant === "compact";
 
-  if (mode === "stepped") {
-    return <RunFilmStatic compact={compact} className={className} />;
-  }
-
   return (
-    <div className={className}>
-      <RunFilmScrub compact={compact} />
-      {/* Stated at page level in both tellings, with room to be read, rather
-          than as a footnote inside a stage that has to fit one screen. */}
-      <RunFilmLimits />
+    <div ref={wrapperRef} className={className}>
+      {mode === "stepped" ? (
+        <RunFilmStatic compact={compact} />
+      ) : (
+        <>
+          <RunFilmScrub compact={compact} />
+          {/* Stated at page level in both tellings, with room to be read, rather
+              than as a footnote inside a stage that has to fit one screen. */}
+          <RunFilmLimits />
+        </>
+      )}
     </div>
   );
 }
