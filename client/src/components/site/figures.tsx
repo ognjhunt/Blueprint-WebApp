@@ -49,9 +49,9 @@ const ACCENT_ON_INK = "#3a79c2";
 const MUTED = "#817e72";
 const MUTED_ON_INK = "#a8a496";
 
-const surfaceFor = (onInk: boolean) => (onInk ? "#0d0d0b" : "#ffffff");
-const accentFor = (onInk: boolean) => (onInk ? ACCENT_ON_INK : ACCENT);
-const mutedFor = (onInk: boolean) => (onInk ? MUTED_ON_INK : MUTED);
+export const surfaceFor = (onInk: boolean) => (onInk ? "#0d0d0b" : "#ffffff");
+export const accentFor = (onInk: boolean) => (onInk ? ACCENT_ON_INK : ACCENT);
+export const mutedFor = (onInk: boolean) => (onInk ? MUTED_ON_INK : MUTED);
 
 /* ------------------------------------------------------------------ shell */
 
@@ -476,7 +476,12 @@ export interface ClaimInterval {
   verdict: ClaimVerdict;
 }
 
-const verdictMeta: Record<
+/**
+ * Verdict identity: label, icon, and the two surface-specific hues. Exported so
+ * every surface that reports a verdict — the chart here and the run film — uses
+ * one definition, and so no caller can invent a fourth outcome.
+ */
+export const verdictMeta: Record<
   ClaimVerdict,
   { label: string; icon: LucideIcon; fg: string; fgOnInk: string }
 > = {

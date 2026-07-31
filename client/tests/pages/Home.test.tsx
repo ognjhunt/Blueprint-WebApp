@@ -4,7 +4,7 @@ import Home from "@/pages/Home";
 
 describe("Home", () => {
   it("renders one Task Evaluation Run lifecycle with abstention and one primary CTA", () => {
-    render(<Home />);
+    const { container } = render(<Home />);
     expect(
       screen.getByRole("heading", { level: 1, name: /Answer it before you send a robot/i }),
     ).toBeInTheDocument();
@@ -12,11 +12,17 @@ describe("Home", () => {
       screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
     ).toBeGreaterThan(0);
 
-    // The lifecycle still reads task -> maintained testbed -> routed evidence -> answer.
-    expect(screen.getByText(/^Bring one real task$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^We build the testbed$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^We route each claim$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^You get an answer with its limits$/i)).toBeInTheDocument();
+    // The lifecycle still reads task -> maintained testbed -> routed evidence ->
+    // answer. Section 03 now tells it as the run film rather than a static rail,
+    // so these assert the film's own act copy.
+    expect(container).toHaveTextContent(/You bring one real job at one real site/i);
+    expect(container).toHaveTextContent(/The capture becomes a testbed we version, pin, and maintain/i);
+    expect(container).toHaveTextContent(/Each claim goes to the cheapest evidence that is strong enough/i);
+    expect(container).toHaveTextContent(/Supported, ruled out, or not yet/i);
+
+    // A run grants neither of these, and the contract enforces it.
+    expect(container).toHaveTextContent(/Deployment approval/i);
+    expect(container).toHaveTextContent(/Safety certification/i);
 
     // Abstention is still a first-class, named outcome.
     expect(screen.getByText(/^Not yet$/i)).toBeInTheDocument();
@@ -40,9 +46,9 @@ describe("Home", () => {
     const figures = container.querySelectorAll("figure");
     expect(figures.length).toBeGreaterThanOrEqual(3);
 
-    // The two figures that plot schematic values must both carry the marker, so
-    // neither can be read as live run data. The qualitative before/after
-    // comparison plots nothing and needs none.
-    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(2);
+    // The two figures that plot schematic values must carry the marker, and so
+    // must the run film, so none of the three can be read as live run data. The
+    // qualitative before/after comparison plots nothing and needs none.
+    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(3);
   });
 });

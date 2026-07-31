@@ -42,7 +42,7 @@ describe("public real-site evaluation copy", () => {
 
     // One service, and the lifecycle that backs it.
     expect(container).toHaveTextContent(/One service\. Priced per decision\./i);
-    expect(container).toHaveTextContent(/We build the testbed/i);
+    expect(container).toHaveTextContent(/The capture becomes a testbed we version, pin, and maintain/i);
     expect(container).toHaveTextContent(/cheapest evidence that is actually good enough/i);
 
     // Refusing to decide is still stated on the page, not buried.

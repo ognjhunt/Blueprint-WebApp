@@ -1,7 +1,8 @@
 import { SEO } from "@/components/SEO";
 import { ProofBoundary } from "@/components/blueprint";
 import { ClaimThresholdChart, EvidenceLadderChart } from "@/components/site/figures";
-import { Reveal, ScrollProgressRail } from "@/components/site/motion";
+import { Reveal } from "@/components/site/motion";
+import { RunFilm } from "@/components/site/runFilm";
 import {
   Band,
   ClosingCta,
@@ -19,7 +20,6 @@ import {
   homeEvidenceRungs,
   homeLimits,
   howItWorksSplit,
-  howItWorksSteps,
 } from "@/data/publicSiteCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -48,7 +48,7 @@ export default function HowItWorks() {
 
       <PageHero
         eyebrow="How it works"
-        title="Six steps, and one of them is allowed to say no."
+        title="Seven moves, and one of them is allowed to say no."
         body="One real site-task becomes a testbed we keep. One decision becomes an evidence plan built claim by claim. What comes back is an answer with its edges drawn — not a backend you chose and not a ranking we owed you."
         ctaHref={runHref}
         ctaLabel="Request a Task Evaluation Run"
@@ -60,48 +60,18 @@ export default function HowItWorks() {
         routeTrace
       />
 
-      {/* Stepped walkthrough, bound together by a scroll-tracked rail. */}
+      {/* 01 — the run film. This replaces the stepped prose list rather than
+          adding to it: the acts are the steps, and a newcomer retains the
+          machine working far better than six numbered paragraphs. */}
       <Band tone="canvas">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="01"
             eyebrow="The walkthrough"
             title="What actually happens, in order."
-            lede="Two of these steps are yours. The rest are ours, and the split is deliberate: the hardest judgement in evaluation is method selection, and that is the last thing a buyer should be holding."
+            lede="Two of these are yours. The rest are ours, and the split is deliberate: the hardest judgement in evaluation is method selection, and that is the last thing a buyer should be holding."
           />
-
-          <ScrollProgressRail className="mt-16 pl-8 sm:pl-12" railClassName="left-0">
-            <ol className="flex flex-col gap-14">
-              {howItWorksSteps.map((step, index) => (
-                <Reveal as="li" key={step.title} from="up" distance={20}>
-                  <div className="relative">
-                    <span
-                      className="absolute -left-8 top-1 flex h-3 w-3 items-center justify-center sm:-left-12"
-                      aria-hidden="true"
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full bg-brass-deep ring-4 ring-canvas" />
-                    </span>
-                    {/* Heading and body sit side by side from lg up so the
-                        stepped list uses the full measure instead of leaving
-                        half the page empty. */}
-                    <div className="grid gap-x-12 gap-y-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                      <div>
-                        <span className="font-mono text-[11px] tracking-[0.2em] text-brass-deep">
-                          Step {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <h3 className="mt-3 max-w-[22ch] font-display text-[clamp(1.6rem,2.6vw,2.35rem)] font-medium leading-[1.1] tracking-[-0.03em] text-ink-900">
-                          {step.title}
-                        </h3>
-                      </div>
-                      <p className="max-w-[54ch] text-[15.5px] leading-[1.75] text-ink-600 lg:self-center">
-                        {step.body}
-                      </p>
-                    </div>
-                  </div>
-                </Reveal>
-              ))}
-            </ol>
-          </ScrollProgressRail>
+          <RunFilm className="mt-14" />
         </Inner>
       </Band>
 
@@ -160,7 +130,7 @@ export default function HowItWorks() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="03"
-            eyebrow="Step 03, in a picture"
+            eyebrow="Act 05, in a picture"
             title="Routing, and where it stops."
           />
           <Reveal className="mt-14">
@@ -173,7 +143,7 @@ export default function HowItWorks() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="04"
-            eyebrow="Step 05, in a picture"
+            eyebrow="Act 07, in a picture"
             title="How the answer gets its edges."
           />
           <Reveal className="mt-14">
@@ -205,7 +175,7 @@ export default function HowItWorks() {
       <FullBleedMedia
         src="/redesign/pov/factory-conveyor.jpg"
         alt="A conveyor line in a working plant"
-        eyebrow="Step 06"
+        eyebrow="After the answer"
         title="Then we tell you the cheapest thing left to try."
         body="When the evidence falls short, the useful output is not an apology — it is the next experiment, its cost, and whether it can be done short of putting a robot on the floor."
       />
