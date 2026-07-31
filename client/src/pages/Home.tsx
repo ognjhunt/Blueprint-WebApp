@@ -241,8 +241,9 @@ export default function Home() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="07"
-            eyebrow="Two ways in"
-            title="Same run. Different starting point."
+            eyebrow="Who this is for"
+            title="Robot teams buy the run. Site operators set its terms."
+            lede="One service, one intake, one call to action — the difference is what you arrive with. A robot team arrives with candidates and a deal to win. A site operator arrives with a floor, a job, and the conditions anyone testing on it has to accept."
           />
           <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:gap-16">
             <Reveal>
@@ -262,8 +263,8 @@ export default function Home() {
                 imageSrc="/redesign/pov/retail-backroom.jpg"
                 imageAlt="A retail backroom being considered for robot work"
                 eyebrow="For site operators"
-                title="Find out what a robot could do here first."
-                body="You do not need a vendor or a policy to start. Describe the job and the terms, and keep control of access, privacy, and whether anyone tests on your floor."
+                title="Decide what may be tested here, and on what terms."
+                body="You do not need a vendor or a policy to start. Describe the job and the conditions, and keep control of access, privacy, and whether anyone runs a robot on your floor."
                 linkLabel="Site-operator use case"
               />
             </Reveal>
