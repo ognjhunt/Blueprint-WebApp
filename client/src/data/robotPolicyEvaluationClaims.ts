@@ -6,7 +6,7 @@ export const robotPolicyEvaluationBoundary =
   "A Task Evaluation Run returns only the decisions supported inside its stated validation envelope. An ordering holds on the testbed version and conditions it was measured under; Blueprint has not measured how its orderings correlate with real-world orderings and does not inherit external rank-fidelity figures. Estimates are not physical guarantees, safety approval remains external, and claims that cannot be supported virtually still require physical evidence.";
 
 export const robotPolicyScreeningValue =
-  "Rule out candidate policies or checkpoints that a real site will not physically accept, then rank the remainder against that site-task with the margin, its interval, and the resolution floor of the design.";
+  "Turn a pre-sales site walkthrough into a maintained testbed: rule out candidate policies or checkpoints the site will not physically accept, then rank the remainder against that site-task with the margin, its interval, and the resolution floor of the design.";
 
 export const blueprintPositioning =
   "Blueprint turns a real site-task into a maintained testbed, eliminates candidates on measured incompatibility, and ranks the rest — reporting each margin, the interval on it, and the smallest difference the design can separate.";

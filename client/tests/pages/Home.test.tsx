@@ -8,7 +8,7 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Rank your candidates against a real site before you send one/i,
+        name: /Rank your candidates on the site you are bidding on, before the pilot/i,
       }),
     ).toBeInTheDocument();
     expect(

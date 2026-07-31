@@ -203,7 +203,7 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Rank your candidates against a real site before you send one.");
+    expect(homeHtml).toContain("Rank your candidates on the site you are bidding on, before the pilot.");
     expect(homeHtml).toContain("Some candidates the building will not take.");
     expect(homeHtml).toContain("Then the survivors get ranked, with the margin.");
     expect(homeHtml).toContain("cheapest evidence that is actually good enough");

@@ -28,13 +28,13 @@ import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTil
 
 export const homeHero = {
   eyebrow: "One service · Task Evaluation Runs",
-  title: "Rank your candidates against a real site before you send one.",
+  title: "Rank your candidates on the site you are bidding on, before the pilot.",
   body:
-    "A Task Evaluation Run captures one real site-task, rules out the candidates the building physically will not accept, and orders the rest — with the margin, the interval, and the smallest gap the run can actually resolve.",
+    "You already walk the floor before you quote. A Task Evaluation Run turns that visit into a testbed we keep — ruling out the candidates the building physically will not take, then ordering the rest with the margin, the interval on it, and the smallest gap the run can resolve.",
   chips: [
+    "From walkthrough to measured testbed",
     "Incompatibilities measured, not predicted",
-    "An ordering with its margin",
-    "Stated resolution, not a bare rank",
+    "An ordering with its resolution",
   ],
 } as const;
 
@@ -354,7 +354,7 @@ export const robotTeamHero = {
   eyebrow: "Task Evaluation Runs · for robot teams",
   title: "Spend field time on the candidate that earned it.",
   body:
-    "You have more checkpoints than sites, and more sites than weeks. Bring the candidates and the site-task. We drop the ones the building will not physically take, then order the rest on one pinned testbed — with the margin on every gap and the smallest gap the design can separate.",
+    "You can already rank checkpoints in your own simulator. What that will not tell you is how they order in the building you are quoting — the one you walked for an hour and wrote a proposal against. Bring the candidates and that site-task, and get the incompatibilities in metres and the survivors in order.",
   chips: ["Bring policies or checkpoints", "Screened on measurement", "Ordered with a stated resolution"],
 } as const;
 

@@ -47,7 +47,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Task Evaluation Runs for real site-tasks"
-        description="Blueprint captures one real site-task, rules out the candidates the building will not physically take, and ranks the rest — with the margin on every gap and the smallest gap the run can resolve."
+        description="Blueprint turns the site walkthrough you already do into a maintained testbed: candidates the building will not physically take are ruled out in metres, and the rest come back ordered with the margin on every gap."
         canonical="/"
         jsonLd={[
           webPageJsonLd({
@@ -253,7 +253,7 @@ export default function Home() {
                 imageAlt="A robot arm working a tote task at a real site"
                 eyebrow="For robot teams"
                 title="Spend field time on the candidate that earned it."
-                body="Bring checkpoints or policies. The ones the site will not take are ruled out on measurement, and the rest come back ordered — with the margin on every gap."
+                body="You can already rank checkpoints in your own simulator. What it will not tell you is how they order in the building you are quoting — so bring them, and that site-task."
                 linkLabel="Robot-team use case"
               />
             </Reveal>
