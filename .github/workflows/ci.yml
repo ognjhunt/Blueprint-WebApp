@@ -76,6 +76,9 @@ jobs:
       - name: Claims guard (public-claims truthfulness gate)
         run: npm run claims:guard
 
+      - name: Verify shared doctrine blocks match the cross-repo lock
+        run: npm run doctrine:verify
+
       - name: Upload claims-guard report
         if: ${{ always() && hashFiles('output/claims-guard/**') != '' }}
         uses: actions/upload-artifact@v4
