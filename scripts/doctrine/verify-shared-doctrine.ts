@@ -12,10 +12,17 @@
  * offline, deterministic, and identical on a laptop and in CI.
  *
  * Extraction rule, kept identical to the Python implementation:
+ *   - normalize CRLF and lone CR to LF, then split on LF
  *   - locate the single line containing `<!-- <BLOCK>_START -->`
  *   - locate the single line containing `<!-- <BLOCK>_END -->`
  *   - take the lines strictly between them, join with LF, append one LF
  *   - hash the UTF-8 bytes with SHA-256
+ *
+ * Newline normalization keeps the digest identical on a CRLF checkout, which
+ * matters because no `.gitattributes` rule pins these Markdown files to LF. The
+ * Python side splits explicitly on LF rather than using `str.splitlines()` for
+ * the same reason in reverse: `splitlines()` also breaks on vertical tab, form
+ * feed, and the Unicode line separators, which `split("\n")` here does not.
  *
  * Exits non-zero unless every tracked block matches.
  */
@@ -24,6 +31,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 export const REPO_NAME = "Blueprint-WebApp";
 export const LOCK_RELATIVE_PATH = "contracts/shared-doctrine.lock.json";
@@ -54,10 +62,15 @@ export type BlockResult = {
   matched: boolean;
 };
 
+/** Fold CRLF and lone CR to LF so a CRLF checkout hashes identically. */
+export function normalizeNewlines(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 export function extractBlock(text: string, block: string): string {
   const startMarker = `<!-- ${block}_START -->`;
   const endMarker = `<!-- ${block}_END -->`;
-  const lines = text.split("\n");
+  const lines = normalizeNewlines(text).split("\n");
 
   const startHits: number[] = [];
   const endHits: number[] = [];
@@ -198,8 +211,12 @@ function main(): number {
   return 0;
 }
 
+// fileURLToPath, not `new URL(...).pathname`: the latter is percent-encoded, so a
+// checkout path containing a space would not match argv[1] and the gate would
+// silently exit 0 without running. Windows file-URL syntax fails the same way.
 const invokedDirectly =
-  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (invokedDirectly) {
   process.exit(main());
