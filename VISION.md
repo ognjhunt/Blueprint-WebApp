@@ -14,7 +14,6 @@ bets**, not current capability. Every forward claim carries an explicit proof bo
 > Current-product correction (2026-07-29): the sole customer-facing product is one scoped Task Evaluation Run. It may return a bounded positive or negative decision, candidate elimination, a partial decision, explicit abstention, or the next evidence needed. Ranking is conditional, not guaranteed. Post-training is only a permitted use of qualifying evidence inside a run, never a separate SKU or proof that training occurred. Any older rung language below that calls ranking or policy-improvement/data packages "shipping today" is retained long-horizon strategy text and is superseded for current product and commercial behavior by `PLATFORM_CONTEXT.md`.
 
 <!-- SHARED_VISION_START -->
-
 ## The one-sentence version
 
 Blueprint starts as the neutral way to know **which robot policy will actually work at a specific
@@ -61,23 +60,27 @@ Three curves make this the right decade to build a measurement-and-data layer un
 
 ## The ladder
 
-Each rung is a product we can sell, a moat we deepen, and a launchpad for the next. We do not skip
-rungs; we earn each one with the data the previous rung produces.
+Each rung is a capability and moat built through the Task Evaluation Run product,
+plus a launchpad for the next. We do not create a new SKU for each rung, and we
+earn each claim with evidence from the previous rung.
 
 ---
 
 ### Rung 1 — The wedge: claim-bounded Task Evaluation Runs
 
-**What it is (shipping today).** Blueprint's **Task Evaluation Run** turns a real site-task into a
-maintained testbed and routes each decision-relevant claim to the least expensive currently
-qualified evidence. It returns a bounded positive or negative decision, candidate elimination,
-partial decision, explicit abstention, or the next evidence needed. Candidate ordering appears only
-when the evidence supports it; it is not guaranteed. This is the current PMF wedge (see the
+**What it is (shipping today).** Blueprint's one product is the **Task Evaluation
+Run**: bind a decision to an exact maintained Site-Task Testbed, decompose it into
+claims, route each claim to qualified evidence, and return a decision, a partial
+decision, or an explicit abstention with the next cheapest experiment. It returns
+a bounded positive or negative decision, candidate elimination, partial decision,
+explicit abstention, or the next evidence needed. Comparative policy ranking is
+one possible claim, not the product definition, and candidate ordering appears
+only when the evidence supports it. This is the current PMF wedge (see the
 [Commercial Wedge Overlay](PLATFORM_CONTEXT.md)).
 
-**Why it is credible enough to qualify methods, not to assume verdicts — two research signals.**
-Evaluating a policy inside a *generated world* may support some comparison claims. As of June 2026,
-two external results motivate method qualification without becoming Blueprint run evidence:
+**Research direction, not Blueprint proof.** Published generated-world results
+motivate a learned-evaluator evidence method, but do not qualify it for a Blueprint
+claim or domain. As of June 2026 two results make that research direction concrete:
 
 - **SC3-Eval** (NVIDIA · Physical Intelligence · Toronto/Vector · Stanford · UC Berkeley,
   arXiv:2606.18610) adapts a pre-trained video foundation model into a *closed-loop* policy evaluator
@@ -86,24 +89,39 @@ two external results motivate method qualification without becoming Blueprint ru
   **seven VLA policies** (381 hours of real table-bussing data), a **0.929 headline correlation**,
   and — honestly — a drop to **r = 0.870 out-of-distribution.** This is the same self-consistency
   family Blueprint's own WAM evaluator prepares (forward/inverse episode-consistency scoring, behind
-  a replaceable external-scorer boundary — see [`AGENTS.md`](AGENTS.md)).
+  a replaceable external-scorer boundary — see [`AGENTS.md`](AGENTS.md)). The `0.929` value is
+  SC3-Eval's published overall Pearson result across those seven policies, not a Blueprint
+  measurement; Blueprint has not measured an equivalent correlation.
 - **OSCAR** (Peking University · NVIDIA/Michigan, arXiv:2606.04463) — an **omni-embodiment,
   action-conditioned world model** (a fine-tune of Cosmos-Predict2.5-2B on a single GH200, using 2D
   kinematic-skeleton conditioning for cross-embodiment) — reports **Pearson r = 0.852 /
   Spearman ρ = 0.750** against the real **RoboArena** ranking across 7 generalist policies (65
   sessions, 1,365 pairwise comparisons), and argues explicitly for "a future where robot policies can
-  be **purely evaluated in virtual generated worlds**." OSCAR sits behind Blueprint's swappable
+  be **purely evaluated in virtual generated worlds**." Two honesty caveats travel with that quote:
+  OSCAR's published validation is **open-loop only** — no chained closed-loop durability result was
+  published — and exposure-bias collapse in long chained generation is a named open problem in the
+  2026 literature, so the "purely virtual evaluation" future is the paper's argued direction, not its
+  demonstrated result. OSCAR sits behind Blueprint's swappable
   world-model adapter (see [`WORLD_MODEL_STRATEGY_CONTEXT.md`](WORLD_MODEL_STRATEGY_CONTEXT.md)).
 
 Earlier work corroborates the direction (SIMPLER r ≈ 0.924; AutoEval r ≈ 0.942 while cutting human
-supervision >99%). **The 0.929 figure is SC3-Eval's external headline correlation, not a Blueprint
-result.** The in-distribution 0.98 becomes ~0.85–0.87 cross-embodiment / OOD, which is precisely why
+supervision >99%). **SC3-Eval reports an overall closed-loop Pearson correlation of `0.929` across
+seven policies under its published protocol. This is not a Blueprint measurement; Blueprint has
+not measured equivalent rank fidelity.** Ranking is the honest, defensible unit; the honest caveat
+is that SC3-Eval's in-distribution 0.98 becomes ~0.85–0.87 cross-embodiment / OOD — and on the OOD
+online split its Pearson edge over its own Cosmos-Predict2.5 baseline is a statistical wash
+(0.870 vs 0.871; it keeps only an MMRV edge, 0.171 vs 0.195). The consistency recipe's advantage is
+largely an in-distribution result today — precisely the gap rung 3b has to close, and precisely why
 Pipeline must qualify each method for the requested claim and may abstain.
 
-**Proof boundary (non-negotiable).** We sell an inspectable decision or abstention with per-claim
-outcomes, validation envelope, uncertainty, disagreement, claim ceiling, next experiment, and exact
-provenance. We do **not** sell a guaranteed ranking or field outcome, an off-scope validation, or a
-claim that we ran the buyer's real robot unless request-scoped owner-system proof exists. Generated
+**Proof boundary (non-negotiable).** Blueprint's current preregistered
+policy-ranking verdict is `thesis_not_supported`. A Task Evaluation Run may still
+resolve geometry, perception, collision, or other qualified claims and abstain on
+ranking. We sell an inspectable decision or abstention with per-claim outcomes,
+validation envelope, uncertainty, disagreement, claim ceiling, next experiment,
+and exact provenance. We do **not** sell a guaranteed ranking or field outcome, an
+off-scope validation, deployment readiness, safety certification, or a claim that
+we ran the buyer's robot without separately accepted physical proof. Generated
 frames are review support, never real-world proof.
 
 ---
@@ -145,10 +163,12 @@ conflict-of-interest firewall** — the same discipline that keeps a ratings age
 
 Two capabilities grow out of the data rungs 1–2 produce. They are **partly shipping, partly bets.**
 
-**3a — Post-training data generation and policy improvement (permitted evidence use today; future
-capability beyond that).** Post-training is not a separate current product. A run may mark exact
-qualifying evidence eligible for post-training use, which does not prove that training occurred or
-that a policy improved. Robotics is data-starved in a way language never was: usable
+**3a — Evidence reuse and optional policy experiments (inside Task Evaluation
+Runs).** Post-training is not a separate current product. Rights-cleared run
+evidence may become eligible for evaluation or
+post-training use after provenance, robot-action alignment, quality, and leakage
+gates; eligibility does not prove that training occurred or that a policy
+improved. Policy improvement may be an internal candidate-generation experiment. Robotics is data-starved in a way language never was: usable
 open-source real-world interaction data is **<5,000 hours** vs. trillions of text tokens; Bessemer
 calls robot data **"~a billion times smaller than internet text"** and projects **>$3B** of industry
 data spend in two years. High-quality teleoperation still costs **~$118–340/hour**. Two things follow:
@@ -157,7 +177,7 @@ and generated **780k trajectories (~6,500 human-hours-equivalent) in 11 hours** 
 physics sim, it doesn't yet replace real data; and (ii) — the load-bearing fact for us — **policy
 generalization scales with the *diversity of real environments*, not raw demo count** ("Data Scaling
 Laws in Imitation Learning," 2024). **That is exactly what proprietary multi-site capture is.** Every
-site we capture makes our data packages more valuable; Scale AI's own framing is that strict data
+site we capture makes qualifying evidence more valuable; Scale AI's own framing is that strict data
 lineage is **"a moat that grows with every deployment."**
 
 **3b — Calibrated real-world prediction ("95% on our eval ≈ 95% in real life").** This is the
@@ -256,15 +276,16 @@ These are inherited from platform doctrine and do not bend as we climb:
 > → more proprietary real-world outcome data → better prediction *and* better data generation → better
 > per-site policies → more deployments we can credibly serve → funds and justifies more capture.
 
-Rungs 1–2 are the **buyer-facing evidence foundation.** Every deployment decision we support can
-produce a labeled outcome that strengthens later evaluation and policy-improvement work, without
-turning an unverified prediction into ground truth.
+Rungs 1–2 are a **data-acquisition strategy disguised as a product**, and the buyer-facing evidence
+foundation everything above rests on. Every deployment decision we support can produce a labeled
+outcome that strengthens later evaluation and policy-improvement work — an outcome no competitor
+without our capture footprint can buy — without turning an unverified prediction into ground truth.
 
 ## The bets we are explicitly making (and what would have to become true)
 
 | Bet | Current evidence | What must become true |
 |-----|------------------|------------------------|
-| World models get good enough to predict physical outcomes | **SC3-Eval r=0.984 in-dist / OSCAR r=0.852 RoboArena** (generated-world eval); Cosmos/Genie/Marble usable for augmentation *today* | Close the OOD/cross-embodiment gap (0.85–0.87 → ~0.95); action-conditioned, long-horizon, physically-accurate prediction — years out |
+| World models get good enough to predict physical outcomes | **SC3-Eval r=0.984 in-dist (OOD ≈ its Predict2.5 baseline) / OSCAR r=0.852 RoboArena, open-loop-validated only**; Cosmos/Genie/Marble usable for augmentation *today* | Close the OOD/cross-embodiment gap (0.85–0.87 → ~0.95); action-conditioned, long-horizon, physically-accurate prediction with published chained closed-loop durability — years out |
 | Synthetic + site data gets good enough for post-training | GR00T-Dreams, 780k-traj/11h, DreamGen ~10× | Sim-to-real transfer strong enough to sell improvement, not just data |
 | Real-site diversity is the durable data moat | Data-scaling-law: generalization ∝ environment diversity | We out-capture competitors on breadth *and* provenance quality |
 | A neutral eval standard can become a required gate | Ratings/UL/MLPerf precedents | We get embedded in procurement/insurance/pilot decisions before a rival |
@@ -281,7 +302,6 @@ ranking is valuable even if world models plateau.
   Decide only with rung-1 evidence and a neutrality plan.
 - **Neutrality governance:** when do we formalize the eval firewall? (Answer: before rung 4, not
   after.)
-
 <!-- SHARED_VISION_END -->
 
 ## Evidence base (selected, verified 2026-07-03)
@@ -332,5 +352,10 @@ figures beyond the ~40% one-year drop are lower-confidence.*
 
 ---
 
-*Maintained as a shared cross-repo doctrine. Edit the shared block in one place and mirror to all
-three repos. Last updated 2026-07-03.*
+*Shared cross-repo doctrine, generated from a single source. Edit
+`BlueprintCapturePipeline doctrine/`, then run
+`python3 scripts/sync_shared_doctrine.py --write` to splice it into every repo and
+re-lock. Do not hand-edit the block above: CI verifies it against
+`contracts/shared-doctrine.lock.json` and will reject a drifted copy. Last synced
+2026-07-31 (union merge of the previously diverged Pipeline and WebApp copies;
+`BlueprintCapture` was not checked out and remains unsynced).*
