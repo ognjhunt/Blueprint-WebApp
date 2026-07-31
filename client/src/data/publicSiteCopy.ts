@@ -310,39 +310,6 @@ export const siteOperatorControls = [
 
 /* ------------------------------------------------------ how-it-works page */
 
-export const howItWorksSteps = [
-  {
-    title: "Say what you need to decide",
-    body:
-      "The question, the claims under it, the threshold and its units, what a wrong yes would cost, how much risk is acceptable, your budget and deadline, what evidence already exists, and anything we may not do.",
-  },
-  {
-    title: "Bind the run to a testbed",
-    body:
-      "One exact testbed ID, version, and digest. Raw capture stays the source of truth — derived evidence never quietly gets promoted to fact.",
-  },
-  {
-    title: "Route every claim separately",
-    body:
-      "Geometry, real observations, simulation, world models, provider tools, physical tests: each claim gets the cheapest one strong enough. Choosing is our job.",
-  },
-  {
-    title: "Measure and combine honestly",
-    body:
-      "Each method reports what it measured, under what conditions, how sure it is, and where methods disagreed. Disagreement is reported, not averaged away.",
-  },
-  {
-    title: "Return the answer and its edges",
-    body:
-      "Yes, no, partly, or not yet. Unknown states fail closed, and a refusal to decide is never converted into a winner by comparing raw scores.",
-  },
-  {
-    title: "Name the next cheapest test",
-    body:
-      "When the evidence falls short, the run says what would close the gap and whether that means real hardware.",
-  },
-] as const;
-
 export const howItWorksSplit = {
   blueprint: [
     "Secure intake and who is allowed to see what",
@@ -547,3 +514,171 @@ export const closingCta = {
   body:
     "The site-task, the call you are about to make, the threshold it turns on, and anything we may not do. We will come back with the evidence plan and the quote.",
 } as const;
+
+/* ------------------------------------------------------------- run film */
+
+/**
+ * Script for "The Run Film" — the scroll-driven motion graphic that shows one
+ * Task Evaluation Run end to end instead of describing it.
+ *
+ * Three rules govern this block, and they are acceptance criteria rather than
+ * preferences:
+ *
+ *   - `label` is at most 8 words; `caption` is at most 22 words, and each
+ *     caption carries its own count. A caption that needs more than 22 words is
+ *     a caption trying to carry two acts — split the act, do not raise the cap.
+ *   - Plain language leads and the internal term follows. `caption` is what a
+ *     visitor who has never heard of a Task Evaluation Run reads; `term` is the
+ *     small mono chip beneath it. Never the reverse.
+ *   - `actor` says who did this. Two acts are the buyer's; the rest are ours,
+ *     and that split is the point — method selection is the last thing a buyer
+ *     should be holding.
+ *
+ * No provider, model, or vendor name appears here, and no metric, count, or
+ * customer is invented. The intervals and verdicts the film draws come from
+ * `homeClaims` above, so the film and the claim-threshold chart cannot drift.
+ */
+export interface RunFilmAct {
+  /** Stable key, used for React keys, the stepper, and tests. */
+  id: string;
+  /** The act's on-screen name. At most 8 words. */
+  label: string;
+  /** The one caption for this act. At most 22 words. */
+  caption: string;
+  /** The internal term, shown as a small mono chip under the human words. */
+  term: string;
+  /** Who performed this act. Rendered as a persistent side-marker. */
+  actor: "You" | "Blueprint";
+}
+
+export const runFilmActs: readonly RunFilmAct[] = [
+  {
+    id: "capture",
+    label: "One real site-task",
+    // 17 words.
+    caption:
+      "You bring one real job at one real site. We capture the place exactly as it is.",
+    term: "capture bundle",
+    actor: "You",
+  },
+  {
+    id: "testbed",
+    label: "The testbed we keep",
+    // 19 words.
+    caption:
+      "The capture becomes a testbed we version, pin, and maintain, so today's answer and next quarter's stay comparable.",
+    term: "maintained site-task testbed",
+    actor: "Blueprint",
+  },
+  {
+    id: "decision",
+    label: "The decision you are making",
+    // 19 words.
+    caption:
+      "Not “run a benchmark.” The actual call, the threshold it turns on, and what a wrong yes would cost.",
+    term: "decision request",
+    actor: "You",
+  },
+  {
+    id: "claims",
+    label: "One decision, several claims",
+    // 18 words.
+    caption:
+      "The decision splits into claims that can each be tested — and can each be wrong — on their own.",
+    term: "claim decomposition",
+    actor: "Blueprint",
+  },
+  {
+    id: "routing",
+    label: "Each claim finds its evidence",
+    // 19 words.
+    caption:
+      "Each claim goes to the cheapest evidence that is strong enough. You never pick the method — that is our job.",
+    term: "evidence plan",
+    actor: "Blueprint",
+  },
+  {
+    id: "measurement",
+    label: "What came back",
+    // 19 words.
+    caption:
+      "Every method reports what it measured, under what conditions, and how sure it is. Disagreement is reported, never averaged away.",
+    term: "normalised results",
+    actor: "Blueprint",
+  },
+  {
+    id: "envelope",
+    label: "The answer and its edges",
+    // 20 words.
+    caption:
+      "Supported, ruled out, or not yet. A claim the evidence cannot carry stays open — it is never rounded into a win.",
+    term: "decision envelope",
+    actor: "Blueprint",
+  },
+];
+
+/**
+ * The evidence ladder the film's claims climb, cheapest first. Cost order is
+ * not authority order: real capture stays the reference every derived method is
+ * checked against, which is why `basis` is carried separately from position.
+ */
+export const runFilmRungs: readonly { label: string; basis: EvidenceRung["basis"] }[] = [
+  { label: "Geometry and reach", basis: "Computed from capture" },
+  { label: "Recorded real observations", basis: "Real capture" },
+  { label: "Simulated rollouts", basis: "Derived" },
+  { label: "Generated and model-based evidence", basis: "Derived" },
+  { label: "Evidence from real hardware", basis: "Real world" },
+];
+
+export interface RunFilmRoute {
+  /** Short form of the claim, so a narrow row stays readable. At most 8 words. */
+  short: string;
+  /** Index into `runFilmRungs` the claim's evidence was actually taken from. */
+  rung: number;
+  /**
+   * A rung this claim was refused, if any. A method is only used where it has
+   * been qualified for that kind of claim, and being cheaper never overrides
+   * that — this is the gate that makes the third claim end unresolved.
+   */
+  gate?: { rung: number; reason: string };
+  /** Rung that would settle a claim the evidence could not close. */
+  nextTest?: number;
+  /** The claim, its interval and its verdict — shared with the other figures. */
+  claim: ClaimInterval;
+}
+
+export const runFilmRoutes: readonly RunFilmRoute[] = [
+  { short: "Can it reach the fixture?", rung: 0, claim: homeClaims[0] },
+  { short: "Does it clear the dock door?", rung: 1, claim: homeClaims[1] },
+  {
+    short: "Is A better than B here?",
+    rung: 2,
+    gate: {
+      rung: 3,
+      reason: "Not qualified as proof for a head-to-head claim — support only",
+    },
+    nextTest: 4,
+    claim: homeClaims[2],
+  },
+];
+
+/**
+ * The decision the film follows, and the two things an envelope never grants.
+ *
+ * The stamps are not marketing framing. `DecisionEnvelope` fails validation
+ * unless both `deployment_approval` and `safety_certification` are false, so
+ * this is a contract-level guarantee rather than a promise — which is exactly
+ * why it belongs on the public page.
+ */
+export const runFilmDecision = {
+  question: "Should candidate A do this job at this site?",
+  metricLabel: "success rate",
+} as const;
+
+export const runFilmStamps: readonly { label: string; value: string }[] = [
+  { label: "Deployment approval", value: "No" },
+  { label: "Safety certification", value: "No" },
+];
+
+export const runFilmStampNote =
+  "A run never grants either one. Both stay external, and the contract refuses an envelope that claims otherwise.";

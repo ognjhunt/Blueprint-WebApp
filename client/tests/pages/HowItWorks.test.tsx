@@ -4,23 +4,30 @@ import HowItWorks from "@/pages/HowItWorks";
 
 describe("HowItWorks", () => {
   it("shows decision-oriented intake, routing owned by the pipeline, abstention, and the next experiment", () => {
-    render(<HowItWorks />);
+    const { container } = render(<HowItWorks />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Six steps, and one of them is allowed to say no/i }),
+      screen.getByRole("heading", { level: 1, name: /Seven moves, and one of them is allowed to say no/i }),
     ).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: /Say what you need to decide/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Route every claim separately/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Return the answer and its edges/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Name the next cheapest test/i })).toBeInTheDocument();
+    // The walkthrough is now the run film. Its acts carry the same beats the
+    // stepped prose list used to: the decision, per-claim routing, the answer
+    // with its edges, and the next cheapest test.
+    expect(container).toHaveTextContent(/The actual call, the threshold it turns on/i);
+    expect(container).toHaveTextContent(/The decision splits into claims/i);
+    expect(container).toHaveTextContent(/Supported, ruled out, or not yet/i);
+    expect(container).toHaveTextContent(/Next test/i);
 
-    // The customer does not choose the evidence backend, and the split says so.
-    expect(screen.getByText(/Choosing is our job/i)).toBeInTheDocument();
+    // The customer does not choose the evidence backend, and the film says so.
+    expect(container).toHaveTextContent(/You never pick the method — that is our job/i);
     expect(screen.getByRole("heading", { name: /The pipeline owns the verdict/i })).toBeInTheDocument();
     expect(screen.getByText(/including the decision to abstain/i)).toBeInTheDocument();
 
     // Unknown states fail closed rather than defaulting to a pass.
     expect(screen.getAllByText(/Unknown states fail closed/i).length).toBeGreaterThan(0);
+
+    // The two things a run never grants, stated on the page.
+    expect(container).toHaveTextContent(/Deployment approval/i);
+    expect(container).toHaveTextContent(/Safety certification/i);
 
     expect(
       screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i })[0],

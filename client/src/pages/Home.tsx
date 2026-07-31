@@ -5,10 +5,10 @@ import {
   EvidenceLadderChart,
   DecisionShiftCompare,
   OutcomeSpectrum,
-  RunLifecycleRail,
   StatRow,
 } from "@/components/site/figures";
 import { Reveal } from "@/components/site/motion";
+import { RunFilm } from "@/components/site/runFilm";
 import {
   Band,
   ClosingCta,
@@ -28,7 +28,6 @@ import {
   homeDecisionCost,
   homeEvidenceRungs,
   homeHero,
-  homeLifecycle,
   homeLimits,
   homeOutcomes,
   homeStats,
@@ -129,12 +128,11 @@ export default function Home() {
           <SectionHeader
             index="03"
             eyebrow="How a run moves"
-            title="Five moves from a real task to an answer."
+            title="Seven moves from a real task to an answer."
             lede="Nothing here asks you to design an evaluation. You bring the job and the decision; the substrate and the method are ours to get right."
           />
-          <div className="mt-16">
-            <RunLifecycleRail stages={homeLifecycle} />
-          </div>
+          {/* The compact cut of the run film, in place of the static rail. */}
+          <RunFilm variant="compact" className="mt-16" />
         </Inner>
       </Band>
 

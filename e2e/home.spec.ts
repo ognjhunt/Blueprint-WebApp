@@ -23,9 +23,22 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   await expect(
     page.locator('main').getByText(/One service\. Priced per decision\./i),
   ).toBeVisible();
-  await expect(page.getByText(/^Bring one real task$/i)).toBeVisible();
-  await expect(page.getByText(/^We build the testbed$/i)).toBeVisible();
-  await expect(page.getByText(/^You get an answer with its limits$/i)).toBeVisible();
+  // Section 03 tells the lifecycle as the run film rather than a static rail, so
+  // these assert the film's act copy. `.first()` because each caption appears
+  // both on the stage and in the film's screen-reader act list.
+  await expect(
+    page.getByText(/You bring one real job at one real site/i).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/The capture becomes a testbed we version, pin, and maintain/i).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Supported, ruled out, or not yet/i).first(),
+  ).toBeVisible();
+
+  // The two things a run never grants. Contract-enforced, so it is stated.
+  await expect(page.getByText(/Deployment approval/i).first()).toBeVisible();
+  await expect(page.getByText(/Safety certification/i).first()).toBeVisible();
 
   // Declining to decide is stated on the page, not implied.
   await expect(page.getByText(/A run is allowed to tell you it cannot tell you/i)).toBeVisible();
