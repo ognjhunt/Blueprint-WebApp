@@ -46,6 +46,7 @@
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",
+    "doctrine:verify": "tsx scripts/doctrine/verify-shared-doctrine.ts",
     "test": "vitest run",
     "test:rules": "npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage --project blueprint-rules-test \"npx vitest run --config vitest.rules.config.ts\"",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
