@@ -203,8 +203,9 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Answer it before you send a robot.");
-    expect(homeHtml).toContain("A run is allowed to tell you it cannot tell you.");
+    expect(homeHtml).toContain("Rank your candidates against a real site before you send one.");
+    expect(homeHtml).toContain("Some candidates the building will not take.");
+    expect(homeHtml).toContain("Then the survivors get ranked, with the margin.");
     expect(homeHtml).toContain("cheapest evidence that is actually good enough");
     // Schematic figure values must be marked as such in the prerendered HTML too.
     expect(homeHtml).toContain("Illustrative");
@@ -247,6 +248,6 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
-    expect(browserJavaScript).toContain("You get an answer with its limits");
+    expect(browserJavaScript).toContain("We order what survives");
   });
 });

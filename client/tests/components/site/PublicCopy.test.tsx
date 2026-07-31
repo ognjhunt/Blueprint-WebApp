@@ -35,7 +35,7 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Answer it before you send a robot/i,
+        name: /Rank your candidates against a real site before you send one/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
@@ -45,9 +45,11 @@ describe("public real-site evaluation copy", () => {
     expect(container).toHaveTextContent(/The capture becomes a testbed we version, pin, and maintain/i);
     expect(container).toHaveTextContent(/cheapest evidence that is actually good enough/i);
 
-    // Refusing to decide is still stated on the page, not buried.
-    expect(container).toHaveTextContent(/A run is allowed to tell you it cannot tell you/i);
-    expect(container).toHaveTextContent(/is not reported as one/i);
+    // Screening leads, the ordering follows, and the ordering carries the
+    // resolution that makes it readable.
+    expect(container).toHaveTextContent(/Some candidates the building will not take/i);
+    expect(container).toHaveTextContent(/Then the survivors get ranked, with the margin/i);
+    expect(container).toHaveTextContent(/Tied at this rollout count/i);
 
     // Withdrawn products, fixed prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

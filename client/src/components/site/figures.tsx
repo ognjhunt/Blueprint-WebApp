@@ -523,8 +523,8 @@ export function ClaimThresholdChart({
 
   return (
     <Figure
-      title="Why a run can decline to pick a winner"
-      subtitle={`Each claim is read against the threshold you set. When the uncertainty interval crosses the line, the claim stays open — the point estimate is not rounded into a verdict.`}
+      title="Each claim, against the line you set"
+      subtitle={`Every claim is read against your threshold. A claim whose uncertainty interval clears the line is called; one whose interval crosses it is reported as still open, at the width it actually has.`}
       illustrative
       onInk={onInk}
       tableView={
@@ -728,6 +728,621 @@ export function ClaimThresholdChart({
         <span>
           An unresolved claim is a result, not a gap in the report. It comes with
           the reason, and the cheapest next test that would settle it.
+        </span>
+      </p>
+    </Figure>
+  );
+}
+
+/* ------------------------------------------- 3b. screening margin chart */
+
+export interface ScreeningMarginRow {
+  check: string;
+  measured: string;
+  required: string;
+  /** Measured minus required, in metres. Negative means it does not fit. */
+  marginM: number;
+  /** Calibration uncertainty on the margin, in metres. */
+  toleranceM: number;
+}
+
+type ScreeningVerdict = "clears" | "ruled_out" | "under_precision";
+
+/**
+ * Derive the verdict from the interval rather than accepting an authored one.
+ *
+ * This mirrors the Pipeline's analytic reachability adapter exactly: a margin
+ * counts only when the *whole* calibration interval sits on one side of zero.
+ * An interval that straddles zero is not a soft pass and not a soft fail — it
+ * is a measurement this capture cannot separate at its current precision, and
+ * saying so is a statement about the instrument, not about our confidence.
+ */
+function screeningVerdict(row: ScreeningMarginRow): ScreeningVerdict {
+  if (row.marginM - row.toleranceM > 0) return "clears";
+  if (row.marginM + row.toleranceM < 0) return "ruled_out";
+  return "under_precision";
+}
+
+const screeningMeta: Record<
+  ScreeningVerdict,
+  { label: string; icon: LucideIcon; fg: string; fgOnInk: string }
+> = {
+  clears: {
+    label: "Clears",
+    icon: CheckCircle2,
+    fg: verdictMeta.supported.fg,
+    fgOnInk: verdictMeta.supported.fgOnInk,
+  },
+  ruled_out: {
+    label: "Ruled out",
+    icon: XCircle,
+    fg: verdictMeta.rejected.fg,
+    fgOnInk: verdictMeta.rejected.fgOnInk,
+  },
+  under_precision: {
+    label: "Under capture precision",
+    icon: MinusCircle,
+    fg: verdictMeta.unresolved.fg,
+    fgOnInk: verdictMeta.unresolved.fgOnInk,
+  },
+};
+
+const signedMetres = (value: number) =>
+  `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(2)} m`;
+
+/**
+ * ClearanceMarginChart — the screening pass, on one signed axis in metres.
+ *
+ * This is the only figure on the public site whose rows can name a *cause*.
+ * Every value here is arithmetic over a measured place and a published robot
+ * envelope: there is no policy, no rollout, and no transfer assumption between
+ * the capture and the answer. That is the whole reason a screening row can say
+ * "misses the opening by 18 cm" while a ranking row can only say "ahead of".
+ *
+ * One measure (metres), one axis, zero at the centre. Bars use the emphasis
+ * pair rather than the status hues — verdict identity is carried by an icon and
+ * a written label per row, so nothing depends on colour.
+ */
+export function ClearanceMarginChart({
+  rows,
+  onInk = false,
+}: {
+  rows: readonly ScreeningMarginRow[];
+  onInk?: boolean;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const accent = accentFor(onInk);
+  const muted = mutedFor(onInk);
+  const surface = surfaceFor(onInk);
+
+  // Symmetric domain so zero stays centred and the two sides stay comparable.
+  const span =
+    Math.max(...rows.map((row) => Math.abs(row.marginM) + row.toleranceM), 0.01) * 1.2;
+  const x = (value: number) => 50 + (value / span) * 50;
+
+  return (
+    <Figure
+      title="What the building will not take"
+      subtitle="Measured minus required, in metres, with the calibration uncertainty on each. A bar has to clear zero by its whole interval to count."
+      illustrative
+      onInk={onInk}
+      tableView={
+        <table className="w-full text-left text-[13px]">
+          <caption className="sr-only">
+            Per-check measured value, requirement, signed margin with calibration
+            tolerance, and the resulting screening verdict
+          </caption>
+          <thead>
+            <tr className={onInk ? "text-ink-300" : "text-ink-500"}>
+              <th scope="col" className="py-1 pr-4 font-semibold">Check</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Measured</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Required</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Margin</th>
+              <th scope="col" className="py-1 font-semibold">Verdict</th>
+            </tr>
+          </thead>
+          <tbody className={onInk ? "text-ink-200" : "text-ink-700"}>
+            {rows.map((row) => (
+              <tr
+                key={row.check}
+                className={onInk ? "border-t border-white/10" : "border-t border-line-soft"}
+              >
+                <th scope="row" className="py-2 pr-4 font-medium">{row.check}</th>
+                <td className="py-2 pr-4">{row.measured}</td>
+                <td className="py-2 pr-4">{row.required}</td>
+                <td className="py-2 pr-4 font-mono">
+                  {signedMetres(row.marginM)} ± {row.toleranceM.toFixed(2)}
+                </td>
+                <td className="py-2">{screeningMeta[screeningVerdict(row)].label}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      }
+    >
+      <div
+        className={cn(
+          "mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]",
+          onInk ? "text-ink-300" : "text-ink-500",
+        )}
+      >
+        <span className="inline-flex items-center gap-2">
+          <svg width="18" height="8" aria-hidden="true">
+            <rect x="0" y="1" width="12" height="6" rx="1" fill={muted} />
+            <line x1="12" y1="4" x2="18" y2="4" stroke={muted} strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          Margin, with calibration tolerance
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <svg width="10" height="10" aria-hidden="true">
+            <line
+              x1="5"
+              y1="0"
+              x2="5"
+              y2="10"
+              stroke={onInk ? "#f3efe6" : "#0d0d0b"}
+              strokeWidth="1.5"
+            />
+          </svg>
+          Zero · exactly fits
+        </span>
+      </div>
+
+      {/* Scale reference: the two ends and the centre. */}
+      <div className="relative mb-1 h-4" aria-hidden="true">
+        <span
+          className={cn("absolute top-0 font-mono text-[10px]", onInk ? "text-ink-400" : "text-ink-400")}
+          style={{ left: 0 }}
+        >
+          −{span.toFixed(2)} m
+        </span>
+        <span
+          className={cn(
+            "absolute top-0 font-mono text-[10px] font-semibold",
+            onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+          )}
+          style={{ left: "50%", transform: "translateX(-50%)" }}
+        >
+          0
+        </span>
+        <span
+          className={cn("absolute top-0 font-mono text-[10px]", onInk ? "text-ink-400" : "text-ink-400")}
+          style={{ right: 0 }}
+        >
+          +{span.toFixed(2)} m
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-5">
+        {rows.map((row, index) => {
+          const verdict = screeningVerdict(row);
+          const meta = screeningMeta[verdict];
+          const VerdictIcon = meta.icon;
+          const isHovered = hovered === row.check;
+          const markColor = isHovered ? accent : muted;
+          const lowX = x(row.marginM - row.toleranceM);
+          const highX = x(row.marginM + row.toleranceM);
+          const barLeft = Math.min(x(0), x(row.marginM));
+          const barWidth = Math.abs(x(row.marginM) - x(0));
+
+          return (
+            <div
+              key={row.check}
+              tabIndex={0}
+              onMouseEnter={() => setHovered(row.check)}
+              onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(row.check)}
+              onBlur={() => setHovered(null)}
+              className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <p
+                  className={cn(
+                    "max-w-[46ch] text-[13px] font-medium leading-snug",
+                    onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+                  )}
+                >
+                  {row.check}
+                </p>
+                <span
+                  className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold"
+                  style={{ color: onInk ? meta.fgOnInk : meta.fg }}
+                >
+                  <VerdictIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {meta.label}
+                </span>
+              </div>
+
+              <div className="relative mt-2.5 h-9">
+                <div
+                  className="absolute inset-x-0 top-1/2 h-px"
+                  style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#ebe4d7" }}
+                  aria-hidden="true"
+                />
+                {/* Zero rule — the line a margin has to clear outright. */}
+                <div
+                  className="absolute top-0 h-full w-px"
+                  style={{
+                    left: "50%",
+                    background: onInk ? "rgba(243,239,230,0.75)" : "rgba(13,13,11,0.75)",
+                  }}
+                  aria-hidden="true"
+                />
+                <GrowIn origin="left" delay={index * 0.08} className="absolute inset-0">
+                  {/* Tolerance whisker. */}
+                  <div
+                    className="absolute top-1/2 h-[2px] -translate-y-1/2 rounded-full transition-colors duration-200"
+                    style={{
+                      left: `${lowX}%`,
+                      width: `${highX - lowX}%`,
+                      background: markColor,
+                    }}
+                    aria-hidden="true"
+                  />
+                  {/* Margin bar, drawn from zero. */}
+                  <div
+                    className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px] transition-colors duration-200"
+                    style={{
+                      left: `${barLeft}%`,
+                      width: `${barWidth}%`,
+                      background: markColor,
+                      opacity: 0.55,
+                    }}
+                    aria-hidden="true"
+                  />
+                  {/* Margin marker. */}
+                  <div
+                    className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200"
+                    style={{
+                      left: `${x(row.marginM)}%`,
+                      background: markColor,
+                      boxShadow: `0 0 0 2px ${surface}`,
+                    }}
+                    aria-hidden="true"
+                  />
+                </GrowIn>
+
+                <span
+                  className={cn(
+                    "pointer-events-none absolute top-0 font-mono text-[11px] transition-opacity duration-150",
+                    isHovered ? "opacity-100" : "opacity-0",
+                  )}
+                  style={{
+                    left: `${x(row.marginM)}%`,
+                    transform: "translateX(-50%)",
+                    color: onInk ? "#f3efe6" : "#0d0d0b",
+                  }}
+                >
+                  {signedMetres(row.marginM)}
+                </span>
+              </div>
+
+              <p className="sr-only">
+                {row.measured} against {row.required}. Margin{" "}
+                {signedMetres(row.marginM)}, calibration tolerance plus or minus{" "}
+                {row.toleranceM.toFixed(2)} metres. {meta.label}.
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <p
+        className={cn(
+          "mt-6 flex gap-2 border-t pt-4 text-[12.5px] leading-[1.65]",
+          onInk ? "border-white/10 text-ink-300" : "border-line-soft text-ink-500",
+        )}
+      >
+        <Info
+          className="mt-0.5 h-4 w-4 shrink-0"
+          style={{ color: onInk ? ACCENT_ON_INK : ACCENT }}
+          aria-hidden="true"
+        />
+        <span>
+          None of these rows is a prediction. They are distances in a place we
+          measured, checked against an envelope the robot's maker publishes —
+          which is why a screening result can tell you what stopped it, and by
+          how much.
+        </span>
+      </p>
+    </Figure>
+  );
+}
+
+/* -------------------------------------------- 3c. ranking margin chart */
+
+export interface RankingCandidateRow {
+  candidate: string;
+  /** Success rate on the testbed, 0–1. */
+  rate: number;
+  /** Lower bound of the 95% interval, 0–1. */
+  low: number;
+  /** Upper bound of the 95% interval, 0–1. */
+  high: number;
+}
+
+/**
+ * Interval on the gap between two candidates, in points of success rate.
+ *
+ * Normal approximation to the difference of two proportions at 95%. Computed
+ * here rather than authored in the copy file so the ordering, the margins, and
+ * the separation calls can never drift apart: change a rate and every derived
+ * number in the figure moves with it.
+ */
+function gapInterval(
+  ahead: RankingCandidateRow,
+  behind: RankingCandidateRow,
+  rollouts: number,
+) {
+  const diff = ahead.rate - behind.rate;
+  const variance =
+    (ahead.rate * (1 - ahead.rate)) / rollouts + (behind.rate * (1 - behind.rate)) / rollouts;
+  const halfWidth = 1.96 * Math.sqrt(variance);
+  const low = diff - halfWidth;
+  return {
+    diffPp: diff * 100,
+    lowPp: low * 100,
+    highPp: (diff + halfWidth) * 100,
+    /** Separated only when the whole interval on the gap stays above zero. */
+    separated: low > 0,
+  };
+}
+
+const roundPp = (value: number) => Math.round(value);
+
+/**
+ * RankingMarginChart — the ordering, and the resolution that comes with it.
+ *
+ * The rank alone is the least interesting thing here. What makes it a
+ * deliverable is the gap between adjacent candidates, the interval on that gap,
+ * and the floor: the smallest difference this design can separate at all. A
+ * pair whose gap sits inside the floor is reported as tied at this rollout
+ * count rather than ordered, because ordering it would be reporting noise with
+ * a chart around it.
+ *
+ * Every derived number — gap, interval, separation call — is computed from the
+ * rates and the rollout count in `gapInterval`, so the figure cannot claim a
+ * separation its own inputs do not support.
+ */
+export function RankingMarginChart({
+  candidates,
+  rolloutsPerCandidate,
+  resolutionFloorPp,
+  testbedVersion,
+  oodAxes,
+  metricLabel,
+  onInk = false,
+}: {
+  candidates: readonly RankingCandidateRow[];
+  rolloutsPerCandidate: number;
+  resolutionFloorPp: number;
+  testbedVersion: string;
+  oodAxes: readonly string[];
+  metricLabel: string;
+  onInk?: boolean;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const accent = accentFor(onInk);
+  const muted = mutedFor(onInk);
+  const surface = surfaceFor(onInk);
+  const pct = (value: number) => `${Math.round(value * 1000) / 10}%`;
+
+  const gaps = candidates.slice(1).map((row, index) => ({
+    ahead: candidates[index],
+    behind: row,
+    ...gapInterval(candidates[index], row, rolloutsPerCandidate),
+  }));
+
+  return (
+    <Figure
+      title="The ordering, and what it can resolve"
+      subtitle={`${candidates.length} candidates on ${testbedVersion}, ${rolloutsPerCandidate} rollouts each. Adjacent gaps carry their own interval; anything inside the floor is reported as tied.`}
+      illustrative
+      onInk={onInk}
+      tableView={
+        <table className="w-full text-left text-[13px]">
+          <caption className="sr-only">
+            Per-candidate {metricLabel} with its 95% interval, and the gap to the
+            next candidate with the interval on that gap
+          </caption>
+          <thead>
+            <tr className={onInk ? "text-ink-300" : "text-ink-500"}>
+              <th scope="col" className="py-1 pr-4 font-semibold">Candidate</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">Rate</th>
+              <th scope="col" className="py-1 pr-4 font-semibold">95% interval</th>
+              <th scope="col" className="py-1 font-semibold">Gap to next</th>
+            </tr>
+          </thead>
+          <tbody className={onInk ? "text-ink-200" : "text-ink-700"}>
+            {candidates.map((row, index) => {
+              const gap = gaps[index];
+              return (
+                <tr
+                  key={row.candidate}
+                  className={onInk ? "border-t border-white/10" : "border-t border-line-soft"}
+                >
+                  <th scope="row" className="py-2 pr-4 font-medium">{row.candidate}</th>
+                  <td className="py-2 pr-4 font-mono">{pct(row.rate)}</td>
+                  <td className="py-2 pr-4 font-mono">
+                    {pct(row.low)}–{pct(row.high)}
+                  </td>
+                  <td className="py-2 font-mono">
+                    {gap
+                      ? `${roundPp(gap.diffPp)} pp [${roundPp(gap.lowPp)}, ${roundPp(gap.highPp)}]${
+                          gap.separated ? "" : " · tied"
+                        }`
+                      : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      }
+    >
+      <div
+        className={cn(
+          "mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]",
+          onInk ? "text-ink-300" : "text-ink-500",
+        )}
+      >
+        <span className="inline-flex items-center gap-2">
+          <svg width="18" height="8" aria-hidden="true">
+            <line x1="0" y1="4" x2="18" y2="4" stroke={muted} strokeWidth="2" strokeLinecap="round" />
+            <circle cx="9" cy="4" r="4" fill={muted} stroke={surface} strokeWidth="2" />
+          </svg>
+          {metricLabel} and its 95% interval
+        </span>
+        <span className="inline-flex items-center gap-2 font-mono">
+          floor · {resolutionFloorPp.toFixed(1)} pp
+        </span>
+      </div>
+
+      <div className="relative mb-1 h-4" aria-hidden="true">
+        {[0, 0.5, 1].map((tick) => (
+          <span
+            key={tick}
+            className={cn("absolute top-0 font-mono text-[10px]", onInk ? "text-ink-400" : "text-ink-400")}
+            style={{
+              left: `${tick * 100}%`,
+              transform:
+                tick === 0 ? "none" : tick === 1 ? "translateX(-100%)" : "translateX(-50%)",
+            }}
+          >
+            {pct(tick)}
+          </span>
+        ))}
+      </div>
+
+      <ol className="flex flex-col gap-1">
+        {candidates.map((row, index) => {
+          const isHovered = hovered === row.candidate;
+          const markColor = isHovered ? accent : muted;
+          const gap = gaps[index];
+
+          return (
+            <li key={row.candidate}>
+              <div
+                tabIndex={0}
+                onMouseEnter={() => setHovered(row.candidate)}
+                onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(row.candidate)}
+                onBlur={() => setHovered(null)}
+                className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <p
+                    className={cn(
+                      "text-[13px] font-medium leading-snug",
+                      onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+                    )}
+                  >
+                    <span className="mr-2 font-mono text-[11px] opacity-60">{index + 1}</span>
+                    {row.candidate}
+                  </p>
+                  <span
+                    className={cn(
+                      "shrink-0 font-mono text-[12px]",
+                      onInk ? "text-ink-200" : "text-ink-700",
+                    )}
+                  >
+                    {pct(row.rate)}
+                  </span>
+                </div>
+
+                <div className="relative mt-2 h-7">
+                  <div
+                    className="absolute inset-x-0 top-1/2 h-px"
+                    style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#ebe4d7" }}
+                    aria-hidden="true"
+                  />
+                  <GrowIn origin="left" delay={index * 0.08} className="absolute inset-0">
+                    <div
+                      className="absolute top-1/2 h-[2px] -translate-y-1/2 rounded-full transition-colors duration-200"
+                      style={{
+                        left: `${row.low * 100}%`,
+                        width: `${(row.high - row.low) * 100}%`,
+                        background: markColor,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200"
+                      style={{
+                        left: `${row.rate * 100}%`,
+                        background: markColor,
+                        boxShadow: `0 0 0 2px ${surface}`,
+                      }}
+                      aria-hidden="true"
+                    />
+                  </GrowIn>
+                </div>
+
+                <p className="sr-only">
+                  Rank {index + 1}. {row.candidate}, {metricLabel} {pct(row.rate)},
+                  95% interval {pct(row.low)} to {pct(row.high)}.
+                </p>
+              </div>
+
+              {/* The gap to the next candidate, and whether it survives the floor. */}
+              {gap ? (
+                <div
+                  className={cn(
+                    "my-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-l-2 py-1 pl-3 text-[12px]",
+                    onInk ? "border-white/15" : "border-line",
+                  )}
+                >
+                  <span
+                    className="inline-flex items-center gap-1.5 font-semibold"
+                    style={{
+                      color: gap.separated
+                        ? onInk
+                          ? verdictMeta.supported.fgOnInk
+                          : verdictMeta.supported.fg
+                        : onInk
+                          ? verdictMeta.unresolved.fgOnInk
+                          : verdictMeta.unresolved.fg,
+                    }}
+                  >
+                    {gap.separated ? (
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <MinusCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {gap.separated ? "Separated" : "Tied at this rollout count"}
+                  </span>
+                  <span className={cn("font-mono", onInk ? "text-ink-300" : "text-ink-500")}>
+                    {roundPp(gap.diffPp)} pp · 95% CI [{roundPp(gap.lowPp)},{" "}
+                    {roundPp(gap.highPp)}]
+                  </span>
+                  {!gap.separated ? (
+                    <span className={onInk ? "text-ink-300" : "text-ink-500"}>
+                      — inside the {resolutionFloorPp.toFixed(1)} pp floor
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p
+        className={cn(
+          "mt-6 flex gap-2 border-t pt-4 text-[12.5px] leading-[1.65]",
+          onInk ? "border-white/10 text-ink-300" : "border-line-soft text-ink-500",
+        )}
+      >
+        <Info
+          className="mt-0.5 h-4 w-4 shrink-0"
+          style={{ color: onInk ? ACCENT_ON_INK : ACCENT }}
+          aria-hidden="true"
+        />
+        <span>
+          At {rolloutsPerCandidate} rollouts each, this design separates gaps of
+          about {resolutionFloorPp.toFixed(1)} points and no smaller. The ordering
+          is reported across {oodAxes.join(", ")}, and it holds on{" "}
+          {testbedVersion} — not on a floor we have not measured.
         </span>
       </p>
     </Figure>

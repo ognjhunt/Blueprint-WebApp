@@ -26,7 +26,7 @@ describe("ForSiteOperators", () => {
     expect(screen.getByText(/^Restricted areas$/i)).toBeInTheDocument();
     expect(screen.getByText(/Safety stays yours/i)).toBeInTheDocument();
     // Abstention is still one of the named outcomes.
-    expect(screen.getByText(/^Not yet$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Inside the resolution$/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$5,000/)).not.toBeInTheDocument();

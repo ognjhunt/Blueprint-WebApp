@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Home", () => {
-  it("renders one Task Evaluation Run lifecycle with abstention and one primary CTA", () => {
+  it("leads with screening then ranking, and keeps one primary CTA", () => {
     const { container } = render(<Home />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Answer it before you send a robot/i }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: /Rank your candidates against a real site before you send one/i,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
@@ -18,21 +21,32 @@ describe("Home", () => {
     expect(container).toHaveTextContent(/You bring one real job at one real site/i);
     expect(container).toHaveTextContent(/The capture becomes a testbed we version, pin, and maintain/i);
     expect(container).toHaveTextContent(/Each claim goes to the cheapest evidence that is strong enough/i);
-    expect(container).toHaveTextContent(/Supported, ruled out, or not yet/i);
 
     // A run grants neither of these, and the contract enforces it.
     expect(container).toHaveTextContent(/Deployment approval/i);
     expect(container).toHaveTextContent(/Safety certification/i);
 
-    // Abstention is still a first-class, named outcome.
-    expect(screen.getByText(/^Not yet$/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^Unresolved$/i).length).toBeGreaterThan(0);
+    // Screening comes before ranking, and it is the half that names a cause.
     expect(
-      screen.getByText(/A run is allowed to tell you it cannot tell you/i),
+      screen.getByRole("heading", { name: /Some candidates the building will not take/i }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Ruled out$/i).length).toBeGreaterThan(0);
+    expect(container).toHaveTextContent(/None of these rows is a prediction/i);
+
+    // The ordering ships with its margin and its resolution floor, and a pair
+    // inside the floor is named as tied rather than ranked.
     expect(
-      screen.getByText(/is not reported as one/i),
+      screen.getByRole("heading", { name: /Then the survivors get ranked, with the margin/i }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Separated$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Tied at this rollout count/i).length).toBeGreaterThan(0);
+    expect(container).toHaveTextContent(/inside the 19\.8 pp floor/i);
+
+    // The real-world-ordering boundary stays stated, as a limit rather than a
+    // headline. This is the one claim the Pipeline contract will not carry.
+    expect(container).toHaveTextContent(
+      /We have not measured how our orderings track real-world orderings/i,
+    );
 
     // Withdrawn product names and fixed campaign prices stay gone.
     expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
@@ -44,11 +58,11 @@ describe("Home", () => {
   it("marks every figure that shows numbers as illustrative", () => {
     const { container } = render(<Home />);
     const figures = container.querySelectorAll("figure");
-    expect(figures.length).toBeGreaterThanOrEqual(3);
+    expect(figures.length).toBeGreaterThanOrEqual(4);
 
-    // The two figures that plot schematic values must carry the marker, and so
-    // must the run film, so none of the three can be read as live run data. The
+    // The three figures that plot schematic values must carry the marker, and so
+    // must the run film, so none of the four can be read as live run data. The
     // qualitative before/after comparison plots nothing and needs none.
-    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(3);
+    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(4);
   });
 });

@@ -1,9 +1,9 @@
 import { SEO } from "@/components/SEO";
 import { ProofBoundary } from "@/components/blueprint";
 import {
-  ClaimThresholdChart,
   EvidenceLadderChart,
   OutcomeSpectrum,
+  RankingMarginChart,
   RunLifecycleRail,
 } from "@/components/site/figures";
 import { Reveal } from "@/components/site/motion";
@@ -20,11 +20,14 @@ import { robotPolicyEvaluationBoundary } from "@/data/robotPolicyEvaluationClaim
 import {
   closingCta,
   homeClaimMetricLabel,
-  homeClaimThreshold,
-  homeClaims,
   homeEvidenceRungs,
   homeLimits,
   homeOutcomes,
+  homeRankingCandidates,
+  homeRankingOodAxes,
+  homeRankingResolutionFloorPp,
+  homeRankingRolloutsPerCandidate,
+  homeRankingTestbedVersion,
   robotTeamFlow,
   robotTeamHero,
   robotTeamValue,
@@ -41,7 +44,7 @@ export default function ForRobotTeams() {
     <>
       <SEO
         title="Task Evaluation Runs for robot teams | Blueprint"
-        description="Compare your own checkpoints against a real site-task, find the disqualifiers early, and decide whether field time is justified."
+        description="Rank your own checkpoints against a real site-task: incompatibilities ruled out on measurement, the rest ordered with the margin on every gap."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
@@ -76,8 +79,8 @@ export default function ForRobotTeams() {
           <SectionHeader
             index="01"
             eyebrow="The wedge"
-            title="Bring candidates. A ranking is not the promise."
-            lede="A run is organised around your decision, not around a tournament. A candidate can be supported, ruled out, eliminated as flatly incompatible, or left open — and “left open” is reported as itself."
+            title="Bring candidates. Get them screened, then ordered."
+            lede="A run is organised around your decision, not around a tournament. Candidates the site will not physically take are eliminated on measurement; the rest come back ranked, and any pair the design cannot separate is named as tied rather than ordered."
             onInk
           />
           <div className="mt-14 grid gap-x-10 gap-y-10 lg:grid-cols-3">
@@ -105,13 +108,16 @@ export default function ForRobotTeams() {
           <SectionHeader
             index="02"
             eyebrow="What a result looks like"
-            title="Per claim, with the line it was read against."
-            lede="Your threshold, your units, your definition of a wrong yes. Each claim is answered against that, and the ones that will not resolve are named."
+            title="An order, each margin, and the gap you cannot see."
+            lede="Your threshold, your units, your definition of a wrong yes. The candidates come back ordered on one pinned testbed, and every adjacent gap carries the interval that says whether it is a lead or a tie."
           />
           <Reveal className="mt-14">
-            <ClaimThresholdChart
-              claims={homeClaims}
-              threshold={homeClaimThreshold}
+            <RankingMarginChart
+              candidates={homeRankingCandidates}
+              rolloutsPerCandidate={homeRankingRolloutsPerCandidate}
+              resolutionFloorPp={homeRankingResolutionFloorPp}
+              testbedVersion={homeRankingTestbedVersion}
+              oodAxes={homeRankingOodAxes}
               metricLabel={homeClaimMetricLabel}
             />
           </Reveal>
