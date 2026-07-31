@@ -207,9 +207,21 @@ abstain", "Unknown states fail closed"), `client/tests/pages/Home.test.tsx`,
 `client/tests/components/site/PublicCopy.test.tsx` (asserts "We build the testbed",
 "cheapest evidence that is actually good enough", "A run is allowed to tell you it
 cannot tell you", and asserts absence of `Policy Shortlist`, `Robot Match`, `$3,000`,
-`$5,000`, `guaranteed winner`), `e2e/brand-polish.spec.ts` (12 routes × 2 viewports:
-checks horizontal overflow, missing alt, unnamed interactive elements, unlabeled
-controls, placeholder text, and launch-posture patterns).
+`$5,000`, `guaranteed winner`).
+
+Two Playwright specs are also coupled to this content:
+
+- **`e2e/home.spec.ts:27`** — `await expect(page.getByText(/^We build the testbed$/i)).toBeVisible();`
+  That is an **anchored exact match** on `homeLifecycle[1].label`, and `RunLifecycleRail`
+  is the only thing on Home that renders it. The moment the compact film variant replaces
+  that call in Home section 03, this assertion fails. It must be updated in the **same
+  checkpoint** as the Home change (checkpoint 6), not discovered in the final e2e run.
+  Either keep an equivalent lifecycle string in the compact variant's act 1 or 2 copy, or
+  repoint the assertion at the film's own testbed caption — decide deliberately and say
+  which in the PR.
+- **`e2e/brand-polish.spec.ts`** — 12 routes × 2 viewports: checks horizontal overflow,
+  missing alt, unnamed interactive elements, unlabeled controls, placeholder text, and
+  launch-posture patterns.
 
 ---
 
@@ -233,36 +245,36 @@ A plan-view of a working space fades up. A capture route traces through it (reus
 `RouteTraceOverlay` visual language). As the route draws, small evidence tiles stack in
 the margin: frames, poses, depth, timestamps, rights. A lock mark lands on the stack.
 Caption: *"Someone walks the site. What the sensors saw is kept exactly as recorded."*
-Term chip: `raw capture`.
+(13 words) Term chip: `raw capture`.
 
 **Act 2 — It becomes a copy we keep.**
 The evidence stack compresses into a single solid tile. A version stamp and a short
 digest hash type on beneath it. The tile gets a hairline border and stops moving —
 visually, it is now *fixed*.
 Caption: *"That becomes a testbed: one exact, versioned copy we maintain and reuse."*
-Term chip: `maintained Site-Task Testbed`. **The raw stack does not disappear** — it
+(12 words) Term chip: `maintained Site-Task Testbed`. **The raw stack does not disappear** — it
 stays visible, dimmed, behind the tile, for the rest of the film. Raw stays the source.
 
 **Act 3 — You ask one question.**
 A question card slides in from the buyer side and docks against the testbed tile. It
 carries: the decision, one threshold with units, and what a wrong yes would cost.
 Caption: *"You bring the decision you're about to make — not a benchmark request."*
-Term chip: `decision request`.
+(12 words) Term chip: `decision request`.
 
 **Act 4 — The question splits into claims.**
 The single question card splits into three claim chips, fanning out. Each chip is a
 sentence a person can check: e.g. *"Candidate A can reach the fixture from the approach
 lane."* Use `homeClaims` from `publicSiteCopy.ts` verbatim.
 Caption: *"A decision is never one question. We break it into claims that can each be
-checked on their own."*
+checked on their own."* (19 words)
 
 **Act 5 — Each claim finds the cheapest evidence strong enough.** ← the centrepiece
 A five-rung ladder appears (reuse `homeEvidenceRungs` order and `basis` tags). Each of
 the three claim chips climbs independently and **stops at a different rung**. One chip is
 turned away at a rung by a gate — show the gate closing and a plain-English reason
 ("this method isn't qualified for this claim") — and then continues up to the next rung.
-Caption: *"Each claim goes to the cheapest evidence that's actually strong enough. You
-never pick the method — that's the part you're paying us for."*
+Caption: *"Each claim goes to the cheapest evidence that's strong enough. You never pick
+the method — that's our job."* (18 words)
 **Non-negotiable framing:** the ladder is cost, not authority. The `basis` tag rides on
 every rung. A derived rung sitting higher must not read as "better proof" — Act 5 needs
 a persistent one-line note saying cost order is not proof order, and the "Real capture"
@@ -273,16 +285,16 @@ The three claims return as measured intervals drawn against a horizontal thresho
 (the visual grammar of `ClaimThresholdChart`, and it should reuse that component's
 palette). One clears the line with room. One falls clearly short. One has its point
 estimate above the line and its interval straddling it.
-Caption: *"Each method reports what it measured and how sure it is. Where methods
-disagreed, you see the disagreement — we don't average it away."*
+Caption: *"Each method reports what it measured and how sure it is. Disagreements are
+shown, not averaged away."* (17 words)
 
 **Act 7 — The answer, with its edges.**
 The three results assemble into one envelope. Three verdict rows resolve with icon +
 text label: **supported** / **ruled out** / **not yet**. Two stamps land on the envelope,
 deliberately, and stay: `deployment approval: no` and `safety certification: no`. A final
 line slides out below: the next cheapest experiment.
-Caption: *"You get an answer with its limits attached — including 'not yet', which is a
-real result, not a failure. And the cheapest next test that would settle it."*
+Caption: *"An answer with its limits attached — including 'not yet', which is a real
+result. Plus the cheapest next test."* (19 words)
 
 ### The compact Home variant
 
@@ -405,7 +417,10 @@ the *fidelity of the mechanism shown*, not in the density of what is on screen.
 
 - **One moving object thread.** The site-task is continuously present and continuously
   identifiable. A viewer must never wonder "wait, what am I looking at now?"
-- **≤ 8 words per on-screen label.** One caption sentence per act, ≤ 22 words.
+- **≤ 8 words per on-screen label.** One caption per act, **≤ 22 words**, counted. The
+  seven captions in section 3 are all inside that budget and carry their word count; if
+  you rewrite one, re-count it. This limit is an acceptance criterion, not a suggestion —
+  a caption that needs 28 words is a caption trying to carry two acts.
 - **Plain language first, jargon second.** Big text is human ("the copy of your site we
   keep"). The internal term is a small mono chip beneath it ("maintained testbed"). Never
   the reverse. This is what lets an expert and a novice read the same frame.
@@ -444,6 +459,7 @@ client/src/pages/Home.tsx             # compact 3-act variant replaces RunLifecy
 client/tests/pages/HowItWorks.test.tsx
 client/tests/pages/Home.test.tsx
 client/tests/components/site/PublicCopy.test.tsx
+e2e/home.spec.ts                      # line 27 anchors on "We build the testbed" — see 2c
 ```
 
 **New tests:**
@@ -496,7 +512,14 @@ npx vitest run client/tests/pages/HowItWorks.test.tsx client/tests/pages/Home.te
 npm run test:coverage             # full unit lane
 npm run build                     # MUST succeed: prerender renders the real HowItWorks
 npm run perf:pages                # no regression on /how-it-works or /
-npm run test:e2e -- brand-polish  # 12 routes x 2 viewports; overflow/alt/naming gates
+
+# E2E. Filter by FILE PATH, and invoke playwright directly.
+# `npm run test:e2e` is `playwright test && tsx scripts/qa/run-task-evaluation-run-e2e.ts`,
+# so `npm run test:e2e -- brand-polish` appends the filter to the trailing tsx command and
+# runs the ENTIRE playwright suite unfiltered. Use npx for a targeted run:
+npx playwright test e2e/brand-polish.spec.ts   # 12 routes x 2 viewports; overflow/alt/naming
+npx playwright test e2e/home.spec.ts           # the anchored "We build the testbed" assertion
+npm run test:e2e                               # full lane, once, before opening the PR
 ```
 
 Then, by hand:
@@ -530,8 +553,12 @@ Then, by hand:
    blocks are fine. Verify the mechanism and the a11y before investing in the visuals.
 5. **The seven acts.** Build `acts.tsx` act by act, in order. Verify each in the browser
    before starting the next. Act 5 is the centrepiece — budget the most time there.
-6. **Home variant + test updates.** Compact three-act cut into Home section 03; update all
-   four affected test files; add `RunFilm.test.tsx`.
+6. **Home variant + test updates.** Compact three-act cut into Home section 03. Update all
+   affected specs **in this checkpoint, not the final run** — `Home.test.tsx`,
+   `PublicCopy.test.tsx`, `HowItWorks.test.tsx`, and **`e2e/home.spec.ts:27`**, whose
+   anchored `We build the testbed` match dies with the `RunLifecycleRail` call. Add
+   `RunFilm.test.tsx`. Finish the checkpoint by running `npx playwright test e2e/home.spec.ts`
+   green.
 7. **Full verification + PR.** Run section 8 end to end. Open the PR with screenshots, the
    novice-test result, and an explicit checklist of the section 5a truth constraints with
    how each is satisfied.
