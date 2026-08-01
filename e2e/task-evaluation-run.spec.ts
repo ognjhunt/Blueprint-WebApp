@@ -1,8 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { validDecisionEnvelope } from "../server/tests/helpers/decision-evidence-fixtures";
+import { seedCookieConsent } from "./helpers/cookie-consent";
 
 const digest = `sha256:${"a".repeat(64)}`;
+
+// The intake form is long enough that filling it can outlast CookieConsent's
+// 1500ms reveal timer. When it does, the fixed bottom banner lands on top of
+// the submit button and intercepts the click, so this spec passes or fails on
+// how quickly the runner types. Seeding consent puts the page in the state a
+// returning browser is already in and removes the race without suppressing the
+// banner's own behaviour, which brand-polish still exercises.
+test.beforeEach(seedCookieConsent);
 
 async function fillIntake(page: Page, decisionQuestion: string) {
   await page.getByLabel("Testbed ID").fill("testbed-001");

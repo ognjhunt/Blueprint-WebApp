@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import { seedCookieConsent } from "./helpers/cookie-consent";
+
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
+
+// Same reason as task-evaluation-run.spec.ts: this review flow runs past
+// CookieConsent's 1500ms reveal timer, and the fixed bottom banner then
+// intercepts clicks on the controls underneath it.
+test.beforeEach(seedCookieConsent);
 
 test("customer reviews Pipeline-authored task intent without a false approval", async ({ page }, testInfo) => {
   const consoleProblems: string[] = [];
