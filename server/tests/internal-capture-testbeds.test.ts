@@ -107,8 +107,39 @@ function testbed(version = "v1", predecessor: string | null = null) {
     robot_sensor_controller_bindings: { robot_id: "robot-1" },
     governance: { privacy: "cleared" },
     evidence_inventory: [],
-    validation_envelope: { capture_accepted: true },
-    known_unsupported_conditions: ["physical_task_success"],
+    validation_envelope: {
+      capture_accepted: true,
+      semantic_evidence: {
+        semantic_object_inventory_is_collision_truth: false,
+        collision_consistency_is_physics_qualification: false,
+        physical_task_success_established: false,
+      },
+    },
+    semantic_object_inventory: [{
+      track_id: "track-tote-1",
+      label: "tote",
+      semantic_status: "qualified_metric_obb_candidate",
+      center_world_m: [0.5, 0.25, 0.4],
+      dimensions_m: [0.4, 0.3, 0.2],
+      yaw_rad: 0,
+      corners_world_m: [
+        [0.3, 0.1, 0.3], [0.7, 0.1, 0.3], [0.7, 0.4, 0.3], [0.3, 0.4, 0.3],
+        [0.3, 0.1, 0.5], [0.7, 0.1, 0.5], [0.7, 0.4, 0.5], [0.3, 0.4, 0.5],
+      ],
+      coordinate_frame: "analysis_splat_z_up_meters",
+      semantic_oriented_box_result_digest: `sha256:${"d".repeat(64)}`,
+      collision_consistency_status: "independent_collision_consistency_candidate",
+      collision_validation_result_digest: `sha256:${"e".repeat(64)}`,
+      collision_consistency_metrics: { occupied_overlap_fraction: 0.92 },
+      next_experiment: "independently_qualify_collision_geometry",
+      claim_ceiling: "metric_obb_candidate_from_observed_surface_support",
+      collision_ready: false,
+      physics_ready: false,
+    }],
+    known_unsupported_conditions: [
+      "physical_task_success",
+      "semantic_object_inventory_is_not_collision_truth",
+    ],
     invalidation_triggers: ["layout_changed"],
     physical_outcome_history_refs: [],
     lifecycle_state: "active",
@@ -255,7 +286,21 @@ describe("internal Pipeline maintained testbed publication", () => {
         request_digest: body.decision_evidence_request.request_digest,
       });
       expect(state.collections.get("captureUploadSessions")?.get("capture-testbed-1"))
-        .toMatchObject({ pipeline_testbed_state: "testbed_ready" });
+        .toMatchObject({
+          pipeline_testbed_state: "testbed_ready",
+          pipeline_site_task_testbed: {
+            testbed: {
+              semantic_object_inventory: [{
+                track_id: "track-tote-1",
+                collision_ready: false,
+                physics_ready: false,
+              }],
+              proof_boundary: {
+                comparative_policy_ranking_verdict: "thesis_not_supported",
+              },
+            },
+          },
+        });
       expect(state.collections.get("captureSiteTaskTestbeds")?.size).toBe(1);
 
       const replay = await postSigned(socketPath, body);
@@ -299,6 +344,20 @@ describe("internal Pipeline maintained testbed publication", () => {
       const secretResponse = await postSigned(socketPath, secretBearing);
       expect(secretResponse.status).toBe(400);
       expect(secretResponse.body.blockers).toContain("maintained_testbed_secret_value_forbidden");
+
+      const physicsUpgrade = publication();
+      physicsUpgrade.testbed.semantic_object_inventory[0].physics_ready = true;
+      physicsUpgrade.testbed.testbed_digest = canonicalArtifactDigest(
+        physicsUpgrade.testbed,
+        "testbed_digest",
+      );
+      physicsUpgrade.testbed_digest = physicsUpgrade.testbed.testbed_digest;
+      physicsUpgrade.artifact_reference.digest = physicsUpgrade.testbed.testbed_digest;
+      const physicsUpgradeResponse = await postSigned(socketPath, physicsUpgrade);
+      expect(physicsUpgradeResponse.status).toBe(400);
+      expect(physicsUpgradeResponse.body.issues).toContainEqual(expect.objectContaining({
+        path: "testbed.semantic_object_inventory.0.physics_ready",
+      }));
 
       const requestTamper = publication();
       requestTamper.decision_evidence_request.decision_question = "Tampered question";

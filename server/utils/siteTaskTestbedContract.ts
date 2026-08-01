@@ -25,6 +25,61 @@ const cardSchema = z
   .object({ schema_version: nonEmpty, card_digest: digest })
   .passthrough();
 
+const finiteNumber = z.number().finite();
+const point3 = z.tuple([finiteNumber, finiteNumber, finiteNumber]);
+const positiveDimensions3 = z.tuple([
+  finiteNumber.positive(),
+  finiteNumber.positive(),
+  finiteNumber.positive(),
+]);
+
+export const semanticObjectCandidateSchema = z
+  .object({
+    track_id: identifier,
+    label: z.string(),
+    semantic_status: z.enum(["qualified_metric_obb_candidate", "abstained"]),
+    center_world_m: point3.nullable().optional(),
+    dimensions_m: positiveDimensions3.nullable().optional(),
+    yaw_rad: finiteNumber.nullable().optional(),
+    corners_world_m: z.tuple([
+      point3, point3, point3, point3, point3, point3, point3, point3,
+    ]).nullable().optional(),
+    coordinate_frame: z.string(),
+    semantic_oriented_box_result_digest: digest,
+    collision_consistency_status: nonEmpty,
+    collision_validation_result_digest: digest.nullable(),
+    collision_consistency_metrics: z.record(z.string(), z.unknown()),
+    next_experiment: z.unknown().nullable().optional(),
+    claim_ceiling: z.unknown().nullable().optional(),
+    collision_ready: z.literal(false),
+    physics_ready: z.literal(false),
+  })
+  .passthrough()
+  .superRefine((candidate, context) => {
+    if (candidate.semantic_status !== "qualified_metric_obb_candidate") return;
+    for (const field of [
+      "center_world_m",
+      "dimensions_m",
+      "yaw_rad",
+      "corners_world_m",
+    ] as const) {
+      if (candidate[field] == null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: "qualified semantic object candidates require complete metric OBB geometry",
+        });
+      }
+    }
+    if (candidate.coordinate_frame !== "analysis_splat_z_up_meters") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["coordinate_frame"],
+        message: "qualified semantic object candidates must use the metric Z-up analysis frame",
+      });
+    }
+  });
+
 export const nativeDecisionEvidenceRequestSchema = z.object({
   schema_version: z.literal("decision_evidence_request.v1"),
   request_id: identifier,
@@ -85,6 +140,7 @@ export const maintainedSiteTaskTestbedSchema = z
     governance: z.record(z.string(), z.unknown()),
     evidence_inventory: z.array(z.record(z.string(), z.unknown())),
     validation_envelope: z.record(z.string(), z.unknown()),
+    semantic_object_inventory: z.array(semanticObjectCandidateSchema).max(256).optional(),
     known_unsupported_conditions: z.array(nonEmpty),
     invalidation_triggers: z.array(nonEmpty),
     physical_outcome_history_refs: z.array(z.unknown()),

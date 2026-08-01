@@ -276,7 +276,9 @@ export type CaptureSiteTaskTestbedInspection = {
   intake_id: string;
   status: "testbed_ready";
   artifact_reference: { uri: string; digest: string };
-  testbed: Record<string, any>;
+  testbed: Record<string, any> & {
+    semantic_object_inventory?: SemanticObjectCandidate[];
+  };
   decision_evidence_request: Record<string, any> | null;
   proof_boundary: {
     appearance_is_collision_truth: false;
@@ -285,6 +287,34 @@ export type CaptureSiteTaskTestbedInspection = {
     deployment_or_safety_approved: false;
     comparative_policy_ranking_verdict: "thesis_not_supported";
   };
+};
+
+export type SemanticObjectCandidate = {
+  track_id: string;
+  label: string;
+  semantic_status: "qualified_metric_obb_candidate" | "abstained";
+  center_world_m?: [number, number, number] | null;
+  dimensions_m?: [number, number, number] | null;
+  yaw_rad?: number | null;
+  corners_world_m?: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ] | null;
+  coordinate_frame: string;
+  semantic_oriented_box_result_digest: string;
+  collision_consistency_status: string;
+  collision_validation_result_digest: string | null;
+  collision_consistency_metrics: Record<string, unknown>;
+  next_experiment?: unknown;
+  claim_ceiling?: unknown;
+  collision_ready: false;
+  physics_ready: false;
 };
 
 export type CaptureTestbedCompilationCommand = {
