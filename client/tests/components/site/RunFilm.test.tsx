@@ -87,8 +87,9 @@ describe("RunFilm", () => {
     for (const label of ["Supported", "Rejected", "Unresolved"]) {
       expect(container).toHaveTextContent(new RegExp(`^${label}$`.replace(/[$^]/g, ""), "i"));
     }
-    // Abstention is a named outcome in the film's own words, not an omission.
-    expect(container).toHaveTextContent(/not yet/i);
+    // The closing act names the ordering and the resolution that bounds it,
+    // rather than leading on what the run declined to say.
+    expect(container).toHaveTextContent(/the smallest gap this run could separate/i);
   });
 
   it.each([["stepped", useNarrowViewport], ["scrub", useWideViewport]])(

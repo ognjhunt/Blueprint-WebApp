@@ -16,11 +16,11 @@ describe("ForRobotTeams", () => {
     ).toBeGreaterThan(0);
 
     // A ranking is explicitly not the promise.
-    expect(screen.getByText(/A ranking is not the promise/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bring candidates\. Get them screened, then ordered\./i)).toBeInTheDocument();
     // The buyer does not select the evidence backend.
     expect(screen.getByText(/Why you do not pick the backend/i)).toBeInTheDocument();
     // Abstention survives as a named outcome on the persona page too.
-    expect(screen.getByText(/^Not yet$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Inside the resolution$/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/Policy Shortlist/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$3,000/)).not.toBeInTheDocument();

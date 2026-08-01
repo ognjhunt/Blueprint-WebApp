@@ -448,9 +448,10 @@ export function EnvelopeAct({ act }: ActProps) {
 
 /**
  * The two stamps a run never grants. These stay inside the frame because act 7
- * is the whole argument in one image — three verdicts, one of them not yet, and
- * two things this explicitly is not. The sentence explaining why they can be
- * trusted lives in `RunFilmLimits` at page level, where it has room.
+ * has to carry both halves of the result in one image: the ordering the run
+ * produced, and the two things that ordering explicitly is not. The sentence
+ * explaining why they can be trusted lives in `RunFilmLimits` at page level,
+ * where it has room.
  */
 export function EnvelopeStamps({ act }: ActProps) {
   const stamps = useEnterLift(act, ACT.envelope + 0.3, 8);

@@ -16,7 +16,7 @@ export const faqItems = [
   {
     question: "What does Blueprint sell?",
     answer:
-      "One service: a Task Evaluation Run. It turns a real job at a real site into a testbed we maintain, tests the claims your decision rests on, and returns an answer with the conditions it holds under — or tells you the evidence will not carry it yet.",
+      "One service: a Task Evaluation Run. It turns a real job at a real site into a testbed we maintain, rules out the candidates the building will not physically take, and ranks the rest — with the margin on every gap, the interval on that margin, and the smallest gap the run can resolve.",
   },
   {
     question: "Do robot teams and site operators use different products?",
@@ -31,7 +31,7 @@ export const faqItems = [
   {
     question: "Does every run produce a ranking?",
     answer:
-      "No. A run can support a call, rule an option out, settle some claims and not others, or decline to answer. Comparing raw scores to manufacture a winner after the evidence has declined to produce one is exactly the thing this service will not do.",
+      "Ranking is what the service is for, so most runs do. Two things change its shape. A candidate the site physically will not take is ruled out on measurement rather than ranked — you get the shortfall in metres instead of a position. And a pair whose gap falls inside the run's resolution is reported as tied at that rollout count, with the floor and what it would cost to get under it, because ordering a gap the design cannot separate is just reporting noise.",
   },
   {
     question: "What is in a result?",
@@ -89,7 +89,8 @@ export default function FAQ() {
             </h1>
             <p className="mt-7 max-w-[46ch] text-[1.05rem] leading-[1.75] text-ink-600">
               The questions below are the ones worth asking before you spend
-              anything — including the ones whose honest answer is a no.
+              anything — what a run ranks, what it rules out, and how small a
+              difference it can actually see.
             </p>
           </Reveal>
           <Reveal delay={0.1} className="mt-14">
@@ -106,8 +107,8 @@ export default function FAQ() {
         <Inner className="py-20 lg:py-24">
           <SectionHeader
             eyebrow="For reference"
-            title="The five ways a run can end."
-            lede="Worth reading once, because four of them are not a winner and all five are valid deliveries."
+            title="The five shapes a result can take."
+            lede="Worth reading once. Most runs come back ordered; the rest tell you exactly which pairs the design could not separate, and what closing that would take."
           />
           <div className="mt-14">
             <OutcomeSpectrum bands={homeOutcomes} />

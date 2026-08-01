@@ -118,7 +118,7 @@ export default function About() {
           <SectionHeader
             index="02"
             eyebrow="What we hold to"
-            title="Five rules that decide what we refuse to say."
+            title="Five rules that decide what a result may claim."
             lede="These are the constraints behind every page on this site: what gets shown, what gets labelled, and what never gets claimed regardless of how well it would sell."
           />
           <NoteCards items={aboutPrinciples} className="mt-12" />

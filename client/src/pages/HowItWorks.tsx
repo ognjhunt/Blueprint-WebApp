@@ -48,8 +48,8 @@ export default function HowItWorks() {
 
       <PageHero
         eyebrow="How it works"
-        title="Seven moves, and one of them is allowed to say no."
-        body="One real site-task becomes a testbed we keep. One decision becomes an evidence plan built claim by claim. What comes back is an answer with its edges drawn — not a backend you chose and not a ranking we owed you."
+        title="Seven moves from a real site-task to a ranked shortlist."
+        body="One real site-task becomes a testbed we keep. Candidates the building will not physically take are ruled out on measurement. What comes back is an ordering of the rest, with the margin on every gap and the smallest gap the run can resolve."
         ctaHref={runHref}
         ctaLabel="Request a Task Evaluation Run"
         secondaryHref="/pricing"
@@ -82,7 +82,7 @@ export default function HowItWorks() {
             index="02"
             eyebrow="Who owns what"
             title="A clean line between the record and the science."
-            lede="Worth knowing, because it explains why the site will never turn a refusal to decide into a winner: the site does not get a vote on the verdict."
+            lede="Worth knowing, because it explains why the ordering you get is the one the evidence produced: the site collects the request and shows the result, but it does not get a vote on the verdict."
             onInk
           />
           <div className="mt-14 grid gap-10 lg:grid-cols-2 lg:gap-16">
@@ -144,7 +144,7 @@ export default function HowItWorks() {
           <SectionHeader
             index="04"
             eyebrow="Act 07, in a picture"
-            title="How the answer gets its edges."
+            title="How each claim gets read."
           />
           <Reveal className="mt-14">
             <ClaimThresholdChart

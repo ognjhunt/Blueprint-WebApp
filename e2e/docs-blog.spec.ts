@@ -17,7 +17,7 @@ test("blog alias redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Answer it before you send a robot\./i,
+      name: /Rank your candidates on the site you are bidding on, before the pilot\./i,
     }),
   ).toBeVisible();
 });

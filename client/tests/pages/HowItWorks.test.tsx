@@ -6,7 +6,7 @@ describe("HowItWorks", () => {
   it("shows decision-oriented intake, routing owned by the pipeline, abstention, and the next experiment", () => {
     const { container } = render(<HowItWorks />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Seven moves, and one of them is allowed to say no/i }),
+      screen.getByRole("heading", { level: 1, name: /Seven moves from a real site-task to a ranked shortlist/i }),
     ).toBeInTheDocument();
 
     // The walkthrough is now the run film. Its acts carry the same beats the
@@ -14,13 +14,15 @@ describe("HowItWorks", () => {
     // with its edges, and the next cheapest test.
     expect(container).toHaveTextContent(/The actual call, the threshold it turns on/i);
     expect(container).toHaveTextContent(/The decision splits into claims/i);
-    expect(container).toHaveTextContent(/Supported, ruled out, or not yet/i);
+    expect(container).toHaveTextContent(/the smallest gap this run could separate/i);
     expect(container).toHaveTextContent(/Next test/i);
 
     // The customer does not choose the evidence backend, and the film says so.
     expect(container).toHaveTextContent(/You never pick the method — that is our job/i);
     expect(screen.getByRole("heading", { name: /The pipeline owns the verdict/i })).toBeInTheDocument();
-    expect(screen.getByText(/including the decision to abstain/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The ordering, its margin, and anything the evidence could not separate/i),
+    ).toBeInTheDocument();
 
     // Unknown states fail closed rather than defaulting to a pass.
     expect(screen.getAllByText(/Unknown states fail closed/i).length).toBeGreaterThan(0);

@@ -1,10 +1,10 @@
 import { SEO } from "@/components/SEO";
 import { ProofBoundary } from "@/components/blueprint";
 import {
-  ClaimThresholdChart,
+  ClearanceMarginChart,
   EvidenceLadderChart,
   DecisionShiftCompare,
-  OutcomeSpectrum,
+  RankingMarginChart,
   StatRow,
 } from "@/components/site/figures";
 import { Reveal } from "@/components/site/motion";
@@ -23,13 +23,16 @@ import { blueprintPositioning } from "@/data/robotPolicyEvaluationClaims";
 import {
   closingCta,
   homeClaimMetricLabel,
-  homeClaimThreshold,
-  homeClaims,
   homeDecisionCost,
   homeEvidenceRungs,
   homeHero,
   homeLimits,
-  homeOutcomes,
+  homeRankingCandidates,
+  homeRankingOodAxes,
+  homeRankingResolutionFloorPp,
+  homeRankingRolloutsPerCandidate,
+  homeRankingTestbedVersion,
+  homeScreeningMargins,
   homeStats,
 } from "@/data/publicSiteCopy";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
@@ -44,7 +47,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Task Evaluation Runs for real site-tasks"
-        description="Blueprint turns a real site-task into a maintained testbed and answers the decision claim by claim — including when the evidence cannot answer it yet."
+        description="Blueprint turns the site walkthrough you already do into a maintained testbed: candidates the building will not physically take are ruled out in metres, and the rest come back ordered with the margin on every gap."
         canonical="/"
         jsonLd={[
           webPageJsonLd({
@@ -136,54 +139,76 @@ export default function Home() {
         </Inner>
       </Band>
 
-      {/* 04 — the abstention chart: the centrepiece */}
+      {/* 04 — the screening pass: the only claims that name a cause */}
       <Band tone="canvas">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="04"
-            eyebrow="The honest part"
-            title="A run is allowed to tell you it cannot tell you."
-            lede="Most evaluation products always produce a ranking, because a ranking is what looks like a deliverable. If the evidence under a claim will not carry it, we report that instead of rounding a guess into a verdict."
+            eyebrow="Ruled out first"
+            title="Some candidates the building will not take."
+            lede="Reach, clearance, footprint, sightlines. These come off the capture as distances, not as predictions — which makes this the one part of a run that can tell you what stopped a candidate and by how much. It is also the cheapest, so it runs before anything else."
           />
           <Reveal className="mt-14">
-            <ClaimThresholdChart
-              claims={homeClaims}
-              threshold={homeClaimThreshold}
-              metricLabel={homeClaimMetricLabel}
-            />
+            <ClearanceMarginChart rows={homeScreeningMargins} />
           </Reveal>
           <div className="mt-8 grid gap-5 lg:grid-cols-2">
             <Reveal>
               <ProofBoundary level="info" title="Read the figure this way">
-                Reachability clears the line with room to spare, so it is
-                supported. Dock clearance falls short, so it is ruled out. Onsite
-                outperformance has a point estimate above the line and an
-                interval that crosses it — which is not a win, and is not
-                reported as one.
+                The dock door misses by 18 cm against a 2 cm tolerance — the
+                whole interval sits below zero, so that candidate is out on
+                measurement. The rack upright is 4 cm short against a 5 cm
+                tolerance, so this capture cannot call it either way, and the run
+                says which one it is rather than picking.
               </ProofBoundary>
             </Reveal>
             <Reveal delay={0.08}>
-              <ProofBoundary level="warn" title="What that means commercially">
-                You can buy a run and be told no. You can buy a run and be told
-                not yet. Both are cheaper than the version of that answer you get
-                from a robot standing in a warehouse.
+              <ProofBoundary level="warn" title="What screening does not tell you">
+                That a candidate fits is not that a candidate works. Screening
+                clears the floor for the comparison; it says nothing about
+                whether the policy is any good. That is the next section, and it
+                is a weaker kind of claim.
               </ProofBoundary>
             </Reveal>
           </div>
         </Inner>
       </Band>
 
-      {/* 05 — outcome spectrum */}
+      {/* 05 — the ordering, with its resolution: the centrepiece */}
       <Band tone="paper" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="05"
-            eyebrow="What comes back"
-            title="Five ways a run can end. Four of them are not a winner."
-            lede="The result is a set of per-claim findings with their conditions attached — never one score standing in for the whole decision."
+            eyebrow="The ordering"
+            title="Then the survivors get ranked, with the margin."
+            lede="One task, one pinned testbed version, the same conditions for every candidate. You get the order, the gap between each pair, the interval on that gap, and the smallest gap the design can separate at all."
           />
-          <div className="mt-14">
-            <OutcomeSpectrum bands={homeOutcomes} />
+          <Reveal className="mt-14">
+            <RankingMarginChart
+              candidates={homeRankingCandidates}
+              rolloutsPerCandidate={homeRankingRolloutsPerCandidate}
+              resolutionFloorPp={homeRankingResolutionFloorPp}
+              testbedVersion={homeRankingTestbedVersion}
+              oodAxes={homeRankingOodAxes}
+              metricLabel={homeClaimMetricLabel}
+            />
+          </Reveal>
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <Reveal>
+              <ProofBoundary level="info" title="Read the figure this way">
+                A leads C by 24 points and the interval on that gap stays clear
+                of zero, so it is a real lead. C leads D by 4 points, inside the
+                floor this design can resolve, so they are reported as tied at
+                this rollout count instead of ordered.
+              </ProofBoundary>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <ProofBoundary level="warn" title="Where the ordering stops">
+                This is an ordering on this testbed, under these conditions. We
+                have not measured how our orderings track real-world orderings,
+                and we do not inherit anyone else's correlation figures as if
+                they were ours.
+              </ProofBoundary>
+            </Reveal>
           </div>
         </Inner>
       </Band>
@@ -216,8 +241,9 @@ export default function Home() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="07"
-            eyebrow="Two ways in"
-            title="Same run. Different starting point."
+            eyebrow="Who this is for"
+            title="Robot teams buy the run. Site operators set its terms."
+            lede="One service, one intake, one call to action — the difference is what you arrive with. A robot team arrives with candidates and a deal to win. A site operator arrives with a floor, a job, and the conditions anyone testing on it has to accept."
           />
           <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:gap-16">
             <Reveal>
@@ -227,7 +253,7 @@ export default function Home() {
                 imageAlt="A robot arm working a tote task at a real site"
                 eyebrow="For robot teams"
                 title="Spend field time on the candidate that earned it."
-                body="Bring checkpoints or policies. Find the disqualifiers early, see which claims the current evidence can already close, and decide whether the trip is justified."
+                body="You can already rank checkpoints in your own simulator. What it will not tell you is how they order in the building you are quoting — so bring them, and that site-task."
                 linkLabel="Robot-team use case"
               />
             </Reveal>
@@ -237,8 +263,8 @@ export default function Home() {
                 imageSrc="/redesign/pov/retail-backroom.jpg"
                 imageAlt="A retail backroom being considered for robot work"
                 eyebrow="For site operators"
-                title="Find out what a robot could do here first."
-                body="You do not need a vendor or a policy to start. Describe the job and the terms, and keep control of access, privacy, and whether anyone tests on your floor."
+                title="Decide what may be tested here, and on what terms."
+                body="You do not need a vendor or a policy to start. Describe the job and the conditions, and keep control of access, privacy, and whether anyone runs a robot on your floor."
                 linkLabel="Site-operator use case"
               />
             </Reveal>

@@ -5,7 +5,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
 
   await expect(
     page.getByRole('heading', {
-      name: /Answer it before you send a robot\./i,
+      name: /Rank your candidates on the site you are bidding on, before the pilot\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -33,17 +33,19 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
     page.getByText(/The capture becomes a testbed we version, pin, and maintain/i).first(),
   ).toBeVisible();
   await expect(
-    page.getByText(/Supported, ruled out, or not yet/i).first(),
+    page.getByText(/the smallest gap this run could separate/i).first(),
   ).toBeVisible();
 
   // The two things a run never grants. Contract-enforced, so it is stated.
   await expect(page.getByText(/Deployment approval/i).first()).toBeVisible();
   await expect(page.getByText(/Safety certification/i).first()).toBeVisible();
 
-  // Declining to decide is stated on the page, not implied.
-  await expect(page.getByText(/A run is allowed to tell you it cannot tell you/i)).toBeVisible();
-  await expect(page.getByText(/^Not yet$/i).first()).toBeVisible();
-  await expect(page.getByText(/is not reported as one/i)).toBeVisible();
+  // Screening runs first and is the half that names a cause; the ordering
+  // follows, carrying the resolution that makes it readable.
+  await expect(page.getByText(/Some candidates the building will not take/i)).toBeVisible();
+  await expect(page.getByText(/^Ruled out$/i).first()).toBeVisible();
+  await expect(page.getByText(/Then the survivors get ranked, with the margin/i)).toBeVisible();
+  await expect(page.getByText(/Tied at this rollout count/i).first()).toBeVisible();
 
   // Figures carrying schematic values are marked as illustrative.
   await expect(page.getByText(/^Illustrative$/i).first()).toBeVisible();

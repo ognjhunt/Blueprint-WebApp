@@ -10,9 +10,17 @@
 //   - one customer-facing service, no package tiers or add-ons
 //   - no published fixed price
 //   - the customer never selects a simulator, world model, or provider
-//   - a run may end in a refusal to decide, and that is a valid result
 //   - virtual evidence is never presented as a physical or safety guarantee
 //   - figure values on the public site are schematic, never live run data
+//
+// On how a run reports what it could not settle. A run still has an
+// `abstained` terminal state — that is a Pipeline-owned contract value, not a
+// copy decision, and nothing here removes it. What changed is the framing: an
+// unsettled claim is stated as a *resolution* fact ("this design separates
+// gaps of 20 points or more; these two candidates are 4 apart") rather than as
+// a stance about honesty. The site sells the ordering. Resolution is the spec
+// on the ordering, the way a scale has a readability. It is never a section
+// header, a headline, or a virtue.
 
 import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTile, LifecycleStage } from "@/components/site/figures";
 
@@ -20,13 +28,13 @@ import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTil
 
 export const homeHero = {
   eyebrow: "One service · Task Evaluation Runs",
-  title: "Answer it before you send a robot.",
+  title: "Rank your candidates on the site you are bidding on, before the pilot.",
   body:
-    "Field time is the most expensive possible way to learn that a policy does not work at your site. A Task Evaluation Run turns one real site-task into a testbed we maintain, tests the claims your decision actually rests on, and tells you what the evidence supports — including when it supports nothing yet.",
+    "You already walk the floor before you quote. A Task Evaluation Run turns that visit into a testbed we keep — ruling out the candidates the building physically will not take, then ordering the rest with the margin, the interval on it, and the smallest gap the run can resolve.",
   chips: [
-    "One service, one intake",
-    "Answers claim by claim",
-    "We say “not yet” out loud",
+    "From walkthrough to measured testbed",
+    "Incompatibilities measured, not predicted",
+    "An ordering with its resolution",
   ],
 } as const;
 
@@ -37,21 +45,140 @@ export const homeStats: readonly StatTile[] = [
     detail: "A Task Evaluation Run. No tiers, no packages, no separate add-ons.",
   },
   {
-    label: "Ways a run can end",
-    value: "Five",
-    detail: "Yes, no, partly, not yet — and the cheapest test that would settle it.",
+    label: "Ruled out by measurement",
+    value: "First",
+    detail:
+      "Reach, clearance, footprint, and sightlines come off the capture itself — before a single rollout is spent on a candidate the building will not take.",
+  },
+  {
+    label: "Every ordering ships with",
+    value: "Its margin",
+    detail:
+      "The gap between candidates, the 95% interval on that gap, and the smallest gap the design can separate at all.",
   },
   {
     label: "Backends you pick",
     value: "Zero",
     detail: "You describe the decision. Choosing the method is our job, not yours.",
   },
+];
+
+/**
+ * The screening pass — hard incompatibilities, measured off the capture.
+ *
+ * These rows are the one place a run says *why* rather than *which*. Reach,
+ * clearance, footprint, and sightlines are arithmetic over a measured place and
+ * a published robot envelope; there is no policy, no rollout, and no transfer
+ * assumption between the capture and the answer. That is why a screening result
+ * can name a cause ("misses the opening by 18 cm") when a ranking result can
+ * only name an order.
+ *
+ * `marginM` is measured minus required, in metres, and `toleranceM` is the
+ * calibration uncertainty on it. The verdict is **derived** from those two
+ * numbers rather than authored, which mirrors the Pipeline's analytic
+ * reachability adapter: clears only when the whole interval is above zero,
+ * ruled out only when the whole interval is below it, and otherwise reported as
+ * a measurement the capture cannot separate at its current precision.
+ */
+export interface ScreeningMargin {
+  /** The check, in the words a site lead would use. */
+  check: string;
+  /** What the capture measured, with its unit. */
+  measured: string;
+  /** What the candidate needs, with its unit. */
+  required: string;
+  /** Measured minus required, in metres. Negative means it does not fit. */
+  marginM: number;
+  /** Calibration uncertainty on the margin, in metres. */
+  toleranceM: number;
+}
+
+export const homeScreeningMargins: readonly ScreeningMargin[] = [
   {
-    label: "Published fixed prices",
-    value: "None",
-    detail: "Each run is scoped and quoted from the decision and evidence it needs.",
+    check: "Base reach to the pick fixture",
+    measured: "0.94 m from the approach pose",
+    required: "0.38–1.18 m envelope",
+    marginM: 0.24,
+    toleranceM: 0.03,
+  },
+  {
+    check: "Dock door at loaded height",
+    measured: "2.16 m opening",
+    required: "2.34 m loaded",
+    marginM: -0.18,
+    toleranceM: 0.02,
+  },
+  {
+    check: "Aisle width against the footprint",
+    measured: "1.42 m clear",
+    required: "1.31 m with clearance",
+    marginM: 0.11,
+    toleranceM: 0.04,
+  },
+  {
+    check: "Swept path past the rack upright",
+    measured: "0.06 m nearest approach",
+    required: "0.10 m minimum",
+    marginM: -0.04,
+    toleranceM: 0.05,
   },
 ];
+
+/**
+ * The ordering, and the resolution that comes with it.
+ *
+ * A rank on its own is not a deliverable — a rank you cannot separate is a coin
+ * toss with a chart around it. So every candidate carries its interval, every
+ * adjacent pair carries the gap and the interval on the gap, and the figure
+ * carries the floor: the smallest difference a design at this rollout count can
+ * resolve at all.
+ *
+ * The numbers below are schematic but internally consistent, and the floor is
+ * real arithmetic rather than a chosen round number. At 100 rollouts per
+ * candidate, the pooled two-proportion design resolves about 19.8 points at 80%
+ * power — so a 24-point gap separates and a 4-point gap does not, no matter how
+ * confident the ordering looks.
+ */
+export interface RankingCandidate {
+  candidate: string;
+  /** Success rate on the testbed, 0–1. */
+  rate: number;
+  /** Lower bound of the 95% interval, 0–1. */
+  low: number;
+  /** Upper bound of the 95% interval, 0–1. */
+  high: number;
+}
+
+export const homeRankingCandidates: readonly RankingCandidate[] = [
+  { candidate: "Candidate A", rate: 0.62, low: 0.522, high: 0.709 },
+  { candidate: "Candidate C", rate: 0.38, low: 0.291, high: 0.478 },
+  { candidate: "Candidate D", rate: 0.34, low: 0.255, high: 0.437 },
+];
+
+/** Rollouts per candidate behind the figure above. Sets the resolution floor. */
+export const homeRankingRolloutsPerCandidate = 100;
+
+/**
+ * Smallest gap the design above can separate, in points of success rate.
+ * Pooled two-proportion approximation at alpha 0.05 and 80% power.
+ */
+export const homeRankingResolutionFloorPp = 19.8;
+
+/** The testbed version an ordering is pinned to. Schematic. */
+export const homeRankingTestbedVersion = "testbed v3 · digest-pinned";
+
+/**
+ * The out-of-distribution axes an ordering is reported across. These are the
+ * five the Pipeline's decision-grade ranking requires — an ordering that does
+ * not cover all five is blocked rather than published.
+ */
+export const homeRankingOodAxes = [
+  "site",
+  "task",
+  "embodiment",
+  "viewpoint",
+  "appearance",
+] as const;
 
 export const homeLifecycle: readonly LifecycleStage[] = [
   {
@@ -67,44 +194,44 @@ export const homeLifecycle: readonly LifecycleStage[] = [
   {
     label: "You state the decision",
     detail:
-      "Not “run a benchmark.” The actual call you are about to make, the threshold it turns on, and what a wrong yes would cost.",
+      "Not “run a benchmark.” The actual call you are about to make, the candidates in front of you, and what a wrong yes would cost.",
   },
   {
-    label: "We route each claim",
+    label: "We screen on measurement",
     detail:
-      "Every claim goes to the cheapest evidence strong enough to carry it, and climbs only when that is not enough.",
+      "Reach, clearance, footprint, and sightlines come off the capture. Candidates the building will not take are out before anyone spends a rollout on them.",
   },
   {
-    label: "You get an answer with its limits",
+    label: "We order what survives",
     detail:
-      "What holds, what does not, what is still open, where the answer stops applying, and what to test next.",
+      "The remaining candidates are ranked on the same testbed version, with the margin, the interval on it, and the smallest gap the run can resolve.",
   },
 ];
 
 export const homeOutcomes: readonly OutcomeBand[] = [
   {
-    label: "Yes, within these conditions",
-    body: "The call is supported — and the report states exactly where that stops being true.",
+    label: "Ordered, with margin",
+    body: "The candidates are ranked and the gaps clear the run's resolution. You get the order, each margin, and the conditions it holds under.",
     tone: "supported",
   },
   {
-    label: "No",
-    body: "The evidence supports ruling the option out. A clear no is often the cheapest result you can buy.",
+    label: "Ruled out on measurement",
+    body: "A candidate does not physically fit the site. The cheapest finding in a run, and the one that names its own cause.",
     tone: "rejected",
   },
   {
-    label: "Partly",
-    body: "Some claims settled, others did not. You see which is which instead of an average that hides both.",
+    label: "Ordered in part",
+    body: "Some pairs separate and some sit inside the resolution. You see which is which, instead of a full ranking implying precision the design does not have.",
     tone: "partial",
   },
   {
-    label: "Not yet",
-    body: "The evidence is not strong enough to answer. We say so rather than dress a guess up as a finding.",
+    label: "Inside the resolution",
+    body: "The gaps are smaller than this design can separate. The run reports the floor and what it would take to get under it.",
     tone: "abstained",
   },
   {
     label: "Test this next",
-    body: "The least expensive experiment that would move the decision — including when that means real hardware.",
+    body: "The least expensive experiment that would move the decision — more rollouts, a recapture, or real hardware.",
     tone: "next",
   },
 ];
@@ -177,19 +304,19 @@ export const homeClaimMetricLabel = "success rate";
 
 export const homeDecisionCost: readonly DecisionCostRow[] = [
   {
-    label: "When you find out a policy will not work here",
-    beforeLabel: "After the robot is already on site",
-    afterLabel: "Before you schedule the visit",
+    label: "How you pick which candidate ships",
+    beforeLabel: "Whichever one demoed best somewhere else",
+    afterLabel: "An ordering measured on your site",
   },
   {
-    label: "What a negative answer costs you",
-    beforeLabel: "A trip, a crew, and a slot on the floor",
-    afterLabel: "A run, and the reason it failed",
+    label: "When you find out one will not fit",
+    beforeLabel: "After the robot is already on the floor",
+    afterLabel: "Before you schedule the visit",
   },
   {
     label: "What you can put in front of a reviewer",
     beforeLabel: "A demo reel and a judgement call",
-    afterLabel: "Claims, the evidence behind each, and stated limits",
+    afterLabel: "The order, each margin, and the resolution behind them",
   },
 ];
 
@@ -200,9 +327,14 @@ export const homeLimits = [
       "Nothing we return is a safety approval, a certification, or a licence to operate. Those stay with you and your regulator.",
   },
   {
-    title: "Virtual evidence has an edge",
+    title: "An ordering is bounded by its testbed",
     body:
-      "Every estimate comes with the conditions it was measured under. Outside them it is not a weaker claim — it is not a claim.",
+      "A ranking holds on the testbed version it was measured on, under the conditions stated. We have not measured how our orderings track real-world orderings, and we do not inherit anyone else's correlation figures as if they were ours.",
+  },
+  {
+    title: "Resolution is a property of the design",
+    body:
+      "Every run can only separate gaps above a certain size. We publish that floor with the ordering, because a rank you cannot separate is not a result.",
   },
   {
     title: "Some claims need hardware",
@@ -222,25 +354,25 @@ export const robotTeamHero = {
   eyebrow: "Task Evaluation Runs · for robot teams",
   title: "Spend field time on the candidate that earned it.",
   body:
-    "You have more checkpoints than sites, and more sites than weeks. Bring the candidates and the site-task, and find out which questions the current evidence can already close — and which ones only a real robot will settle.",
-  chips: ["Bring policies or checkpoints", "Incompatibility found early", "A no is a useful result"],
+    "You can already rank checkpoints in your own simulator. What that will not tell you is how they order in the building you are quoting — the one you walked for an hour and wrote a proposal against. Bring the candidates and that site-task, and get the incompatibilities in metres and the survivors in order.",
+  chips: ["Bring policies or checkpoints", "Screened on measurement", "Ordered with a stated resolution"],
 } as const;
 
 export const robotTeamValue = [
   {
-    title: "Compare your own candidates",
+    title: "Screen on measurement, not on rollouts",
     body:
-      "Several checkpoints, one task, one threshold, one set of conditions. Same substrate for every candidate, so the comparison means something.",
+      "Reach, footprint, clearance, and sightlines are computed from the capture. A candidate that cannot fit is out before it costs you a single rollout — and the run tells you by how much it missed.",
   },
   {
-    title: "Find the disqualifiers first",
+    title: "Order what survives, on one substrate",
     body:
-      "Reach, footprint, embodiment, observation and action mismatches, environmental limits. Cheap to discover here, expensive to discover on site.",
+      "Several checkpoints, one task, one testbed version, one set of conditions, reported across site, task, embodiment, viewpoint, and appearance. Same substrate for every candidate, so the comparison means something.",
   },
   {
-    title: "Decide what to do next",
+    title: "Know what the ordering can resolve",
     body:
-      "Test physically, recapture, narrow the task, or stop. The run names the next move and what it would cost you.",
+      "Every design has a smallest separable gap. We give you the ordering, the interval on each margin, and that floor — so you can tell a real lead from two checkpoints that are simply tied.",
   },
 ] as const;
 
@@ -255,12 +387,12 @@ export const robotTeamFlow: readonly LifecycleStage[] = [
     detail: "The run is bound to one exact testbed version and digest, so results stay comparable later.",
   },
   {
-    label: "Claims get routed",
-    detail: "Each claim goes to the cheapest evidence strong enough to carry it. You do not choose the method.",
+    label: "Screen on measurement",
+    detail: "Reach, clearance, and footprint come off the capture. Candidates the site will not take are out, with the shortfall in metres.",
   },
   {
-    label: "Read what holds",
-    detail: "Supported, ruled out, still open — per claim, with the conditions attached. Not one number.",
+    label: "Read the ordering",
+    detail: "The survivors ranked, each margin with its interval, and the smallest gap this design separates. Not one number.",
   },
   {
     label: "Commit the field time",
@@ -321,7 +453,7 @@ export const howItWorksSplit = {
     "Whether a method is qualified for a given claim",
     "Which evidence a claim is routed to, and when to escalate",
     "What was measured, and how sure the measurement is",
-    "The verdict — including the decision to abstain",
+    "The ordering, its margin, and anything the evidence could not separate",
   ],
 } as const;
 
@@ -347,10 +479,12 @@ export const pricingIncluded = [
   "One decision-shaped request against a real site-task",
   "A versioned testbed reference the result is bound to",
   "Claim, threshold, risk, budget, and deadline scoping",
+  "A measured screening pass, with the shortfall on anything ruled out",
   "An evidence plan chosen per claim, and the reasoning",
-  "The answer: yes, no, partly, or not yet",
+  "The ordering of the surviving candidates, with each margin",
+  "The interval on every margin, and the gap the design can separate",
   "The conditions it holds under, and where it stops",
-  "Uncertainty, and any disagreement between methods",
+  "Any disagreement between methods, reported rather than averaged",
   "The next cheapest test, and whether hardware is required",
   "Exact provenance, and what each artifact may be used for",
 ] as const;
@@ -359,7 +493,7 @@ export const pricingBoundaries = [
   {
     title: "A quote buys the work, not the answer you wanted",
     body:
-      "Authorising a run does not purchase a winner, a green light, a field recommendation, or a passing result. It purchases an honest one.",
+      "Authorising a run does not purchase a particular winner, a green light, a field recommendation, or a passing result. It purchases the ordering the evidence actually supports.",
   },
   {
     title: "Price is set on our side",
@@ -385,9 +519,9 @@ export const aboutStats: readonly StatTile[] = [
     detail: "A Task Evaluation Run. Every other product name is retired, not renamed.",
   },
   {
-    label: "Ways a run can end",
-    value: "Five",
-    detail: "Yes, no, partly, not yet — and the cheapest test that would settle it.",
+    label: "Orderings without a margin",
+    value: "None",
+    detail: "A rank ships with its gap, the interval on that gap, and the floor the design can separate.",
   },
   {
     label: "Backends you pick",
@@ -410,7 +544,7 @@ export const aboutPrinciples = [
   {
     title: "An estimate is never a guarantee",
     body:
-      "We report what the evidence supports inside stated conditions. Partial answers and outright refusals to decide are first-class results, not failures to be dressed up.",
+      "We report what the evidence supports inside stated conditions, and we publish the resolution alongside the ordering — because a gap the design cannot separate is not a lead.",
   },
   {
     title: "Generated frames are review support",
@@ -608,10 +742,10 @@ export const runFilmActs: readonly RunFilmAct[] = [
   },
   {
     id: "envelope",
-    label: "The answer and its edges",
-    // 20 words.
+    label: "The order and its resolution",
+    // 17 words.
     caption:
-      "Supported, ruled out, or not yet. A claim the evidence cannot carry stays open — it is never rounded into a win.",
+      "The order, each margin, and the interval on it — plus the smallest gap this run could separate.",
     term: "decision envelope",
     actor: "Blueprint",
   },

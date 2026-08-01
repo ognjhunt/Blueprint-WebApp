@@ -13,9 +13,10 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
 
 test("robot-team and site-operator pages describe one service and intake", async ({ page }) => {
   await page.goto("/for-robot-teams");
-  // Declining to decide is still presented as an outcome, not omitted.
-  await expect(page.getByText(/A ranking is not the promise/i).first()).toBeVisible();
-  await expect(page.getByText(/^Not yet$/i).first()).toBeVisible();
+  // Screening precedes the ordering, and a gap the design cannot separate is
+  // still presented as an outcome rather than omitted.
+  await expect(page.getByText(/Bring candidates\. Get them screened, then ordered\./i).first()).toBeVisible();
+  await expect(page.getByText(/^Inside the resolution$/i).first()).toBeVisible();
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);
 
   await page.goto("/for-site-operators");
