@@ -2,7 +2,9 @@
 
 ## Mission
 
-`Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface for Blueprint's Task Evaluation Runs. Post-training is a permitted use of qualifying run evidence, not a separate product.
+`Blueprint-WebApp` is the partner-intake, authorization, workflow, evidence
+review, and bounded case-study surface for Blueprint's sole active program, Arm
+Decision Proof v1. The product remains one Task Evaluation Run.
 
 This repo must reinforce the platform doctrine in:
 
@@ -30,6 +32,14 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
 
 ## Product Rules
 
+- Arm Decision Proof v1 is the sole active program. WebApp work must directly
+  unblock partner admission, protocol/rights authorization, evidence review,
+  physical-outcome joining, or the bounded case study. Unrelated launch, growth,
+  marketplace, city, post-training, humanoid, and general product polish is
+  frozen.
+- Require every issue to name its ADP backlog item, day gate, observed blocker,
+  and completion artifact. Existing captures/scenes remain `development_only`
+  and must never appear as partner or physical proof.
 - Keep Blueprint capture-first and real-site robot-evaluation/data-package first.
 - Do not reframe the company as qualification-first or model-checkpoint-first.
 - Do not reframe world models as the primary public offer; they are internal compatibility, generated/editing/augmentation, or advisory evidence methods inside Task Evaluation Runs.
@@ -63,7 +73,9 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 ## Working Rules
 
 - Preserve truthful product language around hosted sessions, captures, rights, and provenance.
-- Prefer edits that strengthen buyer usability, ops clarity, and delivery of real-site outputs.
+- Prefer only edits that strengthen Arm Decision Proof partner intake,
+  authorization, durable experiment state, inspectable evidence, or bounded
+  delivery.
 - Avoid inventing fake supply, fake providers, or fake readiness states in production paths.
 - Keep changes aligned with the other Blueprint repos when contracts cross repo boundaries.
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as the default operating stack for this repo.

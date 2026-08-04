@@ -16,11 +16,22 @@ This guide covers the full org so that any agent or human working in any Bluepri
 On the current trusted host, Paperclip uses local subscription-backed auth only. Claude is the default executive/review lane and Codex is the default implementation lane, but reconcile automatically fails a workspace over to the other local adapter when the default adapter is unhealthy or rate-limited.
 
 **Key principles:**
+- Arm Decision Proof v1 is the sole active company program: one new fixed-arm
+  workcell, one partner-owned rigid-object task, two frozen candidates, one
+  sealed prospective decision, and one held-out physical adjudication.
+- Every active issue and routine must name the ADP backlog item and
+  day-7/day-14/day-28/day-35/day-42 gate it unblocks. Other role definitions are
+  capabilities retained for compatibility, not parallel mandates.
+- Growth, city launch, marketplaces, humanoids, world-model research,
+  post-training, and unrelated product/website routines are paused until a new
+  explicit strategy decision after physical adjudication.
 - Capture-first, real-site robot-evaluation/data-package-first positioning (see `PLATFORM_CONTEXT.md`)
 - Progressive autonomy — agents start supervised and graduate based on track record
 - Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
-- Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is one **Task Evaluation Run**: one real site-task, one maintained testbed version, one requested decision, explicit claims and thresholds, a qualified evidence plan, and a bounded decision or abstention, with automatic policy enforcement on pricing, rights, evidence use, physical-proof requirements, historical hosted access, generated/model-derived support artifacts, and irreversible commitments.
+- The only current wedge is the Arm Decision Proof Task Evaluation Run. Demand
+  work is limited to selecting and supporting its one design partner; broad
+  funnel optimization is paused.
 - During the current wedge, the active org is judged through three loops only: product/proof, demand/sales, and reliability. Any routine that does not move targets, contacts, approvals, sends, replies, calls, hosted-review starts, capture asks, or blockers is commentary.
 - Zero-based org changes use `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md` as the current tiering contract: P0 active roles move product/proof, demand/sales, or reliability; P1 roles stay event-only or reduced cadence; P2 roles stay dormant, merged, or compatibility-only until proof justifies restart.
 - Website intake follows the **structured intake first, calendar second** contract in `ops/paperclip/programs/structured-intake-calendar-second-contract.md`: forms collect role-specific routing truth first, and calendar booking is only an accelerator or required human checkpoint when the structured record justifies it.
