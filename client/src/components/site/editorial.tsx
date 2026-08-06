@@ -110,11 +110,11 @@ const radiusClass = {
 
 const overlayClass = {
   // top -> dark, for captioned media
-  bg: "bg-[linear-gradient(180deg,rgba(13,13,11,0.04),rgba(13,13,11,0.46))]",
+  bg: "bg-[linear-gradient(180deg,rgba(7,17,29,0.02),rgba(7,17,29,0.52))]",
   // left -> dark, anchors hero text on the left
-  heroL: "bg-[linear-gradient(90deg,rgba(13,13,11,0.78),rgba(13,13,11,0.28)_46%,rgba(13,13,11,0.06))]",
+  heroL: "bg-[linear-gradient(90deg,rgba(7,17,29,0.86),rgba(7,17,29,0.34)_50%,rgba(7,17,29,0.05))]",
   // faint wash
-  soft: "bg-[linear-gradient(180deg,rgba(13,13,11,0.02),rgba(13,13,11,0.16))]",
+  soft: "bg-[linear-gradient(180deg,rgba(7,17,29,0.01),rgba(7,17,29,0.18))]",
   none: "",
 } as const;
 
@@ -196,7 +196,7 @@ export function MonochromeMedia({
         alt={alt}
         loading={loading}
         className={cn(
-          "h-full w-full object-cover grayscale contrast-[1.03] brightness-[0.82]",
+          "h-full w-full object-cover contrast-[1.01] saturate-[0.9]",
           imageClassName,
         )}
       />
@@ -244,7 +244,7 @@ export function MonochromeVideo({
         controls={false}
         poster={poster}
         className={cn(
-          "h-full w-full object-cover grayscale contrast-[1.03] brightness-[0.82]",
+          "h-full w-full object-cover contrast-[1.01] saturate-[0.9]",
           videoClassName,
         )}
       >
@@ -276,14 +276,14 @@ export function ProofChip({
       className={cn(
         "inline-flex items-center gap-2 rounded-sm border px-[0.6rem] py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
         light
-          ? "border-white/15 bg-black/30 text-[color:var(--text-on-ink)]"
-          : "border-line-strong bg-white/90 text-ink-600",
+          ? "border-white/15 bg-[#07111d]/40 text-white"
+          : "border-kinetic-line bg-white/90 text-kinetic-muted",
         className,
       )}
     >
       <span
         aria-hidden="true"
-        className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
+        className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-kinetic-blue"
       />
       {children}
     </span>

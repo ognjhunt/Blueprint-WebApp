@@ -93,7 +93,7 @@ export default function Proof() {
         body="Every number a run returns carries the conditions it was measured under. Outside them it is not a weaker claim — it is not a claim. This page is the short version of what we will and will not say, and why."
         chips={["Raw capture outranks derived", "Research is context, not result", "Safety approval stays external"]}
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="How it works"
         imageSrc="/redesign/pov/inspection-bench.jpg"
@@ -215,7 +215,7 @@ export default function Proof() {
         title={closingCta.title}
         body={closingCta.body}
         primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof-cta"
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/faq"
         secondaryLabel="Read the FAQ"
         imageSrc="/redesign/pov/cold-storage.jpg"

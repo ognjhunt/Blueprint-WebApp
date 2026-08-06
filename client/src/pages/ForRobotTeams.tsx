@@ -65,7 +65,7 @@ export default function ForRobotTeams() {
         body={robotTeamHero.body}
         chips={robotTeamHero.chips}
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="How it works"
         imageSrc="/redesign/pov/warehouse-tote.jpg"
@@ -194,7 +194,7 @@ export default function ForRobotTeams() {
         title="Tell us what you need to decide."
         body="The site-task, the candidates, the threshold, what a wrong yes would cost, and anything we may not do. The evidence plan is ours to build."
         primaryHref={runCtaHref}
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/pricing"
         secondaryLabel="How pricing works"
         imageSrc="/redesign/pov/packing-cell.jpg"

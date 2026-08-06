@@ -55,7 +55,7 @@ export default function About() {
         body={aboutHero.body}
         chips={aboutHero.chips}
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="See how it works"
         imageSrc="/redesign/robot-hero.png"
@@ -130,7 +130,7 @@ export default function About() {
         title="Bring one exact site-task."
         body="Browse captured sites as possible testbed inputs, or come straight to us when you already know the decision."
         primaryHref={runCtaHref}
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/sites"
         secondaryLabel="Explore captured sites"
         imageSrc="/redesign/pov/factory-conveyor.jpg"
