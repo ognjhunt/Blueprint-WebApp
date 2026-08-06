@@ -28,7 +28,7 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^For Robot Teams$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Product$/i })).toHaveAttribute(
       "href",
       "/for-robot-teams",
     );
@@ -45,11 +45,13 @@ describe("Header", () => {
       "href",
       "/pricing",
     );
+    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute(
+      "href",
+      "/proof",
+    );
     expect(screen.queryByRole("link", { name: /^Evaluate$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Sites$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Robot teams$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Product$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Readiness$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Site packages$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
@@ -63,7 +65,7 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Request a Task Evaluation Run$/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Scope a benchmark$/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
       "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",

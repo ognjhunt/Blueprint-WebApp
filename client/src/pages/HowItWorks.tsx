@@ -48,10 +48,10 @@ export default function HowItWorks() {
 
       <PageHero
         eyebrow="How it works"
-        title="Seven moves from a real site-task to a ranked shortlist."
-        body="One real site-task becomes a testbed we keep. Candidates the building will not physically take are ruled out on measurement. What comes back is an ordering of the rest, with the margin on every gap and the smallest gap the run can resolve."
+        title="Walk the site. We build the benchmark. You get the decision."
+        body="Capture one real task with an iPhone Pro or 360 camera. Blueprint reconstructs the scene, adds the task-specific variation, runs your checkpoints, and returns the ranking, likely failure modes, and uncertainty."
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/pricing"
         secondaryLabel="How pricing works"
         imageSrc="/redesign/pov/inspection-bench.jpg"
@@ -192,7 +192,7 @@ export default function HowItWorks() {
         title={closingCta.title}
         body={closingCta.body}
         primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=how-it-works-cta"
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/pricing"
         secondaryLabel="How pricing works"
         imageSrc="/redesign/pov/dishwasher.jpg"

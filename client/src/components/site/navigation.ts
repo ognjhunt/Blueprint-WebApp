@@ -6,21 +6,22 @@
 // capturers remain the paid-supply path.
 
 export const primaryNavLinks = [
-  { href: "/for-robot-teams", label: "For Robot Teams" },
+  { href: "/for-robot-teams", label: "Product" },
   { href: "/how-it-works", label: "How it works" },
+  { href: "/proof", label: "Proof" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 // Utility links sit between the primary nav and the auth controls. Capture is paid
 // supply the company recruits — framed as an earn opportunity, not a product to buy.
 export const headerUtilityLinks = [
-  { href: "/capture", label: "Get paid to capture" },
+  { href: "/capture", label: "Capture network" },
 ];
 
 // Primary header CTA — white-fill "Request evaluation" button.
 export const headerRequestEvaluation = {
   href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",
-  label: "Request a Task Evaluation Run",
+  label: "Scope a benchmark",
 };
 
 // Footer columns: Product / Evidence / Company.

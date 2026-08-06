@@ -55,7 +55,7 @@ export default function ForSiteOperators() {
         body={siteOperatorHero.body}
         chips={siteOperatorHero.chips}
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a site benchmark"
         secondaryHref="/governance"
         secondaryLabel="Rights and privacy"
         imageSrc="/redesign/pov/loading-dock.jpg"
@@ -191,7 +191,7 @@ export default function ForSiteOperators() {
         title={closingCta.title}
         body="Describe the real workflow, the conditions, the failures you will not accept, and the terms of access. Candidates can be linked whenever they exist."
         primaryHref={runCtaHref}
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a site benchmark"
         secondaryHref="/governance"
         secondaryLabel="Review rights and privacy"
         imageSrc="/redesign/pov/inspection-bench.jpg"

@@ -5,7 +5,7 @@ import { CaptureAppDock } from "./CaptureAppDock";
 
 export function SiteLayout({ children }: PropsWithChildren) {
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-kinetic-white text-kinetic-graphite">
       <Header />
       <main id="main-content" className="relative z-0 flex-1">
         {children}

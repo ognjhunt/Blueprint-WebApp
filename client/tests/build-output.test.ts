@@ -203,18 +203,18 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Rank your candidates on the site you are bidding on, before the pilot.");
-    expect(homeHtml).toContain("Some candidates the building will not take.");
-    expect(homeHtml).toContain("Then the survivors get ranked, with the margin.");
-    expect(homeHtml).toContain("cheapest evidence that is actually good enough");
+    expect(homeHtml).toContain("Turn one site walkthrough into a robot benchmark by tomorrow.");
+    expect(homeHtml).toContain("Walk the site");
+    expect(homeHtml).toContain("We build + run");
+    expect(homeHtml).toContain("Know what deserves the pilot.");
     // Schematic figure values must be marked as such in the prerendered HTML too.
     expect(homeHtml).toContain("Illustrative");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    // /pricing prerenders the single scoped engagement without inventing a price.
-    expect(pricingHtml).toContain("You pay for the decision, not a package.");
-    expect(pricingHtml).toContain("Scoped quote");
-    expect(pricingHtml).toContain("Request a Task Evaluation Run");
+    // /pricing prerenders the first-run starting point and bounded quote model.
+    expect(pricingHtml).toContain("Buy one decision before you buy the field time.");
+    expect(pricingHtml).toContain("From $2,500");
+    expect(pricingHtml).toContain("Scope a benchmark");
     expect(pricingHtml).not.toContain("Policy Shortlist");
     expect(pricingHtml).not.toContain("Robot Match");
     expect(pricingHtml).not.toContain("$3,000");

@@ -128,7 +128,7 @@ export default function FAQ() {
         title={closingCta.title}
         body={closingCta.body}
         primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=faq-cta"
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="See how it works"
         imageSrc="/redesign/pov/machine-tending.jpg"

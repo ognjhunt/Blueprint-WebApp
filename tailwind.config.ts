@@ -73,38 +73,53 @@ export default {
         // NOTE: intentionally NO flat `card` key here — that would clobber the
         // shadcn `card` object above. White surfaces use `bg-white` / `bg-paper-0`.
         ink: {
-          DEFAULT: "#0d0d0b",
-          900: "#0d0d0b",
-          800: "#1a1a17",
-          700: "#2b2b27",
-          600: "#45443d",
-          500: "#5f5d54",
-          400: "#817e72",
-          300: "#a8a496",
-          200: "#cdc9bb",
-          100: "#e4dfd2",
-          50: "#f0ece1",
+          DEFAULT: "#101318",
+          900: "#101318",
+          800: "#171b22",
+          700: "#252a33",
+          600: "#3e454f",
+          500: "#626a75",
+          400: "#858d96",
+          300: "#aab0b7",
+          200: "#d2d6da",
+          100: "#e7e9eb",
+          50: "#f1f2f3",
         },
-        graphite: "#1a1a17",
+        graphite: "#171b22",
         paper: {
           DEFAULT: "#f5f1e8",
           0: "#ffffff",
-          1: "#faf7f0",
-          2: "#f5f1e8",
-          3: "#ebe4d7",
-          4: "#ded5c4",
+          1: "#f7f8f9",
+          2: "#f1f2f3",
+          3: "#e7e9eb",
+          4: "#d6d9dd",
         },
-        bone: "#ebe4d7",
-        brass: { DEFAULT: "#c7a775", deep: "#a8854f", lit: "#d8bd8d" },
+        bone: "#e7e9eb",
+        brass: { DEFAULT: "#2457ff", deep: "#1244ef", lit: "#8fe8ff" },
+
+        // Kinetic public-site palette. Names are explicit so product surfaces can
+        // keep their existing semantic status colors while marketing uses this
+        // cooler optical system.
+        kinetic: {
+          white: "#f8f9fa",
+          graphite: "#101318",
+          dark: "#07111d",
+          muted: "#535c68",
+          faint: "#858d96",
+          line: "#d9dde2",
+          blue: "#1554ff",
+          "blue-deep": "#003bd8",
+          cyan: "#8fe8ff",
+        },
 
         // semantic surfaces
-        canvas: "#faf7f0",
-        inset: "#f5f1e8",
-        sunken: "#ebe4d7",
-        line: { DEFAULT: "#ded7c8", soft: "#ebe4d7", strong: "#c8bfac" },
+        canvas: "#f7f8f9",
+        inset: "#f1f2f3",
+        sunken: "#e7e9eb",
+        line: { DEFAULT: "#d9dde2", soft: "#e7e9eb", strong: "#bcc2c9" },
 
         // action / focus
-        action: { DEFAULT: "#2563a6", hover: "#1f4f8f" },
+        action: { DEFAULT: "#1554ff", hover: "#003bd8" },
 
         // signal families — fg / bg / bd (+ 700/600/500 ramps)
         proof: {
@@ -142,8 +157,8 @@ export default {
       },
 
       fontFamily: {
-        sans: ['"Manrope"', '"Inter"', "system-ui", "sans-serif"],
-        display: ['"Newsreader"', "Georgia", '"Times New Roman"', "serif"],
+        sans: ['"Inter Tight"', '"Inter"', "system-ui", "sans-serif"],
+        display: ['"Inter Tight"', '"Inter"', "system-ui", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", '"SF Mono"', "Menlo", "monospace"],
       },
 

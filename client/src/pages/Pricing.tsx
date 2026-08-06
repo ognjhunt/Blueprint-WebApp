@@ -28,9 +28,9 @@ const runHref =
 
 const faqItems = [
   {
-    question: "Why is there no price on this page?",
+    question: "What does the $2,500 starting point mean?",
     answer:
-      "Because two runs that sound identical can need very different evidence. A decision resting on an existing testbed with prior evidence costs a fraction of a cold start on a contact-heavy task with a hard deadline. Publishing one number would mean overcharging the first or underdelivering the second.",
+      "It is the starting point for a tightly bounded first benchmark: one captured task area, a small checkpoint set, a defined variation envelope, and a decision report. More task objects, embodiments, scenarios, physical work, or an accelerated deadline increase the quote.",
   },
   {
     question: "Do robot teams and site operators buy different things?",
@@ -79,9 +79,9 @@ export default function Pricing() {
         eyebrow={pricingHero.eyebrow}
         title={pricingHero.title}
         body={pricingHero.body}
-        chips={["One thing to buy", "Quoted before you authorise", "No tiers, no add-ons"]}
+        chips={["From $2,500", "Quoted before you authorise", "No subscription required"]}
         ctaHref={runHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="How it works"
         imageSrc="/redesign/pov/factory-conveyor.jpg"
@@ -95,8 +95,8 @@ export default function Pricing() {
           <SectionHeader
             index="01"
             eyebrow="What moves the number"
-            title="Six things, and none of them is a tier."
-            lede="Fixed campaign prices are gone. They implied every decision needs the same evidence, which was never true — and it made the cheap runs expensive."
+            title="A clear starting point. A quote shaped by the task."
+            lede="A small first run can start at $2,500. The final number changes only when the site, checkpoint set, evidence burden, variation envelope, or deadline changes."
             onInk
           />
           <div className="mt-14 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
@@ -134,15 +134,15 @@ export default function Pricing() {
                   Task Evaluation Run
                 </p>
                 <h3 className="mt-6 font-display text-[clamp(2.2rem,3.4vw,2.9rem)] font-medium leading-[1.02] tracking-[-0.04em] text-[color:var(--text-on-ink)]">
-                  Scoped quote
+                  From $2,500
                 </h3>
                 <p className="mt-5 text-[14.5px] leading-[1.72] text-ink-300">
-                  We scope the decision with you, price the evidence it needs, and
-                  send the quote before anything is authorised. You will know what
-                  the run can and cannot settle before you commit to it.
+                  One bounded site-task, a small checkpoint set, controlled
+                  variation, and a decision-ready report. We send the fixed scope
+                  and exact quote before anything is authorised.
                 </p>
                 <Button asChild variant="brass" size="lg" className="mt-9">
-                  <a href={runHref}>Request a Task Evaluation Run</a>
+                  <a href={runHref}>Scope a benchmark</a>
                 </Button>
               </div>
             </Reveal>
@@ -207,7 +207,7 @@ export default function Pricing() {
         title={closingCta.title}
         body={closingCta.body}
         primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=pricing-cta"
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/how-it-works"
         secondaryLabel="See how it works"
         imageSrc="/redesign/pov/laundry-folding.jpg"

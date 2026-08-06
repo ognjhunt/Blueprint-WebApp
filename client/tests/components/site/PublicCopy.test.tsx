@@ -35,25 +35,25 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Rank your candidates on the site you are bidding on, before the pilot/i,
+        name: /Turn one site walkthrough into a robot benchmark by tomorrow/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Scope a benchmark/i }).length).toBeGreaterThan(0);
 
-    // One service, and the lifecycle that backs it.
-    expect(container).toHaveTextContent(/One service\. Priced per decision\./i);
-    expect(container).toHaveTextContent(/The capture becomes a testbed we version, pin, and maintain/i);
-    expect(container).toHaveTextContent(/cheapest evidence that is actually good enough/i);
+    // One bounded service, and the three-stage lifecycle that backs it.
+    expect(container).toHaveTextContent(/Walk the site/i);
+    expect(container).toHaveTextContent(/We build \+ run/i);
+    expect(container).toHaveTextContent(/You get the decision/i);
 
-    // Screening leads, the ordering follows, and the ordering carries the
-    // resolution that makes it readable.
-    expect(container).toHaveTextContent(/Some candidates the building will not take/i);
-    expect(container).toHaveTextContent(/Then the survivors get ranked, with the margin/i);
-    expect(container).toHaveTextContent(/Tied at this rollout count/i);
+    // The result stays decision-oriented and preserves the evidence boundary.
+    expect(container).toHaveTextContent(/Know what deserves the pilot/i);
+    expect(container).toHaveTextContent(/Paired physical validation/i);
+    expect(container).toHaveTextContent(/explicit abstention/i);
 
-    // Withdrawn products, fixed prices, and outcome guarantees stay absent.
+    // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);
     expect(container).not.toHaveTextContent(/Robot Match/i);
+    expect(container).toHaveTextContent(/\$2,500/i);
     expect(container).not.toHaveTextContent(/\$3,000/i);
     expect(container).not.toHaveTextContent(/\$5,000/i);
     expect(container).not.toHaveTextContent(/guaranteed winner/i);

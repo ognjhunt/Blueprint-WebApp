@@ -55,7 +55,7 @@ export default function Governance() {
         body={governanceHero.body}
         chips={governanceHero.chips}
         ctaHref={operatorHref}
-        ctaLabel="Request a Task Evaluation Run"
+        ctaLabel="Scope a benchmark"
         secondaryHref="/for-site-operators"
         secondaryLabel="Site-operator use case"
         imageSrc="/redesign/pov/retail-backroom.jpg"
@@ -172,7 +172,7 @@ export default function Governance() {
         title="Set the boundaries first."
         body="Tell us the job, the windows we may capture in, the areas that stay off limits, and what evidence use you permit. The run is scoped inside those limits, not around them."
         primaryHref={operatorHref}
-        primaryLabel="Request a Task Evaluation Run"
+        primaryLabel="Scope a benchmark"
         secondaryHref="/for-site-operators"
         secondaryLabel="Site-operator use case"
         imageSrc="/redesign/pov/cold-storage.jpg"

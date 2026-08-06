@@ -351,11 +351,11 @@ export const homeLimits = [
 /* ------------------------------------------------------- robot-team page */
 
 export const robotTeamHero = {
-  eyebrow: "Task Evaluation Runs · for robot teams",
-  title: "Spend field time on the candidate that earned it.",
+  eyebrow: "Field-to-sim evaluation · for robot teams",
+  title: "Know which checkpoint deserves the pilot.",
   body:
-    "You can already rank checkpoints in your own simulator. What that will not tell you is how they order in the building you are quoting — the one you walked for an hour and wrote a proposal against. Bring the candidates and that site-task, and get the incompatibilities in metres and the survivors in order.",
-  chips: ["Bring policies or checkpoints", "Screened on measurement", "Ordered with a stated resolution"],
+    "Walk the prospective site once. Blueprint rebuilds the real task, runs your checkpoints under controlled variation, and returns the ranking, likely failure modes, and what to take into the physical pilot.",
+  chips: ["Bring policies or checkpoints", "Fixed-scope run", "Decision-ready report"],
 } as const;
 
 export const robotTeamValue = [
@@ -460,10 +460,10 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "One service · scoped per run",
-  title: "You pay for the decision, not a package.",
+  eyebrow: "Fixed-scope benchmarks · from $2,500",
+  title: "Buy one decision before you buy the field time.",
   body:
-    "There is one thing to buy and no price list, because two runs that sound alike can need very different evidence. We scope the run with you and quote it before anything is authorised.",
+    "A first benchmark starts at $2,500 for one bounded site-task and a small checkpoint set. We scope the exact task, evidence, variation, and turnaround with you before anything is authorised.",
 } as const;
 
 export const pricingDrivers = [

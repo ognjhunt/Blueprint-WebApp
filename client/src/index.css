@@ -8,25 +8,25 @@
        shadcn/ui HSL role vars — REMAPPED to Blueprint values.
        Format is "H S% L%" (no hsl() wrapper); Tailwind wraps them.
        ============================================================ */
-    --background: 42 50% 96%; /* paper-1 #faf7f0 */
-    --foreground: 60 8% 5%; /* ink-900 #0d0d0b */
+    --background: 210 17% 98%;
+    --foreground: 218 20% 8%;
     --card: 0 0% 100%; /* #ffffff */
     --card-foreground: 60 8% 5%; /* ink-900 */
     --popover: 0 0% 100%; /* #ffffff */
     --popover-foreground: 60 8% 5%; /* ink-900 */
-    --primary: 211 64% 40%; /* action blue #2563a6 */
+    --primary: 222 100% 54%;
     --primary-foreground: 0 0% 100%; /* #ffffff */
-    --secondary: 42 39% 94%; /* inset/brand paper #f5f1e8 */
+    --secondary: 210 8% 95%;
     --secondary-foreground: 60 8% 5%; /* ink-900 */
-    --muted: 44 33% 91%; /* #f0ece1 */
-    --muted-foreground: 49 6% 35%; /* #5f5d54 */
-    --accent: 39 33% 88%; /* bone #ebe4d7 */
+    --muted: 210 7% 93%;
+    --muted-foreground: 216 9% 38%;
+    --accent: 210 7% 91%;
     --accent-foreground: 60 8% 5%; /* ink-900 */
     --destructive: 5 60% 38%; /* blocker clay #9b3027 */
     --destructive-foreground: 0 0% 100%; /* #ffffff */
-    --border: 41 25% 83%; /* #ded7c8 */
-    --input: 41 20% 73%; /* #c8bfac */
-    --ring: 36 36% 48%; /* brass-deep #a8854f */
+    --border: 214 12% 87%;
+    --input: 214 9% 76%;
+    --ring: 222 100% 54%;
     --radius: 0.5rem;
     --heading: 220 20% 8%;
 
@@ -34,42 +34,42 @@
        Blueprint — Layer 1: raw brand scales
        ============================================================ */
     /* Brand core */
-    --brand-ink: #0d0d0b;
-    --brand-paper: #f5f1e8;
-    --brand-bone: #ebe4d7;
-    --brand-brass: #c7a775;
-    --brand-graphite: #1a1a17;
-    --bp-ink: #0d0d0b;
-    --bp-graphite: #1a1a17;
-    --bp-paper: #f5f1e8;
-    --bp-bone: #ebe4d7;
-    --bp-brass: #c7a775;
-    --bp-brass-deep: #a8854f;
-    --bp-brass-lit: #d8bd8d;
+    --brand-ink: #101318;
+    --brand-paper: #f8f9fa;
+    --brand-bone: #e7e9eb;
+    --brand-brass: #1554ff;
+    --brand-graphite: #171b22;
+    --bp-ink: #101318;
+    --bp-graphite: #171b22;
+    --bp-paper: #f8f9fa;
+    --bp-bone: #e7e9eb;
+    --bp-brass: #1554ff;
+    --bp-brass-deep: #003bd8;
+    --bp-brass-lit: #8fe8ff;
 
     /* Ink ramp (warm near-black neutral) */
-    --bp-ink-900: #0d0d0b;
-    --bp-ink-800: #1a1a17;
-    --bp-ink-700: #2b2b27;
-    --bp-ink-600: #45443d;
-    --bp-ink-500: #5f5d54;
-    --bp-ink-400: #817e72;
-    --bp-ink-300: #a8a496;
-    --bp-ink-200: #cdc9bb;
-    --bp-ink-100: #e4dfd2;
-    --bp-ink-050: #f0ece1;
+    --bp-ink-900: #101318;
+    --bp-ink-800: #171b22;
+    --bp-ink-700: #252a33;
+    --bp-ink-600: #3e454f;
+    --bp-ink-500: #626a75;
+    --bp-ink-400: #858d96;
+    --bp-ink-300: #aab0b7;
+    --bp-ink-200: #d2d6da;
+    --bp-ink-100: #e7e9eb;
+    --bp-ink-050: #f1f2f3;
 
     /* Paper ramp (surfaces) */
     --bp-paper-0: #ffffff;
-    --bp-paper-1: #faf7f0;
-    --bp-paper-2: #f5f1e8;
-    --bp-paper-3: #ebe4d7;
-    --bp-paper-4: #ded5c4;
+    --bp-paper-1: #f8f9fa;
+    --bp-paper-2: #f1f2f3;
+    --bp-paper-3: #e7e9eb;
+    --bp-paper-4: #d6d9dd;
 
     /* Hairline borders */
-    --bp-line: #ded7c8;
-    --bp-line-soft: #ebe4d7;
-    --bp-line-strong: #c8bfac;
+    --bp-line: #d9dde2;
+    --bp-line-soft: #e7e9eb;
+    --bp-line-strong: #bcc2c9;
     --bp-line-ink: rgba(255, 255, 255, 0.1);
 
     /* Signal — Proof (green) */
@@ -108,7 +108,7 @@
     --text-body: var(--bp-ink-800);
     --text-muted: var(--bp-ink-500);
     --text-faint: var(--bp-ink-400);
-    --text-on-ink: #f3efe6;
+    --text-on-ink: #f8f9fa;
     --text-on-brass: var(--bp-ink-900);
     --text-link: var(--bp-brass-deep);
 
@@ -131,8 +131,8 @@
     --accent-lit: var(--bp-brass-lit);
 
     /* Semantic actions */
-    --action: var(--bp-info-600);
-    --action-hover: var(--bp-info-700);
+    --action: #1554ff;
+    --action-hover: #003bd8;
 
     /* Status families → fg + bg + border */
     --proof-fg: var(--bp-proof-700);
@@ -158,7 +158,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: "Manrope", "Inter", sans-serif;
+    font-family: "Inter Tight", "Inter", sans-serif;
     font-feature-settings: "liga" 1, "kern" 1;
     -webkit-tap-highlight-color: transparent;
   }
@@ -221,7 +221,7 @@
 }
 
 .font-editorial {
-  font-family: "Newsreader", Georgia, serif;
+  font-family: "Inter Tight", "Inter", sans-serif;
 }
 
 @keyframes fade-up {
@@ -340,6 +340,27 @@
 
   .mobile-snap-row::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@layer components {
+  .kinetic-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.22em] text-kinetic-blue;
+  }
+
+  .kinetic-button-primary {
+    @apply inline-flex min-h-[3.35rem] items-center justify-center gap-5 rounded-lg bg-kinetic-blue px-6 text-[15px] font-semibold text-white shadow-[0_12px_30px_-16px_rgba(21,84,255,0.78)] transition duration-300 ease-out hover:-translate-y-0.5 hover:bg-kinetic-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinetic-blue focus-visible:ring-offset-2;
+  }
+
+  .kinetic-text-link {
+    @apply inline-flex min-h-[3.35rem] items-center justify-center gap-4 border-b border-kinetic-blue px-1 text-[15px] font-semibold text-kinetic-graphite transition-colors hover:text-kinetic-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinetic-blue focus-visible:ring-offset-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kinetic-button-primary,
+  .kinetic-text-link {
+    transition: none;
   }
 }
 
