@@ -5,14 +5,17 @@ import Home from "@/pages/Home";
 describe("Home", () => {
   it("leads with screening then ranking, and keeps one primary CTA", () => {
     const { container } = render(<Home />);
+    // The kinetic rebuild replaced the hero headline and the primary CTA label.
+    // Those are presentation; everything asserted below this point is what the
+    // page is allowed to claim, and that did not change with the redesign.
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Rank your candidates on the site you are bidding on, before the pilot/i,
+        name: /Turn one site walkthrough into a robot benchmark by tomorrow/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
+      screen.getAllByRole("link", { name: /Plan your first benchmark/i }).length,
     ).toBeGreaterThan(0);
 
     // The lifecycle still reads task -> maintained testbed -> routed evidence ->
@@ -61,8 +64,14 @@ describe("Home", () => {
     expect(figures.length).toBeGreaterThanOrEqual(4);
 
     // The three figures that plot schematic values must carry the marker, and so
-    // must the run film, so none of the four can be read as live run data. The
+    // must the run film, so none of those four can be read as live run data. The
     // qualitative before/after comparison plots nothing and needs none.
-    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(4);
+    //
+    // The fifth is the kinetic evidence-envelope image, which the redesign added
+    // with its own marker. It is counted here rather than exempted: the marker
+    // is what stops a rendered scene being read as a captured result, so the
+    // assertion tracks every element claiming illustrative status, and a drop
+    // back to four would mean one of them lost its marker.
+    expect(screen.getAllByText(/^Illustrative$/i).length).toBe(5);
   });
 });

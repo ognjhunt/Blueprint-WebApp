@@ -3,13 +3,16 @@ import { test, expect } from '@playwright/test';
 test('homepage leads with the single Task Evaluation Run story', async ({ page }) => {
   await page.goto('/');
 
+  // The kinetic rebuild renamed the hero headline, the primary CTA, and the
+  // robot-team nav entry. Those are presentation. Every assertion below about
+  // what the page may claim is unchanged, and still holds.
   await expect(
     page.getByRole('heading', {
-      name: /Rank your candidates on the site you are bidding on, before the pilot\./i,
+      name: /Turn one site walkthrough into a robot benchmark by tomorrow\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
-  await expect(nav.getByRole('link', { name: /^For Robot Teams$/i })).toBeVisible();
+  await expect(nav.getByRole('link', { name: /^Product$/i })).toBeVisible();
   // Site operators are demoted out of the primary header nav to the footer.
   await expect(nav.getByRole('link', { name: /^For Site Operators$/i })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: /^How it works$/i })).toBeVisible();
@@ -17,7 +20,11 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   await expect(
     page.getByRole('contentinfo').getByRole('link', { name: /^For Site Operators$/i }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Request a Task Evaluation Run$/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Plan your first benchmark$/i }).first()).toBeVisible();
+  // The run intake stays reachable under its full name from the footer.
+  await expect(
+    page.getByRole('contentinfo').getByRole('link', { name: /^Request a Task Evaluation Run$/i }),
+  ).toBeVisible();
 
   // One service, and the lifecycle behind it.
   await expect(

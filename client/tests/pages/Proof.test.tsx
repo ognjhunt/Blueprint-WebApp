@@ -34,7 +34,7 @@ describe("Proof page", () => {
       screen.getByText(/Estimates are not physical guarantees, safety approval remains external/i),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /^Request a Task Evaluation Run$/i })[0],
+      screen.getAllByRole("link", { name: /^Scope a benchmark$/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
   });
 });

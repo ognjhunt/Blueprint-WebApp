@@ -4,10 +4,10 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
-    page.getByRole("heading", { name: "Spend field time on the candidate that earned it." }),
+    page.getByRole("heading", { name: "Know which checkpoint deserves the pilot." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
+    page.locator("main").getByRole("link", { name: /Scope a benchmark/i }).first(),
   ).toHaveAttribute("href", /\/contact\/robot-team/);
 });
 
@@ -26,7 +26,7 @@ test("robot-team and site-operator pages describe one service and intake", async
     }),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
+    page.locator("main").getByRole("link", { name: /Scope a site benchmark/i }).first(),
   ).toHaveAttribute("href", /\/contact\/site-operator/);
   await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
@@ -35,7 +35,7 @@ test("persona pages are usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/for-robot-teams");
   await expect(
-    page.getByRole("link", { name: /Request a Task Evaluation Run/i }).first(),
+    page.getByRole("link", { name: /Scope a benchmark/i }).first(),
   ).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,

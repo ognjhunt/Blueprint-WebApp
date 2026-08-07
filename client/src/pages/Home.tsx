@@ -6,11 +6,39 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { SEO } from "@/components/SEO";
+import { ProofBoundary } from "@/components/blueprint";
+import {
+  ClearanceMarginChart,
+  DecisionShiftCompare,
+  EvidenceLadderChart,
+  RankingMarginChart,
+  StatRow,
+} from "@/components/site/figures";
 import {
   KineticBenchmark,
   ResultDecisionPanel,
 } from "@/components/site/KineticBenchmark";
 import { Reveal } from "@/components/site/motion";
+import {
+  Band,
+  Inner,
+  NoteCards,
+  SectionHeader,
+} from "@/components/site/publicSections";
+import { RunFilm } from "@/components/site/runFilm";
+import {
+  homeClaimMetricLabel,
+  homeDecisionCost,
+  homeEvidenceRungs,
+  homeLimits,
+  homeRankingCandidates,
+  homeRankingOodAxes,
+  homeRankingResolutionFloorPp,
+  homeRankingRolloutsPerCandidate,
+  homeRankingTestbedVersion,
+  homeScreeningMargins,
+  homeStats,
+} from "@/data/publicSiteCopy";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
 const runHref =
@@ -166,6 +194,156 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+
+      {/*
+        The evidence half of the page. The kinetic panels above sell the shape of
+        a run; everything below is what the run is allowed to claim, and it is
+        deliberately in the same type size as the promises. Each block re-mounts
+        the component that owns the claim, so the disclosure and the figure it
+        qualifies can never drift apart in copy edits.
+      */}
+      <Band tone="ink">
+        <Inner className="py-16 lg:py-20">
+          <SectionHeader
+            index="01"
+            eyebrow="What you are buying"
+            title="One service. Priced per decision."
+            lede="Blueprint sells one thing: a Task Evaluation Run. Robot teams and site operators get their own explanation of it, then use the same intake, the same workflow, and the same result."
+            onInk
+          />
+          <div className="mt-12 overflow-hidden rounded-lg border border-white/10 bg-[#ded7c8]">
+            <StatRow tiles={homeStats} onInk />
+          </div>
+        </Inner>
+      </Band>
+
+      <Band tone="canvas">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="02"
+            eyebrow="What changes"
+            title="A robot on site is a very expensive way to ask a question."
+            lede="A run does not replace the visit. It makes the visit a test of something you have already narrowed down."
+          />
+          <Reveal className="mt-14">
+            <DecisionShiftCompare rows={homeDecisionCost} />
+          </Reveal>
+        </Inner>
+      </Band>
+
+      {/* The seven acts, plus the two stamps a run is contractually barred from granting. */}
+      <Band tone="paper" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="03"
+            eyebrow="How a run moves"
+            title="Seven moves from a real task to an answer."
+            lede="Nothing here asks you to design an evaluation. You bring the job and the decision; the substrate and the method are ours to get right."
+          />
+          <RunFilm variant="compact" className="mt-16" />
+        </Inner>
+      </Band>
+
+      {/* Screening — the only pass that can name a cause rather than an order. */}
+      <Band tone="canvas">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="04"
+            eyebrow="Ruled out first"
+            title="Some candidates the building will not take."
+            lede="Reach, clearance, footprint, sightlines. These come off the capture as distances, not as predictions — which makes this the one part of a run that can tell you what stopped a candidate and by how much. It is also the cheapest, so it runs before anything else."
+          />
+          <Reveal className="mt-14">
+            <ClearanceMarginChart rows={homeScreeningMargins} />
+          </Reveal>
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <Reveal>
+              <ProofBoundary level="info" title="Read the figure this way">
+                The dock door misses by 18 cm against a 2 cm tolerance — the
+                whole interval sits below zero, so that candidate is out on
+                measurement. The rack upright is 4 cm short against a 5 cm
+                tolerance, so this capture cannot call it either way, and the run
+                says which one it is rather than picking.
+              </ProofBoundary>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <ProofBoundary level="warn" title="What screening does not tell you">
+                That a candidate fits is not that a candidate works. Screening
+                clears the floor for the comparison; it says nothing about
+                whether the policy is any good. That is the next section, and it
+                is a weaker kind of claim.
+              </ProofBoundary>
+            </Reveal>
+          </div>
+        </Inner>
+      </Band>
+
+      {/* The ordering, shipped with its margin and its resolution floor. */}
+      <Band tone="paper" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="05"
+            eyebrow="The ordering"
+            title="Then the survivors get ranked, with the margin."
+            lede="One task, one pinned testbed version, the same conditions for every candidate. You get the order, the gap between each pair, the interval on that gap, and the smallest gap the design can separate at all."
+          />
+          <Reveal className="mt-14">
+            <RankingMarginChart
+              candidates={homeRankingCandidates}
+              rolloutsPerCandidate={homeRankingRolloutsPerCandidate}
+              resolutionFloorPp={homeRankingResolutionFloorPp}
+              testbedVersion={homeRankingTestbedVersion}
+              oodAxes={homeRankingOodAxes}
+              metricLabel={homeClaimMetricLabel}
+            />
+          </Reveal>
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <Reveal>
+              <ProofBoundary level="info" title="Read the figure this way">
+                A leads C by 24 points and the interval on that gap stays clear
+                of zero, so it is a real lead. C leads D by 4 points, inside the
+                floor this design can resolve, so they are reported as tied at
+                this rollout count instead of ordered.
+              </ProofBoundary>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <ProofBoundary level="warn" title="Where the ordering stops">
+                This is an ordering on this testbed, under these conditions. We
+                have not measured how our orderings track real-world orderings,
+                and we do not inherit anyone else's correlation figures as if
+                they were ours.
+              </ProofBoundary>
+            </Reveal>
+          </div>
+        </Inner>
+      </Band>
+
+      <Band tone="canvas">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="06"
+            eyebrow="How we spend your budget"
+            title="The cheapest evidence that is actually good enough."
+            lede="You will not be asked to choose a simulator, a world model, or a provider. That choice depends on what each claim needs, which is exactly the part you are paying us to know. Cheaper is about cost, not about proving less — real capture stays the reference, and derived methods stay support."
+          />
+          <Reveal className="mt-14">
+            <EvidenceLadderChart rungs={homeEvidenceRungs} />
+          </Reveal>
+        </Inner>
+      </Band>
+
+      <Band tone="ink">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="07"
+            eyebrow="Where we stop"
+            title="The limits, in the same size type as the promises."
+            lede="If these are going to be a problem for your decision, it is cheaper for both of us to know now."
+            onInk
+          />
+          <NoteCards items={homeLimits} onInk className="mt-14" />
+        </Inner>
+      </Band>
 
       <section className="relative isolate overflow-hidden bg-kinetic-blue text-white">
         <img

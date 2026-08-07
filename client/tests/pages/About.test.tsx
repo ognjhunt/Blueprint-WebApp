@@ -27,7 +27,7 @@ describe("About", () => {
     siteLinks.forEach((link) => {
       expect(link).toHaveAttribute("href", "/sites");
     });
-    const contactLinks = screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i });
+    const contactLinks = screen.getAllByRole("link", { name: /Scope a benchmark/i });
     expect(contactLinks.length).toBeGreaterThanOrEqual(1);
     contactLinks.forEach((link) => {
       expect(link.getAttribute("href")).toMatch(/^\/contact\/robot-team/);

@@ -74,6 +74,42 @@ an empty directory` no matter how healthy the commit is. Clearing the cache is
 the only way out; leave it off otherwise, since it makes the build materially
 slower.
 
+## Correction (2026-08-07): deploy ownership is not currently singular
+
+The "RESOLVED 2026-07-21" banner above and `render.yaml`'s `autoDeploy: false`
+both assert that this workflow is the only path to production. As of
+2026-08-07 that is **not** what the evidence shows, and the banner is retained
+above only as the record of what was true on 2026-07-21.
+
+What was observed:
+
+- `d6bddb4` (merge of #436) landed on `main` on 2026-08-06 and **no `CI`
+  workflow run exists for it**. The newest `CI` run on `main` is `e3e7181`
+  from 2026-08-04.
+- Render nevertheless attempted a deploy of `d6bddb4` on 2026-08-06 at
+  16:24 CDT. With no green CI run for that SHA, `deploy.yml` cannot have
+  fired it — its `workflow_run` trigger requires a completed successful `CI`
+  run on `main`.
+
+The remaining explanation is that Render-native auto-deploy is still enabled
+on the service. `render.yaml`'s `autoDeploy: false` governs Blueprint-synced
+services only, so the dashboard setting can drift from the file without
+anything failing loudly.
+
+Two consequences worth stating plainly:
+
+- Production can currently ship a commit that CI never verified. That is how
+  `d6bddb4` reached Render carrying 9 failing tests.
+- Conversely, while `main` is red the CI-gated path cannot deploy at all, so
+  native auto-deploy is the only thing still shipping.
+
+Not changed here, deliberately: turning auto-deploy off while `main` is red
+would leave no working deploy path. Re-confirm the service's `autoDeploy`
+setting through the Render API once `main` is green again, and re-assert
+single ownership then. The open question of *why* no `CI` run was created for
+that push (Actions usage limits, disabled workflows, or a branch-protection
+gap) is still unresolved and is the reason a red merge shipped unnoticed.
+
 ## Failure mode: Git LFS breaks the deploy clone (2026-08-06)
 
 The 2026-08-06 deploy of `d6bddb4` (merge of #436, the kinetic site redesign)

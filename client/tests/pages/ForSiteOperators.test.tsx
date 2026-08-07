@@ -12,7 +12,7 @@ describe("ForSiteOperators", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
+      screen.getAllByRole("link", { name: /Scope a site benchmark/i }).length,
     ).toBeGreaterThan(0);
 
     // Same service as the robot-team persona, entered from the other side.
