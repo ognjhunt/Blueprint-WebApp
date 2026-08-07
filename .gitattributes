@@ -1,2 +1,15 @@
-*.ply filter=lfs diff=lfs merge=lfs -text
-*.spz filter=lfs diff=lfs merge=lfs -text
+# Gaussian-splat / point-cloud previews are treated as binary, but they are
+# deliberately NOT routed through Git LFS.
+#
+# Why: Render clones this repo on every deploy. When a checked-out file is an
+# LFS pointer, git runs the `git-lfs filter-process` smudge filter during that
+# clone. Once the GitHub account's LFS budget is exhausted, the smudge fails,
+# the clone fails, and the deploy dies before the build ever starts — which is
+# exactly what took down the 2026-08-06 deploy of d6bddb4. An LFS-tracked
+# binary is therefore a hard, account-wide deploy dependency, not just a
+# storage choice.
+#
+# Large preview binaries belong on a CDN / Firebase Storage and should be
+# referenced by URL, so shipping the site never depends on LFS quota.
+*.ply binary
+*.spz binary

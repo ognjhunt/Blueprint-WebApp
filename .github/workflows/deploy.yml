@@ -29,6 +29,17 @@ on:
         description: "Exact git SHA to deploy on Render (operator-initiated redeploy/rollforward)."
         required: true
         type: string
+      clear_cache:
+        description: >-
+          Clear Render's build cache before deploying. Needed when a failed
+          clone left a partially-populated /opt/render/project/src behind:
+          Render then retries into a non-empty directory and every attempt
+          fails with "destination path already exists" regardless of what the
+          commit contains. Off by default because clearing the cache makes the
+          build materially slower.
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: render-deploy-main
@@ -85,6 +96,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
+          CLEAR_CACHE: ${{ github.event.inputs.clear_cache }}
         run: |
           set -euo pipefail
           if [ -z "${RENDER_API_KEY:-}" ]; then
@@ -98,7 +110,15 @@ jobs:
               exit 1
               ;;
           esac
-          payload=$(printf '{"commitId":"%s","clearCache":"do_not_clear"}' "${DEPLOY_REF}")
+          # Only an explicit workflow_dispatch opt-in clears the cache; the
+          # automatic post-CI path keeps the fast default.
+          if [ "${CLEAR_CACHE:-false}" = "true" ]; then
+            clear_cache_value="clear"
+          else
+            clear_cache_value="do_not_clear"
+          fi
+          echo "Render build cache: ${clear_cache_value}"
+          payload=$(printf '{"commitId":"%s","clearCache":"%s"}' "${DEPLOY_REF}" "${clear_cache_value}")
           response_code=$(curl -s -o /tmp/render-deploy-response.txt -w "%{http_code}" \
             --request POST \
             --header "Authorization: Bearer ${RENDER_API_KEY}" \

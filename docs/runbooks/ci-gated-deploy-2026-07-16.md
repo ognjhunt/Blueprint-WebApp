@@ -66,6 +66,42 @@ ownership semantics.
 `Actions → Deploy (Render, CI-gated) → Run workflow` with the exact SHA to
 deploy. Use only SHAs that have a green CI run.
 
+Set the `clear_cache` input to `true` when a previous deploy failed *during
+clone or checkout* rather than during build. A failed clone can leave a
+partially-populated `/opt/render/project/src` in the build cache, after which
+Render's retries all fail with `destination path ... already exists and is not
+an empty directory` no matter how healthy the commit is. Clearing the cache is
+the only way out; leave it off otherwise, since it makes the build materially
+slower.
+
+## Failure mode: Git LFS breaks the deploy clone (2026-08-06)
+
+The 2026-08-06 deploy of `d6bddb4` (merge of #436, the kinetic site redesign)
+failed before the build started, leaving production on the older `e3e7181`.
+
+Cause: `client/public/world-model-previews/` held two Git LFS-tracked binaries
+(a 76 MB `.ply` and a 16 MB `.spz`). Render clones the repo on every deploy, and
+a checked-in LFS pointer makes that clone run the `git-lfs filter-process`
+smudge filter. The GitHub account's LFS budget was exhausted, so the smudge
+returned `This repository exceeded its LFS budget`, the clone aborted, and the
+retries then hit the stale-directory error above.
+
+The important property: **an LFS-tracked binary is an account-wide deploy
+dependency, not just a storage choice.** Blowing the LFS quota takes production
+deploys down even when every commit is green.
+
+Resolution and current guard rails:
+
+- Both binaries were removed; nothing in the app referenced them (the only
+  mention in the repo was a docs line recommending they move to a CDN).
+- `.gitattributes` no longer routes `*.ply` / `*.spz` through LFS.
+- `npm run audit:assets` (a CI `check`-job step) now fails on any checked-in
+  LFS pointer file, so this cannot silently return.
+
+Large preview binaries belong on a CDN / Firebase Storage, referenced by URL.
+The LFS objects themselves still exist in GitHub's LFS store and in git history,
+so they remain recoverable if the budget is raised.
+
 ## Rollback
 
 Rollback is revert-commit based — never rewrite history:
