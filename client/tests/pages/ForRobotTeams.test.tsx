@@ -8,11 +8,11 @@ describe("ForRobotTeams", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Spend field time on the candidate that earned it/i,
+        name: /Know which checkpoint deserves the pilot/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
+      screen.getAllByRole("link", { name: /Scope a benchmark/i }).length,
     ).toBeGreaterThan(0);
 
     // A ranking is explicitly not the promise.

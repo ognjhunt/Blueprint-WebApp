@@ -6,7 +6,7 @@ describe("HowItWorks", () => {
   it("shows decision-oriented intake, routing owned by the pipeline, abstention, and the next experiment", () => {
     const { container } = render(<HowItWorks />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Seven moves from a real site-task to a ranked shortlist/i }),
+      screen.getByRole("heading", { level: 1, name: /Walk the site\. We build the benchmark\. You get the decision\./i }),
     ).toBeInTheDocument();
 
     // The walkthrough is now the run film. Its acts carry the same beats the
@@ -32,7 +32,7 @@ describe("HowItWorks", () => {
     expect(container).toHaveTextContent(/Safety certification/i);
 
     expect(
-      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i })[0],
+      screen.getAllByRole("link", { name: /Scope a benchmark/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
     expect(screen.queryByText(/Policy Improvement Run/i)).not.toBeInTheDocument();
   });

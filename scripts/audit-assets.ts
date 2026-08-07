@@ -102,6 +102,41 @@ function collectOversizedFiles(): Array<{ path: string; size: number }> {
   return oversized;
 }
 
+// Git LFS pointer files are small text stubs that stand in for the real blob.
+// Render clones this repo on every deploy, and any pointer in the checkout
+// makes that clone invoke the git-lfs smudge filter — so once the account's
+// LFS budget is exhausted the clone fails and the deploy dies before the build
+// starts. A pointer committed here is therefore a production outage waiting on
+// a quota, which is what happened to the 2026-08-06 deploy of d6bddb4.
+const lfsPointerSignature = "version https://git-lfs.github.com/spec/v1";
+const maxLfsPointerSizeBytes = 1024;
+
+function collectLfsPointerFiles(): string[] {
+  const files = walkFiles(repoRoot);
+  const pointers: string[] = [];
+
+  for (const filePath of files) {
+    // Real LFS payloads are large; pointers are always a few hundred bytes.
+    // Bounding the read keeps this from slurping genuine binaries.
+    if (fs.statSync(filePath).size > maxLfsPointerSizeBytes) {
+      continue;
+    }
+
+    let head: string;
+    try {
+      head = fs.readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+
+    if (head.startsWith(lfsPointerSignature)) {
+      pointers.push(toPosixPath(path.relative(repoRoot, filePath)));
+    }
+  }
+
+  return pointers;
+}
+
 function isPublicAssetReferenced(assetPath: string, corpus: string): boolean {
   const relFromPublic = toPosixPath(path.relative(publicRoot, assetPath));
   const publicUrl = `/${relFromPublic}`;
@@ -127,6 +162,15 @@ function main() {
     issues.push(
       `Root screenshot dump files found:\n${rootScreenshotDumps
         .map((entry) => `  - ${toPosixPath(path.relative(repoRoot, entry))}`)
+        .join("\n")}`,
+    );
+  }
+
+  const lfsPointerFiles = collectLfsPointerFiles();
+  if (lfsPointerFiles.length > 0) {
+    issues.push(
+      `Git LFS pointer files are checked in. Render's deploy clone smudges these, so an exhausted LFS budget takes production down. Host these on a CDN / Firebase Storage and reference them by URL instead:\n${lfsPointerFiles
+        .map((entry) => `  - ${entry}`)
         .join("\n")}`,
     );
   }

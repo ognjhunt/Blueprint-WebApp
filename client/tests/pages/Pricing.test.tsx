@@ -8,13 +8,16 @@ describe("Pricing", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /You pay for the decision, not a package/i,
+        name: /Buy one decision before you buy the field time/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/^Task Evaluation Run$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Scoped quote$/i)).toBeInTheDocument();
+    // Scoped to the heading: the same string also appears as a hero chip.
     expect(
-      screen.getAllByRole("link", { name: /Request a Task Evaluation Run/i }).length,
+      screen.getByRole("heading", { name: /^From \$2,500$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /Scope a benchmark/i }).length,
     ).toBeGreaterThan(0);
 
     // Price is set server-side; a client-supplied number is not authoritative.
@@ -24,7 +27,9 @@ describe("Pricing", () => {
     ).toBeInTheDocument();
     // A quote buys work, not a favourable verdict.
     expect(screen.getByText(/No guaranteed outcome/i)).toBeInTheDocument();
-    expect(screen.getByText(/none of them is a tier/i)).toBeInTheDocument();
+    // The "not a packaged tier" promise survives the rebuild, restated as the
+    // absence of a subscription rather than the absence of tiers.
+    expect(screen.getByText(/No subscription required/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/\$3,000/)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$5,000/)).not.toBeInTheDocument();
