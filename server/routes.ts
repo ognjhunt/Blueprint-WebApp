@@ -43,6 +43,7 @@ import internalCaptureTaskControlPlaneRouter from "./routes/internal-capture-tas
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalCaptureTaskEvaluationRunsRouter from "./routes/internal-capture-task-evaluation-runs";
 import internalCaptureQaRouter from "./routes/internal-capture-qa";
+import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
 import internalHumanRepliesRouter from "./routes/internal-human-replies";
@@ -64,6 +65,7 @@ import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import clientRuntimeConfigAdminRouter, {
   clientRuntimeConfigPublicHandler,
 } from "./routes/client-runtime-config";
+import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-launches";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -86,6 +88,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
   app.use("/api/internal/pipeline", internalCaptureTaskEvaluationRunsRouter);
   app.use("/api/internal/pipeline", internalCaptureQaRouter);
+  app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
@@ -195,6 +198,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     clientRuntimeConfigAdminRouter,
+  );
+  app.use(
+    "/api/admin/task-evaluation-launches",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminTaskEvaluationLaunchesRouter,
   );
   app.use(
     "/api/admin/sla",

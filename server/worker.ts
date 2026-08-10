@@ -18,6 +18,7 @@ import { validateEnv } from "./config/env";
 import { attachRequestMeta, logger } from "./logger";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
+import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
 
 export type WorkerHandle = {
   stop: () => Promise<void>;
@@ -32,12 +33,14 @@ export function startWorker(): WorkerHandle {
   );
   const stopScheduler = startOpsAutomationScheduler();
   const stopQueueProcessor = startStripeWebhookQueueProcessor();
+  const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
 
   let stopped = false;
   const stop = async () => {
     if (stopped) return;
     stopped = true;
     stopQueueProcessor();
+    stopTaskEvaluationLaunchForwarder();
     stopScheduler();
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
   };
