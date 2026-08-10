@@ -43,8 +43,15 @@ export function buildPipelineSyncSignature(args: {
     .digest("hex");
 }
 
-export function verifyPipelineSyncRequest(req: Request): PipelineSyncAuthResult {
-  const expected = String(process.env.PIPELINE_SYNC_TOKEN || "").trim();
+export function verifyPipelineSyncRequest(
+  req: Request,
+  options: { expectedSecret?: string } = {},
+): PipelineSyncAuthResult {
+  const expected = String(
+    options.expectedSecret === undefined
+      ? process.env.PIPELINE_SYNC_TOKEN || ""
+      : options.expectedSecret,
+  ).trim();
   if (!expected) {
     return {
       ok: false,
