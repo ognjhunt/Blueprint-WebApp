@@ -134,6 +134,18 @@ export function parseTaskEvaluationLaunchSupervision(value: unknown) {
 
 export type PublishedLaunchProfile = z.infer<typeof publishedLaunchProfileSchema>;
 
+function parsePublishedLaunchProfiles(value: unknown): PublishedLaunchProfile[] {
+  const result = z.array(publishedLaunchProfileSchema).safeParse(value);
+  if (!result.success) return [];
+  const seen = new Set<string>();
+  return result.data.filter((profile) => {
+    const key = `${profile.profile_id}:${profile.profile_digest}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function loadPublishedLaunchProfiles(
   raw = process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON,
 ): PublishedLaunchProfile[] {
@@ -143,15 +155,73 @@ export function loadPublishedLaunchProfiles(
   } catch {
     return [];
   }
-  const result = z.array(publishedLaunchProfileSchema).safeParse(parsed);
-  if (!result.success) return [];
-  const seen = new Set<string>();
-  return result.data.filter((profile) => {
-    const key = `${profile.profile_id}:${profile.profile_digest}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return parsePublishedLaunchProfiles(parsed);
+}
+
+function derivePipelineEndpoint(pathname: string): string {
+  const configured = String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim();
+  if (!configured) return "";
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== "https:" && process.env.NODE_ENV === "production") return "";
+    if (!url.pathname.endsWith("/api/live-pipeline/job-requests")) return "";
+    url.pathname = pathname;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+export function resolveTaskEvaluationLaunchUrl(): string {
+  return String(
+    process.env.TASK_EVALUATION_LAUNCH_URL
+      || derivePipelineEndpoint("/api/live-pipeline/task-evaluation-launches"),
+  ).trim();
+}
+
+export function resolveTaskEvaluationProfileCatalogUrl(): string {
+  const configured = String(process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL || "").trim();
+  if (configured) return configured;
+  const launchUrl = resolveTaskEvaluationLaunchUrl();
+  if (!launchUrl) return "";
+  try {
+    const url = new URL(launchUrl);
+    url.pathname = "/api/live-pipeline/task-evaluation-launch-profiles";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+export async function resolvePublishedLaunchProfiles(): Promise<PublishedLaunchProfile[]> {
+  const configured = loadPublishedLaunchProfiles();
+  if (configured.length > 0) return configured;
+  const endpoint = resolveTaskEvaluationProfileCatalogUrl();
+  if (!endpoint) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return [];
+    const payload = await response.json().catch(() => null);
+    if (
+      !payload
+      || payload.schema_version !== "task_evaluation_launch_profile_catalog.v1"
+    ) return [];
+    return parsePublishedLaunchProfiles(payload.profiles);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function buildTaskEvaluationLaunchRequest(params: {
@@ -211,7 +281,7 @@ export async function forwardTaskEvaluationLaunch(params: {
   clientId?: string;
 }): Promise<LaunchForwardResult> {
   const endpoint = String(
-    params.endpointUrl || process.env.TASK_EVALUATION_LAUNCH_URL || "",
+    params.endpointUrl || resolveTaskEvaluationLaunchUrl(),
   ).trim();
   const required = process.env.NODE_ENV === "production"
     || String(process.env.TASK_EVALUATION_LAUNCH_FORWARD_REQUIRED || "").toLowerCase() === "true";
@@ -220,7 +290,10 @@ export async function forwardTaskEvaluationLaunch(params: {
     endpoint_configured: false, blocker: "task_evaluation_launch_url_missing",
   };
   const token = String(
-    params.token || process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN || "",
+    params.token
+      || process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
+      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
+      || "",
   ).trim();
   if (!token) return {
     status: "blocked", performed: false, required,

@@ -6,7 +6,7 @@ import { resolveAccessContext } from "../utils/access-control";
 import {
   buildTaskEvaluationLaunchRequest,
   forwardTaskEvaluationLaunch,
-  loadPublishedLaunchProfiles,
+  resolvePublishedLaunchProfiles,
   taskEvaluationLaunchInputSchema,
 } from "../utils/taskEvaluationLaunchContract";
 
@@ -15,11 +15,11 @@ const COLLECTION = "taskEvaluationLaunches";
 
 router.use(requireAdminRole);
 
-router.get("/profiles", (_req, res) => {
+router.get("/profiles", async (_req, res) => {
   res.set("Cache-Control", "no-store");
   return res.json({
     schema_version: "task_evaluation_launch_profile_catalog.v1",
-    profiles: loadPublishedLaunchProfiles(),
+    profiles: await resolvePublishedLaunchProfiles(),
   });
 });
 
@@ -34,7 +34,7 @@ router.post("/", async (req, res) => {
     error: "Spend authority has expired",
     code: "task_evaluation_launch_spend_authority_expired",
   });
-  const profile = loadPublishedLaunchProfiles().find((candidate) =>
+  const profile = (await resolvePublishedLaunchProfiles()).find((candidate) =>
     candidate.profile_id === parsed.data.profile_id
     && candidate.profile_digest === parsed.data.profile_digest,
   );
