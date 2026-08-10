@@ -9,6 +9,9 @@ import {
   forwardTaskEvaluationLaunch,
   loadPublishedLaunchProfiles,
   parseTaskEvaluationLaunchReceipt,
+  resolvePublishedLaunchProfiles,
+  resolveTaskEvaluationLaunchUrl,
+  resolveTaskEvaluationProfileCatalogUrl,
   taskEvaluationLaunchInputSchema,
 } from "../utils/taskEvaluationLaunchContract";
 
@@ -67,7 +70,13 @@ function input() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON;
+  delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL;
+  delete process.env.TASK_EVALUATION_LAUNCH_URL;
+  delete process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN;
+  delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL;
+  delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
 });
 
 describe("Task Evaluation production launch contract", () => {
@@ -126,6 +135,69 @@ describe("Task Evaluation production launch contract", () => {
     });
 
     expect(result).toMatchObject({ status: "forwarded", performed: true, http_status: 202 });
+  });
+
+  it("reuses the canonical robot-eval Pipeline bridge for Task Evaluation intake", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL =
+      "https://paperclip.tryblueprint.io/api/live-pipeline/job-requests";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-secret";
+    const request = buildTaskEvaluationLaunchRequest({
+      input: input(), profile: profile(), actorId: "founder-001", actorRole: "admin",
+      authorizedAt: "2026-08-10T12:00:00.000Z",
+    });
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => {
+      expect(url).toBe(
+        "https://paperclip.tryblueprint.io/api/live-pipeline/task-evaluation-launches",
+      );
+      const headers = init.headers as Record<string, string>;
+      const expected = createHmac("sha256", "canonical-forward-secret")
+        .update(
+          `${headers["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers["x-blueprint-pipeline-nonce"]}.${init.body}`,
+        )
+        .digest("hex");
+      expect(headers["x-blueprint-pipeline-signature"]).toBe(`sha256=${expected}`);
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_launch_intake_receipt.v1",
+        status: "accepted",
+        provider_mutation_performed_inside_http_request: false,
+        queue: {
+          schema_version: "task_evaluation_launch_queue_receipt.v1",
+          status: "queued",
+          launch_id: request.launch_id,
+          run_id: request.run_id,
+          request_digest: request.request_digest,
+          provider_mutation_performed: false,
+        },
+      }), { status: 202, headers: { "content-type": "application/json" } });
+    }));
+
+    expect(resolveTaskEvaluationLaunchUrl()).toBe(
+      "https://paperclip.tryblueprint.io/api/live-pipeline/task-evaluation-launches",
+    );
+    expect(await forwardTaskEvaluationLaunch({ request })).toMatchObject({
+      status: "forwarded", performed: true,
+    });
+  });
+
+  it("discovers and validates the immutable public catalog from Pipeline", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL =
+      "https://paperclip.tryblueprint.io/api/live-pipeline/job-requests";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      expect(url).toBe(
+        "https://paperclip.tryblueprint.io/api/live-pipeline/task-evaluation-launch-profiles",
+      );
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_launch_profile_catalog.v1",
+        profiles: [profile()],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    expect(resolveTaskEvaluationProfileCatalogUrl()).toBe(
+      "https://paperclip.tryblueprint.io/api/live-pipeline/task-evaluation-launch-profiles",
+    );
+    expect(await resolvePublishedLaunchProfiles()).toEqual([profile()]);
   });
 
   it("rejects a terminal receipt whose digest was altered", () => {
