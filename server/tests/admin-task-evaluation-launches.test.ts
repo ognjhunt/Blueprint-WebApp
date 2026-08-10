@@ -138,7 +138,7 @@ beforeEach(() => {
   state.records.clear();
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
   process.env.TASK_EVALUATION_LAUNCH_URL = "https://pipeline.example/launches";
-  process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN = "forward-secret";
+  process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "forward-secret";
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     if (url.startsWith("http://127.0.0.1:")) {
       return realFetch(url, init);
@@ -164,7 +164,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON;
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
-  delete process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN;
+  delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
 });
 
 describe("admin Task Evaluation launch route", () => {

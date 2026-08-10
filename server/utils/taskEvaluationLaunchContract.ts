@@ -291,7 +291,6 @@ export async function forwardTaskEvaluationLaunch(params: {
   };
   const token = String(
     params.token
-      || process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
       || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
       || "",
   ).trim();
@@ -300,7 +299,7 @@ export async function forwardTaskEvaluationLaunch(params: {
     endpoint_configured: true, blocker: "task_evaluation_launch_forward_token_missing",
   };
   const clientId = String(
-    params.clientId || process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID || "blueprint-webapp",
+    params.clientId || "blueprint-webapp",
   ).trim();
   const body = JSON.stringify(params.request);
   const timestamp = new Date().toISOString();
