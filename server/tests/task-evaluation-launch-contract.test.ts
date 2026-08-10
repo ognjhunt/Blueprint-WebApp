@@ -142,6 +142,7 @@ describe("Task Evaluation production launch contract", () => {
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL =
       "https://paperclip.tryblueprint.io/api/live-pipeline/job-requests";
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-secret";
+    process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN = "deprecated-noncanonical-secret";
     const request = buildTaskEvaluationLaunchRequest({
       input: input(), profile: profile(), actorId: "founder-001", actorRole: "admin",
       authorizedAt: "2026-08-10T12:00:00.000Z",

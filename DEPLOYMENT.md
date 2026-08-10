@@ -216,8 +216,7 @@ Agent-side creative MCP note:
 - `PIPELINE_SYNC_TOKEN`
 - Production Task Evaluation launch bridge:
   - `TASK_EVALUATION_LAUNCH_URL=https://<pipeline-host>/api/live-pipeline/task-evaluation-launches`; optional when `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL` is the canonical Pipeline `/job-requests` endpoint
-  - `TASK_EVALUATION_RUN_FORWARD_TOKEN` matching the Pipeline intake HMAC client secret; optional when the canonical `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` is already configured
-  - `TASK_EVALUATION_RUN_FORWARD_CLIENT_ID=blueprint-webapp`
+  - the launch bridge always reuses `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` and the fixed `blueprint-webapp` client identity; task-specific token overrides are not accepted
   - `TASK_EVALUATION_LAUNCH_FORWARD_REQUIRED=true`
   - `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED=true` on the Render worker so a crash between the durable Firestore write and signed Pipeline POST is recovered
   - `TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS=20` bounds intake-transport retries; these are idempotent queue deliveries and never authorize a paid GPU retry
