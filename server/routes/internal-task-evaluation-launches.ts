@@ -11,7 +11,9 @@ const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
 
 function requirePipelineSignature(req: Request, res: Response, next: () => void) {
-  const result = verifyPipelineSyncRequest(req);
+  const result = verifyPipelineSyncRequest(req, {
+    expectedSecret: process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN,
+  });
   if (!result.ok) return res.status(result.status).json({
     error: result.message,
     code: result.code,

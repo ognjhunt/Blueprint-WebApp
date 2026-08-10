@@ -58,6 +58,30 @@ describe("pipeline sync security", () => {
     ).toMatchObject({ ok: true });
   });
 
+  it("can bind a scoped callback to an explicit canonical secret", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-10T18:00:00.000Z"));
+    process.env.PIPELINE_SYNC_TOKEN = "unrelated-sync-secret";
+    const body = { schema_version: "task_evaluation_launch_receipt.v1" };
+    const timestamp = "2026-08-10T18:00:00.000Z";
+    const signature = buildPipelineSyncSignature({
+      secret: "canonical-launch-secret",
+      timestamp,
+      body: JSON.stringify(body),
+    });
+    const request = requestWithHeaders({ body, timestamp, signature });
+
+    expect(verifyPipelineSyncRequest(request)).toMatchObject({
+      ok: false,
+      code: "invalid_pipeline_sync_signature",
+    });
+    expect(
+      verifyPipelineSyncRequest(request, {
+        expectedSecret: "canonical-launch-secret",
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("builds nonce-bound signatures for Pipeline intake forwarding", () => {
     const body = JSON.stringify({ schema_version: "v1", job_id: "job-1" });
     const signature = buildPipelineSyncSignature({
