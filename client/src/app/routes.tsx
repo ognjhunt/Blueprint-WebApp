@@ -66,6 +66,9 @@ const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsS
 const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
 const AdminGrowthStudio = lazyRoute(() => import("../pages/AdminGrowthStudio"));
 const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
+const AdminTaskEvaluationLaunches = lazyRoute(
+  () => import("../pages/AdminTaskEvaluationLaunches"),
+);
 const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
 const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
@@ -363,6 +366,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
+  { path: "/ops/task-evaluation-launches", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminTaskEvaluationLaunches },
 
   // 404
   { layout: "public", component: NotFound },

@@ -214,6 +214,16 @@ Agent-side creative MCP note:
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
+- Production Task Evaluation launch bridge:
+  - `TASK_EVALUATION_LAUNCH_URL=https://<pipeline-host>/api/live-pipeline/task-evaluation-launches`
+  - `TASK_EVALUATION_RUN_FORWARD_TOKEN` matching the Pipeline intake HMAC client secret
+  - `TASK_EVALUATION_RUN_FORWARD_CLIENT_ID=blueprint-webapp`
+  - `TASK_EVALUATION_LAUNCH_FORWARD_REQUIRED=true`
+  - `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED=true` on the Render worker so a crash between the durable Firestore write and signed Pipeline POST is recovered
+  - `TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS=20` bounds intake-transport retries; these are idempotent queue deliveries and never authorize a paid GPU retry
+  - `TASK_EVALUATION_LAUNCH_PROFILES_JSON` set to the exact descriptor catalog emitted by Pipeline's `publish_task_evaluation_launch_profiles.py`
+  - `PIPELINE_SYNC_TOKEN` matching the Pipeline receipt publisher
+  - authenticated admin/ops control surface: `/ops/task-evaluation-launches`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
 - Live robot-eval forwarding required for request acceptance:
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL`
