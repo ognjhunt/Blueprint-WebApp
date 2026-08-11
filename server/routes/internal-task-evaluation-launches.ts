@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import {
+  parseTaskEvaluationLaunchProgress,
   parseTaskEvaluationLaunchReceipt,
   parseTaskEvaluationLaunchSupervision,
 } from "../utils/taskEvaluationLaunchContract";
@@ -74,6 +75,60 @@ router.post(
       run_id: receipt.run_id,
       request_digest: receipt.request_digest,
       receipt_digest: receipt.receipt_digest,
+    });
+  },
+);
+
+router.post(
+  "/task-evaluation-launch-progress",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    if (!db) return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
+    const parsed = parseTaskEvaluationLaunchProgress(req.body);
+    if (!parsed.ok) return res.status(400).json({
+      error: "Pipeline Task Evaluation launch progress is invalid",
+      blockers: parsed.blockers,
+    });
+    const progress = parsed.progress;
+    const ref = db.collection("taskEvaluationLaunches").doc(progress.launch_id);
+    type Outcome = "recorded" | "ignored_terminal" | "not_found" | "binding_mismatch";
+    let outcome: Outcome;
+    try {
+      outcome = await db.runTransaction<Outcome>(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists) return "not_found";
+        const existing = snapshot.data() as Record<string, any>;
+        if (
+          existing.request_digest !== progress.request_digest
+          || existing.run_id !== progress.run_id
+        ) return "binding_mismatch";
+        // The terminal receipt is the only authority once it exists. A progress
+        // post delayed behind it must not make a finished run look in-flight
+        // again, so this is a no-op rather than a conflict.
+        if (existing.terminal_receipt) return "ignored_terminal";
+        // `state` is deliberately never written here. It is the terminal field,
+        // and the control room stops polling the moment it reads a terminal
+        // value, so an observation writing it would freeze the live view.
+        transaction.set(ref, {
+          progress,
+          progress_updated_at_iso: new Date().toISOString(),
+        }, { merge: true });
+        return "recorded";
+      });
+    } catch {
+      return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
+    }
+    if (outcome === "not_found") return res.status(404).json({ error: "Task Evaluation launch not found" });
+    if (outcome === "binding_mismatch") return res.status(409).json({ error: "Task Evaluation launch binding mismatch" });
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "task_evaluation_launch_progress_web_sync_receipt.v1",
+      status: outcome,
+      launch_id: progress.launch_id,
+      run_id: progress.run_id,
+      request_digest: progress.request_digest,
+      phase: progress.phase,
     });
   },
 );

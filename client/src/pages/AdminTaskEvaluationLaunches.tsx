@@ -14,6 +14,29 @@ import {
   requiredTaskEvaluationMaxSpendUsd,
 } from "@/lib/taskEvaluationLaunchForm";
 
+// One definition: the poll loop and the terminal badge must agree on what
+// "finished" means, or the page keeps polling a run it already calls done.
+const TERMINAL_LAUNCH_STATES = ["completed", "blocked", "dry_run_completed"];
+
+type LaunchProgress = {
+  phase?: string;
+  phase_status?: string;
+  elapsed_seconds?: number;
+  observed_at_iso?: string;
+  provider?: {
+    instance_state?: string;
+    instance_age_seconds?: number | null;
+    estimated_cost_usd?: number | null;
+  };
+};
+
+function formatElapsedSeconds(value: unknown): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  const total = Math.floor(value);
+  const minutes = Math.floor(total / 60);
+  return minutes > 0 ? `${minutes}m ${total % 60}s` : `${total}s`;
+}
+
 type LaunchProfile = {
   profile_id: string;
   profile_digest: string;
@@ -133,7 +156,7 @@ export default function AdminTaskEvaluationLaunches() {
     if (
       !launchId
       || (!status && !recoveringSubmission)
-      || ["completed", "blocked", "dry_run_completed"].includes(status?.state)
+      || TERMINAL_LAUNCH_STATES.includes(status?.state)
     ) {
       return undefined;
     }
@@ -184,7 +207,11 @@ export default function AdminTaskEvaluationLaunches() {
     }
   }
 
-  const terminal = status && ["completed", "blocked", "dry_run_completed"].includes(status.state);
+  const terminal = status && TERMINAL_LAUNCH_STATES.includes(status.state);
+  // Only shown while the run is still in flight. A phase label left standing
+  // beside a terminal receipt would read as a result, which it never is.
+  const progress: LaunchProgress | null = terminal ? null : status?.progress || null;
+  const elapsed = formatElapsedSeconds(progress?.elapsed_seconds);
 
   return (
     <main className="min-h-screen bg-[#f4f0e7] px-4 py-8 text-stone-950">
@@ -302,6 +329,28 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 break-all text-xs leading-5 text-stone-400">
                 {status?.request_digest || "No immutable request digest yet."}
               </p>
+              {progress ? (
+                <div className="mt-5 space-y-1 border-t border-stone-800 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                    In flight
+                  </p>
+                  <p className="text-sm font-medium text-stone-100">
+                    {progress.phase || "starting"}
+                    {progress.phase_status ? ` · ${progress.phase_status}` : ""}
+                  </p>
+                  {elapsed ? (
+                    <p className="text-xs leading-5 text-stone-400">{elapsed} elapsed</p>
+                  ) : null}
+                  {progress.provider ? (
+                    <p className="text-xs leading-5 text-stone-400">
+                      Instance {progress.provider.instance_state || "unknown"}
+                      {typeof progress.provider.estimated_cost_usd === "number"
+                        ? ` · ~$${progress.provider.estimated_cost_usd.toFixed(2)} estimated so far`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {terminal ? (
                 <div className="mt-5 flex items-center gap-2 text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" /> Terminal receipt retained
