@@ -141,14 +141,60 @@ jobs:
               cat "${response_path}" || true
               exit 1
             fi
+            # Render normally returns the deploy JSON with HTTP 201. When an
+            # exact-SHA deploy is already being started (for example immediately
+            # after a worker resume), it can return HTTP 202 with an empty body.
+            # Resolve that accepted request from the service deploy list instead
+            # of treating valid empty JSON as a failed mutation.
             TRIGGERED_DEPLOY_ID=$(node -e '
               const fs = require("node:fs");
-              const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              const body = fs.readFileSync(process.argv[1], "utf8").trim();
+              if (!body) process.exit(0);
+              const response = JSON.parse(body);
               if (typeof response.id !== "string" || !response.id.startsWith("dep-")) process.exit(1);
               process.stdout.write(response.id);
-            ' "${response_path}")
+            ' "${response_path}" 2>/dev/null || true)
             if [ -z "${TRIGGERED_DEPLOY_ID}" ]; then
-              echo "::error::Render accepted the ${label} request but did not return a deploy ID."
+              list_path="/tmp/render-${label}-deploy-list.json"
+              for attempt in $(seq 1 10); do
+                list_code=$(curl -s -o "${list_path}" -w "%{http_code}" \
+                  --max-time 20 \
+                  --header "Authorization: Bearer ${RENDER_API_KEY}" \
+                  "https://api.render.com/v1/services/${service_id}/deploys?limit=20")
+                if [ "${list_code}" = "200" ]; then
+                  TRIGGERED_DEPLOY_ID=$(node -e '
+                    const fs = require("node:fs");
+                    const expectedCommit = process.argv[2];
+                    const activeStatuses = new Set([
+                      "created",
+                      "build_in_progress",
+                      "pre_deploy_in_progress",
+                      "update_in_progress",
+                      "live",
+                    ]);
+                    const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                    const deploys = Array.isArray(response)
+                      ? response.map((entry) => entry?.deploy ?? entry)
+                      : [];
+                    const match = deploys.find((deploy) =>
+                      typeof deploy?.id === "string" &&
+                      deploy.id.startsWith("dep-") &&
+                      deploy?.commit?.id === expectedCommit &&
+                      activeStatuses.has(deploy?.status)
+                    );
+                    if (match) process.stdout.write(match.id);
+                  ' "${list_path}" "${DEPLOY_REF}")
+                fi
+                if [ -n "${TRIGGERED_DEPLOY_ID}" ]; then
+                  echo "Resolved accepted ${label} deploy ${TRIGGERED_DEPLOY_ID} from the Render deploy list."
+                  break
+                fi
+                echo "Accepted ${label} deploy is not listed yet (attempt ${attempt}/10)."
+                sleep 3
+              done
+            fi
+            if [ -z "${TRIGGERED_DEPLOY_ID}" ]; then
+              echo "::error::Render accepted the ${label} request but no active exact-SHA deploy could be resolved."
               exit 1
             fi
             echo "Render accepted ${label} deploy ${TRIGGERED_DEPLOY_ID} for ${DEPLOY_REF}."
