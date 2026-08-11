@@ -105,6 +105,48 @@ export function parseTaskEvaluationLaunchReceipt(value: unknown) {
   return { ok: true as const, receipt };
 }
 
+// A launch runs for roughly twenty-five minutes and the terminal receipt only
+// arrives at the very end, so this is the non-terminal channel that reports
+// boot, dependency, scene, and runtime phases while they happen.
+//
+// Strict, where the terminal receipt is `.passthrough()`. The receipt must keep
+// unknown keys because `receipt_digest` covers its whole canonical object, so
+// dropping a field would break verification. Progress carries no digest and is
+// nothing to verify against — it is merged verbatim into the durable launch
+// record the control room reads. Strict keeps that write bounded to these known
+// keys, so a newer or misbuilt Pipeline cannot widen an unverified observation
+// into the launch record, least of all with anything resembling `state`.
+export const taskEvaluationLaunchProgressSchema = z.object({
+  schema_version: z.literal("task_evaluation_launch_progress.v1"),
+  launch_id: identifier,
+  run_id: identifier,
+  request_digest: digest,
+  // The worker authors these labels in its runtime phase log, so they stay
+  // bounded free-form strings: an enum would fail closed on the first new
+  // phase name and silently lose the visibility this channel exists to give.
+  phase: z.string().trim().min(1).max(120),
+  phase_status: z.string().trim().min(1).max(120),
+  observed_at_iso: z.string().datetime({ offset: true }),
+  elapsed_seconds: z.number().nonnegative().finite(),
+  // Absent until an instance is observable, and null-valued while the provider
+  // reports no age or rate yet. The cost is derived from observed rate x age —
+  // an estimate, never the billed figure, which only the receipt carries.
+  provider: z.object({
+    instance_state: z.string().trim().min(1).max(120),
+    instance_age_seconds: z.number().nonnegative().finite().nullable(),
+    estimated_cost_usd: z.number().nonnegative().finite().nullable(),
+  }).strict().optional(),
+}).strict();
+
+export function parseTaskEvaluationLaunchProgress(value: unknown) {
+  const parsed = taskEvaluationLaunchProgressSchema.safeParse(value);
+  if (!parsed.success) return {
+    ok: false as const,
+    blockers: ["task_evaluation_launch_progress_schema_invalid"],
+  };
+  return { ok: true as const, progress: parsed.data };
+}
+
 export const taskEvaluationLaunchSupervisionSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_supervision.v1"),
   status: z.enum(["completed", "blocked"]),
