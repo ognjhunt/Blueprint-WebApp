@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 import {
@@ -9,6 +10,10 @@ import {
   resolvePublishedLaunchProfiles,
   taskEvaluationLaunchInputSchema,
 } from "../utils/taskEvaluationLaunchContract";
+import {
+  taskEvaluationLaunchStoreErrorCode,
+  withTaskEvaluationLaunchStoreTimeout,
+} from "../utils/taskEvaluationLaunchStore";
 
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
@@ -66,7 +71,7 @@ router.post("/", async (req, res) => {
   };
   let priorRecord: Record<string, any> | null;
   try {
-    priorRecord = await db.runTransaction(async (transaction): Promise<Record<string, any> | null> => {
+    priorRecord = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async (transaction): Promise<Record<string, any> | null> => {
       const snapshot = await transaction.get(ref);
       if (snapshot.exists) {
         const existing = snapshot.data() as Record<string, any>;
@@ -88,7 +93,7 @@ router.post("/", async (req, res) => {
       }
       transaction.create(ref, initialRecord);
       return null;
-    });
+    }));
   } catch (error) {
     if (error instanceof Error && error.message === "immutable_launch_conflict") {
       return res.status(409).json({
@@ -96,7 +101,20 @@ router.post("/", async (req, res) => {
         code: "task_evaluation_launch_immutable_conflict",
       });
     }
-    return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    logger.error({
+      code,
+      launchId: parsed.data.launch_id,
+      runId: parsed.data.run_id,
+    }, "Task Evaluation launch authority persistence failed");
+    return res.status(503).json({
+      error: "Task Evaluation launch store is unavailable",
+      code,
+      launch_id: parsed.data.launch_id,
+      persistence_state: "unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+    });
   }
   const replayed = priorRecord !== null;
   const request = priorRecord
@@ -136,13 +154,28 @@ router.post("/", async (req, res) => {
       ? "queued_dispatch_blocked"
       : "queued_in_pipeline"
     : "forward_blocked";
-  await ref.set({
-    state,
-    forward: forwarded,
-    forward_attempt_count: priorAttempts + 1,
-    forwarded_at_iso: forwarded.status === "forwarded" ? new Date().toISOString() : null,
-    updated_at_iso: new Date().toISOString(),
-  }, { merge: true });
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state,
+      forward: forwarded,
+      forward_attempt_count: priorAttempts + 1,
+      forwarded_at_iso: forwarded.status === "forwarded" ? new Date().toISOString() : null,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    logger.error({ code, launchId: request.launch_id, runId: request.run_id },
+      "Task Evaluation launch forward receipt persistence failed");
+    return res.status(503).json({
+      error: "Task Evaluation launch forward receipt store is unavailable",
+      code,
+      launch_id: request.launch_id,
+      request_digest: request.request_digest,
+      persistence_state: "forward_receipt_unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+    });
+  }
   res.set("Cache-Control", "no-store");
   return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
     schema_version: "task_evaluation_launch_web_receipt.v1",
@@ -158,7 +191,17 @@ router.post("/", async (req, res) => {
 
 router.get("/supervision", async (_req, res) => {
   if (!db) return res.status(503).json({ error: "Task Evaluation supervision store is unavailable" });
-  const snapshot = await db.collection("taskEvaluationLaunchSupervision").doc("latest").get();
+  let snapshot;
+  try {
+    snapshot = await withTaskEvaluationLaunchStoreTimeout(
+      db.collection("taskEvaluationLaunchSupervision").doc("latest").get(),
+    );
+  } catch (error) {
+    return res.status(503).json({
+      error: "Task Evaluation supervision store is unavailable",
+      code: taskEvaluationLaunchStoreErrorCode(error),
+    });
+  }
   res.set("Cache-Control", "no-store");
   return res.json(snapshot.exists ? snapshot.data() : {
     schema_version: "task_evaluation_launch_supervision_status.v1",
@@ -168,7 +211,20 @@ router.get("/supervision", async (_req, res) => {
 
 router.get("/:launchId", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
-  const snapshot = await db.collection(COLLECTION).doc(req.params.launchId).get();
+  let snapshot;
+  try {
+    snapshot = await withTaskEvaluationLaunchStoreTimeout(
+      db.collection(COLLECTION).doc(req.params.launchId).get(),
+    );
+  } catch (error) {
+    return res.status(503).json({
+      error: "Task Evaluation launch store is unavailable",
+      code: taskEvaluationLaunchStoreErrorCode(error),
+      launch_id: req.params.launchId,
+      persistence_state: "unknown",
+      retryable: true,
+    });
+  }
   if (!snapshot.exists) return res.status(404).json({ error: "Task Evaluation launch not found" });
   res.set("Cache-Control", "no-store");
   return res.json(snapshot.data());

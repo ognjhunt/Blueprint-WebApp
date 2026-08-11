@@ -1,6 +1,7 @@
 # CI-Gated Render Deploy — Runbook (2026-07-16)
 
-Blueprint-WebApp has exactly one deploy owner: `.github/workflows/deploy.yml`.
+Blueprint-WebApp and its independent launch-forward worker have exactly one
+deploy owner: `.github/workflows/deploy.yml`.
 Render-native auto-deploy is off (`render.yaml` `autoDeploy: false`).
 
 > **RESOLVED 2026-07-21 — deployment ownership is singular.** PR #419 merged as
@@ -28,17 +29,19 @@ security task is separate from deployment-owner activation.
    verify, tests + worktree-mutation guard, e2e, build + build-output tests +
    isolated local smoke).
 3. Only if CI concludes `success` does the `Deploy (Render, CI-gated)`
-   workflow fire, POSTing Render's authenticated deploy API with the exact
-   `workflow_run.head_sha` as `commitId`.
-4. Render builds and serves that commit. `GET /version.json` on the live site
+   workflow fire, POSTing Render's authenticated deploy API for both the web
+   and worker services with the exact `workflow_run.head_sha` as `commitId`.
+4. Both Render deploy records must become live at that exact commit. Then
+   `GET /version.json` on the live site
    reports the deployed `git_sha` (written by `scripts/generate-build-info.mjs`
    at build time) — verify it matches the green SHA.
 
 Fail-closed properties:
 
 - A red CI run never triggers the deploy job.
-- A missing `RENDER_API_KEY` secret or invalid `RENDER_SERVICE_ID` variable
-  errors the deploy job loudly; it never silently skips or falls back.
+- A missing `RENDER_API_KEY` secret or invalid `RENDER_SERVICE_ID` or
+  `RENDER_WORKER_SERVICE_ID` variable errors the deploy job loudly; it never
+  silently skips the independent worker or falls back.
 - No push to a non-main branch can deploy.
 
 ## One-time activation steps (Render + GitHub)
@@ -47,8 +50,8 @@ Completed on 2026-07-21:
 
 1. In GitHub: repo → Settings → Secrets and variables → Actions, add the
    Render control-plane key as secret `RENDER_API_KEY`.
-2. Add the production Render service ID as repository variable
-   `RENDER_SERVICE_ID`.
+2. Add the production Render web and worker service IDs as repository
+   variables `RENDER_SERVICE_ID` and `RENDER_WORKER_SERVICE_ID`.
 3. Merge the API-workflow change and observe one exact-SHA deploy complete with
    a green `deploy-verification` artifact.
 4. In Render: Service → Settings → set **Auto-Deploy** to **Off**. The

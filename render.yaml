@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: blueprint-webapp
+    name: Blueprint-WebApp
     runtime: node
-    plan: starter
-    region: oregon
+    plan: free
+    region: virginia
     # Deploys are CI-gated: .github/workflows/deploy.yml triggers the Render
     # deploy hook only for an exact commit whose CI run is green on main.
     # Keeping Render-native auto-deploy off means a red or unreviewed push can
@@ -30,7 +30,7 @@ services:
     name: blueprint-webapp-worker
     runtime: node
     plan: starter
-    region: oregon
+    region: virginia
     autoDeploy: false
     buildCommand: npm ci && npm run build
     startCommand: npm run start:worker

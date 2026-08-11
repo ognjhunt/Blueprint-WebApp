@@ -5,6 +5,7 @@ import {
   forwardTaskEvaluationLaunch,
 } from "./taskEvaluationLaunchContract";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
 
 const COLLECTION = "taskEvaluationLaunches";
 
@@ -93,7 +94,9 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
   if (!db) return { status: "blocked", blocker: "firestore_unavailable", processed: 0 };
   const docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   for (const state of ["forward_pending", "forward_blocked"] as const) {
-    const snapshot = await db.collection(COLLECTION).where("state", "==", state).limit(limit).get();
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+      db.collection(COLLECTION).where("state", "==", state).limit(limit).get(),
+    );
     docs.push(...snapshot.docs);
     if (docs.length >= limit) break;
   }
@@ -102,10 +105,12 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
     const record = doc.data() as Record<string, any>;
     const result = await forwardStoredTaskEvaluationLaunch(record);
     if (result.skipped) continue;
-    await doc.ref.set({
-      ...result,
-      updated_at_iso: new Date().toISOString(),
-    }, { merge: true });
+    await withTaskEvaluationLaunchStoreTimeout(
+      doc.ref.set({
+        ...result,
+        updated_at_iso: new Date().toISOString(),
+      }, { merge: true }),
+    );
     processed += 1;
   }
   return { status: "completed", processed };
@@ -133,4 +138,3 @@ export function startTaskEvaluationLaunchForwardWorker() {
     clearInterval(interval);
   };
 }
-

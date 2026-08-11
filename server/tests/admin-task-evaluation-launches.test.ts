@@ -10,6 +10,7 @@ const realFetch = globalThis.fetch.bind(globalThis);
 
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
+  hangTransaction: false,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
@@ -28,17 +29,20 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   return {
     dbAdmin: {
       collection: () => ({ doc: reference }),
-      runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => callback({
-        get: async (ref: ReturnType<typeof reference>) => ref.get(),
-        create: (ref: ReturnType<typeof reference>, payload: Record<string, unknown>) => {
-          state.records.set(ref.id, structuredClone(payload));
-        },
-        set: (ref: ReturnType<typeof reference>, payload: Record<string, unknown>, options?: { merge?: boolean }) => {
-          state.records.set(ref.id, options?.merge
-            ? { ...(state.records.get(ref.id) || {}), ...structuredClone(payload) }
-            : structuredClone(payload));
-        },
-      }),
+      runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => {
+        if (state.hangTransaction) return new Promise<T>(() => undefined);
+        return callback({
+          get: async (ref: ReturnType<typeof reference>) => ref.get(),
+          create: (ref: ReturnType<typeof reference>, payload: Record<string, unknown>) => {
+            state.records.set(ref.id, structuredClone(payload));
+          },
+          set: (ref: ReturnType<typeof reference>, payload: Record<string, unknown>, options?: { merge?: boolean }) => {
+            state.records.set(ref.id, options?.merge
+              ? { ...(state.records.get(ref.id) || {}), ...structuredClone(payload) }
+              : structuredClone(payload));
+          },
+        });
+      },
     },
   };
 });
@@ -136,6 +140,7 @@ async function startInternalServer(): Promise<{ server: Server; url: string }> {
 
 beforeEach(() => {
   state.records.clear();
+  state.hangTransaction = false;
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
   process.env.TASK_EVALUATION_LAUNCH_URL = "https://pipeline.example/launches";
   process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "forward-secret";
@@ -165,9 +170,38 @@ afterEach(() => {
   delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON;
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
+  delete process.env.TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS;
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("fails closed with an unknown persistence state when Firestore stalls", async () => {
+    state.hangTransaction = true;
+    process.env.TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS = "250";
+    const { server, url } = await startServer();
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(launchInput()),
+      });
+      const body = await response.json();
+      expect(response.status).toBe(503);
+      expect(body).toMatchObject({
+        code: "task_evaluation_launch_store_timeout",
+        launch_id: "launch-001",
+        persistence_state: "unknown",
+        retryable: true,
+        provider_mutation_performed_inside_web_request: false,
+      });
+      expect(state.records.size).toBe(0);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target).startsWith("https://pipeline.example/"),
+      )).toHaveLength(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("durably records authority before forwarding the exact published profile", async () => {
     const { server, url } = await startServer();
     try {

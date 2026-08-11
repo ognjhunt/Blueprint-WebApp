@@ -1,7 +1,8 @@
 name: Deploy (Render, CI-gated)
 
-# Single deploy owner for blueprint-webapp: render.yaml keeps Render-native
-# auto-deploy OFF, and this workflow is the only path to production.
+# Single deploy owner for Blueprint-WebApp and blueprint-webapp-worker:
+# render.yaml keeps Render-native auto-deploy OFF, and this workflow is the
+# only path to production for both exact-SHA identities.
 #
 # Guarantees:
 #   * Only an exact commit whose CI workflow concluded `success` on main can
@@ -15,7 +16,8 @@ name: Deploy (Render, CI-gated)
 #
 # One-time dashboard steps (documented in docs/runbooks/ci-gated-deploy-2026-07-16.md):
 #   1. Store a Render API key as the RENDER_API_KEY Actions secret.
-#   2. Store the service ID as the RENDER_SERVICE_ID Actions variable.
+#   2. Store the web and worker service IDs as the RENDER_SERVICE_ID and
+#      RENDER_WORKER_SERVICE_ID Actions variables.
 #   3. Confirm Auto-Deploy is off after this workflow is proven operational.
 
 on:
@@ -95,6 +97,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
           CLEAR_CACHE: ${{ github.event.inputs.clear_cache }}
         run: |
@@ -103,13 +106,16 @@ jobs:
             echo "::error::RENDER_API_KEY secret is not set. Deploys fail closed. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
             exit 1
           fi
-          case "${RENDER_SERVICE_ID:-}" in
-            srv-*) ;;
-            *)
-              echo "::error::RENDER_SERVICE_ID Actions variable is missing or invalid."
-              exit 1
-              ;;
-          esac
+          for service_var in RENDER_SERVICE_ID RENDER_WORKER_SERVICE_ID; do
+            service_id="${!service_var:-}"
+            case "${service_id}" in
+              srv-*) ;;
+              *)
+                echo "::error::${service_var} Actions variable is missing or invalid."
+                exit 1
+                ;;
+            esac
+          done
           # Only an explicit workflow_dispatch opt-in clears the cache; the
           # automatic post-CI path keeps the fast default.
           if [ "${CLEAR_CACHE:-false}" = "true" ]; then
@@ -119,37 +125,50 @@ jobs:
           fi
           echo "Render build cache: ${clear_cache_value}"
           payload=$(printf '{"commitId":"%s","clearCache":"%s"}' "${DEPLOY_REF}" "${clear_cache_value}")
-          response_code=$(curl -s -o /tmp/render-deploy-response.txt -w "%{http_code}" \
-            --request POST \
-            --header "Authorization: Bearer ${RENDER_API_KEY}" \
-            --header "Content-Type: application/json" \
-            --data "${payload}" \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys")
-          echo "Render deploy API responded ${response_code}"
-          if [ "${response_code}" -lt 200 ] || [ "${response_code}" -ge 300 ]; then
-            echo "::error::Render deploy API returned HTTP ${response_code}."
-            cat /tmp/render-deploy-response.txt || true
-            exit 1
-          fi
-          deploy_id=$(node -e '
-            const fs = require("node:fs");
-            const response = JSON.parse(fs.readFileSync("/tmp/render-deploy-response.txt", "utf8"));
-            if (typeof response.id !== "string" || !response.id.startsWith("dep-")) process.exit(1);
-            process.stdout.write(response.id);
-          ')
-          if [ -z "${deploy_id}" ]; then
-            echo "::error::Render accepted the request but did not return a deploy ID."
-            exit 1
-          fi
-          echo "deploy_id=${deploy_id}" >> "${GITHUB_OUTPUT}"
-          echo "Render accepted deploy ${deploy_id} for ${DEPLOY_REF}. API acceptance is NOT deployment success; the verify step below is the gate."
+          trigger_deploy() {
+            service_id="$1"
+            label="$2"
+            response_path="/tmp/render-${label}-deploy-response.json"
+            response_code=$(curl -s -o "${response_path}" -w "%{http_code}" \
+              --request POST \
+              --header "Authorization: Bearer ${RENDER_API_KEY}" \
+              --header "Content-Type: application/json" \
+              --data "${payload}" \
+              "https://api.render.com/v1/services/${service_id}/deploys")
+            echo "Render ${label} deploy API responded ${response_code}"
+            if [ "${response_code}" -lt 200 ] || [ "${response_code}" -ge 300 ]; then
+              echo "::error::Render ${label} deploy API returned HTTP ${response_code}."
+              cat "${response_path}" || true
+              exit 1
+            fi
+            TRIGGERED_DEPLOY_ID=$(node -e '
+              const fs = require("node:fs");
+              const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              if (typeof response.id !== "string" || !response.id.startsWith("dep-")) process.exit(1);
+              process.stdout.write(response.id);
+            ' "${response_path}")
+            if [ -z "${TRIGGERED_DEPLOY_ID}" ]; then
+              echo "::error::Render accepted the ${label} request but did not return a deploy ID."
+              exit 1
+            fi
+            echo "Render accepted ${label} deploy ${TRIGGERED_DEPLOY_ID} for ${DEPLOY_REF}."
+          }
+          trigger_deploy "${RENDER_SERVICE_ID}" web
+          web_deploy_id="${TRIGGERED_DEPLOY_ID}"
+          trigger_deploy "${RENDER_WORKER_SERVICE_ID}" worker
+          worker_deploy_id="${TRIGGERED_DEPLOY_ID}"
+          echo "web_deploy_id=${web_deploy_id}" >> "${GITHUB_OUTPUT}"
+          echo "worker_deploy_id=${worker_deploy_id}" >> "${GITHUB_OUTPUT}"
+          echo "API acceptance is NOT deployment success; both exact-SHA deploy records are verified below."
 
       - name: Verify deployment completed at the exact SHA
         env:
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
-          RENDER_DEPLOY_ID: ${{ steps.render.outputs.deploy_id }}
+          RENDER_WEB_DEPLOY_ID: ${{ steps.render.outputs.web_deploy_id }}
+          RENDER_WORKER_DEPLOY_ID: ${{ steps.render.outputs.worker_deploy_id }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           BASE_URL: https://tryblueprint.io
         run: |
           set -euo pipefail
@@ -157,37 +176,58 @@ jobs:
           evidence=/tmp/deploy-evidence/deploy-verification.json
           started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-          # Poll Render's deploy record first so build/update failures surface
-          # directly rather than looking like a generic live-SHA timeout.
-          deploy_status=""
-          for attempt in $(seq 1 80); do
-            if ! response_code=$(curl -s -o /tmp/deploy-evidence/render-deploy.json -w "%{http_code}" \
-              --max-time 20 \
-              --header "Authorization: Bearer ${RENDER_API_KEY}" \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${RENDER_DEPLOY_ID}"); then
-              response_code=000
+          # Poll both Render deploy records so the web and independent worker
+          # must become live at the same exact commit before production is
+          # called deployed.
+          wait_for_deploy() {
+            label="$1"
+            service_id="$2"
+            deploy_id="$3"
+            response_path="/tmp/deploy-evidence/render-${label}-deploy.json"
+            DEPLOY_STATUS=""
+            DEPLOY_COMMIT=""
+            for attempt in $(seq 1 80); do
+              if ! response_code=$(curl -s -o "${response_path}" -w "%{http_code}" \
+                --max-time 20 \
+                --header "Authorization: Bearer ${RENDER_API_KEY}" \
+                "https://api.render.com/v1/services/${service_id}/deploys/${deploy_id}"); then
+                response_code=000
+              fi
+              if [ "${response_code}" = "200" ]; then
+                deploy_fields=$(node -e '
+                  const fs = require("node:fs");
+                  const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                  const status = typeof response.status === "string" ? response.status : "";
+                  const commit = typeof response.commit?.id === "string" ? response.commit.id : "";
+                  process.stdout.write(`${status}\t${commit}`);
+                ' "${response_path}")
+                IFS=$'\t' read -r DEPLOY_STATUS DEPLOY_COMMIT <<< "${deploy_fields}"
+              fi
+              case "${DEPLOY_STATUS}" in
+                live) break ;;
+                build_failed|update_failed|canceled|deactivated)
+                  echo "::error::Render ${label} deploy ${deploy_id} ended with status ${DEPLOY_STATUS}."
+                  exit 1
+                  ;;
+              esac
+              echo "${label} attempt ${attempt}/80: status='${DEPLOY_STATUS:-unreachable}'. Waiting 15s."
+              sleep 15
+            done
+            if [ "${DEPLOY_STATUS}" != "live" ]; then
+              echo "::error::Render ${label} deploy ${deploy_id} did not become live after 20 minutes."
+              exit 1
             fi
-            if [ "${response_code}" = "200" ]; then
-              deploy_status=$(node -e '
-                const fs = require("node:fs");
-                const response = JSON.parse(fs.readFileSync("/tmp/deploy-evidence/render-deploy.json", "utf8"));
-                process.stdout.write(typeof response.status === "string" ? response.status : "");
-              ')
+            if [ "${DEPLOY_COMMIT}" != "${DEPLOY_REF}" ]; then
+              echo "::error::Render ${label} deploy is live at '${DEPLOY_COMMIT:-unknown}', expected ${DEPLOY_REF}."
+              exit 1
             fi
-            case "${deploy_status}" in
-              live) break ;;
-              build_failed|update_failed|canceled|deactivated)
-                echo "::error::Render deploy ${RENDER_DEPLOY_ID} ended with status ${deploy_status}."
-                exit 1
-                ;;
-            esac
-            echo "Attempt ${attempt}/80: Render deploy status='${deploy_status:-unreachable}'. Waiting 15s."
-            sleep 15
-          done
-          if [ "${deploy_status}" != "live" ]; then
-            echo "::error::Render deploy ${RENDER_DEPLOY_ID} did not become live after 20 minutes."
-            exit 1
-          fi
+          }
+          wait_for_deploy web "${RENDER_SERVICE_ID}" "${RENDER_WEB_DEPLOY_ID}"
+          web_deploy_status="${DEPLOY_STATUS}"
+          web_deploy_commit="${DEPLOY_COMMIT}"
+          wait_for_deploy worker "${RENDER_WORKER_SERVICE_ID}" "${RENDER_WORKER_DEPLOY_ID}"
+          worker_deploy_status="${DEPLOY_STATUS}"
+          worker_deploy_commit="${DEPLOY_COMMIT}"
 
           # Poll GET /version.json until the exact requested SHA is serving
           # traffic. Timeout: 20 minutes.
@@ -213,8 +253,8 @@ jobs:
           health_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BASE_URL}/health")
           ready_code=$(curl -s -o /tmp/deploy-evidence/health-ready-body.json -w "%{http_code}" --max-time 20 "${BASE_URL}/health/ready")
           finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          printf '{"render_deploy_id":"%s","render_deploy_status":"%s","deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
-            "${RENDER_DEPLOY_ID}" "${deploy_status}" "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
+          printf '{"web_render_deploy_id":"%s","web_render_deploy_status":"%s","web_render_commit":"%s","worker_render_deploy_id":"%s","worker_render_deploy_status":"%s","worker_render_commit":"%s","deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
+            "${RENDER_WEB_DEPLOY_ID}" "${web_deploy_status}" "${web_deploy_commit}" "${RENDER_WORKER_DEPLOY_ID}" "${worker_deploy_status}" "${worker_deploy_commit}" "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
           cat "${evidence}"
           if [ "${health_code}" != "200" ]; then
             echo "::error::GET /health returned ${health_code}; expected 200."

@@ -56,20 +56,22 @@ npm start
 The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebApp/render.yaml) for the primary alpha deployment path.
 
 - Build command: `npm ci && npm run build`
-- Start command: `npm start`
+- Web start command: `npm start`
+- Independent worker start command: `npm run start:worker`
 - Health check: `/health/ready`
 - Render `autoDeploy` is disabled in `render.yaml`. GitHub Actions owns
   deploy-on-green through `.github/workflows/deploy.yml`.
 - The deploy workflow runs only after the full `CI` workflow succeeds on
   `main`. It calls Render's authenticated deploy API with the exact green
-  commit SHA, waits for that deploy to become live, then verifies
-  `/version.json`, `/health`, and `/health/ready`.
+  commit SHA for both services, waits for both deploy records to become live
+  at that SHA, then verifies `/version.json`, `/health`, and `/health/ready`.
 
 Render should hold all application secrets in the service environment, not in
 `render.yaml`. GitHub Actions holds the Render control-plane credential as the
-`RENDER_API_KEY` secret and the production service identifier as the
-`RENDER_SERVICE_ID` repository variable. If either is missing or invalid, the
-deploy job fails closed instead of allowing a red or unverified push to deploy.
+`RENDER_API_KEY` secret and the production service identifiers as the
+`RENDER_SERVICE_ID` and `RENDER_WORKER_SERVICE_ID` repository variables. If
+any is missing or invalid, the deploy job fails closed instead of deploying a
+partial control stack or allowing a red or unverified push to deploy.
 
 ## Required Environment Variables
 
@@ -218,6 +220,10 @@ Agent-side creative MCP note:
   - `TASK_EVALUATION_LAUNCH_URL=https://<pipeline-host>/api/live-pipeline/task-evaluation-launches`; optional when `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL` is the canonical Pipeline `/job-requests` endpoint
   - the launch bridge always reuses `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` and the fixed `blueprint-webapp` client identity; task-specific token overrides are not accepted
   - `TASK_EVALUATION_LAUNCH_FORWARD_REQUIRED=true`
+  - `TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS=15000` bounds each launch-critical
+    Firestore operation; an ambiguous write returns `persistence_state=unknown`
+    and the admin UI recovers by polling the same launch ID rather than creating
+    a second authority record
   - `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED=true` on the Render worker so a crash between the durable Firestore write and signed Pipeline POST is recovered
   - `TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS=20` bounds intake-transport retries; these are idempotent queue deliveries and never authorize a paid GPU retry
   - `TASK_EVALUATION_LAUNCH_PROFILES_JSON` set to the exact descriptor catalog emitted by Pipeline's `publish_task_evaluation_launch_profiles.py`, or leave it empty so the server fetches and validates Pipeline's public `/api/live-pipeline/task-evaluation-launch-profiles` descriptor catalog; `TASK_EVALUATION_LAUNCH_PROFILES_URL` is an optional explicit catalog endpoint override
