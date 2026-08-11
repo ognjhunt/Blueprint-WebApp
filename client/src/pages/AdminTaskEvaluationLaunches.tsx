@@ -8,7 +8,11 @@ import {
   resolveTaskEvaluationLaunchLabToken,
   withTaskEvaluationLaunchLabHeader,
 } from "@/lib/taskEvaluationLaunchLabAccess";
-import { defaultTaskEvaluationAuthorityExpiry } from "@/lib/taskEvaluationLaunchForm";
+import {
+  defaultTaskEvaluationAuthorityExpiry,
+  prefillTaskEvaluationMaxSpend,
+  requiredTaskEvaluationMaxSpendUsd,
+} from "@/lib/taskEvaluationLaunchForm";
 
 type LaunchProfile = {
   profile_id: string;
@@ -21,6 +25,7 @@ type LaunchProfile = {
     blockers: string[];
   };
   claim_ceiling: string;
+  required_authorization?: { max_spend_usd: number; hard_ttl_seconds: number };
 };
 
 async function fetchWithTimeout(
@@ -60,9 +65,14 @@ export default function AdminTaskEvaluationLaunches() {
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
     [profileKey, profiles],
   );
+  const requiredSpend = requiredTaskEvaluationMaxSpendUsd(selected);
+  useEffect(() => {
+    setMaxSpend((current) => prefillTaskEvaluationMaxSpend(selected, current));
+  }, [selected]);
   const canSubmit = Boolean(
     selected && confirmed && launchId && runId && rightsScope && rightsUri
-    && /^sha256:[0-9a-f]{64}$/.test(rightsDigest) && Number(maxSpend) > 0 && expiresAt,
+    && /^sha256:[0-9a-f]{64}$/.test(rightsDigest) && Number(maxSpend) > 0 && expiresAt
+    && (requiredSpend === null || Number(maxSpend) >= requiredSpend),
   );
 
   async function authHeaders(json = false) {
@@ -253,7 +263,14 @@ export default function AdminTaskEvaluationLaunches() {
             <Input label="Rights evidence digest" value={rightsDigest} onChange={setRightsDigest}
               placeholder="sha256:..." />
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Maximum spend (USD)" value={maxSpend} onChange={setMaxSpend} type="number" />
+              <div>
+                <Input label="Maximum spend (USD)" value={maxSpend} onChange={setMaxSpend} type="number" />
+                {requiredSpend !== null ? (
+                  <p className={`mt-1 text-xs ${Number(maxSpend) >= requiredSpend ? "text-stone-500" : "text-red-700"}`}>
+                    This profile requires at least ${requiredSpend.toFixed(2)} of authorized spend.
+                  </p>
+                ) : null}
+              </div>
               <Input label="Authority expires" value={expiresAt} onChange={setExpiresAt} type="datetime-local" />
             </div>
             <label className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 text-sm leading-6">

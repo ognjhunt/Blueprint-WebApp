@@ -44,6 +44,10 @@ export const publishedLaunchProfileSchema = z.object({
     });
   }),
   claim_ceiling: z.enum(["development_only", "partner_run_pending_physical_join"]),
+  required_authorization: z.object({
+    max_spend_usd: z.number().positive().finite(),
+    hard_ttl_seconds: z.number().int().positive(),
+  }).strict().optional(),
 }).strict();
 
 export const taskEvaluationLaunchInputSchema = z.object({
