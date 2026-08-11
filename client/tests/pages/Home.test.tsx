@@ -11,7 +11,7 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Turn one site walkthrough into a robot benchmark by tomorrow/i,
+        name: /Which candidate do you send to the customer's floor\?/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -36,7 +36,7 @@ describe("Home", () => {
     expect(screen.getAllByText(/^Ruled out$/i).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/None of these rows is a prediction/i);
 
-    // The ordering ships with its margin and its resolution floor, and a pair
+    // The ranking ships with its margin and its resolution floor, and a pair
     // inside the floor is named as tied rather than ranked.
     expect(
       screen.getByRole("heading", { name: /Then the survivors get ranked, with the margin/i }),
@@ -45,10 +45,10 @@ describe("Home", () => {
     expect(screen.getAllByText(/Tied at this rollout count/i).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/inside the 19\.8 pp floor/i);
 
-    // The real-world-ordering boundary stays stated, as a limit rather than a
+    // The real-world-ranking boundary stays stated, as a limit rather than a
     // headline. This is the one claim the Pipeline contract will not carry.
     expect(container).toHaveTextContent(
-      /We have not measured how our orderings track real-world orderings/i,
+      /We have not measured how our rankings track real-world results/i,
     );
 
     // Withdrawn product names and fixed campaign prices stay gone.

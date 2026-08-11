@@ -15,6 +15,7 @@ import {
   type MotionValue,
 } from "framer-motion";
 
+import { homeHero } from "@/data/publicSiteCopy";
 import { cn } from "@/lib/utils";
 
 const runHref =
@@ -68,15 +69,13 @@ export function KineticBenchmark() {
       <div className="mx-auto grid max-w-[94rem] gap-12 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[minmax(0,1fr)_9rem] lg:gap-14 lg:px-10 lg:pb-24 lg:pt-20">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-kinetic-blue">
-            Field-to-sim evaluation
+            {homeHero.eyebrow}
           </p>
-          <h1 className="mt-7 max-w-[19ch] text-[clamp(3.15rem,7.1vw,7.4rem)] font-semibold leading-[0.93] tracking-[-0.064em] text-kinetic-graphite">
-            Turn one site walkthrough into a robot benchmark by tomorrow.
+          <h1 className="mt-7 max-w-[17ch] text-[clamp(3.15rem,7.1vw,7.4rem)] font-semibold leading-[0.93] tracking-[-0.064em] text-kinetic-graphite">
+            {homeHero.title}
           </h1>
           <p className="mt-8 max-w-[42rem] text-[clamp(1rem,1.35vw,1.22rem)] leading-[1.65] text-kinetic-muted">
-            Capture a prospective pilot location. Blueprint rebuilds the task in
-            simulation, runs your checkpoints, and returns a decision-ready report
-            in 12–24 hours.
+            {homeHero.body}
           </p>
           <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
             <a className="kinetic-button-primary" href={runHref}>
@@ -88,7 +87,7 @@ export function KineticBenchmark() {
               <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
-          <p className="mt-5 text-sm text-kinetic-faint">Fixed-scope runs from $2,500</p>
+          <p className="mt-5 text-sm text-kinetic-faint">Fixed-scope runs from $2,500 · results in 12–24 hours</p>
         </div>
 
         <StageRail
@@ -183,7 +182,7 @@ export function KineticBenchmark() {
               </p>
               <div className="mt-3 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xl font-semibold tracking-[-0.025em]">Checkpoint A</p>
+                  <p className="text-xl font-semibold tracking-[-0.025em]">Candidate A</p>
                   <p className="mt-1 text-lg text-kinetic-cyan">Take to site</p>
                 </div>
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-kinetic-blue text-kinetic-cyan">
@@ -207,7 +206,7 @@ export function KineticBenchmark() {
             {
               number: "02",
               title: "We build + run",
-              body: "We reconstruct the task, vary the conditions, and run your checkpoints.",
+              body: "We reconstruct the task, vary the conditions, and run your candidates.",
             },
             {
               number: "03",
@@ -339,9 +338,9 @@ export function ResultDecisionPanel() {
             <span>Task / pack-cell-07</span>
           </div>
           {[
-            { label: "Checkpoint A", result: "Take to site", selected: true },
-            { label: "Checkpoint B", result: "Fix perception first", selected: false },
-            { label: "Checkpoint C", result: "Hold", selected: false },
+            { label: "Candidate A", result: "Take to site", selected: true },
+            { label: "Candidate B", result: "Fix perception first", selected: false },
+            { label: "Candidate C", result: "Hold", selected: false },
           ].map((candidate) => (
             <div
               key={candidate.label}

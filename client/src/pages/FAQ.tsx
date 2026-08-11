@@ -31,7 +31,7 @@ export const faqItems = [
   {
     question: "Does every run produce a ranking?",
     answer:
-      "Ranking is what the service is for, so most runs do. Two things change its shape. A candidate the site physically will not take is ruled out on measurement rather than ranked — you get the shortfall in metres instead of a position. And a pair whose gap falls inside the run's resolution is reported as tied at that rollout count, with the floor and what it would cost to get under it, because ordering a gap the design cannot separate is just reporting noise.",
+      "Ranking is what the service is for, so most runs do. Two things change its shape. A candidate the site physically will not take is ruled out on measurement rather than ranked — you get the shortfall in metres instead of a position. And a pair whose gap falls inside the run's resolution is reported as tied at that rollout count, with the floor and what it would cost to get under it, because ranking a gap the design cannot separate is just reporting noise.",
   },
   {
     question: "What is in a result?",

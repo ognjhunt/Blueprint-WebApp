@@ -23,7 +23,7 @@ describe("FAQ", () => {
 
     expect(screen.getByText(/One service: a Task Evaluation Run/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/ordering a gap the design cannot separate is just reporting noise/i),
+      screen.getByText(/ranking a gap the design cannot separate is just reporting noise/i),
     ).toBeInTheDocument();
     // Withdrawn names may be described as withdrawn, but never offered.
     expect(

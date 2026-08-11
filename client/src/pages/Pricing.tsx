@@ -30,7 +30,7 @@ const faqItems = [
   {
     question: "What does the $2,500 starting point mean?",
     answer:
-      "It is the starting point for a tightly bounded first benchmark: one captured task area, a small checkpoint set, a defined variation envelope, and a decision report. More task objects, embodiments, scenarios, physical work, or an accelerated deadline increase the quote.",
+      "It is the starting point for a tightly bounded first benchmark: one captured task area, a small set of candidates, a defined variation envelope, and a decision report. More task objects, embodiments, scenarios, physical work, or an accelerated deadline increase the quote.",
   },
   {
     question: "Do robot teams and site operators buy different things?",
@@ -96,7 +96,7 @@ export default function Pricing() {
             index="01"
             eyebrow="What moves the number"
             title="A clear starting point. A quote shaped by the task."
-            lede="A small first run can start at $2,500. The final number changes only when the site, checkpoint set, evidence burden, variation envelope, or deadline changes."
+            lede="A small first run can start at $2,500. The final number changes only when the site, candidate set, evidence burden, variation envelope, or deadline changes."
             onInk
           />
           <div className="mt-14 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
@@ -137,7 +137,7 @@ export default function Pricing() {
                   From $2,500
                 </h3>
                 <p className="mt-5 text-[14.5px] leading-[1.72] text-ink-300">
-                  One bounded site-task, a small checkpoint set, controlled
+                  One bounded site-task, a small set of candidates, controlled
                   variation, and a decision-ready report. We send the fixed scope
                   and exact quote before anything is authorised.
                 </p>

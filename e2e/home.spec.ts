@@ -8,7 +8,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   // what the page may claim is unchanged, and still holds.
   await expect(
     page.getByRole('heading', {
-      name: /Turn one site walkthrough into a robot benchmark by tomorrow\./i,
+      name: /Which candidate do you send to the customer's floor\?/i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -47,7 +47,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   await expect(page.getByText(/Deployment approval/i).first()).toBeVisible();
   await expect(page.getByText(/Safety certification/i).first()).toBeVisible();
 
-  // Screening runs first and is the half that names a cause; the ordering
+  // Screening runs first and is the half that names a cause; the ranking
   // follows, carrying the resolution that makes it readable.
   await expect(page.getByText(/Some candidates the building will not take/i)).toBeVisible();
   await expect(page.getByText(/^Ruled out$/i).first()).toBeVisible();

@@ -35,7 +35,7 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Turn one site walkthrough into a robot benchmark by tomorrow/i,
+        name: /Which candidate do you send to the customer's floor\?/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Scope a benchmark/i }).length).toBeGreaterThan(0);

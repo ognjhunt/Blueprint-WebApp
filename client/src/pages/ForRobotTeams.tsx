@@ -44,7 +44,7 @@ export default function ForRobotTeams() {
     <>
       <SEO
         title="Task Evaluation Runs for robot teams | Blueprint"
-        description="Rank your own checkpoints in the building you are quoting: incompatibilities ruled out on measurement, the rest ordered with the margin on every gap."
+        description="Rank your own candidates in the building you are quoting: incompatibilities ruled out on measurement, the rest ordered with the margin on every gap."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({

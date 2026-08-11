@@ -4,7 +4,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
-    page.getByRole("heading", { name: "Know which checkpoint deserves the pilot." }),
+    page.getByRole("heading", { name: "Know which candidate deserves the pilot." }),
   ).toBeVisible();
   await expect(
     page.locator("main").getByRole("link", { name: /Scope a benchmark/i }).first(),
@@ -13,7 +13,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({ pa
 
 test("robot-team and site-operator pages describe one service and intake", async ({ page }) => {
   await page.goto("/for-robot-teams");
-  // Screening precedes the ordering, and a gap the design cannot separate is
+  // Screening precedes the ranking, and a gap the design cannot separate is
   // still presented as an outcome rather than omitted.
   await expect(page.getByText(/Bring candidates\. Get them screened, then ordered\./i).first()).toBeVisible();
   await expect(page.getByText(/^Inside the resolution$/i).first()).toBeVisible();
