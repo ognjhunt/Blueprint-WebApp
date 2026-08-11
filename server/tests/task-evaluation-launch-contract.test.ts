@@ -228,4 +228,40 @@ describe("Task Evaluation production launch contract", () => {
       blockers: ["task_evaluation_launch_receipt_digest_mismatch"],
     });
   });
+
+  it("accepts the catalog's required authorization bounds and stays strict", () => {
+    const bounded = {
+      ...profile(),
+      required_authorization: { max_spend_usd: 6, hard_ttl_seconds: 5400 },
+    };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([bounded]);
+    const published = loadPublishedLaunchProfiles();
+    expect(published).toHaveLength(1);
+    expect(published[0].required_authorization).toEqual({
+      max_spend_usd: 6,
+      hard_ttl_seconds: 5400,
+    });
+
+    const legacy = profile();
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([legacy]);
+    expect(loadPublishedLaunchProfiles()).toHaveLength(1);
+
+    const smuggled = {
+      ...profile(),
+      required_authorization: { max_spend_usd: 6, hard_ttl_seconds: 5400, argv: ["--execute"] },
+    };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([smuggled]);
+    expect(loadPublishedLaunchProfiles()).toHaveLength(0);
+
+    const nonPositive = {
+      ...profile(),
+      required_authorization: { max_spend_usd: 0, hard_ttl_seconds: 5400 },
+    };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([nonPositive]);
+    expect(loadPublishedLaunchProfiles()).toHaveLength(0);
+
+    const unknownTopLevel = { ...profile(), allocator: { argv: ["--execute"] } };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([unknownTopLevel]);
+    expect(loadPublishedLaunchProfiles()).toHaveLength(0);
+  });
 });
