@@ -13,6 +13,17 @@
 //   - virtual evidence is never presented as a physical or safety guarantee
 //   - figure values on the public site are schematic, never live run data
 //   - "benchmark" stays a singular, site-specific noun
+//   - turnaround is always a *target*, never an asserted delivery
+//
+// On turnaround. 12–24h is a design target, not a measured service level:
+// no SLA, contract field, or run-duration telemetry backs it anywhere in the
+// repo. It is worth saying loudly — it is the objection-killer for "a sim of
+// my site will take longer than the pilot", and it is the evidence that the
+// minimum-replica thesis holds at all, since manual authoring dominating is
+// the recorded failure mode. But every instance says "target", because
+// asserting an unmeasured service level is exactly the fabricated
+// operational state the repo guide forbids. If run telemetry later supports
+// it, promote the wording everywhere at once.
 //
 // On the word "benchmark". It is the category word robot teams already budget
 // for, and the mechanism genuinely matches one: a fixed task, a versioned
@@ -55,6 +66,7 @@ export const homeHero = {
     "The real site, not a generic scene",
     "Ruled out on measurement, not prediction",
     "A ranking, and what it can prove",
+    "Target turnaround · 12–24h",
   ],
 } as const;
 
@@ -375,7 +387,12 @@ export const robotTeamHero = {
   title: "Know which candidate deserves the pilot.",
   body:
     "Walk the prospective site once. Blueprint rebuilds the real task, runs your candidates under controlled variation, and returns the ranking, likely failure modes, and what to take into the physical pilot.",
-  chips: ["Bring your policies or model versions", "Fixed-scope run", "Decision-ready report"],
+  chips: [
+    "Bring your policies or model versions",
+    "Fixed-scope run",
+    "Target turnaround · 12–24h",
+    "Decision-ready report",
+  ],
 } as const;
 
 export const robotTeamValue = [
