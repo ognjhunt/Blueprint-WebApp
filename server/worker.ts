@@ -20,6 +20,13 @@ import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
 
+const launchForwardOnly = () =>
+  ["1", "true", "yes", "on"].includes(
+    String(
+      process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER || "",
+    ).trim().toLowerCase(),
+  );
+
 export type WorkerHandle = {
   stop: () => Promise<void>;
 };
@@ -27,12 +34,23 @@ export type WorkerHandle = {
 export function startWorker(): WorkerHandle {
   validateEnv();
 
+  const taskEvaluationLaunchOnly = launchForwardOnly();
+
   logger.info(
-    attachRequestMeta({ route: "worker" }),
-    "Blueprint worker starting: ops automation scheduler + Stripe webhook queue processor",
+    attachRequestMeta({
+      route: "worker",
+      taskEvaluationLaunchOnly,
+    }),
+    taskEvaluationLaunchOnly
+      ? "Blueprint worker starting: Task Evaluation launch forwarder only"
+      : "Blueprint worker starting: ops automation scheduler + Stripe webhook queue processor + Task Evaluation launch forwarder",
   );
-  const stopScheduler = startOpsAutomationScheduler();
-  const stopQueueProcessor = startStripeWebhookQueueProcessor();
+  const stopScheduler = taskEvaluationLaunchOnly
+    ? () => undefined
+    : startOpsAutomationScheduler();
+  const stopQueueProcessor = taskEvaluationLaunchOnly
+    ? () => undefined
+    : startStripeWebhookQueueProcessor();
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
 
   let stopped = false;

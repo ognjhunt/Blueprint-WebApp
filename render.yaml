@@ -13,19 +13,12 @@ services:
     startCommand: npm start
     healthCheckPath: /health/ready
 
-  # Dedicated background worker (SCALE2-02): runs the ops automation
-  # scheduler (and the Stripe webhook queue processor) out of the web
-  # process so batch work never shares an event loop with live HTTP traffic.
-  # The ops automation leader lease stays active inside the worker, so
-  # scaling this service beyond one instance (or temporarily opting the web
-  # process back in with BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1) can never
-  # double-run automation lanes.
+  # Dedicated production launch-forward worker. This deployment is explicitly
+  # constrained to Task Evaluation launch reconciliation; unrelated ops and
+  # Stripe queue processors stay off in this service.
   #
-  # Env vars: this service needs the same environment as blueprint-webapp
-  # (Firebase service account, Stripe keys, Redis URL, Notion/SendGrid/Slack
-  # tokens — see render.required.env.example / render.optional.env.example).
-  # Env is dashboard-managed for this blueprint; import the same env group
-  # into both services.
+  # Env vars are dashboard-managed. The worker needs Firebase Admin plus the
+  # canonical Pipeline forward URL/token and launch-forward controls.
   - type: worker
     name: blueprint-webapp-worker
     runtime: node
@@ -34,3 +27,6 @@ services:
     autoDeploy: false
     buildCommand: npm ci && npm run build
     startCommand: npm run start:worker
+    envVars:
+      - key: BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER
+        value: "true"
