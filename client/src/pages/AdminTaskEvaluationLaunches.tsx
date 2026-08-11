@@ -8,6 +8,7 @@ import {
   resolveTaskEvaluationLaunchLabToken,
   withTaskEvaluationLaunchLabHeader,
 } from "@/lib/taskEvaluationLaunchLabAccess";
+import { defaultTaskEvaluationAuthorityExpiry } from "@/lib/taskEvaluationLaunchForm";
 
 type LaunchProfile = {
   profile_id: string;
@@ -47,7 +48,7 @@ export default function AdminTaskEvaluationLaunches() {
   const [rightsUri, setRightsUri] = useState("");
   const [rightsDigest, setRightsDigest] = useState("");
   const [maxSpend, setMaxSpend] = useState("2.00");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState(defaultTaskEvaluationAuthorityExpiry);
   const [confirmed, setConfirmed] = useState(false);
   const [status, setStatus] = useState<Record<string, any> | null>(null);
   const [supervision, setSupervision] = useState<Record<string, any> | null>(null);
@@ -83,11 +84,16 @@ export default function AdminTaskEvaluationLaunches() {
     if (!response.ok) throw new Error("Published Pipeline launch profiles are unavailable");
     const payload = await response.json();
     setProfiles(payload.profiles || []);
-    const supervisionResponse = await fetchWithTimeout(
-      "/api/admin/task-evaluation-launches/supervision",
-      { headers: await authHeaders(), credentials: "include" },
-    );
-    if (supervisionResponse.ok) setSupervision(await supervisionResponse.json());
+    setError(null);
+    try {
+      const supervisionResponse = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/supervision",
+        { headers: await authHeaders(), credentials: "include" },
+      );
+      if (supervisionResponse.ok) setSupervision(await supervisionResponse.json());
+    } catch {
+      // The optional advisory supervisor must not block deterministic launch authority.
+    }
   }
 
   async function refreshStatus(id = launchId) {
