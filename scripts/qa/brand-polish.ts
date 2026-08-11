@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Turn one site walkthrough into a robot benchmark by tomorrow.",
+    expectedHeading: "Which candidate do you send to the customer's floor?",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Turn one site walkthrough into a robot benchmark by tomorrow.",
+    expectedHeading: "Which candidate do you send to the customer's floor?",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },
@@ -257,7 +257,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Turn one site walkthrough into a robot benchmark by tomorrow.",
+    expectedHeading: "Which candidate do you send to the customer's floor?",
     requiredCtas: [
       { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
       { label: "How it works", hrefStartsWith: "/how-it-works" },

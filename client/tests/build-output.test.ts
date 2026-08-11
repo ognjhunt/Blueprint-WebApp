@@ -203,7 +203,7 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Which robot do you send to the customer&#x27;s floor?");
+    expect(homeHtml).toContain("Which candidate do you send to the customer&#x27;s floor?");
     expect(homeHtml).toContain("Walk the site");
     expect(homeHtml).toContain("We build + run");
     expect(homeHtml).toContain("Know what deserves the pilot.");

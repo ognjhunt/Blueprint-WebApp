@@ -33,6 +33,14 @@
 //
 // Buyer-facing vocabulary: "candidate", not "checkpoint" (a non-technical
 // buyer reads that as a milestone); "ranking", not "ordering".
+//
+// And "candidate", not "robot", in the headline. A run compares policies or
+// configurations against one site-task; it does not pick an embodiment
+// (PLATFORM_CONTEXT.md exact v1 scope: one fixed robot arm, two frozen policy
+// checkpoints or configurations). "Which robot do you send" markets a
+// different service. "Candidate" is also the one word that covers both halves
+// of the offer — the screening pass rules out on physical envelope, the
+// ranking pass orders what survives on policy.
 
 import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTile, LifecycleStage } from "@/components/site/figures";
 
@@ -40,7 +48,7 @@ import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTil
 
 export const homeHero = {
   eyebrow: "Field-to-sim evaluation",
-  title: "Which robot do you send to the customer's floor?",
+  title: "Which candidate do you send to the customer's floor?",
   body:
     "Pilots are expensive. Blueprint walks the site once, rebuilds the real job in simulation, and runs every candidate against the same conditions — so you know which one earns the trip before you book it.",
   chips: [

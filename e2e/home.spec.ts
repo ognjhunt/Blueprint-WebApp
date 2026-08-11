@@ -8,7 +8,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   // what the page may claim is unchanged, and still holds.
   await expect(
     page.getByRole('heading', {
-      name: /Which robot do you send to the customer's floor\?/i,
+      name: /Which candidate do you send to the customer's floor\?/i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
