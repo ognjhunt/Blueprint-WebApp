@@ -4,6 +4,10 @@ import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from "lucide-reac
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import {
+  resolveTaskEvaluationLaunchLabToken,
+  withTaskEvaluationLaunchLabHeader,
+} from "@/lib/taskEvaluationLaunchLabAccess";
 
 type LaunchProfile = {
   profile_id: string;
@@ -34,6 +38,7 @@ async function fetchWithTimeout(
 
 export default function AdminTaskEvaluationLaunches() {
   const { currentUser } = useAuth();
+  const [launchLabToken] = useState(resolveTaskEvaluationLaunchLabToken);
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
   const [profileKey, setProfileKey] = useState("");
   const [launchId, setLaunchId] = useState("");
@@ -60,14 +65,17 @@ export default function AdminTaskEvaluationLaunches() {
   );
 
   async function authHeaders(json = false) {
-    return withFirebaseAuthHeaders(
+    const headers = await withFirebaseAuthHeaders(
       currentUser,
       await withCsrfHeader(json ? { "content-type": "application/json" } : {}),
     );
+    return withTaskEvaluationLaunchLabHeader(launchLabToken, headers);
   }
 
   async function loadProfiles() {
-    if (!currentUser) return;
+    if (!currentUser && !launchLabToken) {
+      throw new Error("Temporary launch access is missing. Reopen the private launch-lab link.");
+    }
     const response = await fetchWithTimeout("/api/admin/task-evaluation-launches/profiles", {
       headers: await authHeaders(),
       credentials: "include",
@@ -83,7 +91,7 @@ export default function AdminTaskEvaluationLaunches() {
   }
 
   async function refreshStatus(id = launchId) {
-    if (!currentUser || !id) return;
+    if ((!currentUser && !launchLabToken) || !id) return;
     const response = await fetchWithTimeout(`/api/admin/task-evaluation-launches/${encodeURIComponent(id)}`, {
       headers: await authHeaders(),
       credentials: "include",
@@ -103,7 +111,7 @@ export default function AdminTaskEvaluationLaunches() {
 
   useEffect(() => {
     void loadProfiles().catch((reason) => setError(String(reason)));
-  }, [currentUser]);
+  }, [currentUser, launchLabToken]);
 
   useEffect(() => {
     if (
@@ -115,7 +123,7 @@ export default function AdminTaskEvaluationLaunches() {
     }
     const timer = window.setInterval(() => void refreshStatus(), 5000);
     return () => window.clearInterval(timer);
-  }, [launchId, status?.state, currentUser, recoveringSubmission]);
+  }, [launchId, status?.state, currentUser, launchLabToken, recoveringSubmission]);
 
   async function submit() {
     if (!selected) return;
@@ -176,6 +184,11 @@ export default function AdminTaskEvaluationLaunches() {
             Authorize one immutable Pipeline profile. The website queues it; the canonical allocator,
             watchdog, reconciler, artifact retention, teardown, and provider-zero contracts own execution.
           </p>
+          {launchLabToken ? (
+            <p className="mt-3 text-sm font-medium text-emerald-800">
+              Temporary launch-lab access is active. Firebase sign-in is not required in this tab.
+            </p>
+          ) : null}
         </header>
 
         <section className="grid gap-3 md:grid-cols-4">

@@ -366,7 +366,9 @@ export const appRoutes: AppRoute[] = [
   { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
-  { path: "/ops/task-evaluation-launches", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminTaskEvaluationLaunches },
+  // Temporary launch-lab access is enforced server-side by a deployment-gated
+  // bearer capability; the page itself does not require Firebase sign-in.
+  { path: "/ops/task-evaluation-launches", layout: "public", component: AdminTaskEvaluationLaunches },
 
   // 404
   { layout: "public", component: NotFound },

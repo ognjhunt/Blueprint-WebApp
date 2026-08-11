@@ -230,7 +230,17 @@ Agent-side creative MCP note:
   - launch receipts and supervision callbacks use the same canonical
     `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN`; no separate launch callback secret
     is accepted
-  - authenticated admin/ops control surface: `/ops/task-evaluation-launches`
+  - normal authenticated admin/ops control surface: `/ops/task-evaluation-launches`
+  - temporary launch-lab mode may remove repeated Firebase sign-in for only this
+    route by setting `BLUEPRINT_TASK_EVALUATION_LAUNCH_LAB_ENABLED=true` and a
+    random, at-least-32-byte `BLUEPRINT_TASK_EVALUATION_LAUNCH_LAB_TOKEN` on the
+    Web service. Open the page once with the token in the URL fragment:
+    `/ops/task-evaluation-launches#launch-access=<token>`. The fragment is not
+    sent in HTTP requests and is cleared into tab-scoped session storage. This
+    bypass does not apply to any other admin route and does not bypass CSRF,
+    immutable profile selection, rights/spend authority, the canonical Pipeline
+    allocator, retry cap, watchdog, teardown, artifact, or provider-zero gates.
+    Unset both variables after the end-to-end launch path is stable.
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
 - Live robot-eval forwarding required for request acceptance:
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL`

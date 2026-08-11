@@ -66,6 +66,7 @@ import clientRuntimeConfigAdminRouter, {
   clientRuntimeConfigPublicHandler,
 } from "./routes/client-runtime-config";
 import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-launches";
+import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationLaunchAccess";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -202,7 +203,7 @@ export function registerRoutes(app: Express) {
   app.use(
     "/api/admin/task-evaluation-launches",
     csrfProtection,
-    verifyFirebaseToken,
+    verifyTaskEvaluationLaunchAccess,
     adminTaskEvaluationLaunchesRouter,
   );
   app.use(
