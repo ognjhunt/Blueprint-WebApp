@@ -100,7 +100,7 @@ export default function Home() {
               <div>
                 <p className="kinetic-eyebrow">What gets built</p>
                 <h2 className="mt-6 max-w-[13ch] text-[clamp(2.8rem,5.6vw,6.2rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-kinetic-graphite">
-                  One walk. Three artifacts. One day.
+                  One walk. Three artifacts. Target: one day.
                 </h2>
               </div>
               <p className="max-w-[38rem] pb-2 text-lg leading-8 text-kinetic-muted lg:justify-self-end">
