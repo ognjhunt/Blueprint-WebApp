@@ -47,7 +47,7 @@ test('homepage leads with the single Task Evaluation Run story', async ({ page }
   await expect(page.getByText(/Deployment approval/i).first()).toBeVisible();
   await expect(page.getByText(/Safety certification/i).first()).toBeVisible();
 
-  // Screening runs first and is the half that names a cause; the ordering
+  // Screening runs first and is the half that names a cause; the ranking
   // follows, carrying the resolution that makes it readable.
   await expect(page.getByText(/Some candidates the building will not take/i)).toBeVisible();
   await expect(page.getByText(/^Ruled out$/i).first()).toBeVisible();
