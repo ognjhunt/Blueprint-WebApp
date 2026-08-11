@@ -67,7 +67,7 @@ const artifacts = [
     number: "03",
     eyebrow: "Decision packet",
     title: "The evidence becomes actionable.",
-    body: "Ranking, uncertainty, failure slices, and what each checkpoint needs before the physical pilot.",
+    body: "Ranking, uncertainty, failure slices, and what each candidate needs before the physical pilot.",
     image: "/generated/wam-policy-eval-2026-06-21/figure03-style-rollout-strip.png",
     alt: "An illustrative strip of robot policy evaluation rollouts",
     Icon: ChartBarSquareIcon,
@@ -79,12 +79,12 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Turn a site walkthrough into a robot benchmark"
-        description="Blueprint captures a prospective pilot site, rebuilds the task in simulation, runs your checkpoints, and returns a decision-ready evaluation before field time."
+        description="Blueprint captures a prospective pilot site, rebuilds the task in simulation, runs your candidates, and returns a decision-ready evaluation before field time."
         canonical="/"
         jsonLd={[
           webPageJsonLd({
             path: "/",
-            name: "Blueprint field-to-sim robot benchmarks",
+            name: "Blueprint field-to-sim robot benchmark",
             description:
               "A fixed-scope Task Evaluation Run that turns a real site walkthrough into a simulation-ready benchmark and bounded robot-policy decision.",
           }),
@@ -104,7 +104,7 @@ export default function Home() {
                 </h2>
               </div>
               <p className="max-w-[38rem] pb-2 text-lg leading-8 text-kinetic-muted lg:justify-self-end">
-                You bring the site-task and the checkpoints. Blueprint handles the
+                You bring the site-task and the candidates. Blueprint handles the
                 reconstruction, simulation design, evaluation runs, and report.
               </p>
             </div>
@@ -278,12 +278,12 @@ export default function Home() {
         </Inner>
       </Band>
 
-      {/* The ordering, shipped with its margin and its resolution floor. */}
+      {/* The ranking, shipped with its margin and its resolution floor. */}
       <Band tone="paper" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="05"
-            eyebrow="The ordering"
+            eyebrow="The ranking"
             title="Then the survivors get ranked, with the margin."
             lede="One task, one pinned testbed version, the same conditions for every candidate. You get the order, the gap between each pair, the interval on that gap, and the smallest gap the design can separate at all."
           />
@@ -307,9 +307,9 @@ export default function Home() {
               </ProofBoundary>
             </Reveal>
             <Reveal delay={0.08}>
-              <ProofBoundary level="warn" title="Where the ordering stops">
-                This is an ordering on this testbed, under these conditions. We
-                have not measured how our orderings track real-world orderings,
+              <ProofBoundary level="warn" title="Where the ranking stops">
+                This is a ranking on this testbed, under these conditions. We
+                have not measured how our rankings track real-world results,
                 and we do not inherit anyone else's correlation figures as if
                 they were ours.
               </ProofBoundary>

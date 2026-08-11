@@ -62,7 +62,7 @@ export default function Contact() {
     : "Tell us the decision you need to make.";
   const subhead = isSiteOperator
     ? "Request the same Task Evaluation Run used by robot teams. We scope the task, evidence, candidates when available, rights, physical requirements, timing, and quote."
-    : "Request one scoped Task Evaluation Run for a real site-task. Bring candidates or checkpoints when applicable; a ranking or winner is never guaranteed.";
+    : "Request one scoped Task Evaluation Run for a real site-task. Bring your candidates when applicable; a ranking or winner is never guaranteed.";
 
   const intentOptions = isSiteOperator
     ? [
@@ -246,7 +246,7 @@ export default function Contact() {
                     placeholder={
                       isSiteOperator
                         ? "The workflow, decision you need, facility conditions, thresholds, unacceptable failures, access windows, and restricted zones."
-                        : "The site-task, decision, candidates or checkpoints when applicable, success thresholds, false-safe consequence, budget, deadline, and evidence you already have."
+                        : "The site-task, decision, candidates when applicable, success thresholds, false-safe consequence, budget, deadline, and evidence you already have."
                     }
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />

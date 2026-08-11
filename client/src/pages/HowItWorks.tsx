@@ -49,7 +49,7 @@ export default function HowItWorks() {
       <PageHero
         eyebrow="How it works"
         title="Walk the site. We build the benchmark. You get the decision."
-        body="Capture one real task with an iPhone Pro or 360 camera. Blueprint reconstructs the scene, adds the task-specific variation, runs your checkpoints, and returns the ranking, likely failure modes, and uncertainty."
+        body="Capture one real task with an iPhone Pro or 360 camera. Blueprint reconstructs the scene, adds the task-specific variation, runs your candidates, and returns the ranking, likely failure modes, and uncertainty."
         ctaHref={runHref}
         ctaLabel="Scope a benchmark"
         secondaryHref="/pricing"
@@ -82,7 +82,7 @@ export default function HowItWorks() {
             index="02"
             eyebrow="Who owns what"
             title="A clean line between the record and the science."
-            lede="Worth knowing, because it explains why the ordering you get is the one the evidence produced: the site collects the request and shows the result, but it does not get a vote on the verdict."
+            lede="Worth knowing, because it explains why the ranking you get is the one the evidence produced: the site collects the request and shows the result, but it does not get a vote on the verdict."
             onInk
           />
           <div className="mt-14 grid gap-10 lg:grid-cols-2 lg:gap-16">

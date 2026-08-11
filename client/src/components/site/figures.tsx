@@ -1135,7 +1135,7 @@ export function RankingMarginChart({
 
   return (
     <Figure
-      title="The ordering, and what it can resolve"
+      title="The ranking, and what it can resolve"
       subtitle={`${candidates.length} candidates on ${testbedVersion}, ${rolloutsPerCandidate} rollouts each. Adjacent gaps carry their own interval; anything inside the floor is reported as tied.`}
       illustrative
       onInk={onInk}
@@ -1340,7 +1340,7 @@ export function RankingMarginChart({
         />
         <span>
           At {rolloutsPerCandidate} rollouts each, this design separates gaps of
-          about {resolutionFloorPp.toFixed(1)} points and no smaller. The ordering
+          about {resolutionFloorPp.toFixed(1)} points and no smaller. The ranking
           is reported across {oodAxes.join(", ")}, and it holds on{" "}
           {testbedVersion} — not on a floor we have not measured.
         </span>

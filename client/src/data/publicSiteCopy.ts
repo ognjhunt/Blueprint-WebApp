@@ -12,29 +12,41 @@
 //   - the customer never selects a simulator, world model, or provider
 //   - virtual evidence is never presented as a physical or safety guarantee
 //   - figure values on the public site are schematic, never live run data
+//   - "benchmark" stays a singular, site-specific noun
+//
+// On the word "benchmark". It is the category word robot teams already budget
+// for, and the mechanism genuinely matches one: a fixed task, a versioned
+// testbed, and the same conditions for every candidate. What it must never
+// imply is a platform or a public leaderboard — "a benchmark for this site"
+// is true with one design partner and still true with twenty. "Our
+// benchmarks" or "the benchmark platform" is not, and doctrine draws that
+// line explicitly (PLATFORM_CONTEXT.md: not a general benchmark platform).
 //
 // On how a run reports what it could not settle. A run still has an
 // `abstained` terminal state — that is a Pipeline-owned contract value, not a
 // copy decision, and nothing here removes it. What changed is the framing: an
 // unsettled claim is stated as a *resolution* fact ("this design separates
 // gaps of 20 points or more; these two candidates are 4 apart") rather than as
-// a stance about honesty. The site sells the ordering. Resolution is the spec
-// on the ordering, the way a scale has a readability. It is never a section
+// a stance about honesty. The site sells the ranking. Resolution is the spec
+// on the ranking, the way a scale has a readability. It is never a section
 // header, a headline, or a virtue.
+//
+// Buyer-facing vocabulary: "candidate", not "checkpoint" (a non-technical
+// buyer reads that as a milestone); "ranking", not "ordering".
 
 import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTile, LifecycleStage } from "@/components/site/figures";
 
 /* -------------------------------------------------------------- home page */
 
 export const homeHero = {
-  eyebrow: "One service · Task Evaluation Runs",
-  title: "Rank your candidates on the site you are bidding on, before the pilot.",
+  eyebrow: "Field-to-sim evaluation",
+  title: "Which robot do you send to the customer's floor?",
   body:
-    "You already walk the floor before you quote. A Task Evaluation Run turns that visit into a testbed we keep — ruling out the candidates the building physically will not take, then ordering the rest with the margin, the interval on it, and the smallest gap the run can resolve.",
+    "Pilots are expensive. Blueprint walks the site once, rebuilds the real job in simulation, and runs every candidate against the same conditions — so you know which one earns the trip before you book it.",
   chips: [
-    "From walkthrough to measured testbed",
-    "Incompatibilities measured, not predicted",
-    "An ordering with its resolution",
+    "The real site, not a generic scene",
+    "Ruled out on measurement, not prediction",
+    "A ranking, and what it can prove",
   ],
 } as const;
 
@@ -51,7 +63,7 @@ export const homeStats: readonly StatTile[] = [
       "Reach, clearance, footprint, and sightlines come off the capture itself — before a single rollout is spent on a candidate the building will not take.",
   },
   {
-    label: "Every ordering ships with",
+    label: "Every ranking ships with",
     value: "Its margin",
     detail:
       "The gap between candidates, the 95% interval on that gap, and the smallest gap the design can separate at all.",
@@ -194,7 +206,7 @@ export const homeLifecycle: readonly LifecycleStage[] = [
   {
     label: "You state the decision",
     detail:
-      "Not “run a benchmark.” The actual call you are about to make, the candidates in front of you, and what a wrong yes would cost.",
+      "Not “give me a score.” The actual call you are about to make, the candidates in front of you, and what a wrong yes would cost.",
   },
   {
     label: "We screen on measurement",
@@ -306,7 +318,7 @@ export const homeDecisionCost: readonly DecisionCostRow[] = [
   {
     label: "How you pick which candidate ships",
     beforeLabel: "Whichever one demoed best somewhere else",
-    afterLabel: "An ordering measured on your site",
+    afterLabel: "A ranking measured on your site",
   },
   {
     label: "When you find out one will not fit",
@@ -327,14 +339,14 @@ export const homeLimits = [
       "Nothing we return is a safety approval, a certification, or a licence to operate. Those stay with you and your regulator.",
   },
   {
-    title: "An ordering is bounded by its testbed",
+    title: "A ranking holds only where it was measured",
     body:
-      "A ranking holds on the testbed version it was measured on, under the conditions stated. We have not measured how our orderings track real-world orderings, and we do not inherit anyone else's correlation figures as if they were ours.",
+      "A ranking holds on the testbed version it was measured on, under the conditions stated. We have not measured how our rankings track real-world results, and we do not inherit anyone else's correlation figures as if they were ours.",
   },
   {
     title: "Resolution is a property of the design",
     body:
-      "Every run can only separate gaps above a certain size. We publish that floor with the ordering, because a rank you cannot separate is not a result.",
+      "Every run can only separate gaps above a certain size. We publish that floor with the ranking, because a rank you cannot separate is not a result.",
   },
   {
     title: "Some claims need hardware",
@@ -352,10 +364,10 @@ export const homeLimits = [
 
 export const robotTeamHero = {
   eyebrow: "Field-to-sim evaluation · for robot teams",
-  title: "Know which checkpoint deserves the pilot.",
+  title: "Know which candidate deserves the pilot.",
   body:
-    "Walk the prospective site once. Blueprint rebuilds the real task, runs your checkpoints under controlled variation, and returns the ranking, likely failure modes, and what to take into the physical pilot.",
-  chips: ["Bring policies or checkpoints", "Fixed-scope run", "Decision-ready report"],
+    "Walk the prospective site once. Blueprint rebuilds the real task, runs your candidates under controlled variation, and returns the ranking, likely failure modes, and what to take into the physical pilot.",
+  chips: ["Bring your policies or model versions", "Fixed-scope run", "Decision-ready report"],
 } as const;
 
 export const robotTeamValue = [
@@ -367,12 +379,12 @@ export const robotTeamValue = [
   {
     title: "Order what survives, on one substrate",
     body:
-      "Several checkpoints, one task, one testbed version, one set of conditions, reported across site, task, embodiment, viewpoint, and appearance. Same substrate for every candidate, so the comparison means something.",
+      "Several candidates, one task, one testbed version, one set of conditions, reported across site, task, embodiment, viewpoint, and appearance. Same substrate for every candidate, so the comparison means something.",
   },
   {
-    title: "Know what the ordering can resolve",
+    title: "Know what the ranking can prove",
     body:
-      "Every design has a smallest separable gap. We give you the ordering, the interval on each margin, and that floor — so you can tell a real lead from two checkpoints that are simply tied.",
+      "Every design has a smallest separable gap. We give you the ranking, the interval on each margin, and that floor — so you can tell a real lead from two candidates that are simply tied.",
   },
 ] as const;
 
@@ -391,7 +403,7 @@ export const robotTeamFlow: readonly LifecycleStage[] = [
     detail: "Reach, clearance, and footprint come off the capture. Candidates the site will not take are out, with the shortfall in metres.",
   },
   {
-    label: "Read the ordering",
+    label: "Read the ranking",
     detail: "The survivors ranked, each margin with its interval, and the smallest gap this design separates. Not one number.",
   },
   {
@@ -453,17 +465,17 @@ export const howItWorksSplit = {
     "Whether a method is qualified for a given claim",
     "Which evidence a claim is routed to, and when to escalate",
     "What was measured, and how sure the measurement is",
-    "The ordering, its margin, and anything the evidence could not separate",
+    "The ranking, its margin, and anything the evidence could not separate",
   ],
 } as const;
 
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "Fixed-scope benchmarks · from $2,500",
+  eyebrow: "One site, one benchmark · from $2,500",
   title: "Buy one decision before you buy the field time.",
   body:
-    "A first benchmark starts at $2,500 for one bounded site-task and a small checkpoint set. We scope the exact task, evidence, variation, and turnaround with you before anything is authorised.",
+    "A first benchmark starts at $2,500 for one bounded site-task and a small set of candidates. We scope the exact task, evidence, variation, and turnaround with you before anything is authorised.",
 } as const;
 
 export const pricingDrivers = [
@@ -481,7 +493,7 @@ export const pricingIncluded = [
   "Claim, threshold, risk, budget, and deadline scoping",
   "A measured screening pass, with the shortfall on anything ruled out",
   "An evidence plan chosen per claim, and the reasoning",
-  "The ordering of the surviving candidates, with each margin",
+  "The ranking of the surviving candidates, with each margin",
   "The interval on every margin, and the gap the design can separate",
   "The conditions it holds under, and where it stops",
   "Any disagreement between methods, reported rather than averaged",
@@ -493,7 +505,7 @@ export const pricingBoundaries = [
   {
     title: "A quote buys the work, not the answer you wanted",
     body:
-      "Authorising a run does not purchase a particular winner, a green light, a field recommendation, or a passing result. It purchases the ordering the evidence actually supports.",
+      "Authorising a run does not purchase a particular winner, a green light, a field recommendation, or a passing result. It purchases the ranking the evidence actually supports.",
   },
   {
     title: "Price is set on our side",
@@ -519,7 +531,7 @@ export const aboutStats: readonly StatTile[] = [
     detail: "A Task Evaluation Run. Every other product name is retired, not renamed.",
   },
   {
-    label: "Orderings without a margin",
+    label: "Rankings without a margin",
     value: "None",
     detail: "A rank ships with its gap, the interval on that gap, and the floor the design can separate.",
   },
@@ -544,7 +556,7 @@ export const aboutPrinciples = [
   {
     title: "An estimate is never a guarantee",
     body:
-      "We report what the evidence supports inside stated conditions, and we publish the resolution alongside the ordering — because a gap the design cannot separate is not a lead.",
+      "We report what the evidence supports inside stated conditions, and we publish the resolution alongside the ranking — because a gap the design cannot separate is not a lead.",
   },
   {
     title: "Generated frames are review support",
@@ -709,7 +721,7 @@ export const runFilmActs: readonly RunFilmAct[] = [
     label: "The decision you are making",
     // 19 words.
     caption:
-      "Not “run a benchmark.” The actual call, the threshold it turns on, and what a wrong yes would cost.",
+      "Not “give me a score.” The actual call, the threshold it turns on, and what a wrong yes would cost.",
     term: "decision request",
     actor: "You",
   },

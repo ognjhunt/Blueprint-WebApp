@@ -8,7 +8,7 @@ describe("ForRobotTeams", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Know which checkpoint deserves the pilot/i,
+        name: /Know which candidate deserves the pilot/i,
       }),
     ).toBeInTheDocument();
     expect(

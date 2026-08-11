@@ -21,7 +21,7 @@ describe("HowItWorks", () => {
     expect(container).toHaveTextContent(/You never pick the method — that is our job/i);
     expect(screen.getByRole("heading", { name: /The pipeline owns the verdict/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/The ordering, its margin, and anything the evidence could not separate/i),
+      screen.getByText(/The ranking, its margin, and anything the evidence could not separate/i),
     ).toBeInTheDocument();
 
     // Unknown states fail closed rather than defaulting to a pass.
