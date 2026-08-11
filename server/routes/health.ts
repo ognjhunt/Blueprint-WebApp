@@ -2,7 +2,9 @@ import { Router, Request, Response } from "express";
 import { logger } from "../logger";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
 import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
+import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
+import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
 
 const router = Router();
 
@@ -50,7 +52,38 @@ router.get("/health/live", (_req: Request, res: Response) => {
  */
 router.get("/health/ready", async (req: Request, res: Response) => {
   try {
-    const readiness = buildLaunchReadinessSnapshot();
+    const baseReadiness = buildLaunchReadinessSnapshot();
+    const launchStore = isLocalLaunchSmokeProfile()
+      ? { ready: true, code: "local_smoke", checked_at_iso: new Date().toISOString() }
+      : await probeTaskEvaluationLaunchStore();
+    const launchStoreCheck = {
+      required: !isLocalLaunchSmokeProfile(),
+      ready: launchStore.ready,
+      detail: launchStore.ready
+        ? "Task Evaluation launch Firestore is reachable."
+        : `Task Evaluation launch Firestore probe failed (${launchStore.code}).`,
+    };
+    const readiness = {
+      ...baseReadiness,
+      status: baseReadiness.status === "ready" && launchStore.ready
+        ? ("ready" as const)
+        : ("not_ready" as const),
+      checks: {
+        ...baseReadiness.checks,
+        taskEvaluationLaunchStore: launchStore.ready,
+      },
+      blockers: launchStoreCheck.required && !launchStoreCheck.ready
+        ? [...baseReadiness.blockers, `taskEvaluationLaunchStore: ${launchStoreCheck.detail}`]
+        : baseReadiness.blockers,
+      dependencies: {
+        ...baseReadiness.dependencies,
+        taskEvaluationLaunchStore: launchStore,
+        launchChecks: {
+          ...baseReadiness.dependencies.launchChecks,
+          taskEvaluationLaunchStore: launchStoreCheck,
+        },
+      },
+    };
     await maybeAlertOnLaunchReadinessTransition(readiness);
     const statusCode = readiness.status === "ready" ? 200 : 503;
 

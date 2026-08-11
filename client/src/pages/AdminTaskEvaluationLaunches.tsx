@@ -18,6 +18,20 @@ type LaunchProfile = {
   claim_ceiling: string;
 };
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 20_000,
+) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export default function AdminTaskEvaluationLaunches() {
   const { currentUser } = useAuth();
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
@@ -34,6 +48,7 @@ export default function AdminTaskEvaluationLaunches() {
   const [supervision, setSupervision] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [recoveringSubmission, setRecoveringSubmission] = useState(false);
 
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
@@ -53,14 +68,14 @@ export default function AdminTaskEvaluationLaunches() {
 
   async function loadProfiles() {
     if (!currentUser) return;
-    const response = await fetch("/api/admin/task-evaluation-launches/profiles", {
+    const response = await fetchWithTimeout("/api/admin/task-evaluation-launches/profiles", {
       headers: await authHeaders(),
       credentials: "include",
     });
     if (!response.ok) throw new Error("Published Pipeline launch profiles are unavailable");
     const payload = await response.json();
     setProfiles(payload.profiles || []);
-    const supervisionResponse = await fetch(
+    const supervisionResponse = await fetchWithTimeout(
       "/api/admin/task-evaluation-launches/supervision",
       { headers: await authHeaders(), credentials: "include" },
     );
@@ -69,11 +84,21 @@ export default function AdminTaskEvaluationLaunches() {
 
   async function refreshStatus(id = launchId) {
     if (!currentUser || !id) return;
-    const response = await fetch(`/api/admin/task-evaluation-launches/${encodeURIComponent(id)}`, {
+    const response = await fetchWithTimeout(`/api/admin/task-evaluation-launches/${encodeURIComponent(id)}`, {
       headers: await authHeaders(),
       credentials: "include",
     });
-    if (response.ok) setStatus(await response.json());
+    if (response.ok) {
+      setStatus(await response.json());
+      setRecoveringSubmission(false);
+      setError(null);
+      return true;
+    }
+    if (response.status !== 404) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Task Evaluation launch status is unavailable");
+    }
+    return false;
   }
 
   useEffect(() => {
@@ -81,19 +106,23 @@ export default function AdminTaskEvaluationLaunches() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (!launchId || !status || ["completed", "blocked", "dry_run_completed"].includes(status.state)) {
+    if (
+      !launchId
+      || (!status && !recoveringSubmission)
+      || ["completed", "blocked", "dry_run_completed"].includes(status?.state)
+    ) {
       return undefined;
     }
     const timer = window.setInterval(() => void refreshStatus(), 5000);
     return () => window.clearInterval(timer);
-  }, [launchId, status?.state, currentUser]);
+  }, [launchId, status?.state, currentUser, recoveringSubmission]);
 
   async function submit() {
     if (!selected) return;
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/task-evaluation-launches", {
+      const response = await fetchWithTimeout("/api/admin/task-evaluation-launches", {
         method: "POST",
         headers: await authHeaders(true),
         credentials: "include",
@@ -108,11 +137,24 @@ export default function AdminTaskEvaluationLaunches() {
         }),
       });
       const payload = await response.json();
+      if (!response.ok && payload.persistence_state === "unknown") {
+        setStatus(null);
+        setRecoveringSubmission(true);
+        setError("Launch persistence is still being resolved. Checking this exact launch ID; do not create a new launch.");
+        await refreshStatus(launchId).catch(() => false);
+        return;
+      }
       setStatus(payload);
       if (!response.ok) throw new Error(payload.error || payload.forward?.blocker || "Launch was blocked");
       await refreshStatus(launchId);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Launch was blocked");
+      if (reason instanceof Error && reason.name === "AbortError") {
+        setRecoveringSubmission(true);
+        setError("Launch submission timed out while persistence may still be completing. Checking this exact launch ID; do not create a new launch.");
+        await refreshStatus(launchId).catch(() => false);
+      } else {
+        setError(reason instanceof Error ? reason.message : "Launch was blocked");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -202,9 +244,13 @@ export default function AdminTaskEvaluationLaunches() {
                 There are no automatic paid retries.</span>
             </label>
             <button type="button" onClick={() => void submit()}
-              disabled={!canSubmit || submitting}
+              disabled={!canSubmit || submitting || recoveringSubmission}
               className="w-full bg-stone-950 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">
-              {submitting ? "Queuing immutable launch…" : "Authorize and queue launch"}
+              {submitting
+                ? "Queuing immutable launch…"
+                : recoveringSubmission
+                  ? "Checking durable launch…"
+                  : "Authorize and queue launch"}
             </button>
           </div>
 

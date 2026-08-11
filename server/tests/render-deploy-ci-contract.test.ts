@@ -26,12 +26,27 @@ describe("Render deploy-on-green contract", () => {
     expect(deployWorkflow).toContain("WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}");
     expect(deployWorkflow).toContain("RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}");
     expect(deployWorkflow).toContain("RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}");
+    expect(deployWorkflow).toContain(
+      "RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}",
+    );
     expect(deployWorkflow).toContain("RENDER_API_KEY secret is not set");
-    expect(deployWorkflow).toContain("RENDER_SERVICE_ID Actions variable is missing or invalid");
-    expect(deployWorkflow).toContain("https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys");
+    expect(deployWorkflow).toContain(
+      "for service_var in RENDER_SERVICE_ID RENDER_WORKER_SERVICE_ID",
+    );
+    expect(deployWorkflow).toContain(
+      "https://api.render.com/v1/services/${service_id}/deploys",
+    );
+    expect(deployWorkflow).toContain(
+      'trigger_deploy "${RENDER_SERVICE_ID}" web',
+    );
+    expect(deployWorkflow).toContain(
+      'trigger_deploy "${RENDER_WORKER_SERVICE_ID}" worker',
+    );
     expect(deployWorkflow).toContain("commitId");
     expect(deployWorkflow).toContain("${DEPLOY_REF}");
-    expect(deployWorkflow).toContain("render-deploy.json");
+    expect(deployWorkflow).toContain("render-${label}-deploy.json");
+    expect(deployWorkflow).toContain("web_render_commit");
+    expect(deployWorkflow).toContain("worker_render_commit");
     expect(deployWorkflow).toContain('"${BASE_URL}/version.json"');
     expect(deployWorkflow).toContain('"${BASE_URL}/health/ready"');
 
@@ -40,5 +55,6 @@ describe("Render deploy-on-green contract", () => {
     expect(deploymentDoc).toContain("full `CI` workflow succeeds");
     expect(deploymentDoc).toContain("RENDER_API_KEY");
     expect(deploymentDoc).toContain("RENDER_SERVICE_ID");
+    expect(deploymentDoc).toContain("RENDER_WORKER_SERVICE_ID");
   });
 });
