@@ -8,7 +8,11 @@ import {
   resolveTaskEvaluationLaunchLabToken,
   withTaskEvaluationLaunchLabHeader,
 } from "@/lib/taskEvaluationLaunchLabAccess";
-import { defaultTaskEvaluationAuthorityExpiry } from "@/lib/taskEvaluationLaunchForm";
+import {
+  defaultTaskEvaluationAuthorityExpiry,
+  formatTaskEvaluationMaxSpend,
+  taskEvaluationSpendCoversProfile,
+} from "@/lib/taskEvaluationLaunchForm";
 
 type LaunchProfile = {
   profile_id: string;
@@ -20,6 +24,7 @@ type LaunchProfile = {
     readiness_receipt: { uri: string; digest: string };
     blockers: string[];
   };
+  required_authorization?: { max_spend_usd: number; hard_ttl_seconds: number };
   claim_ceiling: string;
 };
 
@@ -60,9 +65,19 @@ export default function AdminTaskEvaluationLaunches() {
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
     [profileKey, profiles],
   );
+  const requiredMaxSpend = selected?.required_authorization?.max_spend_usd;
+
+  useEffect(() => {
+    if (requiredMaxSpend !== undefined) {
+      setMaxSpend(formatTaskEvaluationMaxSpend(requiredMaxSpend));
+    }
+  }, [requiredMaxSpend]);
+
   const canSubmit = Boolean(
     selected && confirmed && launchId && runId && rightsScope && rightsUri
-    && /^sha256:[0-9a-f]{64}$/.test(rightsDigest) && Number(maxSpend) > 0 && expiresAt,
+    && /^sha256:[0-9a-f]{64}$/.test(rightsDigest)
+    && taskEvaluationSpendCoversProfile(maxSpend, requiredMaxSpend)
+    && expiresAt,
   );
 
   async function authHeaders(json = false) {
@@ -240,6 +255,12 @@ export default function AdminTaskEvaluationLaunches() {
                 {selected.execution_admission.blockers.map((blocker) => (
                   <p key={blocker} className="text-amber-800">Readiness blocker · {blocker}</p>
                 ))}
+                {selected.required_authorization ? (
+                  <p>
+                    Required authority ceiling ${selected.required_authorization.max_spend_usd.toFixed(2)}
+                    {" · "}{selected.required_authorization.hard_ttl_seconds}s hard runtime limit
+                  </p>
+                ) : null}
                 <p>Claim ceiling {selected.claim_ceiling}</p>
               </div>
             ) : null}

@@ -47,6 +47,14 @@ router.post("/", async (req, res) => {
     error: "Published Pipeline launch profile does not match",
     code: "task_evaluation_launch_profile_not_published",
   });
+  if (
+    profile.required_authorization
+    && parsed.data.spend.max_spend_usd < profile.required_authorization.max_spend_usd
+  ) return res.status(400).json({
+    error: "Spend authority is below the selected Pipeline profile requirement",
+    code: "task_evaluation_launch_spend_authority_below_profile_requirement",
+    required_max_spend_usd: profile.required_authorization.max_spend_usd,
+  });
   const access = await resolveAccessContext(res);
   const actorId = access.uid || access.email;
   if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });

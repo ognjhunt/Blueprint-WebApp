@@ -25,3 +25,17 @@ export function defaultTaskEvaluationAuthorityExpiry(
     new Date(now.getTime() + DEFAULT_AUTHORITY_WINDOW_MS),
   );
 }
+
+export function formatTaskEvaluationMaxSpend(value: number): string {
+  return Number.isFinite(value) && value > 0 ? value.toFixed(2) : "2.00";
+}
+
+export function taskEvaluationSpendCoversProfile(
+  approvedValue: string,
+  requiredValue: number | undefined,
+): boolean {
+  const approved = Number(approvedValue);
+  return Number.isFinite(approved)
+    && approved > 0
+    && (requiredValue === undefined || approved >= requiredValue);
+}

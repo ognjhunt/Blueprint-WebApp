@@ -234,6 +234,32 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
+  it("rejects insufficient authority before durable state or Pipeline forwarding", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([{
+      ...profile(),
+      required_authorization: { max_spend_usd: 6, hard_ttl_seconds: 5400 },
+    }]);
+    const { server, url } = await startServer();
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(launchInput()),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        code: "task_evaluation_launch_spend_authority_below_profile_requirement",
+        required_max_spend_usd: 6,
+      });
+      expect(state.records.size).toBe(0);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target).startsWith("https://pipeline.example/"),
+      )).toHaveLength(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("returns an existing queued launch without forwarding the website intent again", async () => {
     const { server, url } = await startServer();
     const input = launchInput();

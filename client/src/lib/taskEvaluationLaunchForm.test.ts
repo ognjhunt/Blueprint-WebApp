@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   defaultTaskEvaluationAuthorityExpiry,
   formatLocalDateTimeValue,
+  formatTaskEvaluationMaxSpend,
+  taskEvaluationSpendCoversProfile,
 } from "./taskEvaluationLaunchForm";
 
 describe("Task Evaluation launch form", () => {
@@ -16,5 +18,12 @@ describe("Task Evaluation launch form", () => {
     const now = new Date(2026, 7, 11, 9, 7, 41);
 
     expect(defaultTaskEvaluationAuthorityExpiry(now)).toBe("2026-08-11T15:07");
+  });
+
+  it("formats and enforces the selected immutable profile spend requirement", () => {
+    expect(formatTaskEvaluationMaxSpend(6)).toBe("6.00");
+    expect(taskEvaluationSpendCoversProfile("6.00", 6)).toBe(true);
+    expect(taskEvaluationSpendCoversProfile("5.99", 6)).toBe(false);
+    expect(taskEvaluationSpendCoversProfile("2.00", undefined)).toBe(true);
   });
 });
