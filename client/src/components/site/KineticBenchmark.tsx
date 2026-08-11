@@ -77,6 +77,16 @@ export function KineticBenchmark() {
           <p className="mt-8 max-w-[42rem] text-[clamp(1rem,1.35vw,1.22rem)] leading-[1.65] text-kinetic-muted">
             {homeHero.body}
           </p>
+          <ul className="mt-7 flex max-w-[42rem] flex-wrap gap-2">
+            {homeHero.chips.map((chip) => (
+              <li
+                key={chip}
+                className="rounded-full border border-kinetic-line bg-white px-3.5 py-1.5 text-[13px] leading-5 text-kinetic-muted"
+              >
+                {chip}
+              </li>
+            ))}
+          </ul>
           <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
             <a className="kinetic-button-primary" href={runHref}>
               Scope a benchmark
@@ -87,7 +97,7 @@ export function KineticBenchmark() {
               <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
-          <p className="mt-5 text-sm text-kinetic-faint">Fixed-scope runs from $2,500 · results in 12–24 hours</p>
+          <p className="mt-5 text-sm text-kinetic-faint">Fixed-scope runs from $2,500 · target turnaround 12–24h</p>
         </div>
 
         <StageRail
@@ -305,7 +315,7 @@ function KineticTimeline({ activeStage }: { activeStage: number }) {
       <div className="mt-4 grid grid-cols-3 font-mono text-[9px] uppercase tracking-[0.13em] text-white/65 sm:text-[10px]">
         <span>Capture start</span>
         <span className="text-center">Simulation runs</span>
-        <span className="text-right">Results ready · 12–24h</span>
+        <span className="text-right">Results · target 12–24h</span>
       </div>
     </div>
   );

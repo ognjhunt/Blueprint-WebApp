@@ -100,12 +100,14 @@ export default function Home() {
               <div>
                 <p className="kinetic-eyebrow">What gets built</p>
                 <h2 className="mt-6 max-w-[13ch] text-[clamp(2.8rem,5.6vw,6.2rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-kinetic-graphite">
-                  One walk. Three decision artifacts.
+                  One walk. Three artifacts. Target: one day.
                 </h2>
               </div>
               <p className="max-w-[38rem] pb-2 text-lg leading-8 text-kinetic-muted lg:justify-self-end">
                 You bring the site-task and the candidates. Blueprint handles the
-                reconstruction, simulation design, evaluation runs, and report.
+                reconstruction, simulation design, evaluation runs, and report —
+                targeting a result in 12–24 hours, back before you could
+                schedule the pilot.
               </p>
             </div>
           </Reveal>
