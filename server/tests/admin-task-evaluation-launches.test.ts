@@ -293,13 +293,17 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
-  it("stores a digest-bound Pipeline terminal receipt on the same launch record", async () => {
+  it("lets a delayed digest-bound Pipeline terminal receipt supersede a control-plane blocker", async () => {
     const requestDigest = sha("a");
     state.records.set("launch-001", {
       launch_id: "launch-001",
       run_id: "run-001",
       request_digest: requestDigest,
-      state: "queued_in_pipeline",
+      state: "control_plane_terminal_blocked",
+      control_plane_terminal_blocker: {
+        code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
+        execution_result: "not_observed",
+      },
     });
     const receipt: Record<string, any> = {
       schema_version: "task_evaluation_launch_receipt.v1",
@@ -332,6 +336,7 @@ describe("admin Task Evaluation launch route", () => {
         state: "completed",
         terminal_receipt_digest: receipt.receipt_digest,
         terminal_receipt: { terminal_evidence: { status: "passed" } },
+        control_plane_terminal_blocker: { execution_result: "not_observed" },
       });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
