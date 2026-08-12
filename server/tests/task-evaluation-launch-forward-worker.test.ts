@@ -8,6 +8,8 @@ import {
   buildTaskEvaluationLaunchRequest,
 } from "../utils/taskEvaluationLaunchContract";
 import {
+  buildExpiredControlPlaneTerminalBlocker,
+  closeExpiredTaskEvaluationLaunches,
   forwardStoredTaskEvaluationLaunch,
   validateStoredTaskEvaluationLaunch,
 } from "../utils/taskEvaluationLaunchForwardWorker";
@@ -104,5 +106,86 @@ describe("Task Evaluation launch forward worker", () => {
       paid_execution_retry_performed: false,
     });
     expect(forwarder).not.toHaveBeenCalled();
+  });
+
+  it("retains a typed control-plane blocker only after an accepted launch authority expires", () => {
+    const queued = { ...record(), state: "queued_in_pipeline" };
+    const beforeExpiry = buildExpiredControlPlaneTerminalBlocker(
+      queued,
+      Date.parse("2026-08-11T11:59:59.999Z"),
+    );
+    const afterExpiry = buildExpiredControlPlaneTerminalBlocker(
+      queued,
+      Date.parse("2026-08-11T12:00:00.000Z"),
+    );
+
+    expect(beforeExpiry).toBeNull();
+    expect(afterExpiry).toMatchObject({
+      state: "control_plane_terminal_blocked",
+      retryable: false,
+      paid_execution_retry_performed: false,
+      control_plane_terminal_blocker: {
+        schema_version: "task_evaluation_launch_control_plane_blocker.v1",
+        code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
+        pipeline_terminal_receipt_observed: false,
+        provider_mutation_performed_by_webapp: false,
+        execution_result: "not_observed",
+        scripted_positive_controls_result: "not_observed",
+        learned_policy_result: "not_observed",
+      },
+    });
+    expect(afterExpiry).not.toHaveProperty("terminal_receipt");
+  });
+
+  it("durably closes only the exact expired queued launch without a provider action", async () => {
+    const records = new Map<string, Record<string, any>>([
+      ["launch-001", { ...record(), state: "queued_in_pipeline", provider_mutation_observed: true }],
+    ]);
+    const ref = (id: string) => ({
+      id,
+      get: async () => {
+        const value = records.get(id);
+        return { exists: Boolean(value), data: () => value && structuredClone(value) };
+      },
+    });
+    const firestore = {
+      collection: () => ({
+        where: (_field: string, _operator: string, state: string) => ({
+          limit: (limit: number) => ({
+            get: async () => ({
+              docs: [...records.entries()]
+                .filter(([, value]) => value.state === state)
+                .slice(0, limit)
+                .map(([id, value]) => ({ ref: ref(id), data: () => structuredClone(value) })),
+            }),
+          }),
+        }),
+      }),
+      runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => callback({
+        get: async (target: ReturnType<typeof ref>) => target.get(),
+        set: (target: ReturnType<typeof ref>, value: Record<string, any>, options?: { merge?: boolean }) => {
+          records.set(target.id, options?.merge
+            ? { ...(records.get(target.id) || {}), ...structuredClone(value) }
+            : structuredClone(value));
+        },
+      }),
+    };
+
+    const result = await closeExpiredTaskEvaluationLaunches(10, {
+      firestore: firestore as any,
+      nowMs: () => Date.parse("2026-08-11T12:00:00.000Z"),
+    });
+
+    expect(result).toEqual({ status: "completed", closed: 1 });
+    expect(records.get("launch-001")).toMatchObject({
+      state: "control_plane_terminal_blocked",
+      provider_mutation_observed: true,
+      paid_execution_retry_performed: false,
+      control_plane_terminal_blocker: {
+        execution_result: "not_observed",
+        scripted_positive_controls_result: "not_observed",
+        learned_policy_result: "not_observed",
+      },
+    });
   });
 });

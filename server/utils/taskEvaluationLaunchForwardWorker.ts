@@ -42,6 +42,48 @@ export function validateStoredTaskEvaluationLaunch(record: Record<string, any>):
   return blockers;
 }
 
+/**
+ * A Pipeline terminal receipt is the sole execution-result authority.  This is
+ * deliberately not a substitute receipt: it only closes an accepted launch
+ * whose bounded spend authority has elapsed without a Pipeline terminal
+ * callback.  The original record remains intact so a delayed, digest-bound
+ * Pipeline receipt can still supersede this control-plane blocker.
+ */
+export function buildExpiredControlPlaneTerminalBlocker(
+  record: Record<string, any>,
+  nowMs = Date.now(),
+) {
+  if (record.state !== "queued_in_pipeline" || record.terminal_receipt) return null;
+  if (validateStoredTaskEvaluationLaunch(record).length) return null;
+  const expiresAt = String(record.request?.authorization?.spend?.expires_at || "");
+  const expiresAtMs = Date.parse(expiresAt);
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs > nowMs) return null;
+  const observedAtIso = new Date(nowMs).toISOString();
+  return {
+    state: "control_plane_terminal_blocked",
+    retryable: false,
+    paid_execution_retry_performed: false,
+    control_plane_terminal_blocker: {
+      schema_version: "task_evaluation_launch_control_plane_blocker.v1",
+      status: "blocked",
+      code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
+      launch_id: record.request.launch_id,
+      run_id: record.request.run_id,
+      request_digest: record.request_digest,
+      spend_authority_expires_at: expiresAt,
+      observed_at_iso: observedAtIso,
+      pipeline_terminal_receipt_observed: false,
+      provider_mutation_performed_by_webapp: false,
+      paid_execution_retry_performed: false,
+      execution_result: "not_observed",
+      scripted_positive_controls_result: "not_observed",
+      learned_policy_result: "not_observed",
+      explanation: "Pipeline accepted the immutable launch, but its terminal receipt was not retained before the bounded spend authority expired.",
+    },
+    updated_at_iso: observedAtIso,
+  };
+}
+
 export async function forwardStoredTaskEvaluationLaunch(
   record: Record<string, any>,
   forwarder = forwardTaskEvaluationLaunch,
@@ -116,6 +158,36 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
   return { status: "completed", processed };
 }
 
+export async function closeExpiredTaskEvaluationLaunches(
+  limit = 10,
+  options: { firestore?: typeof db; nowMs?: () => number } = {},
+) {
+  const firestore = options.firestore === undefined ? db : options.firestore;
+  if (!firestore) return { status: "blocked", blocker: "firestore_unavailable", closed: 0 };
+  const nowMs = options.nowMs || Date.now;
+  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+    firestore.collection(COLLECTION).where("state", "==", "queued_in_pipeline").limit(limit).get(),
+  );
+  let closed = 0;
+  for (const doc of snapshot.docs) {
+    const didClose = await withTaskEvaluationLaunchStoreTimeout(
+      firestore.runTransaction(async (transaction) => {
+        const current = await transaction.get(doc.ref);
+        if (!current.exists) return false;
+        const blocker = buildExpiredControlPlaneTerminalBlocker(
+          current.data() as Record<string, any>,
+          nowMs(),
+        );
+        if (!blocker) return false;
+        transaction.set(doc.ref, blocker, { merge: true });
+        return true;
+      }),
+    );
+    if (didClose) closed += 1;
+  }
+  return { status: "completed", closed };
+}
+
 export function startTaskEvaluationLaunchForwardWorker() {
   if (!truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED)) {
     return () => undefined;
@@ -129,6 +201,9 @@ export function startTaskEvaluationLaunchForwardWorker() {
   const run = () => {
     void processTaskEvaluationLaunchForwardQueue().catch((error) => {
       logger.error({ err: error }, "Task Evaluation launch forward reconciliation failed");
+    });
+    void closeExpiredTaskEvaluationLaunches().catch((error) => {
+      logger.error({ err: error }, "Task Evaluation launch terminal closure reconciliation failed");
     });
   };
   const initial = setTimeout(run, 5_000);

@@ -16,7 +16,12 @@ import {
 
 // One definition: the poll loop and the terminal badge must agree on what
 // "finished" means, or the page keeps polling a run it already calls done.
-const TERMINAL_LAUNCH_STATES = ["completed", "blocked", "dry_run_completed"];
+const TERMINAL_LAUNCH_STATES = [
+  "completed",
+  "blocked",
+  "dry_run_completed",
+  "control_plane_terminal_blocked",
+];
 
 type LaunchProgress = {
   phase?: string;
@@ -353,7 +358,11 @@ export default function AdminTaskEvaluationLaunches() {
                   ) : null}
                 </div>
               ) : null}
-              {terminal ? (
+              {status?.state === "control_plane_terminal_blocked" ? (
+                <div className="mt-5 flex items-center gap-2 text-amber-300">
+                  <AlertTriangle className="h-4 w-4" /> Control-plane blocker retained; no execution result was observed
+                </div>
+              ) : terminal ? (
                 <div className="mt-5 flex items-center gap-2 text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" /> Terminal receipt retained
                 </div>
