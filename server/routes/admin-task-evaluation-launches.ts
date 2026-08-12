@@ -293,21 +293,15 @@ router.post("/:launchId/terminal-resource-releases", async (req, res) => {
       provider_mutation_performed_inside_web_request: false,
     });
   }
-  const priorState = String(persisted.release.state || "");
-  if (priorState === "queued_in_pipeline") {
-    res.set("Cache-Control", "no-store");
-    return res.status(200).json({
-      schema_version: "task_evaluation_terminal_resource_release_web_receipt.v1",
-      status: priorState,
-      already_exists: true,
-      launch_id: persisted.request.launch_id,
-      release_id: persisted.request.release_id,
-      terminal_resource_release_digest: persisted.request.terminal_resource_release_digest,
-      forward: persisted.release.forward || null,
-      provider_mutation_performed_inside_web_request: false,
-      automatic_retry_performed: false,
-    });
-  }
+  // A queued release is not a finished one. The WebApp never observes the
+  // Pipeline's outcome for a release, so returning the stored forward receipt
+  // here echoed the first attempt forever: a release that blocked
+  // Pipeline-side became permanently unretryable and stranded the provider
+  // record it named. Forward again and let the Pipeline decide -- it re-arms
+  // only when its retained receipt proves the provider was never contacted,
+  // and refuses with a typed blocker otherwise. The attempt cap below bounds
+  // this, and the forwarded request stays byte-identical, so an already
+  // completed release is still refused downstream rather than repeated.
   const priorAttempts = Number(persisted.release.forward_attempt_count || 0);
   const maxForwardAttempts = Math.min(
     20,
