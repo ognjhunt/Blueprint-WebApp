@@ -63,6 +63,12 @@ export function buildExpiredControlPlaneTerminalBlocker(
     state: "control_plane_terminal_blocked",
     retryable: false,
     paid_execution_retry_performed: false,
+    // Recorded explicitly because the terminal-release guard compares with
+    // !==, so an omitted field reads as "unknown" and blocks the very
+    // recovery this blocker exists to enable. The guard above already
+    // established that no Pipeline terminal receipt is present, so false is
+    // the observed truth rather than an assumption.
+    terminal_receipt_present: false,
     control_plane_terminal_blocker: {
       schema_version: "task_evaluation_launch_control_plane_blocker.v1",
       status: "blocked",
@@ -158,6 +164,62 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
   return { status: "completed", processed };
 }
 
+/**
+ * Repair a launch that was blocked before `terminal_receipt_present` was
+ * recorded. Those records satisfy every other release condition yet stay
+ * permanently ineligible, stranding the provider resource the release route
+ * exists to free.
+ *
+ * The flag is only written when the record's own digest-bound blocker already
+ * asserts that no Pipeline terminal receipt was observed, so this restates
+ * retained evidence rather than deciding anything new.
+ */
+export function buildMissingTerminalReceiptFlagPatch(record: Record<string, any>) {
+  if (record.state !== "control_plane_terminal_blocked") return null;
+  if ("terminal_receipt_present" in record) return null;
+  if (record.terminal_receipt) return null;
+  const blocker = record.control_plane_terminal_blocker;
+  if (
+    !blocker
+    || blocker.schema_version !== "task_evaluation_launch_control_plane_blocker.v1"
+    || blocker.status !== "blocked"
+    || blocker.pipeline_terminal_receipt_observed !== false
+  ) return null;
+  return { terminal_receipt_present: false } as const;
+}
+
+export async function repairControlPlaneBlockedLaunches(
+  limit = 10,
+  options: { firestore?: typeof db } = {},
+) {
+  const firestore = options.firestore === undefined ? db : options.firestore;
+  if (!firestore) return { status: "blocked", blocker: "firestore_unavailable", repaired: 0 };
+  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+    firestore
+      .collection(COLLECTION)
+      .where("state", "==", "control_plane_terminal_blocked")
+      .limit(limit)
+      .get(),
+  );
+  let repaired = 0;
+  for (const doc of snapshot.docs) {
+    const didRepair = await withTaskEvaluationLaunchStoreTimeout(
+      firestore.runTransaction(async (transaction) => {
+        const current = await transaction.get(doc.ref);
+        if (!current.exists) return false;
+        const patch = buildMissingTerminalReceiptFlagPatch(
+          current.data() as Record<string, any>,
+        );
+        if (!patch) return false;
+        transaction.set(doc.ref, patch, { merge: true });
+        return true;
+      }),
+    );
+    if (didRepair) repaired += 1;
+  }
+  return { status: "completed", repaired };
+}
+
 export async function closeExpiredTaskEvaluationLaunches(
   limit = 10,
   options: { firestore?: typeof db; nowMs?: () => number } = {},
@@ -204,6 +266,9 @@ export function startTaskEvaluationLaunchForwardWorker() {
     });
     void closeExpiredTaskEvaluationLaunches().catch((error) => {
       logger.error({ err: error }, "Task Evaluation launch terminal closure reconciliation failed");
+    });
+    void repairControlPlaneBlockedLaunches().catch((error) => {
+      logger.error({ err: error }, "Task Evaluation launch terminal flag repair failed");
     });
   };
   const initial = setTimeout(run, 5_000);
