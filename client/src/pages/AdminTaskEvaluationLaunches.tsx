@@ -88,6 +88,10 @@ export default function AdminTaskEvaluationLaunches() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [recoveringSubmission, setRecoveringSubmission] = useState(false);
+  const [releaseInstanceId, setReleaseInstanceId] = useState("");
+  const [releaseExpectedLabel, setReleaseExpectedLabel] = useState("");
+  const [releaseConfirmed, setReleaseConfirmed] = useState(false);
+  const [releasing, setReleasing] = useState(false);
 
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
@@ -214,7 +218,50 @@ export default function AdminTaskEvaluationLaunches() {
     }
   }
 
+  async function submitTerminalResourceRelease() {
+    const id = String(status?.launch_id || launchId || "");
+    if (!id) return;
+    setReleasing(true);
+    setError(null);
+    try {
+      const response = await fetchWithTimeout(
+        `/api/admin/task-evaluation-launches/${encodeURIComponent(id)}/terminal-resource-releases`,
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify({
+            provider: "vast",
+            instance_id: releaseInstanceId,
+            expected_label: releaseExpectedLabel,
+            confirm_terminal_resource_release: releaseConfirmed,
+          }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(payload.error || payload.forward?.blocker || "Terminal resource release was blocked");
+        return;
+      }
+      setStatus((current) => ({
+        ...(current || {}),
+        terminal_resource_release: payload,
+      }));
+      await refreshStatus(id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Terminal resource release was blocked");
+    } finally {
+      setReleasing(false);
+    }
+  }
+
   const terminal = status && TERMINAL_LAUNCH_STATES.includes(status.state);
+  const canReleaseTerminalResource = Boolean(
+    status?.state === "control_plane_terminal_blocked"
+    && /^[1-9][0-9]{0,18}$/.test(releaseInstanceId)
+    && /^blueprint-adp009d-[1-9][0-9]{9,}$/.test(releaseExpectedLabel)
+    && releaseConfirmed,
+  );
   // Only shown while the run is still in flight. A phase label left standing
   // beside a terminal receipt would read as a result, which it never is.
   const progress: LaunchProgress | null = terminal ? null : status?.progress || null;
@@ -372,6 +419,32 @@ export default function AdminTaskEvaluationLaunches() {
               <div className="flex gap-3 border border-rose-300 bg-rose-50 p-5 text-sm text-rose-800">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
                 <span>{error}</span>
+              </div>
+            ) : null}
+            {status?.state === "control_plane_terminal_blocked" ? (
+              <div className="border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+                <p className="font-semibold">Release one retained stopped provider record</p>
+                <p className="mt-2">
+                  This is an operational recovery only. It cannot start, retry, or score an evaluation.
+                  Pipeline will inspect the exact ID and label before its canonical allocator may delete it,
+                  then retain an independent provider-zero receipt.
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <Input label="Stopped Vast instance ID" value={releaseInstanceId}
+                    onChange={setReleaseInstanceId} placeholder="Exact numeric provider ID" />
+                  <Input label="Expected immutable instance label" value={releaseExpectedLabel}
+                    onChange={setReleaseExpectedLabel} placeholder="blueprint-adp009d-..." />
+                  <label className="flex items-start gap-3 text-sm">
+                    <input className="mt-1" type="checkbox" checked={releaseConfirmed}
+                      onChange={(event) => setReleaseConfirmed(event.target.checked)} />
+                    <span>I authorize release of only this stopped record. No evaluation will be launched or retried.</span>
+                  </label>
+                  <button type="button" onClick={() => void submitTerminalResourceRelease()}
+                    disabled={!canReleaseTerminalResource || releasing}
+                    className="bg-amber-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    {releasing ? "Queuing release-only recovery…" : "Authorize and queue resource release"}
+                  </button>
+                </div>
               </div>
             ) : null}
             <div className="border border-stone-300 p-5 text-sm leading-6 text-stone-600">

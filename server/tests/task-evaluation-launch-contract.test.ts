@@ -6,7 +6,9 @@ import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   buildTaskEvaluationLaunchRequest,
+  buildTaskEvaluationTerminalResourceReleaseRequest,
   forwardTaskEvaluationLaunch,
+  forwardTaskEvaluationTerminalResourceRelease,
   loadPublishedLaunchProfiles,
   parseTaskEvaluationLaunchReceipt,
   resolvePublishedLaunchProfileCatalog,
@@ -14,6 +16,7 @@ import {
   resolveTaskEvaluationLaunchUrl,
   resolveTaskEvaluationProfileCatalogUrl,
   taskEvaluationLaunchInputSchema,
+  taskEvaluationTerminalResourceReleaseInputSchema,
 } from "../utils/taskEvaluationLaunchContract";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -69,6 +72,38 @@ function input() {
   });
 }
 
+function terminalBlockedLaunchRecord() {
+  const request = buildTaskEvaluationLaunchRequest({
+    input: input(), profile: profile(), actorId: "founder-001", actorRole: "admin",
+    authorizedAt: "2026-08-10T12:00:00.000Z",
+  });
+  return {
+    launch_id: request.launch_id,
+    run_id: request.run_id,
+    request_digest: request.request_digest,
+    state: "control_plane_terminal_blocked",
+    terminal_receipt_present: false,
+    provider_mutation_observed: false,
+    paid_execution_retry_performed: false,
+    control_plane_terminal_blocker: {
+      schema_version: "task_evaluation_launch_control_plane_blocker.v1",
+      status: "blocked",
+      code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
+      launch_id: request.launch_id,
+      run_id: request.run_id,
+      request_digest: request.request_digest,
+      spend_authority_expires_at: "2026-08-10T12:30:00.000Z",
+      observed_at_iso: "2026-08-10T12:31:00.000Z",
+      pipeline_terminal_receipt_observed: false,
+      provider_mutation_performed_by_webapp: false,
+      paid_execution_retry_performed: false,
+      execution_result: "not_observed",
+      scripted_positive_controls_result: "not_observed",
+      learned_policy_result: "not_observed",
+    },
+  };
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -97,6 +132,81 @@ describe("Task Evaluation production launch contract", () => {
     expect(JSON.stringify(request)).not.toContain("provider-launch-request");
     expect(JSON.stringify(request)).not.toContain("api_key");
     expect(request.authorization.spend.max_spend_usd).toBe(2);
+  });
+
+  it("binds a release-only recovery request to one terminal-blocked launch", () => {
+    const request = buildTaskEvaluationTerminalResourceReleaseRequest({
+      launchRecord: terminalBlockedLaunchRecord(),
+      input: taskEvaluationTerminalResourceReleaseInputSchema.parse({
+        provider: "vast",
+        instance_id: "47508030",
+        expected_label: "blueprint-adp009d-1786496624",
+        confirm_terminal_resource_release: true,
+      }),
+      actorId: "founder-001",
+      actorRole: "admin",
+      authorizedAt: "2026-08-11T12:00:00.000Z",
+    });
+
+    expect(request.terminal_resource_release_digest).toBe(
+      canonicalArtifactDigest(request, "terminal_resource_release_digest"),
+    );
+    expect(request).toMatchObject({
+      provider: "vast",
+      instance_id: "47508030",
+      provider_mutation_performed_inside_web_request: false,
+      automatic_retry_performed: false,
+      authorization: { max_additional_spend_usd: 0, retry_cap: 0 },
+    });
+    expect(JSON.stringify(request)).not.toContain("--execute");
+    expect(() => buildTaskEvaluationTerminalResourceReleaseRequest({
+      launchRecord: { ...terminalBlockedLaunchRecord(), state: "completed" },
+      input: taskEvaluationTerminalResourceReleaseInputSchema.parse({
+        provider: "vast", instance_id: "47508030",
+        expected_label: "blueprint-adp009d-1786496624",
+        confirm_terminal_resource_release: true,
+      }),
+      actorId: "founder-001", actorRole: "admin", authorizedAt: "2026-08-11T12:00:00.000Z",
+    })).toThrow("terminal_resource_release_launch_not_eligible");
+  });
+
+  it("signs and verifies only the terminal-resource-release intake receipt", async () => {
+    const request = buildTaskEvaluationTerminalResourceReleaseRequest({
+      launchRecord: terminalBlockedLaunchRecord(),
+      input: taskEvaluationTerminalResourceReleaseInputSchema.parse({
+        provider: "vast", instance_id: "47508030",
+        expected_label: "blueprint-adp009d-1786496624",
+        confirm_terminal_resource_release: true,
+      }),
+      actorId: "founder-001", actorRole: "admin", authorizedAt: "2026-08-11T12:00:00.000Z",
+    });
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      const headers = init.headers as Record<string, string>;
+      const expected = createHmac("sha256", "forward-secret")
+        .update(
+          `${headers["x-blueprint-pipeline-timestamp"]}.${headers["x-blueprint-pipeline-client-id"]}.${headers["x-blueprint-pipeline-nonce"]}.${init.body}`,
+        )
+        .digest("hex");
+      expect(headers["x-blueprint-pipeline-signature"]).toBe(`sha256=${expected}`);
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_terminal_resource_release_intake_receipt.v1",
+        status: "accepted",
+        provider_mutation_performed_inside_http_request: false,
+        queue: {
+          schema_version: "task_evaluation_terminal_resource_release_queue_receipt.v1",
+          status: "queued",
+          release_id: request.release_id,
+          terminal_resource_release_digest: request.terminal_resource_release_digest,
+          provider_mutation_performed: false,
+        },
+      }), { status: 202, headers: { "content-type": "application/json" } });
+    }));
+
+    expect(await forwardTaskEvaluationTerminalResourceRelease({
+      request,
+      endpointUrl: "https://pipeline.example/api/live-pipeline/task-evaluation-terminal-resource-releases",
+      token: "forward-secret",
+    })).toMatchObject({ status: "forwarded", performed: true, http_status: 202 });
   });
 
   it("signs and verifies the Pipeline queue receipt binding", async () => {
