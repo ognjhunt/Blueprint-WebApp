@@ -10,6 +10,8 @@ export const CANONICAL_TASK_EVALUATION_ALLOCATOR =
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const reference = z.object({ uri: z.string().min(1), digest }).passthrough();
+const vastInstanceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+const terminalVastLabel = z.string().regex(/^blueprint-adp009d-[1-9][0-9]{9,}$/);
 
 export const publishedLaunchProfileSchema = z.object({
   profile_id: identifier,
@@ -64,6 +66,16 @@ export const taskEvaluationLaunchInputSchema = z.object({
     expires_at: z.string().datetime({ offset: true }),
   }).strict(),
   confirm_execution: z.literal(true),
+}).strict();
+
+// This is a release-only recovery action. It can name one stopped Vast record
+// after a website-owned launch is terminally blocked; it cannot restart or
+// retry evaluation work.
+export const taskEvaluationTerminalResourceReleaseInputSchema = z.object({
+  provider: z.literal("vast"),
+  instance_id: vastInstanceId,
+  expected_label: terminalVastLabel,
+  confirm_terminal_resource_release: z.literal(true),
 }).strict();
 
 export const taskEvaluationLaunchReceiptSchema = z.object({
@@ -231,6 +243,20 @@ export function resolveTaskEvaluationLaunchUrl(): string {
   ).trim();
 }
 
+export function resolveTaskEvaluationTerminalResourceReleaseUrl(): string {
+  const launchUrl = resolveTaskEvaluationLaunchUrl();
+  if (!launchUrl) return "";
+  try {
+    const url = new URL(launchUrl);
+    url.pathname = "/api/live-pipeline/task-evaluation-terminal-resource-releases";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 export function resolveTaskEvaluationProfileCatalogUrl(): string {
   const configured = String(process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL || "").trim();
   if (configured) return configured;
@@ -342,6 +368,78 @@ export function buildTaskEvaluationLaunchRequest(params: {
   return request;
 }
 
+export function buildTaskEvaluationTerminalResourceReleaseRequest(params: {
+  launchRecord: Record<string, any>;
+  input: z.infer<typeof taskEvaluationTerminalResourceReleaseInputSchema>;
+  actorId: string;
+  actorRole: "admin" | "ops";
+  authorizedAt: string;
+}) {
+  const blocker = params.launchRecord.control_plane_terminal_blocker;
+  if (
+    params.launchRecord.state !== "control_plane_terminal_blocked"
+    || !blocker
+    || blocker.schema_version !== "task_evaluation_launch_control_plane_blocker.v1"
+    || blocker.status !== "blocked"
+    || blocker.code !== "control_plane_terminal_receipt_missing_after_spend_authority_expiry"
+    || blocker.launch_id !== params.launchRecord.launch_id
+    || blocker.run_id !== params.launchRecord.run_id
+    || blocker.request_digest !== params.launchRecord.request_digest
+    || blocker.pipeline_terminal_receipt_observed !== false
+    || blocker.provider_mutation_performed_by_webapp !== false
+    || blocker.paid_execution_retry_performed !== false
+    || blocker.execution_result !== "not_observed"
+    || blocker.scripted_positive_controls_result !== "not_observed"
+    || blocker.learned_policy_result !== "not_observed"
+    || params.launchRecord.terminal_receipt_present !== false
+    || params.launchRecord.provider_mutation_observed !== false
+    || params.launchRecord.paid_execution_retry_performed !== false
+  ) throw new Error("terminal_resource_release_launch_not_eligible");
+
+  const request: Record<string, any> = {
+    schema_version: "task_evaluation_terminal_resource_release_request.v1",
+    release_id: `${params.launchRecord.launch_id}-vast-${params.input.instance_id}`,
+    launch_id: params.launchRecord.launch_id,
+    run_id: params.launchRecord.run_id,
+    request_digest: params.launchRecord.request_digest,
+    control_plane_terminal_blocker: {
+      schema_version: blocker.schema_version,
+      status: blocker.status,
+      code: blocker.code,
+      launch_id: blocker.launch_id,
+      run_id: blocker.run_id,
+      request_digest: blocker.request_digest,
+      spend_authority_expires_at: blocker.spend_authority_expires_at,
+      observed_at_iso: blocker.observed_at_iso,
+      pipeline_terminal_receipt_observed: false,
+      provider_mutation_performed_by_webapp: false,
+      paid_execution_retry_performed: false,
+      execution_result: "not_observed",
+      scripted_positive_controls_result: "not_observed",
+      learned_policy_result: "not_observed",
+    },
+    provider: params.input.provider,
+    instance_id: params.input.instance_id,
+    expected_label: params.input.expected_label,
+    authorization: {
+      actor: { id: params.actorId, role: params.actorRole },
+      authorized_at: params.authorizedAt,
+      action: "terminal_provider_record_release",
+      approved: true,
+      max_additional_spend_usd: 0,
+      retry_cap: 0,
+    },
+    provider_mutation_performed_inside_web_request: false,
+    automatic_retry_performed: false,
+    claim_ceiling: "operational_resource_release_only",
+  };
+  request.terminal_resource_release_digest = canonicalArtifactDigest(
+    request,
+    "terminal_resource_release_digest",
+  );
+  return request;
+}
+
 export type LaunchForwardResult = {
   status: "forwarded" | "not_configured" | "blocked" | "failed";
   performed: boolean;
@@ -434,6 +532,97 @@ export async function forwardTaskEvaluationLaunch(params: {
       blocker: error instanceof Error && error.name === "AbortError"
         ? "task_evaluation_launch_forward_timeout"
         : "task_evaluation_launch_forward_failed",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Forward an already-durable, release-only request to Pipeline.  This is kept
+ * separate from the launch forwarder so a valid launch-intake receipt cannot
+ * accidentally be interpreted as permission to release a provider record.
+ */
+export async function forwardTaskEvaluationTerminalResourceRelease(params: {
+  request: Record<string, unknown>;
+  endpointUrl?: string;
+  token?: string;
+  clientId?: string;
+}): Promise<LaunchForwardResult> {
+  const endpoint = String(
+    params.endpointUrl || resolveTaskEvaluationTerminalResourceReleaseUrl(),
+  ).trim();
+  if (!endpoint) return {
+    status: "not_configured", performed: false, required: true,
+    endpoint_configured: false, blocker: "task_evaluation_terminal_resource_release_url_missing",
+  };
+  const token = String(
+    params.token
+      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
+      || "",
+  ).trim();
+  if (!token) return {
+    status: "blocked", performed: false, required: true,
+    endpoint_configured: true, blocker: "task_evaluation_terminal_resource_release_forward_token_missing",
+  };
+  const clientId = String(params.clientId || "blueprint-webapp").trim();
+  const body = JSON.stringify(params.request);
+  const timestamp = new Date().toISOString();
+  const nonce = randomUUID();
+  const signature = createHmac("sha256", token)
+    .update(`${timestamp}.${clientId}.${nonce}.${body}`)
+    .digest("hex");
+  const timeoutMs = Math.max(
+    10_000,
+    Number(process.env.TASK_EVALUATION_RUN_FORWARD_TIMEOUT_MS || 10_000),
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-blueprint-pipeline-timestamp": timestamp,
+        "x-blueprint-pipeline-client-id": clientId,
+        "x-blueprint-pipeline-nonce": nonce,
+        "x-blueprint-pipeline-signature": `sha256=${signature}`,
+      },
+      body,
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) return {
+      status: "failed", performed: false, required: true, endpoint_configured: true,
+      http_status: response.status, blocker: "pipeline_task_evaluation_terminal_resource_release_rejected",
+    };
+    const queueReceipt = payload?.queue;
+    if (
+      !payload
+      || payload.schema_version !== "task_evaluation_terminal_resource_release_intake_receipt.v1"
+      || payload.provider_mutation_performed_inside_http_request !== false
+      || !queueReceipt
+      || queueReceipt.schema_version !== "task_evaluation_terminal_resource_release_queue_receipt.v1"
+      || queueReceipt.release_id !== params.request.release_id
+      || queueReceipt.terminal_resource_release_digest
+        !== params.request.terminal_resource_release_digest
+      || queueReceipt.provider_mutation_performed !== false
+    ) return {
+      status: "failed", performed: false, required: true, endpoint_configured: true,
+      http_status: response.status,
+      blocker: "pipeline_task_evaluation_terminal_resource_release_receipt_invalid",
+    };
+    return {
+      status: "forwarded", performed: true, required: true, endpoint_configured: true,
+      http_status: response.status, queue_receipt: queueReceipt,
+      pipeline_intake_status: "accepted",
+    };
+  } catch (error) {
+    return {
+      status: "failed", performed: false, required: true, endpoint_configured: true,
+      blocker: error instanceof Error && error.name === "AbortError"
+        ? "task_evaluation_terminal_resource_release_forward_timeout"
+        : "task_evaluation_terminal_resource_release_forward_failed",
     };
   } finally {
     clearTimeout(timeout);

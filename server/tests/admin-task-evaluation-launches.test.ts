@@ -110,6 +110,36 @@ function launchInput() {
   };
 }
 
+function terminalBlockedLaunchRecord() {
+  const requestDigest = sha("a");
+  return {
+    schema_version: "task_evaluation_launch_web_record.v1",
+    launch_id: "launch-001",
+    run_id: "run-001",
+    request_digest: requestDigest,
+    state: "control_plane_terminal_blocked",
+    terminal_receipt_present: false,
+    provider_mutation_observed: false,
+    paid_execution_retry_performed: false,
+    control_plane_terminal_blocker: {
+      schema_version: "task_evaluation_launch_control_plane_blocker.v1",
+      status: "blocked",
+      code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
+      launch_id: "launch-001",
+      run_id: "run-001",
+      request_digest: requestDigest,
+      spend_authority_expires_at: "2026-08-10T12:30:00.000Z",
+      observed_at_iso: "2026-08-10T12:31:00.000Z",
+      pipeline_terminal_receipt_observed: false,
+      provider_mutation_performed_by_webapp: false,
+      paid_execution_retry_performed: false,
+      execution_result: "not_observed",
+      scripted_positive_controls_result: "not_observed",
+      learned_policy_result: "not_observed",
+    },
+  };
+}
+
 async function startServer(): Promise<{ server: Server; url: string }> {
   const { default: router } = await import("../routes/admin-task-evaluation-launches");
   const app = express();
@@ -288,6 +318,83 @@ describe("admin Task Evaluation launch route", () => {
         String(target).startsWith("https://pipeline.example/"),
       )).toHaveLength(1);
       expect(state.records.get("launch-001")?.forward_attempt_count).toBe(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("persists and forwards one explicit release-only recovery without reopening the launch", async () => {
+    state.records.set("launch-001", terminalBlockedLaunchRecord());
+    vi.stubGlobal("fetch", vi.fn(async (target: string, init?: RequestInit) => {
+      if (target.startsWith("http://127.0.0.1:")) return realFetch(target, init);
+      expect(target).toBe("https://pipeline.example/api/live-pipeline/task-evaluation-terminal-resource-releases");
+      const request = JSON.parse(String(init?.body || "{}"));
+      expect(request).toMatchObject({
+        provider: "vast",
+        instance_id: "47508030",
+        expected_label: "blueprint-adp009d-1786496624",
+        provider_mutation_performed_inside_web_request: false,
+        automatic_retry_performed: false,
+      });
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_terminal_resource_release_intake_receipt.v1",
+        status: "accepted",
+        provider_mutation_performed_inside_http_request: false,
+        queue: {
+          schema_version: "task_evaluation_terminal_resource_release_queue_receipt.v1",
+          status: "queued",
+          release_id: request.release_id,
+          terminal_resource_release_digest: request.terminal_resource_release_digest,
+          provider_mutation_performed: false,
+        },
+      }), { status: 202, headers: { "content-type": "application/json" } });
+    }));
+    const { server, url } = await startServer();
+    const input = {
+      provider: "vast",
+      instance_id: "47508030",
+      expected_label: "blueprint-adp009d-1786496624",
+      confirm_terminal_resource_release: true,
+    };
+    try {
+      const first = await fetch(`${url}/launch-001/terminal-resource-releases`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      const body = await first.json();
+      expect(first.status).toBe(202);
+      expect(body).toMatchObject({
+        status: "queued_in_pipeline",
+        launch_id: "launch-001",
+        provider_mutation_performed_inside_web_request: false,
+        automatic_retry_performed: false,
+      });
+      expect(state.records.get("launch-001")).toMatchObject({
+        state: "control_plane_terminal_blocked",
+        terminal_resource_release: {
+          state: "queued_in_pipeline",
+          provider_mutation_observed: false,
+          automatic_retry_performed: false,
+          request: { instance_id: "47508030" },
+        },
+      });
+
+      const replay = await fetch(`${url}/launch-001/terminal-resource-releases`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(replay.status).toBe(200);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target).startsWith("https://pipeline.example/"),
+      )).toHaveLength(1);
+
+      const conflict = await fetch(`${url}/launch-001/terminal-resource-releases`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+          ...input, instance_id: "47508031",
+        }),
+      });
+      expect(conflict.status).toBe(409);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target).startsWith("https://pipeline.example/"),
+      )).toHaveLength(1);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
