@@ -168,12 +168,36 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON;
+  delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL;
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
   delete process.env.TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS;
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("keeps an unreachable Pipeline profile catalog typed and fail-closed", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = "[]";
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL = "https://pipeline.example/profiles";
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.startsWith("http://127.0.0.1:")) return realFetch(url, init);
+      throw new DOMException("request timed out", "AbortError");
+    }));
+    const { server, url } = await startServer();
+    try {
+      const response = await fetch(`${url}/profiles`);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        schema_version: "task_evaluation_launch_profile_catalog.v1",
+        error: "Published Pipeline launch profiles are unavailable",
+        code: "task_evaluation_launch_profile_catalog_timeout",
+        profiles: [],
+      });
+      expect(state.records.size).toBe(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("fails closed with an unknown persistence state when Firestore stalls", async () => {
     state.hangTransaction = true;
     process.env.TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS = "250";

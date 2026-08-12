@@ -179,6 +179,10 @@ export function parseTaskEvaluationLaunchSupervision(value: unknown) {
 }
 
 export type PublishedLaunchProfile = z.infer<typeof publishedLaunchProfileSchema>;
+export type PublishedLaunchProfileCatalog = {
+  profiles: PublishedLaunchProfile[];
+  blocker?: string;
+};
 
 function parsePublishedLaunchProfiles(value: unknown): PublishedLaunchProfile[] {
   const result = z.array(publishedLaunchProfileSchema).safeParse(value);
@@ -243,11 +247,19 @@ export function resolveTaskEvaluationProfileCatalogUrl(): string {
   }
 }
 
-export async function resolvePublishedLaunchProfiles(): Promise<PublishedLaunchProfile[]> {
+/**
+ * Resolve the only profile catalog that can authorize a paid launch.  Keep the
+ * upstream failure typed so the WebApp never turns a dead Pipeline connection
+ * into an indistinguishable empty catalog.
+ */
+export async function resolvePublishedLaunchProfileCatalog(): Promise<PublishedLaunchProfileCatalog> {
   const configured = loadPublishedLaunchProfiles();
-  if (configured.length > 0) return configured;
+  if (configured.length > 0) return { profiles: configured };
   const endpoint = resolveTaskEvaluationProfileCatalogUrl();
-  if (!endpoint) return [];
+  if (!endpoint) return {
+    profiles: [],
+    blocker: "task_evaluation_launch_profile_catalog_url_missing",
+  };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   try {
@@ -256,18 +268,39 @@ export async function resolvePublishedLaunchProfiles(): Promise<PublishedLaunchP
       headers: { accept: "application/json" },
       signal: controller.signal,
     });
-    if (!response.ok) return [];
+    if (!response.ok) return {
+      profiles: [],
+      blocker: `task_evaluation_launch_profile_catalog_http_${response.status}`,
+    };
     const payload = await response.json().catch(() => null);
     if (
       !payload
       || payload.schema_version !== "task_evaluation_launch_profile_catalog.v1"
-    ) return [];
-    return parsePublishedLaunchProfiles(payload.profiles);
-  } catch {
-    return [];
+    ) return {
+      profiles: [],
+      blocker: "task_evaluation_launch_profile_catalog_schema_invalid",
+    };
+    const profiles = parsePublishedLaunchProfiles(payload.profiles);
+    return profiles.length > 0
+      ? { profiles }
+      : {
+        profiles: [],
+        blocker: "task_evaluation_launch_profile_catalog_empty",
+      };
+  } catch (error) {
+    return {
+      profiles: [],
+      blocker: error instanceof Error && error.name === "AbortError"
+        ? "task_evaluation_launch_profile_catalog_timeout"
+        : "task_evaluation_launch_profile_catalog_transport_failed",
+    };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function resolvePublishedLaunchProfiles(): Promise<PublishedLaunchProfile[]> {
+  return (await resolvePublishedLaunchProfileCatalog()).profiles;
 }
 
 export function buildTaskEvaluationLaunchRequest(params: {

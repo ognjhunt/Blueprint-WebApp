@@ -7,7 +7,7 @@ import { resolveAccessContext } from "../utils/access-control";
 import {
   buildTaskEvaluationLaunchRequest,
   forwardTaskEvaluationLaunch,
-  resolvePublishedLaunchProfiles,
+  resolvePublishedLaunchProfileCatalog,
   taskEvaluationLaunchInputSchema,
 } from "../utils/taskEvaluationLaunchContract";
 import {
@@ -21,10 +21,17 @@ const COLLECTION = "taskEvaluationLaunches";
 router.use(requireAdminRole);
 
 router.get("/profiles", async (_req, res) => {
+  const catalog = await resolvePublishedLaunchProfileCatalog();
   res.set("Cache-Control", "no-store");
+  if (catalog.blocker) return res.status(503).json({
+    schema_version: "task_evaluation_launch_profile_catalog.v1",
+    error: "Published Pipeline launch profiles are unavailable",
+    code: catalog.blocker,
+    profiles: [],
+  });
   return res.json({
     schema_version: "task_evaluation_launch_profile_catalog.v1",
-    profiles: await resolvePublishedLaunchProfiles(),
+    profiles: catalog.profiles,
   });
 });
 
@@ -39,7 +46,13 @@ router.post("/", async (req, res) => {
     error: "Spend authority has expired",
     code: "task_evaluation_launch_spend_authority_expired",
   });
-  const profile = (await resolvePublishedLaunchProfiles()).find((candidate) =>
+  const catalog = await resolvePublishedLaunchProfileCatalog();
+  if (catalog.blocker) return res.status(503).json({
+    error: "Published Pipeline launch profiles are unavailable",
+    code: catalog.blocker,
+    provider_mutation_performed_inside_web_request: false,
+  });
+  const profile = catalog.profiles.find((candidate) =>
     candidate.profile_id === parsed.data.profile_id
     && candidate.profile_digest === parsed.data.profile_digest,
   );
