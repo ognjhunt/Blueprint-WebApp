@@ -114,8 +114,10 @@ export default function AdminTaskEvaluationLaunches() {
       headers: await authHeaders(),
       credentials: "include",
     });
-    if (!response.ok) throw new Error("Published Pipeline launch profiles are unavailable");
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.code || payload.error || "Published Pipeline launch profiles are unavailable");
+    }
     setProfiles(payload.profiles || []);
     setError(null);
     try {

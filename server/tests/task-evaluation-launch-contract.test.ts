@@ -9,6 +9,7 @@ import {
   forwardTaskEvaluationLaunch,
   loadPublishedLaunchProfiles,
   parseTaskEvaluationLaunchReceipt,
+  resolvePublishedLaunchProfileCatalog,
   resolvePublishedLaunchProfiles,
   resolveTaskEvaluationLaunchUrl,
   resolveTaskEvaluationProfileCatalogUrl,
@@ -199,6 +200,19 @@ describe("Task Evaluation production launch contract", () => {
       "https://paperclip.tryblueprint.io/api/live-pipeline/task-evaluation-launch-profiles",
     );
     expect(await resolvePublishedLaunchProfiles()).toEqual([profile()]);
+  });
+
+  it("retains a Pipeline catalog timeout as a typed fail-closed blocker", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL = "https://pipeline.example/profiles";
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new DOMException("request timed out", "AbortError");
+    }));
+
+    expect(await resolvePublishedLaunchProfileCatalog()).toEqual({
+      profiles: [],
+      blocker: "task_evaluation_launch_profile_catalog_timeout",
+    });
+    expect(await resolvePublishedLaunchProfiles()).toEqual([]);
   });
 
   it("rejects a terminal receipt whose digest was altered", () => {
