@@ -378,14 +378,24 @@ describe("admin Task Evaluation launch route", () => {
         },
       });
 
+      // A replay forwards the identical request again rather than echoing the
+      // stored receipt. The WebApp never observes whether the Pipeline blocked
+      // the release, so only the Pipeline can decide whether it may be
+      // re-armed; echoing here left a Pipeline-blocked release unretryable.
       const replay = await fetch(`${url}/launch-001/terminal-resource-releases`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
       });
-      expect(replay.status).toBe(200);
+      expect(replay.status).toBe(202);
+      expect(await replay.json()).toMatchObject({
+        provider_mutation_performed_inside_web_request: false,
+        automatic_retry_performed: false,
+      });
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
         String(target).startsWith("https://pipeline.example/"),
-      )).toHaveLength(1);
+      )).toHaveLength(2);
 
+      // A different instance under the same launch stays an immutable conflict
+      // and must never reach the Pipeline.
       const conflict = await fetch(`${url}/launch-001/terminal-resource-releases`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
           ...input, instance_id: "47508031",
@@ -394,7 +404,7 @@ describe("admin Task Evaluation launch route", () => {
       expect(conflict.status).toBe(409);
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
         String(target).startsWith("https://pipeline.example/"),
-      )).toHaveLength(1);
+      )).toHaveLength(2);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
