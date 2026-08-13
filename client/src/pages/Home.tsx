@@ -18,6 +18,7 @@ import {
   KineticBenchmark,
   ResultDecisionPanel,
 } from "@/components/site/KineticBenchmark";
+import { InteractiveEvaluationPreview } from "@/components/site/InteractiveEvaluationPreview";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
@@ -92,6 +93,12 @@ export default function Home() {
       />
 
       <KineticBenchmark />
+
+      <Band tone="paper" rule>
+        <Inner className="py-16 lg:py-24">
+          <InteractiveEvaluationPreview />
+        </Inner>
+      </Band>
 
       <section className="bg-white">
         <div className="mx-auto max-w-[94rem] px-5 py-20 sm:px-8 lg:px-10 lg:py-32">
