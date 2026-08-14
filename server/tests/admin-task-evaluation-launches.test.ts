@@ -178,6 +178,12 @@ beforeEach(() => {
     if (url.startsWith("http://127.0.0.1:")) {
       return realFetch(url, init);
     }
+    if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-profiles") {
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_launch_profile_catalog.v1",
+        profiles: [profile()],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     const request = JSON.parse(String(init?.body || "{}"));
     return new Response(JSON.stringify({
       schema_version: "task_evaluation_launch_intake_receipt.v1",
@@ -249,7 +255,7 @@ describe("admin Task Evaluation launch route", () => {
       });
       expect(state.records.size).toBe(0);
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
-        String(target).startsWith("https://pipeline.example/"),
+        String(target) === "https://pipeline.example/launches",
       )).toHaveLength(0);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -299,7 +305,7 @@ describe("admin Task Evaluation launch route", () => {
       });
       expect(first.status).toBe(202);
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
-        String(target).startsWith("https://pipeline.example/"),
+        String(target) === "https://pipeline.example/launches",
       )).toHaveLength(1);
 
       const replay = await fetch(url, {
@@ -315,7 +321,7 @@ describe("admin Task Evaluation launch route", () => {
         provider_mutation_performed_inside_web_request: false,
       });
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
-        String(target).startsWith("https://pipeline.example/"),
+        String(target) === "https://pipeline.example/launches",
       )).toHaveLength(1);
       expect(state.records.get("launch-001")?.forward_attempt_count).toBe(1);
     } finally {
