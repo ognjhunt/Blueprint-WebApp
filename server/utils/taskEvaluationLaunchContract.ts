@@ -280,12 +280,13 @@ export function resolveTaskEvaluationProfileCatalogUrl(): string {
  */
 export async function resolvePublishedLaunchProfileCatalog(): Promise<PublishedLaunchProfileCatalog> {
   const configured = loadPublishedLaunchProfiles();
-  if (configured.length > 0) return { profiles: configured };
   const endpoint = resolveTaskEvaluationProfileCatalogUrl();
-  if (!endpoint) return {
-    profiles: [],
-    blocker: "task_evaluation_launch_profile_catalog_url_missing",
-  };
+  if (!endpoint) return configured.length > 0
+    ? { profiles: configured }
+    : {
+        profiles: [],
+        blocker: "task_evaluation_launch_profile_catalog_url_missing",
+      };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   try {

@@ -312,7 +312,35 @@ describe("Task Evaluation production launch contract", () => {
     expect(await resolvePublishedLaunchProfiles()).toEqual([profile()]);
   });
 
+  it("prefers the live Pipeline catalog over a stale configured snapshot", async () => {
+    const stale = {
+      ...profile(),
+      profile_id: "stale-environment-profile",
+      profile_digest: sha("9"),
+    };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([stale]);
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL = "https://pipeline.example/profiles";
+    const fetchCatalog = vi.fn(async () => new Response(JSON.stringify({
+      schema_version: "task_evaluation_launch_profile_catalog.v1",
+      profiles: [profile()],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchCatalog);
+
+    expect(await resolvePublishedLaunchProfileCatalog()).toEqual({ profiles: [profile()] });
+    expect(fetchCatalog).toHaveBeenCalledWith(
+      "https://pipeline.example/profiles",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("uses the configured catalog only when no Pipeline catalog URL exists", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
+
+    expect(await resolvePublishedLaunchProfileCatalog()).toEqual({ profiles: [profile()] });
+  });
+
   it("retains a Pipeline catalog timeout as a typed fail-closed blocker", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL = "https://pipeline.example/profiles";
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new DOMException("request timed out", "AbortError");
