@@ -66,4 +66,3 @@ describe("temporary Task Evaluation launch-lab access", () => {
     }
   });
 });
-

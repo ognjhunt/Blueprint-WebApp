@@ -1,12 +1,18 @@
 // @vitest-environment node
+import crypto from "crypto";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CANONICAL_TASK_EVALUATION_ALLOCATOR } from "../utils/taskEvaluationLaunchContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import {
+  buildTaskEvaluationLaunchSubmissionSignature,
+  TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+} from "../utils/taskEvaluationLaunchSubmissionAuth";
 
 const realFetch = globalThis.fetch.bind(globalThis);
+const LAUNCH_SUBMIT_SECRET = "task-evaluation-launch-submit-secret-0123456789abcdef";
 
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
@@ -168,12 +174,48 @@ async function startInternalServer(): Promise<{ server: Server; url: string }> {
   return { server, url: `http://127.0.0.1:${address.port}` };
 }
 
+async function startSubmissionServer(): Promise<{ server: Server; url: string }> {
+  const { default: router } = await import("../routes/internal-task-evaluation-launch-submissions");
+  const app = express();
+  app.use(express.json({
+    verify: (req, _res, buffer) => {
+      (req as express.Request & { rawBody?: string }).rawBody = buffer.toString("utf8");
+    },
+  }));
+  app.use(router);
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("server address unavailable");
+  return { server, url: `http://127.0.0.1:${address.port}` };
+}
+
+function signedSubmissionHeaders(body: string, idempotencyKey = "launch-001") {
+  const timestamp = new Date().toISOString();
+  const nonce = `test-nonce-${crypto.randomUUID()}`;
+  return {
+    "content-type": "application/json",
+    "idempotency-key": idempotencyKey,
+    "x-blueprint-launch-timestamp": timestamp,
+    "x-blueprint-launch-client-id": TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+    "x-blueprint-launch-nonce": nonce,
+    "x-blueprint-launch-signature": buildTaskEvaluationLaunchSubmissionSignature({
+      secret: LAUNCH_SUBMIT_SECRET,
+      timestamp,
+      clientId: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+      nonce,
+      body,
+    }),
+  };
+}
+
 beforeEach(() => {
   state.records.clear();
   state.hangTransaction = false;
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
   process.env.TASK_EVALUATION_LAUNCH_URL = "https://pipeline.example/launches";
   process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "forward-secret";
+  process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET = LAUNCH_SUBMIT_SECRET;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     if (url.startsWith("http://127.0.0.1:")) {
       return realFetch(url, init);
@@ -208,9 +250,108 @@ afterEach(() => {
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
   delete process.env.TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS;
+  delete process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET;
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("submits through the launch-only HMAC API exactly once", async () => {
+    const { server, url } = await startSubmissionServer();
+    const body = JSON.stringify(launchInput());
+    try {
+      const adminRead = await fetch(`${url}/profiles`);
+      expect(adminRead.status).toBe(404);
+      const terminalRelease = await fetch(`${url}/launch-001/terminal-resource-releases`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body) as HeadersInit,
+        body,
+      });
+      expect(terminalRelease.status).toBe(404);
+      expect(state.records.size).toBe(0);
+
+      const missingIdempotency = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body, "") as HeadersInit,
+        body,
+      });
+      expect(missingIdempotency.status).toBe(400);
+      expect(await missingIdempotency.json()).toMatchObject({
+        code: "task_evaluation_launch_submit_idempotency_key_missing",
+        provider_mutation_performed_inside_web_request: false,
+      });
+      expect(state.records.size).toBe(0);
+
+      const mismatch = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body, "different-launch") as HeadersInit,
+        body,
+      });
+      expect(mismatch.status).toBe(409);
+      expect(await mismatch.json()).toMatchObject({
+        code: "task_evaluation_launch_submit_idempotency_key_mismatch",
+      });
+      expect(state.records.size).toBe(0);
+
+      const first = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body) as HeadersInit,
+        body,
+      });
+      const firstReceipt = await first.json();
+      expect(first.status).toBe(202);
+      expect(firstReceipt).toMatchObject({
+        schema_version: "task_evaluation_launch_web_receipt.v1",
+        status: "queued_in_pipeline",
+        already_exists: false,
+        submission_channel: "production_webapp_service_api",
+        provider_mutation_performed_inside_web_request: false,
+      });
+      expect(state.records.get("launch-001")).toMatchObject({
+        submission: {
+          channel: "production_webapp_service_api",
+          service_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+          idempotency_key: "launch-001",
+        },
+        request: {
+          authorization: {
+            actor: { id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID, role: "ops" },
+          },
+          idempotency_key: "launch-001",
+        },
+      });
+
+      const replay = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body) as HeadersInit,
+        body,
+      });
+      expect(replay.status).toBe(200);
+      expect(await replay.json()).toMatchObject({
+        already_exists: true,
+        request_digest: firstReceipt.request_digest,
+        submission_channel: "production_webapp_service_api",
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/launches",
+      )).toHaveLength(1);
+
+      const changed = JSON.stringify({ ...launchInput(), run_id: "run-002" });
+      const conflict = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(changed) as HeadersInit,
+        body: changed,
+      });
+      expect(conflict.status).toBe(409);
+      expect(await conflict.json()).toMatchObject({
+        code: "task_evaluation_launch_immutable_conflict",
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/launches",
+      )).toHaveLength(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("keeps an unreachable Pipeline profile catalog typed and fail-closed", async () => {
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = "[]";
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL = "https://pipeline.example/profiles";

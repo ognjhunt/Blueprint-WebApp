@@ -231,6 +231,18 @@ Agent-side creative MCP note:
     `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN`; no separate launch callback secret
     is accepted
   - normal authenticated admin/ops control surface: `/ops/task-evaluation-launches`
+  - the production runner submits only to
+    `POST /api/internal/task-evaluation-launch-submissions`. Configure one
+    random, at-least-32-byte
+    `BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET` on the Web service and the
+    host-resident `blueprint-production-runner`. The runner signs
+    `<timestamp>.<client-id>.<nonce>.<raw-json-body>` with HMAC-SHA256 and sends
+    `Idempotency-Key: <launch_id>`. The fixed client ID is
+    `blueprint-production-runner`; timestamps expire after five minutes. This
+    endpoint reuses the browser route's exact profile validation,
+    Firestore-before-forward transaction, immutable request digest, replay
+    suppression, rights, spend, and terminal WebApp binding. It grants no GET,
+    status, admin, or terminal-resource-release authority.
   - temporary launch-lab mode may remove repeated Firebase sign-in for only this
     route by setting `BLUEPRINT_TASK_EVALUATION_LAUNCH_LAB_ENABLED=true` and a
     random, at-least-32-byte `BLUEPRINT_TASK_EVALUATION_LAUNCH_LAB_TOKEN` on the

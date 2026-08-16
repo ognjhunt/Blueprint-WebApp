@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -39,7 +39,19 @@ router.get("/profiles", async (_req, res) => {
   });
 });
 
-router.post("/", async (req, res) => {
+export interface TaskEvaluationLaunchSubmissionContext {
+  actorId: string;
+  actorRole: "admin" | "ops";
+  channel: "production_webapp_browser" | "production_webapp_service_api";
+  serviceId: string | null;
+  idempotencyKey: string;
+}
+
+export async function submitTaskEvaluationLaunch(
+  req: Request,
+  res: Response,
+  context: TaskEvaluationLaunchSubmissionContext,
+) {
   if (!db) return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
   const parsed = taskEvaluationLaunchInputSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({
@@ -64,14 +76,11 @@ router.post("/", async (req, res) => {
     error: "Published Pipeline launch profile does not match",
     code: "task_evaluation_launch_profile_not_published",
   });
-  const access = await resolveAccessContext(res);
-  const actorId = access.uid || access.email;
-  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
   const freshRequest = buildTaskEvaluationLaunchRequest({
     input: parsed.data,
     profile,
-    actorId,
-    actorRole: access.isAdmin ? "admin" : "ops",
+    actorId: context.actorId,
+    actorRole: context.actorRole,
     authorizedAt: new Date().toISOString(),
   });
   const ref = db.collection(COLLECTION).doc(parsed.data.launch_id);
@@ -84,6 +93,11 @@ router.post("/", async (req, res) => {
     state: "forward_pending",
     forward_attempt_count: 0,
     provider_mutation_observed: false,
+    submission: {
+      channel: context.channel,
+      service_id: context.serviceId,
+      idempotency_key: context.idempotencyKey,
+    },
     created_at_iso: new Date().toISOString(),
   };
   let priorRecord: Record<string, any> | null;
@@ -99,8 +113,8 @@ router.post("/", async (req, res) => {
         const replayRequest = buildTaskEvaluationLaunchRequest({
           input: parsed.data,
           profile,
-          actorId,
-          actorRole: access.isAdmin ? "admin" : "ops",
+          actorId: context.actorId,
+          actorRole: context.actorRole,
           authorizedAt: originalAuthorizedAt,
         });
         if (existing.request_digest !== replayRequest.request_digest) {
@@ -153,6 +167,7 @@ router.post("/", async (req, res) => {
       request_digest: request.request_digest,
       forward: priorRecord.forward || null,
       provider_mutation_performed_inside_web_request: false,
+      submission_channel: priorRecord.submission?.channel || "production_webapp_browser",
     });
   }
   const priorAttempts = Number(priorRecord?.forward_attempt_count || 0);
@@ -203,6 +218,20 @@ router.post("/", async (req, res) => {
     request_digest: request.request_digest,
     forward: forwarded,
     provider_mutation_performed_inside_web_request: false,
+    submission_channel: priorRecord?.submission?.channel || initialRecord.submission.channel,
+  });
+}
+
+router.post("/", async (req, res) => {
+  const access = await resolveAccessContext(res);
+  const actorId = access.uid || access.email;
+  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
+  return submitTaskEvaluationLaunch(req, res, {
+    actorId,
+    actorRole: access.isAdmin ? "admin" : "ops",
+    channel: "production_webapp_browser",
+    serviceId: null,
+    idempotencyKey: String(req.body?.launch_id || ""),
   });
 });
 
