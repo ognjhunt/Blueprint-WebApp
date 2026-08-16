@@ -67,6 +67,7 @@ import clientRuntimeConfigAdminRouter, {
 } from "./routes/client-runtime-config";
 import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-launches";
 import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationLaunchAccess";
+import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -205,6 +206,10 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyTaskEvaluationLaunchAccess,
     adminTaskEvaluationLaunchesRouter,
+  );
+  app.use(
+    "/api/internal/task-evaluation-launch-submissions",
+    internalTaskEvaluationLaunchSubmissionsRouter,
   );
   app.use(
     "/api/admin/sla",
