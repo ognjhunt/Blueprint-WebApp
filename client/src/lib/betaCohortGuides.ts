@@ -100,7 +100,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
   path: "/beta/buyer-guide",
   eyebrow: "Robot Team Beta Cohort",
   summary:
-    "What robot teams should expect when requesting a Task Evaluation Run, receiving a package, reading degraded states, or escalating support.",
+    "What robot teams should expect when using a captured workflow, controlled evaluation, and months 0–2 deployment handoff.",
   heroImage: "/redesign/pov/machine-tending.jpg",
   heroAlt: "Industrial machine-tending task area",
   primaryAction: {
@@ -111,11 +111,11 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Cohort scope",
       body:
-        "The buyer beta is for request-scoped Task Evaluation Runs and hosted access around captured real-site evidence. Post-training is only a permitted use when a run artifact is explicitly eligible.",
+        "The buyer beta is for the deployment homework before onsite work: a request-scoped Task Evaluation Run grounded in captured real-site evidence.",
       items: [
-        "Best-fit requests name the robot family, target site type, task, policy/checkpoint family, success criteria, and review timeline.",
+        "Best-fit requests name the robot family, workflow, site type, interfaces, success criteria, and what the onsite proof of concept must settle.",
         "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",
-        "A beta request is not a deployment approval, safety certification, or promise that a policy will work on physical hardware.",
+        "A beta request is not onsite commissioning, deployment approval, safety certification, or a promise that a robot will work on physical hardware.",
       ],
     },
     {

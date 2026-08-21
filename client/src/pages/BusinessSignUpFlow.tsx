@@ -959,15 +959,15 @@ export default function BusinessSignUpFlow() {
   const stepLead =
     step === 1
       ? isSiteOperatorSignup
-        ? "Submit or claim a facility through a private intake that starts with access, privacy, and commercialization boundaries."
-        : "Request exact-site packages or a policy evaluation set through a private, context-rich intake instead of a generic marketplace signup."
+        ? "Submit one workflow for the task discovery, site recreation, and robot-fit work that happens before onsite deployment."
+        : "Join to discover captured workflows and test robot fit before committing deployment engineers or hardware."
       : step === 2
         ? isSiteOperatorSignup
           ? "Tell Blueprint who owns the facility context and whether the first path is private review, listing, or robot-team access review."
           : "Tell Blueprint who is evaluating the site and which lane should open first."
         : isSiteOperatorSignup
-          ? "Ground the site submission in one real facility, clear access rules, and the proof boundary you control."
-          : "Ground the request in one real facility, one workflow, and one commercial path.";
+          ? "Describe one real workflow, its operating numbers, and the access boundary you control."
+          : "Describe the robot, the target workflow, and what the onsite proof of concept would need to settle.";
   const visibleRequestedLanes = isSiteOperatorSignup
     ? REQUESTED_LANES.filter((lane) => lane.value === "qualification")
     : REQUESTED_LANES;
@@ -978,8 +978,8 @@ export default function BusinessSignUpFlow() {
         title={`${accessLabel} | Blueprint`}
         description={
           isSiteOperatorSignup
-            ? "Create a Blueprint site-operator account to submit a facility, define access boundaries, and review robot-team use."
-            : "Create a Blueprint robot-team account for capture-backed Task Evaluation Runs, maintained testbeds, and compatible historical records."
+            ? "Create a site-operator account to submit one workflow, control access, and review robot-team fit before onsite work."
+            : "Create a robot-team account to discover captured workflows and run permissioned pre-deployment evaluations."
         }
         canonical="/signup/business"
         noIndex
@@ -1304,7 +1304,7 @@ export default function BusinessSignUpFlow() {
                                 <Textarea
                                   id="taskStatement"
                                   className="min-h-28 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder={buyerType === "site_operator" ? "What site are you submitting or claiming, and what kind of robot evaluation would you consider?" : "What exact site and technical question should Blueprint help with?"}
+                                  placeholder={buyerType === "site_operator" ? "What moves from where to where, how often, and what must never go wrong?" : "Which robot and workflow should Blueprint test before an onsite visit?"}
                                   value={taskStatement}
                                   onChange={(event) => setTaskStatement(event.target.value)}
                                 />
@@ -1319,7 +1319,7 @@ export default function BusinessSignUpFlow() {
                                 <Textarea
                                   id="workflowContext"
                                   className="min-h-24 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder="Describe handoffs, adjacent workflow, or zone boundaries."
+                                  placeholder="Describe start and end points, handoffs, objects, timing, exceptions, traffic, and zone boundaries."
                                   value={workflowContext}
                                   onChange={(event) => setWorkflowContext(event.target.value)}
                                 />

@@ -1,73 +1,67 @@
 # Blueprint: AI-readable public overview
 
-Blueprint is capture-first and real-site-task first. Its one customer-facing product is the Task Evaluation Run. Robot teams and site operators are personas using the same service, request contract, workflow, result model, pricing concept, and call to action.
+Blueprint is the deployment-preparation layer between real sites and robot providers. Its one customer-facing product is the Task Evaluation Run.
+
+The active lifecycle returns a bounded decision or abstention.
+
+## The problem
+
+A publicly described humanoid deployment process can take six months or more before scale. Agility Robotics' illustrative Customer Acceleration Program places task definition, workflow scoping, site-condition recreation, skill testing, first KPIs, and use-case fit in months 0–2. Onsite proof of concept follows around months 2–3, a production pilot around months 4–6, and scale after month 6.
+
+Blueprint automates and standardizes the preparation phase. This is a concrete OEM example, not a claim that every robot deployment follows the same schedule.
 
 ## Product model
 
-1. A customer describes the real site-task and decision.
-2. Blueprint links or maintains an exact Site-Task Testbed version and digest.
-3. The request records candidates when applicable, claims, thresholds and units, false-safe consequences, acceptable risk, budget, deadline, available evidence, rights/privacy restrictions, and whether physical testing is possible.
-4. BlueprintCapturePipeline qualifies and selects the least expensive trustworthy-enough evidence for each claim. The WebApp does not choose a simulator, world model, or provider.
-5. The result returns a bounded positive or negative decision, candidate incompatibility, partial decision, explicit abstention, blocked/failed state, or the next evidence needed.
-6. Authoritative physical outcomes can join the exact request, decision, and testbed identifiers. A user note alone cannot recalibrate a method.
+1. A site submits one real workflow: media, objects, timing, exceptions, layout, systems, success criteria, and access rules.
+2. Blueprint records the capture and builds a versioned, permissioned Site-Task Testbed.
+3. Blueprint screens robot geometry and interfaces and runs bounded evaluations where the evidence supports them.
+4. The run returns fit, failures, unknowns, integration burden, acceptance criteria, and the next physical test.
+5. Shortlisted robot providers begin onsite integration with a defined task and test plan.
+6. The site and robot provider retain authority over commissioning, physical validation, safety, service, and deployment.
 
-## Result contents
+## Why Blueprint instead of doing it yourself
 
-- requested decision and scope;
-- per-claim supported, not-supported, inconclusive, or unsupported outcomes;
-- selected evidence methods, selection reasons, qualification profiles, and measurements;
-- validation envelope and unsupported conditions;
-- coverage, uncertainty, disagreement, and correlated-evidence warning;
-- claim ceiling and prohibited claims;
-- next cheapest experiment and physical-evidence requirement;
-- exact artifact IDs, URIs, versions, digests, and evidence classes;
-- permitted evaluation or post-training uses.
+- The site explains the workflow once instead of repeating discovery for each vendor.
+- Robot teams share one task definition and acceptance test instead of rebuilding partial site models with incompatible assumptions.
+- Qualified teams run controlled evaluations without receiving unrestricted raw site files.
+- Basic mismatches are found before scarce deployment engineers or hardware are committed.
+- The onsite visit begins with named gaps and an explicit test plan.
 
-Post-training is not a product, navigation item, checkout flow, or delivery promise. An eligible export does not prove training occurred or a policy improved.
+## Data access
+
+Access progresses from anonymized summary, to standardized benchmark, to controlled evaluation, to an operator-approved confidential package. Evaluation rights, site adaptation, improvement retention, and general model-training rights are separate permissions.
 
 ## Pricing
 
-There is one scoped Task Evaluation Run and a request-for-quote intake. Scope depends on the decision, evidence, candidates, scenarios, compute, deadline, rights, and physical requirements. The server owns any authoritative quote; the client cannot supply a price. Blueprint does not publish a fixed price, subscription, separate evidence-package add-on, policy-improvement add-on, or vendor submission fee.
+Core site submission and robot-team access are free. Professional capture is funded only after qualification or a refundable commitment deposit. Heavy compute and custom training are scoped separately.
+
+The site-paid network schedule is marginal: 5% on the first $1 million of provider revenue collected in the enterprise customer's account year, 3% on the next $9 million, and 1.5% above $10 million. Renewals are 1.5%. Fees follow cash actually collected; refunds and SLA credits reduce the applicable volume. Robot providers receive their full negotiated price.
 
 ## Proof boundaries
 
-- Estimates are not physical guarantees.
-- Safety approval remains external.
-- Generated, simulated, or provider-derived evidence is limited to its qualification and validation envelope.
-- Provider availability is not a scientific result.
-- No winner is inferred from an abstained result.
-- Physical, deployment, calibration, payment, rights, and customer claims require current owner-system proof.
-- Public samples may illustrate both decisions and abstentions, but are not customer proof.
+- Raw capture is authoritative for the recorded site and workflow.
+- Simulation, generated observations, and provider tools are derived evidence.
+- Real hardware is required to settle physical performance and safety claims.
+- A Task Evaluation Run may support, reject, partially answer, abstain, or request more evidence.
+- Unknown future states fail closed. No winner is inferred from an abstained result.
+- Blueprint does not guarantee deployment, physical success, uptime, ROI, or safety approval.
 
-## Public pages
+## Public-source context
 
-- `/` — product lifecycle and single primary CTA.
-- `/for-robot-teams` — robot-team use case for the same run.
-- `/for-site-operators` — site-operator use case for the same run.
-- `/how-it-works` — request, routing, result, and learning loop.
-- `/pricing` — one scoped quote concept.
-- `/proof` — evidence and claim boundaries.
-- `/contact/robot-team` and `/contact/site-operator` — persona-aware entry to the same intake.
-- `/privacy` and `/terms` — legal policies.
+Agility's June 2026 investor presentation labels the deployment timeline and explicitly marks its unit economics illustrative. The presentation models approximately $15,000 of one-time deployment cost and a $25,000 one-time RaaS deployment fee per Digit, but does not disclose how that cost divides between preparation and onsite work or a typical total site contract value.
 
-## Authenticated application
+GXO announced its Digit proof of concept on December 6, 2023. Digit entered regular commercial operations on June 5, 2024. This predates Agility's formal Customer Acceleration Program and is a historical sanity check, not evidence that the later program governed that deployment.
 
-The primary lifecycle is Testbeds → Task Evaluation Runs → Run detail/result. Legacy policy, export, pack, and entitlement URLs may remain readable as compatibility views; they are not separate current products.
+## System boundaries
 
-Normal requests use `blueprint.decision_evidence_request.v1`. Results use `blueprint.decision_envelope.v1`. Unknown future states fail closed and remain visible as unsupported. Legacy commercial intent is never silently reinterpreted.
+BlueprintCapture records immutable, provenance-linked site evidence. BlueprintCapturePipeline builds the testbed, qualifies and routes evidence, executes authorized evaluations, and owns the scientific result. Blueprint-WebApp owns secure intake, authorization, durable workflow state, controlled access, and redacted presentation.
 
-## Agent and API boundaries
+Authenticated Task Evaluation Run records use `/api/task-evaluation-runs`. Legacy `/api/robot-eval/job-requests` paths remain compatibility aliases. Historical orders and entitlements remain readable without becoming current products.
 
-Public search, site records, request drafts, and dry-run responses are discovery support only. They do not prove payment, authorization, rights, package access, provider execution, hosted fulfillment, or deployment. New customer intent should be normalized to a Task Evaluation Run; historical transactions remain readable for reconciliation.
-
-Use `/api/task-evaluation-runs` for authenticated run records. The legacy `/api/robot-eval/job-requests` path remains as an explicit compatibility alias.
-
-## Agent interfaces and hosted-session compatibility
+## Agent interfaces and compatibility
 
 Current public/request tools are `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, and `blueprint.siteWorld.launchReadiness`.
 
-Historical read/compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Hosted-session access retains its original Firebase, entitlement, tenant, and ownership gates.
+Historical read and hosted-session compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Historical availability does not make these current standalone products.
 
-The current truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.
-
-The active lifecycle returns a decision or abstention. Historical orders and entitlements remain readable, while new standalone quote and checkout paths return a precise retired-commerce response and create no state.
+Truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.

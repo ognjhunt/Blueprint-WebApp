@@ -70,11 +70,11 @@ describe("Sites", () => {
   it("renders only Pipeline-backed public inventory", async () => {
     render(<Sites />);
 
-    expect(screen.getByRole("heading", { name: /Evaluate where the work happens/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Start with the real workflow/i })).toBeInTheDocument();
     expect(await screen.findByText("Owner-backed warehouse")).toBeInTheDocument();
     expect(screen.getByText("Pipeline record")).toBeInTheDocument();
     expect(screen.queryByText("Invented fallback")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Capture a site/i })).toHaveAttribute("href", "/signup/capturer");
+    expect(screen.getByRole("link", { name: /Capture a workflow/i })).toHaveAttribute("href", "/signup/capturer");
   });
 
   it("searches only the returned live records", async () => {

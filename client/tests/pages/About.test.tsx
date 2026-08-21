@@ -1,39 +1,35 @@
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import About from "@/pages/About";
 
 describe("About", () => {
-  it("renders the simplified company-framing page", () => {
+  it("centers the company on reusable pre-deployment work", () => {
     render(<About />);
-
     expect(
       screen.getByRole("heading", {
-        name: /The gap between a good demo and a real building\./i,
+        level: 1,
+        name: /We automate the work before the robot arrives/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/built by Nijel Hunt/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Five rules that decide what a result may claim\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Capture first\. Claim later\.$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Rights travel with the evidence$/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Bring one exact site-task\./i,
+        name: /Robot supply scales\. Deployment homework does not/i,
       }),
     ).toBeInTheDocument();
-    const siteLinks = screen.getAllByRole("link", { name: /Explore captured sites/i });
-    expect(siteLinks.length).toBeGreaterThanOrEqual(1);
-    siteLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", "/sites");
-    });
-    const contactLinks = screen.getAllByRole("link", { name: /Scope a benchmark/i });
-    expect(contactLinks.length).toBeGreaterThanOrEqual(1);
-    contactLinks.forEach((link) => {
-      expect(link.getAttribute("href")).toMatch(/^\/contact\/robot-team/);
-    });
-
-    expect(screen.queryByText(/Company fact/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Public product surfaces/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /same deployment homework should not be rebuilt inside every OEM/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Fast is useful only when the result stays honest/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Use real hardware to settle physical performance and safety claims/i,
+      ),
+    ).toBeInTheDocument();
   });
 });

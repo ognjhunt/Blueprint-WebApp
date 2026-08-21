@@ -1,56 +1,40 @@
+import { ArrowRight, Check } from "lucide-react";
+
 import { SEO } from "@/components/SEO";
-import { ProofBoundary } from "@/components/blueprint";
-import {
-  EvidenceLadderChart,
-  OutcomeSpectrum,
-  RankingMarginChart,
-  RunLifecycleRail,
-} from "@/components/site/figures";
+import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
+import { DeploymentWorkPackage } from "@/components/site/DeploymentWorkPackage";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
   ClosingCta,
-  FullBleedMedia,
   Inner,
-  NoteCards,
   PageHero,
   SectionHeader,
 } from "@/components/site/publicSections";
-import { robotPolicyEvaluationBoundary } from "@/data/robotPolicyEvaluationClaims";
-import {
-  closingCta,
-  homeClaimMetricLabel,
-  homeEvidenceRungs,
-  homeLimits,
-  homeOutcomes,
-  homeRankingCandidates,
-  homeRankingOodAxes,
-  homeRankingResolutionFloorPp,
-  homeRankingRolloutsPerCandidate,
-  homeRankingTestbedVersion,
-  robotTeamFlow,
-  robotTeamHero,
-  robotTeamValue,
-} from "@/data/publicSiteCopy";
+import { robotTeamHero, robotTeamValue } from "@/data/publicSiteCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const runHref =
-  "/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=for-robot-teams";
-const runCtaHref =
-  "/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=for-robot-teams-cta";
+const joinHref = "/signup/business?buyerType=robot_team&source=for-robot-teams";
+
+const teamReceives = [
+  "A task dossier with the workflow, objects, timing, exceptions, systems, and acceptance criteria",
+  "A permissioned testbed your team can evaluate without receiving unrestricted site files",
+  "Robot-fit results, unhandled edge cases, integration burden, and the onsite questions still open",
+] as const;
 
 export default function ForRobotTeams() {
   return (
     <>
       <SEO
-        title="Task Evaluation Runs for robot teams | Blueprint"
-        description="Rank your own candidates in the building you are quoting: incompatibilities ruled out on measurement, the rest ordered with the margin on every gap."
+        title="Pre-deployment opportunities for robot teams | Blueprint"
+        description="Start from a captured workflow, secure testbed, acceptance criteria, and robot-fit evaluation instead of repeating months of site discovery."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
             path: "/for-robot-teams",
-            name: "Task Evaluation Runs for robot teams",
-            description: "One decision-oriented evaluation service, explained for robot teams.",
+            name: "Blueprint for robot teams",
+            description:
+              "Captured site tasks and standard pre-deployment evaluations for robot providers.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -64,13 +48,13 @@ export default function ForRobotTeams() {
         title={robotTeamHero.title}
         body={robotTeamHero.body}
         chips={robotTeamHero.chips}
-        ctaHref={runHref}
-        ctaLabel="Scope a benchmark"
+        ctaHref={joinHref}
+        ctaLabel="Join the robot network"
         secondaryHref="/how-it-works"
-        secondaryLabel="How it works"
-        imageSrc="/redesign/pov/warehouse-tote.jpg"
-        imageAlt="A robot arm working a tote task in a real warehouse aisle"
-        imageCaption="Illustrative task context"
+        secondaryLabel="See the four steps"
+        imageSrc="/generated/humanoid-readiness-2026-06-03/humanoid-warehouse-readiness-hero.png"
+        imageAlt="Illustrative humanoid material-handling workflow"
+        imageCaption="Illustrative task context · physical proof still required"
         routeTrace
       />
 
@@ -78,25 +62,25 @@ export default function ForRobotTeams() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="01"
-            eyebrow="The wedge"
-            title="Bring candidates. Get them screened, then ordered."
-            lede="A run is organised around your decision, not around a tournament. Candidates the site will not physically take are eliminated on measurement; the rest come back ranked, and any pair the design cannot separate is named as tied rather than ordered."
+            eyebrow="Why use Blueprint"
+            title="Keep scarce deployment engineers on qualified work."
+            lede="A promising lead is not a deployable task. Blueprint does the common discovery and evaluation work before your team commits to the site."
             onInk
           />
-          <div className="mt-14 grid gap-x-10 gap-y-10 lg:grid-cols-3">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 lg:grid-cols-3">
             {robotTeamValue.map((item, index) => (
-              <Reveal key={item.title} delay={index * 0.07}>
-                <div className="border-t border-white/15 pt-6">
-                  <span className="font-mono text-[11px] tracking-[0.2em] text-brass">
-                    {String(index + 1).padStart(2, "0")}
+              <Reveal key={item.title} delay={index * 0.06}>
+                <article className="h-full bg-ink p-6 lg:p-8">
+                  <span className="font-mono text-micro text-brass">
+                    0{index + 1}
                   </span>
-                  <h3 className="mt-4 font-display text-[1.5rem] font-medium leading-[1.15] tracking-[-0.03em] text-[color:var(--text-on-ink)]">
+                  <h2 className="mt-5 text-title-m font-semibold tracking-tight text-white">
                     {item.title}
-                  </h3>
-                  <p className="mt-3.5 max-w-[42ch] text-[14.5px] leading-[1.72] text-ink-300">
+                  </h2>
+                  <p className="mt-3 text-body-s leading-7 text-ink-300">
                     {item.body}
                   </p>
-                </div>
+                </article>
               </Reveal>
             ))}
           </div>
@@ -107,23 +91,26 @@ export default function ForRobotTeams() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="02"
-            eyebrow="What a result looks like"
-            title="An order, each margin, and the gap you cannot see."
-            lede="Your threshold, your units, your definition of a wrong yes. The candidates come back ordered on one pinned testbed, and every adjacent gap carries the interval that says whether it is a lead or a tie."
+            eyebrow="What arrives before you do"
+            title="The information your deployment team normally has to build itself."
           />
           <Reveal className="mt-14">
-            <RankingMarginChart
-              candidates={homeRankingCandidates}
-              rolloutsPerCandidate={homeRankingRolloutsPerCandidate}
-              resolutionFloorPp={homeRankingResolutionFloorPp}
-              testbedVersion={homeRankingTestbedVersion}
-              oodAxes={homeRankingOodAxes}
-              metricLabel={homeClaimMetricLabel}
-            />
+            <DeploymentWorkPackage />
           </Reveal>
-          <div className="mt-14">
-            <OutcomeSpectrum bands={homeOutcomes} />
-          </div>
+          <ul className="mt-10 grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-3">
+            {teamReceives.map((item) => (
+              <li
+                key={item}
+                className="flex gap-3 bg-white p-6 text-body-s leading-7 text-ink-600"
+              >
+                <Check
+                  className="mt-1 h-4 w-4 shrink-0 text-action"
+                  aria-hidden="true"
+                />
+                {item}
+              </li>
+            ))}
+          </ul>
         </Inner>
       </Band>
 
@@ -131,74 +118,46 @@ export default function ForRobotTeams() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="03"
-            eyebrow="One lifecycle"
-            title="From site-task to a call you can defend internally."
-            lede="You describe the decision. We maintain the substrate, and the evidence routing happens on our side of the line."
-          />
-          <div className="mt-16">
-            <RunLifecycleRail stages={robotTeamFlow} />
-          </div>
-          <div className="mt-14 grid gap-5 lg:grid-cols-2">
-            <Reveal>
-              <ProofBoundary level="info" title="Why you do not pick the backend">
-                The right method depends on the claim, not on preference. Asking a
-                buyer to choose between simulators moves the hardest judgement in
-                the process onto the person with the least information about it.
-              </ProofBoundary>
-            </Reveal>
-            <Reveal delay={0.08}>
-              <ProofBoundary level="warn" title="Where the evidence stops">
-                {robotPolicyEvaluationBoundary}
-              </ProofBoundary>
-            </Reveal>
-          </div>
-        </Inner>
-      </Band>
-
-      <Band tone="canvas">
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="04"
-            eyebrow="How the budget is spent"
-            title="We pay for the method the claim needs, and no more."
-            lede="Methods are qualified per claim, not ranked against each other. A costlier derived method does not outrank real capture — it covers conditions the capture could not."
+            eyebrow="Your place in the timeline"
+            title="Blueprint prepares. Your team integrates and proves."
+            lede="The handoff is meant to make onsite work narrower and better informed—not to claim that a virtual test deployed your robot."
           />
           <Reveal className="mt-14">
-            <EvidenceLadderChart rungs={homeEvidenceRungs} />
+            <DeploymentTimeline compact />
           </Reveal>
         </Inner>
       </Band>
 
-      <FullBleedMedia
-        src="/redesign/pov/machine-tending.jpg"
-        alt="A machine-tending station in a working facility"
-        eyebrow="Before the trip"
-        title="Find the incompatibility here, not at the door."
-        body="Reach, footprint, clearance, observation and action mismatches, environmental limits. These are the failures that waste an entire site visit, and they are the cheapest ones to catch."
-      />
-
-      <Band tone="ink">
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="05"
-            eyebrow="Where we stop"
-            title="The limits, stated plainly."
-            onInk
-          />
-          <NoteCards items={homeLimits} onInk className="mt-14" />
-        </Inner>
-      </Band>
+      <section className="bg-action text-white">
+        <div className="mx-auto flex max-w-[94rem] flex-col gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+          <div>
+            <p className="text-micro font-semibold uppercase tracking-eyebrow text-white/70">
+              Core access
+            </p>
+            <h2 className="mt-3 text-[clamp(2.2rem,4vw,4rem)] font-semibold leading-none tracking-[-0.05em]">
+              Join, match, and run standard evaluations free.
+            </h2>
+          </div>
+          <a
+            href={joinHref}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 font-semibold text-ink-900"
+          >
+            Join as a robot team{" "}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+        </div>
+      </section>
 
       <ClosingCta
-        eyebrow={closingCta.eyebrow}
-        title="Tell us what you need to decide."
-        body="The site-task, the candidates, the threshold, what a wrong yes would cost, and anything we may not do. The evidence plan is ours to build."
-        primaryHref={runCtaHref}
-        primaryLabel="Scope a benchmark"
+        eyebrow="Before field engineering"
+        title="Start with a task your team can inspect."
+        body="Browse permission-matched opportunities, submit your robot specification, and use the common testbed before deciding whether to pursue the onsite proof of concept."
+        primaryHref={joinHref}
+        primaryLabel="Join the robot network"
         secondaryHref="/pricing"
-        secondaryLabel="How pricing works"
-        imageSrc="/redesign/pov/packing-cell.jpg"
-        imageAlt="A packing cell used as a real-site task context"
+        secondaryLabel="See what stays free"
+        imageSrc="/redesign/pov/machine-tending.jpg"
+        imageAlt="Machine-tending workflow prepared for robot evaluation"
       />
     </>
   );

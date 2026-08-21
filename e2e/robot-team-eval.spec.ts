@@ -1,40 +1,61 @@
 import { expect, test } from "@playwright/test";
 
-test("legacy robot-team evaluation URL reaches the current product", async ({ page }) => {
+test("legacy robot-team evaluation URL reaches the current product", async ({
+  page,
+}) => {
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
-    page.getByRole("heading", { name: "Know which candidate deserves the pilot." }),
+    page.getByRole("heading", {
+      name: "Start with a captured task, not a blank site.",
+    }),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByRole("link", { name: /Scope a benchmark/i }).first(),
-  ).toHaveAttribute("href", /\/contact\/robot-team/);
+    page
+      .locator("main")
+      .getByRole("link", { name: /Join the robot network/i })
+      .first(),
+  ).toHaveAttribute("href", /buyerType=robot_team/);
 });
 
-test("robot-team and site-operator pages describe one service and intake", async ({ page }) => {
+test("robot-team and site-operator pages describe one service and intake", async ({
+  page,
+}) => {
   await page.goto("/for-robot-teams");
-  // Screening precedes the ranking, and a gap the design cannot separate is
-  // still presented as an outcome rather than omitted.
-  await expect(page.getByText(/Bring candidates\. Get them screened, then ordered\./i).first()).toBeVisible();
-  await expect(page.getByText(/^Inside the resolution$/i).first()).toBeVisible();
+  await expect(
+    page.getByText(/Skip repeated site discovery/i).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Blueprint prepares\. Your team integrates and proves/i),
+  ).toBeVisible();
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);
 
   await page.goto("/for-site-operators");
   await expect(
     page.getByRole("heading", {
-      name: "Find out what a robot could do here, before anyone shows up.",
+      name: "Explain the job once. Let robot teams test it before they visit.",
     }),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByRole("link", { name: /Scope a site benchmark/i }).first(),
-  ).toHaveAttribute("href", /\/contact\/site-operator/);
+    page
+      .locator("main")
+      .getByRole("link", { name: /Submit a site task/i })
+      .first(),
+  ).toHaveAttribute("href", /intent=pilot-opportunity/);
   await expect(
-    page.getByRole("link", { name: /Prepare a pilot opportunity/i }),
-  ).toHaveAttribute("href", /\/signup\/business\?buyerType=site_operator&intent=pilot-opportunity/);
-  await expect(page.getByText(/Progressive access · no twin download/i)).toBeVisible();
+    page.getByRole("link", { name: /Submit a site task/i }).first(),
+  ).toHaveAttribute(
+    "href",
+    /\/signup\/business\?buyerType=site_operator&intent=pilot-opportunity/,
+  );
+  await expect(page.getByText(/Progressive access/i).first()).toBeVisible();
   await expect(page.getByText(/Controlled evaluation/i).first()).toBeVisible();
-  await expect(page.getByText(/Separately negotiated training rights/i).first()).toBeVisible();
-  await expect(page.getByText(/Robot teams fund their incremental evaluation compute/i)).toBeVisible();
+  await expect(
+    page.getByText(/site model stays hosted by Blueprint/i),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/robot provider still owns onsite deployment/i),
+  ).toBeVisible();
   await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
 
@@ -42,17 +63,23 @@ test("persona pages are usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/for-robot-teams");
   await expect(
-    page.getByRole("link", { name: /Scope a benchmark/i }).first(),
+    page.getByRole("link", { name: /Join the robot network/i }).first(),
   ).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth + 1,
   );
   expect(hasHorizontalOverflow).toBe(false);
 
   await page.goto("/for-site-operators");
-  await expect(page.getByRole("link", { name: /Prepare a pilot opportunity/i })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Submit a site task/i }).first(),
+  ).toBeVisible();
   const operatorHasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth + 1,
   );
   expect(operatorHasHorizontalOverflow).toBe(false);
 });

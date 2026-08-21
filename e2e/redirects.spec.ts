@@ -1,80 +1,90 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('legacy marketplace route redirects to the Sites library', async ({ page }) => {
-  await page.goto('/marketplace');
+test("legacy marketplace route redirects to the Sites library", async ({
+  page,
+}) => {
+  await page.goto("/marketplace");
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole('heading', { name: /Evaluate where the work happens\./i }),
+    page.getByRole("heading", { name: /Start with the real workflow\./i }),
   ).toBeVisible();
 });
 
-test('legacy environments route redirects to proof instead of the removed catalog', async ({ page }) => {
-  await page.goto('/environments');
+test("legacy environments route redirects to proof instead of the removed catalog", async ({
+  page,
+}) => {
+  await page.goto("/environments");
 
   await expect(page).toHaveURL(/\/proof$/);
   await expect(
-    page.getByRole('heading', { name: /Proof stays scoped\./i }),
+    page.getByRole("heading", { name: /first two months are real work/i }),
   ).toBeVisible();
 });
 
-test('legacy contact route redirects to the canonical robot-team intake', async ({ request }) => {
+test("legacy contact route redirects to the canonical robot-team intake", async ({
+  request,
+}) => {
   const response = await request.get(
-    '/contact?persona=robot-team&source=server-redirect',
+    "/contact?persona=robot-team&source=server-redirect",
     { maxRedirects: 0 },
   );
 
   expect(response.status()).toBe(301);
   expect(response.headers().location).toBe(
-    '/contact/robot-team?persona=robot-team&source=server-redirect',
+    "/contact/robot-team?persona=robot-team&source=server-redirect",
   );
 });
 
-test('retired public offer URLs redirect to the single scoped run', async ({ request }) => {
+test("retired public offer URLs redirect to the single scoped run", async ({
+  request,
+}) => {
   for (const path of [
-    '/policy-shortlist',
-    '/robot-match',
-    '/policy-improvement-run',
-    '/post-training-data-package',
-    '/post-training-policy-improvement-package',
-    '/data-packages',
+    "/policy-shortlist",
+    "/robot-match",
+    "/policy-improvement-run",
+    "/post-training-data-package",
+    "/post-training-policy-improvement-package",
+    "/data-packages",
   ]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status()).toBe(301);
-    expect(response.headers().location).toBe('/pricing');
+    expect(response.headers().location).toBe("/pricing");
   }
 });
 
-test('public routes work with trailing slashes', async ({ page }) => {
-  await page.goto('/docs/');
+test("public routes work with trailing slashes", async ({ page }) => {
+  await page.goto("/docs/");
 
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
-    page.getByRole('heading', {
-      name: /Proof stays scoped\./i,
+    page.getByRole("heading", {
+      name: /first two months are real work/i,
     }),
   ).toBeVisible();
 });
 
-test('FAQ remains a real public destination', async ({ page }) => {
-  await page.goto('/faq');
+test("FAQ remains a real public destination", async ({ page }) => {
+  await page.goto("/faq");
 
   await expect(page).toHaveURL(/\/faq$/);
   await expect(
-    page.getByRole('heading', { name: /One service, and the limits printed on it\./i }),
+    page.getByRole("heading", {
+      name: /robot comes later\. Blueprint does the homework first/i,
+    }),
   ).toBeVisible();
 });
 
-test('robots and sitemap are publicly reachable', async ({ request }) => {
-  const robots = await request.get('/robots.txt');
-  const sitemap = await request.get('/sitemap.xml');
+test("robots and sitemap are publicly reachable", async ({ request }) => {
+  const robots = await request.get("/robots.txt");
+  const sitemap = await request.get("/sitemap.xml");
 
   expect(robots.ok()).toBeTruthy();
-  expect(await robots.text()).toContain('User-agent: *');
+  expect(await robots.text()).toContain("User-agent: *");
   expect(sitemap.ok()).toBeTruthy();
   const sitemapText = await sitemap.text();
-  expect(sitemapText).toContain('https://tryblueprint.io/sites');
-  expect(sitemapText).toContain('https://tryblueprint.io/pricing');
-  expect(sitemapText).toContain('https://tryblueprint.io/proof');
-  expect(sitemapText).not.toContain('https://tryblueprint.io/world-models');
+  expect(sitemapText).toContain("https://tryblueprint.io/sites");
+  expect(sitemapText).toContain("https://tryblueprint.io/pricing");
+  expect(sitemapText).toContain("https://tryblueprint.io/proof");
+  expect(sitemapText).not.toContain("https://tryblueprint.io/world-models");
 });

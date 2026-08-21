@@ -9,6 +9,11 @@ const definitions = [
     definition: captureGroundedPublicCopy.productSummary,
   },
   {
+    term: "Deployment preparation",
+    definition:
+      "The task discovery, site-condition recreation, robot-fit testing, and handoff work completed before onsite integration. Blueprint focuses on this months 0–2 phase and does not replace commissioning or the physical pilot.",
+  },
+  {
     term: "Exact-site world model",
     definition:
       "A derived evidence method tied to one real site-task. It may support a claim only within its qualified validation envelope; it is not the product, ground truth, or a physical guarantee.",
@@ -100,37 +105,37 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Blueprint turns a real site-task into a maintained testbed and returns a bounded decision or explicit abstention through one Task Evaluation Run.",
+      "Blueprint captures one real workflow, builds a secure testbed, tests robot fit, and packages the onsite handoff before the robot arrives.",
   },
   {
     path: "/for-robot-teams",
-    title: "Task Evaluation Runs for robot teams",
+    title: "Captured workflows for robot teams",
     description:
-      "Robot teams use the same Task Evaluation Run to compare internal candidates, test task compatibility, discover failure conditions, and decide whether field time is justified.",
+      "Robot teams start with a captured workflow, common acceptance criteria, controlled evaluation, and named integration gaps instead of a blank site.",
   },
   {
     path: "/sites",
     title: "Sites",
     description:
-      "Capture-backed Site-Task Testbeds that may ground a Task Evaluation Run, with provenance and access boundaries attached.",
+      "Pipeline-backed workflow records that may become permissioned deployment-preparation testbeds.",
   },
   {
     path: "/proof",
     title: "Proof",
     description:
-      "Short proof explainer: third-party research, request packets, owner-system run evidence, and real robot validation stay separate.",
+      "Primary-source deployment timelines, explicitly illustrative economics, and the boundary between virtual filtering and physical proof.",
   },
   {
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Capture-first Task Evaluation Run workflow from maintained testbed through qualified evidence, decision or abstention, and explicit proof boundaries.",
+      "Four steps: capture the workflow, build the testbed, test robot fit, and hand off the deployment homework before onsite work.",
   },
   {
     path: "/faq",
     title: "FAQ",
     description:
-      "Plain-language answers about Task Evaluation Runs, decisions and abstentions, evidence routing, pricing, rights, provenance, and physical proof boundaries.",
+      "Plain-language answers about months 0–2, site capture, controlled evaluation, data access, onsite integration, physical pilots, and pricing.",
   },
   {
     path: "/capture",
@@ -142,13 +147,13 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "One scoped Task Evaluation Run, quoted according to the decision, evidence, candidates, scenarios, compute, timing, rights, and physical requirements. No ranking or winner is guaranteed.",
+      "Free core site and robot-team access, plus a site-paid success fee when a deployment produces collected provider revenue.",
   },
   {
     path: "/contact",
     title: "Start a Request",
     description:
-      "Persona-aware entry to the same Task Evaluation Run intake for robot teams and site operators.",
+      "Persona-aware intake for a site workflow or robot deployment opportunity.",
   },
   {
     path: "/privacy",
@@ -164,6 +169,11 @@ const pages = [
 
 const queryThemes = [
   "Task Evaluation Run",
+  "months 0-2 robot deployment",
+  "robot deployment preparation",
+  "automate robot site discovery",
+  "pre-deployment robot opportunity",
+  "controlled digital twin evaluation",
   "real site task robot evaluation decision",
   "maintained Site-Task Testbed",
   "compare robot policies on a real task",

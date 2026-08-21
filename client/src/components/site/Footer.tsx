@@ -31,7 +31,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-[clamp(1.4rem,2vw,2rem)] font-medium leading-[1.22] tracking-[-0.035em] text-white/88">
-              Turn field capture into a decision before the robot leaves the lab.
+              Do the deployment homework before the robot arrives.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"
@@ -66,7 +66,7 @@ export function Footer() {
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-white/35 sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            Task Evaluation Runs return a bounded decision or explicit abstention—not a guarantee or safety certification. Generated and simulated media is review support, not real-world proof.
+            Blueprint prepares months 0–2. Onsite integration, physical validation, and safety approval remain with the site and robot provider.
           </p>
         </div>
       </div>

@@ -57,7 +57,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="Inspect a Pipeline-backed capture record that may ground a Blueprint Task Evaluation Run."
+        description="Inspect a Pipeline-backed workflow record that may ground a months 0–2 deployment-preparation run."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
@@ -108,7 +108,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                   <h1 className="mt-5 text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">{site.siteName}</h1>
                   <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">{site.summary}</p>
                   <a href={requestHref(site)} className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700">
-                    Request evaluation <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    Test robot fit <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </a>
                 </div>
                 <div>

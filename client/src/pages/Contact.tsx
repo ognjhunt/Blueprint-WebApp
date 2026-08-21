@@ -36,8 +36,8 @@ const routeCards = [
     persona: "robot_team" as const,
     href: "/contact/robot-team#contact-intake",
     eyebrow: "Robot teams",
-    title: "Request a Task Evaluation Run.",
-    body: "Bring the site-task and decision. Candidates are optional and the evidence plan is scoped with you.",
+    title: "Test a captured site task.",
+    body: "Bring the robot specification or candidate. Blueprint supplies the captured workflow and common testbed.",
     Icon: Bot,
   },
 ];
@@ -69,11 +69,11 @@ export default function Contact() {
   const [selectedIntent, setSelectedIntent] = useState(initialIntent);
 
   const headline = isSiteOperator
-    ? "Turn your site-task into a testable decision."
-    : "Tell us the decision you need to make.";
+    ? "Show us the job before you choose the robot."
+    : "Start before the first onsite visit.";
   const subhead = isSiteOperator
-    ? "Request the same Task Evaluation Run used by robot teams. We scope the task, evidence, candidates when available, rights, physical requirements, timing, and quote."
-    : "Request one scoped Task Evaluation Run for a real site-task. Bring your candidates when applicable; a ranking or winner is never guaranteed.";
+    ? "A short workflow description, phone video, and the operating numbers are enough to begin automatic screening. No robot vendor is required."
+    : "Tell us what your robot can do and which deployment opportunity or real site-task you want to evaluate. We will identify the missing months 0–2 inputs.";
 
   const intentOptions = isSiteOperator
     ? [
@@ -144,11 +144,11 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Request a Task Evaluation Run | Blueprint"
+        title="Prepare a robot deployment | Blueprint"
         description={
           isSiteOperator
-            ? "Turn a site-task into a maintained testbed and bounded decision, with operator-controlled rights and access."
-            : "Request a decision-oriented evaluation of candidates or policies against a real site-task."
+            ? "Submit a real workflow for private robot-deployment screening and a permissioned Task Evaluation Run."
+            : "Evaluate robot fit against a captured site-task before committing to onsite deployment work."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
         jsonLd={[
@@ -175,7 +175,7 @@ export default function Contact() {
           <div className="mx-auto max-w-[88rem] px-5 py-14 sm:px-8 lg:px-10 lg:py-20">
             <div className="max-w-[44rem]">
               <Eyebrow tone="brass" rule>
-                Contact Blueprint
+                Months 0–2 intake
               </Eyebrow>
               <h1 className="font-editorial mt-6 text-[clamp(2.4rem,4.6vw,3.8rem)] font-medium leading-[0.98] tracking-[-0.045em] text-ink">
                 {headline}
@@ -202,7 +202,7 @@ export default function Contact() {
                 {isSiteOperator ? "Send the site" : "Send the request"}
               </Eyebrow>
               <h2 className="mt-3 text-title-m font-semibold tracking-tight text-ink">
-                Keep it short. We will ask for missing details.
+                Start with what you know. Blueprint will name what is missing.
               </h2>
             </div>
 
@@ -258,7 +258,7 @@ export default function Contact() {
                     htmlFor="contact-message"
                     className="text-caption font-semibold text-ink-800"
                   >
-                      About the site-task and decision
+                      About the workflow
                   </label>
                   <textarea
                     id="contact-message"
@@ -266,8 +266,8 @@ export default function Contact() {
                     rows={5}
                     placeholder={
                       isSiteOperator
-                        ? "The workflow, decision you need, facility conditions, thresholds, unacceptable failures, access windows, and restricted zones."
-                        : "The site-task, decision, candidates when applicable, success thresholds, false-safe consequence, budget, deadline, and evidence you already have."
+                        ? "What moves from where to where, object sizes and weights, cycle time, shifts, exceptions, systems, access windows, and restricted zones."
+                        : "Robot geometry, payload, reach, sensors, required interfaces, deployment geography, candidate software, and the site-task you want to test."
                     }
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />
@@ -284,7 +284,7 @@ export default function Contact() {
                 <p className="text-caption text-ink-500">A valid result may be positive, negative, partial, or an explicit abstention. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.</p>
                 <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-caption text-ink-500">
-                    Request only. Access, pricing, rights, and execution are confirmed per scope.
+                    Request only. Capture, access, evaluation, pricing, and physical work are confirmed per scope.
                   </p>
                   <Button
                     type="submit"
@@ -297,7 +297,7 @@ export default function Contact() {
                       ? "Continue to secure dossier"
                       : submitting
                         ? "Sending…"
-                        : "Send message"}
+                        : "Prepare deployment"}
                   </Button>
                 </div>
               </form>
@@ -318,7 +318,7 @@ export default function Contact() {
                   Review support · not real-world proof
                 </span>
                 <p className="font-editorial max-w-[20rem] text-[1.4rem] leading-[1.06] tracking-[-0.03em] text-[color:var(--text-on-ink)]">
-                  Pick the path that matches your role.
+                  Bring the site or bring the robot.
                 </p>
               </div>
             </MonochromeMedia>
@@ -370,7 +370,7 @@ export default function Contact() {
             >
               <span className="inline-flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
-                Operate a site? Partner on lighthouse capture access.
+                Operate a site? Submit one workflow for screening.
               </span>
               <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
             </a>

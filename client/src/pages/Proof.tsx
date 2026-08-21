@@ -1,130 +1,162 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { ProofBoundary } from "@/components/blueprint";
-import { ClaimThresholdChart, EvidenceLadderChart } from "@/components/site/figures";
+import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
   ClosingCta,
-  FullBleedMedia,
   Inner,
-  NoteCards,
   PageHero,
   SectionHeader,
 } from "@/components/site/publicSections";
 import {
-  robotPolicyEvaluationBeachhead,
-  robotPolicyEvaluationBoundary,
-  robotPolicyResearchSignals,
-  robotPolicyResearchSignalsNote,
-} from "@/data/robotPolicyEvaluationClaims";
-import {
-  closingCta,
-  homeClaimMetricLabel,
-  homeClaimThreshold,
-  homeClaims,
-  homeEvidenceRungs,
-  homeLimits,
-} from "@/data/publicSiteCopy";
-import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
-import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
+  deploymentEconomicsNote,
+  deploymentPrepSources,
+} from "@/data/deploymentPrep";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const runHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof";
+const evidenceLayers = [
+  {
+    title: "Captured fact",
+    body: "The site, task, objects, timing, access rules, and provenance recorded from the real workflow.",
+  },
+  {
+    title: "Derived test",
+    body: "Geometry checks, simulation, generated conditions, and provider tools used only inside their qualified scope.",
+  },
+  {
+    title: "Physical proof",
+    body: "The robot running at the real site. This is what settles onsite performance and safety—not a digital twin.",
+  },
+] as const;
 
-const sourceLayers = [
+const publicAnchors = [
   {
-    label: "Raw capture",
-    body:
-      "Timestamps, poses, rights and privacy records. This is the source of truth, and nothing derived from it is allowed to outrank it.",
+    label: "Six-plus-month deployment path",
+    fact: "Agility's June 2026 investor presentation labels months 0–2 as Proof of Tech, months 2–3 as onsite POC, months 4–6 as a RaaS pilot, and month 6+ as the path to scale.",
+    href: deploymentPrepSources.timeline.href,
   },
   {
-    label: "Derived evidence",
-    body:
-      "Simulation, generated observations, provider tools. Useful, bounded, and always labelled as derived — never quietly promoted to fact.",
+    label: "What happens in months 0–2",
+    fact: "Agility says it defines the win, studies layout and objects, recreates site conditions in simulation and physically at Agility, then tests and refines the workflow.",
+    href: deploymentPrepSources.process.href,
   },
   {
-    label: "Physical outcomes",
-    body:
-      "Results from real hardware. The only thing that settles a physical claim, joined back to the exact decision and testbed version it belongs to.",
+    label: "A real early deployment took time",
+    fact: "GXO announced its Digit proof of concept on December 6, 2023. Digit entered regular operations on June 5, 2024. That deployment predates Agility's formal CAP program.",
+    href: deploymentPrepSources.gxoDeployment.href,
   },
-];
-
-const faqEntries = [
-  {
-    question: "Does the 0.929 figure mean Blueprint claims 93% accuracy?",
-    answer:
-      "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. That is published third-party research about a category of method. It is not a Blueprint result, not an accuracy guarantee, and not a claim about your site.",
-  },
-  {
-    question: "What does a Task Evaluation Run actually return?",
-    answer:
-      "An outcome per claim, the evidence method behind each and why it was chosen, what it measured, the conditions the answer holds under, uncertainty, any disagreement between methods, the strongest claim the evidence permits, the cheapest next test, whether physical evidence is required, and exact artifact provenance. A ranking appears only when the evidence supports one.",
-  },
-];
+] as const;
 
 export default function Proof() {
   return (
     <>
       <SEO
-        title="Proof boundaries | Blueprint"
-        description="What Blueprint treats as evidence, what it treats as support, and the claims it will not make on either."
+        title="Evidence behind the months 0–2 deployment problem | Blueprint"
+        description="The primary-source timeline, illustrative economics, and proof boundaries behind Blueprint's deployment-preparation use case."
         canonical="/proof"
-        image={`https://tryblueprint.io${wamPolicyEvalAssets.rolloutStrip}`}
         jsonLd={[
           webPageJsonLd({
             path: "/proof",
-            name: "Blueprint proof boundaries",
+            name: "Blueprint deployment-preparation evidence",
             description:
-              "How Blueprint separates raw capture from derived evidence and physical outcomes, and which claims it declines to make.",
+              "Primary-source industry anchors and Blueprint's evidence boundaries.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             { name: "Proof", path: "/proof" },
           ]),
-          faqJsonLd(faqEntries),
         ]}
       />
 
       <PageHero
-        eyebrow="Proof boundaries"
-        title="Proof stays scoped."
-        body="Every number a run returns carries the conditions it was measured under. Outside them it is not a weaker claim — it is not a claim. This page is the short version of what we will and will not say, and why."
-        chips={["Raw capture outranks derived", "Research is context, not result", "Safety approval stays external"]}
-        ctaHref={runHref}
-        ctaLabel="Scope a benchmark"
-        secondaryHref="/how-it-works"
-        secondaryLabel="How it works"
-        imageSrc="/redesign/pov/inspection-bench.jpg"
-        imageAlt="An inspection bench task at a real working site"
-        imageCaption="Real capture · source of truth"
+        eyebrow="Proof, not pitch"
+        title="The first two months are real work."
+        body="Agility's published timeline puts workflow definition, site recreation, and robot testing before onsite integration. Blueprint automates that phase without pretending it deployed the robot."
+        chips={[
+          "Primary sources",
+          "Illustrative prices labeled",
+          "Physical proof stays physical",
+        ]}
+        ctaHref="/how-it-works"
+        ctaLabel="See Blueprint's four steps"
+        secondaryHref="/faq"
+        secondaryLabel="Read the plain-English FAQ"
+        imageSrc="/redesign/pov/route-scan.jpg"
+        imageAlt="A real facility route used as source evidence"
+        imageCaption="Captured site evidence · not deployment proof"
       />
+
+      <Band tone="canvas">
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="01"
+            eyebrow="The published process"
+            title="Blueprint is built for the first highlighted phase."
+          />
+          <Reveal className="mt-14">
+            <DeploymentTimeline />
+          </Reveal>
+        </Inner>
+      </Band>
+
+      <Band tone="paper" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHeader
+            index="02"
+            eyebrow="The source record"
+            title="Three facts. Three direct links."
+          />
+          <div className="mt-14 divide-y divide-line border-y border-line">
+            {publicAnchors.map((anchor, index) => (
+              <Reveal key={anchor.label} delay={index * 0.05}>
+                <a
+                  href={anchor.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group grid gap-4 py-6 sm:grid-cols-[0.32fr_0.68fr] sm:gap-10"
+                >
+                  <span className="flex items-start justify-between gap-3 text-body-s font-semibold text-ink-900">
+                    {anchor.label}
+                    <ArrowUpRight
+                      className="mt-1 h-4 w-4 shrink-0 text-ink-300 group-hover:text-action"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="text-body-s leading-7 text-ink-500">
+                    {anchor.fact}
+                  </span>
+                </a>
+              </Reveal>
+            ))}
+          </div>
+        </Inner>
+      </Band>
 
       <Band tone="ink">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
-            index="01"
-            eyebrow="Three kinds of evidence"
-            title="They are not interchangeable, and we do not let them blur."
-            lede={robotPolicyEvaluationBeachhead}
+            index="03"
+            eyebrow="Read the money correctly"
+            title={deploymentEconomicsNote.title}
+            lede={deploymentEconomicsNote.body}
             onInk
           />
-          <div className="mt-14 grid gap-x-10 gap-y-10 lg:grid-cols-3">
-            {sourceLayers.map((layer, index) => (
-              <Reveal key={layer.label} delay={index * 0.07}>
-                <div className="border-t border-white/15 pt-6">
-                  <span className="font-mono text-[11px] tracking-[0.2em] text-brass">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="mt-4 font-display text-[1.5rem] font-medium leading-[1.15] tracking-[-0.03em] text-[color:var(--text-on-ink)]">
-                    {layer.label}
-                  </h3>
-                  <p className="mt-3.5 max-w-[42ch] text-[14.5px] leading-[1.72] text-ink-300">
-                    {layer.body}
-                  </p>
-                </div>
-              </Reveal>
+          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 sm:grid-cols-3">
+            {[
+              ["~$15K", "Illustrative one-time deployment cost per Digit"],
+              ["~$25K", "Illustrative one-time RaaS deployment fee per Digit"],
+              ["Unknown", "Published split between prep and onsite work"],
+            ].map(([value, label]) => (
+              <div key={value} className="bg-ink p-6">
+                <p className="font-mono text-title-l font-semibold text-white">
+                  {value}
+                </p>
+                <p className="mt-3 text-caption leading-6 text-ink-300">
+                  {label}
+                </p>
+              </div>
             ))}
           </div>
         </Inner>
@@ -133,93 +165,45 @@ export default function Proof() {
       <Band tone="canvas">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
-            index="02"
-            eyebrow="The boundary in practice"
-            title="Where an answer stops being an answer."
-            lede="The threshold, the interval, and the claim that will not resolve — this is the mechanism behind every honest no on this site."
+            index="04"
+            eyebrow="Blueprint's claim boundary"
+            title="A useful filter is not a deployment certificate."
           />
-          <Reveal className="mt-14">
-            <ClaimThresholdChart
-              claims={homeClaims}
-              threshold={homeClaimThreshold}
-              metricLabel={homeClaimMetricLabel}
-            />
-          </Reveal>
-          <Reveal className="mt-14">
-            <EvidenceLadderChart rungs={homeEvidenceRungs} />
-          </Reveal>
-        </Inner>
-      </Band>
-
-      <Band tone="paper" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="03"
-            eyebrow="What we cite"
-            title="Research can motivate a method. It cannot stand in for a result."
-            lede={robotPolicyResearchSignalsNote}
-          />
-          <div className="mt-14 grid gap-5 lg:grid-cols-2">
-            {robotPolicyResearchSignals.map((signal, index) => (
-              <Reveal key={signal.label} delay={index * 0.07}>
-                <a
-                  href={signal.href}
-                  className="group flex h-full flex-col rounded-lg border border-line bg-white p-6 transition-colors hover:bg-inset"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <h3 className="font-display text-[1.5rem] font-medium leading-[1.15] tracking-[-0.03em] text-ink-900">
-                      {signal.label}
-                    </h3>
-                    <ArrowUpRight
-                      className="mt-1 h-4 w-4 shrink-0 text-ink-400 transition-colors group-hover:text-brass-deep"
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-3">
+            {evidenceLayers.map((layer, index) => (
+              <Reveal key={layer.title} delay={index * 0.06}>
+                <article className="h-full bg-white p-6 lg:p-8">
+                  {index < 2 ? (
+                    <Check className="h-5 w-5 text-action" aria-hidden="true" />
+                  ) : (
+                    <TriangleAlert
+                      className="h-5 w-5 text-warn-fg"
                       aria-hidden="true"
                     />
-                  </div>
-                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-brass-deep">
-                    {signal.stat}
+                  )}
+                  <h2 className="mt-5 text-title-m font-semibold tracking-tight text-ink-900">
+                    {layer.title}
+                  </h2>
+                  <p className="mt-3 text-body-s leading-7 text-ink-500">
+                    {layer.body}
                   </p>
-                  <p className="mt-3 text-[14px] leading-[1.7] text-ink-500">{signal.body}</p>
-                </a>
+                </article>
               </Reveal>
             ))}
           </div>
-          <div className="mt-10">
-            <Reveal>
-              <ProofBoundary level="warn" title="On the 0.929 figure specifically">
-                SC3-Eval's published 0.929 closed-loop correlation is third-party
-                research context. It is not a Blueprint result, not an accuracy
-                claim, and not a statement about any site or policy of yours.
-              </ProofBoundary>
-            </Reveal>
-          </div>
-        </Inner>
-      </Band>
-
-      <FullBleedMedia
-        src="/redesign/pov/route-scan.jpg"
-        alt="A captured route through a real working site"
-        eyebrow="What we do not claim"
-        title="A run is evidence. It is not permission."
-        body={`${robotPolicyEvaluationBoundary} A result reports metrics only inside the matched robot, task, and site envelope — and never as a safety certification.`}
-      />
-
-      <Band tone="ink">
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader index="04" eyebrow="Where we stop" title="The limits, stated plainly." onInk />
-          <NoteCards items={homeLimits} onInk className="mt-14" />
         </Inner>
       </Band>
 
       <ClosingCta
-        eyebrow={closingCta.eyebrow}
-        title={closingCta.title}
-        body={closingCta.body}
-        primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=proof-cta"
-        primaryLabel="Scope a benchmark"
-        secondaryHref="/faq"
-        secondaryLabel="Read the FAQ"
+        eyebrow="The practical result"
+        title="Use simulation to narrow the trip. Use hardware to prove the deployment."
+        body="Blueprint reports what fits, what fails, what remains unknown, and what the onsite proof of concept must settle."
+        primaryHref="/how-it-works"
+        primaryLabel="See how it works"
+        secondaryHref="/governance"
+        secondaryLabel="See data controls"
         imageSrc="/redesign/pov/cold-storage.jpg"
-        imageAlt="A cold-storage aisle used as a real-site task context"
+        imageAlt="Cold-storage workflow considered for robot deployment"
       />
     </>
   );
