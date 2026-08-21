@@ -4,6 +4,7 @@ import Contact from "@/pages/Contact";
 
 let mockSearch = "";
 let mockLocation = "/contact";
+const setLocationMock = vi.hoisted(() => vi.fn());
 const analyticsEventsMock = vi.hoisted(() => ({
   contactRequestStarted: vi.fn(),
   contactRequestSubmitted: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("wouter", async () => {
   return {
     ...actual,
     useSearch: () => mockSearch,
-    useLocation: () => [mockLocation, vi.fn()],
+    useLocation: () => [mockLocation, setLocationMock],
   };
 });
 
@@ -155,5 +156,30 @@ describe("Contact page", () => {
     expect(screen.getAllByText(/Partner on lighthouse capture access/i)[0]).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
     expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
+  });
+
+  it("routes the site-operator pilot option into the secure structured dossier", () => {
+    mockLocation = "/contact/site-operator";
+    mockSearch = "?intent=pilot-opportunity";
+
+    render(<Contact />);
+    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
+      target: { value: "Jordan Lee" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
+      target: { value: "jordan@siteco.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Organization/i }), {
+      target: { value: "SiteCo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Continue to secure dossier/i }));
+
+    expect(setLocationMock).toHaveBeenCalledWith(
+      "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=site-operator-contact",
+    );
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/contact",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });

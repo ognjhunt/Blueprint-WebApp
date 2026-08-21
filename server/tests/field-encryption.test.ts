@@ -67,6 +67,23 @@ describe("field encryption", () => {
         derivedScenePermission: "Derived scenes can be shared with the robot team.",
         datasetLicensingPermission: "Dataset exports require commercial review.",
         payoutEligibility: "Commercial terms still need approval.",
+        pilotOpportunity: {
+          requested: true,
+          visibility: "approved_robot_teams",
+          approvedRobotTeamEmails: ["deployment@robotco.ai"],
+          anonymizedSummary: "Packed-tote transfer opportunity.",
+          benchmarkProfile: "Rigid totes, 97% success, 42 second target.",
+          objectProfile: "Rigid totes, 8-18 kg.",
+          operationalProfile: "42 second cycle over two shifts.",
+          integrationEnvironment: "WMS task API and facility Wi-Fi.",
+          rolloutReadiness: "Named owner and six similar lines.",
+          dataUsePermissions: {
+            evaluateExistingPolicy: "granted",
+            siteSpecificAdaptation: "negotiable",
+            retainImprovements: "not_granted",
+            generalModelTraining: "not_granted",
+          },
+        },
         realSiteRobotEvalFit: {
           siteCardInput: {
             siteType: "Warehouse",
@@ -144,6 +161,9 @@ describe("field encryption", () => {
     expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.siteCardInput?.siteType ?? "")).toBe(true);
     expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.taskCardInput?.requiredMetrics ?? "")).toBe(true);
     expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.evalCardInput?.robotOrPolicyTested ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.pilotOpportunity?.approvedRobotTeamEmails?.[0] ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.pilotOpportunity?.operationalProfile ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.pilotOpportunity?.benchmarkProfile ?? "")).toBe(true);
     expect(encrypted.request.displayCaptureMetadata?.requestId).toBe("req-123");
     expect(encrypted.request.displayCaptureMetadata?.captureJobId).toBe("capture-job-123");
 
@@ -166,6 +186,18 @@ describe("field encryption", () => {
     expect(decrypted.request.payoutEligibility).toBe(
       "Commercial terms still need approval.",
     );
+    expect(decrypted.request.pilotOpportunity).toMatchObject({
+      requested: true,
+      visibility: "approved_robot_teams",
+      approvedRobotTeamEmails: ["deployment@robotco.ai"],
+      operationalProfile: "42 second cycle over two shifts.",
+      dataUsePermissions: {
+        evaluateExistingPolicy: "granted",
+        siteSpecificAdaptation: "negotiable",
+        retainImprovements: "not_granted",
+        generalModelTraining: "not_granted",
+      },
+    });
     expect(decrypted.request.realSiteRobotEvalFit).toMatchObject({
       siteCardInput: {
         siteType: "Warehouse",

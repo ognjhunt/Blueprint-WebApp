@@ -70,6 +70,16 @@ describe("AdminLeads scene readiness", () => {
                     siteName: "Durham Facility",
                     siteLocation: "Durham, NC",
                     taskStatement: "Review a picking workflow.",
+                    pilotOpportunity: {
+                      requested: true,
+                      visibility: "private",
+                      dataUsePermissions: {
+                        evaluateExistingPolicy: "granted",
+                        siteSpecificAdaptation: "not_granted",
+                        retainImprovements: "not_granted",
+                        generalModelTraining: "not_granted",
+                      },
+                    },
                   },
                   owner: {},
                   pipeline: {
@@ -126,6 +136,16 @@ describe("AdminLeads scene readiness", () => {
                 siteLocation: "Durham, NC",
                 taskStatement: "Review a picking workflow.",
                 workflowContext: "Backroom to staging handoff.",
+                pilotOpportunity: {
+                  requested: true,
+                  visibility: "private",
+                  dataUsePermissions: {
+                    evaluateExistingPolicy: "granted",
+                    siteSpecificAdaptation: "not_granted",
+                    retainImprovements: "not_granted",
+                    generalModelTraining: "not_granted",
+                  },
+                },
               },
               structured_intake: {
                 mode: "calendar_accelerated",
@@ -147,6 +167,9 @@ describe("AdminLeads scene readiness", () => {
                 site_claim_readiness_score: 100,
                 site_claim_criteria: ["facility_name"],
                 missing_site_claim_fields: [],
+                pilot_opportunity_outcome: "review_pending",
+                pilot_opportunity_gate_criteria: [],
+                missing_pilot_opportunity_fields: ["benchmark_profile"],
               },
               owner: {},
               context: { sourcePageUrl: "https://example.com", utm: {} },
@@ -259,6 +282,23 @@ describe("AdminLeads scene readiness", () => {
     expect(screen.getByText(/Pick up part_1/i)).toBeInTheDocument();
     expect(screen.getByText(/Open hatch_2/i)).toBeInTheDocument();
     expect(screen.getByText(/Navigate to aisle_3/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pilot opportunity dossier/i)).toBeInTheDocument();
+    const pilotOutcome = screen.getByLabelText(/Pilot opportunity outcome/i);
+    expect(pilotOutcome).toHaveValue("review_pending");
+    expect(screen.getByRole("option", { name: /Wrong robot class/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Economics insufficient/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Missing evidence/i })).toBeInTheDocument();
+
+    fireEvent.change(pilotOutcome, { target: { value: "wrong_robot_class" } });
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/leads/req-1/status",
+        expect.objectContaining({
+          method: "PATCH",
+          body: expect.stringContaining('"pilot_opportunity_outcome":"wrong_robot_class"'),
+        }),
+      );
+    });
   }, 15_000);
 
   it("shows a fallback when the request has no scene dashboard attachment", async () => {

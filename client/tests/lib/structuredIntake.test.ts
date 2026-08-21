@@ -229,4 +229,84 @@ describe("structured intake proof readiness", () => {
     expect(decision.nextAction).toMatch(/commercialization/i);
     expect(decision.calendarSummary).toMatch(/required before access, rights, privacy, or commercialization movement/i);
   });
+
+  it("routes a complete permissioned pilot dossier to explicit review", () => {
+    const decision = evaluateStructuredIntake({
+      buyerType: "site_operator",
+      requestedLanes: ["qualification"],
+      budgetBucket: "Undecided/Unsure",
+      siteName: "North fulfillment line",
+      siteLocation: "Chicago, IL",
+      taskStatement: "Move packed totes from inspection to outbound staging.",
+      operatingConstraints: "Escorted weekday access and a separated pilot zone.",
+      privacySecurityConstraints: "No employee records or restricted control-room capture.",
+      derivedScenePermission: "Approved robot-team access only.",
+      pilotOpportunity: {
+        requested: true,
+        visibility: "approved_robot_teams",
+        approvedRobotTeamEmails: ["deployment@robotco.ai"],
+        benchmarkProfile: "8-18 kg rigid totes, 97% success, 42 second target, separated aisle class.",
+        objectProfile: "Rigid packed totes, 8-18 kg, three standard footprints.",
+        operationalProfile: "42 second cycle, two shifts, 2% exception rate, 15 minute downtime limit.",
+        integrationEnvironment: "WMS task API, facility Wi-Fi, no PLC write access.",
+        rolloutReadiness: "Operations director owns the pilot; six similar lines across two sites.",
+        dataUsePermissions: {
+          evaluateExistingPolicy: "granted",
+          siteSpecificAdaptation: "negotiable",
+          retainImprovements: "not_granted",
+          generalModelTraining: "not_granted",
+        },
+      },
+    });
+
+    expect(decision.pilotOpportunityOutcome).toBe("review_pending");
+    expect(decision.missingPilotOpportunityFields).toEqual([]);
+    expect(decision.pilotOpportunityGateCriteria).toEqual(
+      expect.arrayContaining([
+        "site_claim_access_boundary",
+        "approved_robot_team_emails",
+        "operational_profile",
+        "integration_environment",
+      ]),
+    );
+    expect(decision.primaryCta).toBe("Submit pilot opportunity dossier");
+    expect(decision.filterTags).toContain("pilot_visibility_approved_robot_teams");
+  });
+
+  it("keeps an incomplete pilot dossier at missing evidence", () => {
+    const decision = evaluateStructuredIntake({
+      buyerType: "site_operator",
+      requestedLanes: ["qualification"],
+      budgetBucket: "Undecided/Unsure",
+      siteName: "North fulfillment line",
+      siteLocation: "Chicago, IL",
+      taskStatement: "Move packed totes.",
+      operatingConstraints: "Escorted access.",
+      privacySecurityConstraints: "No restricted areas.",
+      derivedScenePermission: "Anonymized review allowed.",
+      pilotOpportunity: {
+        requested: true,
+        visibility: "anonymized",
+        dataUsePermissions: {
+          evaluateExistingPolicy: "granted",
+          siteSpecificAdaptation: "not_granted",
+          retainImprovements: "not_granted",
+          generalModelTraining: "not_granted",
+        },
+      },
+    });
+
+    expect(decision.pilotOpportunityOutcome).toBe("missing_evidence");
+    expect(decision.missingPilotOpportunityFields).toEqual(
+      expect.arrayContaining([
+        "anonymized_opportunity_summary",
+        "object_profile",
+        "benchmark_profile",
+        "operational_profile",
+        "integration_environment",
+        "rollout_readiness",
+      ]),
+    );
+    expect(decision.nextAction).toMatch(/before opportunity review or robot-team visibility/i);
+  });
 });

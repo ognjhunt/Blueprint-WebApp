@@ -27,6 +27,41 @@ export type BudgetBucket =
 
 export type BuyerType = "site_operator" | "robot_team";
 
+export type PilotOpportunityVisibility =
+  | "private"
+  | "anonymized"
+  | "approved_robot_teams";
+
+export type PilotOpportunityOutcome =
+  | "not_requested"
+  | "review_pending"
+  | "evaluation_candidate"
+  | "wrong_robot_class"
+  | "economics_insufficient"
+  | "missing_evidence";
+
+export type PilotPermissionDisposition = "not_granted" | "negotiable" | "granted";
+
+export interface PilotDataUsePermissions {
+  evaluateExistingPolicy: "granted";
+  siteSpecificAdaptation: PilotPermissionDisposition;
+  retainImprovements: PilotPermissionDisposition;
+  generalModelTraining: PilotPermissionDisposition;
+}
+
+export interface PilotOpportunityInput {
+  requested: boolean;
+  visibility: PilotOpportunityVisibility;
+  approvedRobotTeamEmails?: string[];
+  anonymizedSummary?: string | null;
+  benchmarkProfile?: string | null;
+  objectProfile?: string | null;
+  operationalProfile?: string | null;
+  integrationEnvironment?: string | null;
+  rolloutReadiness?: string | null;
+  dataUsePermissions: PilotDataUsePermissions;
+}
+
 export type CommercialRequestPath =
   | "world_model"
   | "hosted_evaluation"
@@ -205,6 +240,7 @@ export interface RequestDetails {
   derivedScenePermission?: string | null;
   datasetLicensingPermission?: string | null;
   payoutEligibility?: string | null;
+  pilotOpportunity?: PilotOpportunityInput | null;
   displayCaptureMetadata?: DisplayCaptureMetadata | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
 }
@@ -336,6 +372,9 @@ export interface StructuredIntakeSummary {
   site_claim_readiness_score: number;
   site_claim_criteria: string[];
   missing_site_claim_fields: string[];
+  pilot_opportunity_outcome: PilotOpportunityOutcome;
+  pilot_opportunity_gate_criteria: string[];
+  missing_pilot_opportunity_fields: string[];
 }
 
 export interface PipelineArtifacts {
@@ -883,6 +922,19 @@ export interface RealSiteRobotEvalFitInputStored {
   evalCardInput?: RealSiteRobotEvalFitEvalCardInputStored | null;
 }
 
+export interface PilotOpportunityInputStored {
+  requested: boolean;
+  visibility: PilotOpportunityVisibility;
+  approvedRobotTeamEmails?: EncryptableString[];
+  anonymizedSummary?: EncryptableString | null;
+  benchmarkProfile?: EncryptableString | null;
+  objectProfile?: EncryptableString | null;
+  operationalProfile?: EncryptableString | null;
+  integrationEnvironment?: EncryptableString | null;
+  rolloutReadiness?: EncryptableString | null;
+  dataUsePermissions: PilotDataUsePermissions;
+}
+
 export interface RequestDetailsStored {
   budgetBucket: BudgetBucket;
   requestedLanes: RequestedLane[];
@@ -907,6 +959,7 @@ export interface RequestDetailsStored {
   derivedScenePermission?: EncryptableString | null;
   datasetLicensingPermission?: EncryptableString | null;
   payoutEligibility?: EncryptableString | null;
+  pilotOpportunity?: PilotOpportunityInputStored | null;
   displayCaptureMetadata?: DisplayCaptureMetadataStored | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInputStored | null;
 }
@@ -947,6 +1000,7 @@ export interface InboundRequestPayload {
   derivedScenePermission?: string;
   datasetLicensingPermission?: string;
   payoutEligibility?: string;
+  pilotOpportunity?: PilotOpportunityInput | null;
   displayCaptureMetadata?: DisplayCaptureMetadata | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   details?: string;
@@ -1086,6 +1140,7 @@ export interface InboundRequestListItem {
     siteLocationMetadata?: PlaceLocationMetadata | null;
     taskStatement: string;
     proofPathPreference?: ProofPathPreference | null;
+    pilotOpportunity?: PilotOpportunityInput | null;
     displayCaptureMetadata?: DisplayCaptureMetadata | null;
     realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   };
@@ -1103,6 +1158,7 @@ export interface UpdateRequestStatusPayload {
   requestId: string;
   qualification_state: QualificationState;
   opportunity_state?: OpportunityState;
+  pilot_opportunity_outcome?: PilotOpportunityOutcome;
   note?: string;
 }
 

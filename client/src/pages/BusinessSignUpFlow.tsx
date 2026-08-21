@@ -58,6 +58,11 @@ import {
   REQUESTED_LANES as SHARED_REQUESTED_LANES,
 } from "@/lib/requestTaxonomy";
 import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
+import { PilotOpportunityFields } from "@/components/site/PilotOpportunityFields";
+import type {
+  PilotOpportunityVisibility,
+  PilotPermissionDisposition,
+} from "@/types/inbound-request";
 
 type RequestedLane = (typeof SHARED_REQUESTED_LANES)[number];
 
@@ -134,7 +139,7 @@ const PROOF_PATH_OPTIONS: Array<{ value: ProofPathPreference; label: string }> =
 ];
 const COMMERCIALIZATION_BOUNDARY_OPTIONS = [
   "Private review only",
-  "Anonymized marketplace listing",
+  "Anonymized opportunity visibility",
   "Ask before each robot-team use",
   "Revenue-share review",
   "Not sure yet",
@@ -165,6 +170,16 @@ function readInitialBuyerType(): BuyerType {
     return "robot_team";
   }
   return DEFAULT_BUYER_TYPE;
+}
+
+function readInitialPilotOpportunityIntent(): boolean {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  const intent = String(params.get("intent") || params.get("interest") || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+  return intent === "pilot-opportunity" || intent === "prepare-pilot-opportunity";
 }
 
 function defaultRequestedLanesForBuyerType(buyerType: BuyerType): RequestedLane[] {
@@ -242,6 +257,10 @@ function StepIndicator({
 export default function BusinessSignUpFlow() {
   const [, setLocation] = useLocation();
   const initialBuyerType = useMemo(() => readInitialBuyerType(), []);
+  const initialPilotOpportunityIntent = useMemo(
+    () => readInitialPilotOpportunityIntent(),
+    [],
+  );
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -274,6 +293,24 @@ export default function BusinessSignUpFlow() {
     useState<CommercializationBoundary | "">("");
   const [knownBlockers, setKnownBlockers] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
+  const [pilotOpportunityRequested, setPilotOpportunityRequested] = useState(
+    initialBuyerType === "site_operator" && initialPilotOpportunityIntent,
+  );
+  const [pilotOpportunityVisibility, setPilotOpportunityVisibility] =
+    useState<PilotOpportunityVisibility>("private");
+  const [approvedRobotTeamEmails, setApprovedRobotTeamEmails] = useState("");
+  const [anonymizedOpportunitySummary, setAnonymizedOpportunitySummary] = useState("");
+  const [pilotBenchmarkProfile, setPilotBenchmarkProfile] = useState("");
+  const [pilotObjectProfile, setPilotObjectProfile] = useState("");
+  const [pilotOperationalProfile, setPilotOperationalProfile] = useState("");
+  const [pilotIntegrationEnvironment, setPilotIntegrationEnvironment] = useState("");
+  const [pilotRolloutReadiness, setPilotRolloutReadiness] = useState("");
+  const [siteSpecificAdaptation, setSiteSpecificAdaptation] =
+    useState<PilotPermissionDisposition>("not_granted");
+  const [retainImprovements, setRetainImprovements] =
+    useState<PilotPermissionDisposition>("not_granted");
+  const [generalModelTraining, setGeneralModelTraining] =
+    useState<PilotPermissionDisposition>("not_granted");
   const [proofPathPreference, setProofPathPreference] =
     useState<ProofPathPreference>("need_guidance");
   const [timeline, setTimeline] = useState("");
@@ -305,6 +342,43 @@ export default function BusinessSignUpFlow() {
   const signupAnalyticsAttribution = hasDemandAttribution(signupDemandAttribution)
     ? signupDemandAttribution
     : undefined;
+  const pilotOpportunity = useMemo(
+    () => ({
+      requested: buyerType === "site_operator" && pilotOpportunityRequested,
+      visibility: pilotOpportunityVisibility,
+      approvedRobotTeamEmails: approvedRobotTeamEmails
+        .split(/[\n,;]+/)
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+      anonymizedSummary: anonymizedOpportunitySummary.trim() || null,
+      benchmarkProfile: pilotBenchmarkProfile.trim() || null,
+      objectProfile: pilotObjectProfile.trim() || null,
+      operationalProfile: pilotOperationalProfile.trim() || null,
+      integrationEnvironment: pilotIntegrationEnvironment.trim() || null,
+      rolloutReadiness: pilotRolloutReadiness.trim() || null,
+      dataUsePermissions: {
+        evaluateExistingPolicy: "granted" as const,
+        siteSpecificAdaptation,
+        retainImprovements,
+        generalModelTraining,
+      },
+    }),
+    [
+      anonymizedOpportunitySummary,
+      approvedRobotTeamEmails,
+      buyerType,
+      pilotIntegrationEnvironment,
+      pilotBenchmarkProfile,
+      pilotObjectProfile,
+      pilotOperationalProfile,
+      pilotOpportunityRequested,
+      pilotOpportunityVisibility,
+      pilotRolloutReadiness,
+      siteSpecificAdaptation,
+      retainImprovements,
+      generalModelTraining,
+    ],
+  );
 
   useEffect(() => {
     analyticsEvents.businessSignupStarted({
@@ -352,6 +426,15 @@ export default function BusinessSignUpFlow() {
       taskStatement.trim().length > 0 &&
       (buyerType !== "site_operator" || operatingConstraints.trim().length > 0) &&
       (buyerType !== "site_operator" || commercializationPreference.trim().length > 0) &&
+      (!pilotOpportunity.requested ||
+        (pilotOpportunity.objectProfile &&
+          pilotOpportunity.benchmarkProfile &&
+          pilotOpportunity.operationalProfile &&
+          pilotOpportunity.integrationEnvironment &&
+          pilotOpportunity.rolloutReadiness &&
+          (pilotOpportunity.visibility !== "anonymized" || pilotOpportunity.anonymizedSummary) &&
+          (pilotOpportunity.visibility !== "approved_robot_teams" ||
+            pilotOpportunity.approvedRobotTeamEmails.length > 0))) &&
       (buyerType === "site_operator" || budgetRange !== "") &&
       referralSource !== "" &&
       acceptedLegal,
@@ -361,6 +444,7 @@ export default function BusinessSignUpFlow() {
       buyerType,
       commercializationPreference,
       operatingConstraints,
+      pilotOpportunity,
       referralSource,
       siteLocation,
       siteName,
@@ -460,6 +544,7 @@ export default function BusinessSignUpFlow() {
       setProofPathPreference("need_guidance");
       setBudgetRange("Undecided/Unsure");
     } else {
+      setPilotOpportunityRequested(false);
       setCommercializationPreference("");
       setBudgetRange((current) => (current === "Undecided/Unsure" ? "" : current));
     }
@@ -511,6 +596,13 @@ export default function BusinessSignUpFlow() {
       else if (!taskStatement.trim()) setErrorMessage("Please enter the task statement.");
       else if (buyerType === "site_operator" && !operatingConstraints.trim()) setErrorMessage("Please enter the access rules.");
       else if (buyerType === "site_operator" && !commercializationPreference.trim()) setErrorMessage("Please select the commercialization boundary.");
+      else if (pilotOpportunity.requested && !pilotOpportunity.objectProfile) setErrorMessage("Please describe the objects and normal variability.");
+      else if (pilotOpportunity.requested && !pilotOpportunity.benchmarkProfile) setErrorMessage("Please define the standardized benchmark without confidential facility details.");
+      else if (pilotOpportunity.requested && !pilotOpportunity.operationalProfile) setErrorMessage("Please enter the workflow's cycle time, volume, shifts, exceptions, and downtime tolerance.");
+      else if (pilotOpportunity.requested && !pilotOpportunity.integrationEnvironment) setErrorMessage("Please describe the software, network, and security integration environment.");
+      else if (pilotOpportunity.requested && !pilotOpportunity.rolloutReadiness) setErrorMessage("Please name the internal owner, timing, and rollout scale.");
+      else if (pilotOpportunity.requested && pilotOpportunity.visibility === "anonymized" && !pilotOpportunity.anonymizedSummary) setErrorMessage("Please provide the anonymized summary robot teams may see.");
+      else if (pilotOpportunity.requested && pilotOpportunity.visibility === "approved_robot_teams" && pilotOpportunity.approvedRobotTeamEmails.length === 0) setErrorMessage("Please provide at least one approved robot-team work email.");
       else if (buyerType === "robot_team" && !budgetRange) setErrorMessage("Please select a budget range.");
       else if (!referralSource) setErrorMessage("Please tell us how you heard about Blueprint.");
       else setErrorMessage("Please accept the Terms of Service and Privacy Policy to continue.");
@@ -528,6 +620,20 @@ export default function BusinessSignUpFlow() {
                   ? "missing_access_rules"
                   : buyerType === "site_operator" && !commercializationPreference.trim()
                     ? "missing_commercialization_boundary"
+                    : pilotOpportunity.requested && !pilotOpportunity.objectProfile
+                      ? "missing_pilot_object_profile"
+                      : pilotOpportunity.requested && !pilotOpportunity.benchmarkProfile
+                        ? "missing_pilot_benchmark_profile"
+                      : pilotOpportunity.requested && !pilotOpportunity.operationalProfile
+                        ? "missing_pilot_operational_profile"
+                        : pilotOpportunity.requested && !pilotOpportunity.integrationEnvironment
+                          ? "missing_pilot_integration_environment"
+                          : pilotOpportunity.requested && !pilotOpportunity.rolloutReadiness
+                            ? "missing_pilot_rollout_readiness"
+                            : pilotOpportunity.requested && pilotOpportunity.visibility === "anonymized" && !pilotOpportunity.anonymizedSummary
+                              ? "missing_pilot_anonymized_summary"
+                              : pilotOpportunity.requested && pilotOpportunity.visibility === "approved_robot_teams" && pilotOpportunity.approvedRobotTeamEmails.length === 0
+                                ? "missing_approved_robot_team_emails"
                     : buyerType === "robot_team" && !budgetRange
                       ? "missing_budget_range"
                       : !referralSource
@@ -615,6 +721,7 @@ export default function BusinessSignUpFlow() {
         knownBlockers,
         targetRobotTeam,
         derivedScenePermission: commercializationPreference || null,
+        pilotOpportunity,
         details: structuredDetails,
       });
 
@@ -644,6 +751,9 @@ export default function BusinessSignUpFlow() {
         siteClaimReadinessScore: structuredIntakeDecision.siteClaimReadinessScore,
         siteClaimCriteria: structuredIntakeDecision.siteClaimCriteria,
         missingSiteClaimFields: structuredIntakeDecision.missingSiteClaimFields,
+        pilotOpportunityOutcome: structuredIntakeDecision.pilotOpportunityOutcome,
+        pilotOpportunityGateCriteria: structuredIntakeDecision.pilotOpportunityGateCriteria,
+        missingPilotOpportunityFields: structuredIntakeDecision.missingPilotOpportunityFields,
         siteName,
         siteLocation,
         siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
@@ -656,6 +766,10 @@ export default function BusinessSignUpFlow() {
         derivedScenePermission: commercializationPreference || undefined,
         knownBlockers: knownBlockers || undefined,
         targetRobotTeam: targetRobotTeam || undefined,
+        pilotOpportunityRequested: pilotOpportunity.requested,
+        pilotOpportunityVisibility: pilotOpportunity.requested
+          ? pilotOpportunity.visibility
+          : undefined,
         timeline: timeline || undefined,
         demandAttribution: signupAnalyticsAttribution || null,
         // R047: record Terms of Service + Privacy Policy acceptance on the profile.
@@ -695,6 +809,9 @@ export default function BusinessSignUpFlow() {
             && structuredIntakeDecision.siteClaimCriteria.includes("privacy_security_boundary"),
           commercializationPreferenceSet:
             buyerType === "site_operator" && Boolean(commercializationPreference.trim()),
+          pilotOpportunityDossierSubmitted:
+            pilotOpportunity.requested &&
+            structuredIntakeDecision.missingPilotOpportunityFields.length === 0,
           teamContactConfirmed: false,
           completeIntakeReview: false,
           reviewQualifiedOpportunities: false,
@@ -733,6 +850,7 @@ export default function BusinessSignUpFlow() {
           derivedScenePermission: commercializationPreference || undefined,
           knownBlockers: knownBlockers || undefined,
           targetRobotTeam: targetRobotTeam || undefined,
+          pilotOpportunity: pilotOpportunity.requested ? pilotOpportunity : undefined,
           details: structuredDetails || undefined,
           context: {
             sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/signup/business",
@@ -798,6 +916,7 @@ export default function BusinessSignUpFlow() {
     operatingConstraints,
     organizationName,
     password,
+    pilotOpportunity,
     phoneNumber,
     proofPathPreference,
     privacySecurityConstraints,
@@ -1286,6 +1405,34 @@ export default function BusinessSignUpFlow() {
                                 onChange={(event) => setTimeline(event.target.value)}
                               />
                             </div>
+                            {isSiteOperatorSignup ? (
+                              <PilotOpportunityFields
+                                requested={pilotOpportunityRequested}
+                                onRequestedChange={setPilotOpportunityRequested}
+                                visibility={pilotOpportunityVisibility}
+                                onVisibilityChange={setPilotOpportunityVisibility}
+                                approvedRobotTeamEmails={approvedRobotTeamEmails}
+                                onApprovedRobotTeamEmailsChange={setApprovedRobotTeamEmails}
+                                anonymizedSummary={anonymizedOpportunitySummary}
+                                onAnonymizedSummaryChange={setAnonymizedOpportunitySummary}
+                                benchmarkProfile={pilotBenchmarkProfile}
+                                onBenchmarkProfileChange={setPilotBenchmarkProfile}
+                                objectProfile={pilotObjectProfile}
+                                onObjectProfileChange={setPilotObjectProfile}
+                                operationalProfile={pilotOperationalProfile}
+                                onOperationalProfileChange={setPilotOperationalProfile}
+                                integrationEnvironment={pilotIntegrationEnvironment}
+                                onIntegrationEnvironmentChange={setPilotIntegrationEnvironment}
+                                rolloutReadiness={pilotRolloutReadiness}
+                                onRolloutReadinessChange={setPilotRolloutReadiness}
+                                siteSpecificAdaptation={siteSpecificAdaptation}
+                                onSiteSpecificAdaptationChange={setSiteSpecificAdaptation}
+                                retainImprovements={retainImprovements}
+                                onRetainImprovementsChange={setRetainImprovements}
+                                generalModelTraining={generalModelTraining}
+                                onGeneralModelTrainingChange={setGeneralModelTraining}
+                              />
+                            ) : null}
                             {isSiteOperatorSignup ? (
                               <>
                                 <div>

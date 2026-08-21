@@ -25,6 +25,17 @@ describe("ForSiteOperators", () => {
     // Operator control and the safety boundary stay explicit.
     expect(screen.getByText(/^Restricted areas$/i)).toBeInTheDocument();
     expect(screen.getByText(/Safety stays yours/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Prepare a pilot opportunity/i }),
+    ).toHaveAttribute(
+      "href",
+      "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=for-site-operators",
+    );
+    expect(screen.getByText(/Robot teams see only qualified work/i)).toBeInTheDocument();
+    expect(screen.getByText(/simulation candidate is still only a candidate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Progressive access · no twin download/i)).toBeInTheDocument();
+    expect(screen.getByText(/Its incremental evaluation runs, parameter sweeps/i)).toBeInTheDocument();
+    expect(screen.getByText(/Terms may be negotiated directly/i)).toBeInTheDocument();
     // Abstention is still one of the named outcomes.
     expect(screen.getByText(/^Inside the resolution$/i)).toBeInTheDocument();
 

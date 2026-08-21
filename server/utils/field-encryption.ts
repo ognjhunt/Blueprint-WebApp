@@ -11,6 +11,8 @@ import type {
   DisplayCaptureMetadataStored,
   RealSiteRobotEvalFitInput,
   RealSiteRobotEvalFitInputStored,
+  PilotOpportunityInput,
+  PilotOpportunityInputStored,
 } from "../types/inbound-request";
 import type { EncryptedField, EncryptableString } from "../types/field-encryption";
 
@@ -412,6 +414,75 @@ export async function decryptRealSiteRobotEvalFit(
   return hasRobotEvalFit(decrypted) ? decrypted : null;
 }
 
+export async function encryptPilotOpportunity(
+  value?: PilotOpportunityInput | null,
+): Promise<PilotOpportunityInputStored | null> {
+  if (!value?.requested) {
+    return value
+      ? {
+          requested: false,
+          visibility: "private",
+          approvedRobotTeamEmails: [],
+          anonymizedSummary: null,
+          benchmarkProfile: null,
+          objectProfile: null,
+          operationalProfile: null,
+          integrationEnvironment: null,
+          rolloutReadiness: null,
+          dataUsePermissions: {
+            evaluateExistingPolicy: "granted",
+            siteSpecificAdaptation: "not_granted",
+            retainImprovements: "not_granted",
+            generalModelTraining: "not_granted",
+          },
+        }
+      : null;
+  }
+
+  return {
+    requested: true,
+    visibility: value.visibility,
+    approvedRobotTeamEmails: await Promise.all(
+      (value.approvedRobotTeamEmails || []).map((email) => encryptFieldValue(email)),
+    ),
+    anonymizedSummary: await encryptOptionalField(value.anonymizedSummary ?? null),
+    benchmarkProfile: await encryptOptionalField(value.benchmarkProfile ?? null),
+    objectProfile: await encryptOptionalField(value.objectProfile ?? null),
+    operationalProfile: await encryptOptionalField(value.operationalProfile ?? null),
+    integrationEnvironment: await encryptOptionalField(value.integrationEnvironment ?? null),
+    rolloutReadiness: await encryptOptionalField(value.rolloutReadiness ?? null),
+    dataUsePermissions: value.dataUsePermissions,
+  };
+}
+
+export async function decryptPilotOpportunity(
+  value?: PilotOpportunityInputStored | null,
+): Promise<PilotOpportunityInput | null> {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    requested: value.requested === true,
+    visibility: value.visibility || "private",
+    approvedRobotTeamEmails: await Promise.all(
+      (value.approvedRobotTeamEmails || []).map((email) => decryptFieldValue(email)),
+    ),
+    anonymizedSummary: await decryptOptionalField(value.anonymizedSummary ?? null),
+    benchmarkProfile: await decryptOptionalField(value.benchmarkProfile ?? null),
+    objectProfile: await decryptOptionalField(value.objectProfile ?? null),
+    operationalProfile: await decryptOptionalField(value.operationalProfile ?? null),
+    integrationEnvironment: await decryptOptionalField(value.integrationEnvironment ?? null),
+    rolloutReadiness: await decryptOptionalField(value.rolloutReadiness ?? null),
+    dataUsePermissions: value.dataUsePermissions || {
+      evaluateExistingPolicy: "granted",
+      siteSpecificAdaptation: "not_granted",
+      retainImprovements: "not_granted",
+      generalModelTraining: "not_granted",
+    },
+  };
+}
+
 export async function encryptInboundRequestForStorage<
   T extends {
     contact: ContactInfo;
@@ -485,6 +556,9 @@ export async function encryptInboundRequestForStorage<
       ),
       payoutEligibility: await encryptOptionalField(
         request.request.payoutEligibility ?? null
+      ),
+      pilotOpportunity: await encryptPilotOpportunity(
+        request.request.pilotOpportunity ?? null
       ),
       displayCaptureMetadata: await encryptDisplayCaptureMetadata(
         request.request.displayCaptureMetadata ?? null
@@ -571,6 +645,9 @@ export async function decryptInboundRequestForAdmin<
       ),
       payoutEligibility: await decryptOptionalField(
         request.request.payoutEligibility ?? null
+      ),
+      pilotOpportunity: await decryptPilotOpportunity(
+        request.request.pilotOpportunity ?? null
       ),
       displayCaptureMetadata: await decryptDisplayCaptureMetadata(
         request.request.displayCaptureMetadata ?? null

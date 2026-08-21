@@ -92,6 +92,7 @@ const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
 const AppPolicies = lazyRoute(() => import("../pages/app/Policies"));
 const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
 const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
+const AppPilotOpportunities = lazyRoute(() => import("../pages/app/PilotOpportunities"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -351,6 +352,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
+  { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },

@@ -24,6 +24,10 @@ type OperatorRequest = {
   next_step: string | null;
   access_boundary_outcome: string | null;
   site_claim_outcome: string | null;
+  pilot_opportunity_requested: boolean;
+  pilot_opportunity_visibility: string | null;
+  pilot_opportunity_outcome: string | null;
+  missing_pilot_opportunity_fields: string[];
   created_at: string | null;
 };
 
@@ -80,6 +84,19 @@ export default function OperatorOverview() {
                 <DataField label="Rights" value={displayStatus(query.data.request.rights_status)} mono={false} />
                 <DataField label="Capture" value={displayStatus(query.data.request.capture_status)} mono={false} />
                 <DataField label="Quote" value={displayStatus(query.data.request.quote_status)} mono={false} />
+                {query.data.request.pilot_opportunity_requested ? (
+                  <>
+                    <DataField label="Pilot visibility" value={displayStatus(query.data.request.pilot_opportunity_visibility)} mono={false} />
+                    <DataField label="Pilot opportunity outcome" value={displayStatus(query.data.request.pilot_opportunity_outcome)} mono={false} />
+                    <DataField
+                      label="Pilot dossier gaps"
+                      value={query.data.request.missing_pilot_opportunity_fields.length
+                        ? query.data.request.missing_pilot_opportunity_fields.join(", ").replace(/_/g, " ")
+                        : "None recorded"}
+                      mono={false}
+                    />
+                  </>
+                ) : null}
                 <DataField label="Next step" value={query.data.request.next_step || "Not recorded"} mono={false} border={false} />
               </div>
             </Card>

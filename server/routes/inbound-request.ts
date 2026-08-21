@@ -49,6 +49,8 @@ import type {
   DisplayAdvisoryScanHint,
   DisplayCaptureMetadata,
   RealSiteRobotEvalFitInput,
+  PilotOpportunityInput,
+  PilotOpportunityVisibility,
 } from "../types/inbound-request";
 
 const router = Router();
@@ -91,6 +93,11 @@ const VALID_PROOF_PATH_PREFERENCES: ProofPathPreference[] = [
   "exact_site_required",
   "adjacent_site_acceptable",
   "need_guidance",
+];
+const VALID_PILOT_OPPORTUNITY_VISIBILITIES: PilotOpportunityVisibility[] = [
+  "private",
+  "anonymized",
+  "approved_robot_teams",
 ];
 const VALID_DISPLAY_ADVISORY_HINTS: DisplayAdvisoryScanHint[] = [
   "slow_down",
@@ -382,6 +389,56 @@ function normalizeOptionalString(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
+function normalizePilotOpportunity(
+  value: PilotOpportunityInput | null | undefined,
+  buyerType: BuyerType,
+): PilotOpportunityInput | null {
+  if (buyerType !== "site_operator" || !value?.requested) {
+    return null;
+  }
+
+  const visibility = VALID_PILOT_OPPORTUNITY_VISIBILITIES.includes(value.visibility)
+    ? value.visibility
+    : "private";
+  const approvedRobotTeamEmails = Array.from(
+    new Set(
+      (value.approvedRobotTeamEmails || [])
+        .map((email) => String(email || "").trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ).slice(0, 25);
+
+  return {
+    requested: true,
+    visibility,
+    approvedRobotTeamEmails,
+    anonymizedSummary: normalizeOptionalString(value.anonymizedSummary),
+    benchmarkProfile: normalizeOptionalString(value.benchmarkProfile),
+    objectProfile: normalizeOptionalString(value.objectProfile),
+    operationalProfile: normalizeOptionalString(value.operationalProfile),
+    integrationEnvironment: normalizeOptionalString(value.integrationEnvironment),
+    rolloutReadiness: normalizeOptionalString(value.rolloutReadiness),
+    dataUsePermissions: {
+      evaluateExistingPolicy: "granted",
+      siteSpecificAdaptation: ["not_granted", "negotiable", "granted"].includes(
+        value.dataUsePermissions?.siteSpecificAdaptation,
+      )
+        ? value.dataUsePermissions.siteSpecificAdaptation
+        : "not_granted",
+      retainImprovements: ["not_granted", "negotiable", "granted"].includes(
+        value.dataUsePermissions?.retainImprovements,
+      )
+        ? value.dataUsePermissions.retainImprovements
+        : "not_granted",
+      generalModelTraining: ["not_granted", "negotiable", "granted"].includes(
+        value.dataUsePermissions?.generalModelTraining,
+      )
+        ? value.dataUsePermissions.generalModelTraining
+        : "not_granted",
+    },
+  };
+}
+
 function normalizeOptionalNumber(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return null;
@@ -638,6 +695,9 @@ function toStructuredIntakeSummary(
     site_claim_readiness_score: decision.siteClaimReadinessScore,
     site_claim_criteria: decision.siteClaimCriteria,
     missing_site_claim_fields: decision.missingSiteClaimFields,
+    pilot_opportunity_outcome: decision.pilotOpportunityOutcome,
+    pilot_opportunity_gate_criteria: decision.pilotOpportunityGateCriteria,
+    missing_pilot_opportunity_fields: decision.missingPilotOpportunityFields,
   };
 }
 
@@ -875,6 +935,10 @@ router.post("/", async (req: Request, res: Response) => {
     const proofPathPreference = normalizeProofPathPreference(
       payload.proofPathPreference
     );
+    const pilotOpportunity = normalizePilotOpportunity(
+      payload.pilotOpportunity,
+      buyerType,
+    );
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
     if (!payload.firstName?.trim()) missingFields.push("firstName");
@@ -978,6 +1042,32 @@ router.post("/", async (req: Request, res: Response) => {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    if (
+      payload.pilotOpportunity?.requested &&
+      !VALID_PILOT_OPPORTUNITY_VISIBILITIES.includes(
+        payload.pilotOpportunity.visibility,
+      )
+    ) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: "Invalid pilot opportunity visibility",
+      } satisfies SubmitInboundRequestResponse);
+    }
+
+    const invalidApprovedRobotTeamEmails = (
+      pilotOpportunity?.approvedRobotTeamEmails || []
+    ).filter((email) => !isValidEmailAddress(email));
+    if (invalidApprovedRobotTeamEmails.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: "Approved robot-team emails must be valid work email addresses",
+      } satisfies SubmitInboundRequestResponse);
+    }
+
     // 5. Check rate limits
     const ipRateLimit = await checkRateLimit(
       `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
@@ -1041,6 +1131,7 @@ router.post("/", async (req: Request, res: Response) => {
       datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
       payoutEligibility: payload.payoutEligibility?.trim() || null,
       realSiteRobotEvalFit,
+      pilotOpportunity,
       details: payload.details?.trim() || null,
     });
     const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
@@ -1180,6 +1271,7 @@ router.post("/", async (req: Request, res: Response) => {
           derivedScenePermission: payload.derivedScenePermission?.trim() || null,
           datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
           payoutEligibility: payload.payoutEligibility?.trim() || null,
+          pilotOpportunity,
           displayCaptureMetadata,
           realSiteRobotEvalFit,
           details: payload.details?.trim() || null,
@@ -1330,6 +1422,7 @@ router.post("/", async (req: Request, res: Response) => {
         derivedScenePermission: payload.derivedScenePermission?.trim() || null,
         datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
         payoutEligibility: payload.payoutEligibility?.trim() || null,
+        pilotOpportunity,
         displayCaptureMetadata,
         realSiteRobotEvalFit,
       },
