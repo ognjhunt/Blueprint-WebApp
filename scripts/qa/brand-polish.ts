@@ -192,9 +192,10 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Buy one decision before you buy the field time.",
+    expectedHeading: "Join free. Pay when a deployment works.",
     requiredCtas: [
-      { label: "Request a Task Evaluation Run", hrefStartsWith: "/contact" },
+      { label: "Submit an opportunity", hrefStartsWith: "/signup/business" },
+      { label: "Join as a robot team", hrefStartsWith: "/signup/business" },
     ],
   },
   {
