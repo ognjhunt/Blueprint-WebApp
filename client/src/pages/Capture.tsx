@@ -84,8 +84,8 @@ export default function Capture() {
   return (
     <>
       <SEO
-        title="Become a Capturer | Blueprint"
-        description="Apply to capture approved real-site routes that feed Blueprint's maintained testbeds and Task Evaluation Runs. Review city status, accepted methods, assignment boundaries, safety, QA, and payout eligibility."
+        title="Capture the workflows robots need before deployment | Blueprint"
+        description="Apply for focused assignments that record one real workflow for Blueprint's months 0–2 deployment preparation."
         canonical="/capture"
         jsonLd={[
           webPageJsonLd({
@@ -106,22 +106,21 @@ export default function Capture() {
           <div className="mx-auto grid max-w-[88rem] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 lg:py-14">
             <div className="flex flex-col justify-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                Blueprint capture network
+                Capture the months 0–2 inputs
               </p>
               <h1 className="font-editorial mt-5 max-w-[12ch] text-5xl leading-none text-slate-950 sm:text-6xl">
-                Capture real sites for robot evaluation.
+                Capture the job before the robot arrives.
               </h1>
               <p className="mt-5 max-w-2xl text-xl font-semibold leading-tight text-slate-950 sm:text-2xl">
-                Apply for review, receive a real assignment, and get paid after the assigned route passes QA.
+                Record one approved workflow—not an entire facility—and get paid after the assignment passes QA.
               </p>
               <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700">
                 Blueprint publishes assignments only after review. Site availability, access,
                 assignment, and payout are confirmed for each approved route before capture begins.
               </p>
               <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700">
-                Your captures feed one service: Task Evaluation Runs that evaluate decision-relevant
-                claims for robot teams and site operators. A run may support, reject, partially answer,
-                or abstain on a decision — which is why route fidelity and QA matter on every assignment.
+                Each capture feeds one Task Evaluation Run: the task definition, secure testbed,
+                robot-fit checks, and onsite handoff built before a deployment team visits.
               </p>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
                 Assignments today anchor to the beachhead where the evaluation evidence is strongest:{" "}
@@ -159,7 +158,7 @@ export default function Capture() {
                   Assignment boundary
                 </p>
                 <p className="mt-3 max-w-xl text-lg font-semibold leading-7">
-                  The route, access rules, device, QA criteria, and payout offer arrive together.
+                  The workflow, access rules, device, QA criteria, and payout offer arrive together.
                 </p>
               </div>
             </div>

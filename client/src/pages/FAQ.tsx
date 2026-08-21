@@ -1,62 +1,65 @@
 import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
-import { OutcomeSpectrum } from "@/components/site/figures";
+import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
   ClosingCta,
   Inner,
-  NoteCards,
   SectionHeader,
 } from "@/components/site/publicSections";
-import { closingCta, homeLimits, homeOutcomes } from "@/data/publicSiteCopy";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
   {
-    question: "What does Blueprint sell?",
+    question: "What does Blueprint do?",
     answer:
-      "One service: a Task Evaluation Run. It turns a real job at a real site into a testbed we maintain, rules out the candidates the building will not physically take, and ranks the rest — with the margin on every gap, the interval on that margin, and the smallest gap the run can resolve.",
+      "Blueprint does the deployment homework before the robot arrives: capture one real workflow, recreate it as a secure testbed, test robot fit, and package the gaps and acceptance criteria for the onsite team.",
   },
   {
-    question: "Do robot teams and site operators use different products?",
+    question: "Why is that useful?",
     answer:
-      "No. Two audiences, one service. They get their own explanation pages because they arrive with different things — a robot team usually has candidates, a site operator usually has a job and no candidates — but the intake, workflow, result model, pricing model, and call to action are identical.",
+      "Without Blueprint, every robot company repeats site discovery, modeling, assumptions, and early testing. The answers are hard to compare, and basic mismatches are often found after engineers or hardware are already committed.",
   },
   {
-    question: "Do I choose the simulator or world model?",
+    question: "Why call this months 0–2?",
     answer:
-      "No, and you should not want to. You describe the decision, the task, the claims, the threshold, what a wrong yes would cost, your budget, your deadline, and any restrictions. Which method is qualified for which claim is the judgement you are paying us for.",
+      "Agility's published Customer Acceleration Program labels its first roughly two months as Proof of Tech: test skills, confirm use-case fit, gather first KPIs, and define the workflow. Agility also says it recreates customer conditions in simulation and physically at its own facility during this phase.",
   },
   {
-    question: "Does every run produce a ranking?",
+    question: "Does Blueprint replace onsite integration?",
     answer:
-      "Ranking is what the service is for, so most runs do. Two things change its shape. A candidate the site physically will not take is ruled out on measurement rather than ranked — you get the shortfall in metres instead of a position. And a pair whose gap falls inside the run's resolution is reported as tied at that rollout count, with the floor and what it would cost to get under it, because ranking a gap the design cannot separate is just reporting noise.",
+      "No. The robot provider still connects the real robot, maps the work area, integrates systems, handles site-specific adjustments, trains onsite teams, and completes safety and commissioning work.",
   },
   {
-    question: "What is in a result?",
+    question: "Does Blueprint replace the physical pilot?",
     answer:
-      "The decision you asked about, an outcome per claim, which evidence method was used and why, what it measured, the conditions the answer holds under, coverage, uncertainty, any disagreement between methods, the strongest claim the evidence permits, the cheapest next test, whether physical evidence is required, exact artifact provenance, and what each artifact may be used for.",
+      "No. Simulation can filter and focus the trip. Real hardware is still required to prove uptime, throughput, reliability, safety, and business impact at the actual site.",
   },
   {
-    question: "Can virtual evidence prove physical performance or safety?",
+    question: "What does a site need to submit?",
     answer:
-      "Only inside the conditions it was qualified for, and never as a guarantee. Safety approval is external and stays with you. Claims that cannot be settled virtually still need evidence from real hardware, and the run will say when that is the case.",
+      "Start with phone video, plans when available, object sizes and weights, cycle time, shifts, exceptions, layout and traffic, system interfaces, success criteria, and access or privacy rules. A guided scan can follow when useful.",
   },
   {
-    question: "Is post-training a separate product?",
+    question: "Does every site get a free professional scan?",
     answer:
-      "No. Evidence produced inside a run may be marked eligible for evaluation or post-training use. That flag is permission, not proof — it does not mean training happened or that a policy got better.",
+      "No. Self-capture and automatic screening come first. Professional capture is funded only after the opportunity clears qualification or is backed by a refundable commitment deposit.",
   },
   {
-    question: "How is a run priced?",
+    question: "Do robot teams download the site twin?",
     answer:
-      "Per run, quoted from the decision, the evidence already available, the number of candidates and conditions, compute, deadline, rights constraints, and any physical work. There is no published fixed price, and the old fixed campaign prices are gone.",
+      "No. They receive progressive access. Qualified teams can run approved evaluations in Blueprint's controlled environment without receiving unrestricted raw site files. Training rights are negotiated separately.",
   },
   {
-    question: "What happened to the other products?",
+    question: "What if a robot does not fit?",
     answer:
-      "Policy Shortlist, Robot Match, Policy Improvement Runs, and separate post-training packages are no longer offered as current products. Existing records, transactions, URLs, and entitlements stay readable, and legacy requests are translated into the current model rather than dropped.",
+      "That is a useful result. Blueprint reports the mismatch, the evidence behind it, and what would have to change. It does not invent a winner or call the site deployment-ready.",
+  },
+  {
+    question: "How is Blueprint paid?",
+    answer:
+      "Sites and robot teams start free. The contracting enterprise pays a success fee when the robot provider actually collects deployment revenue. Robot providers keep their full negotiated price; heavy compute and custom training are scoped separately.",
   },
 ];
 
@@ -64,75 +67,61 @@ export default function FAQ() {
   return (
     <>
       <SEO
-        title="Task Evaluation Run FAQ | Blueprint"
-        description="What Blueprint sells, how runs are scoped and priced, what a result contains, and where the evidence stops."
+        title="Robot deployment preparation FAQ | Blueprint"
+        description="Plain-English answers about months 0–2, site capture, controlled evaluation, onsite integration, physical pilots, data access, and pricing."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
-            name: "Task Evaluation Run FAQ",
-            description: "Blueprint Task Evaluation Run questions and answers.",
+            name: "Blueprint deployment preparation FAQ",
+            description:
+              "Plain-English questions and answers about Blueprint's months 0–2 use case.",
           }),
           faqJsonLd(faqItems),
         ]}
       />
 
       <Band tone="canvas">
-        <Inner size="narrow" className="pb-16 pt-20 lg:pb-20 lg:pt-28">
+        <Inner size="narrow" className="pb-16 pt-20 lg:pb-24 lg:pt-28">
           <Reveal>
-            <p className="inline-flex items-center gap-[0.6rem] text-[11px] font-semibold uppercase tracking-[0.2em] leading-none text-brass-deep">
-              <span aria-hidden="true" className="h-px w-6 shrink-0 bg-current opacity-50" />
-              FAQ
+            <p className="text-micro font-semibold uppercase tracking-eyebrow text-action">
+              Plain English
             </p>
-            <h1 className="mt-6 max-w-[22ch] font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[0.98] tracking-[-0.045em] text-ink-900">
-              One service, and the limits printed on it.
+            <h1 className="mt-6 max-w-[17ch] text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-ink-900">
+              The robot comes later. Blueprint does the homework first.
             </h1>
-            <p className="mt-7 max-w-[46ch] text-[1.05rem] leading-[1.75] text-ink-600">
-              The questions below are the ones worth asking before you spend
-              anything — what a run ranks, what it rules out, and how small a
-              difference it can actually see.
+            <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-ink-500">
+              Ten short answers. No simulation jargon required.
             </p>
           </Reveal>
-          <Reveal delay={0.1} className="mt-14">
-            <EditorialFaq
-              title="Questions"
-              description="If yours is not here, it is a good first line in a run request."
-              items={faqItems}
-            />
+          <Reveal delay={0.08} className="mt-14">
+            <EditorialFaq title="Questions" items={faqItems} />
           </Reveal>
         </Inner>
       </Band>
 
       <Band tone="paper" rule>
-        <Inner className="py-20 lg:py-24">
+        <Inner className="py-20 lg:py-28">
           <SectionHeader
-            eyebrow="For reference"
-            title="The five shapes a result can take."
-            lede="Worth reading once. Most runs come back ordered; the rest tell you exactly which pairs the design could not separate, and what closing that would take."
+            eyebrow="Keep the boundary visible"
+            title="Blueprint covers the highlighted phase."
           />
-          <div className="mt-14">
-            <OutcomeSpectrum bands={homeOutcomes} />
-          </div>
-        </Inner>
-      </Band>
-
-      <Band tone="ink">
-        <Inner className="py-20 lg:py-24">
-          <SectionHeader eyebrow="Where we stop" title="The limits, stated plainly." onInk />
-          <NoteCards items={homeLimits} onInk className="mt-14" />
+          <Reveal className="mt-14">
+            <DeploymentTimeline compact />
+          </Reveal>
         </Inner>
       </Band>
 
       <ClosingCta
-        eyebrow={closingCta.eyebrow}
-        title={closingCta.title}
-        body={closingCta.body}
-        primaryHref="/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=faq-cta"
-        primaryLabel="Scope a benchmark"
-        secondaryHref="/how-it-works"
-        secondaryLabel="See how it works"
-        imageSrc="/redesign/pov/machine-tending.jpg"
-        imageAlt="A machine-tending station in a working facility"
+        eyebrow="Still have a question?"
+        title="Show us the workflow."
+        body="A short video and a plain-English description are enough to start the screening conversation."
+        primaryHref="/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=faq"
+        primaryLabel="Submit a site task"
+        secondaryHref="/contact/robot-team?source=faq"
+        secondaryLabel="Talk as a robot team"
+        imageSrc="/redesign/pov/route-scan.jpg"
+        imageAlt="Captured route through a real facility"
       />
     </>
   );

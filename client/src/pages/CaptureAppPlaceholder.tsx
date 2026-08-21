@@ -262,14 +262,14 @@ export default function CaptureAppPlaceholder() {
                   <div className="max-w-[28rem]">
 	                    <SurfaceMiniLabel className="text-white/50">Approved Capture Assignments</SurfaceMiniLabel>
 	                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
-	                      Get paid to capture real places robots need to understand.
+	                      Get paid to capture the job before the robot arrives.
 	                      <br />
 	                      Phone first.
 	                    </h1>
 	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-white/75">
-	                      Open Blueprint Capture when you have access to an approved assignment:
-                        walk a public-facing route, follow app guidance, upload one complete
-                        walkthrough, and wait for review.
+	                      Open Blueprint Capture when you have an approved assignment: record the
+                        named workflow, follow the access boundary, upload one complete walkthrough,
+                        and wait for QA.
 	                    </p>
                       <p className="mt-4 max-w-[22rem] text-sm leading-7 text-white/65">
                         Payout applies only to an accepted capture. The assignment payout is shown
@@ -415,7 +415,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
-	                    Robot teams request Task Evaluation Runs grounded in real site-tasks. Capturers use this path for approved paid assignments, lawful public-facing walkthroughs, and review-gated payout eligibility.
+	                    Robot teams use these records for the task discovery, site recreation, and fit testing that happens before onsite deployment. Capturers use this path only for approved assignments and review-gated payout eligibility.
                   </p>
                   <a
                     href="/sites"

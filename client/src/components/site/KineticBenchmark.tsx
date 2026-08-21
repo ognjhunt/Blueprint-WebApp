@@ -23,8 +23,8 @@ const runHref =
 
 const stages = [
   { number: "01", label: "Capture" },
-  { number: "02", label: "Simulate" },
-  { number: "03", label: "Decide" },
+  { number: "02", label: "Recreate" },
+  { number: "03", label: "Test" },
 ] as const;
 
 /**
@@ -89,15 +89,17 @@ export function KineticBenchmark() {
           </ul>
           <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
             <a className="kinetic-button-primary" href={runHref}>
-              Scope a benchmark
+              Prepare a deployment
               <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
             </a>
-            <a className="kinetic-text-link" href="/proof">
-              See a sample result
+            <a className="kinetic-text-link" href="/how-it-works">
+              See the 0–6 month map
               <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
-          <p className="mt-5 text-sm text-kinetic-faint">Fixed-scope runs from $2,500 · target turnaround 12–24h</p>
+          <p className="mt-5 text-sm text-kinetic-faint">
+            Blueprint focuses on months 0–2. Onsite integration and the physical pilot stay with the OEM.
+          </p>
         </div>
 
         <StageRail
@@ -192,8 +194,8 @@ export function KineticBenchmark() {
               </p>
               <div className="mt-3 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xl font-semibold tracking-[-0.025em]">Candidate A</p>
-                  <p className="mt-1 text-lg text-kinetic-cyan">Take to site</p>
+                  <p className="text-xl font-semibold tracking-[-0.025em]">Robot-site fit</p>
+                  <p className="mt-1 text-lg text-kinetic-cyan">Ready for onsite validation</p>
                 </div>
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-kinetic-blue text-kinetic-cyan">
                   <CheckIcon className="h-5 w-5" aria-hidden="true" />
@@ -210,18 +212,18 @@ export function KineticBenchmark() {
           {[
             {
               number: "01",
-              title: "Walk the site",
-              body: "Capture the task area with an iPhone Pro or 360 camera.",
+              title: "Capture the workflow",
+              body: "Record the task area, objects, timing, exceptions, systems, and access rules.",
             },
             {
               number: "02",
-              title: "We build + run",
-              body: "We reconstruct the task, vary the conditions, and run your candidates.",
+              title: "Recreate the job",
+              body: "Build one secure testbed and one acceptance test shared across robot teams.",
             },
             {
               number: "03",
-              title: "You get the decision",
-              body: "See the ranking, likely failure modes, and what to take into the physical pilot.",
+              title: "Test before the trip",
+              body: "See fit, failures, unknowns, and the exact checklist for onsite validation.",
             },
           ].map((step, index) => (
             <article
@@ -315,7 +317,7 @@ function KineticTimeline({ activeStage }: { activeStage: number }) {
       <div className="mt-4 grid grid-cols-3 font-mono text-[9px] uppercase tracking-[0.13em] text-white/65 sm:text-[10px]">
         <span>Capture start</span>
         <span className="text-center">Simulation runs</span>
-        <span className="text-right">Results · target 12–24h</span>
+        <span className="text-right">Deployment handoff</span>
       </div>
     </div>
   );
@@ -328,17 +330,17 @@ export function ResultDecisionPanel() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-kinetic-cyan">The output</p>
           <h2 className="mt-6 max-w-[13ch] text-[clamp(2.7rem,5.2vw,5.6rem)] font-semibold leading-[0.96] tracking-[-0.058em]">
-            Know what deserves the pilot.
+            Arrive onsite with the homework done.
           </h2>
           <p className="mt-7 max-w-[32rem] text-lg leading-8 text-white/62">
-            Find likely failure modes while they are still cheap to fix. Then use
-            the real site to validate the candidate that earned the trip.
+            Find basic mismatches while they are still cheap to fix. Then use the
+            real site for commissioning and physical proof—not first discovery.
           </p>
           <div className="mt-9 flex items-center gap-3 text-sm text-white/58">
             <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/35">
               <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
-            Paired physical validation
+            Physical validation still required
           </div>
         </div>
 
@@ -383,7 +385,7 @@ export function ResultDecisionPanel() {
           ))}
           <div className="mt-5 flex items-center gap-3 px-2 text-xs leading-5 text-white/42">
             <CubeTransparentIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            Results include uncertainty, failure slices, and an explicit abstention when the evidence cannot separate candidates.
+            Results name the known gaps, unresolved claims, and what the onsite proof of concept must settle.
           </div>
         </div>
       </div>

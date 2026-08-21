@@ -58,15 +58,14 @@ import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTil
 /* -------------------------------------------------------------- home page */
 
 export const homeHero = {
-  eyebrow: "Field-to-sim evaluation",
-  title: "Which candidate do you send to the customer's floor?",
+  eyebrow: "Automate months 0–2",
+  title: "The robot should arrive after the homework is done.",
   body:
-    "Pilots are expensive. Blueprint walks the site once, rebuilds the real job in simulation, and runs every candidate against the same conditions — so you know which one earns the trip before you book it.",
+    "Blueprint captures one real workflow, rebuilds it as a secure testbed, and tests robot fit before an OEM sends people or hardware onsite.",
   chips: [
-    "The real site, not a generic scene",
-    "Ruled out on measurement, not prediction",
-    "A ranking, and what it can prove",
-    "Target turnaround · 12–24h",
+    "One workflow captured once",
+    "One testbed for every robot team",
+    "Onsite validation still required",
   ],
 } as const;
 
@@ -383,33 +382,32 @@ export const homeLimits = [
 /* ------------------------------------------------------- robot-team page */
 
 export const robotTeamHero = {
-  eyebrow: "Field-to-sim evaluation · for robot teams",
-  title: "Know which candidate deserves the pilot.",
+  eyebrow: "Months 0–2 · for robot teams",
+  title: "Start with a captured task, not a blank site.",
   body:
-    "Walk the prospective site once. Blueprint rebuilds the real task, runs your candidates under controlled variation, and returns the ranking, likely failure modes, and what to take into the physical pilot.",
+    "Blueprint gives your deployment team a captured workflow, versioned testbed, acceptance criteria, compatibility gaps, and controlled evaluation results before the first onsite visit.",
   chips: [
-    "Bring your policies or model versions",
-    "Fixed-scope run",
-    "Target turnaround · 12–24h",
-    "Decision-ready report",
+    "No listing or lead fee",
+    "Standard evaluations included",
+    "Site files stay controlled",
   ],
 } as const;
 
 export const robotTeamValue = [
   {
-    title: "Screen on measurement, not on rollouts",
+    title: "Skip repeated site discovery",
     body:
-      "Reach, footprint, clearance, and sightlines are computed from the capture. A candidate that cannot fit is out before it costs you a single rollout — and the run tells you by how much it missed.",
+      "Read one standard dossier instead of rebuilding the task from calls, phone videos, floor plans, and scattered notes.",
   },
   {
-    title: "Order what survives, on one substrate",
+    title: "Test before field engineering",
     body:
-      "Several candidates, one task, one testbed version, one set of conditions, reported across site, task, embodiment, viewpoint, and appearance. Same substrate for every candidate, so the comparison means something.",
+      "Check geometry, interfaces, assumptions, and bounded policy performance before sending people or scarce hardware onsite.",
   },
   {
-    title: "Know what the ranking can prove",
+    title: "Arrive with the gaps named",
     body:
-      "Every design has a smallest separable gap. We give you the ranking, the interval on each margin, and that floor — so you can tell a real lead from two candidates that are simply tied.",
+      "The handoff tells you what fit, what failed, what is still unknown, and exactly what the onsite proof of concept must settle.",
   },
 ] as const;
 
@@ -440,11 +438,11 @@ export const robotTeamFlow: readonly LifecycleStage[] = [
 /* --------------------------------------------------- site-operator page */
 
 export const siteOperatorHero = {
-  eyebrow: "Task Evaluation Runs · for site operators",
-  title: "Find out what a robot could do here, before anyone shows up.",
+  eyebrow: "Months 0–2 · for site operators",
+  title: "Explain the job once. Let robot teams test it before they visit.",
   body:
-    "You do not need a policy, a vendor, or an evaluation stack to start. Describe the job you would hand to a robot and the terms you would hand it under. We turn that into a testbed we maintain and a decision you can inspect.",
-  chips: ["No candidate needed to start", "You keep control of access", "Rights and privacy in writing"],
+    "Blueprint turns one real workflow into a private, reusable work package. You keep control of the site data; qualified robot teams get only the access needed to test fit.",
+  chips: ["Submit free", "No robot chosen yet", "Site data stays controlled"],
 } as const;
 
 export const siteOperatorNeeds = [
@@ -497,10 +495,10 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "Free core access · site-paid success fee",
-  title: "Join free. Pay when a deployment works.",
+  eyebrow: "Free to start · site-paid when it works",
+  title: "Do the homework free. Pay when the robot gets paid.",
   body:
-    "Sites submit tasks for free. Robot teams discover opportunities and run standard evaluations for free. When a deployment produces collected provider revenue, the customer pays Blueprint a success fee with automatic annual volume discounts.",
+    "Sites submit workflows free. Robot teams discover and run standard evaluations free. The site pays Blueprint only when a deployment produces collected provider revenue.",
 } as const;
 
 export const pricingIncluded = [
@@ -534,10 +532,10 @@ export const pricingBoundaries = [
 
 export const aboutHero = {
   eyebrow: "About Blueprint",
-  title: "The gap between a good demo and a real building.",
+  title: "We automate the work before the robot arrives.",
   body:
-    "A policy that works in a lab and a policy that works in this warehouse, on this shift, around these people are different claims. Blueprint exists to make the second one testable before anyone spends a week finding out the hard way.",
-  chips: ["Capture first", "Estimates, never guarantees", "Rights travel with the evidence"],
+    "Robot deployments begin with weeks of task discovery, site recreation, simulation, and fit testing. Blueprint turns that repeated project into one reusable Task Evaluation Run.",
+  chips: ["Capture once", "Test privately", "Hand off before onsite work"],
 } as const;
 
 export const aboutStats: readonly StatTile[] = [

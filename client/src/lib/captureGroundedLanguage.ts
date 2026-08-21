@@ -1,8 +1,8 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint turns a real site-task into a maintained testbed and one Task Evaluation Run that returns a bounded decision or explicit abstention. Pipeline routes each claim to the least expensive currently qualified evidence; capture provenance and proof boundaries stay attached.",
+    "Blueprint automates the deployment homework before the robot arrives. One Task Evaluation Run captures a real workflow, builds a permissioned Site-Task Testbed, tests robot fit, returns a bounded decision or explicit abstention, and packages the onsite handoff.",
   seoDescription:
-    "Blueprint helps robot teams and site operators turn a real site-task into a maintained testbed and a bounded decision or explicit abstention, with provenance and evidence limits attached.",
+    "Blueprint helps sites and robot teams do the task discovery, site recreation, and robot-fit evaluation that happens before onsite deployment.",
   groundTruthDefinition:
     "Ground truth means immutable raw capture evidence, native timestamps, poses, device metadata, rights and privacy records, and provenance. Derived geometry, simulation, generated media, provider output, and runtime artifacts remain separately labeled evidence and do not automatically upgrade the claim.",
   supportSignalBoundary:
@@ -10,7 +10,7 @@ export const captureGroundedPublicCopy = {
   publicLaunchReadyBoundary:
     "Public pages can stay polished and present-tense while live availability, rights, payment, provider execution, package access, and fulfillment remain confirmed per site/request.",
   requestBoundary:
-    "A request records the site-task, decision, claims, thresholds, false-safe consequences, evidence, budget, deadline, restrictions, and candidates when applicable. It does not grant payment, entitlement, rights clearance, provider execution, artifact access, fulfillment, or hosted-session availability.",
+    "A request records the workflow, deployment question, claims, thresholds, evidence, timing, restrictions, and robot candidates when applicable. It does not grant payment, rights clearance, provider execution, raw site-model access, physical access, fulfillment, or deployment approval.",
   catalogBoundary:
     "Catalog copy can help buyers compare sample, planned, and access-reviewed listings, but operational truth stays with capture provenance, rights/privacy records, package artifacts, runtime evidence, and request review.",
   apiSafety:

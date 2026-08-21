@@ -6,9 +6,9 @@
 // capturers remain the paid-supply path.
 
 export const primaryNavLinks = [
-  { href: "/for-robot-teams", label: "Product" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/proof", label: "Proof" },
+  { href: "/for-site-operators", label: "For sites" },
+  { href: "/for-robot-teams", label: "For robot teams" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -21,11 +21,12 @@ export const headerUtilityLinks = [
 // Primary header CTA — white-fill "Request evaluation" button.
 export const headerRequestEvaluation = {
   href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",
-  label: "Scope a benchmark",
+  label: "Prepare a deployment",
 };
 
 // Footer columns: Product / Evidence / Company.
 export const footerProductLinks = [
+  { href: "/for-site-operators", label: "For Site Operators" },
   { href: "/for-robot-teams", label: "For Robot Teams" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/pricing", label: "Pricing" },
@@ -45,7 +46,6 @@ export const footerCompanyLinks = [
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=footer",
     label: "Request a Task Evaluation Run",
   },
-  { href: "/for-site-operators", label: "For Site Operators" },
   // Demoted: capture is paid supply the company recruits.
   { href: "/capture", label: "Get paid to capture" },
 ];

@@ -140,8 +140,8 @@ export default function Sites() {
   return (
     <>
       <SEO
-        title="Captured Sites | Blueprint"
-        description="Browse owner-system-backed capture records available as Task Evaluation Run testbed inputs."
+        title="Captured workflows for robot deployment | Blueprint"
+        description="Browse current capture records that can become permissioned months 0–2 robot deployment work packages."
         canonical="/sites"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
@@ -162,16 +162,16 @@ export default function Sites() {
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.75fr_1.25fr] md:items-center md:px-8 md:py-16">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-                Real capture inventory
+                Deployment opportunity inputs
               </p>
               <h1 className="mt-4 max-w-[14ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Evaluate where the work happens.
+                Start with the real workflow.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
                 {robotPolicyScreeningValue}
               </p>
               <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
-                The evidence is strongest first for warehouse and logistics work —
+                These records are the starting point for the work before a robot arrives: define the task, build the testbed, screen fit, and prepare the onsite handoff. The evidence is strongest first for warehouse and logistics work —
                 mobile-base navigation and rigid pick-and-place ({robotPolicyBeachheadShort}).
                 Other site types stay browsable below. Public cards come from current
                 Pipeline-backed capture records; if the exact place is not open, Blueprint can
@@ -186,13 +186,13 @@ export default function Sites() {
                   href={requestHref()}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
                 >
-                  Request a Task Evaluation Run <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  Prepare a deployment <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
                   href="/signup/capturer"
                   className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
                 >
-                  Capture a site
+                  Capture a workflow
                 </a>
               </div>
             </div>
