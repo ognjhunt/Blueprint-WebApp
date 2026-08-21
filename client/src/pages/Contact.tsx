@@ -44,7 +44,7 @@ const routeCards = [
 
 export default function Contact() {
   const search = useSearch();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const prefill = useMemo(
     () => parseContactRequestPrefill(searchParams, location),
@@ -52,10 +52,21 @@ export default function Contact() {
   );
   const persona = personaFromContext({ location, prefill });
   const isSiteOperator = persona === "site_operator";
+  const initialIntent =
+    isSiteOperator &&
+    ["pilot-opportunity", "prepare-pilot-opportunity"].includes(
+      String(searchParams.get("intent") || searchParams.get("interest") || "")
+        .trim()
+        .toLowerCase()
+        .replace(/_/g, "-"),
+    )
+      ? "pilot-opportunity"
+      : "task-evaluation-run";
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedIntent, setSelectedIntent] = useState(initialIntent);
 
   const headline = isSiteOperator
     ? "Turn your site-task into a testable decision."
@@ -67,6 +78,7 @@ export default function Contact() {
   const intentOptions = isSiteOperator
     ? [
         { value: "task-evaluation-run", label: "Task Evaluation Run" },
+        { value: "pilot-opportunity", label: "Prepare a pilot opportunity" },
         { value: "rights", label: "Discuss rights and access" },
       ]
     : [
@@ -79,10 +91,17 @@ export default function Contact() {
     if (submitting) return;
 
     const formData = new FormData(event.currentTarget);
-    const intentValue = String(formData.get("intent") ?? "");
+    const intentValue = selectedIntent || String(formData.get("intent") ?? "");
     const intentLabel =
       intentOptions.find((option) => option.value === intentValue)?.label ||
       intentValue;
+
+    if (isSiteOperator && intentValue === "pilot-opportunity") {
+      setLocation(
+        "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=site-operator-contact",
+      );
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -230,6 +249,8 @@ export default function Contact() {
                     placeholder="Select one"
                     options={intentOptions}
                     name="intent"
+                    value={selectedIntent}
+                    onValueChange={setSelectedIntent}
                   />
                 </div>
                 <div className="flex w-full flex-col gap-1.5">
@@ -272,7 +293,11 @@ export default function Contact() {
                     iconRight={<ArrowRight />}
                     disabled={submitting}
                   >
-                    {submitting ? "Sending…" : "Send message"}
+                    {selectedIntent === "pilot-opportunity"
+                      ? "Continue to secure dossier"
+                      : submitting
+                        ? "Sending…"
+                        : "Send message"}
                   </Button>
                 </div>
               </form>

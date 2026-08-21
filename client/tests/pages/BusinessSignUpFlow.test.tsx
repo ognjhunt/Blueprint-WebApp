@@ -325,7 +325,12 @@ describe("BusinessSignUpFlow analytics", () => {
     });
   });
 
-  it("routes a site-operator signup into a measured site claim and access boundary", async () => {
+  it("routes a site-operator pilot signup into a permissioned structured dossier", async () => {
+    window.history.pushState(
+      {},
+      "",
+      "/signup/business?buyerType=site_operator&intent=pilot-opportunity",
+    );
     render(<BusinessSignUpFlow />);
 
     fireEvent.change(screen.getByLabelText(/Organization name/i), {
@@ -343,7 +348,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
     await screen.findByText(
-      /Team and requested lane/i,
+      /Role and site lane/i,
       undefined,
       { timeout: ANIMATED_STEP_TIMEOUT_MS },
     );
@@ -360,7 +365,6 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/Company size/i), {
       target: { value: "51-200" },
     });
-    fireEvent.click(screen.getByText(/^Site operator$/i));
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
     await screen.findByLabelText(
@@ -386,6 +390,24 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.change(screen.getByLabelText(/Commercialization boundary/i), {
       target: { value: "Ask before each robot-team use" },
+    });
+    expect(
+      screen.getByRole("checkbox", { name: /Prepare this workflow as a pilot opportunity/i }),
+    ).toBeChecked();
+    fireEvent.change(screen.getByLabelText(/Objects and variability/i), {
+      target: { value: "Rigid book totes, 6-14 kg, three standard footprints." },
+    });
+    fireEvent.change(screen.getByLabelText(/Standardized benchmark/i), {
+      target: { value: "6-14 kg rigid totes, 97% success, 45 second target, separated aisle class." },
+    });
+    fireEvent.change(screen.getByLabelText(/Operational profile/i), {
+      target: { value: "45 second cycle, two shifts, 3% exception rate." },
+    });
+    fireEvent.change(screen.getByLabelText(/Integration environment/i), {
+      target: { value: "WMS task API, facility Wi-Fi, no PLC write access." },
+    });
+    fireEvent.change(screen.getByLabelText(/Owner and rollout readiness/i), {
+      target: { value: "Facilities lead owns a separated pilot area; four similar sites." },
     });
     expect(screen.getByText(/Site submission is free/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Budget range/i)).not.toBeInTheDocument();
@@ -415,6 +437,21 @@ describe("BusinessSignUpFlow analytics", () => {
       operatingConstraints: "Escorted weekday access, no capture before 9am.",
       privacySecurityConstraints: "No employee-only rooms and redact faces.",
       derivedScenePermission: "Ask before each robot-team use",
+      pilotOpportunity: {
+        requested: true,
+        visibility: "private",
+        benchmarkProfile: "6-14 kg rigid totes, 97% success, 45 second target, separated aisle class.",
+        objectProfile: "Rigid book totes, 6-14 kg, three standard footprints.",
+        operationalProfile: "45 second cycle, two shifts, 3% exception rate.",
+        integrationEnvironment: "WMS task API, facility Wi-Fi, no PLC write access.",
+        rolloutReadiness: "Facilities lead owns a separated pilot area; four similar sites.",
+        dataUsePermissions: {
+          evaluateExistingPolicy: "granted",
+          siteSpecificAdaptation: "not_granted",
+          retainImprovements: "not_granted",
+          generalModelTraining: "not_granted",
+        },
+      },
     });
 
     const savedUser = setDocMock.mock.calls[0]?.[1];
@@ -427,11 +464,14 @@ describe("BusinessSignUpFlow analytics", () => {
       accessBoundaryOutcome: "access_boundary_defined",
       siteClaimReadinessScore: 100,
       missingSiteClaimFields: [],
+      pilotOpportunityOutcome: "review_pending",
+      missingPilotOpportunityFields: [],
       onboardingProgress: {
         siteClaimConfirmed: true,
         accessBoundariesDefined: true,
         privacyRulesConfirmed: true,
         commercializationPreferenceSet: true,
+        pilotOpportunityDossierSubmitted: true,
       },
       // R047: the persisted operator profile records Terms/Privacy acceptance.
       acceptedTerms: true,

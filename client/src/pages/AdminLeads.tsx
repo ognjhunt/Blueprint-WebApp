@@ -29,6 +29,7 @@ import type {
   InboundRequestDetail,
   InboundRequestListItem,
   OpportunityState,
+  PilotOpportunityOutcome,
   ProofPathMilestoneKey,
   QualificationState,
   RequestPriority,
@@ -55,6 +56,23 @@ import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
 const opportunityStates: OpportunityState[] = [...OPPORTUNITY_STATES];
+
+const pilotOpportunityOutcomes: PilotOpportunityOutcome[] = [
+  "review_pending",
+  "evaluation_candidate",
+  "wrong_robot_class",
+  "economics_insufficient",
+  "missing_evidence",
+];
+
+const pilotOpportunityOutcomeLabels: Record<PilotOpportunityOutcome, string> = {
+  not_requested: "Not requested",
+  review_pending: "Review pending",
+  evaluation_candidate: "Evaluation candidate",
+  wrong_robot_class: "Wrong robot class",
+  economics_insufficient: "Economics insufficient",
+  missing_evidence: "Missing evidence",
+};
 
 const priorityColors: Record<RequestPriority, string> = {
   low: "bg-zinc-100 text-zinc-700",
@@ -706,11 +724,13 @@ export default function AdminLeads() {
       requestId,
       qualificationState,
       opportunityState,
+      pilotOpportunityOutcome,
       note: mutationNote,
     }: {
       requestId: string;
       qualificationState: QualificationState;
       opportunityState?: OpportunityState | null;
+      pilotOpportunityOutcome?: PilotOpportunityOutcome | null;
       note?: string;
     }) => {
       const response = await fetch(`/api/admin/leads/${requestId}/status`, {
@@ -719,6 +739,9 @@ export default function AdminLeads() {
         body: JSON.stringify({
           qualification_state: qualificationState,
           ...(opportunityState ? { opportunity_state: opportunityState } : {}),
+          ...(pilotOpportunityOutcome
+            ? { pilot_opportunity_outcome: pilotOpportunityOutcome }
+            : {}),
           note: mutationNote,
         }),
       });
@@ -2662,6 +2685,24 @@ export default function AdminLeads() {
                   </button>
                 </div>
 
+                {selectedLead.request.pilotOpportunity?.requested ? (
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Pilot opportunity dossier</p>
+                    <div className="mt-3 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                      <p>Visibility: {selectedLead.request.pilotOpportunity.visibility.replace(/_/g, " ")}</p>
+                      <p>
+                        Gate gaps: {selectedLead.structured_intake?.missing_pilot_opportunity_fields?.length
+                          ? selectedLead.structured_intake.missing_pilot_opportunity_fields.join(", ").replace(/_/g, " ")
+                          : "None recorded"}
+                      </p>
+                    </div>
+                    <p className="mt-3 text-sm text-zinc-600">
+                      A simulation candidate remains below deployment readiness until robot-specific
+                      and authoritative physical evidence is joined.
+                    </p>
+                  </div>
+                ) : null}
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl bg-zinc-50 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
@@ -3096,12 +3137,13 @@ export default function AdminLeads() {
                   </div>
                 ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-zinc-700">
                       Qualification state
                     </label>
                     <select
+                      id="admin-qualification-state"
                       className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                       value={selectedLead.qualification_state}
                       onChange={(event) =>
@@ -3121,10 +3163,11 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-zinc-700">
                       Opportunity state
                     </label>
                     <select
+                      id="admin-opportunity-state"
                       className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                       value={selectedLead.opportunity_state || ""}
                       onChange={(event) =>
@@ -3140,6 +3183,35 @@ export default function AdminLeads() {
                       {opportunityStates.map((state) => (
                         <option key={state} value={state}>
                           {opportunityStateLabels[state]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-zinc-700">
+                      Pilot opportunity outcome
+                    </label>
+                    <select
+                      id="admin-pilot-opportunity-outcome"
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={selectedLead.structured_intake?.pilot_opportunity_outcome || "not_requested"}
+                      disabled={!selectedLead.request.pilotOpportunity?.requested}
+                      onChange={(event) =>
+                        updateStateMutation.mutate({
+                          requestId: selectedLead.requestId,
+                          qualificationState: selectedLead.qualification_state,
+                          opportunityState: selectedLead.opportunity_state,
+                          pilotOpportunityOutcome: event.target.value as PilotOpportunityOutcome,
+                          note: note || undefined,
+                        })
+                      }
+                    >
+                      {!selectedLead.request.pilotOpportunity?.requested ? (
+                        <option value="not_requested">Not requested</option>
+                      ) : null}
+                      {pilotOpportunityOutcomes.map((outcome) => (
+                        <option key={outcome} value={outcome}>
+                          {pilotOpportunityOutcomeLabels[outcome]}
                         </option>
                       ))}
                     </select>

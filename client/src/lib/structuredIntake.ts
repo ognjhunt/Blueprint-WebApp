@@ -1,6 +1,8 @@
 import type {
   BudgetBucket,
   BuyerType,
+  PilotOpportunityInput,
+  PilotOpportunityOutcome,
   ProofPathPreference,
   RealSiteRobotEvalFitInput,
   RequestedLane,
@@ -60,6 +62,9 @@ export interface StructuredIntakeDecision {
   siteClaimReadinessScore: number;
   siteClaimCriteria: string[];
   missingSiteClaimFields: string[];
+  pilotOpportunityOutcome: PilotOpportunityOutcome;
+  pilotOpportunityGateCriteria: string[];
+  missingPilotOpportunityFields: string[];
 }
 
 export interface StructuredIntakeInput {
@@ -83,6 +88,7 @@ export interface StructuredIntakeInput {
   datasetLicensingPermission?: string | null;
   payoutEligibility?: string | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
+  pilotOpportunity?: PilotOpportunityInput | null;
   details?: string | null;
 }
 
@@ -130,11 +136,20 @@ const STRUCTURED_FIELD_LABELS: Record<string, string> = {
   facility_name: "Facility name",
   metric_thresholds: "Metric thresholds",
   operator_intent: "Operator intent",
+  opportunity_visibility: "Opportunity visibility",
+  approved_robot_team_emails: "Approved robot-team work emails",
+  anonymized_opportunity_summary: "Anonymized opportunity summary",
+  benchmark_profile: "Standardized benchmark profile",
+  object_profile: "Objects, weights, dimensions, and variability",
+  operational_profile: "Cycle time, volume, shifts, exceptions, and downtime",
+  integration_environment: "WMS, MES, PLC, network, and security environment",
+  rollout_readiness: "Internal owner, pilot timing, and rollout scale",
   privacy_security_boundary: "Privacy/security boundary",
   proof_path_preference: "Proof path preference",
   robot_or_stack: "Robot or stack",
   robot_team_role: "Robot-team role",
   safety_constraints: "Safety constraints",
+  site_claim_access_boundary: "Site access, privacy, and commercialization boundary",
   site_location: "Site location",
   site_name: "Site name",
   target_site_type_or_site: "Target site class or site",
@@ -381,6 +396,65 @@ function buildSiteOperatorClaimDecision(input: StructuredIntakeInput): {
   };
 }
 
+function buildPilotOpportunityDecision(
+  input: StructuredIntakeInput,
+  siteOperatorClaim: ReturnType<typeof buildSiteOperatorClaimDecision>,
+): {
+  pilotOpportunityOutcome: PilotOpportunityOutcome;
+  pilotOpportunityGateCriteria: string[];
+  missingPilotOpportunityFields: string[];
+} {
+  const opportunity = input.pilotOpportunity;
+  if (input.buyerType !== "site_operator" || !opportunity?.requested) {
+    return {
+      pilotOpportunityOutcome: "not_requested",
+      pilotOpportunityGateCriteria: [],
+      missingPilotOpportunityFields: [],
+    };
+  }
+
+  const approvedEmails = (opportunity.approvedRobotTeamEmails || []).filter((email) =>
+    hasText(email),
+  );
+  const criteria: Array<{ key: string; met: boolean }> = [
+    {
+      key: "site_claim_access_boundary",
+      met: siteOperatorClaim.siteOperatorClaimOutcome === "site_claim_access_boundary_ready",
+    },
+    { key: "opportunity_visibility", met: Boolean(opportunity.visibility) },
+    {
+      key: "approved_robot_team_emails",
+      met:
+        opportunity.visibility !== "approved_robot_teams" || approvedEmails.length > 0,
+    },
+    {
+      key: "anonymized_opportunity_summary",
+      met: opportunity.visibility !== "anonymized" || hasText(opportunity.anonymizedSummary),
+    },
+    { key: "object_profile", met: hasText(opportunity.objectProfile) },
+    { key: "benchmark_profile", met: hasText(opportunity.benchmarkProfile) },
+    { key: "operational_profile", met: hasText(opportunity.operationalProfile) },
+    {
+      key: "integration_environment",
+      met: hasText(opportunity.integrationEnvironment),
+    },
+    { key: "rollout_readiness", met: hasText(opportunity.rolloutReadiness) },
+  ];
+  const pilotOpportunityGateCriteria = criteria
+    .filter((criterion) => criterion.met)
+    .map((criterion) => criterion.key);
+  const missingPilotOpportunityFields = criteria
+    .filter((criterion) => !criterion.met)
+    .map((criterion) => criterion.key);
+
+  return {
+    pilotOpportunityOutcome:
+      missingPilotOpportunityFields.length > 0 ? "missing_evidence" : "review_pending",
+    pilotOpportunityGateCriteria: unique(pilotOpportunityGateCriteria),
+    missingPilotOpportunityFields: unique(missingPilotOpportunityFields),
+  };
+}
+
 export function evaluateStructuredIntake(input: StructuredIntakeInput): StructuredIntakeDecision {
   const requestedLanes = input.requestedLanes || [];
   const missingStructuredFields: string[] = [];
@@ -388,6 +462,10 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
   const filterTags = ["structured_intake_first", input.buyerType];
   const proofReadyDecision = buildProofReadyDecision(input, requestedLanes);
   const siteOperatorClaimDecision = buildSiteOperatorClaimDecision(input);
+  const pilotOpportunityDecision = buildPilotOpportunityDecision(
+    input,
+    siteOperatorClaimDecision,
+  );
 
   if (input.buyerType === "robot_team") {
     const fit = input.realSiteRobotEvalFit;
@@ -486,7 +564,9 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
 
   const primaryCta =
     input.buyerType === "site_operator"
-      ? "Submit or claim a site"
+      ? input.pilotOpportunity?.requested
+        ? "Submit pilot opportunity dossier"
+        : "Submit or claim a site"
       : requestedLanes.includes("deeper_evaluation")
         ? "Scope policy evaluation"
         : "Request buyer access";
@@ -517,8 +597,13 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
               ? "intake_then_optional_scoping_call"
               : "structured_intake_review";
   const missingStructuredFieldLabels = fieldLabels(missingStructuredFields);
+  const missingPilotOpportunityFieldLabels = fieldLabels(
+    pilotOpportunityDecision.missingPilotOpportunityFields,
+  );
   const nextAction =
-    calendarDisposition === "required_before_next_step"
+    input.pilotOpportunity?.requested && missingPilotOpportunityFieldLabels.length > 0
+      ? `ask for ${formatList(missingPilotOpportunityFieldLabels)} before opportunity review or robot-team visibility`
+      : calendarDisposition === "required_before_next_step"
       ? "review structured intake, preserve the operator rights/privacy boundary, then schedule scoping before any access or commercialization commitment"
       : input.buyerType === "site_operator" &&
           siteOperatorClaimDecision.siteOperatorClaimOutcome ===
@@ -557,9 +642,20 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     `proof_path_${proofReadyDecision.proofPathOutcome}`,
     siteOperatorClaimDecision.siteOperatorClaimOutcome,
     siteOperatorClaimDecision.accessBoundaryOutcome,
+    `pilot_opportunity_${pilotOpportunityDecision.pilotOpportunityOutcome}`,
     ...requestedLanes,
     ...calendarReasons,
   );
+
+  if (input.pilotOpportunity?.requested) {
+    filterTags.push(
+      "pilot_opportunity_requested",
+      `pilot_visibility_${input.pilotOpportunity.visibility}`,
+      ...pilotOpportunityDecision.pilotOpportunityGateCriteria.map(
+        (criterion) => `pilot_gate_${criterion}`,
+      ),
+    );
+  }
 
   if (proofReadyDecision.proofReadyCriteria.includes("metric_thresholds")) {
     filterTags.push("has_metric_thresholds");
@@ -592,5 +688,6 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     filterTags: unique(filterTags),
     ...proofReadyDecision,
     ...siteOperatorClaimDecision,
+    ...pilotOpportunityDecision,
   };
 }

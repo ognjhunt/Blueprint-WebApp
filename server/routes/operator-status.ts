@@ -53,6 +53,11 @@ router.get("/current", async (_req, res) => {
       next_step: record.ops?.next_step || null,
       access_boundary_outcome: record.structured_intake?.access_boundary_outcome || null,
       site_claim_outcome: record.structured_intake?.site_operator_claim_outcome || null,
+      pilot_opportunity_requested: record.request?.pilotOpportunity?.requested === true,
+      pilot_opportunity_visibility: record.request?.pilotOpportunity?.visibility || null,
+      pilot_opportunity_outcome: record.structured_intake?.pilot_opportunity_outcome || null,
+      missing_pilot_opportunity_fields:
+        record.structured_intake?.missing_pilot_opportunity_fields || [],
       created_at: toIso(record.createdAt),
       updated_at: null,
     },

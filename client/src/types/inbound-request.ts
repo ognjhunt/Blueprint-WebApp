@@ -23,6 +23,41 @@ export type BudgetBucket =
 
 export type BuyerType = "site_operator" | "robot_team";
 
+export type PilotOpportunityVisibility =
+  | "private"
+  | "anonymized"
+  | "approved_robot_teams";
+
+export type PilotOpportunityOutcome =
+  | "not_requested"
+  | "review_pending"
+  | "evaluation_candidate"
+  | "wrong_robot_class"
+  | "economics_insufficient"
+  | "missing_evidence";
+
+export type PilotPermissionDisposition = "not_granted" | "negotiable" | "granted";
+
+export interface PilotDataUsePermissions {
+  evaluateExistingPolicy: "granted";
+  siteSpecificAdaptation: PilotPermissionDisposition;
+  retainImprovements: PilotPermissionDisposition;
+  generalModelTraining: PilotPermissionDisposition;
+}
+
+export interface PilotOpportunityInput {
+  requested: boolean;
+  visibility: PilotOpportunityVisibility;
+  approvedRobotTeamEmails?: string[];
+  anonymizedSummary?: string | null;
+  benchmarkProfile?: string | null;
+  objectProfile?: string | null;
+  operationalProfile?: string | null;
+  integrationEnvironment?: string | null;
+  rolloutReadiness?: string | null;
+  dataUsePermissions: PilotDataUsePermissions;
+}
+
 export type CommercialRequestPath =
   | "world_model"
   | "hosted_evaluation"
@@ -202,6 +237,7 @@ export interface InboundRequestPayload {
   payoutEligibility?: string;
   displayCaptureMetadata?: DisplayCaptureMetadata | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
+  pilotOpportunity?: PilotOpportunityInput | null;
   details?: string;
   context: RequestContext;
   honeypot?: string; // Anti-bot honeypot field
@@ -408,6 +444,9 @@ export interface StructuredIntakeSummary {
   site_claim_readiness_score: number;
   site_claim_criteria: string[];
   missing_site_claim_fields: string[];
+  pilot_opportunity_outcome: PilotOpportunityOutcome;
+  pilot_opportunity_gate_criteria: string[];
+  missing_pilot_opportunity_fields: string[];
 }
 
 export type ProviderRunStatus =
@@ -913,6 +952,7 @@ export interface InboundRequestListItem {
     taskStatement: string;
     details?: string | null;
     proofPathPreference?: ProofPathPreference | null;
+    pilotOpportunity?: PilotOpportunityInput | null;
     displayCaptureMetadata?: DisplayCaptureMetadata | null;
     realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   };
@@ -969,6 +1009,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     derivedScenePermission?: string | null;
     datasetLicensingPermission?: string | null;
     payoutEligibility?: string | null;
+    pilotOpportunity?: PilotOpportunityInput | null;
     displayCaptureMetadata?: DisplayCaptureMetadata | null;
     realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   };
@@ -988,6 +1029,7 @@ export interface UpdateRequestStatusPayload {
   requestId: string;
   qualification_state: QualificationState;
   opportunity_state?: OpportunityState;
+  pilot_opportunity_outcome?: PilotOpportunityOutcome;
   note?: string;
 }
 

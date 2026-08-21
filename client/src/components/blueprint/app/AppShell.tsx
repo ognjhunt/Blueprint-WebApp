@@ -5,6 +5,7 @@ import {
   Boxes,
   LayoutDashboard,
   ListChecks,
+  Handshake,
   Menu,
   UploadCloud,
   type LucideIcon,
@@ -24,6 +25,7 @@ export type AppView =
   | "overview"
   | "captures"
   | "runs"
+  | "opportunities"
   | "packs"
   | "policies"
   | "data"
@@ -41,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "captures", label: "Captures", href: "/app/captures", Icon: UploadCloud },
   { key: "packs", label: "Testbeds", href: "/app/packs", Icon: Boxes },
   { key: "runs", label: "Task Evaluation Runs", href: "/app/runs", Icon: ListChecks },
+  { key: "opportunities", label: "Pilot opportunities", href: "/app/opportunities", Icon: Handshake },
 ];
 
 const OPERATOR_NAV_ITEMS: NavItem[] = [

@@ -15,6 +15,7 @@ import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
+import pilotOpportunitiesRouter from "./routes/pilot-opportunities";
 import creatorRouter from "./routes/creator";
 import contactHandler from "./routes/contact";
 import waitlistHandler from "./routes/waitlist";
@@ -248,5 +249,6 @@ export function registerRoutes(app: Express) {
   app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
   app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
+  app.use("/api/pilot-opportunities", csrfProtection, verifyFirebaseToken, pilotOpportunitiesRouter);
   app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }

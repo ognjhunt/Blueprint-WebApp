@@ -47,6 +47,7 @@ import type {
   UpdateRequestOpsPayload,
   ProofPathMilestoneKey,
   OpsAutomationEnvelope,
+  PilotOpportunityOutcome,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
@@ -296,6 +297,14 @@ function sanitizeCsvCell(value: unknown): string {
 const VALID_QUALIFICATION_STATES: QualificationState[] = [...QUALIFICATION_STATES];
 
 const VALID_OPPORTUNITY_STATES: OpportunityState[] = [...OPPORTUNITY_STATES];
+const VALID_PILOT_OPPORTUNITY_OUTCOMES: PilotOpportunityOutcome[] = [
+  "not_requested",
+  "review_pending",
+  "evaluation_candidate",
+  "wrong_robot_class",
+  "economics_insufficient",
+  "missing_evidence",
+];
 const CAPTURE_JOB_MARKETPLACE_STATES = [
   "draft",
   "approved_for_marketplace",
@@ -919,6 +928,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             siteLocation: decrypted.request.siteLocation,
             taskStatement: decrypted.request.taskStatement,
             proofPathPreference: decrypted.request.proofPathPreference || null,
+            pilotOpportunity: decrypted.request.pilotOpportunity || null,
             displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
             realSiteRobotEvalFit: decrypted.request.realSiteRobotEvalFit || null,
           },
@@ -1303,6 +1313,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
         knownBlockers: decrypted.request.knownBlockers,
         targetRobotTeam: decrypted.request.targetRobotTeam,
+        pilotOpportunity: decrypted.request.pilotOpportunity || null,
         details: decrypted.request.details,
         displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
         realSiteRobotEvalFit: decrypted.request.realSiteRobotEvalFit || null,
@@ -1603,7 +1614,12 @@ router.patch(
       }
 
       const { requestId } = req.params;
-      const { qualification_state, opportunity_state, note } =
+      const {
+        qualification_state,
+        opportunity_state,
+        pilot_opportunity_outcome,
+        note,
+      } =
         req.body as UpdateRequestStatusPayload;
       const user = res.locals.firebaseUser!;
 
@@ -1616,6 +1632,13 @@ router.patch(
         !VALID_OPPORTUNITY_STATES.includes(opportunity_state)
       ) {
         return res.status(400).json({ error: "Invalid opportunity_state" });
+      }
+
+      if (
+        pilot_opportunity_outcome &&
+        !VALID_PILOT_OPPORTUNITY_OUTCOMES.includes(pilot_opportunity_outcome)
+      ) {
+        return res.status(400).json({ error: "Invalid pilot_opportunity_outcome" });
       }
 
       const docRef = db.collection("inboundRequests").doc(requestId);
@@ -1644,6 +1667,11 @@ router.patch(
         opportunity_state: nextOpportunityState,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+
+      if (pilot_opportunity_outcome) {
+        updatePayload["structured_intake.pilot_opportunity_outcome"] =
+          pilot_opportunity_outcome;
+      }
 
       if (shouldStampQualifiedRobotTeam) {
         updatePayload.ops = {
@@ -1748,7 +1776,7 @@ router.patch(
       // Add note if provided
       if (note && note.trim()) {
         const encryptedContent = await encryptFieldValue(
-          `Qualification state changed to "${qualification_state}" and opportunity state set to "${nextOpportunityState}": ${note.trim()}`
+          `Qualification state changed to "${qualification_state}", opportunity state set to "${nextOpportunityState}", and pilot opportunity outcome set to "${pilot_opportunity_outcome || previousData.structured_intake?.pilot_opportunity_outcome || "unchanged"}": ${note.trim()}`
         );
         await docRef.collection("notes").add({
           content: encryptedContent,
@@ -1772,6 +1800,10 @@ router.patch(
         ok: true,
         qualification_state,
         opportunity_state: nextOpportunityState,
+        pilot_opportunity_outcome:
+          pilot_opportunity_outcome ||
+          previousData.structured_intake?.pilot_opportunity_outcome ||
+          null,
       });
     } catch (error) {
       logger.error(
