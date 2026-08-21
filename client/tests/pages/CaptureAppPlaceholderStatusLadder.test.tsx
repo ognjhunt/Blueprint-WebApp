@@ -86,7 +86,7 @@ describe("CaptureAppPlaceholder capturer status ladder", () => {
     // The existing app access content stays available for approved capturers.
     expect(
       screen.getByRole("heading", {
-        name: /Get paid to capture real places robots need to understand/i,
+        name: /Get paid to capture the job before the robot arrives/i,
       })
     ).toBeInTheDocument();
   });

@@ -35,25 +35,25 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Which candidate do you send to the customer's floor\?/i,
+        name: /The robot should arrive after the homework is done/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Scope a benchmark/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Prepare a deployment/i }).length).toBeGreaterThan(0);
 
     // One bounded service, and the three-stage lifecycle that backs it.
-    expect(container).toHaveTextContent(/Walk the site/i);
-    expect(container).toHaveTextContent(/We build \+ run/i);
-    expect(container).toHaveTextContent(/You get the decision/i);
+    expect(container).toHaveTextContent(/Capture the workflow/i);
+    expect(container).toHaveTextContent(/Recreate the job/i);
+    expect(container).toHaveTextContent(/Test before the trip/i);
 
     // The result stays decision-oriented and preserves the evidence boundary.
-    expect(container).toHaveTextContent(/Know what deserves the pilot/i);
-    expect(container).toHaveTextContent(/Paired physical validation/i);
-    expect(container).toHaveTextContent(/explicit abstention/i);
+    expect(container).toHaveTextContent(/Use it to validate—not to discover/i);
+    expect(container).toHaveTextContent(/Onsite validation still required/i);
+    expect(container).toHaveTextContent(/exact checklist for onsite validation/i);
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);
     expect(container).not.toHaveTextContent(/Robot Match/i);
-    expect(container).toHaveTextContent(/\$2,500/i);
+    expect(container).not.toHaveTextContent(/\$2,500/i);
     expect(container).not.toHaveTextContent(/\$3,000/i);
     expect(container).not.toHaveTextContent(/\$5,000/i);
     expect(container).not.toHaveTextContent(/guaranteed winner/i);

@@ -81,19 +81,19 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Tell us the decision you need to make\./i }),
+      screen.getByRole("heading", { name: /Start before the first onsite visit\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Request one scoped Task Evaluation Run/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Request a Task Evaluation Run\./i })).toHaveAttribute(
+    expect(screen.getByText(/Tell us what your robot can do/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Test a captured site task\./i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
     );
     expect(
-      screen.getByRole("link", { name: /Operate a site\? Partner on lighthouse capture access/i }),
+      screen.getByRole("link", { name: /Operate a site\? Submit one workflow for screening/i }),
     ).toHaveAttribute("href", "/contact/site-operator#contact-intake");
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Prepare deployment/i })).toBeInTheDocument();
     expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
   });
 
@@ -104,9 +104,9 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Tell us the decision you need to make\./i }),
+      screen.getByRole("heading", { name: /Start before the first onsite visit\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Request one scoped Task Evaluation Run/i)).toBeInTheDocument();
+    expect(screen.getByText(/missing months 0–2 inputs/i)).toBeInTheDocument();
     expect(screen.queryByText(/Policy Improvement Run/i)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Harborview Grocery Distribution Annex")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Unitree G1")).not.toBeInTheDocument();
@@ -124,10 +124,10 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /About the site-task and decision/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /About the workflow/i }), {
       target: { value: "Tote transfer. Decide whether field time is justified." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Prepare deployment/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       "/api/contact",
@@ -148,13 +148,13 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Turn your site-task into a testable decision\./i }),
+      screen.getByRole("heading", { name: /Show us the job before you choose the robot\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Request the same Task Evaluation Run used by robot teams/i)).toBeInTheDocument();
+    expect(screen.getByText(/short workflow description, phone video/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Partner on lighthouse capture access/i)[0]).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Submit one workflow for screening/i)[0]).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Prepare deployment/i })).toBeInTheDocument();
     expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
   });
 

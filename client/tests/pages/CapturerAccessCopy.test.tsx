@@ -70,7 +70,7 @@ describe("Capturer access copy", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Capture real sites for robot evaluation/i }),
+      screen.getByRole("heading", { name: /Capture the job before the robot arrives/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Blueprint publishes assignments only after review/i)).toBeInTheDocument();
     expect(screen.getByText(/Review first\. Assignment second\. Payout after QA\./i)).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe("Capturer access copy", () => {
   it("keeps the capture app handoff explicit about approval gates", () => {
     render(<CaptureAppPlaceholder />);
 
-    expect(screen.getByRole("heading", { name: /Get paid to capture real places robots need to understand/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Get paid to capture the job before the robot arrives/i })).toBeInTheDocument();
     expect(screen.getAllByText(/phone first/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Google\/Meta smart glasses are supported only for approved repeat walkthroughs/i)).toBeInTheDocument();
     expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
@@ -140,6 +140,6 @@ describe("Capturer access copy", () => {
     render(<Login />);
 
     expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
-    expect(screen.getByText(/Our private platform is for verified buyers and field operators/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review captured workflows, controlled evaluations, access rights, and onsite handoffs/i)).toBeInTheDocument();
   });
 });

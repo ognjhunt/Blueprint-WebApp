@@ -3,31 +3,25 @@ import { describe, expect, it } from "vitest";
 import FAQ from "@/pages/FAQ";
 
 describe("FAQ", () => {
-  it("renders one product with decision and evidence boundaries", () => {
+  it("answers the months 0–2 use case in plain English", () => {
     render(<FAQ />);
-
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /One service, and the limits printed on it\./i,
+        name: /robot comes later\. Blueprint does the homework first/i,
       }),
     ).toBeInTheDocument();
-
-    expect(screen.getByText(/What does Blueprint sell\?/i)).toBeInTheDocument();
+    for (const question of [
+      "What does Blueprint do?",
+      "Why call this months 0–2?",
+      "Does Blueprint replace onsite integration?",
+      "Do robot teams download the site twin?",
+      "How is Blueprint paid?",
+    ]) {
+      expect(screen.getByText(question)).toBeInTheDocument();
+    }
     expect(
-      screen.getByText(/Do robot teams and site operators use different products\?/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Does every run produce a ranking\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Is post-training a separate product\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What happened to the other products\?/i)).toBeInTheDocument();
-
-    expect(screen.getByText(/One service: a Task Evaluation Run/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/ranking a gap the design cannot separate is just reporting noise/i),
-    ).toBeInTheDocument();
-    // Withdrawn names may be described as withdrawn, but never offered.
-    expect(
-      screen.getByText(/no longer offered as current products/i),
+      screen.getByText(/Simulation can filter and focus the trip/i),
     ).toBeInTheDocument();
   });
 });

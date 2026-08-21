@@ -7,18 +7,18 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
 
   await expect(
     page.getByRole("heading", {
-      name: "Join free. Pay when a deployment works.",
+      name: "Do the homework free. Pay when the robot gets paid.",
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "Both sides enter the network for free.",
+      name: "Both sides can do the months 0–2 homework without a core platform fee.",
       exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "5% to start. Lower automatically as volume grows.",
+      name: "5% to start. Lower automatically as annual volume grows.",
       exact: true,
     }),
   ).toBeVisible();
@@ -32,12 +32,13 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
   await expect(page.getByText("$320,000", { exact: true })).toBeVisible();
   await expect(page.getByText("3.2%", { exact: true })).toBeVisible();
   await expect(page.getByText(/Customer total: \$10,320,000/i)).toBeVisible();
-  await expect(page.getByText(/No guaranteed outcome/i)).toBeVisible();
-  // The single engagement CTA lands on the shared robot-team-first intake.
+  await expect(
+    page.getByText(/Free submission does not mean a free site visit/i),
+  ).toBeVisible();
   await expect(
     page
       .locator("main")
-      .getByRole("link", { name: /Submit an opportunity/i })
+      .getByRole("link", { name: /Submit a site task/i })
       .first(),
   ).toHaveAttribute("href", /buyerType=site_operator/);
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);

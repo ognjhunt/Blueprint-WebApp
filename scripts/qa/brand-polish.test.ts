@@ -40,22 +40,27 @@ describe("brand polish QA harness contract", () => {
       "/careers",
       "/faq",
       "/about",
+      "/how-it-works",
+      "/for-site-operators",
+      "/for-robot-teams",
+      "/governance",
+      "/vision",
       "/updates",
     ]);
 
     const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
     expect(agentsRoute).toMatchObject({
-      expectedHeading: "Tell us the decision you need to make.",
+      expectedHeading: "Start before the first onsite visit.",
       requiredCtas: expect.arrayContaining([
-        { label: "Request a Task Evaluation Run.", hrefStartsWith: "/contact/robot-team" },
-        { label: "Partner on lighthouse capture access.", hrefStartsWith: "/contact/site-operator" },
+        { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
+        { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
       ]),
     });
 
     const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
     expect(faqRoute).toMatchObject({
       canonicalPath: "/faq",
-      expectedHeading: "One service, and the limits printed on it.",
+      expectedHeading: "The robot comes later. Blueprint does the homework first.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({
