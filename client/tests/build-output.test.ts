@@ -211,14 +211,16 @@ describe("build output", () => {
     expect(homeHtml).toContain("Illustrative");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    // /pricing prerenders the first-run starting point and bounded quote model.
-    expect(pricingHtml).toContain("Buy one decision before you buy the field time.");
-    expect(pricingHtml).toContain("From $2,500");
-    expect(pricingHtml).toContain("Scope a benchmark");
+    // /pricing prerenders free core access and the site-paid network schedule.
+    expect(pricingHtml).toContain("Join free. Pay when a deployment works.");
+    expect(pricingHtml).toContain("$0 opportunity submission");
+    expect(pricingHtml).toContain("5% deployment-network fee");
+    expect(pricingHtml).toContain("$170,000 Blueprint fee");
+    expect(pricingHtml).toContain("Submit an opportunity");
+    expect(pricingHtml).not.toContain("From $2,500");
     expect(pricingHtml).not.toContain("Policy Shortlist");
     expect(pricingHtml).not.toContain("Robot Match");
     expect(pricingHtml).not.toContain("$3,000");
-    expect(pricingHtml).not.toContain("$5,000");
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("Proof stays scoped");
