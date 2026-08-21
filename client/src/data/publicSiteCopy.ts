@@ -497,20 +497,11 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "One site, one benchmark · from $2,500",
-  title: "Buy one decision before you buy the field time.",
+  eyebrow: "Free core access · site-paid success fee",
+  title: "Join free. Pay when a deployment works.",
   body:
-    "A first benchmark starts at $2,500 for one bounded site-task and a small set of candidates. We scope the exact task, evidence, variation, and turnaround with you before anything is authorised.",
+    "Sites submit tasks for free. Robot teams discover opportunities and run standard evaluations for free. When a deployment produces collected provider revenue, the customer pays Blueprint a success fee with automatic annual volume discounts.",
 } as const;
-
-export const pricingDrivers = [
-  { label: "The decision", detail: "How consequential it is, and how strong the evidence has to be to carry it." },
-  { label: "What already exists", detail: "An existing testbed and prior evidence make a run cheaper. A cold start does not." },
-  { label: "Candidates and scenarios", detail: "How many things are being compared, across how many conditions." },
-  { label: "Compute and deadline", detail: "What the evidence plan needs, and how fast you need it." },
-  { label: "Rights and privacy", detail: "Restrictions on capture, storage, providers, and permitted use." },
-  { label: "Physical work", detail: "Whether settling the claims requires anyone on a real floor." },
-] as const;
 
 export const pricingIncluded = [
   "One decision-shaped request against a real site-task",
@@ -528,14 +519,14 @@ export const pricingIncluded = [
 
 export const pricingBoundaries = [
   {
-    title: "A quote buys the work, not the answer you wanted",
+    title: "Free evaluation does not buy the answer you wanted",
     body:
-      "Authorising a run does not purchase a particular winner, a green light, a field recommendation, or a passing result. It purchases the ranking the evidence actually supports.",
+      "Included standard evaluation capacity does not purchase a particular winner, a green light, a field recommendation, or a passing result. It returns only the decision the evidence supports.",
   },
   {
-    title: "Price is set on our side",
+    title: "Commercial state stays server-owned",
     body:
-      "We record your budget and deadline, but the site never treats a client-supplied number as authoritative. Scope and authorisation stay server-owned.",
+      "Budget, deposit, provider price, collected revenue, refunds, annual volume, and the applicable network fee must come from accepted server-owned records rather than browser-supplied values.",
   },
 ] as const;
 
