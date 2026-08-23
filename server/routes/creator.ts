@@ -321,6 +321,10 @@ function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | Firebas
           ? clientReported.estimated_payout_cents
           : null,
     thumbnail_url: typeof data.thumbnail_url === "string" ? data.thumbnail_url : null,
+    reconstruction:
+      data.reconstruction && typeof data.reconstruction === "object"
+        ? data.reconstruction
+        : null,
   };
 }
 
@@ -446,6 +450,9 @@ const CAPTURE_REGISTRATION_ALLOWED_FIELDS = new Set([
   "requested_outputs",
   "thumbnail_url",
   "raw_prefix",
+  "raw_bundle_digest",
+  "raw_manifest_uri",
+  "upload_completion_digest",
   "platform",
   "app_version",
   "app_build",
@@ -477,6 +484,40 @@ function optionalTrimmedString(value: unknown, maxLength = 400): string | null {
   }
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
+const SHA256_DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
+
+function captureUploadIdentity(body: Record<string, unknown>) {
+  const rawBundleDigest = optionalTrimmedString(body.raw_bundle_digest, 80);
+  const rawManifestUri = optionalTrimmedString(body.raw_manifest_uri, 800);
+  const completionDigest = optionalTrimmedString(body.upload_completion_digest, 80);
+  const supplied = [rawBundleDigest, rawManifestUri, completionDigest].filter(Boolean).length;
+  if (supplied === 0) {
+    return { value: null, error: null };
+  }
+  const bucket = String(
+    process.env.BLUEPRINT_CAPTURE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
+  ).trim();
+  if (
+    supplied !== 3
+    || !SHA256_DIGEST_RE.test(rawBundleDigest || "")
+    || !SHA256_DIGEST_RE.test(completionDigest || "")
+    || !rawManifestUri?.startsWith(`gs://${bucket}/`)
+    || !rawManifestUri.endsWith("/manifest.json")
+    || rawManifestUri.includes("..")
+  ) {
+    return { value: null, error: "invalid_immutable_upload_identity" };
+  }
+  return {
+    value: {
+      raw_bundle_digest: rawBundleDigest,
+      raw_manifest_uri: rawManifestUri,
+      upload_completion_digest: completionDigest,
+      verification_status: "pending_pipeline_storage_readback",
+    },
+    error: null,
+  };
 }
 router.post("/captures", async (req: Request, res: Response) => {
   if (!db) {
@@ -518,6 +559,14 @@ router.post("/captures", async (req: Request, res: Response) => {
     optionalTrimmedString(body.site_type)
     || optionalTrimmedString(body.location_type)
     || optionalTrimmedString(body.intended_space_type);
+  const uploadIdentity = captureUploadIdentity(body);
+  if (uploadIdentity.error) {
+    return res.status(400).json({
+      ok: false,
+      code: uploadIdentity.error,
+      error: "Immutable upload identity is incomplete or invalid",
+    });
+  }
 
   const docRef = db.collection("creatorCaptures").doc(captureId);
 
@@ -527,11 +576,33 @@ router.post("/captures", async (req: Request, res: Response) => {
       // different authenticated creator must never overwrite the original.
       return res.status(409).json({ error: "Capture id conflict", code: "capture_id_conflict" });
     }
+    const existingIdentity =
+      existing.immutable_upload_identity
+      && typeof existing.immutable_upload_identity === "object"
+        ? existing.immutable_upload_identity as Record<string, unknown>
+        : null;
+    if (uploadIdentity.value) {
+      if (
+        !existingIdentity
+        || existingIdentity.raw_bundle_digest !== uploadIdentity.value.raw_bundle_digest
+        || existingIdentity.raw_manifest_uri !== uploadIdentity.value.raw_manifest_uri
+        || existingIdentity.upload_completion_digest
+          !== uploadIdentity.value.upload_completion_digest
+      ) {
+        return res.status(409).json({
+          ok: false,
+          error: "Capture upload identity conflict",
+          code: "capture_upload_identity_conflict",
+        });
+      }
+    }
     // Idempotent replay from the same creator: acknowledge without regressing
     // any authoritative state the backend may already have written.
-    return res.status(200).json({
+    return res.status(202).json({
       ok: true,
       id: captureId,
+      accepted: true,
+      immutable_upload_identity_bound: Boolean(existingIdentity),
       replay: true,
       status:
         typeof existing.status === "string" && existing.status.trim()
@@ -602,6 +673,7 @@ router.post("/captures", async (req: Request, res: Response) => {
     target_address: optionalTrimmedString(body.target_address) || "Submitted space",
     captured_at: capturedAt.toISOString(),
     raw_prefix: optionalTrimmedString(body.raw_prefix, 500),
+    immutable_upload_identity: uploadIdentity.value,
     // Authoritative fields are server-owned from the very first write: a newly
     // registered capture is always "submitted"; payout, QA, and rights values
     // exist only once backend review writes them.
@@ -620,7 +692,7 @@ router.post("/captures", async (req: Request, res: Response) => {
     thumbnail_url: optionalTrimmedString(body.thumbnail_url, 800),
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     timeline: [
-      { label: "Capture uploaded", completed_at: capturedAt.toISOString(), state: "completed" },
+      { label: "Upload submitted", completed_at: capturedAt.toISOString(), state: "completed" },
       { label: "Review queued", completed_at: null, state: "completed" },
       { label: "Payout", completed_at: null, state: "pending" },
     ],
@@ -654,9 +726,14 @@ router.post("/captures", async (req: Request, res: Response) => {
     siteType,
     source: "creator_capture_registration",
   });
-  return res.status(201).json({
+  // The account-bound record is durable at this point; reconstruction and
+  // downstream analysis remain asynchronous. 202 is therefore the truthful
+  // contract for both first delivery and idempotent replay.
+  return res.status(202).json({
     ok: true,
     id: captureId,
+    accepted: true,
+    immutable_upload_identity_bound: Boolean(uploadIdentity.value),
     status: "submitted",
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     capture_client_policy: captureClientPolicy.policy,
@@ -798,6 +875,10 @@ router.get("/captures/:captureId", async (req: Request, res: Response) => {
     earnings: data.earnings || null,
     rejection_reason: data.rejection_reason || null,
     timeline: Array.isArray(data.timeline) ? data.timeline : [],
+    reconstruction:
+      data.reconstruction && typeof data.reconstruction === "object"
+        ? data.reconstruction
+        : null,
   });
 });
 

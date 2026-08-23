@@ -260,7 +260,7 @@ describe("creator payout launch gate", () => {
           }),
         });
 
-        expect(submitted.status).toBe(201);
+        expect(submitted.status).toBe(202);
         // Registration never grants earnings: the payout amount the client
         // quoted lands only in non-authoritative client_reported context.
         const created = state.creatorCaptures.get("capture-123")!;
@@ -300,7 +300,7 @@ describe("creator payout launch gate", () => {
             estimated_payout_cents: 999999,
           }),
         });
-        expect(selfApproval.status).toBe(200);
+        expect(selfApproval.status).toBe(202);
         await expect(selfApproval.json()).resolves.toMatchObject({
           replay: true,
           status: "submitted",

@@ -117,10 +117,15 @@ describe("creator capture registration contract", () => {
         rights_profile: "commercial_full",
         platform: "ios",
         app_version: "2.1.0",
+        raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+        raw_manifest_uri: "gs://blueprint-8c1ca.appspot.com/captures/cap-1/raw/manifest.json",
+        upload_completion_digest: `sha256:${"b".repeat(64)}`,
       });
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(202);
       await expect(response.json()).resolves.toMatchObject({
         ok: true,
+        accepted: true,
+        immutable_upload_identity_bound: true,
         id: "cap-1",
         status: "submitted",
       });
@@ -139,6 +144,12 @@ describe("creator capture registration contract", () => {
         estimated_payout_cents: 5000,
         rights_profile: "commercial_full",
         platform: "ios",
+      });
+      expect(doc.immutable_upload_identity).toEqual({
+        raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+        raw_manifest_uri: "gs://blueprint-8c1ca.appspot.com/captures/cap-1/raw/manifest.json",
+        upload_completion_digest: `sha256:${"b".repeat(64)}`,
+        verification_status: "pending_pipeline_storage_readback",
       });
       // Firestore createdAt hotspot guard: deterministic capture-id hash shard
       // (sha256("cap-1") % 16 === 10) written alongside created_at.
@@ -161,7 +172,7 @@ describe("creator capture registration contract", () => {
         bonuses: [{ label: "self-award", amount_cents: 100000 }],
         earnings: { total_payout_cents: 999999 },
       });
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(202);
 
       const doc = state.docs.get("creatorCaptures/cap-esc")!;
       expect(doc.status).toBe("submitted");
@@ -197,16 +208,65 @@ describe("creator capture registration contract", () => {
     const { server, baseUrl } = await startCreatorServer();
     try {
       const first = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-replay" });
-      expect(first.status).toBe(201);
+      expect(first.status).toBe(202);
 
       // Simulate backend review having advanced the capture.
       const key = "creatorCaptures/cap-replay";
       state.docs.set(key, { ...state.docs.get(key)!, status: "approved", estimated_payout_cents: 4200 });
 
       const replay = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-replay" });
-      expect(replay.status).toBe(200);
-      await expect(replay.json()).resolves.toMatchObject({ ok: true, replay: true, status: "approved" });
+      expect(replay.status).toBe(202);
+      await expect(replay.json()).resolves.toMatchObject({ ok: true, accepted: true, replay: true, status: "approved" });
       expect(state.docs.get(key)).toMatchObject({ status: "approved", estimated_payout_cents: 4200 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("refuses a same-id replay whose immutable raw digest changed", async () => {
+    const { server, baseUrl } = await startCreatorServer();
+    const identity = {
+      raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+      raw_manifest_uri: "gs://blueprint-8c1ca.appspot.com/captures/cap-digest/raw/manifest.json",
+      upload_completion_digest: `sha256:${"b".repeat(64)}`,
+    };
+    try {
+      const first = await postJson(`${baseUrl}`, "/v1/creator/captures", {
+        id: "cap-digest",
+        ...identity,
+      });
+      expect(first.status).toBe(202);
+      const replay = await postJson(`${baseUrl}`, "/v1/creator/captures", {
+        id: "cap-digest",
+        ...identity,
+        raw_bundle_digest: `sha256:${"c".repeat(64)}`,
+      });
+      expect(replay.status).toBe(409);
+      await expect(replay.json()).resolves.toMatchObject({
+        code: "capture_upload_identity_conflict",
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects partial or off-bucket immutable upload identities", async () => {
+    const { server, baseUrl } = await startCreatorServer();
+    try {
+      const partial = await postJson(`${baseUrl}`, "/v1/creator/captures", {
+        id: "cap-partial",
+        raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+      });
+      expect(partial.status).toBe(400);
+      const offBucket = await postJson(`${baseUrl}`, "/v1/creator/captures", {
+        id: "cap-off-bucket",
+        raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+        raw_manifest_uri: "gs://attacker.invalid/cap/raw/manifest.json",
+        upload_completion_digest: `sha256:${"b".repeat(64)}`,
+      });
+      expect(offBucket.status).toBe(400);
+      expect(state.docs.has("creatorCaptures/cap-partial")).toBe(false);
+      expect(state.docs.has("creatorCaptures/cap-off-bucket")).toBe(false);
     } finally {
       await stopServer(server);
     }
@@ -216,7 +276,7 @@ describe("creator capture registration contract", () => {
     const { server, baseUrl } = await startCreatorServer();
     try {
       const first = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-idem" });
-      expect(first.status).toBe(201);
+      expect(first.status).toBe(202);
 
       // The cohort closes after the original registration consumed capacity;
       // a network retry of the same capture must still be acknowledged.
@@ -224,7 +284,7 @@ describe("creator capture registration contract", () => {
       process.env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT = "0";
 
       const replay = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-idem" });
-      expect(replay.status).toBe(200);
+      expect(replay.status).toBe(202);
       await expect(replay.json()).resolves.toMatchObject({ ok: true, replay: true });
 
       const fresh = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-new-closed" });
