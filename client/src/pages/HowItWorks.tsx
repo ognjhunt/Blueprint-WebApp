@@ -12,6 +12,7 @@ import {
   CompilerFigure,
   DeploymentPipelineChart,
   PreShipmentWork,
+  QualifyingGatesFigure,
   StructuralCompareFigure,
 } from "@/components/site/runway/figures";
 import {
@@ -29,6 +30,7 @@ import {
   monthsZeroToTwo,
   monthsZeroToTwoSource,
 } from "@/data/deploymentMarket";
+import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const runHref =
@@ -114,6 +116,25 @@ export default function HowItWorks() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="02"
+            eyebrow="Inside step 03"
+            title="Screening is four questions, asked before anyone travels."
+            lede={qualifyingStandard.claim}
+          />
+          <div className="mt-14">
+            <QualifyingGatesFigure />
+          </div>
+          <Reveal className="mt-10 border-t border-runway-line pt-8">
+            <p className="max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-mute">
+              {qualifyingStandard.secondOrder}
+            </p>
+          </Reveal>
+        </Inner>
+      </Band>
+
+      <Band tone="black" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="03"
             eyebrow="Inputs and outputs"
             title="One workflow in. One qualified deployment out."
             lede="A site never picks a simulator. A robot team never receives unrestricted site files. Blueprint runs the layer between them."
@@ -124,10 +145,10 @@ export default function HowItWorks() {
         </Inner>
       </Band>
 
-      <Band tone="black" rule>
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="03"
+            index="04"
             eyebrow="What the OEM does in the same window"
             title="We are doing the work they would be doing."
             lede="The published preparation sequence, from the only humanoid maker that has described one in public."
@@ -149,10 +170,10 @@ export default function HowItWorks() {
         </Inner>
       </Band>
 
-      <Band tone="deep" rule>
+      <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="04"
+            index="05"
             eyebrow="Where we sit"
             title="Blueprint ends where onsite deployment begins."
           />
@@ -170,10 +191,10 @@ export default function HowItWorks() {
         </Inner>
       </Band>
 
-      <Band tone="black" rule>
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="05"
+            index="06"
             eyebrow="Why it costs less"
             title="Once per site. Not once per vendor."
           />
@@ -183,10 +204,10 @@ export default function HowItWorks() {
         </Inner>
       </Band>
 
-      <Band tone="deep" rule>
+      <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="06"
+            index="07"
             eyebrow="The honest boundary"
             title="What Blueprint does — and what it does not."
           />
