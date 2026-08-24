@@ -1,5 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 
+import { serviceArea } from "@/data/captureVisit";
+
 import {
   footerCompanyLinks,
   footerEvidenceLinks,
@@ -38,9 +40,17 @@ export function Footer() {
             <p className="mt-7 text-[clamp(1.35rem,2vw,1.9rem)] font-medium leading-[1.22] tracking-[-0.035em] text-runway-text">
               Deployment is the bottleneck. We take out the first two months.
             </p>
+            {/*
+              Service area sits in the footer so it is on every page rather than
+              only on the one page that describes the visit. We capture in one
+              metro; implying more is fabricated readiness.
+            */}
+            <p className="mt-6 font-mono text-[10px] uppercase leading-5 tracking-[0.18em] text-runway-faint">
+              Capture visits: {serviceArea.city} metro
+            </p>
             <a
               href="mailto:hello@tryblueprint.io"
-              className="mt-7 inline-flex items-center gap-2 text-sm text-runway-mute transition hover:text-runway-signal"
+              className="mt-5 inline-flex items-center gap-2 text-sm text-runway-mute transition hover:text-runway-signal"
             >
               hello@tryblueprint.io
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />

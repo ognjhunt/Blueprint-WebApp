@@ -35,6 +35,7 @@ import {
 import { deploymentBoundary, deploymentPipelineMeta } from "@/data/deploymentMarket";
 import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { siteOperatorHero } from "@/data/publicSiteCopy";
+import { serviceArea } from "@/data/captureVisit";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =
@@ -109,8 +110,8 @@ export default function ForSiteOperators() {
         chips={siteOperatorHero.chips}
         ctaHref={submitHref}
         ctaLabel="Submit a site task"
-        secondaryHref="/governance"
-        secondaryLabel="See data controls"
+        secondaryHref="/capture-visit"
+        secondaryLabel="See the capture visit"
         imageSrc="/redesign/pov/loading-dock.jpg"
         imageAlt="A loading-dock workflow prepared for robot evaluation"
         imageCaption="One workflow · not the whole facility"
@@ -159,6 +160,30 @@ export default function ForSiteOperators() {
             <p className="mt-4 max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-text">
               {qualifyingStandard.secondOrder}
             </p>
+          </Reveal>
+
+          {/*
+            The fifth practical condition. A site can clear all four gates above
+            and still be somewhere we cannot send an operator, so the geography
+            is stated next to the screen rather than discovered on a call.
+          */}
+          <Reveal delay={0.12} className="mt-10 border-t border-runway-line pt-8">
+            <div className="grid gap-x-14 gap-y-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div>
+                <span className="runway-meta text-runway-signal">And one more</span>
+                <p className="mt-3 text-[17px] font-semibold leading-[1.35] tracking-[-0.025em] text-runway-text">
+                  {serviceArea.claim}
+                </p>
+              </div>
+              <div>
+                <p className="max-w-[56ch] text-[14px] leading-[1.75] text-runway-mute">
+                  {serviceArea.detail}
+                </p>
+                <p className="mt-3 max-w-[56ch] text-[13px] leading-[1.7] text-runway-faint">
+                  {serviceArea.outside}
+                </p>
+              </div>
+            </div>
           </Reveal>
         </Inner>
       </Band>

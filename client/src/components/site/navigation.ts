@@ -29,11 +29,13 @@ export const footerProductLinks = [
   { href: "/for-site-operators", label: "For Site Operators" },
   { href: "/for-robot-teams", label: "For Robot Teams" },
   { href: "/how-it-works", label: "How it works" },
+  { href: "/capture-visit", label: "The capture visit" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 export const footerEvidenceLinks = [
   { href: "/proof", label: "Proof" },
+  { href: "/governance", label: "Site data controls" },
   { href: "/faq", label: "FAQ" },
   { href: "/sites", label: "Sites" },
   { href: "/privacy", label: "Privacy" },

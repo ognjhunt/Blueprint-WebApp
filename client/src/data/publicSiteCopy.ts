@@ -15,7 +15,17 @@
 //   - "benchmark" stays a singular, site-specific noun
 //   - turnaround is always a *target*, never an asserted delivery
 //
-// On turnaround. 12–24h is a design target, not a measured service level:
+// On turnaround. UPDATED 2026-08-24 by owner decision: the 12–24h target may
+// now appear on a public page, and it does — on /capture-visit, where "what
+// happens after the visit" is the reader's actual question. It is still stated
+// as a design target and never as a service level, and it is still kept off the
+// homepage, whose tests continue to assert its absence. The reasoning that
+// originally kept it off every surface is preserved below because the second
+// half of it still binds: no SLA, contract field, or run-duration telemetry
+// backs the number, so if telemetry later supports it, promote the wording
+// everywhere at once rather than page by page.
+//
+// 12–24h is a design target, not a measured service level:
 // no SLA, contract field, or run-duration telemetry backs it anywhere in the
 // repo. It is worth saying loudly — it is the objection-killer for "a sim of
 // my site will take longer than the pilot", and it is the evidence that the

@@ -42,6 +42,12 @@ import {
   structuralComparison,
 } from "@/data/deploymentMarket";
 import {
+  captureCeiling,
+  visitSchedule,
+  visitScheduleNote,
+} from "@/data/captureVisit";
+import { dataControls, honestEdges } from "@/data/dataHandling";
+import {
   convergenceNote,
   deployedEnvironments,
   environmentsFootnote,
@@ -1464,5 +1470,141 @@ export function HumanoidShareFigure() {
         </p>
       </Reveal>
     </div>
+  );
+}
+
+/* ------------------------------------------------ 15 · the capture visit */
+
+/**
+ * The visit run order.
+ *
+ * The most useful thing this site can show a site operator, because it turns an
+ * abstract service into a sequence they can picture. The steps where the
+ * partner is actually needed are marked — two of six, which is the argument.
+ *
+ * Deliberately not a clock. This figure previously rendered timestamps that
+ * came from a GTM draft rather than from a measured visit; see the comment on
+ * `visitSchedule` in `@/data/captureVisit`. The only duration shown is the
+ * per-capture ceiling, which is enforced in the capture app and cited there.
+ */
+export function VisitScheduleFigure() {
+  return (
+    <div>
+      <ol className="grid gap-px border border-runway-line bg-runway-line">
+        {visitSchedule.map((step) => (
+          <Reveal
+            key={step.step}
+            as="li"
+            className={cn(
+              "grid gap-x-6 gap-y-1 p-5 sm:grid-cols-[3.5rem_minmax(0,1fr)_11rem] sm:items-baseline",
+              step.partnerPresent ? "bg-runway-signal/[0.08]" : "bg-runway-panel",
+            )}
+          >
+            <div className="contents">
+              <span
+                className={cn(
+                  "runway-num text-[12px] tracking-[0.18em]",
+                  step.partnerPresent ? "text-runway-signal" : "text-runway-faint",
+                )}
+              >
+                {step.step}
+              </span>
+              <span className="text-[13.5px] leading-6 text-runway-text">{step.what}</span>
+              <span
+                className={cn(
+                  "text-[12.5px] leading-6 sm:text-right",
+                  step.partnerPresent ? "text-runway-signal" : "text-runway-faint",
+                )}
+              >
+                {step.involvement}
+              </span>
+            </div>
+          </Reveal>
+        ))}
+      </ol>
+
+      <Reveal delay={0.2} className="mt-8 border-t border-runway-line pt-6">
+        <h3 className="text-[clamp(1.15rem,2vw,1.5rem)] font-semibold tracking-[-0.03em] text-runway-text">
+          {visitScheduleNote.headline}
+        </h3>
+        <p className="mt-3 max-w-[70ch] text-[13px] leading-6 text-runway-mute">
+          {visitScheduleNote.qaRationale}
+        </p>
+        <p className="runway-meta mt-5 flex items-center gap-2">
+          <span aria-hidden="true" className="h-2 w-4 bg-runway-signal/[0.35]" />
+          Steps where someone from your team is needed
+        </p>
+
+        {/*
+          The only capture limit on this page that is enforced rather than
+          estimated, kept next to the run order so the absence of clock times
+          reads as discipline rather than vagueness.
+        */}
+        <div className="mt-8 border-t border-runway-line pt-6">
+          <span className="runway-meta text-runway-signal">{captureCeiling.source}</span>
+          <p className="mt-3 text-[14px] font-semibold leading-6 text-runway-text">
+            {captureCeiling.claim}
+          </p>
+          <p className="mt-2 max-w-[70ch] text-[13px] leading-6 text-runway-mute">
+            {captureCeiling.detail}
+          </p>
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- 16 · the data controls */
+
+/**
+ * Each control paired with the machinery that enforces it.
+ *
+ * The `enforcedBy` column is the whole point. A trust page that lists promises
+ * reads like every other trust page; one that names the module which will block
+ * our own run when a record is missing can be checked.
+ */
+export function DataControlsFigure() {
+  return (
+    <ol className="grid gap-px border border-runway-line bg-runway-line">
+      {dataControls.map((control, index) => (
+        <Reveal key={control.id} as="li" delay={index * 0.04} className="bg-runway-panel p-6 lg:p-7">
+          <div className="grid gap-x-10 gap-y-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div>
+              <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
+                {`0${index + 1}`}
+              </span>
+              <h3 className="mt-4 text-[16px] font-semibold leading-6 tracking-[-0.02em] text-runway-text">
+                {control.claim}
+              </h3>
+              <p className="runway-meta mt-4 leading-5">
+                Enforced by · <span className="text-runway-mute">{control.enforcedBy}</span>
+              </p>
+            </div>
+            <p className="text-[13.5px] leading-[1.75] text-runway-mute lg:self-center">
+              {control.mechanism}
+            </p>
+          </div>
+        </Reveal>
+      ))}
+    </ol>
+  );
+}
+
+/** The limits, given equal weight to the promises. */
+export function HonestEdgesFigure() {
+  return (
+    <ol className="grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
+      {honestEdges.map((edge, index) => (
+        <Reveal key={edge.id} as="li" delay={index * 0.06} className="bg-runway-panel p-6">
+          <div>
+            <span className="runway-meta text-runway-amber">Limit</span>
+            <h3 className="mt-4 text-[15px] font-semibold leading-6 tracking-[-0.015em] text-runway-text">
+              {edge.limit}
+            </h3>
+            <p className="mt-3 text-[13px] leading-6 text-runway-mute">{edge.detail}</p>
+          </div>
+        </Reveal>
+      ))}
+    </ol>
   );
 }

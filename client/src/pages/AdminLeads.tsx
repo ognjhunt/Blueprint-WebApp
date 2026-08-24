@@ -3407,7 +3407,7 @@ export default function AdminLeads() {
                 <option value="">All devices</option>
                 <option value="iphone">iPhone</option>
                 <option value="ipad">iPad</option>
-                <option value="smart_glasses">Smart glasses</option>
+                <option value="camera_360">360 camera</option>
                 <option value="android">Android</option>
               </select>
               <select

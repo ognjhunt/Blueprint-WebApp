@@ -38,7 +38,7 @@
 ## Playbooks by Stage
 
 **Approved → Activating (target: <3 days)**
-- Send device-specific setup guide (iOS vs Android vs glasses).
+- Send device-specific setup guide (iOS vs Android vs 360 camera).
 - Confirm app install and account creation.
 - If no activity in 48 hours: check for blockers (device incompatibility, app crashes, confusion).
 

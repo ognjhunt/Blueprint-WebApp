@@ -50,7 +50,7 @@ Allowed:
 - fictional capturers
 - fictional robot-team buyer scenes
 - fictional public-facing indoor environments
-- stylized iPhone-style or glasses-style POV
+- stylized iPhone-style or 360-camera POV
 - concept UI and illustrative overlays
 - labeled dramatization of workflows
 

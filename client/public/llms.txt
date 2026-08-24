@@ -40,7 +40,8 @@ A site that clears all four also lowers the hardware bar: fixed scenes and enume
 - [Vision](https://tryblueprint.io/vision): why deployment preparation is the choke point, with the IFR installation data, the observed deployment timelines, and four prior markets for scarce physical capacity.
 - [Pricing](https://tryblueprint.io/pricing): free core access and a site-paid deployment success fee.
 - [Proof](https://tryblueprint.io/proof): primary-source industry anchors, illustrative economics, and physical-proof boundaries.
-- [Governance](https://tryblueprint.io/governance): progressive access, controlled evaluation, and separate training rights.
+- [Governance](https://tryblueprint.io/governance): consent that fails closed, suppression proven against the source artifact, progressive access, four separate evaluation permissions, revocation that reaches delivered artifacts, and the stated limits (no SOC 2 today; hosted infrastructure means third-party processors).
+- [The capture visit](https://tryblueprint.io/capture-visit): a capture is the last step of qualification, not a bookable service — intake, then a scoping call, then a match against robot teams Blueprint is actually in conversation with, and only then a visit. Blueprint sends a trained operator with a 360 camera and phone rig; the site never captures anything itself. One workcell, two registered passes inside a 2-4 hour access window the site sets aside, no installation and nothing left behind. Capture visits run in the Austin, TX metro only.
 - [Sites](https://tryblueprint.io/sites): current Pipeline-backed workflow records that may ground a run.
 - [Robot-team intake](https://tryblueprint.io/contact/robot-team): bring a robot specification or candidate to a captured site-task.
 - [Site-operator intake](https://tryblueprint.io/contact/site-operator): submit one workflow for screening and controlled access.

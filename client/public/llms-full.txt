@@ -64,9 +64,40 @@ Aggregate national humanoid shipment totals circulating from 2026 conference rep
 - Basic mismatches are found before scarce deployment engineers or hardware are committed.
 - The onsite visit begins with named gaps and an explicit test plan.
 
+## The capture visit
+
+A capture visit is the last step of qualification, not a service a site books. Four stages come first: a short intake naming the task, site, timeline, and budget, which ends obvious non-fits cheaply; a roughly thirty-minute scoping call that tests the four qualifying conditions against the actual room, starts the no-capture list, and identifies who owns what success means; a match check against the robot teams Blueprint is actually in conversation with; and only on a match, a confirmed visit. Blueprint does not capture speculatively — a cell scanned with no robot team interested in it costs Blueprint money and tells the site something false about demand.
+
+Before an operator travels, six things are confirmed in writing: a date and a 2-4 hour window with the cell out of production; a named site contact with a mobile number plus a backup; the exact entrance, dock, or gate, where to park, and where to check in; any badging, PPE, or induction required; the workcell, the task, and the person who can say what counts as success; and the no-capture list. An unanswered line moves the date rather than being resolved in the lobby.
+
+Blueprint sends a trained capture operator to the site. Nobody at the site captures anything: the operator travels with the rig, runs both passes, and reviews coverage before leaving. Accepted capture gear is a 360 camera and a smartphone, and no other device class is approved.
+
+Capture visits run in the Austin, Texas metro only. That is a current operating limit, not a national footprint, and sites outside the metro are told where they sit relative to expansion rather than booked for a visit that cannot be staffed.
+
+The capture visit is the only part of the service a site physically experiences. Scope is one workcell and the approach to it, agreed in writing before anyone arrives; there is no roaming of the building, no fixed installation, and nothing is left behind.
+
+Two photographic passes are collected and registered against each other: a clean-background pass of the cell without the task objects, then an object-present pass with the objects staged as they sit on a normal day. An on-device QA review runs before the team leaves, so thin coverage is re-shot in the same window rather than in a second visit.
+
+Blueprint does not publish a wall-clock visit duration, because no measured capture-visit timing exists yet; the run order is stated instead of an invented schedule. Six steps run in order, and two of them need someone from the site: the walkthrough confirming scope and the no-capture list against the room, and staging the task objects. The one enforced ceiling is 45 minutes and 20 GiB per capture, applied in the capture app before upload — an upper bound, not a typical length.
+
+The site does not have to do the capture itself, learn Blueprint tools, host hardware, export CAD, clean the cell to a showroom standard, or choose a simulator, world model, or compute provider. A normal working cell is the correct input.
+
+Reconstruction and the testbed build begin the same day. Blueprint is engineering toward a 12-24 hour capture-to-report turnaround; that is a design target, not a contracted service level.
+
 ## Data access
 
 Access progresses from anonymized summary, to standardized benchmark, to controlled evaluation, to an operator-approved confidential package. Evaluation rights, site adaptation, improvement retention, and general model-training rights are separate permissions.
+
+The controls below are enforced in the capture pipeline rather than in policy, and several of them block Blueprint's own runs when a record is missing:
+
+- Consent parsing is monotone toward denial. An allow-flag grants only on an explicit true, and a status counts as active only when every observed token is in the explicit allow-list; unknown, wrong-typed, or contradictory statuses resolve to blocked. A capture without its consent record does not process.
+- Camera paths are planned around the site's no-capture list, and anything that still lands in frame is suppressed in processing. Suppression is not a display filter: the suppressed rows are absent from the published artifact, verified byte-exact against the retained source rows.
+- Generated media does not inherit the privacy evidence of the frame that conditioned it; generated pixels are held to their own privacy check.
+- Site files are hosted, not downloadable, including for robot teams. Evaluations run on Blueprint infrastructure against the hosted testbed.
+- Revocation after delivery enumerates every downstream artifact whose lineage traces to the capture, including derived-of-derived chains, and the serving gate re-reads consent live rather than trusting a manifest.
+- Every derived artifact is fingerprint-bound to its sources, so lineage has an exact answer.
+
+Stated limits: Blueprint does not hold SOC 2 today. Hosted infrastructure means third-party cloud providers process site data. These controls cover the capture and what derives from it, and are not a general security posture for a facility, network, or other vendors.
 
 ## Pricing
 
