@@ -6,9 +6,16 @@
 review, and bounded case-study surface for Blueprint's sole active program, Arm
 Decision Proof v1. The product remains one Task Evaluation Run.
 
+Its **public surface** is positioned as deployment infrastructure: deployment,
+not robot capability, is the binding constraint on robot adoption, and Blueprint
+automates months 0–2. That positioning is owner-directed, deployed, and covered
+by tests. It sits ahead of the shared doctrine blocks, which are cross-repo and
+byte-locked — read the preamble at the top of `PLATFORM_CONTEXT.md` before
+treating either as the whole picture.
+
 This repo must reinforce the platform doctrine in:
 
-- `PLATFORM_CONTEXT.md`
+- `PLATFORM_CONTEXT.md` — read its preamble first; never edit inside a shared block
 - `WORLD_MODEL_STRATEGY_CONTEXT.md`
 
 ## Read First
