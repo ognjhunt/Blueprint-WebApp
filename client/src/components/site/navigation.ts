@@ -30,6 +30,7 @@ export const footerProductLinks = [
   { href: "/for-robot-teams", label: "For Robot Teams" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/capture-visit", label: "The capture visit" },
+  { href: "/site-task", label: "Submit a site task" },
   { href: "/pricing", label: "Pricing" },
 ];
 

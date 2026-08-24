@@ -45,6 +45,7 @@ describe("brand polish QA harness contract", () => {
       "/for-robot-teams",
       "/governance",
       "/capture-visit",
+      "/site-task",
       "/vision",
       "/updates",
     ]);

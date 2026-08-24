@@ -94,6 +94,7 @@ describe("build output", () => {
       "faq/index.html",
       "governance/index.html",
       "capture-visit/index.html",
+      "site-task/index.html",
       "about/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(true);
@@ -136,6 +137,7 @@ describe("build output", () => {
       "https://tryblueprint.io/vision",
       "https://tryblueprint.io/governance",
       "https://tryblueprint.io/capture-visit",
+      "https://tryblueprint.io/site-task",
       "https://tryblueprint.io/privacy",
       "https://tryblueprint.io/terms",
     ].forEach((url) => {
