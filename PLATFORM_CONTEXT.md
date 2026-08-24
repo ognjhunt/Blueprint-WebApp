@@ -2,6 +2,62 @@
 
 > Repo-authoritative mirror of Blueprint platform doctrine. Reconcile material changes with Blueprint Knowledge.
 
+## Read this before the shared block
+
+The shared block below is **cross-repo doctrine owned by
+`BlueprintCapturePipeline/doctrine/`**. It is byte-locked against
+`contracts/shared-doctrine.lock.json` and verified in CI by
+`npm run doctrine:verify`, which is why nothing in this repo may edit it in
+place. The lock exists because these blocks diverged silently across repos once
+before and no gate fired.
+
+**This repo's public surface has moved ahead of that block, and the gap is
+deliberate rather than an oversight.**
+
+What `Blueprint-WebApp` currently ships on its public routes:
+
+- The site is positioned as **deployment infrastructure**. Its thesis is that
+  deployment, not robot capability, is the binding constraint on robot adoption,
+  and that Blueprint automates **months 0–2** — the preparation work that
+  happens before a robot is crated.
+- Every public figure carries a primary source and an evidence grade
+  (`published` or `illustrative`) in `client/src/data/deploymentMarket.ts`.
+  There is no third grade, and no figure ships without a source.
+- A **qualifying-environment standard** in
+  `client/src/data/qualifyingEnvironments.ts` states the four conditions
+  Blueprint screens a site against — fixed scene, bounded task, known objects,
+  clear window — each with the failure mode that follows when it does not hold.
+- Public copy is governed by `npm run claims:guard` and the brand-polish route
+  table in `scripts/qa/brand-polish.ts`.
+
+### The live tension, stated plainly
+
+The shared block names Arm Decision Proof v1 as the sole active program and
+lists marketplace work and "unrelated city-launch, growth, marketplace, or
+WebApp polish" under **Frozen Work**. The public surface described above was
+built at the repo owner's direction and is deployed. Both statements are
+currently true of this repository, and an agent reading only one of them will
+be misled.
+
+How to treat that, until the shared block is reconciled:
+
+- **Do not** resolve the tension by editing the shared block here. That fails
+  the doctrine gate, and updating the lock digest to match a local edit would
+  fork doctrine across `BlueprintCapture`, `BlueprintCapturePipeline`, and
+  `Blueprint-WebApp` rather than reconcile it.
+- **Do not** treat the Frozen Work list as authority to revert or narrow the
+  shipped public surface. It is deployed, owner-directed, and covered by tests.
+- **Do** keep the engineering invariants in the shared block. Nothing in the
+  public repositioning loosens them: raw capture and physical outcomes still
+  outrank derived artifacts, results are still bounded estimates or abstentions,
+  and simulation still never certifies physical performance or safety. The site
+  states that boundary on every page that carries a figure.
+- **Do** raise reconciliation as a cross-repo change: amend the canonical
+  fragment in `BlueprintCapturePipeline/doctrine/`, re-measure the block, and
+  update `contracts/shared-doctrine.lock.json` in all three repos together.
+
+Reconciliation is a `blueprint-cto` decision, not a lane-local edit.
+
 <!-- SHARED_PLATFORM_CONTEXT_START -->
 ## Shared Platform Doctrine
 
