@@ -120,22 +120,22 @@ export default function Pricing() {
             title="Both sides can do the months 0–2 homework without a core platform fee."
             onInk
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 lg:grid-cols-3">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
             {freeAccess.map((item, index) => (
               <Reveal key={item.who} delay={index * 0.06}>
-                <article className="h-full bg-ink p-6 lg:p-8">
+                <article className="h-full bg-runway-panel p-6 lg:p-8">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-micro font-semibold uppercase tracking-eyebrow text-brass">
+                    <span className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
                       {item.who}
                     </span>
-                    <span className="font-mono text-title-m font-semibold text-white">
+                    <span className="font-mono text-title-m font-semibold text-runway-text">
                       {item.price}
                     </span>
                   </div>
-                  <h2 className="mt-6 text-title-m font-semibold tracking-tight text-white">
+                  <h2 className="mt-6 text-title-m font-semibold tracking-tight text-runway-text">
                     {item.title}
                   </h2>
-                  <p className="mt-3 text-body-s leading-7 text-ink-300">
+                  <p className="mt-3 text-body-s leading-7 text-runway-mute">
                     {item.body}
                   </p>
                 </article>
@@ -153,7 +153,7 @@ export default function Pricing() {
             title="Free submission does not mean a free site visit for everyone."
             lede="Blueprint reviews the self-captured task first. Professional capture is reserved for opportunities with credible value, complete intake, robot-team interest, repeat-site leverage, or a refundable commitment deposit."
           />
-          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
+          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line sm:grid-cols-3">
             {[
               "Automatic screen passes",
               "Commercial intent is credible",
@@ -161,10 +161,10 @@ export default function Pricing() {
             ].map((item) => (
               <div
                 key={item}
-                className="flex gap-3 bg-white p-6 text-body-s font-semibold text-ink-800"
+                className="flex gap-3 bg-runway-panel p-6 text-body-s font-semibold text-runway-text"
               >
                 <Check
-                  className="mt-0.5 h-4 w-4 shrink-0 text-action"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-runway-signal"
                   aria-hidden="true"
                 />
                 {item}

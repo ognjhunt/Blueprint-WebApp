@@ -1,7 +1,8 @@
 import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
+import { DeploymentPipelineChart } from "@/components/site/runway/figures";
+import { FigureFrame } from "@/components/site/runway/shell";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
@@ -11,9 +12,9 @@ import {
   SectionHeader,
 } from "@/components/site/publicSections";
 import {
-  deploymentEconomicsNote,
-  deploymentPrepSources,
-} from "@/data/deploymentPrep";
+  deploymentPipelineMeta,
+  marketSources,
+} from "@/data/deploymentMarket";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const evidenceLayers = [
@@ -35,17 +36,17 @@ const publicAnchors = [
   {
     label: "Six-plus-month deployment path",
     fact: "Agility's June 2026 investor presentation labels months 0–2 as Proof of Tech, months 2–3 as onsite POC, months 4–6 as a RaaS pilot, and month 6+ as the path to scale.",
-    href: deploymentPrepSources.timeline.href,
+    href: marketSources.agilityDeck.href,
   },
   {
     label: "What happens in months 0–2",
     fact: "Agility says it defines the win, studies layout and objects, recreates site conditions in simulation and physically at Agility, then tests and refines the workflow.",
-    href: deploymentPrepSources.process.href,
+    href: marketSources.agilityProcess.href,
   },
   {
     label: "A real early deployment took time",
     fact: "GXO announced its Digit proof of concept on December 6, 2023. Digit entered regular operations on June 5, 2024. That deployment predates Agility's formal CAP program.",
-    href: deploymentPrepSources.gxoDeployment.href,
+    href: marketSources.gxoAgreement.href,
   },
 ] as const;
 
@@ -96,7 +97,15 @@ export default function Proof() {
             title="Blueprint is built for the first highlighted phase."
           />
           <Reveal className="mt-14">
-            <DeploymentTimeline />
+            <FigureFrame
+              label="Fig. 01"
+              title="Path to scaled deployment"
+              basis="illustrative"
+              sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
+              caveat={deploymentPipelineMeta.caveat}
+            >
+              <DeploymentPipelineChart />
+            </FigureFrame>
           </Reveal>
         </Inner>
       </Band>
@@ -108,7 +117,7 @@ export default function Proof() {
             eyebrow="The source record"
             title="Three facts. Three direct links."
           />
-          <div className="mt-14 divide-y divide-line border-y border-line">
+          <div className="mt-14 divide-y divide-runway-line border-y border-runway-line">
             {publicAnchors.map((anchor, index) => (
               <Reveal key={anchor.label} delay={index * 0.05}>
                 <a
@@ -117,14 +126,14 @@ export default function Proof() {
                   rel="noreferrer"
                   className="group grid gap-4 py-6 sm:grid-cols-[0.32fr_0.68fr] sm:gap-10"
                 >
-                  <span className="flex items-start justify-between gap-3 text-body-s font-semibold text-ink-900">
+                  <span className="flex items-start justify-between gap-3 text-body-s font-semibold text-runway-text">
                     {anchor.label}
                     <ArrowUpRight
-                      className="mt-1 h-4 w-4 shrink-0 text-ink-300 group-hover:text-action"
+                      className="mt-1 h-4 w-4 shrink-0 text-runway-mute group-hover:text-action"
                       aria-hidden="true"
                     />
                   </span>
-                  <span className="text-body-s leading-7 text-ink-500">
+                  <span className="text-body-s leading-7 text-runway-mute">
                     {anchor.fact}
                   </span>
                 </a>
@@ -139,21 +148,21 @@ export default function Proof() {
           <SectionHeader
             index="03"
             eyebrow="Read the money correctly"
-            title={deploymentEconomicsNote.title}
-            lede={deploymentEconomicsNote.body}
+            title="Published anchor — not a market price"
+            lede="Agility's June 2026 investor model uses an illustrative ~$15,000 one-time deployment cost and ~$25,000 deployment fee per Digit. It does not publish how that cost splits between months 0–2 and onsite work, and it does not disclose a typical total site contract value."
             onInk
           />
-          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 sm:grid-cols-3">
+          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line sm:grid-cols-3">
             {[
               ["~$15K", "Illustrative one-time deployment cost per Digit"],
               ["~$25K", "Illustrative one-time RaaS deployment fee per Digit"],
               ["Unknown", "Published split between prep and onsite work"],
             ].map(([value, label]) => (
-              <div key={value} className="bg-ink p-6">
-                <p className="font-mono text-title-l font-semibold text-white">
+              <div key={value} className="bg-runway-panel p-6">
+                <p className="font-mono text-title-l font-semibold text-runway-text">
                   {value}
                 </p>
-                <p className="mt-3 text-caption leading-6 text-ink-300">
+                <p className="mt-3 text-caption leading-6 text-runway-mute">
                   {label}
                 </p>
               </div>
@@ -169,22 +178,22 @@ export default function Proof() {
             eyebrow="Blueprint's claim boundary"
             title="A useful filter is not a deployment certificate."
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-3">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
             {evidenceLayers.map((layer, index) => (
               <Reveal key={layer.title} delay={index * 0.06}>
-                <article className="h-full bg-white p-6 lg:p-8">
+                <article className="h-full bg-runway-panel p-6 lg:p-8">
                   {index < 2 ? (
-                    <Check className="h-5 w-5 text-action" aria-hidden="true" />
+                    <Check className="h-5 w-5 text-runway-signal" aria-hidden="true" />
                   ) : (
                     <TriangleAlert
-                      className="h-5 w-5 text-warn-fg"
+                      className="h-5 w-5 text-runway-amber"
                       aria-hidden="true"
                     />
                   )}
-                  <h2 className="mt-5 text-title-m font-semibold tracking-tight text-ink-900">
+                  <h2 className="mt-5 text-title-m font-semibold tracking-tight text-runway-text">
                     {layer.title}
                   </h2>
-                  <p className="mt-3 text-body-s leading-7 text-ink-500">
+                  <p className="mt-3 text-body-s leading-7 text-runway-mute">
                     {layer.body}
                   </p>
                 </article>

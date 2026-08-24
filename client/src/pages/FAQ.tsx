@@ -1,6 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
-import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
+import { DeploymentPipelineChart } from "@/components/site/runway/figures";
+import { FigureFrame } from "@/components/site/runway/shell";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
@@ -8,6 +9,7 @@ import {
   Inner,
   SectionHeader,
 } from "@/components/site/publicSections";
+import { deploymentPipelineMeta } from "@/data/deploymentMarket";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -84,13 +86,13 @@ export default function FAQ() {
       <Band tone="canvas">
         <Inner size="narrow" className="pb-16 pt-20 lg:pb-24 lg:pt-28">
           <Reveal>
-            <p className="text-micro font-semibold uppercase tracking-eyebrow text-action">
+            <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
               Plain English
             </p>
-            <h1 className="mt-6 max-w-[17ch] text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-ink-900">
+            <h1 className="mt-6 max-w-[17ch] text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-runway-text">
               The robot comes later. Blueprint does the homework first.
             </h1>
-            <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-ink-500">
+            <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">
               Ten short answers. No simulation jargon required.
             </p>
           </Reveal>
@@ -107,7 +109,15 @@ export default function FAQ() {
             title="Blueprint covers the highlighted phase."
           />
           <Reveal className="mt-14">
-            <DeploymentTimeline compact />
+            <FigureFrame
+              label="Fig. 01"
+              title="Path to scaled deployment"
+              basis="illustrative"
+              sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
+              caveat={deploymentPipelineMeta.caveat}
+            >
+              <DeploymentPipelineChart />
+            </FigureFrame>
           </Reveal>
         </Inner>
       </Band>

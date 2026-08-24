@@ -99,16 +99,16 @@ export default function Governance() {
             title="More detail only when the opportunity earns it."
             onInk
           />
-          <ol className="mt-14 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 lg:grid-cols-5">
+          <ol className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-5">
             {accessLadder.map(([number, title, body]) => (
-              <li key={number} className="bg-ink p-6">
-                <span className="font-mono text-micro text-brass">
+              <li key={number} className="bg-runway-panel p-6">
+                <span className="font-mono text-micro text-runway-signal">
                   {number}
                 </span>
-                <h2 className="mt-4 text-title-m font-semibold tracking-tight text-white">
+                <h2 className="mt-4 text-title-m font-semibold tracking-tight text-runway-text">
                   {title}
                 </h2>
-                <p className="mt-3 text-caption leading-6 text-ink-300">
+                <p className="mt-3 text-caption leading-6 text-runway-mute">
                   {body}
                 </p>
               </li>
@@ -125,25 +125,25 @@ export default function Governance() {
             title="Four permissions. Four different values."
             lede="A provider may be allowed to test an existing policy without being allowed to train on site videos, objects, layouts, or process behavior."
           />
-          <div className="mt-14 divide-y divide-line border-y border-line">
+          <div className="mt-14 divide-y divide-line border-y border-runway-line">
             {permissions.map(([title, body], index) => (
               <Reveal key={title} delay={index * 0.04}>
                 <div className="grid gap-3 py-5 sm:grid-cols-[0.3fr_0.7fr] sm:gap-10">
-                  <p className="flex items-center gap-3 text-body-s font-semibold text-ink-900">
+                  <p className="flex items-center gap-3 text-body-s font-semibold text-runway-text">
                     {index === 0 ? (
                       <Check
-                        className="h-4 w-4 text-proof-fg"
+                        className="h-4 w-4 text-runway-green"
                         aria-hidden="true"
                       />
                     ) : (
                       <LockKeyhole
-                        className="h-4 w-4 text-brass-deep"
+                        className="h-4 w-4 text-runway-signal"
                         aria-hidden="true"
                       />
                     )}
                     {title}
                   </p>
-                  <p className="text-body-s leading-7 text-ink-500">{body}</p>
+                  <p className="text-body-s leading-7 text-runway-mute">{body}</p>
                 </div>
               </Reveal>
             ))}
@@ -158,26 +158,26 @@ export default function Governance() {
             eyebrow="The control model"
             title="What stays inside. What may come out."
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-2">
-            <article className="bg-white p-7 lg:p-9">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-2">
+            <article className="bg-runway-panel p-7 lg:p-9">
               <ShieldCheck
-                className="h-6 w-6 text-proof-fg"
+                className="h-6 w-6 text-runway-green"
                 aria-hidden="true"
               />
-              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-ink-900">
+              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-runway-text">
                 Inside Blueprint
               </h2>
-              <p className="mt-4 text-body-s leading-7 text-ink-500">
+              <p className="mt-4 text-body-s leading-7 text-runway-mute">
                 Raw capture, detailed layouts, restricted zones, source media,
                 hosted testbed files, and approved robot submissions.
               </p>
             </article>
-            <article className="bg-white p-7 lg:p-9">
-              <X className="h-6 w-6 text-warn-fg" aria-hidden="true" />
-              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-ink-900">
+            <article className="bg-runway-panel p-7 lg:p-9">
+              <X className="h-6 w-6 text-runway-amber" aria-hidden="true" />
+              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-runway-text">
                 Returned to each team
               </h2>
-              <p className="mt-4 text-body-s leading-7 text-ink-500">
+              <p className="mt-4 text-body-s leading-7 text-runway-mute">
                 Completion rate, cycle-time estimate, reach or collision
                 failures, fleet and charging assumptions, edge cases, and
                 integration burden—within the permissions granted.

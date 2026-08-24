@@ -25,11 +25,15 @@ import { ParallaxMedia, Reveal } from "./motion";
 
 type Tone = "canvas" | "paper" | "ink" | "white";
 
+// The public site is dark end to end now, so the four historical tones map onto
+// three runway elevations rather than onto a light/dark alternation. Page code
+// keeps passing its original tone names; the rhythm still alternates, it just
+// alternates within the dark system.
 const toneClass: Record<Tone, string> = {
-  canvas: "bg-canvas",
-  paper: "bg-paper",
-  ink: "bg-ink",
-  white: "bg-white",
+  canvas: "bg-runway-black",
+  paper: "bg-runway-deep",
+  ink: "bg-runway-panel",
+  white: "bg-runway-black",
 };
 
 /**
@@ -54,8 +58,8 @@ export function Band({
       id={id}
       className={cn(
         toneClass[tone],
-        rule && tone !== "ink" && "border-y border-line",
-        tone === "ink" && "border-y border-white/10",
+        rule && "border-y border-runway-line",
+        tone === "ink" && "border-y border-runway-line",
         className,
       )}
     >
@@ -128,18 +132,18 @@ export function PageHero({
   routeTrace = false,
 }: PageHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-kinetic-white">
+    <section className="relative overflow-hidden bg-runway-black">
       <div className="mx-auto max-w-[100rem] px-5 pb-16 pt-14 sm:px-8 lg:px-10 lg:pb-24 lg:pt-20">
         <div className="grid gap-9 lg:grid-cols-[minmax(0,1.28fr)_minmax(20rem,0.72fr)] lg:items-end lg:gap-20">
           <div>
             <Reveal from="up" distance={14}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] leading-none text-kinetic-blue">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] leading-none text-runway-signal">
                 {eyebrow}
               </p>
             </Reveal>
 
             <Reveal from="up" distance={20} delay={0.06}>
-              <h1 className="mt-7 max-w-[18ch] font-display text-[clamp(3rem,6.5vw,6.6rem)] font-semibold leading-[0.93] tracking-[-0.062em] text-kinetic-graphite">
+              <h1 className="mt-7 max-w-[18ch] font-display text-[clamp(2.8rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
                 {title}
               </h1>
             </Reveal>
@@ -147,22 +151,20 @@ export function PageHero({
 
           <div className="lg:pb-2">
             <Reveal from="up" distance={18} delay={0.14}>
-              <p className="max-w-[46ch] text-[1.06rem] leading-[1.75] text-kinetic-muted">
+              <p className="max-w-[46ch] text-[1.02rem] leading-[1.72] text-runway-mute">
                 {body}
               </p>
             </Reveal>
 
           <Reveal from="up" distance={16} delay={0.22}>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button asChild variant="action" size="lg" className="rounded-lg px-6 shadow-[0_12px_30px_-16px_rgba(21,84,255,0.78)]">
-                <a href={ctaHref}>
-                  {ctaLabel} <ArrowRightIcon className="h-4 w-4" />
-                </a>
-              </Button>
+              <a className="runway-cta" href={ctaHref}>
+                {ctaLabel} <ArrowRightIcon className="h-4 w-4" />
+              </a>
               {secondaryHref && secondaryLabel ? (
-                <Button asChild variant="ghost" size="lg" className="rounded-lg text-kinetic-graphite">
-                  <a href={secondaryHref}>{secondaryLabel}</a>
-                </Button>
+                <a className="runway-cta-ghost" href={secondaryHref}>
+                  {secondaryLabel}
+                </a>
               ) : null}
             </div>
           </Reveal>
@@ -182,7 +184,7 @@ export function PageHero({
         <Reveal from="up" distance={26} delay={0.1} className="relative mt-14 lg:mt-20">
           <ParallaxMedia
             shift={22}
-            className="relative h-[64vw] max-h-[50rem] min-h-[22rem] overflow-hidden rounded-2xl bg-kinetic-dark lg:h-[68vh] lg:min-h-[36rem]"
+            className="relative h-[62vw] max-h-[46rem] min-h-[20rem] overflow-hidden rounded-lg bg-runway-deep lg:h-[62vh] lg:min-h-[32rem]"
           >
             <MonochromeMedia
               src={imageSrc}
@@ -197,8 +199,8 @@ export function PageHero({
             </MonochromeMedia>
           </ParallaxMedia>
           {imageCaption ? (
-            <span className="pointer-events-none absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#06111d]/55 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white backdrop-blur-xl sm:bottom-7 sm:left-7">
-              <span aria-hidden="true" className="h-[0.35rem] w-[0.35rem] rounded-full bg-kinetic-cyan" />
+            <span className="pointer-events-none absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-sm border border-white/15 bg-runway-black/70 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-runway-text backdrop-blur-xl sm:bottom-7 sm:left-7">
+              <span aria-hidden="true" className="h-[0.35rem] w-[0.35rem] rounded-full bg-runway-signal" />
               {imageCaption}
             </span>
           ) : null}
@@ -237,8 +239,8 @@ export function SectionHeader({
           {index ? (
             <span
               className={cn(
-                "font-mono text-[11px] tracking-[0.2em]",
-                onInk ? "text-kinetic-cyan" : "text-kinetic-blue",
+                "font-mono text-[11px] tracking-[0.2em] tabular-nums",
+                onInk ? "text-runway-signal" : "text-runway-signal",
               )}
             >
               {index}
@@ -246,8 +248,8 @@ export function SectionHeader({
           ) : null}
           <p
             className={cn(
-              "text-[11px] font-semibold uppercase tracking-[0.2em]",
-              onInk ? "text-white/48" : "text-kinetic-faint",
+              "font-mono text-[11px] font-medium uppercase tracking-[0.24em]",
+              onInk ? "text-runway-faint" : "text-runway-faint",
             )}
           >
             {eyebrow}
@@ -255,8 +257,8 @@ export function SectionHeader({
         </div>
         <h2
           className={cn(
-            "mt-5 max-w-[23ch] font-display text-[clamp(2.35rem,4.6vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.052em]",
-            onInk ? "text-white" : "text-kinetic-graphite",
+            "mt-5 max-w-[21ch] font-display text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[-0.045em]",
+            onInk ? "text-runway-text" : "text-runway-text",
           )}
         >
           {title}
@@ -265,8 +267,8 @@ export function SectionHeader({
       {lede ? (
         <p
           className={cn(
-            "max-w-[46ch] self-end text-[16px] leading-[1.75]",
-            onInk ? "text-white/58" : "text-kinetic-muted",
+            "max-w-[42ch] self-end text-[15px] leading-[1.7]",
+            onInk ? "text-runway-mute" : "text-runway-mute",
           )}
         >
           {lede}
@@ -309,19 +311,19 @@ export function MediaSplit({
         distance={24}
         className={cn("relative", flip ? "lg:order-first" : "lg:order-last")}
       >
-        <ParallaxMedia shift={22} className="rounded-2xl bg-kinetic-dark">
+        <ParallaxMedia shift={22} className="rounded-lg bg-runway-deep">
           <MonochromeMedia
             src={imageSrc}
             alt={imageAlt}
             radius="xl"
             overlay="soft"
-            className="aspect-[4/5] w-full border border-line sm:aspect-[16/12] lg:aspect-[4/5]"
+            className="aspect-[4/5] w-full border border-runway-line sm:aspect-[16/12] lg:aspect-[4/5]"
             imageClassName="h-[calc(100%+2.75rem)]"
           />
         </ParallaxMedia>
         {imageCaption ? (
-          <span className="pointer-events-none absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#06111d]/55 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white backdrop-blur-xl">
-            <span aria-hidden="true" className="h-[0.35rem] w-[0.35rem] rounded-full bg-kinetic-cyan" />
+          <span className="pointer-events-none absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-sm border border-white/15 bg-runway-black/70 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-runway-text backdrop-blur-xl">
+            <span aria-hidden="true" className="h-[0.35rem] w-[0.35rem] rounded-full bg-runway-signal" />
             {imageCaption}
           </span>
         ) : null}
@@ -355,7 +357,7 @@ export function FullBleedMedia({
   className?: string;
 }) {
   return (
-    <section className={cn("relative isolate overflow-hidden bg-kinetic-dark", className)}>
+    <section className={cn("relative isolate overflow-hidden bg-runway-black", className)}>
       <ParallaxMedia shift={34} className="absolute inset-0">
         <MonochromeMedia
           src={src}
@@ -369,15 +371,15 @@ export function FullBleedMedia({
       <Inner className="relative py-24 lg:py-36">
         <Reveal className="max-w-[34rem]">
           {eyebrow ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-kinetic-cyan">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-signal">
               {eyebrow}
             </p>
           ) : null}
-          <h2 className="mt-5 font-display text-[clamp(2.5rem,5vw,5rem)] font-semibold leading-[0.98] tracking-[-0.052em] text-white">
+          <h2 className="mt-5 font-display text-[clamp(2.3rem,4.6vw,4.4rem)] font-semibold leading-[1.0] tracking-[-0.048em] text-runway-text">
             {title}
           </h2>
           {body ? (
-            <p className="mt-5 text-[15.5px] leading-[1.75] text-[color:var(--text-on-ink)] opacity-80">
+            <p className="mt-5 text-[15px] leading-[1.72] text-runway-mute">
               {body}
             </p>
           ) : null}
@@ -410,13 +412,13 @@ export function NoteCards({
           <div
             className={cn(
               "border-t pt-5",
-              onInk ? "border-white/15" : "border-line-strong",
+              onInk ? "border-runway-line" : "border-runway-line",
             )}
           >
             <h3
               className={cn(
                 "text-[15px] font-semibold tracking-[-0.01em]",
-                onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+                onInk ? "text-runway-text" : "text-runway-text",
               )}
             >
               {item.title}
@@ -424,7 +426,7 @@ export function NoteCards({
             <p
               className={cn(
                 "mt-2.5 max-w-[44ch] text-[14px] leading-[1.7]",
-                onInk ? "text-ink-300" : "text-ink-500",
+                onInk ? "text-runway-mute" : "text-runway-mute",
               )}
             >
               {item.body}
@@ -464,7 +466,7 @@ export function ClosingCta({
   imageAlt: string;
 }) {
   return (
-    <section className="relative isolate overflow-hidden bg-kinetic-blue">
+    <section className="relative isolate overflow-hidden bg-runway-signal">
       <div className="absolute inset-y-0 right-0 hidden w-[46%] lg:block">
         <MonochromeMedia
           src={imageSrc}
@@ -473,28 +475,29 @@ export function ClosingCta({
           overlay="none"
           className="h-full w-full"
           imageClassName="h-full"
-          overlayClassName="bg-[linear-gradient(90deg,rgba(21,84,255,1),rgba(21,84,255,0.88)_44%,rgba(21,84,255,0.3))] opacity-80"
+          overlayClassName="bg-[linear-gradient(90deg,rgba(255,92,36,1),rgba(255,92,36,0.9)_44%,rgba(255,92,36,0.32))] opacity-85"
         />
       </div>
       <Inner className="relative py-20 lg:py-28">
         <Reveal className="max-w-[38rem]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/65">{eyebrow}</p>
-          <h2 className="mt-5 font-display text-[clamp(2.7rem,5.2vw,5.3rem)] font-semibold leading-[0.96] tracking-[-0.058em] text-white">
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">{eyebrow}</p>
+          <h2 className="mt-5 font-display text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-runway-black">
             {title}
           </h2>
-          <p className="mt-5 max-w-[44ch] text-[15.5px] leading-[1.75] text-[color:var(--text-on-ink)] opacity-80">
+          <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-black/75">
             {body}
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button asChild variant="secondary" size="lg" className="rounded-lg border-white bg-white text-kinetic-graphite hover:bg-kinetic-white">
-              <a href={primaryHref}>
-                {primaryLabel} <ArrowRightIcon className="h-4 w-4" />
-              </a>
-            </Button>
+            <a
+              href={primaryHref}
+              className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-black px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+            >
+              {primaryLabel} <ArrowRightIcon className="h-4 w-4" />
+            </a>
             {secondaryHref && secondaryLabel ? (
               <a
                 href={secondaryHref}
-                className="inline-flex h-[3.25rem] items-center justify-center rounded-sm px-5 text-[15px] font-semibold tracking-[-0.01em] text-[color:var(--text-on-ink)] transition-colors hover:bg-white/5"
+                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-5 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors hover:border-runway-black"
               >
                 {secondaryLabel}
               </a>

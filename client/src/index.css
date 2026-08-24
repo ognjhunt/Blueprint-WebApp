@@ -364,6 +364,123 @@
   }
 }
 
+/* ============================================================
+   Runway — the public deployment surface.
+
+   Dark instrument base, one high-visibility signal colour, mono
+   numerals. Everything here is scoped to `runway-*` so product and
+   admin surfaces keep their existing semantic tokens untouched.
+   ============================================================ */
+
+@layer components {
+  .runway-eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-signal;
+  }
+
+  .runway-eyebrow-muted {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-faint;
+  }
+
+  /* Primary action. Black on signal is 6.0:1 — white would be 3.2:1. */
+  .runway-cta {
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-signal px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-all duration-200 ease-out hover:bg-runway-signal-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-black;
+  }
+
+  .runway-cta-ghost {
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm border border-runway-line px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors duration-200 hover:border-runway-signal hover:text-runway-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-black;
+  }
+
+  .runway-cta-onlight {
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm border border-runway-paper-line px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors duration-200 hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2;
+  }
+
+  /* Instrument panel: the card every figure sits in. */
+  .runway-panel {
+    @apply rounded-md border border-runway-line bg-runway-panel;
+  }
+
+  .runway-meta {
+    @apply font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint;
+  }
+
+  /* Tabular numerals so columns of figures line up. */
+  .runway-num {
+    @apply font-mono tabular-nums;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Measurement grid — reads as a plotting field, not decoration. */
+.runway-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+}
+
+/* Hazard rule — the six-month bottleneck marker. */
+.runway-hazard {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 92, 36, 0.85) 0,
+    rgba(255, 92, 36, 0.85) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Indeterminate fill — a quantity the public record does not establish. */
+.runway-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(84, 224, 238, 0.5) 0,
+    rgba(84, 224, 238, 0.5) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}
+
+/* Slow pulse on live indicators. */
+@keyframes runway-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+
+.runway-pulse {
+  animation: runway-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Bars and rules grow from zero when their figure scrolls into view. */
+@keyframes runway-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.runway-grow-x {
+  transform-origin: left center;
+  animation: runway-grow-x 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runway-pulse,
+  .runway-grow-x {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+}
+
 @media (min-width: 768px) {
   .mobile-snap-row {
     grid-auto-flow: row;

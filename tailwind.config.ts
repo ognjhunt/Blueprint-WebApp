@@ -112,6 +112,42 @@ export default {
           cyan: "#8fe8ff",
         },
 
+        // ---- Runway: the deployment-operations palette for the public site.
+        //
+        // First principles. Blueprint's job is to get more robots deployed,
+        // sooner. The surface should read like the room a deployment is run
+        // from, not like a research paper or a SaaS landing page. So: a
+        // near-black instrument base where measured quantities carry the page,
+        // one high-visibility "go" colour taken from the actual language of
+        // robot workcells (hazard tape, safety marking, e-stop surrounds), and
+        // a cool cyan reserved for the after-Blueprint series in every
+        // before/after figure so the comparison reads without a legend.
+        //
+        // `signal` never carries small white text — its contrast partner is
+        // `runway.black` (6.0:1). White on signal is 3.2:1 and is reserved for
+        // large display type only.
+        runway: {
+          black: "#07080b",
+          deep: "#0b0d12",
+          panel: "#11141b",
+          raised: "#171b24",
+          line: "#232834",
+          "line-soft": "#1a1e27",
+          text: "#f4f6f8",
+          mute: "#9aa4b4",
+          faint: "#6a7484",
+          signal: "#ff5c24",
+          "signal-deep": "#e0430d",
+          "signal-soft": "#ffb08a",
+          cyan: "#54e0ee",
+          green: "#3ed598",
+          amber: "#f6be3e",
+          red: "#f2584b",
+          paper: "#f5f6f8",
+          "paper-2": "#e9ecf0",
+          "paper-line": "#d8dde4",
+        },
+
         // semantic surfaces
         canvas: "#f7f8f9",
         inset: "#f1f2f3",

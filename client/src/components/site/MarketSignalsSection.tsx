@@ -127,8 +127,8 @@ const trajectorySignals: TrajectorySignal[] = [
 
 const toneClassNames: Record<TrajectorySignal["tone"], string> = {
   early: "border-zinc-300 bg-zinc-200",
-  actual: "border-emerald-500 bg-emerald-400",
-  forecast: "border-amber-500 border-dashed bg-amber-300",
+  actual: "border-runway-green bg-runway-green",
+  forecast: "border-runway-amber border-dashed bg-runway-amber/60",
 };
 
 const sourceLinks = [
@@ -185,7 +185,7 @@ export function MarketSignalsSection({
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
+          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-runway-panel px-3 py-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
             <BarChart3 className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
@@ -198,7 +198,7 @@ export function MarketSignalsSection({
         </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[0.95fr_1.35fr]">
-          <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <article className="rounded-3xl border border-zinc-200 bg-runway-panel p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
               Why Blueprint exists
             </p>
@@ -222,7 +222,7 @@ export function MarketSignalsSection({
             </div>
           </article>
 
-          <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <article className="rounded-3xl border border-zinc-200 bg-runway-panel p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
@@ -234,11 +234,11 @@ export function MarketSignalsSection({
               </div>
               <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-runway-green" />
                   Reported
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full border border-amber-500 bg-amber-300" />
+                  <span className="h-2.5 w-2.5 rounded-full border border-runway-amber bg-runway-amber/60" />
                   Forecast
                 </span>
               </div>
@@ -291,7 +291,7 @@ export function MarketSignalsSection({
           {humanoidEvidenceCards.map((card) => (
             <article
               key={card.title}
-              className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm"
+              className="overflow-hidden rounded-3xl border border-zinc-200 bg-runway-panel shadow-sm"
             >
               <div className="aspect-[4/3] overflow-hidden bg-zinc-200">
                 <img
@@ -324,7 +324,7 @@ export function MarketSignalsSection({
           ))}
         </div>
 
-        <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-white shadow-sm">
+        <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-runway-text shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">The takeaway</p>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
             Humanoid supply is starting to move. Deployment infrastructure is not. Blueprint exists

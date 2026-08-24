@@ -1,58 +1,90 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Home", () => {
-  it("makes the months 0–2 use case and physical boundary obvious", () => {
+  it("leads with the deployment-bottleneck thesis and the months 0–2 scope", () => {
     render(<Home />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /robot should arrive after the homework is done/i,
+        name: /Robots aren't the bottleneck\. Deploying them is/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /path to scaled deployment is 6\+ months/i,
+        name: /China installs nine robots for every one we do/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Do the work once—not again for every robot company/i,
+        name: /Two of the six months happen before the robot is crated/i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Do the work once\. Not once per vendor/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /One workflow in\. One qualified deployment out/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the physical boundary on the page rather than in the terms", () => {
+    const { container } = render(<Home />);
+    expect(container).toHaveTextContent(
+      /Onsite integration, commissioning, and the physical pilot stay with the robot company/i,
+    );
     expect(
       screen.getByRole("heading", {
-        name: /One workflow becomes one robot-ready work package/i,
+        name: /Prepare the deployment\. Don't pretend you deployed the robot/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Onsite integration and the physical pilot stay with the OEM/i,
-      ),
-    ).toBeInTheDocument();
+    expect(container).toHaveTextContent(/Simulation filters, it does not certify/i);
+  });
+
+  it("routes both sides of the market", () => {
+    render(<Home />);
     expect(
       screen.getAllByRole("link", { name: /Prepare a deployment/i }).length,
     ).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("link", { name: /Submit a site task/i }),
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Submit a site task/i })).toHaveAttribute(
       "href",
       expect.stringContaining("buyerType=site_operator"),
     );
-    expect(screen.queryByText(/12–24h/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/From \$2,500/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Join as a robot team/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("buyerType=robot_team"),
+    );
   });
 
-  it("links the OEM timeline to primary sources", () => {
+  it("carries a primary source and an evidence grade on every figure", () => {
     render(<Home />);
+    // The installation gap and the OEM timeline are the two load-bearing figures.
     expect(
-      screen.getByRole("link", {
-        name: /Agility June 2026 investor presentation/i,
-      }),
+      screen.getAllByRole("link", { name: /IFR World Robotics 2025/i }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("link", {
+        name: /Agility Robotics investor presentation, June 2026/i,
+      })[0],
     ).toHaveAttribute("href", expect.stringContaining("sec.gov"));
     expect(
-      screen.getByRole("link", { name: /Agility deployment process/i }),
+      screen.getAllByRole("link", { name: /Agility Robotics deployment process/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("agilityrobotics.com"));
+
+    // Modelled numbers are never presented as transactions.
+    const economics = screen
+      .getByText(/Modelled per-robot deployment economics/i)
+      .closest("figure");
+    expect(economics).not.toBeNull();
+    expect(within(economics as HTMLElement).getByText(/Illustrative model/i)).toBeInTheDocument();
+  });
+
+  it("keeps withdrawn offers and unmeasured service levels off the page", () => {
+    const { container } = render(<Home />);
+    expect(container).not.toHaveTextContent(/12–24h/i);
+    expect(container).not.toHaveTextContent(/From \$2,500/i);
+    expect(container).not.toHaveTextContent(/Policy Shortlist/i);
+    expect(container).not.toHaveTextContent(/guaranteed winner/i);
   });
 });

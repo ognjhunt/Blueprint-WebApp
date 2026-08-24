@@ -255,7 +255,7 @@ export function InteractiveEvaluationPreview() {
     <section aria-labelledby="evaluation-preview-heading">
       <div className="grid gap-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.42fr)] lg:items-end">
         <div>
-          <p className="inline-flex items-center gap-[0.6rem] text-[11px] font-semibold uppercase tracking-[0.2em] leading-none text-brass-deep">
+          <p className="inline-flex items-center gap-[0.6rem] text-[11px] font-semibold uppercase tracking-[0.2em] leading-none text-runway-signal">
             <span
               aria-hidden="true"
               className="h-px w-6 shrink-0 bg-current opacity-50"
@@ -264,12 +264,12 @@ export function InteractiveEvaluationPreview() {
           </p>
           <h2
             id="evaluation-preview-heading"
-            className="mt-5 max-w-[19ch] font-display text-[clamp(2.25rem,4.6vw,4.25rem)] font-medium leading-[0.98] tracking-[-0.045em] text-ink-900"
+            className="mt-5 max-w-[19ch] font-display text-[clamp(2.25rem,4.6vw,4.25rem)] font-medium leading-[0.98] tracking-[-0.045em] text-runway-text"
           >
             Change the task. Swap the candidate. See what changed.
           </h2>
         </div>
-        <p className="max-w-[48ch] text-[15px] leading-[1.75] text-ink-600 lg:pb-1">
+        <p className="max-w-[48ch] text-[15px] leading-[1.75] text-runway-mute lg:pb-1">
           A Task Evaluation Run holds the site-task and reset still, then
           compares two frozen candidates. Choose a workcell and policy below to
           inspect an illustrative terminal outcome.
@@ -278,7 +278,7 @@ export function InteractiveEvaluationPreview() {
 
       <div className="mt-10 overflow-hidden rounded-xl border border-ink-900/10 bg-[#121512] shadow-[0_28px_80px_-42px_rgba(13,18,13,0.72)]">
         <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(19rem,0.62fr)]">
-          <div className="relative min-h-[28rem] overflow-hidden border-b border-white/10 lg:min-h-[40rem] lg:border-b-0 lg:border-r">
+          <div className="relative min-h-[28rem] overflow-hidden border-b border-runway-line lg:min-h-[40rem] lg:border-b-0 lg:border-r">
             <img
               key={`${selectedTask.id}-${selectedPolicyId}-${replayKey}`}
               src={outcome.imageSrc}
@@ -292,15 +292,15 @@ export function InteractiveEvaluationPreview() {
             />
 
             <div className="absolute inset-x-0 top-0 flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-              <div className="inline-flex items-center gap-2 rounded-xs border border-white/15 bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">
-                <span className="h-1.5 w-1.5 rounded-full bg-brass motion-safe:animate-pulse" />
+              <div className="inline-flex items-center gap-2 rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-runway-signal motion-safe:animate-pulse" />
                 Preview loop
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-xs border border-white/15 bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/75 backdrop-blur-md">
+                <span className="rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
                   {selectedTask.embodiment}
                 </span>
-                <span className="rounded-xs border border-white/15 bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/75 backdrop-blur-md">
+                <span className="rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
                   Thumbnail mode
                 </span>
               </div>
@@ -309,11 +309,11 @@ export function InteractiveEvaluationPreview() {
             <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
               <div className="flex flex-wrap items-end justify-between gap-5">
                 <div>
-                  <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+                  <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-mute">
                     <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                     {selectedTask.site}
                   </p>
-                  <p className="mt-2 max-w-[24ch] font-display text-[clamp(1.65rem,3vw,2.7rem)] font-medium leading-[1.05] tracking-[-0.035em] text-white">
+                  <p className="mt-2 max-w-[24ch] font-display text-[clamp(1.65rem,3vw,2.7rem)] font-medium leading-[1.05] tracking-[-0.035em] text-runway-text">
                     {selectedTask.task}
                   </p>
                 </div>
@@ -330,18 +330,18 @@ export function InteractiveEvaluationPreview() {
             </div>
           </div>
 
-          <div className="flex flex-col bg-[#171a17] text-white">
-            <div className="border-b border-white/10 p-5 sm:p-6">
+          <div className="flex flex-col bg-[#171a17] text-runway-text">
+            <div className="border-b border-runway-line p-5 sm:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
                     Candidate policy
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-white">
+                  <p className="mt-2 text-sm font-semibold text-runway-text">
                     Choose one frozen input
                   </p>
                 </div>
-                <Bot className="h-5 w-5 text-brass" aria-hidden="true" />
+                <Bot className="h-5 w-5 text-runway-signal" aria-hidden="true" />
               </div>
               <div
                 className="mt-4 grid grid-cols-2 gap-2"
@@ -360,18 +360,18 @@ export function InteractiveEvaluationPreview() {
                         "rounded-md border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass focus-visible:ring-offset-2 focus-visible:ring-offset-[#171a17]",
                         isSelected
                           ? "border-brass/70 bg-brass/[0.12]"
-                          : "border-white/10 bg-white/[0.025] hover:border-white/25 hover:bg-white/[0.05]",
+                          : "border-runway-line bg-runway-panel hover:border-white/25 hover:bg-white/[0.05]",
                       )}
                     >
                       <span
                         className={cn(
                           "block text-xs font-semibold",
-                          isSelected ? "text-brass" : "text-white/80",
+                          isSelected ? "text-runway-signal" : "text-white/80",
                         )}
                       >
                         {policy.label}
                       </span>
-                      <span className="mt-1 block text-[11px] leading-4 text-white/45">
+                      <span className="mt-1 block text-[11px] leading-4 text-runway-faint">
                         {policy.behavior}
                       </span>
                     </button>
@@ -381,31 +381,31 @@ export function InteractiveEvaluationPreview() {
             </div>
 
             <div className="flex-1 p-5 sm:p-6" aria-live="polite">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
                 Illustrative outcome
               </p>
-              <h3 className="mt-3 font-display text-2xl font-medium tracking-[-0.025em] text-white">
+              <h3 className="mt-3 font-display text-2xl font-medium tracking-[-0.025em] text-runway-text">
                 {outcome.terminalEvent}
               </h3>
               <p className="mt-3 text-sm leading-6 text-white/60">
                 {outcome.summary}
               </p>
 
-              <dl className="mt-6 divide-y divide-white/10 border-y border-white/10">
+              <dl className="mt-6 divide-y divide-white/10 border-y border-runway-line">
                 <div className="flex items-center justify-between gap-5 py-3">
-                  <dt className="text-xs text-white/45">Candidate</dt>
+                  <dt className="text-xs text-runway-faint">Candidate</dt>
                   <dd className="text-right text-xs font-semibold text-white/80">
                     {selectedPolicy.label} · {selectedPolicy.behavior}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-5 py-3">
-                  <dt className="text-xs text-white/45">Condition</dt>
+                  <dt className="text-xs text-runway-faint">Condition</dt>
                   <dd className="text-right text-xs font-semibold text-white/80">
                     {outcome.condition}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-5 py-3">
-                  <dt className="text-xs text-white/45">Claim ceiling</dt>
+                  <dt className="text-xs text-runway-faint">Claim ceiling</dt>
                   <dd className="text-right text-xs font-semibold text-white/80">
                     Simulation only
                   </dd>
@@ -413,7 +413,7 @@ export function InteractiveEvaluationPreview() {
               </dl>
             </div>
 
-            <div className="border-t border-white/10 p-5 sm:p-6">
+            <div className="border-t border-runway-line p-5 sm:p-6">
               <div
                 className="grid grid-cols-3 gap-2"
                 aria-label="Preview sequence"
@@ -423,7 +423,7 @@ export function InteractiveEvaluationPreview() {
                     <div
                       className={cn(
                         "h-0.5 rounded-full",
-                        index === 2 ? "bg-brass" : "bg-white/35",
+                        index === 2 ? "bg-runway-signal" : "bg-white/35",
                       )}
                     />
                     <p className="mt-2 truncate font-mono text-[9px] uppercase tracking-[0.14em] text-white/40">
@@ -435,7 +435,7 @@ export function InteractiveEvaluationPreview() {
               <button
                 type="button"
                 onClick={() => setReplayKey((value) => value + 1)}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-white/15 px-4 py-3 text-xs font-semibold text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-runway-line px-4 py-3 text-xs font-semibold text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
               >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                 Replay preview
@@ -444,12 +444,12 @@ export function InteractiveEvaluationPreview() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-[#101310] p-4 sm:p-5">
+        <div className="border-t border-runway-line bg-[#101310] p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
               Select a site-task
             </p>
-            <p className="text-[11px] text-white/35">
+            <p className="text-[11px] text-runway-faint">
               3 fixed-arm · 2 humanoid
             </p>
           </div>
@@ -471,7 +471,7 @@ export function InteractiveEvaluationPreview() {
                     "group grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-3 rounded-md border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass",
                     isSelected
                       ? "border-brass/65 bg-brass/10"
-                      : "border-white/10 bg-white/[0.025] hover:border-white/25 hover:bg-white/[0.05]",
+                      : "border-runway-line bg-runway-panel hover:border-white/25 hover:bg-white/[0.05]",
                   )}
                 >
                   <span className="relative block aspect-[4/3] overflow-hidden rounded-sm bg-white/5">
@@ -481,7 +481,7 @@ export function InteractiveEvaluationPreview() {
                       loading="lazy"
                       className="h-full w-full object-cover grayscale-[0.25] transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
                     />
-                    <span className="absolute bottom-1 left-1 rounded-xs bg-black/60 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] text-white/70 backdrop-blur-sm">
+                    <span className="absolute bottom-1 left-1 rounded-xs bg-black/60 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] text-runway-mute backdrop-blur-sm">
                       {task.embodiment === "Fixed arm" ? "Arm" : "Humanoid"}
                     </span>
                   </span>
@@ -489,12 +489,12 @@ export function InteractiveEvaluationPreview() {
                     <span
                       className={cn(
                         "block truncate text-xs font-semibold",
-                        isSelected ? "text-brass" : "text-white/75",
+                        isSelected ? "text-runway-signal" : "text-runway-mute",
                       )}
                     >
                       {task.shortTask}
                     </span>
-                    <span className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-white/35">
+                    <span className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-runway-faint">
                       {task.embodiment === "Fixed arm" ? (
                         <Bot className="h-3 w-3 shrink-0" aria-hidden="true" />
                       ) : (
@@ -513,7 +513,7 @@ export function InteractiveEvaluationPreview() {
         </div>
       </div>
 
-      <p className="mt-4 max-w-[80ch] text-[11px] leading-5 text-ink-500">
+      <p className="mt-4 max-w-[80ch] text-[11px] leading-5 text-runway-mute">
         Generated concept frames show interface behavior only. They are not
         captured site media, completed policy runs, policy-ranking evidence,
         physical outcomes, or deployment approval.

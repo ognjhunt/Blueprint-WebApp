@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { DeploymentComparison } from "@/components/site/DeploymentComparison";
+import { StructuralCompareFigure } from "@/components/site/runway/figures";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
@@ -60,14 +60,14 @@ export default function About() {
         <Inner className="py-20 lg:py-28">
           <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
             <div>
-              <p className="text-micro font-semibold uppercase tracking-eyebrow text-brass">
+              <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
                 The thesis
               </p>
-              <h2 className="mt-5 text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-white">
+              <h2 className="mt-5 text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-runway-text">
                 Robot supply scales. Deployment homework does not.
               </h2>
             </div>
-            <p className="max-w-[40rem] text-body-l leading-8 text-ink-300">
+            <p className="max-w-[40rem] text-body-l leading-8 text-runway-mute">
               Every new site still needs someone to understand the task,
               recreate the conditions, test fit, define success, protect the
               data, and prepare the onsite team. Blueprint makes that work
@@ -85,7 +85,7 @@ export default function About() {
             title="The same deployment homework should not be rebuilt inside every OEM."
           />
           <Reveal className="mt-14">
-            <DeploymentComparison />
+            <StructuralCompareFigure />
           </Reveal>
         </Inner>
       </Band>
@@ -97,14 +97,14 @@ export default function About() {
             eyebrow="Five rules"
             title="Fast is useful only when the result stays honest."
           />
-          <ul className="mt-14 divide-y divide-line border-y border-line">
+          <ul className="mt-14 divide-y divide-line border-y border-runway-line">
             {principles.map((principle, index) => (
               <Reveal key={principle} delay={index * 0.04}>
                 <li className="grid gap-4 py-5 sm:grid-cols-[auto_1fr] sm:items-start">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info-bg text-action">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-runway-signal/[0.08] text-runway-signal">
                     <Check className="h-4 w-4" aria-hidden="true" />
                   </span>
-                  <p className="text-body-l leading-8 text-ink-800">
+                  <p className="text-body-l leading-8 text-runway-text">
                     {principle}
                   </p>
                 </li>

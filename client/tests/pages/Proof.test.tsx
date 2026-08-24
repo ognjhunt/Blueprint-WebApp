@@ -18,7 +18,7 @@ describe("Proof", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Published anchor—not a market price/i,
+        name: /Published anchor — not a market price/i,
       }),
     ).toBeInTheDocument();
     expect(
