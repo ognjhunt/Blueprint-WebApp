@@ -1,6 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 
-import { serviceArea } from "@/data/captureVisit";
+import { serviceArea } from "@/data/serviceArea";
 
 import {
   footerCompanyLinks,

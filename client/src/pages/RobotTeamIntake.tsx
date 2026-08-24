@@ -1,58 +1,49 @@
 /**
- * The site-task intake.
+ * The robot-team intake.
  *
- * Rebuilt from the question "what has to be true before an operator gets in a
- * car", rather than from what a signup form usually collects.
+ * The mirror of `/site-task`, built on the same machinery and screening for
+ * something different.
  *
- * ## No account
+ * ## We are not screening the robot
  *
- * The flow this replaces asked a site operator to choose a password and accept
- * terms before they could describe their cell. That is backwards: the account
- * is only worth anything once there is a match to give them access to, and
- * demanding one up front spends the submission to buy nothing. This page takes
- * a task and gives back an answer. `BusinessSignUpFlow` is left alone for
- * people who actually want an account.
+ * A site can genuinely fail to suit a robot — a cell that gets rearranged
+ * between shifts defeats the capture regardless of who shows up. A robot team
+ * cannot fail in that sense; it either has an envelope that matches a task or
+ * it does not, and that is matching, not screening.
  *
- * ## Gates first, spec second
+ * What a robot team can fail is the question that costs us something: **would
+ * you deploy?** A task matched to a team with no hardware, no allocated
+ * engineers, no timeline, or no willingness to work in the metro is a match on
+ * paper that burns a real capture visit and a real site's access window. So the
+ * four gates are deployment readiness, and capability lives in the envelope
+ * below where it gets matched rather than judged.
  *
- * Form length costs good sites, so the six questions that can end a
- * submission are asked before the ones that merely describe one. Someone about
- * to be told they are outside the metro should learn that in thirty seconds,
- * not after enumerating payload weights. The spec tier and the prose only
- * appear once the gates have been answered without a blocker.
+ * ## The envelope mirrors the site's task spec, field for field
  *
- * ## The verdict is shown, not hidden
+ * Payload, cycle time, human proximity, duty cycle, success rate and lighting
+ * use the same enums as the site side, so matching is a comparison of values
+ * rather than of prose. A test fails if a pair drifts apart.
  *
- * Triage runs client-side as the operator answers — the same
- * `triageGateAnswers` the server runs at submission, so the screen they see is
- * the screen they get. A blocked site is told which condition failed and what
- * would flip it, before submitting, and can decide whether to keep going. That
- * is more useful to them than a form that swallows the answer and emails a no
- * three days later, and it is cheaper for us than a call.
- *
- * The server recomputes the verdict on the payload regardless. Nothing here is
- * trusted: this component is a mirror of the decision, never its source.
+ * As on the site side: the verdict shown here is a mirror of the decision, and
+ * the server recomputes it on the submitted payload regardless.
  */
 import { useMemo, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { Choice, Field, VerdictPanel } from "@/components/site/intake";
 import { Reveal } from "@/components/site/motion";
 import { PageHero } from "@/components/site/publicSections";
 import { Band, Inner, SectionHead } from "@/components/site/runway/shell";
-import { Choice, Field, VerdictPanel } from "@/components/site/intake";
-import { PlaceAutocompleteInput } from "@/components/site/PlaceAutocompleteInput";
 import {
-  gateFields,
-  proseFields,
-  qualifyingIntakeNote,
-  specFields,
-  taskVideoField,
-} from "@/data/siteTaskQualification";
+  robotGateFields,
+  robotIntakeNote,
+  robotProseFields,
+  robotSpecFields,
+} from "@/data/robotTeamQualification";
 import { serviceArea } from "@/data/serviceArea";
-import type { PlaceLocationMetadata } from "@/types/inbound-request";
 import { withCsrfHeader } from "@/lib/csrf";
-import { describeDisposition, triageGateAnswers } from "@/lib/gateTriage";
+import { triageGateAnswers } from "@/lib/gateTriage";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 type Answers = Record<string, string>;
@@ -63,28 +54,52 @@ function splitName(value: string) {
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
-export default function SiteTaskIntake() {
+/**
+ * What a robot team is told at each outcome.
+ *
+ * Deliberately not the site copy. A blocked robot team is not being rejected on
+ * merit, and saying "not yet" without that distinction would read as a judgement
+ * of their system, which is neither true nor our place.
+ */
+function describeRobotDisposition(disposition: string, openCount: number) {
+  if (disposition === "not_now") {
+    return {
+      headline: "Not a fit for a deployment right now.",
+      body: "That is about timing and capacity, not about your system.",
+      next: "We keep you on file and come back when the constraint changes on either side.",
+    };
+  }
+  if (disposition === "needs_conversation") {
+    return {
+      headline: "Worth a conversation.",
+      body:
+        openCount > 0
+          ? `${openCount === 1 ? "One answer" : `${openCount} answers`} cannot be settled from a form.`
+          : "A short call fills in what the form cannot.",
+      next: "About thirty minutes, with the open items already written down.",
+    };
+  }
+  return {
+    headline: "You are a deployable counterparty.",
+    body: "Hardware that exists, engineers who are free, and a timeline.",
+    next: "We match your envelope against captured site tasks and come to you with specifics, not a newsletter.",
+  };
+}
+
+export default function RobotTeamIntake() {
   const [gates, setGates] = useState<Answers>({});
   const [spec, setSpec] = useState<Answers>({});
   const [prose, setProse] = useState<Answers>({});
   const [contact, setContact] = useState<Answers>({});
-  // Set when a prediction is chosen. Carries the structured address the
-  // capture operator actually needs — a typed string can be ambiguous, a
-  // resolved place cannot.
-  const [addressMetadata, setAddressMetadata] = useState<PlaceLocationMetadata | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The same function the server runs. Recomputed on every answer so the
-  // operator watches the screen resolve rather than waiting for a verdict.
-  const verdict = useMemo(() => triageGateAnswers(gates), [gates]);
-  const copy = describeDisposition(verdict);
+  const verdict = useMemo(() => triageGateAnswers(gates, robotGateFields), [gates]);
+  const copy = describeRobotDisposition(verdict.disposition, verdict.openQuestions.length);
 
-  const gatesAnswered = gateFields.every((field) => gates[field.id]);
+  const gatesAnswered = robotGateFields.every((field) => gates[field.id]);
   const blocked = verdict.disposition === "not_now";
-  // The expensive questions are only worth someone's patience once the cheap
-  // ones have passed.
   const showSpec = gatesAnswered && !blocked;
 
   const canSubmit =
@@ -92,8 +107,7 @@ export default function SiteTaskIntake() {
     Boolean(contact.name?.trim()) &&
     Boolean(contact.email?.trim()) &&
     Boolean(contact.company?.trim()) &&
-    Boolean(contact.siteAddress?.trim()) &&
-    Boolean(prose.taskDescription?.trim());
+    Boolean(prose.capabilityDescription?.trim());
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -107,29 +121,23 @@ export default function SiteTaskIntake() {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          requestId: `site-task-${crypto.randomUUID()}`,
+          requestId: `robot-team-${crypto.randomUUID()}`,
           firstName,
           lastName,
           email: (contact.email ?? "").toLowerCase().trim(),
           company: contact.company,
-          roleTitle: contact.role || "Site operator",
-          buyerType: "site_operator",
-          // No account is created here, so no terms gate applies.
+          roleTitle: contact.role || "Robot team contact",
+          buyerType: "robot_team",
           accountSignup: false,
           budgetBucket: "Undecided/Unsure",
           requestedLanes: [],
-          // The address is the site's identity now. A separate "site name" was
-          // asked and never used: an operator types the company name again, and
-          // an operator visiting a site needs a street address, not a nickname.
-          siteName: contact.siteAddress,
-          siteLocation: contact.siteAddress,
-          siteLocationMetadata: addressMetadata,
-          // `taskStatement` is what every existing consumer reads, so the
-          // description is written to both rather than stranded in a new field.
-          taskStatement: prose.taskDescription,
-          taskDescription: prose.taskDescription,
-          whatGoesWrong: prose.whatGoesWrong || null,
-          taskVideoUrl: prose.taskVideoUrl?.trim() || null,
+          // The endpoint requires one of these for a robot team; the task family
+          // is the coarsest true statement of what site class they want.
+          targetSiteType: spec.taskFamily || "Not specified",
+          proofPathPreference: "need_guidance",
+          taskStatement: prose.capabilityDescription,
+          taskDescription: prose.capabilityDescription,
+          whatGoesWrong: prose.evidenceBar || null,
           siteTaskGates: gates,
           siteTaskSpec: spec,
           context: {
@@ -156,44 +164,44 @@ export default function SiteTaskIntake() {
   return (
     <>
       <SEO
-        title="Submit a site task | Blueprint"
-        description="Five questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — no account, no password."
-        canonical="/site-task"
+        title="Tell us what you can deploy | Blueprint"
+        description="Four questions about whether a deployment could actually happen, then your capability envelope. We match it against captured site tasks — we are not screening your robot."
+        canonical="/robot-intake"
         jsonLd={[
           webPageJsonLd({
-            path: "/site-task",
-            name: "Submit a site task to Blueprint",
+            path: "/robot-intake",
+            name: "Blueprint robot-team intake",
             description:
-              "The structured site-task intake: five screening questions, the task specification, and an immediate verdict.",
+              "The structured robot-team intake: deployment-readiness gates, a capability envelope that mirrors the site task spec, and the evidence bar for committing an engineer-week.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Submit a site task", path: "/site-task" },
+            { name: "Robot-team intake", path: "/robot-intake" },
           ]),
         ]}
       />
 
       <PageHero
-        eyebrow="Submit a site task"
-        title="Six questions decide this."
-        body="Answer them and you will know where you stand before anyone calls you. No account, no password — we ask for one only if there is something to give you access to."
-        chips={["~2 minutes", "No account", "Answer before you submit"]}
+        eyebrow="Robot-team intake"
+        title="Tell us what you can deploy."
+        body="Not what you are building toward. Four questions decide whether a deployment could actually happen, and then we take your capability envelope and match it against site tasks that are already captured, scoped, and screened."
+        chips={["~3 minutes", "No account", "Opportunities arrive scoped"]}
         ctaHref="#intake"
         ctaLabel="Start"
-        secondaryHref="/capture-visit"
-        secondaryLabel="What a capture visit involves"
-        imageSrc="/redesign/pov/inspection-bench.jpg"
-        imageAlt="A working cell of the kind Blueprint screens"
-        imageCaption="One workcell · one repeated task"
+        secondaryHref="/for-robot-teams"
+        secondaryLabel="Why this exists"
+        imageSrc="/redesign/pov/loading-dock.jpg"
+        imageAlt="A site of the kind Blueprint captures for robot evaluation"
+        imageCaption="Captured, scoped, screened"
       />
 
       <Band tone="black" rule grid id="intake">
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="01"
-            eyebrow="The screen"
-            title={qualifyingIntakeNote.claim}
-            lede={qualifyingIntakeNote.detail}
+            eyebrow="Deployment readiness"
+            title={robotIntakeNote.claim}
+            lede={robotIntakeNote.detail}
           />
 
           {submitted ? (
@@ -207,7 +215,7 @@ export default function SiteTaskIntake() {
                   {copy.body}
                 </p>
                 <p className="mt-4 max-w-[62ch] text-[14px] leading-[1.75] text-runway-text">
-                  {copy.nextStep}
+                  {copy.next}
                 </p>
               </div>
             </Reveal>
@@ -215,7 +223,7 @@ export default function SiteTaskIntake() {
             <form onSubmit={handleSubmit} className="mt-14">
               <div className="grid gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
                 <div className="space-y-8">
-                  {gateFields.map((field) => (
+                  {robotGateFields.map((field) => (
                     <Choice
                       key={field.id}
                       id={`gate-${field.id}`}
@@ -230,27 +238,38 @@ export default function SiteTaskIntake() {
 
                 <VerdictPanel
                   result={verdict}
-                  totalGates={gateFields.length}
+                  totalGates={robotGateFields.length}
                   headline={copy.headline}
-                  qualifiedNote={copy.nextStep}
-                  footnote="You can still send this. We keep tasks on file and come back when the constraint changes on our side or yours — that is how we decide which metro opens next."
+                  qualifiedNote={copy.next}
+                  footnote={
+                    <>
+                      {/*
+                        A blocked robot team is not being rejected on merit, and
+                        the panel would otherwise show only "Not yet" plus a
+                        blocker — which reads as a verdict on their system. Say
+                        what it actually is before saying what to do about it.
+                      */}
+                      {copy.body} Send it anyway: which metro opens after{" "}
+                      {serviceArea.city} is decided partly by where robot-side demand sits, and a
+                      no today is data for that.
+                    </>
+                  }
                 />
               </div>
 
-              {/* Spec and prose, disclosed only once the gates pass. */}
               {showSpec ? (
                 <Reveal className="mt-16 border-t border-runway-line pt-16">
                   <div>
                     <h2 className="max-w-[26ch] text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
-                      Now the part a robot team actually reads.
+                      Now the envelope we match against.
                     </h2>
                     <p className="mt-4 max-w-[62ch] text-[14px] leading-[1.75] text-runway-mute">
-                      These do not screen anything. They make the task specific enough that a robot
-                      team can answer without a discovery call of its own.
+                      These use the same bands a site answers about its task, so a match is a
+                      comparison rather than a reading. Nothing here screens you out.
                     </p>
 
                     <div className="mt-10 grid gap-8 md:grid-cols-2">
-                      {specFields.map((field) => (
+                      {robotSpecFields.map((field) => (
                         <Choice
                           key={field.id}
                           id={`spec-${field.id}`}
@@ -264,7 +283,7 @@ export default function SiteTaskIntake() {
                     </div>
 
                     <div className="mt-10 space-y-8">
-                      {proseFields.map((field) => (
+                      {robotProseFields.map((field) => (
                         <Field
                           key={field.id}
                           id={`prose-${field.id}`}
@@ -275,43 +294,16 @@ export default function SiteTaskIntake() {
                           onChange={(value) => setProse((prev) => ({ ...prev, [field.id]: value }))}
                         />
                       ))}
-
-                      {/*
-                        A link, never an upload. Taking footage of identifiable
-                        workers on a public form — before any consent record
-                        exists — would bypass the machinery /governance promises.
-                        A link also leaves custody with the site: they revoke by
-                        unsharing rather than by asking us to delete something.
-                      */}
-                      <div className="border-t border-runway-line pt-8">
-                        <Field
-                          id="prose-taskVideoUrl"
-                          label={taskVideoField.question}
-                          hint={taskVideoField.hint}
-                          type="url"
-                          value={prose.taskVideoUrl ?? ""}
-                          onChange={(value) =>
-                            setProse((prev) => ({ ...prev, taskVideoUrl: value }))
-                          }
-                        />
-                        <p className="runway-meta mt-3 leading-5 text-runway-signal">
-                          {taskVideoField.optional}
-                        </p>
-                        <p className="mt-3 max-w-[70ch] text-[12.5px] leading-6 text-runway-faint">
-                          {taskVideoField.privacy}
-                        </p>
-                      </div>
                     </div>
                   </div>
                 </Reveal>
               ) : null}
 
-              {/* Contact last, because it is the least interesting thing about a task. */}
               {gatesAnswered ? (
                 <Reveal className="mt-16 border-t border-runway-line pt-16">
                   <div>
                     <h2 className="text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
-                      Where do we send the answer?
+                      Where do we send matches?
                     </h2>
                     <div className="mt-10 grid gap-8 md:grid-cols-2">
                       <Field
@@ -340,32 +332,6 @@ export default function SiteTaskIntake() {
                         value={contact.role ?? ""}
                         onChange={(value) => setContact((prev) => ({ ...prev, role: value }))}
                       />
-                      {/*
-                        One address field, resolved through Google Places as the
-                        operator types. This replaces a "site name" plus a loose
-                        "city is enough" location: an operator has to drive to
-                        this, and "the north warehouse" is not a place.
-                      */}
-                      <div className="md:col-span-2">
-                        <PlaceAutocompleteInput
-                          id="contact-site-address"
-                          label="Site address"
-                          country="us"
-                          placeholder={`Start typing — e.g. a street address in ${serviceArea.city}`}
-                          labelClassName="block text-[14.5px] font-medium leading-6 text-runway-text"
-                          inputWrapperClassName="relative mt-3"
-                          inputClassName="w-full rounded-sm border border-runway-line bg-runway-black px-3 py-2.5 text-[14px] text-runway-text outline-none transition placeholder:text-runway-faint focus:border-runway-signal"
-                          value={contact.siteAddress ?? ""}
-                          onChange={(value) => {
-                            setContact((prev) => ({ ...prev, siteAddress: value }));
-                            // A hand-edit after selecting invalidates the
-                            // resolved place; better to send nothing than a
-                            // structured address that no longer matches the text.
-                            setAddressMetadata(null);
-                          }}
-                          onPlaceSelect={setAddressMetadata}
-                        />
-                      </div>
                     </div>
 
                     {error ? (
@@ -389,14 +355,14 @@ export default function SiteTaskIntake() {
                         </>
                       ) : (
                         <>
-                          Send the task
+                          Send the envelope
                           <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </>
                       )}
                     </button>
                     <p className="mt-4 text-[12.5px] leading-6 text-runway-faint">
-                      Nothing is captured, scheduled, or shown to a robot team as a result of this
-                      form.
+                      Nothing is shared with a site, and no site data is shared with you, as a
+                      result of this form.
                     </p>
                   </div>
                 </Reveal>

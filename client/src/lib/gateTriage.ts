@@ -1,8 +1,13 @@
 /**
- * Site-task triage.
+ * Gate triage.
  *
- * Turns the answers defined in `@/data/siteTaskQualification` into one of three
- * dispositions. Imported by both the client (to show an operator where they
+ * Turns a set of gated enum answers into one of three dispositions. Serves both
+ * intakes: `@/data/siteTaskQualification` for sites and
+ * `@/data/robotTeamQualification` for robot teams. The two ask about entirely
+ * different things — a site is screened on whether a robot can work there, a
+ * robot team on whether it would actually deploy — but the scoring shape is
+ * identical, so there is one implementation and one set of guarantees rather
+ * than two that drift. Imported by both the client (to show an operator where they
  * stand) and the server (as the authority), following the existing
  * `structuredIntake.ts` pattern — `server/routes/inbound-request.ts` reaches
  * into `client/src/lib/` deliberately so one implementation serves both.
@@ -34,7 +39,7 @@
  */
 
 import {
-  gateFields,
+  gateFields as siteGateFields,
   type OptionVerdict,
   type QualifyingField,
 } from "@/data/siteTaskQualification";
@@ -91,12 +96,16 @@ function findOption(field: QualifyingField, value: string | undefined) {
  * so blanks push toward a conversation, and a submission with any blank never
  * returns `qualified`.
  */
-export function triageGateAnswers(answers: GateAnswers): TriageResult {
+export function triageGateAnswers(
+  answers: GateAnswers,
+  /** Defaults to the site-task gates, which were the first caller. */
+  fields: readonly QualifyingField[] = siteGateFields,
+): TriageResult {
   const blockers: TriageReason[] = [];
   const openQuestions: TriageReason[] = [];
   const unanswered: string[] = [];
 
-  for (const field of gateFields) {
+  for (const field of fields) {
     const option = findOption(field, answers[field.id]);
 
     if (!option) {

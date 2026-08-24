@@ -50,9 +50,9 @@ const faqItems = [
       "Only when a deployment produces provider revenue collected through the recorded agreement. A submission, match, simulation candidate, or unsigned offer does not trigger the network fee.",
   },
   {
-    question: "Is professional capture free for every submission?",
+    question: "Is a capture visit free for every submission?",
     answer:
-      "No. Self-capture and automatic screening come first. Blueprint funds focused professional capture for strong opportunities; marginal opportunities may require a refundable commitment deposit that is credited against later network fees.",
+      "No submission is charged for capture, and not every submission gets one. Structured screening comes first and costs nothing; a capture visit follows only once the task clears the screen and matches a robot team we are in conversation with. Blueprint sends and funds the operator when that happens — the site is never asked to capture its own workcell or to deposit against a visit.",
   },
   {
     question: "Are the volume tiers per deal or per facility?",

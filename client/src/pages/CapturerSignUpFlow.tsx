@@ -38,6 +38,7 @@ import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
+import { filterToServedCities } from "@/data/serviceArea";
 
 /**
  * Accepted capture gear is a 360 camera and a smartphone. Nothing else.
@@ -156,7 +157,11 @@ export default function CapturerSignUpFlow() {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const captureAppUrl = useMemo(() => getCaptureAppPlaceholderUrl(), []);
   const { data: publicLaunchStatus, loading: launchCitiesLoading } = usePublicLaunchStatus();
-  const supportedLaunchCities = publicLaunchStatus?.supportedCities ?? [];
+  // Filtered to the declared service area — the launch-status endpoint can
+  // return metros with prepared coverage policies that Blueprint does not yet
+  // serve, and a capturer applying for a city we cannot assign is a wasted
+  // application. See `@/data/serviceArea`.
+  const supportedLaunchCities = filterToServedCities(publicLaunchStatus?.supportedCities ?? []);
   const supportedLaunchCitySummary = joinLaunchCityLabels(supportedLaunchCities);
   const marketIsSupportedLaunchCity = useMemo(
     () =>

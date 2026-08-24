@@ -41,12 +41,17 @@ export const faqItems = [
   {
     question: "What does a site need to submit?",
     answer:
-      "Start with phone video, plans when available, object sizes and weights, cycle time, shifts, exceptions, layout and traffic, system interfaces, success criteria, and access or privacy rules. A guided scan can follow when useful.",
+      "Answers, not artifacts. Six questions about the room decide whether a robot could work there today, and a description of the task in your own words does the rest. Object weights, cycle time, volume, and your acceptance threshold are dropdowns. Nothing has to be measured, drawn, or exported first. If you already have a short video of the task being done, you can point us at it — useful, and optional.",
   },
   {
-    question: "Does every site get a free professional scan?",
+    question: "Do we have to capture the site ourselves?",
     answer:
-      "No. Self-capture and automatic screening come first. Professional capture is funded only after the opportunity clears qualification or is backed by a refundable commitment deposit.",
+      "No. Blueprint sends a trained capture operator with a 360 camera and phone rig, and nobody at your site captures anything. Your team supplies an escort, the task objects, and the person who can say what counts as success.",
+  },
+  {
+    question: "Does every site get a capture visit?",
+    answer:
+      "No, and not because of cost. A capture is the last step of qualification: we screen the task, then check it against the robot teams we are actually in conversation with, and only send an operator once there is a match. We do not capture speculatively — a captured site with no interested robot team costs us money and tells you something false about demand.",
   },
   {
     question: "Do robot teams download the site twin?",

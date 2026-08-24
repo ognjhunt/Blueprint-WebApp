@@ -295,7 +295,14 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Site-task intake",
     path: "/site-task",
     canonicalPath: "/site-task",
-    expectedHeading: "Five questions decide this.",
+    expectedHeading: "Six questions decide this.",
+    requiredCtas: [{ label: "Start", hrefStartsWith: "#intake" }],
+  },
+  {
+    label: "Robot-team intake",
+    path: "/robot-intake",
+    canonicalPath: "/robot-intake",
+    expectedHeading: "Tell us what you can deploy.",
     requiredCtas: [{ label: "Start", hrefStartsWith: "#intake" }],
   },
   {

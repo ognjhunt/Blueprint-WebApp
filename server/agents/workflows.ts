@@ -1122,6 +1122,7 @@ function extractInboundQualificationInput(request: InboundRequest) {
     gateOpenQuestions: request.site_task_triage?.open_questions ?? null,
     taskDescription: request.request.taskDescription || null,
     whatGoesWrong: request.request.whatGoesWrong || null,
+    taskVideoUrl: request.request.taskVideoUrl || null,
   };
 }
 

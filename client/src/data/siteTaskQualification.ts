@@ -76,11 +76,19 @@ export interface QualifyingField {
 /* ----------------------------------------------------------------- gates */
 
 /**
- * The five questions that can end a submission.
+ * The six questions that can end a submission.
  *
  * Service area is first because it is the cheapest possible no and the one a
- * site would most resent discovering on a call. The other four are the
- * qualifying conditions, in the order they are cheapest to answer.
+ * site would most resent discovering on a call. Four are the qualifying
+ * conditions, in the order they are cheapest to answer. The last is timeline,
+ * which screens for deployment intent rather than for the room — a site with no
+ * target is the speculative capture we do not do, and it is asked of robot
+ * teams too.
+ *
+ * Budget is deliberately NOT here. It is a matching parameter, not a screen: it
+ * decides which robot teams we put in front of a site, and almost never decides
+ * whether a site is worth capturing. It lives in `specFields`, paired to the
+ * robot side's cost band so the comparison is mechanical.
  */
 export const gateFields: readonly QualifyingField[] = [
   {
@@ -163,6 +171,29 @@ export const gateFields: readonly QualifyingField[] = [
         label: "It changes constantly — we could not list them",
         verdict: "blocking",
         unblocks: "Scoping to a family of items that can be enumerated, even if the station handles more.",
+      },
+    ],
+  },
+  {
+    id: "deploymentTimeline",
+    question: "When would you want a robot actually running here?",
+    hint: "A real target, not a best case.",
+    options: [
+      { value: "this_quarter", label: "This quarter", verdict: "clear" },
+      { value: "six_months", label: "Within six months", verdict: "clear" },
+      {
+        value: "next_year",
+        label: "Six to twelve months out",
+        verdict: "marginal",
+        ambiguity:
+          "Far enough out that the robot teams available then may not be the ones we would match you to now.",
+      },
+      {
+        value: "exploratory",
+        label: "No timeline — we are finding out what is possible",
+        verdict: "blocking",
+        unblocks:
+          "A decision to actually deploy something. Exploring is how most good deployments start and it is not one yet, and capturing a site with no target is the speculative capture we do not do.",
       },
     ],
   },
@@ -268,6 +299,20 @@ export const specFields: readonly SpecField[] = [
     ],
   },
   {
+    id: "budgetBand",
+    question: "What could this deployment cost and still be worth doing?",
+    hint: "A range is fine. Nothing here is a commitment.",
+    whyAsked:
+      "Budget is a matching parameter, not a screen. It decides which robot teams we put in front of you — a site with a modest budget and a provider whose deployments start well above it is a match nobody enjoys discovering on a call.",
+    options: [
+      { value: "under_50k", label: "Under $50K" },
+      { value: "fifty_to_250k", label: "$50K–$250K" },
+      { value: "250k_to_1m", label: "$250K–$1M" },
+      { value: "over_1m", label: "Over $1M" },
+      { value: "unsure", label: "We have not scoped a number" },
+    ],
+  },
+  {
     id: "lighting",
     question: "What is the lighting like?",
     whyAsked: "Capture quality and perception both depend on it, and daylight is the awkward case.",
@@ -305,8 +350,49 @@ export const proseFields: readonly { id: string; question: string; hint: string 
   },
 ];
 
+/* ----------------------------------------------------------- task footage */
+
+/**
+ * Optional footage of the task, by link rather than by upload.
+ *
+ * A thirty-second clip settles in one viewing what three paragraphs argue
+ * about: whether "one task, done the same way" really is one task, what the
+ * cycle actually takes, how close people work, and what the lighting does. It
+ * is the highest-information thing a site can give us before a capture, and it
+ * is exactly what the narrative review is otherwise trying to infer from prose.
+ *
+ * ## Why a link and not an upload
+ *
+ * Because `/governance` promises that consent fails closed, that suppression is
+ * provable, and that a capture without its consent record does not process. An
+ * upload widget on a public marketing form would take footage of identifiable
+ * workers *before any consent record exists*, bypassing the machinery that
+ * makes those promises true. Shipping that would make the trust page a lie.
+ *
+ * A link keeps custody with the site: they decide who can view it, and they
+ * revoke by unsharing rather than by asking us to delete something. That is
+ * genuinely stronger for them and costs us nothing.
+ *
+ * Once an engagement exists and consent is recorded, footage belongs in the
+ * consented capture-upload path, not here.
+ *
+ * ## "Film the work, not the worker"
+ *
+ * Both the privacy-safe instruction and the better footage. Hands and objects
+ * are what a robot team needs to see; faces and badges are what create a
+ * consent problem. Saying so plainly gets us more usable video, not less.
+ */
+export const taskVideoField = {
+  id: "taskVideoUrl",
+  question: "Have a short video of the task being done?",
+  optional: "Optional, and the single most useful thing you can send.",
+  hint: "Paste a link — Drive, Dropbox, an unlisted upload, anything you can share and unshare. Thirty seconds of the actual cycle beats any description.",
+  privacy:
+    "Film the work, not the worker. Hands and objects are what a robot team needs to see. Do not send footage of identifiable people without their agreement — and because this is a link rather than an upload, you keep custody and can revoke access at any time.",
+} as const;
+
 export const qualifyingIntakeNote = {
   claim: "These questions are the screen, not a survey.",
   detail:
-    "Five of them can end a submission, and we would rather end it here than on a call. What you answer maps to the four conditions on the site-operator page — we ask about your room and do the mapping ourselves, because our words for these things are not yours.",
+    "Six of them can end a submission, and we would rather end it here than on a call. What you answer maps to the four conditions on the site-operator page — we ask about your room and do the mapping ourselves, because our words for these things are not yours.",
 } as const;

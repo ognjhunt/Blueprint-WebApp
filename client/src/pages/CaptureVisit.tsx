@@ -42,12 +42,12 @@ import {
   captureScope,
   normalCellNote,
   partnerNeverHasTo,
-  serviceArea,
   visitConfirmation,
   visitConfirmationNote,
   visitGate,
   visitGateNote,
 } from "@/data/captureVisit";
+import { serviceArea } from "@/data/serviceArea";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =
