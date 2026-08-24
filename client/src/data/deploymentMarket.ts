@@ -49,6 +49,22 @@ export const marketSources = {
     label: "Agility Robotics deployment process",
     href: "https://www.agilityrobotics.com/content/agilitys-humanoid-deployment-process",
   },
+  sagHumanoid: {
+    label: "Smart Analytics Global, humanoid shipments 1H 2026",
+    href: "https://smartanalyticsglobal.com/global-humanoid-robot-shipments-2026-agibot-unitree/",
+  },
+  bloombergHumanoid: {
+    label: "Bloomberg: China humanoid makers hold 97% of global shipments",
+    href: "https://www.bloomberg.com/news/articles/2026-08-10/china-humanoid-makers-hold-97-of-global-shipments-report-says",
+  },
+  teslaOptimusCall: {
+    label: "Tesla Q4 2025 earnings call, 28 Jan 2026",
+    href: "https://electrek.co/2026/01/28/musk-admits-no-optimus-robots-are-doing-useful-work-at-tesla-after-claiming-otherwise/",
+  },
+  atlasCommitted: {
+    label: "Boston Dynamics: 2026 Atlas output committed internally",
+    href: "https://www.automate.org/robotics/industry-insights/boston-dynamics-to-begin-production-on-redesigned-atlas-humanoid-in-2026",
+  },
   gxoPilot: {
     label: "GXO proof of concept, December 2023",
     href: "https://investors.gxo.com/news-releases/news-release-details/gxo-conducting-industry-leading-pilot-human-centric-robot",
@@ -105,6 +121,98 @@ export const regionalShare2024 = [
   { region: "Europe", share: 16 },
   { region: "Americas", share: 9 },
 ] as const;
+
+/* ------------------------------------------------- the leading edge */
+
+/**
+ * Humanoid shipments, H1 2026.
+ *
+ * The IFR figures above measure deployment *capacity* — the muscle a country
+ * has for taking any robot from "we should automate this" to "it is running on
+ * the floor." This block measures the leading edge of the same race, and the
+ * gap is far wider there: 54% of all industrial robots against more than 97% of
+ * humanoids.
+ *
+ * Why this is charted as a share and not as a volume. Two independent datasets
+ * cover the same half-year. They agree on the share almost exactly and disagree
+ * on the volume by more than a factor of two — see `excludedVolumeFigure`. A
+ * quantity two credible sources cannot agree on is not a quantity this site
+ * puts on an axis; a share they both land on is.
+ */
+export const humanoidShare = {
+  period: "H1 2026",
+  headline: "97 of 100",
+  chineseVendorSharePct: 97,
+  restOfWorldSharePct: 3,
+  /** Global shipments in the half-year, and the same half a year earlier. */
+  globalUnits: 19_100,
+  priorPeriodUnits: 5_100,
+  growthPct: 272,
+  /** Derived: 3% of global shipments. Rounded, and labelled as derived. */
+  restOfWorldUnits: 570,
+  chinaDemandSharePct: 85,
+  leaders: [
+    { name: "AgiBot", units: 8_400, sharePct: 44 },
+    { name: "Unitree", units: 5_900, sharePct: 31 },
+    { name: "Galbot", units: 900, sharePct: 5 },
+    { name: "UBTECH", units: 700, sharePct: 4 },
+    { name: "Leju", units: 600, sharePct: 3 },
+  ],
+  sources: [marketSources.sagHumanoid, marketSources.bloombergHumanoid],
+  basis: "published" as EvidenceBasis,
+} as const;
+
+/**
+ * The caveat that has to travel with any humanoid shipment number.
+ *
+ * This site's entire discipline is that a shipped robot is not a working one,
+ * and humanoid shipment figures are the most contaminated numbers in the
+ * category. Stated here with the three pieces of evidence that make it
+ * concrete rather than as a general hedge, because a general hedge reads as
+ * throat-clearing and gets skipped.
+ */
+export const shipmentsNotDeployments = {
+  claim: "A shipped humanoid is not a working one.",
+  detail:
+    "More than 70% of H1 2026 shipments are classified industrial or commercial, up from about 50% a year earlier. That is an application classification of shipments, not a count of robots doing productive work — and the difference is where most published deployment claims live.",
+  evidence: [
+    {
+      id: "optimus",
+      subject: "Tesla",
+      fact: "Several hundred Optimus units deployed, \u201cprimarily for learning, not productive tasks.\u201d On the same call: \u201cIt\u2019s not in usage in our factories in a material way.\u201d",
+      source: marketSources.teslaOptimusCall,
+    },
+    {
+      id: "atlas",
+      subject: "Boston Dynamics",
+      fact: "The entire 2026 production run of Atlas is committed internally, to Hyundai\u2019s Metaplant and Google DeepMind. No external customer.",
+      source: marketSources.atlasCommitted,
+    },
+    {
+      id: "classification",
+      subject: "The category itself",
+      fact: "Shipments, orders, pilots, and productive fleets are counted as if they were the same measure. They are not, and only the last one is a deployment.",
+      source: marketSources.sagHumanoid,
+    },
+  ],
+  basis: "published" as EvidenceBasis,
+} as const;
+
+/**
+ * What this site deliberately does not chart, and why.
+ *
+ * Publishing the exclusion is the point. A reader who sees the 40,000 figure
+ * quoted elsewhere should be able to find out here why it is absent rather
+ * than assume it was missed.
+ */
+export const excludedVolumeFigure = {
+  figure: "40,000+",
+  attribution: "China Electronics Society, 2026 Humanoid Robot Industry Development Report",
+  reason:
+    "Presented at a conference and not published. No definition of \u201chumanoid\u201d accompanies it and no split between wheeled and bipedal machines. It implies a global half-year total of roughly 41,000 against Smart Analytics Global\u2019s 19,100 — a disagreement of more than two times on volume between sources that agree almost exactly on the share.",
+  consequence:
+    "The share is charted. The volume is not.",
+} as const;
 
 /* --------------------------------------------------- the six-month pipeline */
 

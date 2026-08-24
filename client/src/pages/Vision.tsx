@@ -18,6 +18,7 @@ import {
   AnaloguesFigure,
   BottleneckChainFigure,
   FlywheelFigure,
+  HumanoidShareFigure,
   InstallationGapChart,
   ObservedDeploymentsFigure,
   ProgramAdoptionFigure,
@@ -36,6 +37,7 @@ import {
 import {
   analogueLesson,
   bottleneckThesis,
+  humanoidShare,
   deploymentBoundary,
   installationTotals,
   marketSources,
@@ -138,8 +140,9 @@ export default function Vision() {
                 tone: "signal",
               },
               {
-                value: "54%",
-                label: "Share of the world's robot installations going to one country",
+                value: "97 of 100",
+                label: "Humanoids shipped in H1 2026 that came from a Chinese maker",
+                source: marketSources.sagHumanoid,
                 tone: "text",
               },
               {
@@ -159,7 +162,7 @@ export default function Vision() {
             index="01"
             eyebrow="The measurement"
             title="This is not close."
-            lede="Annual installations are the flow number — how fast a country can actually put robots into production, which is the capacity that gets inherited when humanoid volume arrives."
+            lede="Annual installations are the flow number — how fast a country can actually put robots into production, and the capacity that gets inherited when humanoid volume arrives. On the leading edge the gap is wider still."
           />
           <Reveal className="mt-14">
             <FigureFrame
@@ -175,6 +178,18 @@ export default function Vision() {
           <Reveal className="mt-8">
             <FigureFrame
               label="Fig. 02"
+              title={`Humanoid shipment share, ${humanoidShare.period}`}
+              basis="published"
+              sources={humanoidShare.sources}
+              caveat="Share of shipments by vendor nationality. Shipments are not deployments — the panel inside this figure says what the difference is and why it matters."
+            >
+              <HumanoidShareFigure />
+            </FigureFrame>
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <FigureFrame
+              label="Fig. 03"
               title="Regional share of 2024 installations"
               basis="published"
               sources={[marketSources.ifr2025]}
@@ -217,7 +232,7 @@ export default function Vision() {
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 03"
+              label="Fig. 04"
               title="Elapsed time on publicly documented humanoid deployments"
               basis="published"
               caveat={observedDeploymentsNote}
@@ -228,7 +243,7 @@ export default function Vision() {
 
           <Reveal className="mt-8">
             <FigureFrame
-              label="Fig. 04"
+              label="Fig. 05"
               title="How many went through a standardised preparation program"
               basis="published"
               sources={[marketSources.agilityDeck]}

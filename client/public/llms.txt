@@ -4,6 +4,8 @@ Blueprint automates the preparation work before a robot provider begins onsite d
 
 The positioning is that deployment, not robot capability, is the binding constraint on robot adoption: a robot that has not been matched to a site and a task is inventory, not capacity.
 
+Two measurements of the same race appear on the site. Industrial-robot installations measure deployment capacity — the muscle a country already has. Humanoid shipment share measures the leading edge: Chinese vendors accounted for more than 97% of global humanoid shipments in H1 2026, against about 3% for everyone else. Shipments are not deployments, and the site says so wherever the share appears.
+
 The active lifecycle returns a bounded decision or abstention.
 
 Blueprint calls this the months 0–2 problem. Agility Robotics' published illustrative deployment timeline labels its first roughly two months as Proof of Tech, followed by onsite proof of concept, a production pilot, and scaled deployment. Blueprint focuses on that first phase. It does not replace onsite commissioning, physical validation, service, or safety approval.

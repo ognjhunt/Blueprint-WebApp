@@ -13,7 +13,7 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /China installs nine robots for every one we do/i,
+        name: /China ships 97 of every 100 humanoids/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -55,6 +55,18 @@ describe("Home", () => {
       "href",
       expect.stringContaining("buyerType=robot_team"),
     );
+  });
+
+  it("layers the leading edge on top of the capacity figure without conflating them", () => {
+    const { container } = render(<Home />);
+    // Industrial installations stay as the capacity measure.
+    expect(container).toHaveTextContent(/295,000/);
+    // The humanoid share is the leading edge, and it never travels alone.
+    expect(container).toHaveTextContent(/97 of 100/);
+    expect(container).toHaveTextContent(/A shipped humanoid is not a working one/i);
+    expect(container).toHaveTextContent(/not in usage in our factories in a material way/i);
+    // The unpublished volume is named as excluded rather than silently dropped.
+    expect(container).toHaveTextContent(/deliberately not charted here/i);
   });
 
   it("carries a primary source and an evidence grade on every figure", () => {

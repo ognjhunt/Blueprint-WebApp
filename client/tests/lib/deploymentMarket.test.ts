@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   bomVersusDeployment,
   bottleneckChain,
+  excludedVolumeFigure,
+  humanoidShare,
+  shipmentsNotDeployments,
   capAdoption,
   contractedAnchor,
   deploymentCostSplit,
@@ -124,5 +127,57 @@ describe("primary-source figures verified against the June 2026 deck", () => {
       `${capAdoption.throughProgram} of ${capAdoption.totalNamed}`,
     );
     expect(capAdoption.basis).toBe("published");
+  });
+});
+
+describe("the leading edge, and what it is allowed to claim", () => {
+  it("charts the humanoid share, which two independent sources agree on", () => {
+    expect(humanoidShare.chineseVendorSharePct).toBe(97);
+    expect(humanoidShare.restOfWorldSharePct).toBe(3);
+    expect(
+      humanoidShare.chineseVendorSharePct + humanoidShare.restOfWorldSharePct,
+    ).toBe(100);
+    expect(humanoidShare.basis).toBe("published");
+    expect(humanoidShare.sources.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("derives the rest-of-world unit count from the charted share", () => {
+    const derived = Math.round((humanoidShare.globalUnits * humanoidShare.restOfWorldSharePct) / 100);
+    expect(humanoidShare.restOfWorldUnits).toBeCloseTo(derived, -2);
+  });
+
+  it("keeps the vendor breakdown consistent with the global total", () => {
+    const named = humanoidShare.leaders.reduce((sum, l) => sum + l.units, 0);
+    expect(named).toBeLessThanOrEqual(humanoidShare.globalUnits);
+    humanoidShare.leaders.forEach((leader) => {
+      // Each vendor's stated share must follow from its stated units.
+      const impliedPct = (leader.units / humanoidShare.globalUnits) * 100;
+      expect(Math.abs(impliedPct - leader.sharePct)).toBeLessThan(2);
+    });
+  });
+
+  it("carries the shipments-are-not-deployments caveat with real evidence", () => {
+    expect(shipmentsNotDeployments.claim).toMatch(/shipped humanoid is not a working one/i);
+    expect(shipmentsNotDeployments.evidence.length).toBeGreaterThanOrEqual(3);
+    shipmentsNotDeployments.evidence.forEach((row) => {
+      expect(row.source.href).toMatch(/^https:\/\//);
+      expect(row.fact.length).toBeGreaterThan(40);
+    });
+    // The two named disclaimers are the load-bearing ones.
+    const subjects = shipmentsNotDeployments.evidence.map((row) => row.subject);
+    expect(subjects).toContain("Tesla");
+    expect(subjects).toContain("Boston Dynamics");
+  });
+
+  it("publishes the excluded volume figure and the reason it is excluded", () => {
+    expect(excludedVolumeFigure.figure).toMatch(/40,?000/);
+    expect(excludedVolumeFigure.reason).toMatch(/not published/i);
+    expect(excludedVolumeFigure.reason).toMatch(/no definition/i);
+    expect(excludedVolumeFigure.consequence).toMatch(/share is charted.*volume is not/i);
+  });
+
+  it("never states the excluded volume as a Blueprint-charted quantity", () => {
+    // The figure appears only inside the exclusion note, never in the share data.
+    expect(JSON.stringify(humanoidShare)).not.toMatch(/40,?000/);
   });
 });
