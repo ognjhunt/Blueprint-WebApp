@@ -1,6 +1,6 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import type { InboundRequest } from "../types/inbound-request";
+import type { InboundRequest, QualificationState } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { runAgentTask } from "./runtime";
 import { type LaneSafetyPolicy, INBOUND_POLICY, SUPPORT_POLICY } from "./action-policies";
@@ -575,15 +575,80 @@ function buildWaitlistActionSpecs(
   };
 }
 
+/**
+ * States that imply the site is ready to move toward a visit.
+ *
+ * A submission whose deterministic gate verdict is `not_now` cannot reach any
+ * of these, whatever the model recommends. The gates it failed are settled
+ * facts from the operator's own answers — a site outside the metro or a cell
+ * that gets rearranged between shifts does not become eligible because a model
+ * liked the write-up.
+ */
+const FORWARD_QUALIFICATION_STATES = new Set([
+  "qualified_ready",
+  "qualified_risky",
+  "capture_requested",
+  "qa_passed",
+]);
+
+/**
+ * Clamp the model's recommendation to the deterministic gate verdict.
+ *
+ * The one-way door, enforced server-side at the point of persistence rather
+ * than trusted to the prompt. Prompts are guidance; this is a guarantee. It is
+ * the same instinct as the `qualified_ready` → `in_review` downgrade below,
+ * generalised: the rules can veto the model, and the model can never veto the
+ * rules.
+ *
+ * Returns the state to persist plus whether a human has to look.
+ */
+export function clampRecommendationToGates(
+  triage: InboundRequest["site_task_triage"],
+  result: Pick<
+    InboundQualificationOutput,
+    "qualification_state_recommendation" | "requires_human_review"
+  > & { narrative_review?: { finding: string; note: string } | null },
+): { qualificationState: QualificationState; requiresHumanReview: boolean } {
+  let qualificationState = result.qualification_state_recommendation;
+  let requiresHumanReview = result.requires_human_review;
+
+  if (triage?.disposition === "not_now" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+    qualificationState = "not_ready_yet";
+    requiresHumanReview = true;
+  }
+
+  if (triage?.disposition === "needs_conversation" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+    // Marginal answers are exactly the ones a form could not settle, so a model
+    // reading the same form cannot settle them either.
+    qualificationState = "in_review";
+    requiresHumanReview = true;
+  }
+
+  // A prose/dropdown contradiction is a human's problem by definition: one of
+  // the two is wrong and only a conversation establishes which.
+  if (result.narrative_review?.finding === "contradicts_structured") {
+    requiresHumanReview = true;
+    if (FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+      qualificationState = "in_review";
+    }
+  }
+
+  return { qualificationState, requiresHumanReview };
+}
+
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
 ) {
+  const { qualificationState, requiresHumanReview } = clampRecommendationToGates(
+    request.site_task_triage,
+    result,
+  );
+
   const routingStatus =
-    result.qualification_state_recommendation === "qualified_ready" ||
-    result.qualification_state_recommendation === "qualified_risky"
+    qualificationState === "qualified_ready" || qualificationState === "qualified_risky"
       ? "in_review"
-      : result.qualification_state_recommendation;
+      : qualificationState;
 
   const specs: Phase2WorkflowActionSpec[] = [
     {
@@ -594,10 +659,10 @@ function buildInboundActionSpecs(
         collection: "inboundRequests",
         docId: request.requestId,
         updates: {
-          qualification_state: result.qualification_state_recommendation,
+          qualification_state: qualificationState,
           opportunity_state: result.opportunity_state_recommendation,
           status: routingStatus,
-          human_review_required: result.requires_human_review,
+          human_review_required: requiresHumanReview,
           automation_confidence: result.confidence,
         },
       },
@@ -1048,6 +1113,15 @@ function extractInboundQualificationInput(request: InboundRequest) {
     datasetLicensingPermission: request.request.datasetLicensingPermission || null,
     payoutEligibility: request.request.payoutEligibility || null,
     details: request.request.details || null,
+    // The deterministic gate verdict, handed to the model as settled fact. The
+    // prompt tells it not to re-score these; `clampRecommendationToGates`
+    // enforces that regardless of whether it listens.
+    siteTaskGates: request.request.siteTaskGates || null,
+    gateDisposition: request.site_task_triage?.disposition ?? null,
+    gateBlockers: request.site_task_triage?.blockers ?? null,
+    gateOpenQuestions: request.site_task_triage?.open_questions ?? null,
+    taskDescription: request.request.taskDescription || null,
+    whatGoesWrong: request.request.whatGoesWrong || null,
   };
 }
 

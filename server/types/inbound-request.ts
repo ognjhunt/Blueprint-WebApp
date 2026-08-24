@@ -227,6 +227,18 @@ export interface RequestDetails {
   siteLocation: string;
   siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement: string;
+  /**
+   * Structured qualifying answers from the site-task intake, keyed by the field
+   * ids in `client/src/data/siteTaskQualification.ts`. Enum values only, which
+   * is what makes the verdict on them reproducible and auditable.
+   */
+  siteTaskGates?: Record<string, string> | null;
+  /** Answers to the spec-tier questions. These specify a task; they never gate it. */
+  siteTaskSpec?: Record<string, string> | null;
+  /** The free-text task description the narrative review reads against the gates. */
+  taskDescription?: string | null;
+  /** What goes wrong today — where the edge cases that break deployments live. */
+  whatGoesWrong?: string | null;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: string | null;
@@ -819,6 +831,29 @@ export interface PipelineAttachment {
 }
 
 // The full inbound request document stored in Firestore
+/**
+ * The deterministic site-task verdict, persisted at submission time.
+ *
+ * Computed by `triageGateAnswers` in `client/src/lib/siteTaskTriage.ts` from
+ * the operator's own dropdown answers, before any model runs. It is stored
+ * rather than recomputed downstream so the qualification agent can be told what
+ * was already decided, and so an auditor can see the same verdict the operator
+ * saw. The agent may lower the outcome this implies; it may never raise it.
+ */
+export interface SiteTaskTriageSummary {
+  disposition: "qualified" | "needs_conversation" | "not_now";
+  /** Gate field ids that blocked, e.g. "serviceArea", "sceneStability". */
+  blocking_field_ids: string[];
+  /** Blocking reasons in the operator's own words, with what would flip each. */
+  blockers: string[];
+  /** Marginal answers a form cannot settle — the agenda for a call. */
+  open_questions: string[];
+  /** Gate ids left unanswered. A blank never counts as a pass. */
+  unanswered_field_ids: string[];
+  incomplete: boolean;
+  evaluated_at: string;
+}
+
 export interface InboundRequest {
   requestId: string;
   site_submission_id: string;
@@ -839,6 +874,7 @@ export interface InboundRequest {
   events: RequestEvents;
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
+  site_task_triage?: SiteTaskTriageSummary | null;
   human_review_required?: boolean | null;
   automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
@@ -987,6 +1023,14 @@ export interface InboundRequestPayload {
   siteLocation?: string;
   siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement?: string;
+  /** Structured qualifying answers, keyed by field id. Enums only. */
+  siteTaskGates?: Record<string, string> | null;
+  /** Spec-tier answers. These specify a task; they never gate it. */
+  siteTaskSpec?: Record<string, string> | null;
+  /** Free-text task description, read by the narrative review against the gates. */
+  taskDescription?: string | null;
+  /** What goes wrong today. */
+  whatGoesWrong?: string | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
   existingStackReviewWorkflow?: string;
@@ -1147,6 +1191,7 @@ export interface InboundRequestListItem {
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
+  site_task_triage?: SiteTaskTriageSummary | null;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
