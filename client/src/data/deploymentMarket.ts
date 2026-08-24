@@ -41,6 +41,10 @@ export const marketSources = {
     label: "Agility Robotics investor presentation, June 2026",
     href: "https://www.sec.gov/Archives/edgar/data/2074973/000121390026071287/ea029548401ex99-2.htm",
   },
+  agilityInvestors: {
+    label: "Agility Robotics investor relations",
+    href: "https://www.agilityrobotics.com/investors",
+  },
   agilityProcess: {
     label: "Agility Robotics deployment process",
     href: "https://www.agilityrobotics.com/content/agilitys-humanoid-deployment-process",
@@ -175,6 +179,7 @@ export const deploymentPipelineMeta = {
   totalMonths: 6,
   blueprintMonths: 2,
   source: marketSources.agilityDeck,
+  investorsSource: marketSources.agilityInvestors,
   processSource: marketSources.agilityProcess,
   basis: "illustrative" as EvidenceBasis,
   caveat:
@@ -205,9 +210,15 @@ export interface EconomicsRow {
 }
 
 /**
- * Agility's modelled per-Digit unit economics. Every row is labelled by Agility
- * as an assumption, so every row is graded `illustrative` — including the ones
- * that happen to line up with a disclosed order.
+ * Agility's modelled per-Digit unit economics, read off slide 57 of the June
+ * 2026 deck. Every row is labelled by Agility as an assumption, so every row is
+ * graded `illustrative` — including the ones that happen to line up with a
+ * disclosed order.
+ *
+ * The deployment fee differs by adoption model: ~$25k under RaaS, ~$20k under
+ * ownership. The site charts the RaaS figure because RaaS is the model the
+ * disclosed 1,000-robot order uses, and says so rather than presenting one
+ * number as the deployment fee.
  */
 export const perRobotEconomics: readonly EconomicsRow[] = [
   {
@@ -224,9 +235,18 @@ export const perRobotEconomics: readonly EconomicsRow[] = [
     label: "Deployment fee to the customer",
     value: "~$25,000",
     amount: 25_000,
-    note: "One-time, per robot, charged on top of the recurring contract.",
+    note: "One-time, per robot, under the service model. ~$20,000 if the customer buys the robot outright.",
     basis: "illustrative",
     tone: "fee",
+  },
+  {
+    id: "delivery",
+    label: "Annual cost of delivery",
+    value: "~$15,000 / yr",
+    amount: 15_000,
+    note: "Recurring, per robot, for software and maintenance — on top of the one-time deployment cost.",
+    basis: "illustrative",
+    tone: "cost",
   },
   {
     id: "raas",
@@ -240,6 +260,25 @@ export const perRobotEconomics: readonly EconomicsRow[] = [
 ];
 
 /**
+ * What the robot itself costs to build, set against what it costs to deploy.
+ *
+ * This is the ratio the whole business rests on. Building a Digit is a capital
+ * cost that falls with volume — Agility models it dropping toward $80k at
+ * 1,000/yr and further at 10,000/yr. Deploying one is a cost that is paid again
+ * at every site, and nothing about volume makes a new building easier to model.
+ */
+export const bomVersusDeployment = {
+  bom: "~$125,000",
+  bomNote: "Current Digit v4 bill of materials, which Agility models falling with volume.",
+  deployment: "~$15,000",
+  deploymentNote: "One-time deployment cost, per robot, per site. Paid again at the next site.",
+  ratio: "~12%",
+  ratioNote: "Deployment costs roughly an eighth of building the robot — and unlike the robot, it does not get cheaper by making more of them.",
+  source: marketSources.agilityDeck,
+  basis: "illustrative" as EvidenceBasis,
+} as const;
+
+/**
  * The one contracted number that corroborates the modelled RaaS rate. Worth
  * charting because it is an order, not an assumption — and worth not
  * over-reading, because it carries warrants and milestones.
@@ -248,7 +287,10 @@ export const contractedAnchor = {
   headline: "~$100K",
   unit: "per robot, per year",
   derivation: "$300M+ of orders ÷ 1,000 robots ÷ 3 years",
-  note: "Agility reported this order volume as of May 2026, subject to contractual milestones. It lands within a few percent of the modelled $8,500/month rate.",
+  note: "Agility reported this order volume as of May 2026 for 1,000 Digit v5 robots on three-year RaaS terms, subject to contractual milestones and including warrants that vest as robots deploy. It lands within a few percent of the modelled $8,500/month rate, which is why the site does not reverse-engineer it further.",
+  lifetime: "~$500K",
+  lifetimeNote:
+    "Agility's illustrative cumulative revenue per robot over an assumed five-year useful life under the service model — five years of subscription plus the one-time deployment fee.",
   source: marketSources.agilityDeck,
   basis: "published" as EvidenceBasis,
 } as const;
@@ -478,6 +520,39 @@ export const observedDeployments: readonly ObservedDeployment[] = [
 
 export const observedDeploymentsNote =
   "Every publicly documented humanoid deployment so far ran a site-specific evaluation before commercial terms were signed. None of them skipped it.";
+
+/**
+ * The strongest single piece of evidence that deployment preparation is
+ * genuinely unsolved rather than merely unglamorous.
+ *
+ * Agility's own footnote on its Customer Acceleration Program slide states that
+ * of its current commercial deployments, only Mercado Libre went through CAP —
+ * the Schaeffler, GXO, Toyota Motor Manufacturing Canada, and Amazon
+ * deployments all pre-date the program. So the leading humanoid maker's
+ * standardised preparation program is new enough that four of its five named
+ * commercial customers were deployed without it, one bespoke engagement at a
+ * time. That is the work this company is trying to make repeatable.
+ */
+export const capAdoption = {
+  totalNamed: 5,
+  throughProgram: 1,
+  headline: "1 of 5",
+  claim:
+    "Only one of the five named commercial deployments went through a standardised preparation program. The other four pre-date its existence.",
+  named: [
+    "Schaeffler",
+    "GXO",
+    "Toyota Motor Manufacturing Canada",
+    "Amazon",
+    "Mercado Libre",
+  ],
+  throughProgramName: "Mercado Libre",
+  pipeline: "30+",
+  pipelineNote:
+    "Potential customers Agility reports in active pipeline discussions or in the program.",
+  source: marketSources.agilityDeck,
+  basis: "published" as EvidenceBasis,
+} as const;
 
 /* ------------------------------------------------ where the bottleneck is */
 

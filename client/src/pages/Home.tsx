@@ -24,6 +24,7 @@
 import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
 import {
+  BomVersusDeploymentFigure,
   BottleneckChainFigure,
   CompilerFigure,
   CostSplitFigure,
@@ -32,6 +33,7 @@ import {
   InstallationGapChart,
   ObservedDeploymentsFigure,
   PreShipmentWork,
+  ProgramAdoptionFigure,
   RegionalShareBar,
   StructuralCompareFigure,
   UnitEconomicsChart,
@@ -227,8 +229,8 @@ export default function Home() {
           <SectionHead
             index="04"
             eyebrow="What the record shows"
-            title="Nobody has done this quickly. Not once."
-            lede="Three humanoid deployments have enough in the public record to time. Every one of them ran a site-specific evaluation before commercial terms were signed."
+            title="Nobody has done this quickly. Almost nobody has done it twice the same way."
+            lede="Three deployments have enough in the public record to time. And of the five named commercial customers at the leading humanoid maker, four were deployed before it had a standardised program at all."
           />
           <Reveal className="mt-14">
             <FigureFrame
@@ -238,6 +240,18 @@ export default function Home() {
               caveat={observedDeploymentsNote}
             >
               <ObservedDeploymentsFigure />
+            </FigureFrame>
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <FigureFrame
+              label="Fig. 05"
+              title="How many went through a standardised preparation program"
+              basis="published"
+              sources={[marketSources.agilityDeck]}
+              caveat="Agility's own footnote: of its current commercial deployments, only Mercado Libre participated in its Customer Acceleration Program. The rest pre-date it."
+            >
+              <ProgramAdoptionFigure />
             </FigureFrame>
           </Reveal>
         </Inner>
@@ -254,7 +268,7 @@ export default function Home() {
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 05"
+              label="Fig. 06"
               title="Modelled per-robot deployment economics"
               basis="illustrative"
               sources={[marketSources.agilityDeck]}
@@ -266,12 +280,24 @@ export default function Home() {
 
           <Reveal className="mt-8">
             <FigureFrame
-              label="Fig. 06"
+              label="Fig. 07"
               title="How the deployment cost splits"
               basis="illustrative"
               sources={[marketSources.agilityDeck, marketSources.agilityProcess]}
             >
               <CostSplitFigure />
+            </FigureFrame>
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <FigureFrame
+              label="Fig. 08"
+              title="Building the robot vs. deploying it"
+              basis="illustrative"
+              sources={[marketSources.agilityDeck]}
+              caveat="Bill-of-materials cost falls with manufacturing volume. Deployment cost is paid again at every site, and volume does not make an unfamiliar building easier to model."
+            >
+              <BomVersusDeploymentFigure />
             </FigureFrame>
           </Reveal>
         </Inner>

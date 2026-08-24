@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bomVersusDeployment,
   bottleneckChain,
+  capAdoption,
   contractedAnchor,
   deploymentCostSplit,
   deploymentPipelineMeta,
@@ -91,5 +93,36 @@ describe("deployment market evidence", () => {
     expect(contractedAnchor.basis).toBe("published");
     expect(contractedAnchor.derivation).toMatch(/÷/);
     expect(contractedAnchor.note).toMatch(/milestones/i);
+  });
+});
+
+describe("primary-source figures verified against the June 2026 deck", () => {
+  it("carries the deployment fee's model dependence rather than one number", () => {
+    const fee = perRobotEconomics.find((row) => row.id === "deployment-fee");
+    expect(fee?.value).toBe("~$25,000");
+    // The deck prices the fee differently under ownership; the site says so.
+    expect(fee?.note).toMatch(/\$20,000/);
+  });
+
+  it("keeps the recurring cost of delivery alongside the one-time cost", () => {
+    const delivery = perRobotEconomics.find((row) => row.id === "delivery");
+    expect(delivery?.value).toBe("~$15,000 / yr");
+    expect(delivery?.basis).toBe("illustrative");
+  });
+
+  it("sets deployment cost against the robot's bill of materials", () => {
+    expect(bomVersusDeployment.bom).toBe("~$125,000");
+    expect(bomVersusDeployment.deployment).toBe("~$15,000");
+    expect(bomVersusDeployment.basis).toBe("illustrative");
+  });
+
+  it("reports program adoption exactly as the deck's footnote states it", () => {
+    expect(capAdoption.totalNamed).toBe(capAdoption.named.length);
+    expect(capAdoption.throughProgram).toBe(1);
+    expect(capAdoption.named).toContain(capAdoption.throughProgramName);
+    expect(capAdoption.headline).toBe(
+      `${capAdoption.throughProgram} of ${capAdoption.totalNamed}`,
+    );
+    expect(capAdoption.basis).toBe("published");
   });
 });

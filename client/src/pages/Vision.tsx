@@ -20,6 +20,7 @@ import {
   FlywheelFigure,
   InstallationGapChart,
   ObservedDeploymentsFigure,
+  ProgramAdoptionFigure,
   RegionalShareBar,
 } from "@/components/site/runway/figures";
 import {
@@ -222,6 +223,18 @@ export default function Vision() {
               caveat={observedDeploymentsNote}
             >
               <ObservedDeploymentsFigure />
+            </FigureFrame>
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <FigureFrame
+              label="Fig. 04"
+              title="How many went through a standardised preparation program"
+              basis="published"
+              sources={[marketSources.agilityDeck]}
+              caveat="The leading humanoid maker's own footnote. Its standardised preparation program is new enough that four of its five named commercial customers were deployed without it — one bespoke engagement at a time."
+            >
+              <ProgramAdoptionFigure />
             </FigureFrame>
           </Reveal>
         </Inner>

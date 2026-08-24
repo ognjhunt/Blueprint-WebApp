@@ -21,7 +21,9 @@
 import {
   allocationFactors,
   allocationThesis,
+  bomVersusDeployment,
   bottleneckChain,
+  capAdoption,
   contractedAnchor,
   deploymentCompiler,
   historicalAnalogues,
@@ -956,5 +958,137 @@ export function AnaloguesFigure() {
         </Reveal>
       ))}
     </ol>
+  );
+}
+
+/* ------------------------------------------- 11 · build cost vs deploy cost */
+
+/**
+ * The ratio the business rests on.
+ *
+ * Building a robot is a capital cost that falls with volume — Agility models
+ * its bill of materials dropping sharply at 1,000 and 10,000 units a year.
+ * Deploying one is a cost paid again at every site, and no amount of volume
+ * makes an unfamiliar building easier to model. Drawn as two bars on one axis
+ * so the second looks as small as it is, with the point made in the gap
+ * underneath rather than in the bars.
+ */
+export function BomVersusDeploymentFigure() {
+  return (
+    <div>
+      <ul className="space-y-7">
+        <li>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <span className="text-[13.5px] text-runway-text">Building the robot</span>
+            <span className="runway-num text-[15px] font-medium text-runway-text">
+              {bomVersusDeployment.bom}
+            </span>
+          </div>
+          <div className="mt-2.5 h-2.5 w-full bg-runway-raised">
+            <GrowIn className="h-full bg-runway-cyan" style={{ width: "100%" }}>
+              <span className="sr-only">{bomVersusDeployment.bom} bill of materials</span>
+            </GrowIn>
+          </div>
+          <p className="mt-2.5 text-[12.5px] leading-5 text-runway-faint">
+            {bomVersusDeployment.bomNote}
+          </p>
+        </li>
+        <li>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <span className="text-[13.5px] text-runway-text">Deploying it, once</span>
+            <span className="runway-num text-[15px] font-medium text-runway-signal">
+              {bomVersusDeployment.deployment}
+            </span>
+          </div>
+          <div className="mt-2.5 h-2.5 w-full bg-runway-raised">
+            <GrowIn delay={0.12} className="h-full bg-runway-signal" style={{ width: "12%" }}>
+              <span className="sr-only">{bomVersusDeployment.deployment} deployment cost</span>
+            </GrowIn>
+          </div>
+          <p className="mt-2.5 text-[12.5px] leading-5 text-runway-faint">
+            {bomVersusDeployment.deploymentNote}
+          </p>
+        </li>
+      </ul>
+
+      <Reveal delay={0.25} className="mt-8 border-t border-runway-line pt-6">
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+          <span className="runway-num text-[1.8rem] leading-none text-runway-signal">
+            {bomVersusDeployment.ratio}
+          </span>
+          <p className="max-w-[62ch] text-[13px] leading-6 text-runway-mute">
+            {bomVersusDeployment.ratioNote}
+          </p>
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------ 12 · how new this problem is */
+
+/**
+ * How recently the industry started treating deployment preparation as a
+ * repeatable program at all. One large mark for the ratio, the named customers
+ * beneath it — because the names are what make the ratio credible.
+ */
+export function ProgramAdoptionFigure() {
+  return (
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14">
+      <Reveal>
+        <div>
+          <p className="runway-num text-[clamp(3rem,6vw,5rem)] font-medium leading-none tracking-[-0.04em] text-runway-signal">
+            {capAdoption.headline}
+          </p>
+          <p className="mt-5 max-w-[26ch] text-[14px] leading-6 text-runway-mute">
+            named commercial deployments went through a standardised preparation program.
+          </p>
+          <p className="runway-meta mt-6 border-t border-runway-line pt-4">
+            {capAdoption.pipeline} in the pipeline behind them
+          </p>
+        </div>
+      </Reveal>
+
+      <div>
+        <ul className="grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2">
+          {capAdoption.named.map((name, index) => {
+            const viaProgram = name === capAdoption.throughProgramName;
+            return (
+              <Reveal
+                key={name}
+                as="li"
+                delay={index * 0.05}
+                className={cn(
+                  "flex items-center gap-3 p-4",
+                  viaProgram ? "bg-runway-signal/[0.1]" : "bg-runway-panel",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                    viaProgram ? "bg-runway-signal" : "bg-runway-faint",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[13px] leading-5",
+                    viaProgram ? "font-semibold text-runway-signal" : "text-runway-mute",
+                  )}
+                >
+                  {name}
+                </span>
+                <span className="runway-meta ml-auto shrink-0">
+                  {viaProgram ? "via program" : "bespoke"}
+                </span>
+              </Reveal>
+            );
+          })}
+        </ul>
+        <p className="mt-5 max-w-[64ch] text-[13px] leading-6 text-runway-mute">
+          {capAdoption.claim}
+        </p>
+      </div>
+    </div>
   );
 }
