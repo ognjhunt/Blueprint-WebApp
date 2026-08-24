@@ -8,6 +8,19 @@ The active lifecycle returns a bounded decision or abstention.
 
 Blueprint calls this the months 0–2 problem. Agility Robotics' published illustrative deployment timeline labels its first roughly two months as Proof of Tech, followed by onsite proof of concept, a production pilot, and scaled deployment. Blueprint focuses on that first phase. It does not replace onsite commissioning, physical validation, service, or safety approval.
 
+## Qualifying conditions
+
+Blueprint screens every site against four conditions before anyone travels. These are Blueprint's own screening criteria, not a third-party standard.
+
+- Fixed scene: does the work area stay put between shifts?
+- Bounded task: is this one repeated job rather than a category of jobs?
+- Known objects: can the things being handled be enumerated in advance?
+- Clear window: is there a period when no untrained people are in the space?
+
+Environments documented in mainstream coverage as clearing all four include retail pharmacy, parcel sorting, and substation inspection. Forward warehouses and line-side packing clear three and are treated as emerging. Those are third-party deployments cited as evidence about which environments qualify; none is a Blueprint customer and none was prepared by Blueprint.
+
+A site that clears all four also lowers the hardware bar: fixed scenes and enumerable objects are the conditions under which a simple gripper does the job a dexterous hand was quoted for.
+
 ## Core definitions
 
 - Task Evaluation Run: Blueprint's one customer-facing product for sites and robot teams.
@@ -20,7 +33,7 @@ Blueprint calls this the months 0–2 problem. Agility Robotics' published illus
 
 - [Home](https://tryblueprint.io/): the deployment-bottleneck thesis, the China/US installation gap, the published OEM timeline, per-robot deployment economics, and the once-per-site versus once-per-vendor comparison.
 - [How it works](https://tryblueprint.io/how-it-works): capture the workflow, build the testbed, screen and evaluate robot fit, and hand off the homework.
-- [For site operators](https://tryblueprint.io/for-site-operators): explain one workflow once, control site-data access, and improve allocation queue position before any vendor visits.
+- [For site operators](https://tryblueprint.io/for-site-operators): the four qualifying conditions a site must clear, which environments already clear them, controlled site-data access, and allocation queue position.
 - [For robot teams](https://tryblueprint.io/for-robot-teams): the binding constraint is deployment-engineer weeks, not robots; opportunities arrive already captured, modelled, screened, and scoped.
 - [Vision](https://tryblueprint.io/vision): why deployment preparation is the choke point, with the IFR installation data, the observed deployment timelines, and four prior markets for scarce physical capacity.
 - [Pricing](https://tryblueprint.io/pricing): free core access and a site-paid deployment success fee.

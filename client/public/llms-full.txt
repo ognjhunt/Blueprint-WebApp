@@ -22,6 +22,23 @@ Published unit economics, all labelled by Agility as illustrative management ass
 
 How new the preparation problem is: Agility's own footnote states that of its current commercial deployments, only Mercado Libre participated in its Customer Acceleration Program. The Schaeffler, GXO, Toyota Motor Manufacturing Canada, and Amazon deployments pre-date the program's existence. Four of the five named commercial customers were therefore deployed without a standardised preparation program, one bespoke engagement at a time. Agility reports 30+ potential customers in active pipeline discussions or in the program.
 
+## Qualifying conditions
+
+Blueprint screens a site against four conditions before committing engineer time. These are Blueprint's own screening criteria rather than an industry standard, and each is stated with the failure mode that follows when it does not hold.
+
+1. Fixed scene — does the work area stay put between shifts? A layout that changes faster than the model of it means every re-map is a new deployment.
+2. Bounded task — is this one repeated job rather than a category of jobs? When the exceptions become most of the cycles, the acceptance test stops describing the work.
+3. Known objects — can the things being handled be enumerated in advance? The long tail nobody listed is where grasp success quietly stops being the number that was measured.
+4. Clear window — is there a period when no untrained people are in the space? Safety review that has to cover the general public is a different and much longer project.
+
+Environments documented in mainstream coverage as clearing all four: retail pharmacy, parcel sorting, and substation inspection. Forward warehouses and line-side packing clear three of the four and are treated as emerging rather than proven. More than one team has arrived at retail pharmacy independently, which is evidence about the environment rather than about any one company's robot: it is one of the few retail settings that clears all four gates at once.
+
+These are third-party deployments cited as evidence about which environments qualify. None is a Blueprint customer and none was prepared by Blueprint.
+
+Second-order consequence: a site that clears all four gates also lowers the hardware bar. Fixed scenes and enumerable object sets are the conditions under which a simple gripper does the job a dexterous hand was quoted for, so environment preparation partially substitutes for robot capability rather than merely accelerating its deployment.
+
+Aggregate national humanoid shipment totals circulating from 2026 conference reporting are deliberately not used anywhere on this site: the underlying report is not public, carries no definition of "humanoid", and gives no split between wheeled and bipedal machines.
+
 ## Product model
 
 1. A site submits one real workflow: media, objects, timing, exceptions, layout, systems, success criteria, and access rules.

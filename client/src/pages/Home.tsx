@@ -34,6 +34,7 @@ import {
   ObservedDeploymentsFigure,
   PreShipmentWork,
   ProgramAdoptionFigure,
+  QualifyingGatesFigure,
   RegionalShareBar,
   StructuralCompareFigure,
   UnitEconomicsChart,
@@ -58,6 +59,7 @@ import {
   monthsZeroToTwoSource,
   observedDeploymentsNote,
 } from "@/data/deploymentMarket";
+import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
 const siteHref =
@@ -315,6 +317,27 @@ export default function Home() {
           <div className="mt-14">
             <CompilerFigure />
           </div>
+
+          <Reveal className="mt-16 border-t border-runway-line pt-12">
+            <p className="runway-eyebrow-muted">What &ldquo;qualified&rdquo; means</p>
+            <h3 className="mt-4 max-w-[30ch] text-[clamp(1.5rem,2.6vw,2.2rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+              Four gates, checked before anyone travels.
+            </h3>
+            <p className="mt-4 max-w-[62ch] text-[14.5px] leading-[1.75] text-runway-mute">
+              {qualifyingStandard.claim}
+            </p>
+          </Reveal>
+          <div className="mt-8">
+            <QualifyingGatesFigure compact />
+          </div>
+          <Reveal className="mt-6">
+            <a
+              className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-runway-signal underline-offset-4 hover:underline"
+              href="/for-site-operators"
+            >
+              See which environments already pass
+            </a>
+          </Reveal>
         </Inner>
       </Band>
 

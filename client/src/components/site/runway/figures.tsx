@@ -38,6 +38,12 @@ import {
   regionalShare2024,
   structuralComparison,
 } from "@/data/deploymentMarket";
+import {
+  convergenceNote,
+  deployedEnvironments,
+  environmentsFootnote,
+  qualifyingConditions,
+} from "@/data/qualifyingEnvironments";
 import { cn } from "@/lib/utils";
 
 import { GrowIn, Reveal } from "../motion";
@@ -1089,6 +1095,238 @@ export function ProgramAdoptionFigure() {
           {capAdoption.claim}
         </p>
       </div>
+    </div>
+  );
+}
+
+/* --------------------------------------- 13 · the qualifying-environment gates */
+
+/**
+ * The four gates, as a row. Deliberately shows the failure mode next to the
+ * test: a screening criterion that only states the happy case is a marketing
+ * bullet, and the reason a site lead trusts this one is that it says what
+ * breaks.
+ */
+export function QualifyingGatesFigure({ compact = false }: { compact?: boolean }) {
+  return (
+    <ol className="grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
+      {qualifyingConditions.map((condition, index) => (
+        <Reveal
+          key={condition.id}
+          as="li"
+          delay={index * 0.06}
+          className="bg-runway-panel p-6"
+        >
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
+                {`0${index + 1}`}
+              </span>
+              <span aria-hidden="true" className="h-px flex-1 bg-runway-line" />
+            </div>
+            <h4 className="mt-4 text-[16px] font-semibold tracking-[-0.02em] text-runway-text">
+              {condition.name}
+            </h4>
+            <p className="mt-3 text-[13px] leading-6 text-runway-mute">{condition.test}</p>
+            {!compact ? (
+              <p className="mt-4 border-t border-runway-line pt-4 text-[12.5px] leading-6 text-runway-faint">
+                {condition.failure}
+              </p>
+            ) : null}
+          </div>
+        </Reveal>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Environment × condition matrix.
+ *
+ * The point of drawing this as a matrix rather than a list is that the empty
+ * cells carry the argument: the two emerging environments are emerging
+ * precisely because they miss one gate, and which gate they miss is the whole
+ * diagnosis. A list of qualifying scenes would hide that.
+ */
+export function QualifyingMatrixFigure() {
+  return (
+    <div>
+      {/* Desktop: the matrix proper. Below md a five-column matrix is not
+          readable at any type size, and a horizontally scrolling table inside a
+          figure fights the page's own scroll, so mobile gets stacked cards
+          carrying exactly the same marks. */}
+      <div className="hidden md:block">
+        <table className="w-full border-collapse text-left">
+          <caption className="sr-only">
+            Which of Blueprint's four screening conditions each documented environment satisfies
+          </caption>
+          <thead>
+            <tr className="border-b border-runway-line">
+              <th scope="col" className="runway-meta px-3 py-4 font-normal">
+                Environment
+              </th>
+              {qualifyingConditions.map((condition) => (
+                <th
+                  key={condition.id}
+                  scope="col"
+                  className="runway-meta px-3 py-4 text-center font-normal"
+                >
+                  {condition.name}
+                </th>
+              ))}
+              <th scope="col" className="runway-meta px-3 py-4 text-right font-normal">
+                Record
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {deployedEnvironments.map((environment) => {
+              const documented = environment.status === "documented";
+              return (
+                <tr key={environment.id} className="border-b border-runway-line last:border-b-0">
+                  <th scope="row" className="px-3 py-5 align-top">
+                    <span
+                      className={cn(
+                        "block text-[14px] font-semibold tracking-[-0.015em]",
+                        documented ? "text-runway-text" : "text-runway-mute",
+                      )}
+                    >
+                      {environment.name}
+                    </span>
+                    <span className="mt-1.5 block max-w-[34ch] text-[12.5px] font-normal leading-5 text-runway-faint">
+                      {environment.why}
+                    </span>
+                  </th>
+                  {qualifyingConditions.map((condition) => {
+                    const met = environment.satisfies.includes(condition.id);
+                    return (
+                      <td key={condition.id} className="px-3 py-5 text-center align-top">
+                        <span
+                          className={cn(
+                            "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px]",
+                            met
+                              ? "border-runway-signal/40 bg-runway-signal/[0.12] text-runway-signal"
+                              : "border-runway-line text-runway-faint",
+                          )}
+                        >
+                          <span className="sr-only">
+                            {environment.name} {met ? "meets" : "does not meet"} {condition.name}
+                          </span>
+                          <span aria-hidden="true">{met ? "✓" : "—"}</span>
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-5 text-right align-top">
+                    <span
+                      className={cn(
+                        "font-mono text-[10px] uppercase tracking-[0.14em]",
+                        documented ? "text-runway-green" : "text-runway-amber",
+                      )}
+                    >
+                      {documented ? "Documented" : "Emerging"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: one card per environment, same marks. */}
+      <ol className="grid gap-px border border-runway-line bg-runway-line md:hidden">
+        {deployedEnvironments.map((environment) => {
+          const documented = environment.status === "documented";
+          return (
+            <li key={environment.id} className="bg-runway-panel p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <p
+                  className={cn(
+                    "text-[14px] font-semibold tracking-[-0.015em]",
+                    documented ? "text-runway-text" : "text-runway-mute",
+                  )}
+                >
+                  {environment.name}
+                </p>
+                <span
+                  className={cn(
+                    "shrink-0 font-mono text-[10px] uppercase tracking-[0.14em]",
+                    documented ? "text-runway-green" : "text-runway-amber",
+                  )}
+                >
+                  {documented ? "Documented" : "Emerging"}
+                </span>
+              </div>
+              <p className="mt-2 text-[12.5px] leading-5 text-runway-faint">{environment.why}</p>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {qualifyingConditions.map((condition) => {
+                  const met = environment.satisfies.includes(condition.id);
+                  return (
+                    <li
+                      key={condition.id}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]",
+                        met
+                          ? "border-runway-signal/40 bg-runway-signal/[0.12] text-runway-signal"
+                          : "border-runway-line text-runway-faint",
+                      )}
+                    >
+                      <span aria-hidden="true">{met ? "\u2713" : "\u2014"}</span>
+                      {condition.name}
+                      <span className="sr-only">
+                        {met ? "meets this condition" : "does not meet this condition"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Evidence per row, kept out of the matrix so the marks stay readable. */}
+      <ul className="mt-8 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-3">
+        {deployedEnvironments.map((environment, index) => (
+          <Reveal
+            key={environment.id}
+            as="li"
+            delay={index * 0.05}
+            className="bg-runway-panel p-5"
+          >
+            <div>
+              <p className="text-[13px] font-semibold tracking-[-0.015em] text-runway-text">
+                {environment.name}
+              </p>
+              <p className="mt-2 text-[12.5px] leading-6 text-runway-mute">
+                {environment.evidence}
+              </p>
+              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+                {environment.sources.map((source) => (
+                  <a
+                    key={source.href}
+                    href={source.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-[10px] uppercase tracking-[0.12em] text-runway-faint underline-offset-4 transition-colors hover:text-runway-signal hover:underline"
+                  >
+                    {source.label}
+                  </a>
+                ))}
+              </p>
+            </div>
+          </Reveal>
+        ))}
+      </ul>
+
+      <Reveal delay={0.2} className="mt-8 border-t border-runway-line pt-6">
+        <p className="max-w-[72ch] text-[13px] leading-6 text-runway-mute">
+          <span className="text-runway-signal">{convergenceNote.environment}:</span>{" "}
+          {convergenceNote.claim} {convergenceNote.reason}
+        </p>
+        <p className="runway-meta mt-4 leading-5">{environmentsFootnote}</p>
+      </Reveal>
     </div>
   );
 }

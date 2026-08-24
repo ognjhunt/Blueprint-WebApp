@@ -19,6 +19,8 @@ import { Reveal } from "@/components/site/motion";
 import {
   AllocationFigure,
   DeploymentPipelineChart,
+  QualifyingGatesFigure,
+  QualifyingMatrixFigure,
   StructuralCompareFigure,
 } from "@/components/site/runway/figures";
 import { PageHero } from "@/components/site/publicSections";
@@ -31,6 +33,7 @@ import {
   SectionHead,
 } from "@/components/site/runway/shell";
 import { deploymentBoundary, deploymentPipelineMeta } from "@/data/deploymentMarket";
+import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { siteOperatorHero } from "@/data/publicSiteCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -142,6 +145,48 @@ export default function ForSiteOperators() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="02"
+            eyebrow="The screen"
+            title="Four things decide whether a robot can work here."
+            lede={qualifyingStandard.claim}
+          />
+          <div className="mt-14">
+            <QualifyingGatesFigure />
+          </div>
+          <Reveal className="mt-10 border-t border-runway-line pt-8">
+            <p className="max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-mute">
+              {qualifyingStandard.consequence}
+            </p>
+            <p className="mt-4 max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-text">
+              {qualifyingStandard.secondOrder}
+            </p>
+          </Reveal>
+        </Inner>
+      </Band>
+
+      <Band tone="black" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="03"
+            eyebrow="Where it already holds"
+            title="The environments that pass, and the ones that nearly do."
+            lede="Each of these is somebody else's deployment, cited to show the pattern is real. The empty cells are the diagnosis: an emerging environment is one that misses a specific gate."
+          />
+          <Reveal className="mt-14">
+            <FigureFrame
+              label="Fig. 01"
+              title="Documented environments against the four conditions"
+              caveat="The environments and their evidence are published third-party deployments, each linked below. The four columns are Blueprint's screening criteria, and the marks are Blueprint's assessment of each environment against them."
+            >
+              <QualifyingMatrixFigure />
+            </FigureFrame>
+          </Reveal>
+        </Inner>
+      </Band>
+
+      <Band tone="deep" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="04"
             eyebrow="Why this decides your queue position"
             title="Robot capacity is allocated, not just sold."
             lede="A robot company weighs these four things before it commits deployment engineers. A captured, screened site answers all four before the first call."
@@ -155,7 +200,7 @@ export default function ForSiteOperators() {
       <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="03"
+            index="05"
             eyebrow="Progressive access"
             title="Teams learn more only when the opportunity earns it."
             lede="Evaluation rights are not training rights. The underlying site model is never a download."
@@ -193,7 +238,7 @@ export default function ForSiteOperators() {
       <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="04"
+            index="06"
             eyebrow="Why not do it yourself"
             title="Stop rebuilding the same opportunity for every vendor."
           />
@@ -206,13 +251,13 @@ export default function ForSiteOperators() {
       <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="05"
+            index="07"
             eyebrow="Where Blueprint stops"
             title="The robot provider still owns onsite deployment."
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 01"
+              label="Fig. 02"
               title="Path to scaled deployment"
               basis="illustrative"
               sources={[deploymentPipelineMeta.source]}
