@@ -23,6 +23,8 @@ import HowItWorks from "../client/src/pages/HowItWorks";
 import About from "../client/src/pages/About";
 import Vision from "../client/src/pages/Vision";
 import Governance from "../client/src/pages/Governance";
+import CaptureVisit from "../client/src/pages/CaptureVisit";
+import SiteTaskIntake from "../client/src/pages/SiteTaskIntake";
 import FAQ from "../client/src/pages/FAQ";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotTeams from "../client/src/pages/ForRobotTeams";
@@ -270,6 +272,8 @@ const staticRoutes: StaticRoute[] = [
   { path: "/about", component: About },
   { path: "/vision", component: Vision },
   { path: "/governance", component: Governance },
+  { path: "/capture-visit", component: CaptureVisit },
+  { path: "/site-task", component: SiteTaskIntake },
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },

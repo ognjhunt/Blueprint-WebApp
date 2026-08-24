@@ -285,6 +285,20 @@ export const publicQaRoutes: PublicQaRoute[] = [
     requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
   },
   {
+    label: "The capture visit",
+    path: "/capture-visit",
+    canonicalPath: "/capture-visit",
+    expectedHeading: "We come to you. One access window. Nothing left behind.",
+    requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
+  },
+  {
+    label: "Site-task intake",
+    path: "/site-task",
+    canonicalPath: "/site-task",
+    expectedHeading: "Five questions decide this.",
+    requiredCtas: [{ label: "Start", hrefStartsWith: "#intake" }],
+  },
+  {
     label: "Vision",
     path: "/vision",
     canonicalPath: "/vision",

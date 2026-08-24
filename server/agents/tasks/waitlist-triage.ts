@@ -89,7 +89,7 @@ Output JSON only. No markdown. No explanation outside JSON.
 Decision rules:
 - This is an invite-only capturer beta flow.
 - Blueprint is currently phone-first, especially iPhone-first.
-- Smart glasses can still be good candidates for repeat capture, but should not beat clear iPhone fit by default.
+- A 360 camera is a good candidate for full-coverage walkthroughs, but should not beat clear iPhone fit by default.
 - iPad is acceptable but usually weaker than iPhone.
 - Android is currently the weakest fit unless other factors are unusually strong.
 - If the market has multiple existing requests, market fit improves.

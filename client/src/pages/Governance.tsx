@@ -1,149 +1,159 @@
+/**
+ * Site data controls.
+ *
+ * This page is read by the operations lead and by the counsel they forward it
+ * to, and it is held to a harder standard than the rest of the public copy:
+ * every control it names was read in the pipeline source before it was written
+ * here, and each one carries the module that enforces it so a sceptical reader
+ * can re-check rather than trust us. See `client/src/data/dataHandling.ts` for
+ * the verification note and the two claims that were deliberately reworded.
+ *
+ * The limits section is not an appendix. A trust page with no stated limits is
+ * a trust page nobody in a procurement seat believes, so "we do not hold SOC 2"
+ * gets the same visual weight as any promise above it.
+ *
+ * Two sections answer a different question from the controls: the controls say
+ * what happens to the data, while permission granularity and egress say what a
+ * robot team is allowed to *do* with an evaluation and what they actually
+ * receive. Both predate this rewrite and are load-bearing — a provider may be
+ * allowed to test an existing policy without being allowed to train on the
+ * site's videos, objects, or process behaviour.
+ */
 import { Check, LockKeyhole, ShieldCheck, X } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
 import {
+  DataControlsFigure,
+  HonestEdgesFigure,
+} from "@/components/site/runway/figures";
+import { PageHero } from "@/components/site/publicSections";
+import {
   Band,
-  ClosingCta,
   Inner,
-  PageHero,
-  SectionHeader,
-} from "@/components/site/publicSections";
+  Pullquote,
+  RunwayCta,
+  SectionHead,
+} from "@/components/site/runway/shell";
+import {
+  accessLadder,
+  accessLadderNote,
+  closingNote,
+  dataEgress,
+  dataNeverDone,
+  evaluationPermissions,
+  permissionsNote,
+  verificationNote,
+} from "@/data/dataHandling";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const accessLadder = [
-  [
-    "01",
-    "Anonymous",
-    "Task type, broad region, operating window, and expected volume.",
-  ],
-  [
-    "02",
-    "Benchmark",
-    "Object ranges, task metrics, environment class, and acceptance criteria.",
-  ],
-  [
-    "03",
-    "Controlled test",
-    "Approved code runs against the hosted model; raw files do not leave Blueprint.",
-  ],
-  [
-    "04",
-    "Shortlist",
-    "Detailed layouts and integrations go only to teams the site approves.",
-  ],
-  [
-    "05",
-    "Training rights",
-    "Adaptation, retention, and general model training are negotiated separately.",
-  ],
-] as const;
-
-const permissions = [
-  ["Evaluate only", "Can this existing robot or policy perform the task?"],
-  [
-    "Adapt for this site",
-    "May the provider tune the system for this deployment?",
-  ],
-  ["Retain improvements", "May the provider keep the site-specific learning?"],
-  [
-    "General model training",
-    "May site data improve a model used for other customers?",
-  ],
-] as const;
+const submitHref =
+  "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=governance";
 
 export default function Governance() {
   return (
     <>
       <SEO
         title="Site data controls | Blueprint"
-        description="Progressive access keeps raw site models controlled while qualified robot teams run approved evaluations. Training rights stay separate."
+        description="Consent that fails closed, suppression proven against the source artifact, hosted-not-downloadable site files, and revocation that reaches what already shipped. Every control named here is enforced in the pipeline, with its limits stated."
         canonical="/governance"
         jsonLd={[
           webPageJsonLd({
             path: "/governance",
             name: "Blueprint site data controls",
             description:
-              "Progressive access, controlled evaluation, and separate training rights.",
+              "How Blueprint handles captured site data: consent, suppression, hosting, revocation, provenance, and the limits of each.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Governance", path: "/governance" },
+            { name: "Site data controls", path: "/governance" },
           ]),
         ]}
       />
 
       <PageHero
-        eyebrow="Site data control"
+        eyebrow="Site data controls"
         title="Let robot teams test the site without giving them the site."
-        body="Blueprint works like a clean room: qualified teams can run approved evaluations against the hosted testbed, while the underlying facility files remain controlled."
-        chips={[
-          "No public twin download",
-          "Site approves access",
-          "Training rights separate",
-        ]}
-        ctaHref="/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=governance"
+        body="Written for the operations lead and the counsel who will ask. Every mechanism below is enforced in the pipeline rather than in a policy binder — several of them block our own runs when a record is missing."
+        chips={["Consent fails closed", "Hosted, not downloadable", "Revocable after delivery"]}
+        ctaHref={submitHref}
         ctaLabel="Submit a site task"
-        secondaryHref="/for-site-operators"
-        secondaryLabel="Site-operator use case"
-        imageSrc="/redesign/pov/retail-backroom.jpg"
-        imageAlt="Retail backroom with operator-controlled capture boundaries"
-        imageCaption="Operator-approved scope"
+        secondaryHref="/capture-visit"
+        secondaryLabel="See the capture visit"
+        imageSrc="/redesign/pov/loading-dock.jpg"
+        imageAlt="A working site under controlled capture scope"
+        imageCaption="One workcell · scope agreed in writing"
       />
 
-      <Band tone="ink">
+      {/* 01 ── the controls */}
+      <Band tone="black" rule grid>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
+          <SectionHead
             index="01"
+            eyebrow="The controls"
+            title="Six mechanisms, and what enforces each one."
+            lede={verificationNote.claim}
+          />
+          <div className="mt-14">
+            <DataControlsFigure />
+          </div>
+          <Reveal className="mt-8">
+            <p className="max-w-[70ch] text-[14px] leading-[1.75] text-runway-mute">
+              {verificationNote.detail}
+            </p>
+          </Reveal>
+        </Inner>
+      </Band>
+
+      {/* 02 ── progressive access */}
+      <Band tone="deep" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="02"
             eyebrow="Progressive access"
             title="More detail only when the opportunity earns it."
-            onInk
+            lede={accessLadderNote}
           />
-          <ol className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-5">
-            {accessLadder.map(([number, title, body]) => (
-              <li key={number} className="bg-runway-panel p-6">
-                <span className="font-mono text-micro text-runway-signal">
-                  {number}
-                </span>
-                <h2 className="mt-4 text-title-m font-semibold tracking-tight text-runway-text">
-                  {title}
-                </h2>
-                <p className="mt-3 text-caption leading-6 text-runway-mute">
-                  {body}
-                </p>
-              </li>
+          <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-5">
+            {accessLadder.map((tier, index) => (
+              <Reveal key={tier.tier} as="li" delay={index * 0.05} className="bg-runway-panel p-6">
+                <div>
+                  <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
+                    {tier.tier}
+                  </span>
+                  <h3 className="mt-4 text-[15.5px] font-semibold leading-6 tracking-[-0.02em] text-runway-text">
+                    {tier.title}
+                  </h3>
+                  <p className="mt-3 text-[13px] leading-6 text-runway-mute">{tier.detail}</p>
+                </div>
+              </Reveal>
             ))}
           </ol>
         </Inner>
       </Band>
 
-      <Band tone="canvas">
+      {/* 03 ── permission granularity */}
+      <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="02"
+          <SectionHead
+            index="03"
             eyebrow="Evaluation is not training"
             title="Four permissions. Four different values."
-            lede="A provider may be allowed to test an existing policy without being allowed to train on site videos, objects, layouts, or process behavior."
+            lede={permissionsNote}
           />
-          <div className="mt-14 divide-y divide-line border-y border-runway-line">
-            {permissions.map(([title, body], index) => (
-              <Reveal key={title} delay={index * 0.04}>
-                <div className="grid gap-3 py-5 sm:grid-cols-[0.3fr_0.7fr] sm:gap-10">
-                  <p className="flex items-center gap-3 text-body-s font-semibold text-runway-text">
+          <div className="mt-14 divide-y divide-runway-line border-y border-runway-line">
+            {evaluationPermissions.map((item, index) => (
+              <Reveal key={item.permission} delay={index * 0.04}>
+                <div className="grid gap-3 py-5 sm:grid-cols-[0.34fr_0.66fr] sm:gap-10">
+                  <h3 className="flex items-center gap-3 text-[14.5px] font-semibold text-runway-text">
                     {index === 0 ? (
-                      <Check
-                        className="h-4 w-4 text-runway-green"
-                        aria-hidden="true"
-                      />
+                      <Check className="h-4 w-4 shrink-0 text-runway-green" aria-hidden="true" />
                     ) : (
-                      <LockKeyhole
-                        className="h-4 w-4 text-runway-signal"
-                        aria-hidden="true"
-                      />
+                      <LockKeyhole className="h-4 w-4 shrink-0 text-runway-signal" aria-hidden="true" />
                     )}
-                    {title}
-                  </p>
-                  <p className="text-body-s leading-7 text-runway-mute">{body}</p>
+                    {item.permission}
+                  </h3>
+                  <p className="text-[14px] leading-[1.75] text-runway-mute">{item.question}</p>
                 </div>
               </Reveal>
             ))}
@@ -151,52 +161,88 @@ export default function Governance() {
         </Inner>
       </Band>
 
-      <Band tone="paper" rule>
+      {/* 04 ── egress */}
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="03"
+          <SectionHead
+            index="04"
             eyebrow="The control model"
             title="What stays inside. What may come out."
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-2">
-            <article className="bg-runway-panel p-7 lg:p-9">
-              <ShieldCheck
-                className="h-6 w-6 text-runway-green"
-                aria-hidden="true"
-              />
-              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-runway-text">
-                Inside Blueprint
-              </h2>
-              <p className="mt-4 text-body-s leading-7 text-runway-mute">
-                Raw capture, detailed layouts, restricted zones, source media,
-                hosted testbed files, and approved robot submissions.
-              </p>
-            </article>
-            <article className="bg-runway-panel p-7 lg:p-9">
-              <X className="h-6 w-6 text-runway-amber" aria-hidden="true" />
-              <h2 className="mt-5 text-title-l font-semibold tracking-tight text-runway-text">
-                Returned to each team
-              </h2>
-              <p className="mt-4 text-body-s leading-7 text-runway-mute">
-                Completion rate, cycle-time estimate, reach or collision
-                failures, fleet and charging assumptions, edge cases, and
-                integration burden—within the permissions granted.
-              </p>
-            </article>
+          <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-2">
+            <Reveal as="article" className="bg-runway-panel p-7 lg:p-9">
+              <div>
+                <ShieldCheck className="h-6 w-6 text-runway-green" aria-hidden="true" />
+                <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.03em] text-runway-text">
+                  {dataEgress.inside.title}
+                </h3>
+                <p className="mt-4 text-[14px] leading-[1.75] text-runway-mute">
+                  {dataEgress.inside.detail}
+                </p>
+              </div>
+            </Reveal>
+            <Reveal as="article" delay={0.06} className="bg-runway-panel p-7 lg:p-9">
+              <div>
+                <X className="h-6 w-6 text-runway-amber" aria-hidden="true" />
+                <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.03em] text-runway-text">
+                  {dataEgress.returned.title}
+                </h3>
+                <p className="mt-4 text-[14px] leading-[1.75] text-runway-mute">
+                  {dataEgress.returned.detail}
+                </p>
+              </div>
+            </Reveal>
           </div>
         </Inner>
       </Band>
 
-      <ClosingCta
-        eyebrow="Your floor, your rules"
-        title="Set the boundary before capture starts."
-        body="Define restricted areas, approved viewers, permitted evaluations, and training rights as separate choices."
-        primaryHref="/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=governance-cta"
+      {/* 05 ── the negative space */}
+      <Band tone="black" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="05"
+            eyebrow="What we never do"
+            title="Evaluation is the product. Not data harvesting."
+          />
+          <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
+            {dataNeverDone.map((item, index) => (
+              <Reveal key={item} as="li" delay={index * 0.06} className="bg-runway-panel p-7">
+                <div>
+                  <span className="runway-meta text-runway-faint">Never</span>
+                  <p className="mt-4 text-[13.5px] leading-[1.7] text-runway-mute">{item}</p>
+                </div>
+              </Reveal>
+            ))}
+          </ol>
+        </Inner>
+      </Band>
+
+      {/* 06 ── the limits, at full weight */}
+      <Band tone="deep" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="06"
+            eyebrow="The honest edges"
+            title="What we do not claim."
+            lede="A trust page with no stated limits is one nobody in a procurement seat believes. These are ours."
+          />
+          <div className="mt-14">
+            <HonestEdgesFigure />
+          </div>
+          <Pullquote className="mt-16" attribution="The design principle">
+            A control that only fails for other people is not a control.
+          </Pullquote>
+        </Inner>
+      </Band>
+
+      <RunwayCta
+        eyebrow="Set the boundary before capture starts"
+        title="Bring your counsel to the scoping call."
+        body={closingNote}
+        primaryHref={submitHref}
         primaryLabel="Submit a site task"
-        secondaryHref="/proof"
-        secondaryLabel="Read the proof boundary"
-        imageSrc="/redesign/pov/cold-storage.jpg"
-        imageAlt="Cold-storage aisle captured within operator-approved limits"
+        secondaryHref="/capture-visit"
+        secondaryLabel="See the capture visit"
       />
     </>
   );

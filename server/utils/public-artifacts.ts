@@ -22,6 +22,8 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/contact/site-operator", changefreq: "monthly", priority: 0.7 },
   { path: "/about", changefreq: "monthly", priority: 0.5 },
   { path: "/vision", changefreq: "monthly", priority: 0.5 },
+  { path: "/capture-visit", changefreq: "monthly", priority: 0.7 },
+  { path: "/site-task", changefreq: "monthly", priority: 0.8 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },

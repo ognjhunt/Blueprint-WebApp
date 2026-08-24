@@ -39,14 +39,25 @@ import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 
+/**
+ * Accepted capture gear is a 360 camera and a smartphone. Nothing else.
+ *
+ * The `iphone` value is kept as the stored smartphone value so existing
+ * applications and the admin device filter keep resolving; only the label
+ * widened. Wearables were removed as an accepted device class — if that ever
+ * changes, it changes here first and in `docs/public-capturer-copy-rules-*.md`,
+ * not in page copy.
+ */
 const EQUIPMENT_OPTIONS = [
-  { value: "iphone", label: "iPhone", detail: "Best fit for phone-first walkthrough work." },
-  { value: "ipad", label: "iPad", detail: "Useful when you already work from a tablet." },
   {
-    value: "smart_glasses",
-    label: "Smart glasses",
-    detail:
-      "Optional for approved repeat walkthroughs when the assignment, hardware, launch proof, and downstream capture proof exist.",
+    value: "iphone",
+    label: "Smartphone",
+    detail: "Phone-first walkthrough work. A recent iPhone is the best fit.",
+  },
+  {
+    value: "camera_360",
+    label: "360 camera",
+    detail: "Full walkthrough coverage of aisles, rooms, and spatial context.",
   },
 ] as const;
 
@@ -493,8 +504,8 @@ export default function CapturerSignUpFlow() {
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
                 Review is required before any assignment or payout eligibility. The assignment
                 payout is shown before you start, and only an accepted capture can move forward.
-                Google/Meta smart glasses stay optional for approved repeat walkthroughs where
-                the assignment, hardware, launch proof, and downstream capture proof exist.
+                Accepted capture gear is a 360 camera and a smartphone. No other device class
+                is approved for assignments.
               </p>
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
                 Robot teams and site operators use the{" "}
@@ -529,8 +540,8 @@ export default function CapturerSignUpFlow() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Gear
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Phone first</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Smart glasses only after proof review.</p>
+                <p className="mt-3 text-2xl font-semibold">Phone + 360</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">No other device class is approved.</p>
               </div>
               <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">

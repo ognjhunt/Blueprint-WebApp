@@ -27,7 +27,7 @@ The task should stay concrete:
 - Do not publish `$40 average` or any fixed average payout unless a repo-backed artifact or human approval explicitly supports it.
 - Keep launch-city, invite, and access-code gates visible.
 - Keep public-area-only, privacy-safe, and sensitive-zone avoidance language visible.
-- Google/Meta smart glasses are optional repeat-walk tools: public copy may say they are supported only for approved repeat walkthroughs where the assignment, hardware, launch proof, and downstream capture proof exist.
+- Accepted capture gear is a 360 camera and a smartphone, and nothing else. Public copy must not name, imply, or leave room for any other device class — wearables in particular were removed as an accepted device on 2026-08-24 and must not reappear in copy before they reappear in `EQUIPMENT_OPTIONS`.
 
 ## Research Calibration
 

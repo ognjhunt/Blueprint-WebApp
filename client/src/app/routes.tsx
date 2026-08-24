@@ -77,6 +77,8 @@ const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 const About = lazyRoute(() => import("../pages/About"));
 const Vision = lazyRoute(() => import("../pages/Vision"));
 const Governance = lazyRoute(() => import("../pages/Governance"));
+const CaptureVisit = lazyRoute(() => import("../pages/CaptureVisit"));
+const SiteTaskIntake = lazyRoute(() => import("../pages/SiteTaskIntake"));
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
 const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
@@ -284,6 +286,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
+  { path: "/capture-visit", layout: "public", component: CaptureVisit },
+  { path: "/site-task", layout: "public", component: SiteTaskIntake },
   { path: "/about", layout: "public", component: About },
   { path: "/vision", layout: "public", component: Vision },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },

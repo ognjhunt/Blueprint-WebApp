@@ -10,7 +10,6 @@ import {
   Camera,
   CheckCircle2,
   ClipboardCheck,
-  Glasses,
   Info,
   MapPinned,
   ShieldCheck,
@@ -30,12 +29,6 @@ const captureMethods = [
     label: "Flexible capture",
     body: "Useful for stable, well-lit walkthroughs and bounded task areas with an approved route brief.",
     icon: Smartphone,
-  },
-  {
-    title: "Smart glasses",
-    label: "Supplemental POV",
-    body: "Hands-free point-of-view context for assignments that explicitly accept wearable capture.",
-    icon: Glasses,
   },
 ] as const;
 
@@ -180,7 +173,7 @@ export default function Capture() {
                 </p>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 {captureMethods.map((method) => {
                   const Icon = method.icon;
                   return (

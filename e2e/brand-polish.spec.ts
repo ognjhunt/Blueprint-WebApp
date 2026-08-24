@@ -50,7 +50,7 @@ type VisibleAnchor = {
 test.describe.configure({ mode: "serial" });
 
 test("brand polish QA sweeps key public routes", async ({ page, request }) => {
-  // 12 routes x 2 viewports of navigation + metrics + screenshot, plus a
+  // 14 routes x 2 viewports of navigation + metrics + screenshot, plus a
   // trailing internal-link audit, comfortably exceeds 180s now that several
   // routes (Sites, Capture) render meaningfully more cards/images than when
   // this budget was set.

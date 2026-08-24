@@ -18,7 +18,7 @@
   "buyer_question": "Can a shelf-scanning AMR navigate produce, endcaps, and refrigeration lanes without treating this as a generic warehouse aisle?",
   "capture_provenance": {
     "source_app": "Blueprint Capture",
-    "device_class": "phone_or_glasses_capture",
+    "device_class": "phone_or_360_camera_capture",
     "raw_bundle_shape": [
       "walkthrough_video",
       "timestamps",

@@ -29,6 +29,29 @@ import {
 } from "../../client/src/lib/requestTaxonomy";
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
+import { triageGateAnswers } from "../../client/src/lib/siteTaskTriage";
+
+/**
+ * Keep only string answers, trimmed, dropping blanks.
+ *
+ * The gate values are enums and the triage rules already ignore any value that
+ * is not one of the offered options, so a hostile or malformed payload cannot
+ * manufacture a pass — an unrecognised value reads as unanswered, and an
+ * unanswered gate never qualifies.
+ */
+function normalizeGateAnswers(input: unknown): Record<string, string> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > 120) continue;
+    out[key.slice(0, 60)] = trimmed;
+  }
+  return out;
+}
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import type {
   InboundRequestPayload,
@@ -1110,6 +1133,28 @@ router.post("/", async (req: Request, res: Response) => {
       utmCampaign: payload.context?.utm?.campaign || null,
       utmSource: payload.context?.utm?.source || null,
     });
+    // The deterministic site-task verdict, computed here so it is settled before
+    // any model runs and so an auditor sees the same answer the operator saw.
+    // Enum answers only — this is the half of qualification that must be
+    // reproducible.
+    const siteTaskGates = normalizeGateAnswers(payload.siteTaskGates);
+    const siteTaskVerdict = triageGateAnswers(siteTaskGates);
+    const siteTaskTriage = Object.keys(siteTaskGates).length
+      ? {
+          disposition: siteTaskVerdict.disposition,
+          blocking_field_ids: siteTaskVerdict.blockers.map((blocker) => blocker.fieldId),
+          blockers: siteTaskVerdict.blockers.map(
+            (blocker) => `${blocker.answer} — ${blocker.detail}`,
+          ),
+          open_questions: siteTaskVerdict.openQuestions.map(
+            (question) => `${question.question} ${question.answer} — ${question.detail}`,
+          ),
+          unanswered_field_ids: [...siteTaskVerdict.unanswered],
+          incomplete: siteTaskVerdict.incomplete,
+          evaluated_at: new Date().toISOString(),
+        }
+      : null;
+
     const structuredIntakeDecision = evaluateStructuredIntake({
       buyerType,
       requestedLanes,
@@ -1407,6 +1452,10 @@ router.post("/", async (req: Request, res: Response) => {
         siteLocation,
         siteLocationMetadata,
         taskStatement,
+        siteTaskGates: Object.keys(siteTaskGates).length ? siteTaskGates : null,
+        siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
+        taskDescription: payload.taskDescription?.trim() || null,
+        whatGoesWrong: payload.whatGoesWrong?.trim() || null,
         targetSiteType: payload.targetSiteType?.trim() || null,
         proofPathPreference,
         existingStackReviewWorkflow:
@@ -1478,7 +1527,13 @@ router.post("/", async (req: Request, res: Response) => {
         processed_at: null,
       },
       structured_intake: structuredIntake,
-      human_review_required: structuredIntakeDecision.requiresHumanReview,
+      site_task_triage: siteTaskTriage,
+      // A blocked or ambiguous gate verdict is a human-review trigger in its own
+      // right, independent of whatever the structured-intake decision concluded.
+      human_review_required:
+        structuredIntakeDecision.requiresHumanReview ||
+        siteTaskTriage?.disposition === "not_now" ||
+        siteTaskTriage?.disposition === "needs_conversation",
       automation_confidence: null,
       terms_acceptance: buildTermsAcceptance(now),
       buyer_review_access: {
