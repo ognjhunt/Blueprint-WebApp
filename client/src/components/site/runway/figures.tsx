@@ -1369,33 +1369,79 @@ export function HumanoidShareFigure() {
         </p>
       </div>
 
-      {/* The split, as one rule. */}
-      <div className="mt-8">
-        <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
-          <div
-            className="flex items-center justify-center bg-runway-red"
-            style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
-          >
-            <span className="runway-num text-[12px] text-runway-black/85">
-              Chinese makers · {humanoidShare.chineseVendorSharePct}%
-            </span>
-          </div>
-          <div
-            className="flex items-center justify-center bg-runway-signal"
-            style={{ width: `${humanoidShare.restOfWorldSharePct}%` }}
-          >
-            <span className="sr-only">
-              Everyone else: {humanoidShare.restOfWorldSharePct}%
-            </span>
+      {/*
+        Two bars, because the pair says something neither says alone.
+
+        The headline is the supply share, which on its own argues that China is
+        better at *manufacturing* — a supply-side claim, and this site's thesis
+        is that supply was never the binding constraint. The demand bar is what
+        converts it into a deployment argument: the robots are not merely built
+        there, they are absorbed there. It also shows the rest of the world
+        receiving several times more humanoids than it builds, which is the
+        opposite of a supply problem.
+
+        "Shipped from" and "deployed into" are different claims. They are
+        labelled separately and must never be relabelled as each other.
+      */}
+      <div className="mt-8 space-y-5">
+        <div>
+          <p className="runway-meta mb-2">Who built them · shipped from</p>
+          <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
+            <div
+              className="flex items-center justify-center bg-runway-red"
+              style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
+            >
+              <span className="runway-num text-[12px] text-runway-black/85">
+                Chinese makers · {humanoidShare.chineseVendorSharePct}%+
+              </span>
+            </div>
+            <div
+              className="flex items-center justify-center bg-runway-signal"
+              style={{ width: `${humanoidShare.restOfWorldSharePct}%` }}
+            >
+              <span className="sr-only">
+                Everyone else: {humanoidShare.restOfWorldSharePct}%
+              </span>
+            </div>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+
+        <div>
+          <p className="runway-meta mb-2 text-runway-red">
+            Where they went · deployed into
+          </p>
+          <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
+            <div
+              className="flex items-center justify-center bg-runway-red/70"
+              style={{ width: `${humanoidShare.chinaDemandSharePct}%` }}
+            >
+              <span className="runway-num text-[12px] text-runway-black/85">
+                China · {humanoidShare.chinaDemandSharePct}%+
+              </span>
+            </div>
+            <div
+              className="flex items-center justify-center bg-runway-signal/70"
+              style={{ width: `${humanoidShare.restOfWorldDemandSharePct}%` }}
+            >
+              <span className="runway-num text-[11px] text-runway-black/85">
+                {humanoidShare.restOfWorldDemandSharePct}%
+              </span>
+            </div>
+          </div>
+          <p className="mt-2 max-w-[62ch] text-[12.5px] leading-6 text-runway-mute">
+            The row that makes this a deployment story rather than a manufacturing one:
+            China does not just build them, it absorbs them. Everyone else receives
+            several times more humanoids than they build.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
           <span className="runway-meta">
             Global shipments {humanoidUnits.format(humanoidShare.globalUnits)} units ·{" "}
             +{humanoidShare.growthPct}% year over year
           </span>
           <span className="text-[12.5px] text-runway-signal">
-            Everyone else: {humanoidShare.restOfWorldSharePct}% ·{" "}
+            Built outside China: {humanoidShare.restOfWorldSharePct}% ·{" "}
             <span className="runway-num">~{humanoidShare.restOfWorldUnits}</span> units
             <span className="text-runway-faint"> (derived)</span>
           </span>
