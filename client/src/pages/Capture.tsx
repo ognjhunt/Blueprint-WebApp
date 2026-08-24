@@ -101,28 +101,28 @@ export default function Capture() {
         ]}
       />
 
-      <div className="bg-slate-50 text-slate-950">
-        <section className="border-b border-slate-200 bg-white">
+      <div className="bg-runway-deep text-runway-text">
+        <section className="border-b border-runway-line bg-runway-panel">
           <div className="mx-auto grid max-w-[88rem] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 lg:py-14">
             <div className="flex flex-col justify-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                 Capture the months 0–2 inputs
               </p>
-              <h1 className="font-editorial mt-5 max-w-[12ch] text-5xl leading-none text-slate-950 sm:text-6xl">
+              <h1 className="font-editorial mt-5 max-w-[12ch] text-5xl leading-none text-runway-text sm:text-6xl">
                 Capture the job before the robot arrives.
               </h1>
-              <p className="mt-5 max-w-2xl text-xl font-semibold leading-tight text-slate-950 sm:text-2xl">
+              <p className="mt-5 max-w-2xl text-xl font-semibold leading-tight text-runway-text sm:text-2xl">
                 Record one approved workflow—not an entire facility—and get paid after the assignment passes QA.
               </p>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700">
+              <p className="mt-5 max-w-2xl text-base leading-8 text-runway-mute">
                 Blueprint publishes assignments only after review. Site availability, access,
                 assignment, and payout are confirmed for each approved route before capture begins.
               </p>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700">
+              <p className="mt-5 max-w-2xl text-base leading-8 text-runway-mute">
                 Each capture feeds one Task Evaluation Run: the task definition, secure testbed,
                 robot-fit checks, and onsite handoff built before a deployment team visits.
               </p>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-runway-mute">
                 Assignments today anchor to the beachhead where the evaluation evidence is strongest:{" "}
                 {robotPolicyBeachheadShort}. That means warehouse and logistics navigable floor
                 routes — mobile-base navigation and rigid pick-and-place areas — not fine, contact-rich
@@ -131,21 +131,21 @@ export default function Capture() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href={applicationHref}
-                  className="inline-flex min-h-11 items-center justify-center border border-slate-950 bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-runway-signal hover:text-runway-signal"
                 >
                   Apply to capture
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
                   href={cityStatusHref}
-                  className="inline-flex min-h-11 items-center justify-center border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-950 transition hover:border-slate-500"
+                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-slate-500"
                 >
                   Check city status
                 </a>
               </div>
             </div>
 
-            <div className="relative min-h-[28rem] overflow-hidden border border-slate-200 bg-slate-900">
+            <div className="relative min-h-[28rem] overflow-hidden border border-runway-line bg-runway-panel">
               <img
                 src={publicCaptureGeneratedAssets.captureAppHero}
                 alt="Generated preview / review support: a capturer following an approved warehouse floor route for mobile-base navigation and rigid pick-and-place capture"
@@ -154,7 +154,7 @@ export default function Capture() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   Assignment boundary
                 </p>
                 <p className="mt-3 max-w-xl text-lg font-semibold leading-7">
@@ -165,11 +165,11 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="border-b border-slate-200 bg-slate-950 text-white">
+        <section className="border-b border-runway-line bg-runway-panel text-white">
           <div className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6 lg:px-10">
             <div className="grid gap-5 lg:grid-cols-[0.34fr_0.66fr]">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   Accepted methods
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold leading-tight">
@@ -185,10 +185,10 @@ export default function Capture() {
                   const Icon = method.icon;
                   return (
                     <article key={method.title} className="border border-white/15 bg-white/5 p-5">
-                      <div className="flex h-10 w-10 items-center justify-center border border-white/15 text-emerald-200">
+                      <div className="flex h-10 w-10 items-center justify-center border border-white/15 text-runway-green">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200">
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-runway-green">
                         {method.label}
                       </p>
                       <h3 className="mt-2 text-2xl font-semibold">{method.title}</h3>
@@ -201,27 +201,27 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="border-b border-slate-200 bg-white">
+        <section className="border-b border-runway-line bg-runway-panel">
           <div className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6 lg:px-10">
             <div className="grid gap-8 lg:grid-cols-[0.38fr_0.62fr]">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   How assignments work
                 </p>
-                <h2 className="mt-3 text-4xl font-semibold leading-tight text-slate-950">
+                <h2 className="mt-3 text-4xl font-semibold leading-tight text-runway-text">
                   Review first. Assignment second. Payout after QA.
                 </h2>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
+                <p className="mt-4 text-sm leading-7 text-runway-mute">
                   Public application is open; operational availability remains tied to real city and site records.
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {assignmentSteps.map((step) => (
-                  <article key={step.number} className="border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-xs font-semibold tracking-[0.18em] text-emerald-700">{step.number}</p>
-                    <h3 className="mt-3 text-2xl font-semibold text-slate-950">{step.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{step.body}</p>
+                  <article key={step.number} className="border border-runway-line bg-runway-deep p-5">
+                    <p className="text-xs font-semibold tracking-[0.18em] text-runway-green">{step.number}</p>
+                    <h3 className="mt-3 text-2xl font-semibold text-runway-text">{step.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-runway-mute">{step.body}</p>
                   </article>
                 ))}
               </div>
@@ -229,38 +229,38 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="border-b border-slate-200 bg-slate-100">
+        <section className="border-b border-runway-line bg-runway-raised">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-10">
-            <article className="border border-slate-200 bg-white p-6">
-              <div className="flex h-11 w-11 items-center justify-center bg-slate-950 text-white">
+            <article className="border border-runway-line bg-runway-panel p-6">
+              <div className="flex h-11 w-11 items-center justify-center bg-runway-panel text-white">
                 <ClipboardCheck className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-slate-950">
+              <h2 className="mt-5 text-3xl font-semibold text-runway-text">
                 Every approved assignment includes
               </h2>
               <div className="mt-5 grid gap-3">
                 {assignmentIncludes.map((item) => (
-                  <div key={item} className="flex gap-3 border-t border-slate-200 pt-3 first:border-t-0 first:pt-0">
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                    <p className="text-sm leading-6 text-slate-700">{item}</p>
+                  <div key={item} className="flex gap-3 border-t border-runway-line pt-3 first:border-t-0 first:pt-0">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-runway-green" />
+                    <p className="text-sm leading-6 text-runway-mute">{item}</p>
                   </div>
                 ))}
               </div>
             </article>
 
-            <article className="border border-slate-200 bg-white p-6">
-              <div className="flex h-11 w-11 items-center justify-center bg-emerald-600 text-white">
+            <article className="border border-runway-line bg-runway-panel p-6">
+              <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
                 <WalletCards className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-slate-950">
+              <h2 className="mt-5 text-3xl font-semibold text-runway-text">
                 No public payout promises
               </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
+              <p className="mt-4 text-sm leading-7 text-runway-mute">
                 Payout depends on the real assignment, accepted device, access complexity, route completion, and QA result. The offer is shown before you accept work.
               </p>
-              <div className="mt-5 flex gap-3 border border-amber-200 bg-amber-50 p-4">
-                <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-                <p className="text-sm leading-6 text-amber-950">
+              <div className="mt-5 flex gap-3 border border-runway-amber/30 bg-runway-amber/[0.08] p-4">
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-runway-amber" />
+                <p className="text-sm leading-6 text-runway-amber">
                   Application approval, assignment, capture acceptance, and payout are separate states backed by their owning records.
                 </p>
               </div>
@@ -268,33 +268,33 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="border-b border-slate-200 bg-white">
+        <section className="border-b border-runway-line bg-runway-panel">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[0.42fr_0.58fr] lg:px-10">
             <div>
-              <div className="flex h-11 w-11 items-center justify-center bg-emerald-600 text-white">
+              <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
                 <ShieldCheck className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-slate-950">Safety and QA rules</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
+              <h2 className="mt-5 text-3xl font-semibold text-runway-text">Safety and QA rules</h2>
+              <p className="mt-3 text-sm leading-7 text-runway-mute">
                 These rules protect the site, people inside it, and the provenance of the resulting package.
               </p>
             </div>
 
             <div className="grid gap-3">
               {safetyRules.map((rule) => (
-                <div key={rule} className="flex gap-3 border border-slate-200 bg-slate-50 p-4">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  <p className="text-sm leading-6 text-slate-700">{rule}</p>
+                <div key={rule} className="flex gap-3 border border-runway-line bg-runway-deep p-4">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-runway-green" />
+                  <p className="text-sm leading-6 text-runway-mute">{rule}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-slate-950 text-white">
+        <section className="bg-runway-panel text-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                 Start with your city
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -307,7 +307,7 @@ export default function Capture() {
             <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
               <a
                 href={applicationHref}
-                className="inline-flex min-h-12 items-center justify-center bg-white px-6 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                className="inline-flex min-h-12 items-center justify-center bg-runway-signal px-6 text-sm font-semibold text-runway-black transition hover:bg-runway-signal-deep"
               >
                 Apply to capture
                 <ArrowRight className="ml-2 h-4 w-4" />

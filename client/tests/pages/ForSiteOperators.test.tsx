@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import ForSiteOperators from "@/pages/ForSiteOperators";
 
 describe("ForSiteOperators", () => {
-  it("explains one-time task submission, controlled access, and the OEM handoff", () => {
+  it("frames submission as queue position and keeps the access ladder visible", () => {
     render(<ForSiteOperators />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Explain the job once\. Let robot teams test it before they visit/i,
+        name: /Robot-ready sites get robots first/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -18,12 +18,12 @@ describe("ForSiteOperators", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Stop rebuilding the same opportunity for every vendor/i,
+        name: /Robot capacity is allocated, not just sold/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Robot teams learn more only when the opportunity earns it/i,
+        name: /Teams learn more only when the opportunity earns it/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -36,9 +36,6 @@ describe("ForSiteOperators", () => {
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Submit a site task/i })[0],
-    ).toHaveAttribute(
-      "href",
-      expect.stringContaining("intent=pilot-opportunity"),
-    );
+    ).toHaveAttribute("href", expect.stringContaining("intent=pilot-opportunity"));
   });
 });

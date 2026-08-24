@@ -5,12 +5,12 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
 }) => {
   await page.goto("/");
 
-  // The kinetic rebuild renamed the hero headline, the primary CTA, and the
-  // robot-team nav entry. Those are presentation. Every assertion below about
-  // what the page may claim is unchanged, and still holds.
+  // The runway rebuild renamed the hero headline and the section findings.
+  // Those are presentation. Every assertion below about what the page may
+  // claim is unchanged, and still holds.
   await expect(
     page.getByRole("heading", {
-      name: /The robot should arrive after the homework is done/i,
+      name: /Robots aren't the bottleneck\. Deploying them is/i,
     }),
   ).toBeVisible();
   const nav = page.getByRole("banner").getByRole("navigation");
@@ -39,23 +39,37 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
 
   await expect(
     page.getByRole("heading", {
-      name: /path to scaled deployment is 6\+ months/i,
+      name: /China installs nine robots for every one we do/i,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Do the work once—not again for every robot company/i,
+      name: /Two of the six months happen before the robot is crated/i,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /One workflow becomes one robot-ready work package/i,
+      name: /Do the work once\. Not once per vendor/i,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: /One workflow in\. One qualified deployment out/i,
+    }),
+  ).toBeVisible();
+
+  // The physical boundary stays on the page, not in the terms.
   await expect(
     page.getByText(
-      /Onsite integration and the physical pilot stay with the OEM/i,
+      /Onsite integration, commissioning, and the physical pilot stay with the robot company/i,
     ),
   ).toBeVisible();
+
+  // Every charted figure carries a primary source and an evidence grade.
+  await expect(
+    page.getByRole("link", { name: /IFR World Robotics 2025/i }).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Illustrative model/i).first()).toBeVisible();
+
   await expect(page.getByText(/12–24h/i)).toHaveCount(0);
 });

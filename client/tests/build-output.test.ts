@@ -203,16 +203,21 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("The robot should arrive after the homework is done.");
-    expect(homeHtml).toContain("Capture the workflow");
-    expect(homeHtml).toContain("Recreate the job");
-    expect(homeHtml).toContain("Use it to validate—not to discover.");
-    // Schematic figure values must be marked as such in the prerendered HTML too.
-    expect(homeHtml).toContain("Illustrative");
+    expect(homeHtml).toContain("Robots aren&#x27;t the bottleneck. Deploying them is.");
+    expect(homeHtml).toContain("Capture");
+    expect(homeHtml).toContain("Recreate");
+    expect(homeHtml).toContain("Evaluate");
+    expect(homeHtml).toContain("Use it to validate. Not to discover.");
+    // Modelled figure values must be graded in the prerendered HTML too, and the
+    // charts themselves must prerender rather than shipping an empty axis.
+    expect(homeHtml).toContain("Illustrative model");
+    expect(homeHtml).toContain("Published figure");
+    expect(homeHtml).toContain("295,000");
+    expect(homeHtml).toContain("IFR World Robotics 2025");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders free core access and the site-paid network schedule.
-    expect(pricingHtml).toContain("Do the homework free. Pay when the robot gets paid.");
+    expect(pricingHtml).toContain("Free until a robot is earning.");
     expect(pricingHtml).toContain("$0 site submission");
     expect(pricingHtml).toContain("5% deployment-network fee");
     expect(pricingHtml).toContain("$170,000 Blueprint fee");
@@ -224,7 +229,7 @@ describe("build output", () => {
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("The first two months are real work");
-    expect(proofHtml).toContain("Published anchor—not a market price");
+    expect(proofHtml).toContain("Published anchor — not a market price");
     expect(proofHtml).toContain("A useful filter is not a deployment certificate");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });

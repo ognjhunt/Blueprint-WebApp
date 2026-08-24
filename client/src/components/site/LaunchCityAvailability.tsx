@@ -21,38 +21,38 @@ function toneClasses(tone: LaunchCityAvailabilityProps["tone"]) {
   switch (tone) {
     case "dark":
       return {
-        shell: "border-slate-800 bg-slate-950 text-white",
-        badge: "border-slate-700 bg-slate-900 text-slate-300",
-        body: "text-slate-300",
-        chip: "border-slate-700 bg-slate-900/80 text-slate-100 hover:border-slate-600",
-        note: "border-slate-800 bg-slate-900/70 text-slate-300",
-        primary: "bg-white text-slate-950 hover:bg-slate-100",
-        secondary: "border-slate-700 text-white hover:bg-slate-900",
+        shell: "border-runway-line bg-runway-panel text-runway-text",
+        badge: "border-runway-line bg-runway-panel text-runway-mute",
+        body: "text-runway-mute",
+        chip: "border-runway-line bg-slate-900/80 text-runway-text hover:border-slate-600",
+        note: "border-runway-line bg-slate-900/70 text-runway-mute",
+        primary: "bg-runway-panel text-runway-text hover:bg-slate-100",
+        secondary: "border-runway-line text-runway-text hover:bg-slate-900",
       };
     case "paper":
       return {
         shell: "border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--ink)]",
         badge:
-          "border-[color:var(--line-strong)] bg-white text-[color:var(--leaf-deep)]",
+          "border-[color:var(--line-strong)] bg-runway-panel text-[color:var(--leaf-deep)]",
         body: "text-[color:var(--ink-soft)]",
         chip:
-          "border-[color:var(--line)] bg-white text-[color:var(--ink)] hover:border-[color:var(--line-strong)]",
+          "border-[color:var(--line)] bg-runway-panel text-[color:var(--ink)] hover:border-[color:var(--line-strong)]",
         note:
           "border-[color:var(--amber)]/30 bg-[color:var(--amber)]/8 text-[color:var(--ink-soft)]",
-        primary: "bg-[color:var(--ink)] text-white hover:bg-[color:var(--leaf-deep)]",
+        primary: "bg-[color:var(--ink)] text-runway-text hover:bg-[color:var(--leaf-deep)]",
         secondary:
           "border-[color:var(--line-strong)] text-[color:var(--ink)] hover:bg-[color:var(--paper)]",
       };
     case "light":
     default:
       return {
-        shell: "border-slate-200 bg-white text-slate-950",
-        badge: "border-slate-200 bg-slate-50 text-slate-700",
-        body: "text-slate-600",
-        chip: "border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300 hover:bg-slate-100",
-        note: "border-sky-200 bg-sky-50 text-slate-700",
-        primary: "bg-slate-950 text-white hover:bg-slate-800",
-        secondary: "border-slate-300 text-slate-900 hover:bg-slate-100",
+        shell: "border-runway-line bg-runway-panel text-runway-text",
+        badge: "border-runway-line bg-runway-deep text-runway-mute",
+        body: "text-runway-mute",
+        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-slate-300 hover:bg-slate-100",
+        note: "border-runway-line bg-runway-raised text-runway-mute",
+        primary: "bg-runway-panel text-runway-text hover:bg-slate-800",
+        secondary: "border-runway-line text-runway-text hover:bg-slate-100",
       };
   }
 }

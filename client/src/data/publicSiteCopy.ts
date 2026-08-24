@@ -58,13 +58,13 @@ import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTil
 /* -------------------------------------------------------------- home page */
 
 export const homeHero = {
-  eyebrow: "Automate months 0–2",
-  title: "The robot should arrive after the homework is done.",
+  eyebrow: "Deployment infrastructure · months 0–2",
+  title: "Robots aren't the bottleneck. Deploying them is.",
   body:
-    "Blueprint captures one real workflow, rebuilds it as a secure testbed, and tests robot fit before an OEM sends people or hardware onsite.",
+    "Blueprint captures one real workflow, rebuilds it as a secure testbed, and proves robot fit — before a robot company spends a single engineer-week on site.",
   chips: [
-    "One workflow captured once",
-    "One testbed for every robot team",
+    "One workflow, captured once",
+    "One testbed, every robot team",
     "Onsite validation still required",
   ],
 } as const;
@@ -382,10 +382,10 @@ export const homeLimits = [
 /* ------------------------------------------------------- robot-team page */
 
 export const robotTeamHero = {
-  eyebrow: "Months 0–2 · for robot teams",
-  title: "Start with a captured task, not a blank site.",
+  eyebrow: "For robot teams",
+  title: "Your scarcest resource isn't robots. It's engineer-weeks.",
   body:
-    "Blueprint gives your deployment team a captured workflow, versioned testbed, acceptance criteria, compatibility gaps, and controlled evaluation results before the first onsite visit.",
+    "Opportunities arrive with the task defined, the site modelled, the envelope screened, and the acceptance test written — so your deployment team spends its weeks on sites that will work.",
   chips: [
     "No listing or lead fee",
     "Standard evaluations included",
@@ -438,10 +438,10 @@ export const robotTeamFlow: readonly LifecycleStage[] = [
 /* --------------------------------------------------- site-operator page */
 
 export const siteOperatorHero = {
-  eyebrow: "Months 0–2 · for site operators",
-  title: "Explain the job once. Let robot teams test it before they visit.",
+  eyebrow: "For site operators",
+  title: "Robot-ready sites get robots first.",
   body:
-    "Blueprint turns one real workflow into a private, reusable work package. You keep control of the site data; qualified robot teams get only the access needed to test fit.",
+    "Explain the job once. Blueprint turns it into a private, reusable work package that robot teams can evaluate without you handing over the building.",
   chips: ["Submit free", "No robot chosen yet", "Site data stays controlled"],
 } as const;
 
@@ -496,7 +496,7 @@ export const howItWorksSplit = {
 
 export const pricingHero = {
   eyebrow: "Free to start · site-paid when it works",
-  title: "Do the homework free. Pay when the robot gets paid.",
+  title: "Free until a robot is earning.",
   body:
     "Sites submit workflows free. Robot teams discover and run standard evaluations free. The site pays Blueprint only when a deployment produces collected provider revenue.",
 } as const;

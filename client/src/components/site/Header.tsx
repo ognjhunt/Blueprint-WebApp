@@ -159,14 +159,14 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-kinetic-line/75 bg-kinetic-white/90 text-kinetic-graphite backdrop-blur-2xl">
+    <header className="sticky top-0 z-40 border-b border-runway-line bg-runway-black/85 text-runway-text backdrop-blur-2xl">
       <div className="mx-auto flex h-[4.25rem] max-w-[94rem] items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <a
           href="/"
           className="inline-flex min-h-11 items-center transition hover:opacity-70"
           aria-label="Blueprint home"
         >
-          <span className="text-[1.18rem] font-bold uppercase leading-none tracking-[0.16em] text-kinetic-blue">
+          <span className="text-[1.18rem] font-bold uppercase leading-none tracking-[0.16em] text-runway-signal">
             Blueprint
           </span>
         </a>
@@ -179,13 +179,13 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 className={`relative py-2 text-[13px] font-medium tracking-[-0.01em] transition ${
-                  active ? "text-kinetic-blue" : "text-kinetic-muted hover:text-kinetic-graphite"
+                  active ? "text-runway-signal" : "text-runway-mute hover:text-runway-text"
                 }`}
                 aria-current={active ? "page" : undefined}
               >
                 {link.label}
                 <span
-                  className={`absolute inset-x-0 bottom-0 h-px origin-center bg-kinetic-blue transition ${
+                  className={`absolute inset-x-0 bottom-0 h-px origin-center bg-runway-signal transition ${
                     active ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"
                   }`}
                 />
@@ -195,15 +195,15 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-4 xl:flex">
-          <span aria-hidden className="h-5 w-px bg-kinetic-line" />
+          <span aria-hidden className="h-5 w-px bg-runway-line" />
           {headerUtilityLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
               className={`text-[13px] font-medium transition ${
                 isActive(link.href)
-                  ? "text-kinetic-blue"
-                  : "text-kinetic-muted hover:text-kinetic-graphite"
+                  ? "text-runway-signal"
+                  : "text-runway-mute hover:text-runway-text"
               }`}
             >
               {link.label}
@@ -213,7 +213,7 @@ export function Header() {
             <>
               <a
                 href={visibleHeaderCta.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-kinetic-blue px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_10px_24px_-14px_rgba(21,84,255,0.8)] transition hover:-translate-y-px hover:bg-kinetic-blue-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
               >
                 {visibleHeaderCta.label}
               </a>
@@ -221,7 +221,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="rounded-full ring-1 ring-kinetic-line transition hover:ring-kinetic-blue/50"
+                  className="rounded-full ring-1 ring-runway-line transition hover:ring-runway-signal/60"
                   aria-label="Open user menu"
                 >
                   <Avatar className="h-9 w-9">
@@ -238,7 +238,7 @@ export function Header() {
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 rounded-none border-line">
+              <DropdownMenuContent align="end" className="w-64 rounded-none border-runway-line">
                 <DropdownMenuLabel>
                   <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#0d0d0b]/55">
                     {userPersona.badge}
@@ -284,7 +284,7 @@ export function Header() {
             <>
               <a
                 href="/sign-in"
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-[13px] font-medium leading-none text-kinetic-muted transition hover:text-kinetic-graphite"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-[13px] font-medium leading-none text-runway-mute transition hover:text-runway-text"
               >
                 <LogIn className="h-4 w-4" />
                 Sign in
@@ -293,13 +293,13 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-kinetic-line bg-white px-4 py-2.5 text-[13px] font-medium leading-none text-kinetic-graphite transition hover:border-kinetic-blue/45"
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm border border-runway-line bg-runway-panel px-4 py-2.5 text-[13px] font-medium leading-none text-runway-text transition hover:border-runway-signal/60"
                   >
                     <UserPlus className="h-4 w-4" />
                     Sign up
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 rounded-none border-line">
+                <DropdownMenuContent align="end" className="w-72 rounded-none border-runway-line">
                   <DropdownMenuLabel>Choose access path</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {signupLinks.map(({ href, label, description, Icon }) => (
@@ -319,7 +319,7 @@ export function Header() {
               </DropdownMenu>
               <a
                 href={headerRequestEvaluation.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-kinetic-blue px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_10px_24px_-14px_rgba(21,84,255,0.8)] transition hover:-translate-y-px hover:bg-kinetic-blue-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
               >
                 {headerRequestEvaluation.label}
               </a>
@@ -329,7 +329,7 @@ export function Header() {
 
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-kinetic-line bg-white p-0 text-kinetic-graphite xl:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-runway-line bg-runway-panel p-0 text-runway-text xl:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-label="Toggle navigation"
@@ -339,17 +339,17 @@ export function Header() {
       </div>
 
       {open ? (
-        <div className="border-t border-kinetic-line bg-white/98 xl:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-6 text-sm font-medium text-kinetic-graphite">
+        <div className="border-t border-runway-line bg-runway-deep xl:hidden">
+          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-6 text-sm font-medium text-runway-text">
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-kinetic-faint">
+              <p className="px-1 font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-runway-faint">
                 Explore
               </p>
               {[...primaryNavLinks, ...headerUtilityLinks].map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="flex min-h-11 items-center border-b border-kinetic-line px-1 py-3 text-kinetic-muted transition hover:text-kinetic-blue"
+                  className="flex min-h-11 items-center border-b border-runway-line px-1 py-3 text-runway-mute transition hover:text-runway-signal"
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
@@ -359,7 +359,7 @@ export function Header() {
 
             <a
               href={visibleHeaderCta.href}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-kinetic-blue px-4 py-2.5 text-center font-semibold text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-runway-signal px-4 py-2.5 text-center font-semibold text-runway-black"
               onClick={() => setOpen(false)}
             >
               {visibleHeaderCta.label}
@@ -367,16 +367,16 @@ export function Header() {
 
             {currentUser ? (
               <>
-                <div className="rounded-lg border border-kinetic-line px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-kinetic-faint">
+                <div className="rounded-sm border border-runway-line px-4 py-3">
+                  <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-runway-faint">
                     Signed in as
                   </p>
-                  <p className="mt-1 text-sm text-kinetic-graphite">{userPersona.badge}</p>
+                  <p className="mt-1 text-sm text-runway-text">{userPersona.badge}</p>
                 </div>
                 {userPersona.requestHref ? (
                   <a
                     href={userPersona.requestHref}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-kinetic-line px-4 py-2.5 text-center text-kinetic-graphite"
+                    className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
                     onClick={() => setOpen(false)}
                   >
                     Request room
@@ -384,21 +384,21 @@ export function Header() {
                 ) : null}
                 <a
                   href={userPersona.secondaryHref}
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-kinetic-line px-4 py-2.5 text-center text-kinetic-graphite"
+                  className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
                   onClick={() => setOpen(false)}
                 >
                   {userPersona.secondaryLabel}
                 </a>
                 <a
                   href="/settings"
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-kinetic-line px-4 py-2.5 text-center text-kinetic-graphite"
+                  className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
                   onClick={() => setOpen(false)}
                 >
                   Settings
                 </a>
                 <button
                   type="button"
-                  className="inline-flex min-h-11 items-center justify-center rounded-none border border-[#9b3027]/45 px-4 py-2.5 text-center text-[#e7a59e]"
+                  className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-red/45 px-4 py-2.5 text-center text-runway-red"
                   onClick={async () => {
                     await handleSignOut();
                     setOpen(false);
@@ -408,10 +408,10 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <div className="space-y-3 border-t border-kinetic-line pt-5">
+              <div className="space-y-3 border-t border-runway-line pt-5">
                 <a
                   href="/sign-in"
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-kinetic-line px-4 py-2.5 text-center text-kinetic-graphite"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
                   onClick={() => setOpen(false)}
                 >
                   Sign in
@@ -421,7 +421,7 @@ export function Header() {
                     <a
                       key={href}
                       href={href}
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-kinetic-line px-4 py-2.5 text-center text-kinetic-graphite"
+                      className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
                       onClick={() => setOpen(false)}
                     >
                       Sign up: {label}

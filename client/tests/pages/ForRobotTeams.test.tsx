@@ -3,30 +3,36 @@ import { describe, expect, it } from "vitest";
 import ForRobotTeams from "@/pages/ForRobotTeams";
 
 describe("ForRobotTeams", () => {
-  it("explains why robot teams use the shared preparation layer", () => {
+  it("leads with the allocation constraint rather than with lead volume", () => {
     render(<ForRobotTeams />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /captured task, not a blank site/i,
+        name: /scarcest resource isn't robots/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Keep scarce deployment engineers on qualified work/i,
+        name: /not short of leads\. You are short of weeks/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Skip repeated site discovery/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Deployment-engineer weeks/i)).toBeInTheDocument();
     expect(screen.getByText(/Site files stay controlled/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /Blueprint prepares\. Your team integrates and proves/i,
-      }),
+      screen.getByRole("heading", { name: /We prepare\. You integrate and prove/i }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Join the robot network/i }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps the modelled economics labelled as assumptions", () => {
+    const { container } = render(<ForRobotTeams />);
+    expect(container).toHaveTextContent(/management assumptions, not disclosed customer terms/i);
+    expect(
+      screen.getAllByRole("link", {
+        name: /Agility Robotics investor presentation, June 2026/i,
+      }).length,
     ).toBeGreaterThan(0);
   });
 });

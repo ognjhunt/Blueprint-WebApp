@@ -41,7 +41,7 @@ export function TileGrid({ items, cols = 3, className, children }: TileGridProps
         // `cols` only applies from lg up; phones get a single column and small
         // tablets two, so a 4-5 column grid never compresses into unreadable
         // strips on a 390px viewport.
-        "grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8]",
+        "grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line",
         "grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(var(--tile-cols),minmax(0,1fr))]",
         className,
       )}
@@ -52,15 +52,15 @@ export function TileGrid({ items, cols = 3, className, children }: TileGridProps
         : (items ?? []).map((item) => {
         const content: ReactNode = (
           <div className="flex h-full flex-col justify-between gap-6">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-runway-faint">
               {item.eyebrow ?? "Environment"}
             </span>
             <div>
-              <p className="text-lg font-medium tracking-tight text-ink-900">
+              <p className="text-lg font-medium tracking-tight text-runway-text">
                 {item.label}
               </p>
               {item.description ? (
-                <p className="mt-2 text-sm leading-6 text-ink-500">
+                <p className="mt-2 text-sm leading-6 text-runway-mute">
                   {item.description}
                 </p>
               ) : null}
@@ -69,14 +69,14 @@ export function TileGrid({ items, cols = 3, className, children }: TileGridProps
         );
 
         const tileClass =
-          "block h-full bg-white p-6 transition-colors duration-200 ease-standard";
+          "block h-full bg-runway-panel p-6 transition-colors duration-200 ease-standard";
 
         if (item.href) {
           return (
             <a
               key={item.label}
               href={item.href}
-              className={cn(tileClass, "hover:bg-inset")}
+              className={cn(tileClass, "hover:bg-runway-raised")}
             >
               {content}
             </a>

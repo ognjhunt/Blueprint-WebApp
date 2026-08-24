@@ -51,7 +51,7 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                 <p className="mt-5 max-w-[22rem] text-sm uppercase tracking-[0.18em] text-black/50">
                   {guide.summary}
                 </p>
-                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white">
+                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-runway-panel">
                   <img src={guide.heroImage} alt={guide.heroAlt} className="h-full w-full object-cover" />
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -60,7 +60,7 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                 </div>
               </div>
 
-              <div className="bg-white p-8 lg:p-10">
+              <div className="bg-runway-panel p-8 lg:p-10">
                 <div className="grid gap-5 md:grid-cols-2">
                   {guide.sections.map((section) => (
                     <SurfaceCard key={section.title} className="h-full">
@@ -81,14 +81,14 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.58fr_0.42fr]">
-                  <SurfaceCard className="bg-[#111110] text-white">
+                  <SurfaceCard className="bg-[#111110] text-runway-text">
                     <div className="flex items-center gap-3">
-                      <AlertTriangle className="h-4.5 w-4.5 text-white/65" />
+                      <AlertTriangle className="h-4.5 w-4.5 text-runway-mute" />
                       <SurfaceMiniLabel className="text-white/50">Escalate</SurfaceMiniLabel>
                     </div>
-                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                    <div className="mt-5 divide-y divide-white/10 border border-runway-line">
                       {guide.escalation.map((item) => (
-                        <p key={item} className="p-4 text-sm leading-7 text-white/65">
+                        <p key={item} className="p-4 text-sm leading-7 text-runway-mute">
                           {item}
                         </p>
                       ))}

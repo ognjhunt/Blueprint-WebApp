@@ -33,16 +33,16 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
   // reads as a deployment certification.
   const captureBadge =
     qualificationState === "needs_refresh"
-      ? { label: "Needs refresh", className: "border-amber-200 bg-amber-50 text-amber-900" }
+      ? { label: "Needs refresh", className: "border-runway-amber/30 bg-runway-amber/[0.1] text-runway-amber" }
       : qualificationState === "qualified_risky"
-        ? { label: "Qualified · risk noted", className: "border-amber-200 bg-amber-50 text-amber-900" }
+        ? { label: "Qualified · risk noted", className: "border-runway-amber/30 bg-runway-amber/[0.1] text-runway-amber" }
         : qualificationState
-          ? { label: "Capture on file", className: "border-slate-200 bg-slate-50 text-slate-700" }
+          ? { label: "Capture on file", className: "border-runway-line bg-runway-deep text-runway-mute" }
           : null;
   return (
-    <article className="flex flex-col rounded-lg border border-slate-200 bg-white p-6">
+    <article className="flex flex-col rounded-lg border border-runway-line bg-runway-panel p-6">
       <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider">
-        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-900">
+        <span className="rounded-md border border-runway-green/30 bg-runway-green/[0.1] px-2.5 py-1 text-runway-green">
           Pipeline record
         </span>
         {captureBadge ? (
@@ -54,11 +54,11 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
       <h2 className="mt-5 text-3xl font-semibold leading-tight tracking-normal">
         {site.siteName}
       </h2>
-      <p className="mt-2 text-sm font-semibold text-slate-500">
+      <p className="mt-2 text-sm font-semibold text-runway-faint">
         {site.category} · {site.industry}
       </p>
-      <p className="mt-4 flex-1 text-sm leading-6 text-slate-600">{site.summary}</p>
-      <p className="mt-3 text-xs leading-5 text-slate-500">
+      <p className="mt-4 flex-1 text-sm leading-6 text-runway-mute">{site.summary}</p>
+      <p className="mt-3 text-xs leading-5 text-runway-faint">
         A Task Evaluation Run evaluates the decision-relevant claims on this site&rsquo;s captured
         task envelope and may decide, partially decide, or abstain.
       </p>
@@ -67,7 +67,7 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
           {tasks.map((task) => (
             <span
               key={task.id}
-              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
+              className="rounded-md border border-runway-line bg-runway-deep px-3 py-2 text-sm font-semibold text-runway-mute"
             >
               {task.taskText || task.taskId || task.id}
             </span>
@@ -77,13 +77,13 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
         <a
           href={`/sites/${encodeURIComponent(site.id)}`}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text hover:bg-slate-800"
         >
           Inspect record <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </a>
         <a
           href={requestHref(site)}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-runway-line px-4 text-sm font-semibold text-runway-text hover:bg-slate-50"
         >
           Request a Task Evaluation Run
         </a>
@@ -157,40 +157,40 @@ export default function Sites() {
         ]}
       />
 
-      <div className="bg-white text-slate-950">
-        <section className="border-b border-slate-200">
+      <div className="bg-runway-panel text-runway-text">
+        <section className="border-b border-runway-line">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.75fr_1.25fr] md:items-center md:px-8 md:py-16">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-signal">
                 Deployment opportunity inputs
               </p>
               <h1 className="mt-4 max-w-[14ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
                 Start with the real workflow.
               </h1>
-              <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
+              <p className="mt-5 max-w-lg text-lg leading-8 text-runway-mute">
                 {robotPolicyScreeningValue}
               </p>
-              <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
+              <p className="mt-4 max-w-lg text-base leading-7 text-runway-mute">
                 These records are the starting point for the work before a robot arrives: define the task, build the testbed, screen fit, and prepare the onsite handoff. The evidence is strongest first for warehouse and logistics work —
                 mobile-base navigation and rigid pick-and-place ({robotPolicyBeachheadShort}).
                 Other site types stay browsable below. Public cards come from current
                 Pipeline-backed capture records; if the exact place is not open, Blueprint can
                 scope a new capture with its operator.
               </p>
-              <p className="mt-4 max-w-lg text-sm leading-6 text-slate-500">
+              <p className="mt-4 max-w-lg text-sm leading-6 text-runway-faint">
                 A Task Evaluation Run reports only the claims supported inside its validation envelope —
                 not a guarantee, safety certification, or deployment-readiness claim.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref()}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm bg-runway-signal px-5 text-sm font-semibold text-runway-black hover:bg-runway-signal-deep"
                 >
                   Prepare a deployment <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
                   href="/signup/capturer"
-                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-runway-line px-5 text-sm font-semibold text-runway-text hover:bg-slate-50"
                 >
                   Capture a workflow
                 </a>
@@ -199,17 +199,17 @@ export default function Sites() {
             <img
               src={wamPolicyEvalAssets.hero}
               alt="Generated preview: a mobile-base robot navigating a warehouse aisle and lifting a rigid tote — review support, not a captured photo"
-              className="aspect-[16/9] w-full rounded-lg border border-slate-200 object-cover"
+              className="aspect-[16/9] w-full rounded-lg border border-runway-line object-cover"
             />
           </div>
         </section>
 
-        <section className="border-b border-slate-200 bg-slate-50">
+        <section className="border-b border-runway-line bg-runway-deep">
           <div className="mx-auto max-w-[88rem] px-5 py-6 md:px-8">
             <label htmlFor="site-search" className="block max-w-2xl">
-              <span className="mb-2 block text-xs font-semibold text-slate-500">Search live records</span>
-              <span className="flex min-h-12 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4">
-                <Search className="h-4 w-4 text-slate-500" aria-hidden="true" />
+              <span className="mb-2 block text-xs font-semibold text-runway-faint">Search live records</span>
+              <span className="flex min-h-12 items-center gap-3 rounded-lg border border-runway-line bg-runway-panel px-4">
+                <Search className="h-4 w-4 text-runway-faint" aria-hidden="true" />
                 <input
                   id="site-search"
                   value={query}
@@ -224,36 +224,36 @@ export default function Sites() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 md:px-8">
           {loading ? (
-            <div className="flex min-h-64 items-center justify-center rounded-lg border border-slate-200">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" aria-label="Loading site records" />
+            <div className="flex min-h-64 items-center justify-center rounded-lg border border-runway-line">
+              <Loader2 className="h-6 w-6 animate-spin text-runway-signal" aria-label="Loading site records" />
             </div>
           ) : error ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-7">
-              <h2 className="text-2xl font-semibold">Inventory status is temporarily unavailable.</h2>
-              <p className="mt-3 text-sm text-amber-950">{error}</p>
-              <a href={requestHref()} className="mt-5 inline-flex font-semibold text-blue-700">Request a site directly</a>
+            <div className="rounded-lg border border-runway-amber/30 bg-runway-amber/[0.08] p-7">
+              <h2 className="text-2xl font-semibold text-runway-text">Inventory status is temporarily unavailable.</h2>
+              <p className="mt-3 text-sm text-runway-mute">{error}</p>
+              <a href={requestHref()} className="mt-5 inline-flex font-semibold text-runway-signal">Request a site directly</a>
             </div>
           ) : filteredSites.length ? (
             <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
               {filteredSites.map((site) => <SiteCard key={site.id} site={site} />)}
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 bg-white px-6 py-12">
-              <Database className="h-7 w-7 text-blue-600" aria-hidden="true" />
+            <div className="rounded-lg border border-runway-line bg-runway-panel px-6 py-12">
+              <Database className="h-7 w-7 text-runway-signal" aria-hidden="true" />
               <h2 className="mt-5 text-3xl font-semibold tracking-normal">
                 {sites.length ? "No live record matches that search." : "Site access starts with a real capture record."}
               </h2>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+              <p className="mt-3 max-w-2xl text-base leading-7 text-runway-mute">
                 Blueprint only publishes inventory backed by the current capture and Pipeline record.
                 Request the exact workflow and site type you need.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 {sites.length ? (
-                  <button type="button" onClick={() => setQuery("")} className="min-h-11 rounded-lg border border-slate-200 px-4 text-sm font-semibold">
+                  <button type="button" onClick={() => setQuery("")} className="min-h-11 rounded-lg border border-runway-line px-4 text-sm font-semibold">
                     Clear search
                   </button>
                 ) : null}
-                <a href={requestHref()} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white">
+                <a href={requestHref()} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text">
                   Request exact-site access
                 </a>
               </div>

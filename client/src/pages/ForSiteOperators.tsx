@@ -1,16 +1,36 @@
-import { ArrowRight, LockKeyhole, ScanSearch, ShieldCheck } from "lucide-react";
+/**
+ * For site operators.
+ *
+ * The operator's real question is not "which robot should I buy" — it is
+ * "will anyone send me one, and what do I have to do to be worth sending one
+ * to." So the page is organised around queue position: robot capacity is
+ * allocated, not merely sold, and a site that arrives already captured,
+ * modelled, and screened is cheaper to say yes to than one that arrives as a
+ * phone call.
+ *
+ * The access ladder is given its own section because the objection that kills
+ * these conversations is never price. It is "I am not handing my facility
+ * model to eight vendors."
+ */
+import { LockKeyhole, ScanSearch, ShieldCheck } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { DeploymentComparison } from "@/components/site/DeploymentComparison";
-import { DeploymentTimeline } from "@/components/site/DeploymentTimeline";
 import { Reveal } from "@/components/site/motion";
 import {
+  AllocationFigure,
+  DeploymentPipelineChart,
+  StructuralCompareFigure,
+} from "@/components/site/runway/figures";
+import { PageHero } from "@/components/site/publicSections";
+import {
   Band,
-  ClosingCta,
+  BoundaryPanel,
+  FigureFrame,
   Inner,
-  PageHero,
-  SectionHeader,
-} from "@/components/site/publicSections";
+  RunwayCta,
+  SectionHead,
+} from "@/components/site/runway/shell";
+import { deploymentBoundary, deploymentPipelineMeta } from "@/data/deploymentMarket";
 import { siteOperatorHero } from "@/data/publicSiteCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -20,50 +40,50 @@ const submitHref =
 const siteSteps = [
   {
     title: "Show the job",
-    body: "Upload phone video, plans, measurements, throughput, exceptions, and a guided scan when available.",
+    body: "Phone video, plans, measurements, throughput, exceptions — and a guided scan where one is available.",
     Icon: ScanSearch,
   },
   {
     title: "Set the rules",
-    body: "Choose restricted areas, allowed uses, approved viewers, and whether physical access is ever permitted.",
+    body: "Restricted areas, allowed uses, approved viewers, and whether physical access is ever permitted.",
     Icon: LockKeyhole,
   },
   {
     title: "Review qualified fit",
-    body: "See which robot categories fit, what remains unknown, and which teams merit deeper access or an onsite visit.",
+    body: "Which robot categories fit, what stays unknown, and which teams have earned deeper access.",
     Icon: ShieldCheck,
   },
 ] as const;
 
 const accessLevels = [
-  [
-    "01",
-    "Anonymous summary",
-    "Task type, region, operating window, and rough volume.",
-  ],
-  [
-    "02",
-    "Standard benchmark",
-    "Object ranges, task metrics, environment class, and expected throughput.",
-  ],
-  [
-    "03",
-    "Controlled evaluation",
-    "Robot teams run approved tests; the site model stays hosted by Blueprint.",
-  ],
-  [
-    "04",
-    "Shortlisted package",
-    "Detailed layouts and integrations only for operator-approved teams.",
-  ],
+  {
+    step: "01",
+    title: "Anonymous summary",
+    detail: "Task type, region, operating window, rough volume. No site identity.",
+  },
+  {
+    step: "02",
+    title: "Standard benchmark",
+    detail: "Object ranges, task metrics, environment class, expected throughput.",
+  },
+  {
+    step: "03",
+    title: "Controlled evaluation",
+    detail: "Approved teams run approved tests. The site model stays hosted by Blueprint.",
+  },
+  {
+    step: "04",
+    title: "Shortlisted package",
+    detail: "Detailed layouts and integration specifics — only for teams you have approved.",
+  },
 ] as const;
 
 export default function ForSiteOperators() {
   return (
     <>
       <SEO
-        title="Prepare a site for robot deployment | Blueprint"
-        description="Explain one real workflow once, keep control of the site data, and let qualified robot teams test fit before they visit."
+        title="Get robots to your site sooner | Blueprint"
+        description="Robot capacity is allocated, not just sold. Explain one real workflow once, keep control of the site data, and let qualified robot teams test fit before they ever visit."
         canonical="/for-site-operators"
         jsonLd={[
           webPageJsonLd({
@@ -94,116 +114,127 @@ export default function ForSiteOperators() {
         routeTrace
       />
 
-      <Band tone="ink">
+      <Band tone="black" rule grid>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
+          <SectionHead
             index="01"
             eyebrow="What you do"
             title="Show the job. Set the rules. Review the fit."
-            lede="You do not need to choose a robot, simulator, or evaluation stack before starting."
-            onInk
+            lede="You do not need to choose a robot, a simulator, or an evaluation stack before starting."
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 lg:grid-cols-3">
+          <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
             {siteSteps.map(({ title, body, Icon }, index) => (
-              <Reveal key={title} delay={index * 0.06}>
-                <article className="h-full bg-ink p-6 lg:p-8">
-                  <Icon className="h-5 w-5 text-brass" aria-hidden="true" />
-                  <h2 className="mt-5 text-title-m font-semibold tracking-tight text-white">
+              <Reveal key={title} delay={index * 0.06} className="bg-runway-panel p-7 lg:p-8">
+                <div>
+                  <Icon className="h-5 w-5 text-runway-signal" aria-hidden="true" />
+                  <h2 className="mt-6 text-[17px] font-semibold tracking-[-0.025em] text-runway-text">
                     {title}
                   </h2>
-                  <p className="mt-3 text-body-s leading-7 text-ink-300">
-                    {body}
-                  </p>
-                </article>
+                  <p className="mt-3 text-[13.5px] leading-6 text-runway-mute">{body}</p>
+                </div>
               </Reveal>
             ))}
           </div>
         </Inner>
       </Band>
 
-      <Band tone="canvas">
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
+          <SectionHead
             index="02"
-            eyebrow="Why not do it yourself"
-            title="Stop rebuilding the same opportunity for every vendor."
-            lede="One controlled work package makes robot-team answers easier to compare and keeps the site from handing raw facility data to every interested company."
+            eyebrow="Why this decides your queue position"
+            title="Robot capacity is allocated, not just sold."
+            lede="A robot company weighs these four things before it commits deployment engineers. A captured, screened site answers all four before the first call."
           />
-          <Reveal className="mt-14">
-            <DeploymentComparison />
-          </Reveal>
+          <div className="mt-14">
+            <AllocationFigure />
+          </div>
         </Inner>
       </Band>
 
-      <Band tone="paper" rule>
+      <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
+          <SectionHead
             index="03"
             eyebrow="Progressive access"
-            title="Robot teams learn more only when the opportunity earns it."
-            lede="Evaluation rights are not training rights. The underlying site model is not a download."
+            title="Teams learn more only when the opportunity earns it."
+            lede="Evaluation rights are not training rights. The underlying site model is never a download."
           />
-          <ol className="mt-14 grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-4">
-            {accessLevels.map(([number, title, body]) => (
-              <li key={number} className="bg-white p-6">
-                <span className="font-mono text-micro text-action">
-                  {number}
-                </span>
-                <h2 className="mt-4 text-title-m font-semibold tracking-tight text-ink-900">
-                  {title}
-                </h2>
-                <p className="mt-3 text-caption leading-6 text-ink-500">
-                  {body}
-                </p>
-              </li>
+          <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
+            {accessLevels.map((level, index) => (
+              <Reveal
+                key={level.step}
+                as="li"
+                delay={index * 0.06}
+                className="bg-runway-panel p-6"
+              >
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
+                      {level.step}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="h-px flex-1 bg-runway-line"
+                    />
+                    <LockKeyhole className="h-3.5 w-3.5 text-runway-faint" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-5 text-[15px] font-semibold leading-6 tracking-[-0.015em] text-runway-text">
+                    {level.title}
+                  </h3>
+                  <p className="mt-2.5 text-[13px] leading-6 text-runway-mute">{level.detail}</p>
+                </div>
+              </Reveal>
             ))}
           </ol>
         </Inner>
       </Band>
 
-      <Band tone="canvas">
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
-          <SectionHeader
+          <SectionHead
             index="04"
+            eyebrow="Why not do it yourself"
+            title="Stop rebuilding the same opportunity for every vendor."
+          />
+          <div className="mt-14">
+            <StructuralCompareFigure />
+          </div>
+        </Inner>
+      </Band>
+
+      <Band tone="black" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="05"
             eyebrow="Where Blueprint stops"
             title="The robot provider still owns onsite deployment."
           />
           <Reveal className="mt-14">
-            <DeploymentTimeline compact />
+            <FigureFrame
+              label="Fig. 01"
+              title="Path to scaled deployment"
+              basis="illustrative"
+              sources={[deploymentPipelineMeta.source]}
+              caveat={deploymentPipelineMeta.caveat}
+            >
+              <DeploymentPipelineChart />
+            </FigureFrame>
           </Reveal>
+          <div className="mt-8">
+            <BoundaryPanel items={deploymentBoundary} />
+          </div>
         </Inner>
       </Band>
 
-      <section className="bg-action text-white">
-        <div className="mx-auto flex max-w-[94rem] flex-col gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-          <div>
-            <p className="text-micro font-semibold uppercase tracking-eyebrow text-white/70">
-              Site price to start
-            </p>
-            <h2 className="mt-3 text-[clamp(2.2rem,4vw,4rem)] font-semibold leading-none tracking-[-0.05em]">
-              Submit and screen the workflow for $0.
-            </h2>
-          </div>
-          <a
-            href={submitHref}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 font-semibold text-ink-900"
-          >
-            Submit a site task{" "}
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-        </div>
-      </section>
-
-      <ClosingCta
-        eyebrow="Start with the job"
-        title="You do not need a robot vendor to begin."
-        body="Describe the workflow, operating conditions, success criteria, and access rules. Blueprint will tell you what can be screened now and what evidence is still missing."
+      <RunwayCta
+        eyebrow="Start with the job · $0 to submit"
+        title="You don't need a robot vendor to begin."
+        body="Describe the workflow, the operating conditions, the success criteria, and the access rules. Blueprint will tell you what can be screened now and what evidence is still missing."
         primaryHref={submitHref}
         primaryLabel="Submit a site task"
         secondaryHref="/pricing"
         secondaryLabel="See the success fee"
-        imageSrc="/redesign/pov/inspection-bench.jpg"
-        imageAlt="Inspection workflow prepared as a private robot opportunity"
       />
     </>
   );

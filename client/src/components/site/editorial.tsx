@@ -127,7 +127,7 @@ export function EditorialSectionLabel({
     <p
       className={cn(
         "text-[11px] font-semibold uppercase tracking-[0.24em]",
-        light ? "text-[color:var(--text-on-ink)] opacity-70" : "text-ink-500",
+        light ? "text-runway-text opacity-70" : "text-runway-mute",
         className,
       )}
     >
@@ -153,7 +153,7 @@ export function EditorialSectionIntro({
         className={cn(
           "mt-4 font-display font-medium leading-[1.02] tracking-[-0.03em]",
           "text-[clamp(2rem,3.2vw,3.1rem)]",
-          light ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+          light ? "text-runway-text" : "text-runway-text",
         )}
       >
         {title}
@@ -162,7 +162,7 @@ export function EditorialSectionIntro({
         <p
           className={cn(
             "mt-4 max-w-[40rem] text-[15px] leading-[1.7]",
-            light ? "text-[color:var(--text-on-ink)] opacity-80" : "text-ink-500",
+            light ? "text-runway-text opacity-80" : "text-runway-mute",
           )}
         >
           {description}
@@ -230,7 +230,7 @@ export function MonochromeVideo({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-ink",
+        "relative overflow-hidden bg-runway-panel",
         radiusClass[radius],
         className,
       )}
@@ -276,14 +276,14 @@ export function ProofChip({
       className={cn(
         "inline-flex items-center gap-2 rounded-sm border px-[0.6rem] py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
         light
-          ? "border-white/15 bg-[#07111d]/40 text-white"
-          : "border-kinetic-line bg-white/90 text-kinetic-muted",
+          ? "border-white/15 bg-runway-black/50 text-runway-text"
+          : "border-runway-line bg-runway-panel text-runway-mute",
         className,
       )}
     >
       <span
         aria-hidden="true"
-        className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-kinetic-blue"
+        className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-runway-signal"
       />
       {children}
     </span>
@@ -294,16 +294,16 @@ export function EditorialMetricStrip({ items, className }: MetricStripProps) {
   return (
     <div
       className={cn(
-        "grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8] md:grid-cols-2 xl:grid-cols-4",
+        "grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line md:grid-cols-2 xl:grid-cols-4",
         className,
       )}
     >
       {items.map((item) => (
-        <div key={item.label} className="bg-white px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+        <div key={item.label} className="bg-runway-panel px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-runway-faint">
             {item.label}
           </p>
-          <p className="mt-2 text-sm leading-6 text-ink-600">{item.detail}</p>
+          <p className="mt-2 text-sm leading-6 text-runway-mute">{item.detail}</p>
         </div>
       ))}
     </div>
@@ -422,7 +422,7 @@ export function EditorialFilmstrip({ frames, className }: FilmstripProps) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-white/10 bg-ink p-4 shadow-ink",
+        "rounded-lg border border-white/10 bg-runway-panel p-4 shadow-ink",
         className,
       )}
     >
@@ -470,7 +470,7 @@ export function EditorialCtaBand({
     <section
       className={cn(
         "relative overflow-hidden rounded-xl border px-6 py-8 shadow-lg sm:px-8 lg:px-10 lg:py-10",
-        dark ? "border-white/10 bg-ink" : "border-line bg-white",
+        dark ? "border-white/10 bg-runway-panel" : "border-runway-line bg-runway-panel",
         className,
       )}
     >
@@ -502,7 +502,7 @@ export function EditorialCtaBand({
             href={primaryHref}
             onClick={primaryOnClick}
             className={cn(
-              "inline-flex h-[2.625rem] items-center justify-center gap-2 rounded-sm bg-brass px-[1.125rem] text-sm font-semibold tracking-[-0.01em] text-ink",
+              "inline-flex h-[2.625rem] items-center justify-center gap-2 rounded-sm bg-brass px-[1.125rem] text-sm font-semibold tracking-[-0.01em] text-runway-text",
               "transition-[background-color,transform] duration-200 ease-standard hover:bg-brass-lit active:translate-y-px",
             )}
           >
@@ -517,8 +517,8 @@ export function EditorialCtaBand({
                 "inline-flex h-[2.625rem] items-center justify-center rounded-sm px-[1.125rem] text-sm font-semibold tracking-[-0.01em]",
                 "transition-[background-color,transform] duration-200 ease-standard active:translate-y-px",
                 dark
-                  ? "text-[color:var(--text-on-ink)] hover:bg-white/5"
-                  : "text-ink hover:bg-inset",
+                  ? "text-runway-text hover:bg-white/5"
+                  : "text-runway-text hover:bg-inset",
               )}
             >
               {secondaryLabel}
@@ -539,23 +539,25 @@ export function EditorialFaq({
   return (
     <div
       className={cn(
-        "grid gap-6 rounded-lg border border-line bg-white p-6 shadow-md lg:grid-cols-[0.34fr_0.66fr]",
+        "grid gap-6 rounded-lg border border-runway-line bg-runway-panel p-6 lg:grid-cols-[0.34fr_0.66fr]",
         className,
       )}
     >
       <div>
-        <EditorialSectionLabel>{title}</EditorialSectionLabel>
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-faint">
+          {title}
+        </p>
         {description ? (
-          <p className="mt-4 text-sm leading-[1.7] text-ink-500">{description}</p>
+          <p className="mt-4 text-sm leading-[1.7] text-runway-mute">{description}</p>
         ) : null}
       </div>
-      <div className="divide-y divide-line-soft">
+      <div className="divide-y divide-runway-line">
         {items.map((item, index) => (
           <article key={`${item.question}-${index}`} className="py-4">
-            <h3 className="text-left text-base font-medium text-ink-900">
+            <h3 className="text-left text-base font-medium text-runway-text">
               {item.question}
             </h3>
-            <p className="mt-2 text-sm leading-[1.7] text-ink-500">
+            <p className="mt-2 text-sm leading-[1.7] text-runway-mute">
               {item.answer}
             </p>
           </article>

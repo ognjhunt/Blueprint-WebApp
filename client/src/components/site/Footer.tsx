@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
+import { ArrowUpRight } from "lucide-react";
 
 import {
   footerCompanyLinks,
@@ -17,34 +17,39 @@ const footerColumns: FooterColumn[] = [
   { heading: "Company", links: footerCompanyLinks },
 ];
 
+/**
+ * The footer restates the boundary rather than the pitch. It is the last thing
+ * a skimming reader sees, and the one claim that must survive skimming is which
+ * two months are ours and which four are not.
+ */
 export function Footer() {
   return (
-    <footer className="bg-kinetic-dark text-white">
-      <div className="mx-auto max-w-[94rem] px-5 pb-8 pt-16 sm:px-8 lg:px-10 lg:pt-20">
-        <div className="grid gap-14 border-b border-white/12 pb-16 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div className="max-w-[25rem]">
+    <footer className="border-t border-runway-line bg-runway-deep text-runway-text">
+      <div className="mx-auto max-w-[92rem] px-5 pb-8 pt-16 sm:px-8 lg:px-10 lg:pt-20">
+        <div className="grid gap-14 border-b border-runway-line pb-16 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="max-w-[26rem]">
             <a
               href="/"
-              className="text-[1.08rem] font-bold uppercase tracking-[0.16em] text-kinetic-cyan"
+              className="text-[1.08rem] font-bold uppercase tracking-[0.16em] text-runway-signal"
               aria-label="Blueprint home"
             >
               Blueprint
             </a>
-            <p className="mt-7 text-[clamp(1.4rem,2vw,2rem)] font-medium leading-[1.22] tracking-[-0.035em] text-white/88">
-              Do the deployment homework before the robot arrives.
+            <p className="mt-7 text-[clamp(1.35rem,2vw,1.9rem)] font-medium leading-[1.22] tracking-[-0.035em] text-runway-text">
+              Deployment is the bottleneck. We take out the first two months.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"
-              className="mt-7 inline-flex items-center gap-2 text-sm text-white/58 transition hover:text-kinetic-cyan"
+              className="mt-7 inline-flex items-center gap-2 text-sm text-runway-mute transition hover:text-runway-signal"
             >
               hello@tryblueprint.io
-              <ArrowUpRightIcon className="h-4 w-4" aria-hidden="true" />
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
 
           {footerColumns.map((column) => (
             <nav key={column.heading}>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
                 {column.heading}
               </p>
               <ul className="mt-5 space-y-1">
@@ -52,7 +57,7 @@ export function Footer() {
                   <li key={`${column.heading}-${link.href}`}>
                     <a
                       href={link.href}
-                      className="inline-flex min-h-10 items-center text-sm text-white/62 transition hover:translate-x-0.5 hover:text-white"
+                      className="inline-flex min-h-10 items-center text-sm text-runway-mute transition hover:translate-x-0.5 hover:text-runway-text"
                     >
                       {link.label}
                     </a>
@@ -63,10 +68,11 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-white/35 sm:grid-cols-[auto_1fr] sm:items-start">
+        <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            Blueprint prepares months 0–2. Onsite integration, physical validation, and safety approval remain with the site and robot provider.
+            Blueprint prepares months 0–2. Onsite integration, physical validation, and safety
+            approval remain with the site and robot provider.
           </p>
         </div>
       </div>

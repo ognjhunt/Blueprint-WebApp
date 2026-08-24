@@ -8,7 +8,7 @@ describe("Pricing", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Do the homework free\. Pay when the robot gets paid/i,
+        name: /Free until a robot is earning/i,
       }),
     ).toBeInTheDocument();
     expect(

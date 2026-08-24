@@ -14,7 +14,7 @@ describe("HowItWorks", () => {
     for (const heading of [
       "Capture one workflow",
       "Build the testbed",
-      "Test robot fit",
+      "Screen and evaluate",
       "Hand off the homework",
     ]) {
       expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
@@ -26,7 +26,7 @@ describe("HowItWorks", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Real hardware is still required to settle physical performance and safety claims/i,
+        /Real hardware still settles physical performance and safety/i,
       ),
     ).toBeInTheDocument();
   });
