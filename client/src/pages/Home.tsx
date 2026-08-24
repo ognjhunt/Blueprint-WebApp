@@ -30,6 +30,7 @@ import {
   CostSplitFigure,
   DeploymentPipelineChart,
   FlywheelFigure,
+  HumanoidShareFigure,
   InstallationGapChart,
   ObservedDeploymentsFigure,
   PreShipmentWork,
@@ -51,6 +52,7 @@ import {
 } from "@/components/site/runway/shell";
 import {
   bottleneckThesis,
+  humanoidShare,
   deploymentBoundary,
   deploymentPipelineMeta,
   installationTotals,
@@ -96,8 +98,8 @@ export default function Home() {
         boundaryNote="We do the two months before the truck rolls. Onsite integration, commissioning, and the physical pilot stay with the robot company."
         readouts={[
           {
-            value: "8.6×",
-            label: "More robots installed in China than the US in 2024",
+            value: "97 of 100",
+            label: "Humanoids shipped in H1 2026 that came from a Chinese maker",
             tone: "red",
           },
           {
@@ -124,8 +126,8 @@ export default function Home() {
           <SectionHead
             index="01"
             eyebrow="The gap"
-            title="China installs nine robots for every one we do."
-            lede="Not a forecast. The most recent full year of industrial-robot installations, counted by the industry's own statistical body."
+            title="China ships 97 of every 100 humanoids."
+            lede="Two measurements of the same race. Industrial installations show the deployment capacity a country already has; humanoid share shows the leading edge — and the gap is far wider there."
           />
           <Reveal className="mt-14">
             <FigureFrame
@@ -142,6 +144,18 @@ export default function Home() {
           <Reveal className="mt-8">
             <FigureFrame
               label="Fig. 02"
+              title={`Humanoid shipment share, ${humanoidShare.period}`}
+              basis="published"
+              sources={humanoidShare.sources}
+              caveat="Share of shipments by vendor nationality. Shipments are not deployments — the panel inside this figure says what the difference is and why it matters."
+            >
+              <HumanoidShareFigure />
+            </FigureFrame>
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <FigureFrame
+              label="Fig. 03"
               title="Where those installations went"
               basis="published"
               sources={[marketSources.ifr2025]}
@@ -192,7 +206,7 @@ export default function Home() {
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 03"
+              label="Fig. 04"
               title="Path to scaled deployment"
               basis="illustrative"
               sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
@@ -236,7 +250,7 @@ export default function Home() {
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 04"
+              label="Fig. 05"
               title="Elapsed time on publicly documented humanoid deployments"
               basis="published"
               caveat={observedDeploymentsNote}
@@ -247,7 +261,7 @@ export default function Home() {
 
           <Reveal className="mt-8">
             <FigureFrame
-              label="Fig. 05"
+              label="Fig. 06"
               title="How many went through a standardised preparation program"
               basis="published"
               sources={[marketSources.agilityDeck]}
@@ -270,7 +284,7 @@ export default function Home() {
           />
           <Reveal className="mt-14">
             <FigureFrame
-              label="Fig. 06"
+              label="Fig. 07"
               title="Modelled per-robot deployment economics"
               basis="illustrative"
               sources={[marketSources.agilityDeck]}
@@ -282,7 +296,7 @@ export default function Home() {
 
           <Reveal className="mt-8">
             <FigureFrame
-              label="Fig. 07"
+              label="Fig. 08"
               title="How the deployment cost splits"
               basis="illustrative"
               sources={[marketSources.agilityDeck, marketSources.agilityProcess]}
@@ -293,7 +307,7 @@ export default function Home() {
 
           <Reveal className="mt-8">
             <FigureFrame
-              label="Fig. 08"
+              label="Fig. 09"
               title="Building the robot vs. deploying it"
               basis="illustrative"
               sources={[marketSources.agilityDeck]}

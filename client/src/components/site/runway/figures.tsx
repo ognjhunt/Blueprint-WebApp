@@ -30,12 +30,15 @@ import {
   observedDeployments,
   deploymentCostSplit,
   deploymentPipelineMeta,
+  excludedVolumeFigure,
   flywheelStages,
+  humanoidShare,
   installationTotals,
   installations2024,
   oemDeploymentPhases,
   perRobotEconomics,
   regionalShare2024,
+  shipmentsNotDeployments,
   structuralComparison,
 } from "@/data/deploymentMarket";
 import {
@@ -1326,6 +1329,139 @@ export function QualifyingMatrixFigure() {
           {convergenceNote.claim} {convergenceNote.reason}
         </p>
         <p className="runway-meta mt-4 leading-5">{environmentsFootnote}</p>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------ 14 · the leading edge, by share */
+
+const humanoidUnits = new Intl.NumberFormat("en-US");
+
+/**
+ * Humanoid shipment share, H1 2026.
+ *
+ * Drawn as one split rule rather than as paired bars because the argument is
+ * about proportion, not magnitude: 97 against 3 is legible instantly at any
+ * width, where two bars invite the reader to compare absolute heights that are
+ * not the point. The vendor list underneath supplies the magnitude for anyone
+ * who wants it.
+ *
+ * The caveat is inside the figure rather than under it. A shipment share that
+ * a reader can mistake for a deployment share is exactly the error this site
+ * exists to avoid making.
+ */
+export function HumanoidShareFigure() {
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <p className="runway-num text-[clamp(2.6rem,5.5vw,4.4rem)] font-medium leading-none tracking-[-0.04em] text-runway-red">
+          {humanoidShare.headline}
+        </p>
+        <p className="max-w-[30ch] text-[14px] leading-6 text-runway-mute">
+          humanoids shipped in {humanoidShare.period} came from a Chinese maker.
+        </p>
+      </div>
+
+      {/* The split, as one rule. */}
+      <div className="mt-8">
+        <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
+          <div
+            className="flex items-center justify-center bg-runway-red"
+            style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
+          >
+            <span className="runway-num text-[12px] text-runway-black/85">
+              Chinese makers · {humanoidShare.chineseVendorSharePct}%
+            </span>
+          </div>
+          <div
+            className="flex items-center justify-center bg-runway-signal"
+            style={{ width: `${humanoidShare.restOfWorldSharePct}%` }}
+          >
+            <span className="sr-only">
+              Everyone else: {humanoidShare.restOfWorldSharePct}%
+            </span>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <span className="runway-meta">
+            Global shipments {humanoidUnits.format(humanoidShare.globalUnits)} units ·{" "}
+            +{humanoidShare.growthPct}% year over year
+          </span>
+          <span className="text-[12.5px] text-runway-signal">
+            Everyone else: {humanoidShare.restOfWorldSharePct}% ·{" "}
+            <span className="runway-num">~{humanoidShare.restOfWorldUnits}</span> units
+            <span className="text-runway-faint"> (derived)</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Magnitude, for anyone who wants it. */}
+      <ol className="mt-9 space-y-3">
+        {humanoidShare.leaders.map((leader, index) => (
+          <li key={leader.name}>
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="text-[13px] text-runway-mute">{leader.name}</span>
+              <span className="runway-num text-[13px] text-runway-faint">
+                {humanoidUnits.format(leader.units)}
+                <span className="ml-2 text-runway-faint/70">{leader.sharePct}%</span>
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full bg-runway-raised">
+              <GrowIn
+                delay={index * 0.06}
+                className="h-full bg-runway-red/70"
+                style={{ width: `${leader.sharePct}%` }}
+              >
+                <span className="sr-only">
+                  {leader.name}: {humanoidUnits.format(leader.units)} units,{" "}
+                  {leader.sharePct}% of global shipments
+                </span>
+              </GrowIn>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {/* The caveat travels inside the figure, not under it. */}
+      <Reveal delay={0.2} className="mt-10 rounded-sm border border-runway-amber/30 bg-runway-amber/[0.06] p-6">
+        <div>
+          <p className="runway-meta text-runway-amber">Read this before quoting the number</p>
+          <p className="mt-4 text-[16px] font-semibold tracking-[-0.02em] text-runway-text">
+            {shipmentsNotDeployments.claim}
+          </p>
+          <p className="mt-3 max-w-[70ch] text-[13px] leading-6 text-runway-mute">
+            {shipmentsNotDeployments.detail}
+          </p>
+          <ul className="mt-6 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
+            {shipmentsNotDeployments.evidence.map((row) => (
+              <li key={row.id} className="bg-runway-panel p-5">
+                <p className="runway-meta">{row.subject}</p>
+                <p className="mt-3 text-[12.5px] leading-6 text-runway-mute">{row.fact}</p>
+                <a
+                  href={row.source.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block font-mono text-[10px] uppercase tracking-[0.12em] text-runway-faint underline-offset-4 transition-colors hover:text-runway-signal hover:underline"
+                >
+                  {row.source.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Reveal>
+
+      {/* What is deliberately absent, and why. */}
+      <Reveal delay={0.28} className="mt-6 border-t border-runway-line pt-5">
+        <p className="max-w-[76ch] text-[12.5px] leading-6 text-runway-faint">
+          <span className="runway-num text-runway-mute">
+            {excludedVolumeFigure.figure}
+          </span>{" "}
+          — a widely quoted half-year volume from the {excludedVolumeFigure.attribution} — is
+          deliberately not charted here. {excludedVolumeFigure.reason}{" "}
+          <span className="text-runway-mute">{excludedVolumeFigure.consequence}</span>
+        </p>
       </Reveal>
     </div>
   );

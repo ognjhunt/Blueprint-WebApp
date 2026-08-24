@@ -58,10 +58,13 @@ describe("qualifying-environment standard", () => {
     });
   });
 
-  it("does not chart the aggregate shipment totals that fail the evidence bar", () => {
+  it("keeps aggregate shipment volumes out of the environment evidence", () => {
+    // The 97% humanoid share is charted elsewhere on the site and is properly
+    // sourced. What stays out everywhere is the unpublished volume figure, and
+    // neither belongs in an argument about which environments qualify.
     const serialized = JSON.stringify({ deployedEnvironments, qualifyingStandard, convergenceNote });
     expect(serialized).not.toMatch(/40,?000/);
-    expect(serialized).not.toMatch(/97%/);
+    expect(serialized).not.toMatch(/19,?100/);
   });
 
   it("disclaims ownership of the cited deployments", () => {

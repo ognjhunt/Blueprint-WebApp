@@ -39,7 +39,7 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
 
   await expect(
     page.getByRole("heading", {
-      name: /China installs nine robots for every one we do/i,
+      name: /China ships 97 of every 100 humanoids/i,
     }),
   ).toBeVisible();
   await expect(
@@ -70,6 +70,11 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
     page.getByRole("link", { name: /IFR World Robotics 2025/i }).first(),
   ).toBeVisible();
   await expect(page.getByText(/Illustrative model/i).first()).toBeVisible();
+
+  // The leading-edge share never travels without its caveat, and the volume
+  // figure the site refuses to chart is named as excluded rather than dropped.
+  await expect(page.getByText(/A shipped humanoid is not a working one/i)).toBeVisible();
+  await expect(page.getByText(/deliberately not charted here/i)).toBeVisible();
 
   await expect(page.getByText(/12–24h/i)).toHaveCount(0);
 });

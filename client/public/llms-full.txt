@@ -8,7 +8,15 @@ The active lifecycle returns a bounded decision or abstention.
 
 Deployment, not robot capability, is the binding constraint on robot adoption. General-purpose robot policies keep improving and factory capacity is being built against multi-year order books, but every site still needs its own task definition, site model, evaluation, and integration — built by hand, once per vendor, per site. A robot that has not been matched to a site and a task is inventory, not capacity. The scarce unit is a validated robot–task–site configuration.
 
-The measured backdrop: IFR World Robotics 2025 reports 542,000 industrial robots installed worldwide in 2024, of which China took 295,000 (54% of global installations) against 34,200 in the United States, down 9% year over year. Asia took 74% of new deployments, Europe 16%, the Americas 9%.
+The measured backdrop, in two layers.
+
+Deployment capacity: IFR World Robotics 2025 reports 542,000 industrial robots installed worldwide in 2024, of which China took 295,000 (54% of global installations) against 34,200 in the United States, down 9% year over year. Asia took 74% of new deployments, Europe 16%, the Americas 9%.
+
+The leading edge: Smart Analytics Global, reported by Bloomberg, puts global humanoid shipments at about 19,100 units in H1 2026, up 272% year over year, with Chinese vendors accounting for more than 97% and China absorbing more than 85% of demand. AgiBot shipped about 8,400 units (44% share) and Unitree about 5,900 (31%). Non-Chinese makers therefore shipped roughly 570 units in the half-year, a figure derived from the published share rather than separately reported.
+
+Shipments are not deployments, and this distinction is stated wherever the share appears. More than 70% of H1 2026 shipments are classified industrial or commercial, up from about 50% a year earlier, but that is an application classification of shipments rather than a count of robots doing productive work. On Tesla's Q4 2025 earnings call, Musk described several hundred deployed Optimus units as "primarily for learning, not productive tasks" and said the robot was "not in usage in our factories in a material way." Boston Dynamics has committed its entire 2026 Atlas production run internally, to Hyundai's Metaplant and Google DeepMind, with no external customer.
+
+A widely quoted half-year volume of 40,000+ units, attributed to the China Electronics Society's 2026 Humanoid Robot Industry Development Report, is deliberately not charted. That report was presented at a conference and not published, carries no definition of "humanoid", and gives no split between wheeled and bipedal machines. It implies a global half-year total near 41,000 against Smart Analytics Global's 19,100 — a disagreement of more than two times on volume between sources that agree almost exactly on the share. The share is charted; the volume is not.
 
 ## The problem
 
