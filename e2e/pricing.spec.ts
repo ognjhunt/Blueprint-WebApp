@@ -7,7 +7,7 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
 
   await expect(
     page.getByRole("heading", {
-      name: "Do the homework free. Pay when the robot gets paid.",
+      name: "Free until a robot is earning.",
     }),
   ).toBeVisible();
   await expect(

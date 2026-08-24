@@ -7,7 +7,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
     page.getByRole("heading", {
-      name: "Start with a captured task, not a blank site.",
+      name: "Your scarcest resource isn't robots. It's engineer-weeks.",
     }),
   ).toBeVisible();
   await expect(
@@ -23,17 +23,17 @@ test("robot-team and site-operator pages describe one service and intake", async
 }) => {
   await page.goto("/for-robot-teams");
   await expect(
-    page.getByText(/Skip repeated site discovery/i).first(),
+    page.getByText(/Deployment-engineer weeks/i).first(),
   ).toBeVisible();
   await expect(
-    page.getByText(/Blueprint prepares\. Your team integrates and proves/i),
+    page.getByText(/We prepare\. You integrate and prove/i),
   ).toBeVisible();
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);
 
   await page.goto("/for-site-operators");
   await expect(
     page.getByRole("heading", {
-      name: "Explain the job once. Let robot teams test it before they visit.",
+      name: "Robot-ready sites get robots first.",
     }),
   ).toBeVisible();
   await expect(

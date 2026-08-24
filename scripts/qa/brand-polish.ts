@@ -152,20 +152,20 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "The robot should arrive after the homework is done.",
+    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the 0–6 month map", hrefStartsWith: "/how-it-works" },
+      { label: "See the method", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "The robot should arrive after the homework is done.",
+    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the 0–6 month map", hrefStartsWith: "/how-it-works" },
+      { label: "See the method", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Do the homework free. Pay when the robot gets paid.",
+    expectedHeading: "Free until a robot is earning.",
     requiredCtas: [
       { label: "Submit a site task", hrefStartsWith: "/signup/business" },
       { label: "Join as a robot team", hrefStartsWith: "/signup/business" },
@@ -267,14 +267,14 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "For sites",
     path: "/for-site-operators",
     canonicalPath: "/for-site-operators",
-    expectedHeading: "Explain the job once. Let robot teams test it before they visit.",
+    expectedHeading: "Robot-ready sites get robots first.",
     requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "For robot teams",
     path: "/for-robot-teams",
     canonicalPath: "/for-robot-teams",
-    expectedHeading: "Start with a captured task, not a blank site.",
+    expectedHeading: "Your scarcest resource isn't robots. It's engineer-weeks.",
     requiredCtas: [{ label: "Join the robot network", hrefStartsWith: "/signup/business" }],
   },
   {
@@ -288,17 +288,20 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Vision",
     path: "/vision",
     canonicalPath: "/vision",
-    expectedHeading: "Every robot should arrive with the site homework already done.",
-    requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
+    expectedHeading: "The country that deploys fastest wins.",
+    requiredCtas: [
+      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
+      { label: "See the method", hrefStartsWith: "/how-it-works" },
+    ],
   },
   {
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "The robot should arrive after the homework is done.",
+    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the 0–6 month map", hrefStartsWith: "/how-it-works" },
+      { label: "See the method", hrefStartsWith: "/how-it-works" },
     ],
   },
 ];
