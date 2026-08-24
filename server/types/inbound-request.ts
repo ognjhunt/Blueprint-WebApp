@@ -239,6 +239,12 @@ export interface RequestDetails {
   taskDescription?: string | null;
   /** What goes wrong today — where the edge cases that break deployments live. */
   whatGoesWrong?: string | null;
+  /**
+   * Optional link to footage of the task. A link, never an upload: taking
+   * worker footage before a consent record exists would bypass the machinery
+   * `/governance` promises, and a link leaves custody with the site.
+   */
+  taskVideoUrl?: string | null;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: string | null;
@@ -834,7 +840,7 @@ export interface PipelineAttachment {
 /**
  * The deterministic site-task verdict, persisted at submission time.
  *
- * Computed by `triageGateAnswers` in `client/src/lib/siteTaskTriage.ts` from
+ * Computed by `triageGateAnswers` in `client/src/lib/gateTriage.ts` from
  * the operator's own dropdown answers, before any model runs. It is stored
  * rather than recomputed downstream so the qualification agent can be told what
  * was already decided, and so an auditor can see the same verdict the operator
@@ -1031,6 +1037,8 @@ export interface InboundRequestPayload {
   taskDescription?: string | null;
   /** What goes wrong today. */
   whatGoesWrong?: string | null;
+  /** Optional link to footage of the task. Never an upload — see RequestDetails. */
+  taskVideoUrl?: string | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
   existingStackReviewWorkflow?: string;

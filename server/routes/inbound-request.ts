@@ -29,7 +29,8 @@ import {
 } from "../../client/src/lib/requestTaxonomy";
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
-import { triageGateAnswers } from "../../client/src/lib/siteTaskTriage";
+import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import { robotGateFields } from "../../client/src/data/robotTeamQualification";
 
 /**
  * Keep only string answers, trimmed, dropping blanks.
@@ -39,6 +40,28 @@ import { triageGateAnswers } from "../../client/src/lib/siteTaskTriage";
  * manufacture a pass — an unrecognised value reads as unanswered, and an
  * unanswered gate never qualifies.
  */
+/**
+ * Accept only an http(s) link, and only a plausible one.
+ *
+ * This value is rendered into ops surfaces and email, so a `javascript:` or
+ * `data:` URL here would be a stored-XSS vector dressed as a helpful video
+ * link. Anything that is not a well-formed http(s) URL is dropped rather than
+ * sanitised — a broken link is worth nothing and a partially cleaned one is
+ * worth less.
+ */
+function normalizeTaskVideoUrl(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed || trimmed.length > 2048) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeGateAnswers(input: unknown): Record<string, string> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return {};
@@ -1138,7 +1161,14 @@ router.post("/", async (req: Request, res: Response) => {
     // Enum answers only — this is the half of qualification that must be
     // reproducible.
     const siteTaskGates = normalizeGateAnswers(payload.siteTaskGates);
-    const siteTaskVerdict = triageGateAnswers(siteTaskGates);
+    // Both intakes post their gate answers under the same key. The buyer type
+    // selects which gate definitions score them — a robot team answering
+    // "hardwareMaturity" must not be scored against the site gates, where that
+    // id does not exist and every answer would read as unanswered.
+    const siteTaskVerdict = triageGateAnswers(
+      siteTaskGates,
+      buyerType === "robot_team" ? robotGateFields : undefined,
+    );
     const siteTaskTriage = Object.keys(siteTaskGates).length
       ? {
           disposition: siteTaskVerdict.disposition,
@@ -1456,6 +1486,7 @@ router.post("/", async (req: Request, res: Response) => {
         siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
         taskDescription: payload.taskDescription?.trim() || null,
         whatGoesWrong: payload.whatGoesWrong?.trim() || null,
+        taskVideoUrl: normalizeTaskVideoUrl(payload.taskVideoUrl),
         targetSiteType: payload.targetSiteType?.trim() || null,
         proofPathPreference,
         existingStackReviewWorkflow:

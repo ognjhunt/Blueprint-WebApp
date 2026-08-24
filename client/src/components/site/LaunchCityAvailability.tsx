@@ -1,6 +1,7 @@
 import { ArrowRight, MapPinned } from "lucide-react";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
+import { filterToServedCities, serviceArea } from "@/data/serviceArea";
 
 type CtaLink = {
   href: string;
@@ -68,10 +69,16 @@ export function LaunchCityAvailability({
 }: LaunchCityAvailabilityProps) {
   const { data, loading } = usePublicLaunchStatus();
   const classes = toneClasses(tone);
-  const supportedCities = data?.supportedCities ?? [];
+  // The launch-status endpoint can return a metro Blueprint does not actually
+  // serve — coverage policies exist for several cities as prepared work for
+  // expansion. A reader does not distinguish Blueprint's capturer program from
+  // its deployment program, so the public list is filtered to the declared
+  // service area rather than trusting whatever the backend returns. See
+  // `@/data/serviceArea`.
+  const supportedCities = filterToServedCities(data?.supportedCities ?? []);
   const supportedCitySummary = supportedCities.length
-    ? `Current open public capture markets: ${joinLaunchCityLabels(supportedCities)}.`
-    : "No open public capture market is listed here right now.";
+    ? `Current open public capture market: ${joinLaunchCityLabels(supportedCities)}.`
+    : `Blueprint operates in ${serviceArea.city} only right now.`;
 
   return (
     <section className={`rounded-[1.8rem] border p-6 sm:p-7 ${classes.shell} ${className}`}>

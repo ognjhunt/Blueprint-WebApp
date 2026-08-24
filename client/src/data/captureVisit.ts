@@ -206,33 +206,8 @@ export const captureOperator = {
   ],
 } as const;
 
-/* --------------------------------------------------------- where we operate */
-
-/**
- * Service area, stated plainly.
- *
- * We operate one metro. Saying so costs a few leads and is the only honest
- * option: a national implication we cannot serve is fabricated readiness, and
- * this repo does not ship that. It is also genuinely the better story —
- * capture density in one metro is why a visit can be scheduled in days rather
- * than quarters, which is the whole premise of compressing months 0-2.
- *
- * This is a static constant on purpose: the page is prerendered, and a value
- * fetched from `/api/public/launch-status` would leave the single most important
- * qualifying fact blank in the static HTML. That endpoint remains the
- * operational source of truth for capturer-facing city availability, so if the
- * two ever disagree, this constant is the bug. When a second metro opens,
- * change it here — do not soften it into "and select other markets" in the
- * meantime.
- */
-export const serviceArea = {
-  city: "Austin, TX",
-  claim: "Austin, Texas — one metro, on purpose.",
-  detail:
-    "Capture visits run in the Austin metro today. That is a real limit and we would rather state it than imply a footprint we do not have. It is also deliberate: operating one metro is what keeps a visit schedulable in days, and it is where the deployment density we are building for starts.",
-  outside:
-    "If your site is outside the metro, tell us anyway. We will say where you sit relative to expansion rather than book a visit we cannot staff.",
-} as const;
+/* Service area moved to `@/data/serviceArea` — it is a company fact, not a
+   capture-visit detail, and four surfaces now state it. */
 
 /* --------------------------------------------------------------- the day */
 

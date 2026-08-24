@@ -35,7 +35,7 @@ import {
 import { deploymentBoundary, deploymentPipelineMeta } from "@/data/deploymentMarket";
 import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { siteOperatorHero } from "@/data/publicSiteCopy";
-import { serviceArea } from "@/data/captureVisit";
+import { serviceArea } from "@/data/serviceArea";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =

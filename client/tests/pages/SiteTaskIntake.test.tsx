@@ -22,6 +22,14 @@ function answerGatesClear() {
 }
 
 describe("SiteTaskIntake", () => {
+  it("asks for a site address and not a site name", () => {
+    render(<SiteTaskIntake />);
+    answerGatesClear();
+    expect(screen.getByLabelText("Site address")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Site name")).toBeNull();
+    expect(screen.queryByLabelText("Site location")).toBeNull();
+  });
+
   it("asks no account questions — no password, no terms gate", () => {
     // The flow this replaces made a site operator choose a password before they
     // could describe their cell. The account is worth nothing until there is a
@@ -35,7 +43,7 @@ describe("SiteTaskIntake", () => {
     expect(container.textContent).toMatch(/No account/i);
   });
 
-  it("leads with the five screening questions", () => {
+  it("leads with the six screening questions", () => {
     render(<SiteTaskIntake />);
     for (const field of gateFields) {
       expect(screen.getByLabelText(field.question)).toBeInTheDocument();
@@ -127,7 +135,10 @@ describe("SiteTaskIntake", () => {
     fill("Your name", "Sam Rivera");
     fill("Work email", "sam@example.com");
     fill("Company", "Example Logistics");
-    fill("Site name", "North dock");
+    expect(submit).toBeDisabled();
+
+    // The address is the site's identity — an operator has to drive to it.
+    fill("Site address", "500 E 5th St, Austin, TX");
     expect(submit).toBeDisabled();
 
     fill(/Describe the task as if explaining it/i, "Move totes from the conveyor to a pallet.");

@@ -42,7 +42,7 @@ const proofPathPreferenceEnum = z.enum([
  * The only thing the model is asked to say about the free-text description.
  *
  * The structured gate answers are scored by deterministic rules in
- * `client/src/lib/siteTaskTriage.ts` before this task ever runs, and that
+ * `client/src/lib/gateTriage.ts` before this task ever runs, and that
  * verdict is authoritative. The model's job here is narrower and is the thing
  * rules genuinely cannot do: read the prose against the dropdowns and say
  * whether they agree. The highest-value finding is `contradicts_structured` —
@@ -118,6 +118,8 @@ export type InboundQualificationTaskInput = {
   taskDescription?: string | null;
   /** What goes wrong today, where the useful edge cases live. */
   whatGoesWrong?: string | null;
+  /** Optional link to task footage. Presence is a signal; we do not watch it here. */
+  taskVideoUrl?: string | null;
 };
 
 export const inboundQualificationTask: StructuredTaskDefinition<
@@ -166,6 +168,7 @@ narrative_review — the one judgement asked of you:
 - finding="contradicts_structured" when the prose describes something the dropdowns deny. The common case is several distinct jobs described under "one task, done the same way"; another is arbitrary items described where the operator said the item list was short and enumerable. Quote the specific conflict in note.
 - finding="needs_detail" when the description is too thin to tell whether the task is genuinely one bounded job.
 - finding="consistent" when prose and dropdowns agree. Say so plainly rather than manufacturing a concern.
+- If taskVideoUrl is present, note it in internal_summary as evidence available for review. You cannot watch it; do not infer anything about its contents, and do not treat its presence as raising confidence.
 - Set narrative_review to null when siteTaskGates is absent — there is nothing to compare against.
 - narrative_review can only lead to more human scrutiny, never less. Do not use finding="consistent" as a reason to raise confidence or to recommend a faster path.`,
       returnShape: {

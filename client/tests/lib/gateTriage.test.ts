@@ -8,7 +8,7 @@ import {
   triageGateAnswers,
   type GateAnswers,
   type TriageDisposition,
-} from "@/lib/siteTaskTriage";
+} from "@/lib/gateTriage";
 
 /** Every gate answered with its first `clear` option. */
 function allClear(): Record<string, string> {
