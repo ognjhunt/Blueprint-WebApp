@@ -47,6 +47,7 @@ function formatElapsedSeconds(value: unknown): string | null {
 type LaunchProfile = {
   profile_id: string;
   profile_digest: string;
+  source_commit?: string;
   source_bundle: { bundle_id: string; source_kind: string; uri: string; digest: string };
   evaluation_run_spec: { uri: string; digest: string };
   execution_admission: {
@@ -610,6 +611,7 @@ export default function AdminTaskEvaluationLaunches() {
               <div className="bg-stone-100 p-4 text-xs leading-6 text-stone-600">
                 <p>Bundle {selected.source_bundle.bundle_id} · {selected.source_bundle.digest}</p>
                 <p>Profile {selected.profile_digest}</p>
+                {selected.source_commit ? <p>Source commit {selected.source_commit}</p> : null}
                 <p>
                   Execution {selected.execution_admission.live_enabled ? "live-admitted" : "dry-only"}
                 </p>
@@ -668,6 +670,11 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 break-all text-xs leading-5 text-stone-400">
                 {status?.request_digest || "No immutable request digest yet."}
               </p>
+              {status?.terminal_receipt?.source_commit ? (
+                <p className="mt-2 break-all text-xs leading-5 text-stone-400">
+                  Source commit {status.terminal_receipt.source_commit}
+                </p>
+              ) : null}
               {progress ? (
                 <div className="mt-5 space-y-1 border-t border-stone-800 pt-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">

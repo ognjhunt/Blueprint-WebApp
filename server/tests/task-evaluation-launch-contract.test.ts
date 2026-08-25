@@ -165,6 +165,88 @@ describe("Task Evaluation production launch contract", () => {
     expect(request.authorization.spend.max_spend_usd).toBe(2);
   });
 
+  it("binds a published source commit through request and terminal receipt", () => {
+    const committedProfile = { ...profile(), source_commit: "a".repeat(40) };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([committedProfile]);
+    const request = buildTaskEvaluationLaunchRequest({
+      input: input(),
+      profile: loadPublishedLaunchProfiles()[0],
+      actorId: "founder-001",
+      actorRole: "admin",
+      authorizedAt: "2026-08-10T12:00:00.000Z",
+    });
+    expect(request.source_commit).toBe(committedProfile.source_commit);
+    expect(request.request_digest).toBe(canonicalArtifactDigest(request, "request_digest"));
+
+    const receipt: Record<string, any> = {
+      schema_version: "task_evaluation_launch_receipt.v1",
+      status: "completed",
+      launch_id: request.launch_id,
+      run_id: request.run_id,
+      request_digest: request.request_digest,
+      launch_profile_digest: request.launch_profile_digest,
+      source_commit: committedProfile.source_commit,
+      binding_digest: sha("c"),
+      canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+      allocator_exit_code: 0,
+      execute_requested: true,
+      provider_mutation_attempted: true,
+      terminal_evidence: { status: "passed" },
+      blockers: [],
+      raw_secret_values_recorded: false,
+      agent_operator_used: false,
+      claim_ceiling: "development_only",
+    };
+    receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+    const parsed = parseTaskEvaluationLaunchReceipt(receipt);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.receipt.source_commit).toBe(committedProfile.source_commit);
+  });
+
+  it("rejects malformed source commits at catalog and receipt boundaries", () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([
+      { ...profile(), source_commit: "main" },
+    ]);
+    expect(loadPublishedLaunchProfiles()).toEqual([]);
+
+    const receipt: Record<string, any> = {
+      schema_version: "task_evaluation_launch_receipt.v1",
+      status: "blocked",
+      launch_id: "launch-001",
+      run_id: "run-001",
+      request_digest: sha("a"),
+      launch_profile_digest: sha("b"),
+      source_commit: "A".repeat(40),
+      binding_digest: sha("c"),
+      canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+      allocator_exit_code: null,
+      execute_requested: false,
+      provider_mutation_attempted: false,
+      terminal_evidence: { status: "blocked" },
+      blockers: ["preflight_failed"],
+      raw_secret_values_recorded: false,
+      agent_operator_used: false,
+      claim_ceiling: "development_only",
+      receipt_digest: sha("d"),
+    };
+    expect(parseTaskEvaluationLaunchReceipt(receipt)).toEqual({
+      ok: false,
+      blockers: ["task_evaluation_launch_receipt_schema_invalid"],
+    });
+  });
+
+  it("accepts every source kind published by the Pipeline contract", () => {
+    const warehouseProfile = {
+      ...profile(),
+      source_bundle: {
+        ...profile().source_bundle,
+        source_kind: "nvidia_simready_warehouse" as const,
+      },
+    };
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([warehouseProfile]);
+    expect(loadPublishedLaunchProfiles()).toEqual([warehouseProfile]);
+  });
+
   it("binds a release-only recovery request to one terminal-blocked launch", () => {
     const request = buildTaskEvaluationTerminalResourceReleaseRequest({
       launchRecord: terminalBlockedLaunchRecord(),

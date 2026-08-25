@@ -12,13 +12,20 @@ const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const reference = z.object({ uri: z.string().min(1), digest }).passthrough();
 const vastInstanceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 const terminalVastLabel = z.string().regex(/^blueprint-adp009d-[1-9][0-9]{9,}$/);
+const sourceCommit = z.string().regex(/^[0-9a-f]{40}$/);
 
 export const publishedLaunchProfileSchema = z.object({
   profile_id: identifier,
   profile_digest: digest,
+  source_commit: sourceCommit.optional(),
   source_bundle: reference.extend({
     bundle_id: identifier,
-    source_kind: z.enum(["interiorgs_sage", "raw_v3_2_capture", "scaniverse_derived"]),
+    source_kind: z.enum([
+      "interiorgs_sage",
+      "raw_v3_2_capture",
+      "scaniverse_derived",
+      "nvidia_simready_warehouse",
+    ]),
   }).passthrough(),
   evaluation_run_spec: reference.passthrough(),
   required_controls: z.object({
@@ -125,6 +132,7 @@ export const taskEvaluationLaunchReceiptSchema = z.object({
   run_id: identifier,
   request_digest: digest,
   launch_profile_digest: digest.nullable(),
+  source_commit: sourceCommit.optional(),
   binding_digest: digest,
   canonical_allocator: z.literal(CANONICAL_TASK_EVALUATION_ALLOCATOR),
   allocator_exit_code: z.number().int().nullable(),
@@ -405,6 +413,7 @@ export function buildTaskEvaluationLaunchRequest(params: {
     claim_ceiling: params.profile.claim_ceiling,
     idempotency_key: params.input.launch_id,
   };
+  if (params.profile.source_commit) request.source_commit = params.profile.source_commit;
   request.request_digest = canonicalArtifactDigest(request, "request_digest");
   return request;
 }
