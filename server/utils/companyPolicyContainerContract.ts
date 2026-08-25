@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import {isIP} from "node:net";
 import { z } from "zod";
 
 export const COMPANY_POLICY_CONTAINER_SCHEMA_VERSION =
@@ -248,6 +249,22 @@ export function companyPolicyContractDigest(value: Record<string, unknown>): str
     .digest("hex")}`;
 }
 
+export function companyPolicyRegistryHost(imageRef: string): string | null {
+  const repository = imageRef.split("@sha256:", 1)[0];
+  const first = repository.split("/", 1)[0].toLowerCase();
+  if (!first.includes(".") && !first.includes(":")) return "docker.io";
+  const host = first.replace(/:\d+$/, "");
+  if (
+    !host.includes(".")
+    || host === "localhost"
+    || host.endsWith(".localhost")
+    || host.endsWith(".local")
+    || host.endsWith(".internal")
+    || isIP(host) !== 0
+  ) return null;
+  return first;
+}
+
 function duplicate(values: string[]): string | null {
   const seen = new Set<string>();
   for (const value of values) {
@@ -277,6 +294,9 @@ export function normalizeCompanyPolicyContainerContract(
 
   const contract = parsed.data;
   const errors: string[] = [];
+  if (!companyPolicyRegistryHost(contract.container.image)) {
+    errors.push("container.image:registry_origin_not_public_hostname");
+  }
   const jointDuplicate = duplicate(contract.robot.joint_names);
   if (jointDuplicate) errors.push(`robot.joint_names:duplicate:${jointDuplicate}`);
   if (contract.robot.joint_limits.length !== contract.robot.joint_names.length) {

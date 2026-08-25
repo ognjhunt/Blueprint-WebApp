@@ -7,6 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, unknown>>>(),
   handoffs: [] as Record<string, unknown>[],
+  outboxPresentAtForward: [] as boolean[],
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
@@ -53,11 +54,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
       }),
       runTransaction: async <T>(callback: (transaction: {
         get: (ref: Reference) => Promise<ReturnType<typeof read>>;
-        set: (ref: Reference, payload: Record<string, unknown>) => void;
+        set: (ref: Reference, payload: Record<string, unknown>, options?: {merge?: boolean}) => void;
         update: (ref: Reference, payload: Record<string, unknown>) => void;
       }) => Promise<T>) => callback({
         get: async (ref) => read(ref),
-        set: (ref, payload) => write(ref, payload),
+        set: (ref, payload, options) => write(ref, payload, options?.merge),
         update: (ref, payload) => write(ref, payload, true),
       }),
     },
@@ -72,7 +73,11 @@ vi.mock("../middleware/verifyFirebaseToken", () => ({
   default: (req: {header: (name: string) => string | undefined}, res: any, next: () => void) => {
     const uid = String(req.header("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!uid) return res.status(401).json({error: "Unauthorized"});
-    res.locals.firebaseUser = {uid, tenantId: `tenant-${uid}`};
+    res.locals.firebaseUser = {
+      uid,
+      tenantId: `tenant-${uid}`,
+      companyId: String(req.header("X-Test-Company-Id") || "acme_robotics"),
+    };
     next();
   },
 }));
@@ -91,6 +96,7 @@ const normalizedContract = {
 };
 
 vi.mock("../utils/companyPolicyContainerContract", () => ({
+  companyPolicyRegistryHost: () => "registry.acme.example",
   normalizeCompanyPolicyContainerContract: (value: unknown) =>
     (value as {valid?: boolean})?.valid
       ? {ok: true, contract: structuredClone(normalizedContract)}
@@ -99,6 +105,9 @@ vi.mock("../utils/companyPolicyContainerContract", () => ({
 
 vi.mock("../utils/companyPolicyCandidateForwarding", () => ({
   forwardCompanyPolicyCandidateToPipeline: async (handoff: Record<string, unknown>) => {
+    state.outboxPresentAtForward.push(
+      state.collections.get("companyPolicyCandidateOutbox")?.has(String(handoff.submission_id)) === true,
+    );
     state.handoffs.push(structuredClone(handoff));
     return {
       status: "accepted",
@@ -137,14 +146,18 @@ async function stopServer(server: Server) {
 function signedPipelineBody(body: Record<string, unknown>) {
   const raw = JSON.stringify(body);
   const timestamp = new Date().toISOString();
-  const signature = createHmac("sha256", "pipeline-secret")
-    .update(`${timestamp}.${raw}`)
+  const clientId = "blueprint-policy-sandbox-worker";
+  const nonce = `credential-consume-${crypto.randomBytes(24).toString("hex")}`;
+  const signature = createHmac("sha256", "credential-broker-secret")
+    .update(`${timestamp}.${clientId}.${nonce}.${raw}`)
     .digest("hex");
   return {
     raw,
     headers: {
       "Content-Type": "application/json",
       "X-Blueprint-Pipeline-Timestamp": timestamp,
+      "X-Blueprint-Pipeline-Client-Id": clientId,
+      "X-Blueprint-Pipeline-Nonce": nonce,
       "X-Blueprint-Pipeline-Signature": `sha256=${signature}`,
     },
   };
@@ -153,16 +166,25 @@ function signedPipelineBody(body: Record<string, unknown>) {
 beforeEach(() => {
   process.env.FIELD_ENCRYPTION_MASTER_KEY = crypto.randomBytes(32).toString("base64");
   process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+  process.env.COMPANY_POLICY_CREDENTIAL_BROKER_TOKEN = "credential-broker-secret";
+  process.env.COMPANY_POLICY_ALLOWED_REGISTRIES = "registry.acme.example";
   state.collections.set("robotEvalJobRequests", new Map([
-    ["run-12345678", {buyer_user_id: "buyer-1", status: "submitted"}],
+    ["run-12345678", {
+      buyer_user_id: "buyer-1",
+      status: "submitted",
+      decision_request: {owner: {tenant_id: "tenant-buyer-1"}},
+    }],
   ]));
 });
 
 afterEach(() => {
   state.collections.clear();
   state.handoffs.length = 0;
+  state.outboxPresentAtForward.length = 0;
   delete process.env.FIELD_ENCRYPTION_MASTER_KEY;
   delete process.env.PIPELINE_SYNC_TOKEN;
+  delete process.env.COMPANY_POLICY_CREDENTIAL_BROKER_TOKEN;
+  delete process.env.COMPANY_POLICY_ALLOWED_REGISTRIES;
   vi.resetModules();
 });
 
@@ -217,6 +239,7 @@ describe("company policy candidate routes", () => {
       expect(JSON.stringify(storedLease)).not.toContain(secret);
       expect(storedLease).toHaveProperty("encrypted_credential");
       expect(state.handoffs).toHaveLength(1);
+      expect(state.outboxPresentAtForward).toEqual([true]);
       expect(JSON.stringify(state.handoffs[0])).not.toContain(secret);
       expect(state.handoffs[0]).toMatchObject({
         registry_credential_lease_id: credentialPayload.credential_lease.lease_id,
@@ -241,6 +264,31 @@ describe("company policy candidate routes", () => {
       );
       expect(response.status).toBe(403);
       expect(state.collections.get("companyPolicyCandidateSubmissions")?.size || 0).toBe(0);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("refuses a caller-supplied company that differs from the authenticated company", async () => {
+    const {server, baseUrl} = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidates`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer buyer-1",
+            "X-Test-Company-Id": "different_company",
+          },
+          body: JSON.stringify({contract: {valid: true}, idempotency_key: "candidate-12345678"}),
+        },
+      );
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "policy_candidate_company_identity_mismatch",
+      });
+      expect(state.handoffs).toHaveLength(0);
     } finally {
       await stopServer(server);
     }
@@ -278,12 +326,19 @@ describe("company policy candidate routes", () => {
       );
       const lease = (await leaseResponse.json() as any).credential_lease;
       const consumeBody = {
-        schema_version: "company_policy_registry_credential_consume.v1",
+        schema_version: "company_policy_registry_credential_consume.v2",
         tenant_id: "tenant-buyer-1",
         run_id: "run-12345678",
         submission_id: candidate.submission_id,
         company_id: "acme_robotics",
         contract_digest: normalizedContract.contract_digest,
+        admission_id: "admission-1",
+        admission_digest: `sha256:${"e".repeat(64)}`,
+        sandbox_attempt_id: "sandbox-attempt-12345678",
+        sandbox_plan_digest: `sha256:${"f".repeat(64)}`,
+        pipeline_release_sha: "a".repeat(40),
+        worker_identity: "blueprint-policy-sandbox-worker-01",
+        purpose: "pull_digest_pinned_company_policy_image",
         image: normalizedContract.container.image,
       };
       const signed = signedPipelineBody(consumeBody);
@@ -292,7 +347,7 @@ describe("company policy candidate routes", () => {
         {method: "POST", headers: signed.headers, body: signed.raw},
       );
       expect(first.status).toBe(200);
-      expect(first.headers.get("cache-control")).toBe("no-store");
+      expect(first.headers.get("cache-control")).toContain("no-store");
       await expect(first.json()).resolves.toMatchObject({
         ok: true,
         credential: {registry_server: "registry.acme.example", username: "robot-team", secret},
@@ -303,6 +358,13 @@ describe("company policy candidate routes", () => {
         ?.get(lease.lease_id);
       expect(stored?.status).toBe("consumed");
       expect(stored).not.toHaveProperty("encrypted_credential");
+      expect(stored?.consumed_for).toMatchObject({
+        admission_id: "admission-1",
+        sandbox_attempt_id: "sandbox-attempt-12345678",
+        pipeline_release_sha: "a".repeat(40),
+        purpose: "pull_digest_pinned_company_policy_image",
+      });
+      expect(state.collections.get("companyPolicyCredentialConsumeNonces")?.size).toBe(1);
 
       const replaySigned = signedPipelineBody(consumeBody);
       const replay = await fetch(

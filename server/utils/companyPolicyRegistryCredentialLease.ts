@@ -59,6 +59,9 @@ export interface StoredRegistryCredentialLease {
   encrypted_credential: BoundEncryptedField;
   associated_data_sha256: string;
   idempotency_key_digest: string;
+  request_fingerprint: string;
+  admission_id?: string;
+  admission_digest?: string;
   status: "active";
   single_use: true;
   created_at_iso: string;
@@ -68,6 +71,27 @@ export interface StoredRegistryCredentialLease {
 
 function sha256(value: string): string {
   return `sha256:${crypto.createHash("sha256").update(value, "utf8").digest("hex")}`;
+}
+
+function credentialRequestFingerprint(request: RegistryCredentialRequest): string {
+  const key = String(
+    process.env.COMPANY_POLICY_CREDENTIAL_FINGERPRINT_KEY
+      || (process.env.NODE_ENV === "production" ? "" : process.env.FIELD_ENCRYPTION_MASTER_KEY)
+      || "",
+  ).trim();
+  if (!key) throw new Error("registry_credential_fingerprint_key_required");
+  return `hmac-sha256:${crypto
+    .createHmac("sha256", key)
+    .update(JSON.stringify({
+      submission_id: request.submission_id,
+      contract_digest: request.contract_digest,
+      image: request.image,
+      registry_username: request.registry_username,
+      registry_secret: request.registry_secret,
+      expires_in_seconds: request.expires_in_seconds,
+      idempotency_key: request.idempotency_key,
+    }))
+    .digest("hex")}`;
 }
 
 function registryServerForImage(imageRef: string): string {
@@ -118,7 +142,11 @@ export async function createRegistryCredentialLease(params: {
   now?: Date;
 }): Promise<
   | {ok: true; lease: StoredRegistryCredentialLease}
-  | {ok: false; code: "registry_credential_request_invalid"; errors: string[]}
+  | {
+      ok: false;
+      code: "registry_credential_request_invalid" | "registry_credential_kms_required";
+      errors: string[];
+    }
 > {
   const parsed = registryCredentialRequestSchema.safeParse(params.value);
   if (!parsed.success) {
@@ -128,6 +156,13 @@ export async function createRegistryCredentialLease(params: {
       errors: parsed.error.issues
         .map((issue) => `${issue.path.join(".") || "credential"}:${issue.code}`)
         .sort(),
+    };
+  }
+  if (process.env.NODE_ENV === "production" && !String(process.env.FIELD_ENCRYPTION_KMS_KEY_NAME || "").trim()) {
+    return {
+      ok: false,
+      code: "registry_credential_kms_required",
+      errors: ["production_registry_credentials_require_kms"],
     };
   }
   const request = parsed.data;
@@ -161,6 +196,7 @@ export async function createRegistryCredentialLease(params: {
       encrypted_credential: encrypted,
       associated_data_sha256: encrypted.associatedDataSha256,
       idempotency_key_digest: sha256(request.idempotency_key),
+      request_fingerprint: credentialRequestFingerprint(request),
       status: "active",
       single_use: true,
       created_at_iso: now.toISOString(),

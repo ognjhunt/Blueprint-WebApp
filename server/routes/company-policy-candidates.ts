@@ -9,7 +9,10 @@ import {
   type CompanyPolicyCandidateHandoff,
   forwardCompanyPolicyCandidateToPipeline,
 } from "../utils/companyPolicyCandidateForwarding";
-import {normalizeCompanyPolicyContainerContract} from "../utils/companyPolicyContainerContract";
+import {
+  companyPolicyRegistryHost,
+  normalizeCompanyPolicyContainerContract,
+} from "../utils/companyPolicyContainerContract";
 import {
   createRegistryCredentialLease,
   publicRegistryCredentialLease,
@@ -29,15 +32,28 @@ function sha256(value: string): string {
 
 function identity(res: {locals: Record<string, unknown>}) {
   const user = res.locals.firebaseUser as
-    | {uid?: string; tenantId?: string; tenant_id?: string}
+    | {
+        uid?: string;
+        tenantId?: string;
+        tenant_id?: string;
+        companyId?: string;
+        company_id?: string;
+      }
     | undefined;
   return {
     uid: String(user?.uid || "").trim(),
-    tenantId: String(user?.tenantId || user?.tenant_id || user?.uid || "").trim(),
+    tenantId: String(user?.tenantId || user?.tenant_id || "").trim(),
+    companyId: String(user?.companyId || user?.company_id || "").trim(),
   };
 }
 
-async function ownedRun(runId: string, ownerUid: string) {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+async function ownedRun(runId: string, ownerUid: string, tenantId: string) {
   if (!db) return {ok: false as const, status: 503, code: "policy_candidate_store_not_configured"};
   const snapshot = await db.collection("robotEvalJobRequests").doc(runId).get();
   if (!snapshot.exists) return {ok: false as const, status: 404, code: "task_evaluation_run_not_found"};
@@ -45,7 +61,42 @@ async function ownedRun(runId: string, ownerUid: string) {
   if (String(data.buyer_user_id || "") !== ownerUid) {
     return {ok: false as const, status: 403, code: "task_evaluation_run_owner_mismatch"};
   }
+  const owner = asRecord(asRecord(data.decision_request || data.jobRequest).owner);
+  if (!tenantId || String(owner.tenant_id || "") !== tenantId) {
+    return {ok: false as const, status: 403, code: "task_evaluation_run_tenant_mismatch"};
+  }
+  if (!new Set(["submitted", "ready"]).has(String(data.status || ""))) {
+    return {ok: false as const, status: 409, code: "task_evaluation_run_not_open_for_candidates"};
+  }
   return {ok: true as const, data};
+}
+
+async function persistPipelineHandoff(
+  candidateRef: FirebaseFirestore.DocumentReference,
+  outboxRef: FirebaseFirestore.DocumentReference,
+  candidate: Record<string, unknown>,
+) {
+  const pipelineHandoff = await forwardCompanyPolicyCandidateToPipeline(handoffFor(candidate));
+  const nextStatus = pipelineHandoff.accepted === true
+    ? "admitted_no_spend"
+    : pipelineHandoff.required === true
+      ? "blocked_pipeline_handoff"
+      : "contract_admitted_awaiting_pipeline_configuration";
+  await db!.runTransaction(async (transaction) => {
+    transaction.set(candidateRef, {
+      pipeline_handoff: pipelineHandoff,
+      status: nextStatus,
+      updated_at_iso: new Date().toISOString(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+    transaction.set(outboxRef, {
+      status: pipelineHandoff.accepted === true ? "delivered" : "pending",
+      last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+      pipeline_handoff: pipelineHandoff,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  });
+  return {pipelineHandoff, nextStatus};
 }
 
 function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHandoff {
@@ -68,11 +119,11 @@ function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHand
 
 router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const auth = identity(res);
-  if (!auth.uid || !auth.tenantId) {
+  if (!auth.uid || !auth.tenantId || !auth.companyId) {
     return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
   }
   const runId = String(req.params.runId || "").trim();
-  const run = await ownedRun(runId, auth.uid);
+  const run = await ownedRun(runId, auth.uid, auth.tenantId);
   if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
 
   const request = candidateRequestSchema.safeParse(req.body);
@@ -88,6 +139,22 @@ router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, as
     return res.status(400).json({ok: false, code: normalized.code, errors: normalized.errors});
   }
   const contract = normalized.contract;
+  if (contract.company_id !== auth.companyId) {
+    return res.status(403).json({ok: false, code: "policy_candidate_company_identity_mismatch"});
+  }
+  const allowedRegistries = new Set(
+    String(process.env.COMPANY_POLICY_ALLOWED_REGISTRIES || "")
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const registryHost = companyPolicyRegistryHost(contract.container.image);
+  if (!allowedRegistries.size) {
+    return res.status(503).json({ok: false, code: "company_policy_registry_allowlist_not_configured"});
+  }
+  if (!registryHost || !allowedRegistries.has(registryHost)) {
+    return res.status(403).json({ok: false, code: "company_policy_registry_not_allowed"});
+  }
   const submissionId = `policy-candidate-${sha256([
     auth.tenantId,
     auth.uid,
@@ -96,19 +163,7 @@ router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, as
     request.data.idempotency_key,
   ].join("\u0000")).slice(0, 40)}`;
   const ref = db!.collection("companyPolicyCandidateSubmissions").doc(submissionId);
-  const existing = await ref.get();
-  if (existing.exists) {
-    const data = (existing.data() || {}) as Record<string, unknown>;
-    if (
-      data.owner_uid !== auth.uid
-      || data.run_id !== runId
-      || data.contract_digest !== contract.contract_digest
-      || data.idempotency_key_digest !== `sha256:${sha256(request.data.idempotency_key)}`
-    ) {
-      return res.status(409).json({ok: false, code: "policy_candidate_idempotency_conflict"});
-    }
-    return res.status(200).json({ok: true, already_exists: true, candidate: data});
-  }
+  const outboxRef = db!.collection("companyPolicyCandidateOutbox").doc(submissionId);
 
   const now = new Date().toISOString();
   const requiresCredential = contract.container.visibility === "private";
@@ -135,21 +190,54 @@ router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, as
     created_at_iso: now,
     updated_at_iso: now,
   };
-  if (!requiresCredential) {
-    const pipelineHandoff = await forwardCompanyPolicyCandidateToPipeline(handoffFor(record));
-    record.pipeline_handoff = pipelineHandoff;
-    record.status = pipelineHandoff.accepted === true
-      ? "admitted_no_spend"
-      : pipelineHandoff.required === true
-        ? "blocked_pipeline_handoff"
-        : "contract_admitted_awaiting_pipeline_configuration";
+  const staged = await db!.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists) {
+      const data = (existing.data() || {}) as Record<string, unknown>;
+      if (
+        data.owner_uid !== auth.uid
+        || data.tenant_id !== auth.tenantId
+        || data.company_id !== auth.companyId
+        || data.run_id !== runId
+        || data.contract_digest !== contract.contract_digest
+        || data.idempotency_key_digest !== `sha256:${sha256(request.data.idempotency_key)}`
+      ) throw new Error("policy_candidate_idempotency_conflict");
+      return {created: false, candidate: data};
+    }
+    transaction.set(ref, {
+      ...record,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    if (!requiresCredential) {
+      transaction.set(outboxRef, {
+        schema_version: "company_policy_candidate_outbox.v1",
+        submission_id: submissionId,
+        handoff: handoffFor(record),
+        status: "pending",
+        attempt_count: 0,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    return {created: true, candidate: record};
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "policy_candidate_idempotency_conflict") {
+      return null;
+    }
+    throw error;
+  });
+  if (!staged) return res.status(409).json({ok: false, code: "policy_candidate_idempotency_conflict"});
+  let candidate = staged.candidate;
+  if (!requiresCredential && asRecord(candidate.pipeline_handoff).accepted !== true) {
+    const delivered = await persistPipelineHandoff(ref, outboxRef, candidate);
+    candidate = {...candidate, pipeline_handoff: delivered.pipelineHandoff, status: delivered.nextStatus};
   }
-  await ref.set({
-    ...record,
-    created_at: admin.firestore.FieldValue.serverTimestamp(),
-    updated_at: admin.firestore.FieldValue.serverTimestamp(),
-  }, {merge: false});
-  return res.status(201).json({ok: true, already_exists: false, candidate: record});
+  return res.status(staged.created ? 201 : 200).json({
+    ok: true,
+    already_exists: !staged.created,
+    candidate,
+  });
 });
 
 router.put(
@@ -160,10 +248,10 @@ router.put(
     const auth = identity(res);
     const runId = String(req.params.runId || "").trim();
     const submissionId = String(req.params.submissionId || "").trim();
-    if (!auth.uid || !auth.tenantId) {
+    if (!auth.uid || !auth.tenantId || !auth.companyId) {
       return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
     }
-    const run = await ownedRun(runId, auth.uid);
+    const run = await ownedRun(runId, auth.uid, auth.tenantId);
     if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
     const candidateRef = db!.collection("companyPolicyCandidateSubmissions").doc(submissionId);
     const candidateSnapshot = await candidateRef.get();
@@ -171,7 +259,12 @@ router.put(
       return res.status(404).json({ok: false, code: "policy_candidate_not_found"});
     }
     const candidate = (candidateSnapshot.data() || {}) as Record<string, unknown>;
-    if (candidate.owner_uid !== auth.uid || candidate.run_id !== runId) {
+    if (
+      candidate.owner_uid !== auth.uid
+      || candidate.tenant_id !== auth.tenantId
+      || candidate.company_id !== auth.companyId
+      || candidate.run_id !== runId
+    ) {
       return res.status(403).json({ok: false, code: "policy_candidate_owner_mismatch"});
     }
     if (candidate.credential_requirement !== "required") {
@@ -208,6 +301,7 @@ router.put(
             || data.run_id !== runId
             || data.submission_id !== submissionId
             || data.idempotency_key_digest !== created.lease.idempotency_key_digest
+            || data.request_fingerprint !== created.lease.request_fingerprint
           ) {
             throw new Error("registry_credential_lease_idempotency_conflict");
           }
@@ -239,27 +333,38 @@ router.put(
       credential_requirement: "leased",
       updated_at_iso: new Date().toISOString(),
     };
-    const pipelineHandoff = await forwardCompanyPolicyCandidateToPipeline(
-      handoffFor(updatedCandidate),
-    );
-    const status = pipelineHandoff.accepted === true
-      ? "admitted_no_spend"
-      : pipelineHandoff.required === true
-        ? "blocked_pipeline_handoff"
-        : "contract_admitted_awaiting_pipeline_configuration";
-    await candidateRef.set({
+    const outboxRef = db!.collection("companyPolicyCandidateOutbox").doc(submissionId);
+    await db!.runTransaction(async (transaction) => {
+      transaction.set(candidateRef, {
       registry_credential_lease_id: lease.lease_id,
       credential_requirement: "leased",
-      pipeline_handoff: pipelineHandoff,
-      status,
+      status: "contract_admitted_awaiting_pipeline",
       updated_at_iso: updatedCandidate.updated_at_iso,
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
+      }, {merge: true});
+      transaction.set(outboxRef, {
+        schema_version: "company_policy_candidate_outbox.v1",
+        submission_id: submissionId,
+        handoff: handoffFor(updatedCandidate),
+        status: "pending",
+        attempt_count: 0,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+    });
+    const delivered = await persistPipelineHandoff(candidateRef, outboxRef, updatedCandidate);
+    if (delivered.pipelineHandoff.accepted === true) {
+      await leaseRef.set({
+        admission_id: delivered.pipelineHandoff.admission_id,
+        admission_digest: delivered.pipelineHandoff.admission_digest,
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+    }
     return res.status(201).json({
       ok: true,
-      status,
+      status: delivered.nextStatus,
       credential_lease: publicRegistryCredentialLease(lease),
-      pipeline_handoff: pipelineHandoff,
+      pipeline_handoff: delivered.pipelineHandoff,
       launch_authority_granted: false,
       provider_mutation_authorized: false,
     });

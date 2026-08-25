@@ -176,6 +176,13 @@ function RunRecord({ run }: { run: BuyerRunDetail }) {
         {run.error ? <DataField label="Run message" value={String(run.error)} border={false} /> : null}
       </section>
 
+      {run.status && new Set(["submitted", "ready"]).has(run.status) ? (
+        <section className="flex flex-col gap-3 rounded-md border border-line bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 className="text-title-m font-semibold text-ink-900">Bring your own policy container</h2><p className="mt-1 text-body-s text-ink-500">Admit a digest-pinned image and exact robot interface without launching or exposing testbed files.</p></div>
+          <Button asChild variant="secondary" className="w-fit"><Link href={`/app/runs/${encodeURIComponent(run.job_id)}/policy-candidate/new`}>Add policy container</Link></Button>
+        </section>
+      ) : null}
+
       {projection?.supported ? <DecisionResult envelope={projection.envelope} /> : null}
       {projection && !projection.supported ? (
         <ProofBoundary level="block" title="Unsupported Pipeline result" icon={ShieldAlert}>

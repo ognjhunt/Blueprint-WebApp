@@ -173,6 +173,14 @@ describe("company policy container contract v2", () => {
     }
   });
 
+  it("refuses loopback, IP-literal, and private-name registry origins", () => {
+    for (const origin of ["localhost:5000", "127.0.0.1", "registry.internal", "registry.local"]) {
+      const candidate = contract();
+      candidate.container.image = `${origin}/widget-grasp@sha256:${"c".repeat(64)}`;
+      expectInvalid(candidate, "registry_origin_not_public_hostname");
+    }
+  });
+
   it("refuses security weakening and digest tampering", () => {
     const weakened = {
       ...contract(),
