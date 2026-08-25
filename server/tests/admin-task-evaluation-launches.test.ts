@@ -192,7 +192,7 @@ function preparationInput() {
     },
     spend: {
       maximum_hourly_rate_usd: 0.8, hard_cap_usd: 1, hard_ttl_seconds: 3600,
-      retry_cap: 0, provider_allowlist: [],
+      retry_cap: 0, selected_provider: "vast", provider_allowlist: ["vast"],
     },
   };
 }
@@ -539,6 +539,16 @@ describe("admin Task Evaluation launch route", () => {
         code: "task_evaluation_launch_preparation_input_invalid",
         paid_execution_requested: false,
       });
+      expect(state.records.size).toBe(0);
+
+      const unauthorizedProvider = preparationInput();
+      unauthorizedProvider.spend.selected_provider = "runpod";
+      const providerRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(unauthorizedProvider),
+      });
+      expect(providerRejected.status).toBe(400);
       expect(state.records.size).toBe(0);
 
       const firstInput = preparationInput();

@@ -125,7 +125,9 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     hard_cap_usd: z.number().positive().max(50),
     hard_ttl_seconds: z.number().int().min(1).max(9000),
     retry_cap: z.literal(0),
-    provider_allowlist: z.array(z.enum(["vast", "runpod", "gcp", "aws", "azure"])).max(16),
+    selected_provider: z.enum(["vast", "runpod", "gcp", "aws", "azure"]),
+    provider_allowlist: z.array(z.enum(["vast", "runpod", "gcp", "aws", "azure"]))
+      .min(1).max(16),
   }).strict(),
 }).strict().superRefine((value, context) => {
   if (
@@ -164,6 +166,12 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     code: z.ZodIssueCode.custom,
     message: `${name} values must be unique`,
   });
+  if (!value.spend.provider_allowlist.includes(value.spend.selected_provider)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "selected provider must be included in the provider allowlist",
+    });
+  }
 });
 
 export type TaskEvaluationLaunchPreparationInput = z.infer<
