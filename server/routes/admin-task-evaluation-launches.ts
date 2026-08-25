@@ -19,9 +19,16 @@ import {
   taskEvaluationLaunchStoreErrorCode,
   withTaskEvaluationLaunchStoreTimeout,
 } from "../utils/taskEvaluationLaunchStore";
+import {
+  fetchTaskEvaluationLaunchPreparationStatus,
+  forwardTaskEvaluationLaunchPreparation,
+  taskEvaluationLaunchPreparationInputSchema,
+  taskEvaluationLaunchPreparationRequestDigest,
+} from "../utils/taskEvaluationLaunchPreparationContract";
 
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
+const PREPARATION_COLLECTION = "taskEvaluationLaunchPreparations";
 
 router.use(requireAdminRole);
 
@@ -335,6 +342,214 @@ export async function submitTaskEvaluationLaunch(
     submission_channel: priorRecord?.submission?.channel || initialRecord.submission.channel,
   });
 }
+
+// Input preparation is deliberately separate from launch authority. It may
+// validate and materialize immutable customer inputs, but it cannot publish a
+// launch profile, allocate a provider, or request paid execution.
+router.post("/preparations", async (req, res) => {
+  if (!db) return res.status(503).json({
+    error: "Task Evaluation preparation store is unavailable",
+    code: "task_evaluation_launch_preparation_store_unavailable",
+    provider_mutation_performed_inside_web_request: false,
+  });
+  const parsed = taskEvaluationLaunchPreparationInputSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({
+    error: "Task Evaluation launch preparation request is invalid",
+    code: "task_evaluation_launch_preparation_input_invalid",
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+  });
+  const access = await resolveAccessContext(res);
+  const actorId = access.uid || access.email;
+  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
+  const request = parsed.data;
+  const requestDigest = taskEvaluationLaunchPreparationRequestDigest(request);
+  const ref = db.collection(PREPARATION_COLLECTION).doc(request.preparation_id);
+  const now = new Date().toISOString();
+  const initialRecord = {
+    schema_version: "task_evaluation_launch_preparation_web_record.v1",
+    preparation_id: request.preparation_id,
+    run_id: request.run_id,
+    team_namespace: request.team_namespace,
+    expected_production_commit: request.expected_production_commit,
+    request,
+    request_digest: requestDigest,
+    state: "forward_pending",
+    forward_attempt_count: 0,
+    provider_mutation_observed: false,
+    catalog_mutation_observed: false,
+    paid_execution_requested: false,
+    submission: {
+      channel: "production_webapp_browser",
+      actor_id: actorId,
+      actor_role: access.isAdmin ? "admin" : "ops",
+    },
+    created_at_iso: now,
+  };
+  let priorRecord: Record<string, any> | null;
+  try {
+    priorRecord = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (snapshot.exists) {
+        const existing = snapshot.data() as Record<string, any>;
+        if (existing.request_digest !== requestDigest) throw new Error("immutable_preparation_conflict");
+        return existing;
+      }
+      transaction.create(ref, initialRecord);
+      return null;
+    }));
+  } catch (error) {
+    if (error instanceof Error && error.message === "immutable_preparation_conflict") return res.status(409).json({
+      error: "Immutable Task Evaluation preparation conflict",
+      code: "task_evaluation_launch_preparation_immutable_conflict",
+      preparation_id: request.preparation_id,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    logger.error({ code, preparationId: request.preparation_id },
+      "Task Evaluation launch preparation persistence failed");
+    return res.status(503).json({
+      error: "Task Evaluation preparation store is unavailable",
+      code,
+      preparation_id: request.preparation_id,
+      persistence_state: "unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+  }
+  if (priorRecord && !["forward_pending", "forward_blocked"].includes(String(priorRecord.state))) {
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "task_evaluation_launch_preparation_web_receipt.v1",
+      status: priorRecord.state,
+      already_exists: true,
+      preparation_id: request.preparation_id,
+      run_id: request.run_id,
+      team_namespace: request.team_namespace,
+      request_digest: requestDigest,
+      expected_production_commit: request.expected_production_commit,
+      pipeline: priorRecord.pipeline || null,
+      provider_mutation_performed_inside_web_request: false,
+      catalog_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+      preparation_is_not_execution: true,
+    });
+  }
+  const priorAttempts = Number(priorRecord?.forward_attempt_count || 0);
+  if (priorAttempts >= 20) return res.status(409).json({
+    error: "Task Evaluation preparation forwarding retry cap reached",
+    code: "task_evaluation_launch_preparation_forward_retry_cap_reached",
+  });
+  const forwarded = await forwardTaskEvaluationLaunchPreparation({ request });
+  const state = forwarded.status === "forwarded"
+    ? "queued_for_no_spend_preparation"
+    : "forward_blocked";
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state,
+      pipeline: forwarded,
+      forward_attempt_count: priorAttempts + 1,
+      forwarded_at_iso: forwarded.status === "forwarded" ? new Date().toISOString() : null,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({
+      error: "Task Evaluation preparation forward receipt store is unavailable",
+      code,
+      preparation_id: request.preparation_id,
+      persistence_state: "forward_receipt_unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
+    schema_version: "task_evaluation_launch_preparation_web_receipt.v1",
+    status: state,
+    already_exists: priorRecord !== null,
+    preparation_id: request.preparation_id,
+    run_id: request.run_id,
+    team_namespace: request.team_namespace,
+    request_digest: requestDigest,
+    expected_production_commit: request.expected_production_commit,
+    pipeline: forwarded,
+    provider_mutation_performed_inside_web_request: false,
+    catalog_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+    preparation_is_not_execution: true,
+  });
+});
+
+router.get("/preparations/:preparationId", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Task Evaluation preparation store is unavailable" });
+  const preparationId = String(req.params.preparationId || "");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/.test(preparationId)) return res.status(400).json({
+    error: "Task Evaluation preparation ID is invalid",
+    code: "task_evaluation_launch_preparation_id_invalid",
+  });
+  const ref = db.collection(PREPARATION_COLLECTION).doc(preparationId);
+  let record: Record<string, any>;
+  try {
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(ref.get());
+    if (!snapshot.exists) return res.status(404).json({ error: "Task Evaluation preparation not found" });
+    record = snapshot.data() as Record<string, any>;
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({ error: "Task Evaluation preparation store is unavailable", code });
+  }
+  const pipeline = await fetchTaskEvaluationLaunchPreparationStatus({
+    preparationId,
+  });
+  if (!pipeline.ok) return res.status(pipeline.status).json({
+    error: "Pipeline Task Evaluation preparation status is unavailable",
+    code: pipeline.blocker,
+    preparation_id: preparationId,
+    webapp_state: record.state,
+    provider_mutation_performed_by_status_read: false,
+  });
+  if (
+    pipeline.preparationStatus.status !== "not_found"
+    && (
+      pipeline.preparationStatus.request_digest !== record.request_digest
+      || pipeline.preparationStatus.run_id !== record.run_id
+      || pipeline.preparationStatus.team_namespace !== record.team_namespace
+      || pipeline.preparationStatus.expected_production_commit !== record.expected_production_commit
+    )
+  ) return res.status(409).json({
+    error: "Pipeline Task Evaluation preparation status identity mismatch",
+    code: "task_evaluation_launch_preparation_status_identity_mismatch",
+    preparation_id: preparationId,
+    provider_mutation_performed_by_status_read: false,
+  });
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state: pipeline.preparationStatus.status,
+      pipeline_status: pipeline.preparationStatus,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({ error: "Task Evaluation preparation status store is unavailable", code });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.json({
+    schema_version: "task_evaluation_launch_preparation_web_status.v1",
+    preparation_id: preparationId,
+    run_id: record.run_id,
+    team_namespace: record.team_namespace,
+    request_digest: record.request_digest,
+    expected_production_commit: record.expected_production_commit,
+    state: pipeline.preparationStatus.status,
+    pipeline: pipeline.preparationStatus,
+    provider_mutation_performed_by_status_read: false,
+    paid_execution_requested: false,
+    preparation_is_not_execution: true,
+  });
+});
 
 router.post("/", async (req, res) => {
   const access = await resolveAccessContext(res);

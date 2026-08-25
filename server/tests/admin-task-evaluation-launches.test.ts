@@ -117,6 +117,81 @@ function launchInput() {
   };
 }
 
+const immutableRef = (name: string, character = "f") => ({
+  uri: `s3://blueprint-inputs/${name}.json`,
+  digest: sha(character),
+  size_bytes: 128,
+});
+
+function preparationInput() {
+  const ref = (name: string) => immutableRef(name);
+  return {
+    schema_version: "task_evaluation_launch_preparation_request.v1",
+    expected_production_commit: "a".repeat(40),
+    preparation_id: "prep-scene-001",
+    team_namespace: "robot-team-001",
+    run_id: "run-prep-001",
+    scene: {
+      identity: { id: "public-scene-001", version: "v1" },
+      source_manifest: ref("source-manifest"),
+      appearance: {
+        kind: "interiorgs", representation: ref("appearance"),
+        renderer_qualification: ref("renderer-qualification"),
+      },
+      geometry: {
+        kind: "sage_derived", collision: ref("collision"), validation: ref("geometry-validation"),
+      },
+      registration: {
+        metric_registration: ref("metric-registration"), support_plane: ref("support-plane"),
+        robot_base: ref("robot-base"), camera_calibration: ref("camera-calibration"),
+      },
+      rights: {
+        admission: ref("scene-rights"), source_bytes_redistributable: false,
+        provider_disclosure_scope: "derived_only",
+      },
+    },
+    robot: {
+      identity: { id: "fixed-arm", version: "v1" }, configuration: ref("robot-config"),
+      kinematics: ref("kinematics"), joint_bounds: ref("joint-bounds"),
+      controller_configuration: ref("controller-config"),
+    },
+    controller: {
+      identity: { id: "scripted-push", version: "v1" }, kind: "deterministic_scripted",
+      configuration: ref("scripted-controller"),
+    },
+    task: {
+      identity: { id: "rigid-relocation", version: "v1" }, definition: ref("task-definition"),
+      success_criteria: ref("success-criteria"), execution: ref("execution-spec"),
+    },
+    sensors: { configuration: ref("sensor-config") },
+    runtime: {
+      identity: { id: "native-arena", version: "v1" },
+      oci_image: `registry.example/native-arena@${sha("e")}`,
+      entrypoint: ["/app/run-task-evaluation"], health_protocol: ref("health-protocol"),
+      requirements: { cpu_cores: 8, memory_gib: 32, gpu_count: 1, disk_gib: 80 },
+      network: { default: "deny", allowlist: [] }, secret_refs: [],
+      mounts: [
+        { source: ref("input-bundle"), container_path: "/inputs", mode: "read_only" },
+        { container_path: "/outputs", mode: "output" },
+      ],
+      output_limit_bytes: 1_073_741_824,
+    },
+    execution_adapter: {
+      kind: "native_task_arena", version: "v1",
+      construction_packet_bundle: ref("construction-packet.zip"),
+      runtime_source_bundle: ref("runtime-source.zip"),
+    },
+    publication: {
+      input_namespace: "robot-team-001-public-scene-001-v1",
+      service_account_readback_required: true,
+    },
+    spend: {
+      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 1, hard_ttl_seconds: 3600,
+      retry_cap: 0, provider_allowlist: [],
+    },
+  };
+}
+
 function terminalBlockedLaunchRecord() {
   const requestDigest = sha("a");
   return {
@@ -227,6 +302,51 @@ beforeEach(() => {
         profiles: [profile()],
       }), { status: 200, headers: { "content-type": "application/json" } });
     }
+    if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations") {
+      const request = JSON.parse(String(init?.body || "{}"));
+      const receipt: Record<string, unknown> = {
+        schema_version: "task_evaluation_launch_preparation_intake_receipt.v1",
+        status: "queued_for_no_spend_preparation",
+        accepted: true,
+        already_exists: false,
+        preparation_id: request.preparation_id,
+        run_id: request.run_id,
+        team_namespace: request.team_namespace,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        expected_production_commit: request.expected_production_commit,
+        provider_mutation_performed_inside_http_request: false,
+        catalog_mutation_performed_inside_http_request: false,
+        paid_execution_requested: false,
+        canonical_allocator_required_for_later_execution: true,
+        receipt_digest: "",
+      };
+      receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+      return new Response(JSON.stringify(receipt), {
+        status: 202, headers: { "content-type": "application/json" },
+      });
+    }
+    if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations/prep-scene-001") {
+      const request = preparationInput();
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_launch_preparation_status.v1",
+        status: "materialized",
+        preparation_id: request.preparation_id,
+        run_id: request.run_id,
+        team_namespace: request.team_namespace,
+        expected_production_commit: request.expected_production_commit,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
+        source_commit: request.expected_production_commit,
+        result_digest: sha("9"),
+        reference_count: 24,
+        full_byte_service_account_readback_passed: true,
+        blockers: [],
+        provider_mutation_performed_by_status_read: false,
+        provider_mutation_performed_by_worker: false,
+        catalog_mutation_performed_by_worker: false,
+        paid_execution_requested: false,
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     const request = JSON.parse(String(init?.body || "{}"));
     return new Response(JSON.stringify({
       schema_version: "task_evaluation_launch_intake_receipt.v1",
@@ -255,6 +375,108 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("prepares arbitrary versioned scene inputs without launch or provider authority", async () => {
+    const { server, url } = await startServer();
+    const input = preparationInput();
+    try {
+      const response = await fetch(`${url}/preparations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      const receipt = await response.json();
+      expect(response.status).toBe(202);
+      expect(receipt).toMatchObject({
+        schema_version: "task_evaluation_launch_preparation_web_receipt.v1",
+        status: "queued_for_no_spend_preparation",
+        preparation_id: input.preparation_id,
+        run_id: input.run_id,
+        team_namespace: input.team_namespace,
+        expected_production_commit: input.expected_production_commit,
+        provider_mutation_performed_inside_web_request: false,
+        catalog_mutation_performed_inside_web_request: false,
+        paid_execution_requested: false,
+        preparation_is_not_execution: true,
+      });
+      expect(state.records.get(input.preparation_id)).toMatchObject({
+        state: "queued_for_no_spend_preparation",
+        request_digest: receipt.request_digest,
+        provider_mutation_observed: false,
+        catalog_mutation_observed: false,
+        paid_execution_requested: false,
+        request: {
+          scene: { identity: input.scene.identity },
+          robot: { identity: input.robot.identity },
+          controller: { identity: input.controller.identity },
+          task: { identity: input.task.identity },
+          runtime: { identity: input.runtime.identity },
+        },
+      });
+
+      const replay = await fetch(`${url}/preparations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(replay.status).toBe(200);
+      expect(await replay.json()).toMatchObject({ already_exists: true });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
+      )).toHaveLength(1);
+
+      const status = await fetch(`${url}/preparations/${input.preparation_id}`);
+      expect(status.status).toBe(200);
+      expect(await status.json()).toMatchObject({
+        state: "materialized",
+        preparation_id: input.preparation_id,
+        pipeline: {
+          worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
+          full_byte_service_account_readback_passed: true,
+        },
+        paid_execution_requested: false,
+      });
+      expect(state.records.get(input.preparation_id)).toMatchObject({
+        state: "materialized",
+        pipeline_status: { result_digest: sha("9") },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("rejects unsafe or conflicting preparation inputs before Pipeline forwarding", async () => {
+    const { server, url } = await startServer();
+    try {
+      const unsafe = preparationInput();
+      unsafe.scene.source_manifest.uri = "/var/lib/blueprint/source.json";
+      const rejected = await fetch(`${url}/preparations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(unsafe),
+      });
+      expect(rejected.status).toBe(400);
+      expect(await rejected.json()).toMatchObject({
+        code: "task_evaluation_launch_preparation_input_invalid",
+        paid_execution_requested: false,
+      });
+      expect(state.records.size).toBe(0);
+
+      const firstInput = preparationInput();
+      const first = await fetch(`${url}/preparations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(firstInput),
+      });
+      expect(first.status).toBe(202);
+      const changed = preparationInput();
+      changed.run_id = "different-run";
+      const conflict = await fetch(`${url}/preparations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(changed),
+      });
+      expect(conflict.status).toBe(409);
+      expect(await conflict.json()).toMatchObject({
+        code: "task_evaluation_launch_preparation_immutable_conflict",
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
+      )).toHaveLength(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("authenticates and validates an exact launch without persisting or forwarding", async () => {
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = "[]";
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL =

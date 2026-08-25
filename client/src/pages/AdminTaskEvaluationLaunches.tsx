@@ -22,6 +22,7 @@ const TERMINAL_LAUNCH_STATES = [
   "dry_run_completed",
   "control_plane_terminal_blocked",
 ];
+const TERMINAL_PREPARATION_STATES = ["materialized", "blocked"];
 
 type LaunchProgress = {
   phase?: string;
@@ -92,6 +93,11 @@ export default function AdminTaskEvaluationLaunches() {
   const [releaseExpectedLabel, setReleaseExpectedLabel] = useState("");
   const [releaseConfirmed, setReleaseConfirmed] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [preparationJson, setPreparationJson] = useState("");
+  const [preparationId, setPreparationId] = useState("");
+  const [preparationStatus, setPreparationStatus] = useState<Record<string, any> | null>(null);
+  const [preparationError, setPreparationError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
@@ -159,6 +165,21 @@ export default function AdminTaskEvaluationLaunches() {
     return false;
   }
 
+  async function refreshPreparationStatus(id = preparationId) {
+    if ((!currentUser && !launchLabToken) || !id) return false;
+    const response = await fetchWithTimeout(
+      `/api/admin/task-evaluation-launches/preparations/${encodeURIComponent(id)}`,
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(
+      payload.code || payload.error || "Task Evaluation preparation status is unavailable",
+    );
+    setPreparationStatus(payload);
+    setPreparationError(null);
+    return true;
+  }
+
   useEffect(() => {
     void loadProfiles().catch((reason) => setError(String(reason)));
   }, [currentUser, launchLabToken]);
@@ -174,6 +195,51 @@ export default function AdminTaskEvaluationLaunches() {
     const timer = window.setInterval(() => void refreshStatus(), 5000);
     return () => window.clearInterval(timer);
   }, [launchId, status?.state, currentUser, launchLabToken, recoveringSubmission]);
+
+  useEffect(() => {
+    const state = preparationStatus?.state || preparationStatus?.status;
+    if (!preparationId || !preparationStatus || TERMINAL_PREPARATION_STATES.includes(state)) {
+      return undefined;
+    }
+    const timer = window.setInterval(
+      () => void refreshPreparationStatus().catch((reason) => setPreparationError(String(reason))),
+      5000,
+    );
+    return () => window.clearInterval(timer);
+  }, [preparationId, preparationStatus?.state, preparationStatus?.status, currentUser, launchLabToken]);
+
+  async function submitPreparation() {
+    setPreparing(true);
+    setPreparationError(null);
+    try {
+      let request: Record<string, unknown>;
+      try {
+        request = JSON.parse(preparationJson) as Record<string, unknown>;
+      } catch {
+        throw new Error("Preparation JSON is invalid.");
+      }
+      const id = typeof request.preparation_id === "string" ? request.preparation_id : "";
+      if (!id) throw new Error("Preparation JSON must include preparation_id.");
+      setPreparationId(id);
+      const response = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/preparations",
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify(request),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      setPreparationStatus(payload);
+      if (!response.ok) throw new Error(payload.code || payload.error || "Preparation was blocked");
+      await refreshPreparationStatus(id);
+    } catch (reason) {
+      setPreparationError(reason instanceof Error ? reason.message : "Preparation was blocked");
+    } finally {
+      setPreparing(false);
+    }
+  }
 
   async function submit() {
     if (!selected) return;
@@ -301,6 +367,82 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 text-sm leading-6 text-stone-600">{detail}</p>
             </div>
           ))}
+        </section>
+
+        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Prepare versioned inputs</h2>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              Submit one strict Task Evaluation preparation contract for any admitted scene, robot,
+              controller, task, sensors, and digest-pinned runtime. Pipeline verifies and reads back the
+              immutable bytes under its service account. This step cannot publish a launch profile,
+              allocate a GPU, spend money, or start an episode.
+            </p>
+            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-preparation-json">
+              Preparation contract JSON
+            </label>
+            <textarea
+              id="task-evaluation-preparation-json"
+              className="mt-2 min-h-72 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              value={preparationJson}
+              onChange={(event) => setPreparationJson(event.target.value)}
+              placeholder="Paste task_evaluation_launch_preparation_request.v1 JSON"
+              spellCheck={false}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                disabled={preparing || !preparationJson.trim()}
+                onClick={() => void submitPreparation()}
+              >
+                {preparing ? "Preparing…" : "Validate and prepare"}
+              </button>
+              {preparationId ? (
+                <button
+                  type="button"
+                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  onClick={() => void refreshPreparationStatus().catch((reason) => setPreparationError(String(reason)))}
+                >
+                  <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
+                </button>
+              ) : null}
+            </div>
+            {preparationError ? (
+              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{preparationError}</p>
+            ) : null}
+          </div>
+          <aside className="border border-stone-200 bg-stone-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Preparation state
+            </p>
+            <p className="mt-3 text-lg font-semibold">
+              {preparationStatus?.state || preparationStatus?.status || "Not submitted"}
+            </p>
+            {preparationId ? <p className="mt-2 break-all text-xs text-stone-500">{preparationId}</p> : null}
+            {preparationStatus?.pipeline?.worker_status ? (
+              <p className="mt-4 text-sm leading-6 text-stone-700">
+                Pipeline: {preparationStatus.pipeline.worker_status}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.full_byte_service_account_readback_passed === true ? (
+              <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-800">
+                <CheckCircle2 className="h-4 w-4" /> Full-byte service-account readback passed
+              </p>
+            ) : null}
+            {(preparationStatus?.pipeline?.blockers || []).map((blocker: string) => (
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
+              </p>
+            ))}
+            <p className="mt-5 text-xs leading-5 text-stone-500">
+              A materialized preparation is verified input readiness, not execution or scientific success.
+              Launch authority remains a separate step below.
+            </p>
+          </aside>
         </section>
 
         <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
