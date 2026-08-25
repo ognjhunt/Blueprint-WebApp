@@ -25,7 +25,31 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "/api/admin/task-evaluation-launches/profiles") {
-        return new Response(JSON.stringify({ profiles: [] }), {
+        return new Response(JSON.stringify({ profiles: [{
+          profile_id: "scene-841007-construction-r1",
+          profile_digest: `sha256:${"a".repeat(64)}`,
+          source_commit: "b".repeat(40),
+          source_bundle: {
+            bundle_id: "scene-841007-v1",
+            source_kind: "interiorgs_sage",
+            uri: "https://pipeline.example/scene-841007.json",
+            digest: `sha256:${"c".repeat(64)}`,
+          },
+          evaluation_run_spec: {
+            uri: "https://pipeline.example/evaluation-run.json",
+            digest: `sha256:${"d".repeat(64)}`,
+          },
+          execution_admission: {
+            live_enabled: true,
+            readiness_receipt: {
+              uri: "https://pipeline.example/readiness.json",
+              digest: `sha256:${"e".repeat(64)}`,
+            },
+            blockers: [],
+          },
+          claim_ceiling: "development_only",
+          required_authorization: { max_spend_usd: 0.75, hard_ttl_seconds: 3300 },
+        }] }), {
           status: 200, headers: { "content-type": "application/json" },
         });
       }
@@ -81,6 +105,16 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
             worker_status: "profile_authority_materialized_no_execution",
             profile_id: "scene-001-construction-r1",
             blockers: [],
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/launch-scene-841007") {
+        return new Response(JSON.stringify({
+          state: "completed",
+          request_digest: `sha256:${"f".repeat(64)}`,
+          terminal_receipt: {
+            status: "completed",
+            source_commit: "b".repeat(40),
           },
         }), { status: 200, headers: { "content-type": "application/json" } });
       }
@@ -140,5 +174,23 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     expect(vi.mocked(fetch).mock.calls.some(([target]) =>
       String(target) === "/api/admin/task-evaluation-launches/activations/activate-scene-001"
     )).toBe(true);
+  });
+
+  it("shows the exact source commit before launch and from the terminal receipt", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    await waitFor(() => expect(screen.getByText(/scene-841007-construction-r1/)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Pipeline-owned profile"), {
+      target: {
+        value: `scene-841007-construction-r1:sha256:${"a".repeat(64)}`,
+      },
+    });
+    expect(screen.getByText(`Source commit ${"b".repeat(40)}`)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Launch ID"), {
+      target: { value: "launch-scene-841007" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(screen.getByText("completed")).toBeInTheDocument());
+    expect(screen.getAllByText(`Source commit ${"b".repeat(40)}`)).toHaveLength(2);
   });
 });
