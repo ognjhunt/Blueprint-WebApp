@@ -19,6 +19,7 @@ import { attachRequestMeta, logger } from "./logger";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
+import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -52,6 +53,7 @@ export function startWorker(): WorkerHandle {
     ? () => undefined
     : startStripeWebhookQueueProcessor();
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
+  const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
 
   let stopped = false;
   const stop = async () => {
@@ -59,6 +61,7 @@ export function startWorker(): WorkerHandle {
     stopped = true;
     stopQueueProcessor();
     stopTaskEvaluationLaunchForwarder();
+    stopCompanyPolicyCandidateOutbox();
     stopScheduler();
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
   };

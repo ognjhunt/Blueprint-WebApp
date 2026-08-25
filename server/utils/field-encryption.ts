@@ -15,6 +15,7 @@ import type {
   PilotOpportunityInputStored,
 } from "../types/inbound-request";
 import type { EncryptedField, EncryptableString } from "../types/field-encryption";
+import type { BoundEncryptedField } from "../types/field-encryption";
 
 const MASTER_KEY_ENV = "FIELD_ENCRYPTION_MASTER_KEY";
 const KMS_KEY_ENV = "FIELD_ENCRYPTION_KMS_KEY_NAME";
@@ -22,6 +23,7 @@ const KMS_KEY_ENV = "FIELD_ENCRYPTION_KMS_KEY_NAME";
 const AES_256_GCM_ALG = "aes-256-gcm";
 const DATA_KEY_BYTES = 32;
 const IV_BYTES = 12;
+const BOUND_FIELD_VERSION = "blueprint-bound-field.v1" as const;
 
 let kmsClient: KeyManagementServiceClient | null = null;
 
@@ -59,6 +61,29 @@ export function isEncryptedField(value: unknown): value is EncryptedField {
     field.alg === AES_256_GCM_ALG &&
     (field.dekAlg === "kms" || field.dekAlg === "aes-256-gcm")
   );
+}
+
+export function isBoundEncryptedField(value: unknown): value is BoundEncryptedField {
+  if (!isEncryptedField(value)) return false;
+  const field = value as BoundEncryptedField;
+  return (
+    field.bindingVersion === BOUND_FIELD_VERSION
+    && /^sha256:[0-9a-f]{64}$/.test(field.associatedDataSha256)
+  );
+}
+
+function associatedDataBytes(associatedData: string): Buffer {
+  if (!associatedData) {
+    throw new Error("Bound field associated data is required.");
+  }
+  return Buffer.from(`${BOUND_FIELD_VERSION}\n${associatedData}`, "utf8");
+}
+
+function associatedDataSha256(associatedData: string): string {
+  return `sha256:${crypto
+    .createHash("sha256")
+    .update(associatedDataBytes(associatedData))
+    .digest("hex")}`;
 }
 
 function toBase64(data: Buffer | Uint8Array): string {
@@ -182,6 +207,66 @@ export async function decryptFieldValue(
     dataKey,
     fromBase64(value.iv)
   );
+  decipher.setAuthTag(fromBase64(value.authTag));
+  const plaintext = Buffer.concat([
+    decipher.update(fromBase64(value.ciphertext)),
+    decipher.final(),
+  ]);
+  return plaintext.toString("utf8");
+}
+
+export async function encryptBoundFieldValue(
+  value: string,
+  associatedData: string,
+): Promise<BoundEncryptedField> {
+  const dataKey = crypto.randomBytes(DATA_KEY_BYTES);
+  const iv = crypto.randomBytes(IV_BYTES);
+  const aad = associatedDataBytes(associatedData);
+  const cipher = crypto.createCipheriv(AES_256_GCM_ALG, dataKey, iv);
+  cipher.setAAD(aad);
+  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  const wrapped = await wrapDataKey(dataKey);
+
+  return {
+    ciphertext: ciphertext.toString("base64"),
+    iv: iv.toString("base64"),
+    authTag: authTag.toString("base64"),
+    dek: wrapped.dek,
+    dekIv: wrapped.dekIv,
+    dekAuthTag: wrapped.dekAuthTag,
+    keyVersion: wrapped.keyVersion,
+    alg: AES_256_GCM_ALG,
+    dekAlg: wrapped.dekAlg,
+    bindingVersion: BOUND_FIELD_VERSION,
+    associatedDataSha256: associatedDataSha256(associatedData),
+  };
+}
+
+export async function decryptBoundFieldValue(
+  value: BoundEncryptedField,
+  associatedData: string,
+): Promise<string> {
+  if (!isBoundEncryptedField(value)) {
+    throw new Error("Bound encrypted field is invalid.");
+  }
+  const expectedDigest = associatedDataSha256(associatedData);
+  const supplied = Buffer.from(value.associatedDataSha256, "utf8");
+  const expected = Buffer.from(expectedDigest, "utf8");
+  if (
+    supplied.length !== expected.length
+    || !crypto.timingSafeEqual(supplied, expected)
+  ) {
+    throw new Error("Bound field associated data mismatch.");
+  }
+
+  const dataKey = await unwrapDataKey(value);
+  const decipher = crypto.createDecipheriv(
+    AES_256_GCM_ALG,
+    dataKey,
+    fromBase64(value.iv),
+  );
+  decipher.setAAD(associatedDataBytes(associatedData));
   decipher.setAuthTag(fromBase64(value.authTag));
   const plaintext = Buffer.concat([
     decipher.update(fromBase64(value.ciphertext)),

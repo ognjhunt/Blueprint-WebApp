@@ -30,3 +30,5 @@ services:
     envVars:
       - key: BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER
         value: "true"
+      - key: BLUEPRINT_COMPANY_POLICY_OUTBOX_WORKER_ENABLED
+        value: "true"

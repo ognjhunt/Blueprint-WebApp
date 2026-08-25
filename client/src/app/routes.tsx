@@ -89,6 +89,7 @@ const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
+const AppPolicyCandidateIntake = lazyRoute(() => import("../pages/app/PolicyCandidateIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
 const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
 const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
@@ -360,6 +361,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
   { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
+  { path: "/app/runs/:runId/policy-candidate/new", layout: "protected", shell: "bare", component: AppPolicyCandidateIntake },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppSiteDetail },
