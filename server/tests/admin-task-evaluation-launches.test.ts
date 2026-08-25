@@ -127,11 +127,13 @@ function preparationInput() {
   const ref = (name: string) => immutableRef(name);
   return {
     schema_version: "task_evaluation_launch_preparation_request.v1",
+    run_mode: "scene_configuration",
     expected_production_commit: "a".repeat(40),
     preparation_id: "prep-scene-001",
     team_namespace: "robot-team-001",
     run_id: "run-prep-001",
     scene: {
+      mode: "configure_source_scene",
       identity: { id: "public-scene-001", version: "v1" },
       source_manifest: ref("source-manifest"),
       appearance: {
@@ -143,7 +145,9 @@ function preparationInput() {
       },
       registration: {
         metric_registration: ref("metric-registration"), support_plane: ref("support-plane"),
-        robot_base: ref("robot-base"), camera_calibration: ref("camera-calibration"),
+        robot_mount_interface: ref("robot-mount-interface"),
+        workspace_clearance: ref("workspace-clearance"),
+        camera_calibration: ref("camera-calibration"),
       },
       rights: {
         admission: ref("scene-rights"),
@@ -155,17 +159,24 @@ function preparationInput() {
         provider_disclosure_scope: "derived_only",
       },
     },
-    robot: {
-      identity: { id: "fixed-arm", version: "v1" }, configuration: ref("robot-config"),
-      kinematics: ref("kinematics"), joint_bounds: ref("joint-bounds"),
-      controller_configuration: ref("controller-config"),
-    },
-    controller: {
-      identity: { id: "scripted-push", version: "v1" }, kind: "deterministic_scripted",
-      configuration: ref("scripted-controller"),
+    construction: {
+      mode: "production_recipe",
+      recipe: ref("scene-construction-recipe"),
+      output_identity: { id: "public-scene-001-configured", version: "v1" },
     },
     task: {
-      identity: { id: "rigid-relocation", version: "v1" }, definition: ref("task-definition"),
+      identity: { id: "rigid-relocation", version: "v1" },
+      binding_mode: "define_configuration_template",
+      definition: ref("task-definition"),
+      kind: "rigid_relocation", strategy: "planar_push",
+      subject: {
+        mode: "construct_from_scene_object",
+        identity: { id: "source-mug-replacement", version: "v1" },
+        representation_kind: "simready_usd",
+        source_object: ref("task-source-object"),
+        rights_admission: ref("task-subject-rights-admission"),
+        provider_disclosure_allowed: true,
+      },
       success_criteria: ref("success-criteria"), execution: ref("execution-spec"),
     },
     sensors: { configuration: ref("sensor-config") },
@@ -182,8 +193,7 @@ function preparationInput() {
       output_limit_bytes: 1_073_741_824,
     },
     execution_adapter: {
-      kind: "native_task_arena", version: "v1",
-      construction_packet_bundle: ref("construction-packet.zip"),
+      kind: "scene_configuration_pipeline", version: "v1",
       runtime_source_bundle: ref("runtime-source.zip"),
     },
     publication: {
@@ -195,6 +205,48 @@ function preparationInput() {
       retry_cap: 0, selected_provider: "vast", provider_allowlist: ["vast"],
     },
   };
+}
+
+function evaluationPreparationInput() {
+  const input: any = preparationInput();
+  input.run_mode = "episode_evaluation";
+  input.preparation_id = "prep-scene-001-zero";
+  input.run_id = "run-scene-001-zero";
+  input.scene = {
+    mode: "reuse_configured_revision",
+    identity: { id: "public-scene-001", version: "v1" },
+    configured_revision: immutableRef("configured-scene-revision", "8"),
+  };
+  input.construction = {
+    mode: "reuse_configured_scene",
+  };
+  input.robot = {
+    identity: { id: "fixed-arm", version: "v1" },
+    configuration: immutableRef("robot-config"),
+    kinematics: immutableRef("kinematics"),
+    joint_bounds: immutableRef("joint-bounds"),
+    base_registration: immutableRef("robot-base-registration"),
+    controller_configuration: immutableRef("controller-config"),
+  };
+  input.controller = {
+    identity: { id: "zero-action", version: "v1" },
+    kind: "zero_action",
+    configuration: immutableRef("zero-action-controller"),
+  };
+  input.task = {
+    identity: { id: "rigid-relocation", version: "v1" },
+    binding_mode: "reuse_configured_template",
+    kind: "rigid_relocation",
+    strategy: "planar_push",
+    configured_scene_revision_digest: sha("8"),
+    subject: {
+    mode: "configured_scene_object",
+    identity: { id: "source-mug-replacement", version: "v1" },
+    physics_authority: "configured_scene_revision",
+    },
+  };
+  input.execution_adapter.kind = "native_task_arena";
+  return input;
 }
 
 function activationInput() {
@@ -370,11 +422,15 @@ beforeEach(() => {
         schema_version: "task_evaluation_launch_preparation_status.v1",
         status: "materialized",
         preparation_id: request.preparation_id,
+        run_mode: request.run_mode,
         run_id: request.run_id,
         team_namespace: request.team_namespace,
         expected_production_commit: request.expected_production_commit,
         request_digest: canonicalArtifactDigest(request, "request_digest"),
-        worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
+        worker_status: "queued_for_production_scene_configuration",
+        construction_orchestration_id: request.preparation_id,
+        construction_queue_envelope_digest: sha("8"),
+        automatic_progression_required: true,
         source_commit: request.expected_production_commit,
         result_digest: sha("9"),
         reference_count: 24,
@@ -461,7 +517,7 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
-  it("prepares arbitrary versioned scene inputs without launch or provider authority", async () => {
+  it("starts a production scene-configuration run without an evaluation controller", async () => {
     const { server, url } = await startServer();
     const input = preparationInput();
     try {
@@ -489,9 +545,9 @@ describe("admin Task Evaluation launch route", () => {
         catalog_mutation_observed: false,
         paid_execution_requested: false,
         request: {
+          run_mode: "scene_configuration",
           scene: { identity: input.scene.identity },
-          robot: { identity: input.robot.identity },
-          controller: { identity: input.controller.identity },
+          construction: { mode: "production_recipe" },
           task: { identity: input.task.identity },
           runtime: { identity: input.runtime.identity },
         },
@@ -512,7 +568,9 @@ describe("admin Task Evaluation launch route", () => {
         state: "materialized",
         preparation_id: input.preparation_id,
         pipeline: {
-          worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
+          worker_status: "queued_for_production_scene_configuration",
+          construction_orchestration_id: input.preparation_id,
+          automatic_progression_required: true,
           full_byte_service_account_readback_passed: true,
         },
         paid_execution_requested: false,
@@ -521,6 +579,41 @@ describe("admin Task Evaluation launch route", () => {
         state: "materialized",
         pipeline_status: { result_digest: sha("9") },
       });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("accepts an episode evaluation only with configured scene, robot, and controller bindings", async () => {
+    const { server, url } = await startServer();
+    const input = evaluationPreparationInput();
+    try {
+      const response = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(202);
+      expect(state.records.get(input.preparation_id)).toMatchObject({
+        state: "queued_for_no_spend_preparation",
+        request: {
+          run_mode: "episode_evaluation",
+          scene: { configured_revision: input.scene.configured_revision },
+          construction: { mode: "reuse_configured_scene" },
+          robot: { identity: input.robot.identity },
+          controller: { kind: "zero_action" },
+        },
+      });
+
+      const invalid = evaluationPreparationInput();
+      invalid.preparation_id = "prep-scene-001-invalid";
+      delete invalid.scene.configured_revision;
+      const rejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(invalid),
+      });
+      expect(rejected.status).toBe(400);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

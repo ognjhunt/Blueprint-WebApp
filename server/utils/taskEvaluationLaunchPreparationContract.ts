@@ -14,35 +14,122 @@ const immutableReference = z.object({
 }).strict();
 const versionedIdentity = z.object({ id: identifier, version: identifier }).strict();
 
-const sceneSchema = z.object({
+const sceneSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("configure_source_scene"),
+    identity: versionedIdentity,
+    source_manifest: immutableReference,
+    appearance: z.object({
+      kind: z.enum(["interiorgs", "gaussian_splat", "textured_usd", "other_observed"]),
+      representation: immutableReference,
+      renderer_qualification: immutableReference,
+    }).strict(),
+    geometry: z.object({
+      kind: z.enum(["sage_derived", "observed_mesh", "qualified_cad", "other_derived"]),
+      collision: immutableReference,
+      validation: immutableReference,
+    }).strict(),
+    registration: z.object({
+      metric_registration: immutableReference,
+      support_plane: immutableReference,
+      robot_mount_interface: immutableReference,
+      workspace_clearance: immutableReference,
+      camera_calibration: immutableReference,
+    }).strict(),
+    rights: z.object({
+      admission: immutableReference,
+      evidence: z.array(z.object({
+        role: z.enum(["publisher_terms", "publisher_readme", "upstream_license", "human_authority_record"]),
+        artifact: immutableReference,
+      }).strict()).min(2).max(16),
+      source_bytes_redistributable: z.boolean(),
+      provider_disclosure_scope: z.enum(["none", "derived_only", "source_and_derived"]),
+    }).strict(),
+  }).strict(),
+  z.object({
+    mode: z.literal("reuse_configured_revision"),
+    identity: versionedIdentity,
+    configured_revision: immutableReference,
+  }).strict(),
+]);
+
+const constructionSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("reuse_configured_scene"),
+  }).strict(),
+  z.object({
+    mode: z.literal("production_recipe"),
+    recipe: immutableReference,
+    output_identity: versionedIdentity,
+  }).strict(),
+]);
+
+const taskSubjectSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("supplied_qualified_asset"),
+    identity: versionedIdentity,
+    representation_kind: z.enum([
+      "simready_usd",
+      "qualified_rigid_usd",
+      "qualified_articulated_usd",
+      "other_qualified_physics_asset",
+    ]),
+    asset: immutableReference,
+    physics_validation: immutableReference,
+    rights_admission: immutableReference,
+    provider_disclosure_allowed: z.literal(true),
+  }).strict(),
+  z.object({
+    mode: z.literal("construct_from_scene_object"),
+    identity: versionedIdentity,
+    representation_kind: z.enum([
+      "simready_usd",
+      "qualified_rigid_usd",
+      "qualified_articulated_usd",
+      "other_qualified_physics_asset",
+    ]),
+    source_object: immutableReference,
+    rights_admission: immutableReference,
+    provider_disclosure_allowed: z.literal(true),
+  }).strict(),
+  z.object({
+    mode: z.literal("configured_scene_object"),
+    identity: versionedIdentity,
+    physics_authority: z.literal("configured_scene_revision"),
+  }).strict(),
+]);
+
+const taskSchema = z.object({
   identity: versionedIdentity,
-  source_manifest: immutableReference,
-  appearance: z.object({
-    kind: z.enum(["interiorgs", "gaussian_splat", "textured_usd", "other_observed"]),
-    representation: immutableReference,
-    renderer_qualification: immutableReference,
-  }).strict(),
-  geometry: z.object({
-    kind: z.enum(["sage_derived", "observed_mesh", "qualified_cad", "other_derived"]),
-    collision: immutableReference,
-    validation: immutableReference,
-  }).strict(),
-  registration: z.object({
-    metric_registration: immutableReference,
-    support_plane: immutableReference,
-    robot_base: immutableReference,
-    camera_calibration: immutableReference,
-  }).strict(),
-  rights: z.object({
-    admission: immutableReference,
-    evidence: z.array(z.object({
-      role: z.enum(["publisher_terms", "publisher_readme", "upstream_license", "human_authority_record"]),
-      artifact: immutableReference,
-    }).strict()).min(2).max(16),
-    source_bytes_redistributable: z.boolean(),
-    provider_disclosure_scope: z.enum(["none", "derived_only", "source_and_derived"]),
-  }).strict(),
-}).strict();
+  binding_mode: z.enum(["define_configuration_template", "reuse_configured_template"]),
+  kind: z.enum(["rigid_relocation", "articulated_manipulation"]),
+  strategy: z.enum(["planar_push", "pick_and_place", "articulated_open_close"]),
+  configured_scene_revision_digest: digest.optional(),
+  subject: taskSubjectSchema,
+  definition: immutableReference.optional(),
+  success_criteria: immutableReference.optional(),
+  execution: immutableReference.optional(),
+}).strict().superRefine((value, context) => {
+  if (value.binding_mode === "define_configuration_template") {
+    if (!value.definition || !value.success_criteria || !value.execution) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "configuration task template requires definition, success criteria, and execution",
+    });
+    if (value.configured_scene_revision_digest) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "configuration task template cannot bind an existing scene revision",
+    });
+  } else {
+    if (!value.configured_scene_revision_digest) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "configured task binding requires the configured scene revision digest",
+    });
+    if (value.definition || value.success_criteria || value.execution) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation cannot replace configured task semantics",
+    });
+  }
+});
 
 const runtimeMountSchema = z.object({
   source: immutableReference.optional(),
@@ -61,18 +148,21 @@ const runtimeMountSchema = z.object({
 
 export const taskEvaluationLaunchPreparationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_request.v1"),
+  run_mode: z.enum(["scene_configuration", "episode_evaluation"]),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   preparation_id: identifier,
   team_namespace: identifier,
   run_id: identifier,
   scene: sceneSchema,
+  construction: constructionSchema,
   robot: z.object({
     identity: versionedIdentity,
     configuration: immutableReference,
     kinematics: immutableReference,
     joint_bounds: immutableReference,
+    base_registration: immutableReference,
     controller_configuration: immutableReference,
-  }).strict(),
+  }).strict().optional(),
   controller: z.object({
     identity: versionedIdentity,
     kind: z.enum(["zero_action", "deterministic_scripted", "policy_container"]),
@@ -83,13 +173,8 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "policy_container requires model_or_asset_rights",
     });
-  }),
-  task: z.object({
-    identity: versionedIdentity,
-    definition: immutableReference,
-    success_criteria: immutableReference,
-    execution: immutableReference,
-  }).strict(),
+  }).optional(),
+  task: taskSchema,
   sensors: z.object({ configuration: immutableReference }).strict(),
   runtime: z.object({
     identity: versionedIdentity,
@@ -111,9 +196,8 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     output_limit_bytes: z.number().int().positive().max(1_099_511_627_776),
   }).strict(),
   execution_adapter: z.object({
-    kind: z.literal("native_task_arena"),
+    kind: z.enum(["scene_configuration_pipeline", "native_task_arena"]),
     version: z.literal("v1"),
-    construction_packet_bundle: immutableReference,
     runtime_source_bundle: immutableReference,
   }).strict(),
   publication: z.object({
@@ -130,15 +214,65 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       .min(1).max(16),
   }).strict(),
 }).strict().superRefine((value, context) => {
+  if (value.run_mode === "scene_configuration") {
+    if (value.construction.mode !== "production_recipe") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration requires a production construction recipe",
+    });
+    if (
+      value.scene.mode !== "configure_source_scene"
+      || value.task.binding_mode !== "define_configuration_template"
+      || value.task.subject.mode !== "construct_from_scene_object"
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration requires source-scene and task-template inputs",
+    });
+    if (value.execution_adapter.kind !== "scene_configuration_pipeline") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration requires the production configuration pipeline",
+    });
+    if (value.robot || value.controller) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration cannot carry an evaluation robot or controller",
+    });
+    if (value.scene.mode === "configure_source_scene" && value.scene.rights.provider_disclosure_scope !== "derived_only") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "production scene construction requires derived-only disclosure",
+    });
+  } else {
+    if (value.construction.mode !== "reuse_configured_scene") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation must reuse the configured scene revision",
+    });
+    if (
+      value.scene.mode !== "reuse_configured_revision"
+      || value.task.binding_mode !== "reuse_configured_template"
+      || value.task.subject.mode !== "configured_scene_object"
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation requires configured scene, task, and object bindings",
+    });
+    if (!value.robot || !value.controller) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation requires configured scene, robot, and controller bindings",
+    });
+    if (value.execution_adapter.kind !== "native_task_arena") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation requires production native-Arena compilation",
+    });
+  }
   if (
-    value.scene.rights.provider_disclosure_scope === "source_and_derived"
+    value.scene.mode === "configure_source_scene"
+    && value.scene.rights.provider_disclosure_scope === "source_and_derived"
     && !value.scene.rights.source_bytes_redistributable
   ) context.addIssue({
     code: z.ZodIssueCode.custom,
     message: "source disclosure conflicts with source rights",
   });
-  const rightsRoles = new Set(value.scene.rights.evidence.map((row) => row.role));
-  if (!rightsRoles.has("publisher_terms") || !rightsRoles.has("human_authority_record")) {
+  const rightsRoles = value.scene.mode === "configure_source_scene"
+    ? new Set(value.scene.rights.evidence.map((row) => row.role))
+    : null;
+  if (rightsRoles && (!rightsRoles.has("publisher_terms") || !rightsRoles.has("human_authority_record"))) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "scene rights require publisher terms and human authority bytes",
@@ -172,6 +306,16 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       message: "selected provider must be included in the provider allowlist",
     });
   }
+  const strategiesByKind = {
+    rigid_relocation: new Set(["planar_push", "pick_and_place"]),
+    articulated_manipulation: new Set(["articulated_open_close"]),
+  } as const;
+  if (!strategiesByKind[value.task.kind].has(value.task.strategy as never)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "task strategy must match the task kind",
+    });
+  }
 });
 
 export type TaskEvaluationLaunchPreparationInput = z.infer<
@@ -199,6 +343,7 @@ export const taskEvaluationLaunchPreparationStatusSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_status.v1"),
   status: z.enum(["not_found", "pending", "processing", "materialized", "blocked"]),
   preparation_id: identifier,
+  run_mode: z.enum(["scene_configuration", "episode_evaluation"]).optional(),
   run_id: identifier.optional(),
   team_namespace: identifier.optional(),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/).optional(),
@@ -213,6 +358,13 @@ export const taskEvaluationLaunchPreparationStatusSchema = z.object({
   provider_mutation_performed_by_worker: z.literal(false).optional(),
   catalog_mutation_performed_by_worker: z.literal(false).optional(),
   paid_execution_requested: z.literal(false).optional(),
+  construction_orchestration_id: identifier.optional(),
+  construction_queue_envelope_digest: digest.optional(),
+  automatic_progression_required: z.literal(true).optional(),
+  configured_scene_revision_digest: digest.optional(),
+  configured_scene_bundle_digest: digest.optional(),
+  episode_compilation_id: identifier.optional(),
+  episode_compilation_queue_envelope_digest: digest.optional(),
 }).strict();
 
 export function taskEvaluationLaunchPreparationRequestDigest(
