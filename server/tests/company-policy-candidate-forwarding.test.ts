@@ -2,10 +2,10 @@
 import {afterEach, describe, expect, it, vi} from "vitest";
 
 import {
+  buildCompanyPolicyPipelineIntakeSignature,
   type CompanyPolicyCandidateHandoff,
   forwardCompanyPolicyCandidateToPipeline,
 } from "../utils/companyPolicyCandidateForwarding";
-import {buildPipelineSyncSignature} from "../utils/pipelineSyncSecurity";
 
 function handoff(): CompanyPolicyCandidateHandoff {
   return {
@@ -59,11 +59,22 @@ describe("company policy candidate Pipeline forwarding", () => {
     });
     const [, init] = fetchMock.mock.calls[0];
     const body = String(init.body);
-    const timestamp = String((init.headers as Record<string, string>)["X-Blueprint-Pipeline-Timestamp"]);
+    const headers = init.headers as Record<string, string>;
+    const timestamp = String(headers["X-Blueprint-Pipeline-Timestamp"]);
+    const clientId = String(headers["X-Blueprint-Pipeline-Client-Id"]);
+    const nonce = String(headers["X-Blueprint-Pipeline-Nonce"]);
     expect(body).not.toContain("registry_secret");
     expect(body).not.toContain("encrypted_credential");
-    expect((init.headers as Record<string, string>)["X-Blueprint-Pipeline-Signature"]).toBe(
-      `sha256=${buildPipelineSyncSignature({secret: "pipeline-secret", timestamp, body})}`,
+    expect(clientId).toBe("blueprint-webapp");
+    expect(nonce).toMatch(/^company-policy-[0-9a-f]{48}$/);
+    expect(headers["X-Blueprint-Pipeline-Signature"]).toBe(
+      `sha256=${buildCompanyPolicyPipelineIntakeSignature({
+        secret: "pipeline-secret",
+        timestamp,
+        clientId,
+        nonce,
+        body,
+      })}`,
     );
   });
 

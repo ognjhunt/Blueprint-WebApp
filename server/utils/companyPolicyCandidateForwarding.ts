@@ -1,6 +1,7 @@
-import {buildPipelineSyncSignature} from "./pipelineSyncSecurity";
+import crypto from "node:crypto";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_PIPELINE_INTAKE_CLIENT_ID = "blueprint-webapp";
 
 function truthy(value: string | undefined): boolean {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
@@ -32,6 +33,19 @@ function containsSecretCarrier(value: unknown): boolean {
       "authorization_header",
     ].includes(key.toLowerCase()) || containsSecretCarrier(nested),
   );
+}
+
+export function buildCompanyPolicyPipelineIntakeSignature(args: {
+  secret: string;
+  timestamp: string;
+  clientId: string;
+  nonce: string;
+  body: string;
+}): string {
+  return crypto
+    .createHmac("sha256", args.secret)
+    .update(`${args.timestamp}.${args.clientId}.${args.nonce}.${args.body}`)
+    .digest("hex");
 }
 
 export async function forwardCompanyPolicyCandidateToPipeline(
@@ -73,7 +87,26 @@ export async function forwardCompanyPolicyCandidateToPipeline(
   }
   const body = JSON.stringify(handoff);
   const timestamp = new Date().toISOString();
-  const signature = buildPipelineSyncSignature({secret, timestamp, body});
+  const clientId = String(
+    process.env.COMPANY_POLICY_CONTAINER_FORWARD_CLIENT_ID || DEFAULT_PIPELINE_INTAKE_CLIENT_ID,
+  ).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(clientId)) {
+    return {
+      status: "blocked",
+      performed: false,
+      accepted: false,
+      required,
+      blockers: ["company_policy_container_forward_client_id_invalid"],
+    };
+  }
+  const nonce = `company-policy-${crypto.randomBytes(24).toString("hex")}`;
+  const signature = buildCompanyPolicyPipelineIntakeSignature({
+    secret,
+    timestamp,
+    clientId,
+    nonce,
+    body,
+  });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
@@ -83,6 +116,8 @@ export async function forwardCompanyPolicyCandidateToPipeline(
         "Content-Type": "application/json",
         "X-Blueprint-Pipeline-Timestamp": timestamp,
         "X-Blueprint-Pipeline-Signature": `sha256=${signature}`,
+        "X-Blueprint-Pipeline-Client-Id": clientId,
+        "X-Blueprint-Pipeline-Nonce": nonce,
         "Idempotency-Key": handoff.submission_id,
       },
       body,
