@@ -11,6 +11,7 @@ import {
   forwardTaskEvaluationTerminalResourceRelease,
   loadPublishedLaunchProfiles,
   parseTaskEvaluationLaunchReceipt,
+  parseTaskEvaluationLaunchWebPreflightReceipt,
   resolvePublishedLaunchProfileCatalog,
   resolvePublishedLaunchProfiles,
   resolveTaskEvaluationLaunchUrl,
@@ -116,6 +117,34 @@ afterEach(() => {
 });
 
 describe("Task Evaluation production launch contract", () => {
+  it("accepts only a digest-bound no-mutation WebApp preflight receipt", () => {
+    const receipt = {
+      schema_version: "task_evaluation_launch_web_preflight_receipt.v1",
+      status: "ready",
+      launch_id: "launch-001",
+      run_id: "run-001",
+      profile_id: profile().profile_id,
+      profile_digest: profile().profile_digest,
+      candidate_request_digest: sha("f"),
+      authenticated_client_id: "blueprint-production-runner",
+      submission_channel: "production_webapp_service_api",
+      webapp_store_available: true,
+      webapp_record_persisted: false,
+      pipeline_request_forwarded: false,
+      pipeline_queue_created: false,
+      provider_mutation_performed_inside_web_request: false,
+      preflight_is_not_execution: true,
+      receipt_digest: "",
+    };
+    receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+
+    expect(parseTaskEvaluationLaunchWebPreflightReceipt(receipt).ok).toBe(true);
+    expect(parseTaskEvaluationLaunchWebPreflightReceipt({
+      ...receipt,
+      pipeline_queue_created: true,
+    }).ok).toBe(false);
+  });
+
   it("builds a digest-bound request without allocator arguments or secrets", () => {
     process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
     const published = loadPublishedLaunchProfiles();

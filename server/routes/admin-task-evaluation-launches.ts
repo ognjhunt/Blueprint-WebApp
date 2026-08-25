@@ -8,6 +8,7 @@ import {
   buildTaskEvaluationLaunchRequest,
   buildTaskEvaluationTerminalResourceReleaseRequest,
   forwardTaskEvaluationLaunch,
+  parseTaskEvaluationLaunchWebPreflightReceipt,
   forwardTaskEvaluationTerminalResourceRelease,
   resolvePublishedLaunchProfileCatalog,
   taskEvaluationLaunchInputSchema,
@@ -47,35 +48,114 @@ export interface TaskEvaluationLaunchSubmissionContext {
   idempotencyKey: string;
 }
 
+async function resolveTaskEvaluationLaunchInput(body: unknown) {
+  const parsed = taskEvaluationLaunchInputSchema.safeParse(body);
+  if (!parsed.success) return {
+    ok: false as const,
+    status: 400,
+    payload: {
+      error: "Task Evaluation launch request is invalid",
+      code: "task_evaluation_launch_input_invalid",
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  if (Date.parse(parsed.data.spend.expires_at) <= Date.now()) return {
+    ok: false as const,
+    status: 400,
+    payload: {
+      error: "Spend authority has expired",
+      code: "task_evaluation_launch_spend_authority_expired",
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  const catalog = await resolvePublishedLaunchProfileCatalog();
+  if (catalog.blocker) return {
+    ok: false as const,
+    status: 503,
+    payload: {
+      error: "Published Pipeline launch profiles are unavailable",
+      code: catalog.blocker,
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  const profile = catalog.profiles.find((candidate) =>
+    candidate.profile_id === parsed.data.profile_id
+    && candidate.profile_digest === parsed.data.profile_digest,
+  );
+  if (!profile) return {
+    ok: false as const,
+    status: 409,
+    payload: {
+      error: "Published Pipeline launch profile does not match",
+      code: "task_evaluation_launch_profile_not_published",
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  return { ok: true as const, input: parsed.data, profile };
+}
+
+export async function preflightTaskEvaluationLaunch(
+  req: Request,
+  res: Response,
+  context: TaskEvaluationLaunchSubmissionContext,
+) {
+  if (!db) return res.status(503).json({
+    error: "Task Evaluation launch store is unavailable",
+    code: "task_evaluation_launch_store_unavailable",
+    provider_mutation_performed_inside_web_request: false,
+  });
+  const resolved = await resolveTaskEvaluationLaunchInput(req.body);
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.payload);
+  const candidateRequest = buildTaskEvaluationLaunchRequest({
+    input: resolved.input,
+    profile: resolved.profile,
+    actorId: context.actorId,
+    actorRole: context.actorRole,
+    authorizedAt: new Date().toISOString(),
+  });
+  const receipt = {
+    schema_version: "task_evaluation_launch_web_preflight_receipt.v1",
+    status: "ready",
+    launch_id: resolved.input.launch_id,
+    run_id: resolved.input.run_id,
+    profile_id: resolved.input.profile_id,
+    profile_digest: resolved.input.profile_digest,
+    candidate_request_digest: candidateRequest.request_digest,
+    authenticated_client_id: context.serviceId,
+    submission_channel: context.channel,
+    webapp_store_available: true,
+    webapp_record_persisted: false,
+    pipeline_request_forwarded: false,
+    pipeline_queue_created: false,
+    provider_mutation_performed_inside_web_request: false,
+    preflight_is_not_execution: true,
+    receipt_digest: "",
+  };
+  receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+  const parsedReceipt = parseTaskEvaluationLaunchWebPreflightReceipt(receipt);
+  if (!parsedReceipt.ok) {
+    logger.error({ blockers: parsedReceipt.blockers },
+      "Task Evaluation launch preflight receipt validation failed");
+    return res.status(500).json({
+      error: "Task Evaluation launch preflight receipt is invalid",
+      code: "task_evaluation_launch_web_preflight_receipt_invalid",
+      provider_mutation_performed_inside_web_request: false,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(200).json(parsedReceipt.receipt);
+}
+
 export async function submitTaskEvaluationLaunch(
   req: Request,
   res: Response,
   context: TaskEvaluationLaunchSubmissionContext,
 ) {
   if (!db) return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
-  const parsed = taskEvaluationLaunchInputSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({
-    error: "Task Evaluation launch request is invalid",
-    code: "task_evaluation_launch_input_invalid",
-  });
-  if (Date.parse(parsed.data.spend.expires_at) <= Date.now()) return res.status(400).json({
-    error: "Spend authority has expired",
-    code: "task_evaluation_launch_spend_authority_expired",
-  });
-  const catalog = await resolvePublishedLaunchProfileCatalog();
-  if (catalog.blocker) return res.status(503).json({
-    error: "Published Pipeline launch profiles are unavailable",
-    code: catalog.blocker,
-    provider_mutation_performed_inside_web_request: false,
-  });
-  const profile = catalog.profiles.find((candidate) =>
-    candidate.profile_id === parsed.data.profile_id
-    && candidate.profile_digest === parsed.data.profile_digest,
-  );
-  if (!profile) return res.status(409).json({
-    error: "Published Pipeline launch profile does not match",
-    code: "task_evaluation_launch_profile_not_published",
-  });
+  const resolved = await resolveTaskEvaluationLaunchInput(req.body);
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.payload);
+  const parsed = { data: resolved.input };
+  const profile = resolved.profile;
   const freshRequest = buildTaskEvaluationLaunchRequest({
     input: parsed.data,
     profile,

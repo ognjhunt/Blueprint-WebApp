@@ -1,6 +1,9 @@
 import { Router, type Request, type Response } from "express";
 
-import { submitTaskEvaluationLaunch } from "./admin-task-evaluation-launches";
+import {
+  preflightTaskEvaluationLaunch,
+  submitTaskEvaluationLaunch,
+} from "./admin-task-evaluation-launches";
 import {
   createTaskEvaluationLaunchSubmissionRateLimiter,
   verifyTaskEvaluationLaunchSubmissionRequest,
@@ -34,6 +37,27 @@ router.post("/", rateLimiter, requireLaunchSubmissionSignature, async (req, res)
     provider_mutation_performed_inside_web_request: false,
   });
   return submitTaskEvaluationLaunch(req, res, {
+    actorId: String(res.locals.taskEvaluationLaunchSubmissionClientId),
+    actorRole: "ops",
+    channel: "production_webapp_service_api",
+    serviceId: String(res.locals.taskEvaluationLaunchSubmissionClientId),
+    idempotencyKey,
+  });
+});
+
+router.post("/preflight", rateLimiter, requireLaunchSubmissionSignature, async (req, res) => {
+  const idempotencyKey = String(req.header("Idempotency-Key") || "").trim();
+  if (!idempotencyKey) return res.status(400).json({
+    error: "Task Evaluation launch preflight idempotency key is required.",
+    code: "task_evaluation_launch_preflight_idempotency_key_missing",
+    provider_mutation_performed_inside_web_request: false,
+  });
+  if (idempotencyKey !== String(req.body?.launch_id || "")) return res.status(409).json({
+    error: "Task Evaluation launch preflight idempotency key must equal launch_id.",
+    code: "task_evaluation_launch_preflight_idempotency_key_mismatch",
+    provider_mutation_performed_inside_web_request: false,
+  });
+  return preflightTaskEvaluationLaunch(req, res, {
     actorId: String(res.locals.taskEvaluationLaunchSubmissionClientId),
     actorRole: "ops",
     channel: "production_webapp_service_api",

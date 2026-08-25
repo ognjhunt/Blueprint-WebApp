@@ -68,6 +68,44 @@ export const taskEvaluationLaunchInputSchema = z.object({
   confirm_execution: z.literal(true),
 }).strict();
 
+export const taskEvaluationLaunchWebPreflightReceiptSchema = z.object({
+  schema_version: z.literal("task_evaluation_launch_web_preflight_receipt.v1"),
+  status: z.literal("ready"),
+  launch_id: identifier,
+  run_id: identifier,
+  profile_id: identifier,
+  profile_digest: digest,
+  candidate_request_digest: digest,
+  authenticated_client_id: identifier,
+  submission_channel: z.literal("production_webapp_service_api"),
+  webapp_store_available: z.literal(true),
+  webapp_record_persisted: z.literal(false),
+  pipeline_request_forwarded: z.literal(false),
+  pipeline_queue_created: z.literal(false),
+  provider_mutation_performed_inside_web_request: z.literal(false),
+  preflight_is_not_execution: z.literal(true),
+  receipt_digest: digest,
+}).strict();
+
+export function parseTaskEvaluationLaunchWebPreflightReceipt(value: unknown) {
+  const parsed = taskEvaluationLaunchWebPreflightReceiptSchema.safeParse(value);
+  if (!parsed.success) return {
+    ok: false as const,
+    blockers: ["task_evaluation_launch_web_preflight_receipt_schema_invalid"],
+  };
+  const receipt = parsed.data;
+  if (
+    canonicalArtifactDigest(
+      receipt as unknown as Record<string, unknown>,
+      "receipt_digest",
+    ) !== receipt.receipt_digest
+  ) return {
+    ok: false as const,
+    blockers: ["task_evaluation_launch_web_preflight_receipt_digest_mismatch"],
+  };
+  return { ok: true as const, receipt };
+}
+
 // This is a release-only recovery action. It can name one stopped Vast record
 // after a website-owned launch is terminally blocked; it cannot restart or
 // retry evaluation work.

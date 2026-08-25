@@ -254,6 +254,59 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("authenticates and validates an exact launch without persisting or forwarding", async () => {
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = "[]";
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_URL =
+      "https://pipeline.example/api/live-pipeline/task-evaluation-launch-profiles";
+    const { server, url } = await startSubmissionServer();
+    const body = JSON.stringify(launchInput());
+    try {
+      const unsigned = await fetch(`${url}/preflight`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      });
+      expect(unsigned.status).toBe(401);
+
+      const response = await fetch(`${url}/preflight`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body) as HeadersInit,
+        body,
+      });
+      const receipt = await response.json();
+      expect(response.status).toBe(200);
+      expect(receipt).toMatchObject({
+        schema_version: "task_evaluation_launch_web_preflight_receipt.v1",
+        status: "ready",
+        launch_id: "launch-001",
+        run_id: "run-001",
+        profile_id: profile().profile_id,
+        profile_digest: profile().profile_digest,
+        authenticated_client_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+        submission_channel: "production_webapp_service_api",
+        webapp_store_available: true,
+        webapp_record_persisted: false,
+        pipeline_request_forwarded: false,
+        pipeline_queue_created: false,
+        provider_mutation_performed_inside_web_request: false,
+        preflight_is_not_execution: true,
+      });
+      expect(receipt.receipt_digest).toBe(
+        canonicalArtifactDigest(receipt, "receipt_digest"),
+      );
+      expect(state.records.size).toBe(0);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/launches",
+      )).toHaveLength(0);
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target)
+          === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-profiles",
+      )).toHaveLength(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("submits through the launch-only HMAC API exactly once", async () => {
     const { server, url } = await startSubmissionServer();
     const body = JSON.stringify(launchInput());
