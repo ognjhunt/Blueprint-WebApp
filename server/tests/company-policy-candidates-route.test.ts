@@ -75,7 +75,7 @@ vi.mock("../middleware/verifyFirebaseToken", () => ({
     if (!uid) return res.status(401).json({error: "Unauthorized"});
     res.locals.firebaseUser = {
       uid,
-      tenantId: `tenant-${uid}`,
+      tenantId: String(req.header("X-Test-Tenant-Id") || `tenant-${uid}`),
       companyId: String(req.header("X-Test-Company-Id") || "acme_robotics"),
     };
     next();
@@ -161,6 +161,59 @@ function signedPipelineBody(body: Record<string, unknown>) {
       "X-Blueprint-Pipeline-Signature": `sha256=${signature}`,
     },
   };
+}
+
+async function stageClaimableCredential(baseUrl: string) {
+  const candidateResponse = await fetch(
+    `${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidates`,
+    {
+      method: "POST",
+      headers: {"Content-Type": "application/json", Authorization: "Bearer buyer-1"},
+      body: JSON.stringify({contract: {valid: true}, idempotency_key: "candidate-12345678"}),
+    },
+  );
+  const candidate = (await candidateResponse.json() as any).candidate;
+  const leaseResponse = await fetch(
+    `${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidates/${candidate.submission_id}/registry-credential`,
+    {
+      method: "PUT",
+      headers: {"Content-Type": "application/json", Authorization: "Bearer buyer-1"},
+      body: JSON.stringify({
+        schema_version: "company_policy_registry_credential_lease.v1",
+        submission_id: candidate.submission_id,
+        contract_digest: normalizedContract.contract_digest,
+        image: normalizedContract.container.image,
+        registry_username: "robot-team",
+        registry_secret: "fault-injection-secret",
+        expires_in_seconds: 300,
+        idempotency_key: "credential-12345678",
+      }),
+    },
+  );
+  const lease = (await leaseResponse.json() as any).credential_lease;
+  const storedLease = state.collections
+    .get("companyPolicyRegistryCredentialLeases")
+    ?.get(lease.lease_id);
+  if (!storedLease) throw new Error("test lease missing");
+  storedLease.admission_id = "admission-1";
+  storedLease.admission_digest = `sha256:${"e".repeat(64)}`;
+  const claimBody = {
+    schema_version: "company_policy_registry_credential_claim.v1",
+    tenant_id: "tenant-buyer-1",
+    run_id: "run-12345678",
+    submission_id: candidate.submission_id,
+    company_id: "acme_robotics",
+    contract_digest: normalizedContract.contract_digest,
+    admission_id: "admission-1",
+    admission_digest: `sha256:${"e".repeat(64)}`,
+    sandbox_attempt_id: "sandbox-attempt-12345678",
+    sandbox_plan_digest: `sha256:${"f".repeat(64)}`,
+    pipeline_release_sha: "a".repeat(40),
+    worker_identity: "blueprint-policy-sandbox-worker-01",
+    purpose: "pull_digest_pinned_company_policy_image",
+    image: normalizedContract.container.image,
+  };
+  return {candidate, lease, storedLease, claimBody};
 }
 
 beforeEach(() => {
@@ -296,6 +349,41 @@ describe("company policy candidate routes", () => {
         code: "policy_candidate_company_identity_mismatch",
       });
       expect(state.handoffs).toHaveLength(0);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("refuses GET access when either tenant or company binding differs", async () => {
+    const {server, baseUrl} = await startServer();
+    try {
+      const candidateResponse = await fetch(
+        `${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidates`,
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json", Authorization: "Bearer buyer-1"},
+          body: JSON.stringify({contract: {valid: true}, idempotency_key: "candidate-12345678"}),
+        },
+      );
+      const candidate = (await candidateResponse.json() as any).candidate;
+      for (const identityHeaders of [
+        {"X-Test-Tenant-Id": "tenant-other"},
+        {"X-Test-Company-Id": "other_company"},
+      ]) {
+        const response = await fetch(
+          `${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidates/${candidate.submission_id}`,
+          {
+            headers: {
+              Authorization: "Bearer buyer-1",
+              ...identityHeaders,
+            },
+          },
+        );
+        expect(response.status).toBe(403);
+        await expect(response.json()).resolves.toMatchObject({
+          code: "policy_candidate_owner_mismatch",
+        });
+      }
     } finally {
       await stopServer(server);
     }
@@ -438,6 +526,115 @@ describe("company policy candidate routes", () => {
       await expect(ackReplay.json()).resolves.toMatchObject({
         lease_receipt: {idempotent_replay: true, ciphertext_deleted: true},
       });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("refuses mismatched or expired credential claims without deleting ciphertext", async () => {
+    const {server, baseUrl} = await startServer();
+    try {
+      const {lease, storedLease, claimBody} = await stageClaimableCredential(baseUrl);
+      const mismatched = signedPipelineBody({...claimBody, tenant_id: "tenant-other"});
+      const mismatchResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
+        {method: "POST", headers: mismatched.headers, body: mismatched.raw},
+      );
+      expect(mismatchResponse.status).toBe(409);
+      await expect(mismatchResponse.json()).resolves.toMatchObject({
+        code: "registry_credential_lease_binding_mismatch",
+      });
+      expect(storedLease).toHaveProperty("encrypted_credential");
+
+      storedLease.expires_at_iso = "1970-01-01T00:00:00.000Z";
+      const expired = signedPipelineBody(claimBody);
+      const expiredResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
+        {method: "POST", headers: expired.headers, body: expired.raw},
+      );
+      expect(expiredResponse.status).toBe(410);
+      await expect(expiredResponse.json()).resolves.toMatchObject({
+        code: "registry_credential_lease_expired",
+      });
+      expect(storedLease.status).toBe("active");
+      expect(storedLease).toHaveProperty("encrypted_credential");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("refuses nonce replay and incorrect or expired pull acknowledgements", async () => {
+    const {server, baseUrl} = await startServer();
+    try {
+      const {lease, claimBody} = await stageClaimableCredential(baseUrl);
+      const signedClaim = signedPipelineBody(claimBody);
+      const claimResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
+        {method: "POST", headers: signedClaim.headers, body: signedClaim.raw},
+      );
+      expect(claimResponse.status).toBe(200);
+      const claimPayload = await claimResponse.json() as any;
+
+      const replayResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
+        {method: "POST", headers: signedClaim.headers, body: signedClaim.raw},
+      );
+      expect(replayResponse.status).toBe(409);
+      await expect(replayResponse.json()).resolves.toMatchObject({
+        code: "credential_broker_nonce_replayed",
+      });
+
+      const acknowledgement = {
+        ...claimBody,
+        schema_version: "company_policy_registry_credential_acknowledgement.v1",
+        delivery_id: claimPayload.delivery_receipt.delivery_id,
+        image_pull_receipt_digest: `sha256:${"1".repeat(64)}`,
+        pulled_image_digest: `sha256:${"c".repeat(64)}`,
+      };
+      const wrongDigest = signedPipelineBody({
+        ...acknowledgement,
+        pulled_image_digest: `sha256:${"0".repeat(64)}`,
+      });
+      const wrongDigestResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/acknowledge`,
+        {method: "POST", headers: wrongDigest.headers, body: wrongDigest.raw},
+      );
+      expect(wrongDigestResponse.status).toBe(409);
+      await expect(wrongDigestResponse.json()).resolves.toMatchObject({
+        code: "registry_credential_acknowledgement_image_digest_mismatch",
+      });
+
+      const wrongDelivery = signedPipelineBody({
+        ...acknowledgement,
+        delivery_id: "policy-registry-delivery-wrong-12345678",
+      });
+      const wrongDeliveryResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/acknowledge`,
+        {method: "POST", headers: wrongDelivery.headers, body: wrongDelivery.raw},
+      );
+      expect(wrongDeliveryResponse.status).toBe(409);
+      await expect(wrongDeliveryResponse.json()).resolves.toMatchObject({
+        code: "registry_credential_delivery_id_mismatch",
+      });
+      const claimedLease = state.collections
+        .get("companyPolicyRegistryCredentialLeases")
+        ?.get(lease.lease_id);
+      expect(claimedLease?.status).toBe("claimed");
+      expect(claimedLease).toHaveProperty("encrypted_credential");
+
+      if (!claimedLease) throw new Error("claimed lease missing");
+      claimedLease.claim_expires_at_iso = "1970-01-01T00:00:00.000Z";
+      const expiredAck = signedPipelineBody(acknowledgement);
+      const expiredAckResponse = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/acknowledge`,
+        {method: "POST", headers: expiredAck.headers, body: expiredAck.raw},
+      );
+      expect(expiredAckResponse.status).toBe(410);
+      await expect(expiredAckResponse.json()).resolves.toMatchObject({
+        code: "registry_credential_delivery_claim_expired",
+      });
+      expect(claimedLease.status).toBe("claimed");
+      expect(claimedLease).toHaveProperty("encrypted_credential");
     } finally {
       await stopServer(server);
     }
