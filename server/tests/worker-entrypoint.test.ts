@@ -16,12 +16,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const startOpsAutomationScheduler = vi.hoisted(() => vi.fn());
 const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
+const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
 vi.mock("../utils/stripeWebhookQueue", () => ({ startStripeWebhookQueueProcessor }));
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
+}));
+vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
+  startCompanyPolicyCandidateOutboxWorker,
 }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
@@ -41,9 +45,11 @@ describe("worker entrypoint", () => {
     const stopScheduler = vi.fn();
     const stopQueueProcessor = vi.fn();
     const stopLaunchForwarder = vi.fn();
+    const stopCompanyPolicyOutbox = vi.fn();
     startOpsAutomationScheduler.mockReturnValue(stopScheduler);
     startStripeWebhookQueueProcessor.mockReturnValue(stopQueueProcessor);
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
+    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
 
     const { startWorker } = await import("../worker");
     const handle = startWorker();
@@ -52,6 +58,7 @@ describe("worker entrypoint", () => {
     expect(startOpsAutomationScheduler).toHaveBeenCalledTimes(1);
     expect(startStripeWebhookQueueProcessor).toHaveBeenCalledTimes(1);
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
+    expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
     expect(stopScheduler).not.toHaveBeenCalled();
 
     await handle.stop();
@@ -59,22 +66,27 @@ describe("worker entrypoint", () => {
     expect(stopScheduler).toHaveBeenCalledTimes(1);
     expect(stopQueueProcessor).toHaveBeenCalledTimes(1);
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
+    expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 
   it("can run the Task Evaluation launch forwarder without unrelated workers", async () => {
     process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER = "true";
     const stopLaunchForwarder = vi.fn();
+    const stopCompanyPolicyOutbox = vi.fn();
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
+    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
 
     const { startWorker } = await import("../worker");
     const handle = startWorker();
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
+    expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
     expect(startOpsAutomationScheduler).not.toHaveBeenCalled();
     expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
 
     await handle.stop();
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
+    expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 });
 

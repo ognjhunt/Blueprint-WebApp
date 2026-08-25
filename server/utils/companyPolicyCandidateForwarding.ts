@@ -66,7 +66,26 @@ export async function forwardCompanyPolicyCandidateToPipeline(
       ].filter(Boolean),
     };
   }
-  if (!/^https:\/\//.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) {
+  let endpoint: URL;
+  try {
+    endpoint = new URL(url);
+  } catch {
+    return {
+      status: "blocked",
+      performed: false,
+      accepted: false,
+      required,
+      blockers: ["company_policy_container_forward_url_invalid"],
+    };
+  }
+  const loopbackHttp = endpoint.protocol === "http:"
+    && new Set(["127.0.0.1", "localhost"]).has(endpoint.hostname);
+  if (
+    (endpoint.protocol !== "https:" && !loopbackHttp)
+    || endpoint.username
+    || endpoint.password
+    || endpoint.hash
+  ) {
     return {
       status: "blocked",
       performed: false,
@@ -122,17 +141,43 @@ export async function forwardCompanyPolicyCandidateToPipeline(
       },
       body,
       signal: controller.signal,
+      redirect: "error",
     });
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const responseBound = payload.status === "admitted_no_spend"
+      && payload.accepted === true
+      && payload.tenant_id === handoff.tenant_id
+      && payload.run_id === handoff.run_id
+      && payload.submission_id === handoff.submission_id
+      && payload.company_id === handoff.company_id
+      && payload.contract_digest === handoff.contract_digest
+      && payload.registry_credential_lease_id === handoff.registry_credential_lease_id
+      && payload.claim_ceiling === "development_only"
+      && payload.registry_credential_consumed === false
+      && payload.profile_published === false
+      && payload.launch_queued === false
+      && payload.launch_authority_granted === false
+      && payload.provider_mutation_authorized === false
+      && payload.provider_mutation_performed === false
+      && /^company-policy-admission-[0-9a-f]{40}$/.test(String(payload.admission_id || ""))
+      && /^sha256:[0-9a-f]{64}$/.test(String(payload.admission_digest || ""));
+    const accepted = response.ok && responseBound;
     return {
-      status: response.ok && payload.accepted === true ? "accepted" : "blocked",
+      status: accepted ? "accepted" : "blocked",
       performed: true,
-      accepted: response.ok && payload.accepted === true,
+      accepted,
       required,
       pipeline_status: response.status,
       admission_id: payload.admission_id || null,
       admission_digest: payload.admission_digest || null,
-      blockers: Array.isArray(payload.blockers) ? payload.blockers : [],
+      blockers: accepted
+        ? []
+        : [
+            ...(Array.isArray(payload.blockers) ? payload.blockers : []),
+            ...(response.ok && payload.accepted === true && !responseBound
+              ? ["company_policy_pipeline_admission_receipt_binding_invalid"]
+              : []),
+          ],
     };
   } catch (error) {
     return {

@@ -56,17 +56,25 @@ export interface StoredRegistryCredentialLease {
   image: string;
   contract_digest: string;
   registry_server: string;
-  encrypted_credential: BoundEncryptedField;
+  encrypted_credential?: BoundEncryptedField;
   associated_data_sha256: string;
   idempotency_key_digest: string;
   request_fingerprint: string;
   admission_id?: string;
   admission_digest?: string;
-  status: "active";
+  status: "active" | "claimed" | "consumed";
   single_use: true;
   created_at_iso: string;
   expires_at_iso: string;
-  consumed_at_iso: null;
+  consumed_at_iso: string | null;
+  claimed_at_iso?: string;
+  claim_expires_at_iso?: string;
+  delivery_id?: string;
+  claimed_for?: Record<string, unknown>;
+  consumed_for?: Record<string, unknown>;
+  image_pull_receipt_digest?: string;
+  pulled_image_digest?: string;
+  ciphertext_deleted?: boolean;
 }
 
 function sha256(value: string): string {

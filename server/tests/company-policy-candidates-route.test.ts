@@ -229,7 +229,7 @@ describe("company policy candidate routes", () => {
       expect(credentialResponse.status).toBe(201);
       const credentialPayload = await credentialResponse.json() as any;
       expect(JSON.stringify(credentialPayload)).not.toContain(secret);
-      expect(credentialPayload.status).toBe("admitted_no_spend");
+      expect(credentialPayload.status).toBe("contract_admitted_awaiting_pipeline");
       expect(credentialPayload.launch_authority_granted).toBe(false);
       expect(credentialPayload.provider_mutation_authorized).toBe(false);
 
@@ -238,14 +238,21 @@ describe("company policy candidate routes", () => {
       const storedLease = [...(leases?.values() || [])][0];
       expect(JSON.stringify(storedLease)).not.toContain(secret);
       expect(storedLease).toHaveProperty("encrypted_credential");
-      expect(state.handoffs).toHaveLength(1);
-      expect(state.outboxPresentAtForward).toEqual([true]);
-      expect(JSON.stringify(state.handoffs[0])).not.toContain(secret);
-      expect(state.handoffs[0]).toMatchObject({
-        registry_credential_lease_id: credentialPayload.credential_lease.lease_id,
-        launch_authority_granted: false,
-        provider_mutation_authorized: false,
+      expect(state.handoffs).toHaveLength(0);
+      const stagedOutbox = state.collections
+        .get("companyPolicyCandidateOutbox")
+        ?.get(submissionId);
+      expect(stagedOutbox).toMatchObject({
+        status: "pending",
+        attempt_count: 0,
+        handoff: {
+          registry_credential_lease_id: credentialPayload.credential_lease.lease_id,
+          launch_authority_granted: false,
+          provider_mutation_authorized: false,
+        },
       });
+      expect(stagedOutbox?.handoff_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(JSON.stringify(stagedOutbox)).not.toContain(secret);
     } finally {
       await stopServer(server);
     }
@@ -294,7 +301,7 @@ describe("company policy candidate routes", () => {
     }
   });
 
-  it("lets Pipeline redeem the exact lease once and deletes ciphertext", async () => {
+  it("redelivers a claimed credential after response loss and deletes it only after pull acknowledgement", async () => {
     const {server, baseUrl} = await startServer();
     try {
       const candidateResponse = await fetch(
@@ -325,8 +332,14 @@ describe("company policy candidate routes", () => {
         },
       );
       const lease = (await leaseResponse.json() as any).credential_lease;
-      const consumeBody = {
-        schema_version: "company_policy_registry_credential_consume.v2",
+      const storedLease = state.collections
+        .get("companyPolicyRegistryCredentialLeases")
+        ?.get(lease.lease_id);
+      if (!storedLease) throw new Error("test lease missing");
+      storedLease.admission_id = "admission-1";
+      storedLease.admission_digest = `sha256:${"e".repeat(64)}`;
+      const claimBody = {
+        schema_version: "company_policy_registry_credential_claim.v1",
         tenant_id: "tenant-buyer-1",
         run_id: "run-12345678",
         submission_id: candidate.submission_id,
@@ -341,38 +354,90 @@ describe("company policy candidate routes", () => {
         purpose: "pull_digest_pinned_company_policy_image",
         image: normalizedContract.container.image,
       };
-      const signed = signedPipelineBody(consumeBody);
+      const signed = signedPipelineBody(claimBody);
       const first = await fetch(
-        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/consume`,
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
         {method: "POST", headers: signed.headers, body: signed.raw},
       );
       expect(first.status).toBe(200);
       expect(first.headers.get("cache-control")).toContain("no-store");
-      await expect(first.json()).resolves.toMatchObject({
+      const firstPayload = await first.json() as any;
+      expect(firstPayload).toMatchObject({
         ok: true,
         credential: {registry_server: "registry.acme.example", username: "robot-team", secret},
-        lease_receipt: {status: "consumed", ciphertext_deleted: true},
+        delivery_receipt: {
+          status: "claimed",
+          ciphertext_deleted: false,
+          redelivered_after_response_loss: false,
+        },
       });
-      const stored = state.collections
+      const storedAfterClaim = state.collections
         .get("companyPolicyRegistryCredentialLeases")
         ?.get(lease.lease_id);
-      expect(stored?.status).toBe("consumed");
-      expect(stored).not.toHaveProperty("encrypted_credential");
-      expect(stored?.consumed_for).toMatchObject({
+      expect(storedAfterClaim?.status).toBe("claimed");
+      expect(storedAfterClaim).toHaveProperty("encrypted_credential");
+      expect(storedAfterClaim?.claimed_for).toMatchObject({
         admission_id: "admission-1",
         sandbox_attempt_id: "sandbox-attempt-12345678",
         pipeline_release_sha: "a".repeat(40),
         purpose: "pull_digest_pinned_company_policy_image",
       });
-      expect(state.collections.get("companyPolicyCredentialConsumeNonces")?.size).toBe(1);
 
-      const replaySigned = signedPipelineBody(consumeBody);
-      const replay = await fetch(
-        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/consume`,
-        {method: "POST", headers: replaySigned.headers, body: replaySigned.raw},
+      const redeliverySigned = signedPipelineBody(claimBody);
+      const redelivery = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/claim`,
+        {method: "POST", headers: redeliverySigned.headers, body: redeliverySigned.raw},
       );
-      expect(replay.status).toBe(409);
-      expect(JSON.stringify(await replay.json())).not.toContain(secret);
+      expect(redelivery.status).toBe(200);
+      await expect(redelivery.json()).resolves.toMatchObject({
+        credential: {secret},
+        delivery_receipt: {
+          delivery_id: firstPayload.delivery_receipt.delivery_id,
+          redelivered_after_response_loss: true,
+          ciphertext_deleted: false,
+        },
+      });
+
+      const acknowledgementBody = {
+        ...claimBody,
+        schema_version: "company_policy_registry_credential_acknowledgement.v1",
+        delivery_id: firstPayload.delivery_receipt.delivery_id,
+        image_pull_receipt_digest: `sha256:${"1".repeat(64)}`,
+        pulled_image_digest: `sha256:${"c".repeat(64)}`,
+      };
+      const acknowledgementSigned = signedPipelineBody(acknowledgementBody);
+      const acknowledgement = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/acknowledge`,
+        {method: "POST", headers: acknowledgementSigned.headers, body: acknowledgementSigned.raw},
+      );
+      expect(acknowledgement.status).toBe(200);
+      await expect(acknowledgement.json()).resolves.toMatchObject({
+        ok: true,
+        lease_receipt: {
+          status: "consumed",
+          delivery_id: firstPayload.delivery_receipt.delivery_id,
+          image_pull_receipt_digest: `sha256:${"1".repeat(64)}`,
+          pulled_image_digest: `sha256:${"c".repeat(64)}`,
+          ciphertext_deleted: true,
+          idempotent_replay: false,
+        },
+      });
+      const storedAfterAck = state.collections
+        .get("companyPolicyRegistryCredentialLeases")
+        ?.get(lease.lease_id);
+      expect(storedAfterAck?.status).toBe("consumed");
+      expect(storedAfterAck).not.toHaveProperty("encrypted_credential");
+      expect(state.collections.get("companyPolicyCredentialBrokerNonces")?.size).toBe(3);
+
+      const ackReplaySigned = signedPipelineBody(acknowledgementBody);
+      const ackReplay = await fetch(
+        `${baseUrl}/api/internal/pipeline/company-policy-registry-credential-leases/${lease.lease_id}/acknowledge`,
+        {method: "POST", headers: ackReplaySigned.headers, body: ackReplaySigned.raw},
+      );
+      expect(ackReplay.status).toBe(200);
+      await expect(ackReplay.json()).resolves.toMatchObject({
+        lease_receipt: {idempotent_replay: true, ciphertext_deleted: true},
+      });
     } finally {
       await stopServer(server);
     }

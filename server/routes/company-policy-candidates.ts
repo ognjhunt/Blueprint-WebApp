@@ -7,7 +7,6 @@ import {csrfProtection} from "../middleware/csrf";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import {
   type CompanyPolicyCandidateHandoff,
-  forwardCompanyPolicyCandidateToPipeline,
 } from "../utils/companyPolicyCandidateForwarding";
 import {
   companyPolicyRegistryHost,
@@ -17,6 +16,7 @@ import {
   createRegistryCredentialLease,
   publicRegistryCredentialLease,
 } from "../utils/companyPolicyRegistryCredentialLease";
+import {canonicalArtifactDigest} from "../utils/taskCandidateContract";
 
 const router = Router();
 const candidateRequestSchema = z
@@ -69,34 +69,6 @@ async function ownedRun(runId: string, ownerUid: string, tenantId: string) {
     return {ok: false as const, status: 409, code: "task_evaluation_run_not_open_for_candidates"};
   }
   return {ok: true as const, data};
-}
-
-async function persistPipelineHandoff(
-  candidateRef: FirebaseFirestore.DocumentReference,
-  outboxRef: FirebaseFirestore.DocumentReference,
-  candidate: Record<string, unknown>,
-) {
-  const pipelineHandoff = await forwardCompanyPolicyCandidateToPipeline(handoffFor(candidate));
-  const nextStatus = pipelineHandoff.accepted === true
-    ? "admitted_no_spend"
-    : pipelineHandoff.required === true
-      ? "blocked_pipeline_handoff"
-      : "contract_admitted_awaiting_pipeline_configuration";
-  await db!.runTransaction(async (transaction) => {
-    transaction.set(candidateRef, {
-      pipeline_handoff: pipelineHandoff,
-      status: nextStatus,
-      updated_at_iso: new Date().toISOString(),
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-    transaction.set(outboxRef, {
-      status: pipelineHandoff.accepted === true ? "delivered" : "pending",
-      last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-      pipeline_handoff: pipelineHandoff,
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-  });
-  return {pipelineHandoff, nextStatus};
 }
 
 function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHandoff {
@@ -210,10 +182,15 @@ router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, as
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
     if (!requiresCredential) {
+      const handoff = handoffFor(record);
       transaction.set(outboxRef, {
         schema_version: "company_policy_candidate_outbox.v1",
         submission_id: submissionId,
-        handoff: handoffFor(record),
+        handoff,
+        handoff_digest: canonicalArtifactDigest(
+          handoff as unknown as Record<string, unknown>,
+          "handoff_digest",
+        ),
         status: "pending",
         attempt_count: 0,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -228,15 +205,10 @@ router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, as
     throw error;
   });
   if (!staged) return res.status(409).json({ok: false, code: "policy_candidate_idempotency_conflict"});
-  let candidate = staged.candidate;
-  if (!requiresCredential && asRecord(candidate.pipeline_handoff).accepted !== true) {
-    const delivered = await persistPipelineHandoff(ref, outboxRef, candidate);
-    candidate = {...candidate, pipeline_handoff: delivered.pipelineHandoff, status: delivered.nextStatus};
-  }
   return res.status(staged.created ? 201 : 200).json({
     ok: true,
     already_exists: !staged.created,
-    candidate,
+    candidate: staged.candidate,
   });
 });
 
@@ -334,6 +306,7 @@ router.put(
       updated_at_iso: new Date().toISOString(),
     };
     const outboxRef = db!.collection("companyPolicyCandidateOutbox").doc(submissionId);
+    const handoff = handoffFor(updatedCandidate);
     await db!.runTransaction(async (transaction) => {
       transaction.set(candidateRef, {
       registry_credential_lease_id: lease.lease_id,
@@ -345,26 +318,28 @@ router.put(
       transaction.set(outboxRef, {
         schema_version: "company_policy_candidate_outbox.v1",
         submission_id: submissionId,
-        handoff: handoffFor(updatedCandidate),
+        handoff,
+        handoff_digest: canonicalArtifactDigest(
+          handoff as unknown as Record<string, unknown>,
+          "handoff_digest",
+        ),
         status: "pending",
         attempt_count: 0,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
     });
-    const delivered = await persistPipelineHandoff(candidateRef, outboxRef, updatedCandidate);
-    if (delivered.pipelineHandoff.accepted === true) {
-      await leaseRef.set({
-        admission_id: delivered.pipelineHandoff.admission_id,
-        admission_digest: delivered.pipelineHandoff.admission_digest,
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
-    }
     return res.status(201).json({
       ok: true,
-      status: delivered.nextStatus,
+      status: "contract_admitted_awaiting_pipeline",
       credential_lease: publicRegistryCredentialLease(lease),
-      pipeline_handoff: delivered.pipelineHandoff,
+      pipeline_handoff: {
+        status: "pending",
+        performed: false,
+        accepted: false,
+        required: true,
+        blockers: [],
+      },
       launch_authority_granted: false,
       provider_mutation_authorized: false,
     });
@@ -378,11 +353,19 @@ router.get(
     const auth = identity(res);
     const runId = String(req.params.runId || "").trim();
     const submissionId = String(req.params.submissionId || "").trim();
-    if (!db || !auth.uid) return res.status(503).json({ok: false, code: "policy_candidate_store_not_configured"});
+    if (!db) return res.status(503).json({ok: false, code: "policy_candidate_store_not_configured"});
+    if (!auth.uid || !auth.tenantId || !auth.companyId) {
+      return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
+    }
     const snapshot = await db.collection("companyPolicyCandidateSubmissions").doc(submissionId).get();
     if (!snapshot.exists) return res.status(404).json({ok: false, code: "policy_candidate_not_found"});
     const candidate = (snapshot.data() || {}) as Record<string, unknown>;
-    if (candidate.owner_uid !== auth.uid || candidate.run_id !== runId) {
+    if (
+      candidate.owner_uid !== auth.uid
+      || candidate.tenant_id !== auth.tenantId
+      || candidate.company_id !== auth.companyId
+      || candidate.run_id !== runId
+    ) {
       return res.status(403).json({ok: false, code: "policy_candidate_owner_mismatch"});
     }
     return res.json({ok: true, candidate});

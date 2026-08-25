@@ -42,9 +42,23 @@ describe("company policy candidate Pipeline forwarding", () => {
       ok: true,
       status: 201,
       json: async () => ({
+        status: "admitted_no_spend",
         accepted: true,
-        admission_id: "admission-1",
+        admission_id: `company-policy-admission-${"1".repeat(40)}`,
         admission_digest: `sha256:${"b".repeat(64)}`,
+        tenant_id: "tenant-acme",
+        run_id: "run-12345678",
+        submission_id: "submission-12345678",
+        company_id: "acme_robotics",
+        contract_digest: `sha256:${"a".repeat(64)}`,
+        registry_credential_lease_id: "lease-12345678",
+        registry_credential_consumed: false,
+        profile_published: false,
+        launch_queued: false,
+        launch_authority_granted: false,
+        provider_mutation_authorized: false,
+        provider_mutation_performed: false,
+        claim_ceiling: "development_only",
         blockers: [],
       }),
       init,
@@ -76,6 +90,33 @@ describe("company policy candidate Pipeline forwarding", () => {
         body,
       })}`,
     );
+    expect(init.redirect).toBe("error");
+  });
+
+  it("refuses an accepted response whose immutable admission identity is not fully bound", async () => {
+    vi.stubEnv(
+      "COMPANY_POLICY_CONTAINER_FORWARD_URL",
+      "https://pipeline.example/api/live-pipeline/company-policy-containers",
+    );
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "pipeline-secret");
+    vi.stubEnv("COMPANY_POLICY_CONTAINER_FORWARD_REQUIRED", "true");
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        status: "admitted_no_spend",
+        accepted: true,
+        submission_id: "different-submission",
+        admission_id: `company-policy-admission-${"1".repeat(40)}`,
+        admission_digest: `sha256:${"b".repeat(64)}`,
+      }),
+    })));
+
+    await expect(forwardCompanyPolicyCandidateToPipeline(handoff())).resolves.toMatchObject({
+      status: "blocked",
+      accepted: false,
+      blockers: ["company_policy_pipeline_admission_receipt_binding_invalid"],
+    });
   });
 
   it("blocks structural secret carriers and remote cleartext URLs before fetch", async () => {
