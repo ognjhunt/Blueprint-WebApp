@@ -35,6 +35,10 @@ const sceneSchema = z.object({
   }).strict(),
   rights: z.object({
     admission: immutableReference,
+    evidence: z.array(z.object({
+      role: z.enum(["publisher_terms", "publisher_readme", "upstream_license", "human_authority_record"]),
+      artifact: immutableReference,
+    }).strict()).min(2).max(16),
     source_bytes_redistributable: z.boolean(),
     provider_disclosure_scope: z.enum(["none", "derived_only", "source_and_derived"]),
   }).strict(),
@@ -131,6 +135,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     code: z.ZodIssueCode.custom,
     message: "source disclosure conflicts with source rights",
   });
+  const rightsRoles = new Set(value.scene.rights.evidence.map((row) => row.role));
+  if (!rightsRoles.has("publisher_terms") || !rightsRoles.has("human_authority_record")) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene rights require publisher terms and human authority bytes",
+    });
+  }
   if (value.runtime.requirements.gpu_count < 1) context.addIssue({
     code: z.ZodIssueCode.custom,
     message: "native Arena preparation requires a GPU runtime",

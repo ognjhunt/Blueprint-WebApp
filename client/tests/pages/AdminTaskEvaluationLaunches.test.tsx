@@ -59,6 +59,31 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
           },
         }), { status: 200, headers: { "content-type": "application/json" } });
       }
+      if (url === "/api/admin/task-evaluation-launches/activations") {
+        expect(init?.method).toBe("POST");
+        const request = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_activation_web_receipt.v1",
+          status: "queued_for_authority_gated_activation",
+          activation_id: request.activation_id,
+          paid_execution_requested: false,
+          activation_is_not_execution: true,
+        }), { status: 202, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/activations/activate-scene-001") {
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_activation_web_status.v1",
+          state: "prepared",
+          activation_id: "activate-scene-001",
+          paid_execution_requested: false,
+          activation_is_not_execution: true,
+          pipeline: {
+            worker_status: "profile_authority_materialized_no_execution",
+            profile_id: "scene-001-construction-r1",
+            blockers: [],
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
       throw new Error(`unexpected fetch ${url}`);
     });
   });
@@ -95,5 +120,25 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     expect(vi.mocked(fetch).mock.calls.some(([target]) =>
       String(target) === "/api/admin/task-evaluation-launches/preparations"
     )).toBe(false);
+  });
+
+  it("keeps activation visibly separate from paid execution and synchronizes publication", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+
+    expect(screen.getByRole("heading", { name: "Activate verified inputs" })).toBeInTheDocument();
+    expect(screen.getByText(/activation never submits a paid request or allocates a provider resource/i))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Activation contract JSON"), {
+      target: { value: JSON.stringify({ activation_id: "activate-scene-001" }) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and activate" }));
+
+    await waitFor(() => expect(screen.getByText("prepared")).toBeInTheDocument());
+    expect(screen.getByText(/Published profile: scene-001-construction-r1/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a GPU allocation, simulator episode, or scientific result/i))
+      .toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/activations/activate-scene-001"
+    )).toBe(true);
   });
 });

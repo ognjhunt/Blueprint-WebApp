@@ -146,7 +146,12 @@ function preparationInput() {
         robot_base: ref("robot-base"), camera_calibration: ref("camera-calibration"),
       },
       rights: {
-        admission: ref("scene-rights"), source_bytes_redistributable: false,
+        admission: ref("scene-rights"),
+        evidence: [
+          { role: "publisher_terms", artifact: ref("publisher-terms") },
+          { role: "human_authority_record", artifact: ref("human-rights-authority") },
+        ],
+        source_bytes_redistributable: false,
         provider_disclosure_scope: "derived_only",
       },
     },
@@ -188,6 +193,40 @@ function preparationInput() {
     spend: {
       maximum_hourly_rate_usd: 0.8, hard_cap_usd: 1, hard_ttl_seconds: 3600,
       retry_cap: 0, provider_allowlist: [],
+    },
+  };
+}
+
+function activationInput() {
+  const preparation = preparationInput();
+  return {
+    schema_version: "task_evaluation_launch_activation_request.v1",
+    expected_production_commit: preparation.expected_production_commit,
+    activation_id: "activate-scene-001-construction",
+    team_namespace: preparation.team_namespace,
+    lane: "native_task_arena_construction",
+    preparation: {
+      preparation_id: preparation.preparation_id,
+      request_digest: canonicalArtifactDigest(preparation, "request_digest"),
+      result_digest: sha("9"),
+    },
+    release_window: immutableRef("release-window", "1"),
+    lineage: {
+      kind: "initial_project",
+      project_spend_reconciliation: immutableRef("project-spend-reconciliation", "2"),
+      initial_provider_zero: immutableRef("initial-provider-zero", "3"),
+    },
+    authorization: {
+      reference: "founder approval 2026-08-25",
+      authorized_by: "founder-001",
+      authorized_on: "2026-08-25T16:00:00.000Z",
+      standing_authorization_expires_at: "2026-08-25T17:00:00.000Z",
+      profile_revision: "scene-001-construction-r1",
+    },
+    requested_mutations: {
+      profile_publication: true,
+      catalog_synchronization: true,
+      standing_authorization: true,
     },
   };
 }
@@ -347,6 +386,53 @@ beforeEach(() => {
         paid_execution_requested: false,
       }), { status: 200, headers: { "content-type": "application/json" } });
     }
+    if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-activations") {
+      const request = JSON.parse(String(init?.body || "{}"));
+      const receipt: Record<string, unknown> = {
+        schema_version: "task_evaluation_launch_activation_intake_receipt.v1",
+        status: "queued_for_authority_gated_activation",
+        accepted: true,
+        already_exists: false,
+        activation_id: request.activation_id,
+        preparation_id: request.preparation.preparation_id,
+        team_namespace: request.team_namespace,
+        lane: request.lane,
+        expected_production_commit: request.expected_production_commit,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        provider_mutation_performed_inside_http_request: false,
+        catalog_mutation_performed_inside_http_request: false,
+        standing_authorization_published_inside_http_request: false,
+        paid_execution_requested: false,
+        receipt_digest: "",
+      };
+      receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+      return new Response(JSON.stringify(receipt), {
+        status: 202, headers: { "content-type": "application/json" },
+      });
+    }
+    if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-activations/activate-scene-001-construction") {
+      const request = activationInput();
+      return new Response(JSON.stringify({
+        schema_version: "task_evaluation_launch_activation_status.v1",
+        status: "prepared",
+        activation_id: request.activation_id,
+        preparation_id: request.preparation.preparation_id,
+        team_namespace: request.team_namespace,
+        lane: request.lane,
+        expected_production_commit: request.expected_production_commit,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        worker_status: "profile_authority_materialized_no_execution",
+        result_digest: sha("4"),
+        profile_id: "scene-001-construction-r1",
+        profile_digest: sha("5"),
+        profile_publication_receipt_digest: sha("6"),
+        standing_authorization_digest: sha("7"),
+        blockers: [],
+        provider_mutation_performed_by_status_read: false,
+        provider_mutation_performed_by_worker: false,
+        paid_execution_requested: false,
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     const request = JSON.parse(String(init?.body || "{}"));
     return new Response(JSON.stringify({
       schema_version: "task_evaluation_launch_intake_receipt.v1",
@@ -472,6 +558,126 @@ describe("admin Task Evaluation launch route", () => {
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
         String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
       )).toHaveLength(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("activates one verified preparation exactly once without requesting paid execution", async () => {
+    const { server, url } = await startServer();
+    const preparation = preparationInput();
+    const input = activationInput();
+    state.records.set(preparation.preparation_id, {
+      schema_version: "task_evaluation_launch_preparation_web_record.v1",
+      preparation_id: preparation.preparation_id,
+      run_id: preparation.run_id,
+      team_namespace: preparation.team_namespace,
+      expected_production_commit: preparation.expected_production_commit,
+      request_digest: input.preparation.request_digest,
+      state: "materialized",
+      pipeline_status: {
+        result_digest: input.preparation.result_digest,
+        full_byte_service_account_readback_passed: true,
+      },
+    });
+    try {
+      const response = await fetch(`${url}/activations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(202);
+      await expect(response.json()).resolves.toMatchObject({
+        schema_version: "task_evaluation_launch_activation_web_receipt.v1",
+        status: "queued_for_authority_gated_activation",
+        already_exists: false,
+        activation_id: input.activation_id,
+        preparation_id: input.preparation.preparation_id,
+        provider_mutation_performed_inside_web_request: false,
+        paid_execution_requested: false,
+        activation_is_not_execution: true,
+      });
+      expect(state.records.get(input.activation_id)).toMatchObject({
+        state: "queued_for_authority_gated_activation",
+        request_digest: canonicalArtifactDigest(input, "request_digest"),
+        provider_mutation_observed: false,
+        paid_execution_requested: false,
+      });
+
+      const replay = await fetch(`${url}/activations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-activations",
+      )).toHaveLength(1);
+
+      const status = await fetch(`${url}/activations/${input.activation_id}`);
+      expect(status.status).toBe(200);
+      await expect(status.json()).resolves.toMatchObject({
+        state: "prepared",
+        pipeline: {
+          worker_status: "profile_authority_materialized_no_execution",
+          profile_id: "scene-001-construction-r1",
+          provider_mutation_performed_by_worker: false,
+          paid_execution_requested: false,
+        },
+        activation_is_not_execution: true,
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("rejects activation when preparation verification or immutable identity differs", async () => {
+    const { server, url } = await startServer();
+    const preparation = preparationInput();
+    const input = activationInput();
+    state.records.set(preparation.preparation_id, {
+      preparation_id: preparation.preparation_id,
+      team_namespace: preparation.team_namespace,
+      expected_production_commit: preparation.expected_production_commit,
+      request_digest: input.preparation.request_digest,
+      state: "materialized",
+      pipeline_status: {
+        result_digest: sha("8"),
+        full_byte_service_account_readback_passed: true,
+      },
+    });
+    try {
+      const unverified = await fetch(`${url}/activations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(unverified.status).toBe(409);
+      await expect(unverified.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_activation_preparation_not_verified",
+        paid_execution_requested: false,
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-activations",
+      )).toHaveLength(0);
+
+      state.records.set(preparation.preparation_id, {
+        ...state.records.get(preparation.preparation_id),
+        pipeline_status: {
+          result_digest: input.preparation.result_digest,
+          full_byte_service_account_readback_passed: true,
+        },
+      });
+      const accepted = await fetch(`${url}/activations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+      });
+      expect(accepted.status).toBe(202);
+      const changed = {
+        ...input,
+        authorization: { ...input.authorization, reference: "different authority" },
+      };
+      const conflict = await fetch(`${url}/activations`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(changed),
+      });
+      expect(conflict.status).toBe(409);
+      await expect(conflict.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_activation_immutable_conflict",
+      });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

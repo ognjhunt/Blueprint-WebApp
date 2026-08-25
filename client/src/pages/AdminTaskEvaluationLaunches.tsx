@@ -23,6 +23,7 @@ const TERMINAL_LAUNCH_STATES = [
   "control_plane_terminal_blocked",
 ];
 const TERMINAL_PREPARATION_STATES = ["materialized", "blocked"];
+const TERMINAL_ACTIVATION_STATES = ["prepared", "blocked"];
 
 type LaunchProgress = {
   phase?: string;
@@ -98,6 +99,11 @@ export default function AdminTaskEvaluationLaunches() {
   const [preparationStatus, setPreparationStatus] = useState<Record<string, any> | null>(null);
   const [preparationError, setPreparationError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [activationJson, setActivationJson] = useState("");
+  const [activationId, setActivationId] = useState("");
+  const [activationStatus, setActivationStatus] = useState<Record<string, any> | null>(null);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
 
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
@@ -180,6 +186,21 @@ export default function AdminTaskEvaluationLaunches() {
     return true;
   }
 
+  async function refreshActivationStatus(id = activationId) {
+    if ((!currentUser && !launchLabToken) || !id) return false;
+    const response = await fetchWithTimeout(
+      `/api/admin/task-evaluation-launches/activations/${encodeURIComponent(id)}`,
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(
+      payload.code || payload.error || "Task Evaluation activation status is unavailable",
+    );
+    setActivationStatus(payload);
+    setActivationError(null);
+    return true;
+  }
+
   useEffect(() => {
     void loadProfiles().catch((reason) => setError(String(reason)));
   }, [currentUser, launchLabToken]);
@@ -207,6 +228,18 @@ export default function AdminTaskEvaluationLaunches() {
     );
     return () => window.clearInterval(timer);
   }, [preparationId, preparationStatus?.state, preparationStatus?.status, currentUser, launchLabToken]);
+
+  useEffect(() => {
+    const state = activationStatus?.state || activationStatus?.status;
+    if (!activationId || !activationStatus || TERMINAL_ACTIVATION_STATES.includes(state)) {
+      return undefined;
+    }
+    const timer = window.setInterval(
+      () => void refreshActivationStatus().catch((reason) => setActivationError(String(reason))),
+      5000,
+    );
+    return () => window.clearInterval(timer);
+  }, [activationId, activationStatus?.state, activationStatus?.status, currentUser, launchLabToken]);
 
   async function submitPreparation() {
     setPreparing(true);
@@ -238,6 +271,39 @@ export default function AdminTaskEvaluationLaunches() {
       setPreparationError(reason instanceof Error ? reason.message : "Preparation was blocked");
     } finally {
       setPreparing(false);
+    }
+  }
+
+  async function submitActivation() {
+    setActivating(true);
+    setActivationError(null);
+    try {
+      let request: Record<string, unknown>;
+      try {
+        request = JSON.parse(activationJson) as Record<string, unknown>;
+      } catch {
+        throw new Error("Activation JSON is invalid.");
+      }
+      const id = typeof request.activation_id === "string" ? request.activation_id : "";
+      if (!id) throw new Error("Activation JSON must include activation_id.");
+      setActivationId(id);
+      const response = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/activations",
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify(request),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      setActivationStatus(payload);
+      if (!response.ok) throw new Error(payload.code || payload.error || "Activation was blocked");
+      await refreshActivationStatus(id);
+    } catch (reason) {
+      setActivationError(reason instanceof Error ? reason.message : "Activation was blocked");
+    } finally {
+      setActivating(false);
     }
   }
 
@@ -441,6 +507,83 @@ export default function AdminTaskEvaluationLaunches() {
             <p className="mt-5 text-xs leading-5 text-stone-500">
               A materialized preparation is verified input readiness, not execution or scientific success.
               Launch authority remains a separate step below.
+            </p>
+          </aside>
+        </section>
+
+        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Activate verified inputs</h2>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              After preparation is materialized, submit its digest-bound activation contract. The
+              authority-gated Pipeline worker verifies the released mutation window, predecessor or
+              project lineage, and exact production commit before publishing the immutable profile,
+              catalog entry, and standing authorization. Activation never submits a paid request or
+              allocates a provider resource; execution remains the separate authority envelope below.
+            </p>
+            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-activation-json">
+              Activation contract JSON
+            </label>
+            <textarea
+              id="task-evaluation-activation-json"
+              className="mt-2 min-h-64 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              value={activationJson}
+              onChange={(event) => setActivationJson(event.target.value)}
+              placeholder="Paste task_evaluation_launch_activation_request.v1 JSON"
+              spellCheck={false}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                disabled={activating || !activationJson.trim()}
+                onClick={() => void submitActivation()}
+              >
+                {activating ? "Activating…" : "Validate and activate"}
+              </button>
+              {activationId ? (
+                <button
+                  type="button"
+                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  onClick={() => void refreshActivationStatus().catch((reason) => setActivationError(String(reason)))}
+                >
+                  <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
+                </button>
+              ) : null}
+            </div>
+            {activationError ? (
+              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{activationError}</p>
+            ) : null}
+          </div>
+          <aside className="border border-stone-200 bg-stone-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Activation state
+            </p>
+            <p className="mt-3 text-lg font-semibold">
+              {activationStatus?.state || activationStatus?.status || "Not submitted"}
+            </p>
+            {activationId ? <p className="mt-2 break-all text-xs text-stone-500">{activationId}</p> : null}
+            {activationStatus?.pipeline?.worker_status ? (
+              <p className="mt-4 text-sm leading-6 text-stone-700">
+                Pipeline: {activationStatus.pipeline.worker_status}
+              </p>
+            ) : null}
+            {activationStatus?.pipeline?.profile_id ? (
+              <p className="mt-4 break-all text-sm text-stone-700">
+                Published profile: {activationStatus.pipeline.profile_id}
+              </p>
+            ) : null}
+            {(activationStatus?.pipeline?.blockers || []).map((blocker: string) => (
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
+              </p>
+            ))}
+            <p className="mt-5 text-xs leading-5 text-stone-500">
+              A prepared activation proves profile and authority publication only. It is not a GPU
+              allocation, simulator episode, or scientific result.
             </p>
           </aside>
         </section>
