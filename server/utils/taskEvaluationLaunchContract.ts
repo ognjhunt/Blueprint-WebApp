@@ -57,6 +57,7 @@ export const taskEvaluationLaunchInputSchema = z.object({
   run_id: identifier,
   profile_id: identifier,
   profile_digest: digest,
+  authorization_issued_at: z.string().datetime({ offset: true }).optional(),
   rights: z.object({
     scope: z.string().trim().min(1).max(1000),
     evidence: reference.strict(),
@@ -75,6 +76,7 @@ export const taskEvaluationLaunchWebPreflightReceiptSchema = z.object({
   run_id: identifier,
   profile_id: identifier,
   profile_digest: digest,
+  authorization_issued_at: z.string().datetime({ offset: true }),
   candidate_request_digest: digest,
   authenticated_client_id: identifier,
   submission_channel: z.literal("production_webapp_service_api"),

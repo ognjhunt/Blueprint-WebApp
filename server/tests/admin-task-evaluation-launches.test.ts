@@ -104,6 +104,7 @@ function launchInput() {
     run_id: "run-001",
     profile_id: profile().profile_id,
     profile_digest: profile().profile_digest,
+    authorization_issued_at: new Date(Date.now() - 1_000).toISOString(),
     rights: {
       scope: "interiorgs_sage_simulator_evaluation",
       evidence: { uri: "firestore://authorities/rights-001", digest: sha("d") },
@@ -268,6 +269,22 @@ describe("admin Task Evaluation launch route", () => {
       });
       expect(unsigned.status).toBe(401);
 
+      const missingTimestampBody = JSON.stringify({
+        ...launchInput(),
+        authorization_issued_at: undefined,
+      });
+      const missingTimestamp = await fetch(`${url}/preflight`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(missingTimestampBody) as HeadersInit,
+        body: missingTimestampBody,
+      });
+      expect(missingTimestamp.status).toBe(400);
+      await expect(missingTimestamp.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_authorization_timestamp_required",
+        provider_mutation_performed_inside_web_request: false,
+      });
+      expect(state.records.size).toBe(0);
+
       const response = await fetch(`${url}/preflight`, {
         method: "POST",
         headers: signedSubmissionHeaders(body) as HeadersInit,
@@ -282,6 +299,7 @@ describe("admin Task Evaluation launch route", () => {
         run_id: "run-001",
         profile_id: profile().profile_id,
         profile_digest: profile().profile_digest,
+        authorization_issued_at: expect.any(String),
         authenticated_client_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
         submission_channel: "production_webapp_service_api",
         webapp_store_available: true,
@@ -302,6 +320,16 @@ describe("admin Task Evaluation launch route", () => {
         String(target)
           === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-profiles",
       )).toHaveLength(1);
+
+      const submitted = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body) as HeadersInit,
+        body,
+      });
+      expect(submitted.status).toBe(202);
+      expect(state.records.get("launch-001")?.request_digest).toBe(
+        receipt.candidate_request_digest,
+      );
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

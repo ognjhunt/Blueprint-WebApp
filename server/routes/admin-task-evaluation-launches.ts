@@ -48,7 +48,10 @@ export interface TaskEvaluationLaunchSubmissionContext {
   idempotencyKey: string;
 }
 
-async function resolveTaskEvaluationLaunchInput(body: unknown) {
+async function resolveTaskEvaluationLaunchInput(
+  body: unknown,
+  options: { requireAuthorizationIssuedAt?: boolean } = {},
+) {
   const parsed = taskEvaluationLaunchInputSchema.safeParse(body);
   if (!parsed.success) return {
     ok: false as const,
@@ -65,6 +68,34 @@ async function resolveTaskEvaluationLaunchInput(body: unknown) {
     payload: {
       error: "Spend authority has expired",
       code: "task_evaluation_launch_spend_authority_expired",
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  const authorizationIssuedAt = parsed.data.authorization_issued_at;
+  if (options.requireAuthorizationIssuedAt && !authorizationIssuedAt) return {
+    ok: false as const,
+    status: 400,
+    payload: {
+      error: "Task Evaluation preflight requires an immutable authorization timestamp",
+      code: "task_evaluation_launch_authorization_timestamp_required",
+      provider_mutation_performed_inside_web_request: false,
+    },
+  };
+  const authorizationIssuedAtMs = authorizationIssuedAt
+    ? Date.parse(authorizationIssuedAt)
+    : null;
+  if (
+    authorizationIssuedAt
+    && (
+      authorizationIssuedAtMs! > Date.now()
+      || authorizationIssuedAtMs! >= Date.parse(parsed.data.spend.expires_at)
+    )
+  ) return {
+    ok: false as const,
+    status: 400,
+    payload: {
+      error: "Task Evaluation authorization timestamp is invalid",
+      code: "task_evaluation_launch_authorization_timestamp_invalid",
       provider_mutation_performed_inside_web_request: false,
     },
   };
@@ -104,14 +135,16 @@ export async function preflightTaskEvaluationLaunch(
     code: "task_evaluation_launch_store_unavailable",
     provider_mutation_performed_inside_web_request: false,
   });
-  const resolved = await resolveTaskEvaluationLaunchInput(req.body);
+  const resolved = await resolveTaskEvaluationLaunchInput(req.body, {
+    requireAuthorizationIssuedAt: true,
+  });
   if (!resolved.ok) return res.status(resolved.status).json(resolved.payload);
   const candidateRequest = buildTaskEvaluationLaunchRequest({
     input: resolved.input,
     profile: resolved.profile,
     actorId: context.actorId,
     actorRole: context.actorRole,
-    authorizedAt: new Date().toISOString(),
+    authorizedAt: resolved.input.authorization_issued_at!,
   });
   const receipt = {
     schema_version: "task_evaluation_launch_web_preflight_receipt.v1",
@@ -120,6 +153,7 @@ export async function preflightTaskEvaluationLaunch(
     run_id: resolved.input.run_id,
     profile_id: resolved.input.profile_id,
     profile_digest: resolved.input.profile_digest,
+    authorization_issued_at: resolved.input.authorization_issued_at!,
     candidate_request_digest: candidateRequest.request_digest,
     authenticated_client_id: context.serviceId,
     submission_channel: context.channel,
@@ -161,7 +195,7 @@ export async function submitTaskEvaluationLaunch(
     profile,
     actorId: context.actorId,
     actorRole: context.actorRole,
-    authorizedAt: new Date().toISOString(),
+    authorizedAt: parsed.data.authorization_issued_at || new Date().toISOString(),
   });
   const ref = db.collection(COLLECTION).doc(parsed.data.launch_id);
   const initialRecord = {

@@ -61,6 +61,7 @@ function input() {
     run_id: "run-001",
     profile_id: profile().profile_id,
     profile_digest: profile().profile_digest,
+    authorization_issued_at: "2026-08-10T12:00:00.000Z",
     rights: {
       scope: "interiorgs_sage_simulator_evaluation",
       evidence: { uri: "firestore://authorities/rights-001", digest: sha("d") },
@@ -125,6 +126,7 @@ describe("Task Evaluation production launch contract", () => {
       run_id: "run-001",
       profile_id: profile().profile_id,
       profile_digest: profile().profile_digest,
+      authorization_issued_at: "2026-08-10T12:00:00.000Z",
       candidate_request_digest: sha("f"),
       authenticated_client_id: "blueprint-production-runner",
       submission_channel: "production_webapp_service_api",
