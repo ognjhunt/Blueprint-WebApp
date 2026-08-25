@@ -24,6 +24,18 @@ const TERMINAL_LAUNCH_STATES = [
 ];
 const TERMINAL_PREPARATION_STATES = ["materialized", "blocked"];
 const TERMINAL_ACTIVATION_STATES = ["prepared", "blocked"];
+const MAX_CONTRACT_FILE_BYTES = 2 * 1024 * 1024;
+
+async function normalizedContractFileJson(file: File): Promise<string> {
+  if (file.size < 1 || file.size > MAX_CONTRACT_FILE_BYTES) {
+    throw new Error("Contract file must be between 1 byte and 2 MiB.");
+  }
+  const parsed = JSON.parse(await file.text());
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Contract file must contain one JSON object.");
+  }
+  return JSON.stringify(parsed, null, 2);
+}
 
 type LaunchProgress = {
   phase?: string;
@@ -459,6 +471,30 @@ export default function AdminTaskEvaluationLaunches() {
               placeholder="Paste task_evaluation_launch_preparation_request.v1 JSON"
               spellCheck={false}
             />
+            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-preparation-file">
+              Or upload a versioned preparation contract
+            </label>
+            <input
+              id="task-evaluation-preparation-file"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm text-stone-600"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void normalizedContractFileJson(file)
+                  .then((value) => {
+                    setPreparationJson(value);
+                    setPreparationError(null);
+                  })
+                  .catch((reason) => setPreparationError(
+                    reason instanceof SyntaxError
+                      ? "Preparation contract file is not valid JSON."
+                      : String(reason instanceof Error ? reason.message : reason),
+                  ));
+              }}
+            />
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -500,6 +536,21 @@ export default function AdminTaskEvaluationLaunches() {
                 <CheckCircle2 className="h-4 w-4" /> Full-byte service-account readback passed
               </p>
             ) : null}
+            {preparationStatus?.pipeline?.request_digest ? (
+              <p className="mt-4 break-all text-xs leading-5 text-stone-600">
+                Request digest: {preparationStatus.pipeline.request_digest}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.result_digest ? (
+              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+                Result digest: {preparationStatus.pipeline.result_digest}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.source_commit ? (
+              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+                Source commit: {preparationStatus.pipeline.source_commit}
+              </p>
+            ) : null}
             {(preparationStatus?.pipeline?.blockers || []).map((blocker: string) => (
               <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
@@ -535,6 +586,30 @@ export default function AdminTaskEvaluationLaunches() {
               onChange={(event) => setActivationJson(event.target.value)}
               placeholder="Paste task_evaluation_launch_activation_request.v1 JSON"
               spellCheck={false}
+            />
+            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-activation-file">
+              Or upload a coordinator-authorized activation contract
+            </label>
+            <input
+              id="task-evaluation-activation-file"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm text-stone-600"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void normalizedContractFileJson(file)
+                  .then((value) => {
+                    setActivationJson(value);
+                    setActivationError(null);
+                  })
+                  .catch((reason) => setActivationError(
+                    reason instanceof SyntaxError
+                      ? "Activation contract file is not valid JSON."
+                      : String(reason instanceof Error ? reason.message : reason),
+                  ));
+              }}
             />
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button

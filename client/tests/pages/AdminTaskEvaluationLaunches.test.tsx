@@ -79,6 +79,9 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
           pipeline: {
             worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
             full_byte_service_account_readback_passed: true,
+            request_digest: `sha256:${"1".repeat(64)}`,
+            result_digest: `sha256:${"2".repeat(64)}`,
+            source_commit: "b".repeat(40),
             blockers: [],
           },
         }), { status: 200, headers: { "content-type": "application/json" } });
@@ -137,6 +140,9 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
 
     await waitFor(() => expect(screen.getByText("materialized")).toBeInTheDocument());
     expect(screen.getByText("Full-byte service-account readback passed")).toBeInTheDocument();
+    expect(screen.getByText(`Request digest: sha256:${"1".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Result digest: sha256:${"2".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Source commit: ${"b".repeat(40)}`)).toBeInTheDocument();
     expect(screen.getByText(/verified input readiness, not execution or scientific success/i))
       .toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([target]) =>
@@ -153,6 +159,55 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     expect(await screen.findByText("Preparation JSON is invalid.")).toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([target]) =>
       String(target) === "/api/admin/task-evaluation-launches/preparations"
+    )).toBe(false);
+  });
+
+  it("loads bounded preparation and activation contract files without Codex", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    const preparation = { preparation_id: "prep-scene-841007" };
+    fireEvent.change(screen.getByLabelText("Or upload a versioned preparation contract"), {
+      target: {
+        files: [new File([JSON.stringify(preparation)], "preparation.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    await waitFor(() => expect(screen.getByLabelText("Preparation contract JSON"))
+      .toHaveValue(JSON.stringify(preparation, null, 2)));
+
+    const activation = { activation_id: "activation-scene-841007-construction" };
+    fireEvent.change(screen.getByLabelText("Or upload a coordinator-authorized activation contract"), {
+      target: {
+        files: [new File([JSON.stringify(activation)], "activation.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    await waitFor(() => expect(screen.getByLabelText("Activation contract JSON"))
+      .toHaveValue(JSON.stringify(activation, null, 2)));
+  });
+
+  it("rejects malformed and oversized contract files before submission", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    fireEvent.change(screen.getByLabelText("Or upload a versioned preparation contract"), {
+      target: {
+        files: [new File(["{"], "invalid.json", { type: "application/json" })],
+      },
+    });
+    expect(await screen.findByText("Preparation contract file is not valid JSON."))
+      .toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Or upload a coordinator-authorized activation contract"), {
+      target: {
+        files: [new File([new Uint8Array(2 * 1024 * 1024 + 1)], "too-large.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    expect(await screen.findByText("Contract file must be between 1 byte and 2 MiB."))
+      .toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/activations"
     )).toBe(false);
   });
 
