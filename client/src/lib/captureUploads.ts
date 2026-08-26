@@ -2,6 +2,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import type { TaskEvaluationResultDelivery } from "@/lib/taskEvaluationResults";
 
 export type WebCaptureAuthorityProfile =
   | "camera_360_equirectangular"
@@ -239,7 +240,7 @@ export type CaptureTaskEvaluationRunInspection = {
   intake_id: string;
   status: "decided" | "partially_decided" | "abstained";
   publication: {
-    schema_version: "task_evaluation_run_publication.v1";
+    schema_version: "task_evaluation_run_publication.v1" | "task_evaluation_run_publication.v2";
     capture_session_id: string;
     intake_id: string;
     run_id: string;
@@ -267,6 +268,7 @@ export type CaptureTaskEvaluationRunInspection = {
       cross_method_disagreements: Array<Record<string, unknown>>;
     };
     proof_boundary: TaskEvaluationRunProofBoundary;
+    result_delivery?: TaskEvaluationResultDelivery;
   };
 };
 

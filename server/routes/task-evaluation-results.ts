@@ -1,0 +1,167 @@
+import { Router, type Response } from "express";
+
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { resolveAccessContext } from "../utils/access-control";
+import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResultAccess";
+import { streamTaskEvaluationResultArtifact } from "../utils/taskEvaluationResultArtifactProxy";
+import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
+import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
+
+const router = Router();
+
+type ResultRecord = Record<string, any> & {
+  record_id: string;
+  owner_user_id: string;
+  organization_id: string;
+  access_visibility: "owner_only" | "organization_members";
+  publication: Record<string, any>;
+};
+
+function firebaseTenantId(res: Response) {
+  const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
+  return String(user?.tenantId || user?.tenant_id || "").trim();
+}
+
+async function accessFor(record: ResultRecord, res: Response) {
+  const access = await resolveAccessContext(res);
+  const tenantId = firebaseTenantId(res);
+  return {
+    allowed: taskEvaluationResultAccessAllowed(record, {
+      uid: access.uid,
+      tenantId,
+      isOps: access.isOps,
+    }),
+    access,
+  };
+}
+
+function publicRecord(record: ResultRecord) {
+  return {
+    schema_version: "task_evaluation_result_site_record.v1",
+    record_id: record.record_id,
+    organization_id: record.organization_id,
+    access_visibility: record.access_visibility,
+    created_at_iso: record.created_at_iso,
+    updated_at_iso: record.updated_at_iso,
+    publication: record.publication,
+  };
+}
+
+async function readResultRecord(recordId: string): Promise<ResultRecord | null> {
+  if (!db || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(recordId)) return null;
+  const snapshot = await db.collection("captureTaskEvaluationRuns").doc(recordId).get();
+  if (!snapshot.exists) return null;
+  const raw = snapshot.data() as ResultRecord;
+  const verified = parseVerifiedTaskEvaluationRunPublication(raw.publication);
+  if (!verified.ok) return null;
+  return { ...raw, record_id: recordId, publication: verified.publication };
+}
+
+router.get("/", async (_req, res) => {
+  if (!db) return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
+  const access = await resolveAccessContext(res);
+  if (!access.uid) return res.status(401).json({ error: "Authentication required" });
+  const tenantId = firebaseTenantId(res);
+  try {
+    let snapshot;
+    if (access.isOps) {
+      snapshot = await db.collection("captureTaskEvaluationRuns").limit(250).get();
+    } else if (tenantId) {
+      snapshot = await db.collection("captureTaskEvaluationRuns")
+        .where("organization_id", "==", tenantId).limit(250).get();
+    } else {
+      snapshot = await db.collection("captureTaskEvaluationRuns")
+        .where("owner_user_id", "==", access.uid).limit(250).get();
+    }
+    const records: ReturnType<typeof publicRecord>[] = [];
+    for (const document of snapshot.docs) {
+      const raw = { ...document.data(), record_id: document.id } as ResultRecord;
+      const verified = parseVerifiedTaskEvaluationRunPublication(raw.publication);
+      const allowed = taskEvaluationResultAccessAllowed(raw, {
+        uid: access.uid,
+        tenantId,
+        isOps: access.isOps,
+      });
+      if (allowed && verified.ok) {
+        records.push(publicRecord({ ...raw, publication: verified.publication }));
+      }
+    }
+    records.sort((left, right) => String(right.updated_at_iso || "").localeCompare(String(left.updated_at_iso || "")));
+    res.set("Cache-Control", "private, no-store");
+    return res.status(200).json({
+      schema_version: "task_evaluation_result_site_list.v1",
+      scope: access.isOps ? "blueprint_operations" : tenantId ? "organization" : "owner",
+      public_leaderboard: false,
+      results: records,
+    });
+  } catch {
+    return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
+  }
+});
+
+router.get("/:recordId", async (req, res) => {
+  let record: ResultRecord | null;
+  try {
+    record = await readResultRecord(req.params.recordId);
+  } catch {
+    return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
+  }
+  if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const permission = await accessFor(record, res);
+  if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  res.set("Cache-Control", "private, no-store");
+  return res.status(200).json(publicRecord(record));
+});
+
+router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
+  let record: ResultRecord | null;
+  try {
+    record = await readResultRecord(req.params.recordId);
+  } catch {
+    return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
+  }
+  if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const permission = await accessFor(record, res);
+  if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const delivery = record.publication.result_delivery;
+  const artifact = delivery?.status === "ready"
+    ? delivery.artifacts.find((row: Record<string, any>) => row.artifact_id === req.params.artifactId)
+    : null;
+  if (!artifact) return res.status(404).json({ error: "Result artifact not found" });
+  await streamTaskEvaluationResultArtifact({
+    runId: record.publication.run_id,
+    artifactId: artifact.artifact_id,
+    req,
+    res,
+  });
+});
+
+router.post("/:recordId/artifacts/:artifactId/ticket", async (req, res) => {
+  let record: ResultRecord | null;
+  try {
+    record = await readResultRecord(req.params.recordId);
+  } catch {
+    return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
+  }
+  if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const permission = await accessFor(record, res);
+  if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const delivery = record.publication.result_delivery;
+  const admitted = delivery?.status === "ready"
+    && delivery.artifacts.some((row: Record<string, any>) => row.artifact_id === req.params.artifactId);
+  if (!admitted) return res.status(404).json({ error: "Result artifact not found" });
+  const ticket = createTaskEvaluationResultDownloadTicket(record.record_id, req.params.artifactId);
+  if (!ticket) return res.status(503).json({ error: "Result download tickets are not configured" });
+  const query = new URLSearchParams({
+    expires: String(ticket.expires),
+    signature: ticket.signature,
+  });
+  res.set("Cache-Control", "private, no-store");
+  return res.status(201).json({
+    schema_version: "task_evaluation_result_download_ticket.v1",
+    expires_at_unix: ticket.expires,
+    download_url: `/api/task-evaluation-result-downloads/${encodeURIComponent(record.record_id)}/${encodeURIComponent(req.params.artifactId)}?${query}`,
+  });
+});
+
+export default router;
