@@ -1,6 +1,6 @@
 import { Helmet } from "@/lib/helmet";
 import { Link } from "wouter";
-import { ArrowRight, Plus, ShieldCheck } from "lucide-react";
+import { ArrowRight, PackageCheck, Plus, ShieldCheck } from "lucide-react";
 
 import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
@@ -18,6 +18,44 @@ import {
   useBuyerAppRuns,
   type BuyerRunRecord,
 } from "@/lib/buyerAppData";
+import {
+  useTaskEvaluationResults,
+  type TaskEvaluationResultSiteRecord,
+} from "@/lib/taskEvaluationResults";
+
+function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {results.map((result) => {
+        const delivery = result.publication.result_delivery;
+        return (
+          <Card key={result.record_id} pad="md" className="flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Sealed result</p>
+                <h3 className="mt-1 text-body-l font-semibold text-ink-900">{result.publication.decision_envelope.decision_question || result.publication.run_id}</h3>
+                <p className="mt-1 font-mono text-[0.68rem] text-ink-400">{result.publication.run_id}</p>
+              </div>
+              <StatusChip tone={delivery?.status === "ready" ? "proof" : delivery?.status === "blocked" ? "block" : "neutral"} square>
+                {delivery?.status === "ready" ? "Media ready" : delivery?.status === "blocked" ? "Evidence blocked" : "Legacy result"}
+              </StatusChip>
+            </div>
+            {delivery ? (
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Episodes</p></div>
+                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.learned_candidate_episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Policy</p></div>
+                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.successful_episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Complete</p></div>
+              </div>
+            ) : null}
+            <Button asChild variant="secondary" size="sm" iconRight={<ArrowRight />} className="w-fit">
+              <Link href={`/app/results/${encodeURIComponent(result.record_id)}`}>Review result and videos</Link>
+            </Button>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
 
 function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
   return (
@@ -86,9 +124,11 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
 
 export default function Runs() {
   const { runs, isLoading: runsLoading, error: runsError } = useBuyerAppRuns();
+  const { results, scope, isLoading: resultsLoading, error: resultsError } = useTaskEvaluationResults();
   const { entitlements, isLoading: entitlementsLoading } = useBuyerAppEntitlements();
 
-  const isLoading = runsLoading || entitlementsLoading;
+  const isLoading = runsLoading || entitlementsLoading || resultsLoading;
+  const loadError = runsError || resultsError;
 
   return (
     <AppShell active="runs" breadcrumb="runs">
@@ -119,9 +159,18 @@ export default function Runs() {
         </header>
 
         {isLoading ? <BuyerAppLoadingState /> : null}
-        {!isLoading && runsError ? <BuyerAppErrorState message={runsError.message} /> : null}
-        {!isLoading && !runsError ? (
+        {!isLoading && loadError ? <BuyerAppErrorState message={loadError.message} /> : null}
+        {!isLoading && !loadError ? (
           <>
+            {results.length ? (
+              <section className="flex flex-col gap-3" aria-label="Sealed evaluation results">
+                <div>
+                  <h2 className="flex items-center gap-2 text-title-m font-semibold tracking-tight text-ink-900"><PackageCheck className="size-5" />Results ready for review</h2>
+                  <p className="mt-1 text-body-s text-ink-500">Private {scope === "blueprint_operations" ? "Blueprint operations" : scope === "organization" ? "verified-team" : "owner"} results. Teams are isolated; this is not a cross-team leaderboard.</p>
+                </div>
+                <SealedResults results={results} />
+              </section>
+            ) : null}
             {runs.length ? (
               <section className="flex flex-col gap-3" aria-label="Evaluation runs">
                 <h2 className="text-title-m font-semibold tracking-tight text-ink-900">

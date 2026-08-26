@@ -80,8 +80,65 @@ export const nativeDecisionEnvelopeSchema = z.object({
   decision_envelope_digest: digest,
 }).passthrough();
 
-export const taskEvaluationRunPublicationSchema = z.object({
-  schema_version: z.literal("task_evaluation_run_publication.v1"),
+const resultArtifactSchema = z.object({
+  artifact_id: z.string().regex(/^[0-9a-f]{32}$/),
+  role: nonEmpty,
+  relative_path: nonEmpty,
+  sha256: digest,
+  size_bytes: z.number().int().nonnegative(),
+  content_type: nonEmpty,
+}).strict();
+
+export const taskEvaluationResultDeliverySchema = z.object({
+  schema_version: z.literal("task_evaluation_result_delivery.v1"),
+  run_id: identifier,
+  state: z.enum(["decided", "partially_decided", "abstained"]),
+  status: z.enum(["ready", "blocked"]),
+  claim_class: z.enum(["development_only", "evaluation"]),
+  decision_envelope_digest: digest,
+  episode_evidence_index_digest: digest.optional(),
+  stages: z.array(z.object({
+    stage: z.enum(["validate", "seal", "project", "package", "publish"]),
+    status: z.enum(["complete", "ready", "blocked", "waiting"]),
+  }).strict()).length(5),
+  blockers: z.array(nonEmpty),
+  summary: z.object({
+    episode_count: z.number().int().nonnegative(),
+    learned_candidate_episode_count: z.number().int().nonnegative(),
+    control_episode_count: z.number().int().nonnegative(),
+    successful_episode_count: z.number().int().nonnegative(),
+  }).strict(),
+  episodes: z.array(z.object({
+    episode_id: identifier,
+    episode_kind: z.enum(["control", "learned_candidate"]),
+    subject_id: nonEmpty,
+    score: z.object({
+      status: nonEmpty,
+      outcome: z.unknown().optional(),
+      task_succeeded: z.boolean().nullable().optional(),
+      outcome_rank: z.unknown().optional(),
+      grader_authority: nonEmpty,
+    }).passthrough(),
+    artifacts: z.object({
+      receipt: resultArtifactSchema,
+      frame_manifest: resultArtifactSchema,
+      videos: z.object({
+        external: resultArtifactSchema,
+        wrist: resultArtifactSchema,
+        overview: resultArtifactSchema,
+      }).strict(),
+    }).strict(),
+  }).strict()),
+  artifacts: z.array(resultArtifactSchema),
+  proof_boundary: z.object({
+    review_video_is_authoritative_evidence: z.literal(false),
+    simulation_is_physical_success: z.literal(false),
+    cross_team_leaderboard_authorized: z.literal(false),
+  }).strict(),
+  delivery_digest: digest,
+}).strict();
+
+const taskEvaluationRunPublicationBaseSchema = z.object({
   capture_session_id: identifier,
   intake_id: identifier,
   run_id: identifier,
@@ -96,7 +153,17 @@ export const taskEvaluationRunPublicationSchema = z.object({
     deployment_or_safety_approved: z.literal(false),
     comparative_policy_ranking_verdict: z.literal("thesis_not_supported"),
   }).passthrough(),
-}).strict();
+});
+
+export const taskEvaluationRunPublicationSchema = z.discriminatedUnion("schema_version", [
+  taskEvaluationRunPublicationBaseSchema.extend({
+    schema_version: z.literal("task_evaluation_run_publication.v1"),
+  }).strict(),
+  taskEvaluationRunPublicationBaseSchema.extend({
+    schema_version: z.literal("task_evaluation_run_publication.v2"),
+    result_delivery: taskEvaluationResultDeliverySchema,
+  }).strict(),
+]);
 
 export const taskEvaluationRunPreparationSchema = z.object({
   schema_version: z.literal("task_evaluation_run_preparation.v1"),
@@ -199,6 +266,33 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown) {
       ? "partially_decided"
       : "abstained";
   if (publication.state !== expectedState) blockers.push("run_publication_state_mismatch");
+  if (publication.schema_version === "task_evaluation_run_publication.v2") {
+    const delivery = publication.result_delivery;
+    if (canonicalArtifactDigest(delivery, "delivery_digest") !== delivery.delivery_digest) {
+      blockers.push("result_delivery_digest_mismatch");
+    }
+    if (
+      delivery.run_id !== publication.run_id ||
+      delivery.state !== publication.state ||
+      delivery.decision_envelope_digest !== publication.decision_envelope.decision_envelope_digest ||
+      delivery.summary.episode_count !== delivery.episodes.length ||
+      (delivery.status === "ready" && (delivery.blockers.length > 0 || delivery.artifacts.length === 0)) ||
+      (delivery.status === "blocked" && delivery.blockers.length === 0)
+    ) blockers.push("result_delivery_binding_mismatch");
+    const artifactIds = delivery.artifacts.map((artifact) => artifact.artifact_id);
+    if (new Set(artifactIds).size !== artifactIds.length) blockers.push("result_delivery_artifact_duplicate");
+    const admittedIds = new Set(artifactIds);
+    for (const episode of delivery.episodes) {
+      const referenced = [
+        episode.artifacts.receipt,
+        episode.artifacts.frame_manifest,
+        ...Object.values(episode.artifacts.videos),
+      ];
+      if (referenced.some((artifact) => !admittedIds.has(artifact.artifact_id))) {
+        blockers.push("result_delivery_episode_artifact_not_admitted");
+      }
+    }
+  }
   if (sensitivePaths(publication).length) blockers.push("run_publication_secret_value_forbidden");
   return blockers.length
     ? { ok: false as const, blockers: [...new Set(blockers)].sort() }

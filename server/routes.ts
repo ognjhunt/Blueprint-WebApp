@@ -7,6 +7,8 @@ import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "./routes/api/upload-to-b2";
 import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
+import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
+import taskEvaluationResultDownloadsRouter from "./routes/task-evaluation-result-downloads";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
@@ -103,6 +105,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
+  app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
   app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);
 
   // API routes for Express
@@ -237,6 +240,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     storageUploadsRouter,
+  );
+  app.use(
+    "/api/task-evaluation-results",
+    csrfProtection,
+    verifyFirebaseToken,
+    taskEvaluationResultsRouter,
   );
   app.use(
     "/api/capture-uploads",

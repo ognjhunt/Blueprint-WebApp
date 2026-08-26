@@ -131,8 +131,20 @@ Unknown or caller-owned scientific fields do not cross the service boundary.
   success, deployment, safety, or policy-ranking support.
 - Set `TASK_EVALUATION_RUN_PLAN_URL`,
   `TASK_EVALUATION_RUN_AUTHORIZE_URL`, `TASK_EVALUATION_RUN_EXECUTE_URL`,
+  `TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE`,
+  `TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET`,
   `TASK_EVALUATION_RUN_FORWARD_TOKEN`, and
   `TASK_EVALUATION_RUN_FORWARD_CLIENT_ID` for the customer control path.
+
+  The artifact template is the authenticated Pipeline endpoint
+  `https://<pipeline>/api/live-pipeline/task-evaluation-runs/{run_id}/artifacts/{artifact_id}`.
+  Result media and ZIPs stay Pipeline-owned; the WebApp checks owner/verified
+  tenant access and issues a 15-minute HMAC download ticket for only the exact
+  digest-bound artifact ID. This lets phones stream and seek without putting a
+  Firebase identity token in a URL. Firestore keeps
+  the small projection, not lossless frames or videos. A result may upgrade once
+  from typed `blocked` delivery to `ready` without changing its scientific
+  identity; ready results are immutable.
   Production requires this path. WebApp submits the exact testbed/request and
   explicit customer authorization only; it never submits method profiles,
   qualification records, or provider choices.

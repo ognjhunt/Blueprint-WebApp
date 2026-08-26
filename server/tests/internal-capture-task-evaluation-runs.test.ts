@@ -138,6 +138,50 @@ function publication() {
   };
 }
 
+function publicationV2(status: "blocked" | "ready") {
+  const value = publication() as Record<string, any>;
+  const artifact = {
+    artifact_id: "1".repeat(32),
+    role: "review_package",
+    relative_path: "artifacts/result_delivery/review_pack.zip",
+    sha256: sha("e"),
+    size_bytes: 123,
+    content_type: "application/zip",
+  };
+  const delivery: Record<string, any> = {
+    schema_version: "task_evaluation_result_delivery.v1",
+    run_id: value.run_id,
+    state: value.state,
+    status,
+    claim_class: "development_only",
+    decision_envelope_digest: value.decision_envelope.decision_envelope_digest,
+    ...(status === "ready" ? { episode_evidence_index_digest: sha("d") } : {}),
+    stages: [
+      { stage: "validate", status: status === "ready" ? "complete" : "blocked" },
+      { stage: "seal", status: status === "ready" ? "complete" : "waiting" },
+      { stage: "project", status: status === "ready" ? "complete" : "waiting" },
+      { stage: "package", status: status === "ready" ? "complete" : "waiting" },
+      { stage: "publish", status: status === "ready" ? "ready" : "waiting" },
+    ],
+    blockers: status === "ready" ? [] : ["episode_evidence_index_missing"],
+    summary: {
+      episode_count: 0,
+      learned_candidate_episode_count: 0,
+      control_episode_count: 0,
+      successful_episode_count: 0,
+    },
+    episodes: [],
+    artifacts: status === "ready" ? [artifact] : [],
+    proof_boundary: {
+      review_video_is_authoritative_evidence: false,
+      simulation_is_physical_success: false,
+      cross_team_leaderboard_authorized: false,
+    },
+  };
+  delivery.delivery_digest = canonicalArtifactDigest(delivery, "delivery_digest");
+  return { ...value, schema_version: "task_evaluation_run_publication.v2", result_delivery: delivery };
+}
+
 function signedBody(body: Record<string, unknown>) {
   const rawBody = JSON.stringify(body);
   const timestamp = new Date().toISOString();
@@ -241,6 +285,40 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       tampered.decision_envelope.next_cheapest_experiment = "changed";
       expect((await postSigned(socketPath, tampered)).status).toBe(400);
       expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("derives team access from the capture and accepts only a blocked-to-ready evidence upgrade", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    state.collections.set("captureUploadSessions", new Map([["capture-run-1", {
+      owner_user_id: "buyer-1",
+      organization_id: "team-1",
+      organization_binding_status: "firebase_tenant_verified",
+      request: { intake_id: "intake-1" },
+      pipeline_site_task_testbed: { testbed_digest: sha("b") },
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      const blocked = await postSigned(socketPath, publicationV2("blocked"));
+      expect(blocked.status).toBe(201);
+      const readyBody = publicationV2("ready");
+      const ready = await postSigned(socketPath, readyBody);
+      expect(ready.status).toBe(200);
+      expect(ready.body.result_delivery_digest).toBe(readyBody.result_delivery.delivery_digest);
+      const record = [...(state.collections.get("captureTaskEvaluationRuns")?.values() || [])][0];
+      expect(record).toMatchObject({
+        schema_version: "capture_task_evaluation_run_record.v2",
+        owner_user_id: "buyer-1",
+        organization_id: "team-1",
+        access_visibility: "organization_members",
+        publication: { result_delivery: { status: "ready" } },
+      });
+      const changed = publicationV2("ready");
+      changed.result_delivery.artifacts[0].sha256 = sha("f");
+      changed.result_delivery.delivery_digest = canonicalArtifactDigest(changed.result_delivery, "delivery_digest");
+      expect((await postSigned(socketPath, changed)).status).toBe(409);
     } finally {
       await stopServer(server, socketPath);
     }
