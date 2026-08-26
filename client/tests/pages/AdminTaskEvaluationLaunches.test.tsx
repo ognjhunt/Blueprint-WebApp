@@ -58,6 +58,64 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
           status: 200, headers: { "content-type": "application/json" },
         });
       }
+      if (url === "/api/admin/task-evaluation-launches/discoveries") {
+        expect(init?.method).toBe("POST");
+        const request = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          schema_version: "scene_object_discovery_web_receipt.v1",
+          status: "queued_for_no_spend_discovery_preparation",
+          discovery_id: request.discovery_id,
+          paid_execution_requested: false,
+          discovery_preparation_is_not_execution: true,
+        }), { status: 202, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/discoveries/discover-scene-001") {
+        return new Response(JSON.stringify({
+          schema_version: "scene_object_discovery_web_status.v1",
+          state: "selection_required",
+          discovery_id: "discover-scene-001",
+          expected_production_commit: "b".repeat(40),
+          pipeline: {
+            status: "selection_required",
+            request_digest: `sha256:${"1".repeat(64)}`,
+            discovery_digest: `sha256:${"2".repeat(64)}`,
+            expected_production_commit: "b".repeat(40),
+            candidates: [
+              {
+                candidate_id: "sam31-tote-001",
+                label: "red tote",
+                backend: "sam31",
+                confidence: 0.94,
+                task_match_score: 0.9,
+                eligible_for_automatic_source_object: true,
+                candidate_claim_boundary: "metric_source_object_candidate",
+              },
+              {
+                candidate_id: "splat-box-001",
+                label: "red tote rough box",
+                backend: "splat_analyzer",
+                confidence: 0.88,
+                task_match_score: 0.8,
+                eligible_for_automatic_source_object: false,
+                candidate_claim_boundary: "model_derived_visual_candidate_not_metric_source_object",
+              },
+            ],
+            unseen_regions: ["behind_uncaptured_partition"],
+            blockers: [],
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/discoveries/discover-scene-001/selection") {
+        expect(init?.method).toBe("POST");
+        const request = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          schema_version: "scene_object_discovery_selection_web_receipt.v1",
+          status: "selection_sealed",
+          discovery_id: request.discovery_id,
+          candidate_id: request.candidate_id,
+          paid_execution_requested: false,
+        }), { status: 202, headers: { "content-type": "application/json" } });
+      }
       if (url === "/api/admin/task-evaluation-launches/preparations") {
         expect(init?.method).toBe("POST");
         const request = JSON.parse(String(init?.body));
@@ -128,6 +186,41 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  it("runs whole-scene discovery and exposes only metric candidates for selection", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+
+    expect(screen.getByRole("heading", { name: "Discover objects in a new splat" }))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Discovery contract JSON"), {
+      target: {
+        value: JSON.stringify({
+          schema_version: "scene_object_discovery_request.v1",
+          discovery_id: "discover-scene-001",
+          expected_production_commit: "b".repeat(40),
+          team_namespace: "robot-team-001",
+          scene: { identity: { id: "scene-001", version: "v1" } },
+          task: { task_statement: "Pick the red tote" },
+          analysis: { analyzers: ["splat_analyzer", "sam31"] },
+          execution: { mode: "qualified_local_runtime" },
+        }),
+      },
+    });
+    expect(screen.getByText("Whole-scene discovery · metric selection required"))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Validate and discover" }));
+
+    await waitFor(() => expect(screen.getByText("red tote rough box")).toBeInTheDocument());
+    expect(screen.getByText("behind_uncaptured_partition")).toBeInTheDocument();
+    expect(screen.getByText(/moving a virtual camera cannot recover observations/i))
+      .toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Select this metric candidate" }))
+      .toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Select this metric candidate" }));
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/discoveries/discover-scene-001/selection"
+    )).toBe(true));
+  });
 
   it("keeps preparation visibly separate from paid launch and synchronizes materialization", async () => {
     render(<AdminTaskEvaluationLaunches />);

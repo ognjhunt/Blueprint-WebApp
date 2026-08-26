@@ -5,6 +5,15 @@ import { logger } from "../logger";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 import {
+  fetchSceneObjectDiscoveryStatus,
+  forwardSceneObjectDiscovery,
+  forwardSceneObjectDiscoverySelection,
+  sceneObjectDiscoveryInputSchema,
+  sceneObjectDiscoveryRequestDigest,
+  sceneObjectDiscoverySelectionDigest,
+  sceneObjectDiscoverySelectionInputSchema,
+} from "../utils/sceneObjectDiscoveryContract";
+import {
   buildTaskEvaluationLaunchRequest,
   buildTaskEvaluationTerminalResourceReleaseRequest,
   forwardTaskEvaluationLaunch,
@@ -36,6 +45,7 @@ const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
 const PREPARATION_COLLECTION = "taskEvaluationLaunchPreparations";
 const ACTIVATION_COLLECTION = "taskEvaluationLaunchActivations";
+const DISCOVERY_COLLECTION = "taskEvaluationSceneObjectDiscoveries";
 
 router.use(requireAdminRole);
 
@@ -589,6 +599,288 @@ export async function readTaskEvaluationLaunchPreparationStatus(
 
 router.get("/preparations/:preparationId", async (req, res) => {
   return readTaskEvaluationLaunchPreparationStatus(req.params.preparationId, res);
+});
+
+router.post("/discoveries", async (req, res) => {
+  if (!db) return res.status(503).json({
+    error: "Scene object discovery store is unavailable",
+    code: "scene_object_discovery_store_unavailable",
+    provider_mutation_performed_inside_web_request: false,
+  });
+  const parsed = sceneObjectDiscoveryInputSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({
+    error: "Scene object discovery request is invalid",
+    code: "scene_object_discovery_input_invalid",
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+  });
+  const access = await resolveAccessContext(res);
+  const actorId = access.uid || access.email;
+  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
+  const request = parsed.data;
+  const requestDigest = sceneObjectDiscoveryRequestDigest(request);
+  const ref = db.collection(DISCOVERY_COLLECTION).doc(request.discovery_id);
+  const initialRecord = {
+    schema_version: "scene_object_discovery_web_record.v1",
+    discovery_id: request.discovery_id,
+    team_namespace: request.team_namespace,
+    expected_production_commit: request.expected_production_commit,
+    request,
+    request_digest: requestDigest,
+    state: "forward_pending",
+    forward_attempt_count: 0,
+    provider_mutation_observed: false,
+    paid_execution_requested: false,
+    submission: {
+      channel: "production_webapp_browser",
+      actor_id: actorId,
+      actor_role: access.isAdmin ? "admin" : "ops",
+    },
+    created_at_iso: new Date().toISOString(),
+  };
+  let priorRecord: Record<string, any> | null;
+  try {
+    priorRecord = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (snapshot.exists) {
+        const existing = snapshot.data() as Record<string, any>;
+        if (existing.request_digest !== requestDigest) throw new Error("immutable_discovery_conflict");
+        return existing;
+      }
+      transaction.create(ref, initialRecord);
+      return null;
+    }));
+  } catch (error) {
+    if (error instanceof Error && error.message === "immutable_discovery_conflict") return res.status(409).json({
+      error: "Immutable scene object discovery conflict",
+      code: "scene_object_discovery_immutable_conflict",
+      discovery_id: request.discovery_id,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({
+      error: "Scene object discovery store is unavailable",
+      code,
+      discovery_id: request.discovery_id,
+      persistence_state: "unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+  }
+  if (priorRecord && !["forward_pending", "forward_blocked"].includes(String(priorRecord.state))) {
+    res.set("Cache-Control", "no-store");
+    return res.status(200).json({
+      schema_version: "scene_object_discovery_web_receipt.v1",
+      status: priorRecord.state,
+      already_exists: true,
+      discovery_id: request.discovery_id,
+      team_namespace: request.team_namespace,
+      request_digest: requestDigest,
+      expected_production_commit: request.expected_production_commit,
+      pipeline: priorRecord.pipeline || null,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+      discovery_preparation_is_not_execution: true,
+    });
+  }
+  const priorAttempts = Number(priorRecord?.forward_attempt_count || 0);
+  if (priorAttempts >= 20) return res.status(409).json({
+    error: "Scene object discovery forwarding retry cap reached",
+    code: "scene_object_discovery_forward_retry_cap_reached",
+  });
+  const forwarded = await forwardSceneObjectDiscovery({ request });
+  const state = forwarded.status === "forwarded"
+    ? "queued_for_no_spend_discovery_preparation"
+    : "forward_blocked";
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state,
+      pipeline: forwarded,
+      forward_attempt_count: priorAttempts + 1,
+      forwarded_at_iso: forwarded.status === "forwarded" ? new Date().toISOString() : null,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({
+      error: "Scene object discovery forward receipt store is unavailable",
+      code,
+      discovery_id: request.discovery_id,
+      persistence_state: "forward_receipt_unknown",
+      retryable: true,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
+    schema_version: "scene_object_discovery_web_receipt.v1",
+    status: state,
+    already_exists: priorRecord !== null,
+    discovery_id: request.discovery_id,
+    team_namespace: request.team_namespace,
+    request_digest: requestDigest,
+    expected_production_commit: request.expected_production_commit,
+    pipeline: forwarded,
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+    discovery_preparation_is_not_execution: true,
+  });
+});
+
+router.get("/discoveries/:discoveryId", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Scene object discovery store is unavailable" });
+  const discoveryId = String(req.params.discoveryId || "");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/.test(discoveryId)) return res.status(400).json({
+    error: "Scene object discovery ID is invalid",
+    code: "scene_object_discovery_id_invalid",
+  });
+  const ref = db.collection(DISCOVERY_COLLECTION).doc(discoveryId);
+  let record: Record<string, any>;
+  try {
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(ref.get());
+    if (!snapshot.exists) return res.status(404).json({ error: "Scene object discovery not found" });
+    record = snapshot.data() as Record<string, any>;
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({ error: "Scene object discovery store is unavailable", code });
+  }
+  const pipeline = await fetchSceneObjectDiscoveryStatus({ discoveryId });
+  if (!pipeline.ok) return res.status(pipeline.status).json({
+    error: "Pipeline scene object discovery status is unavailable",
+    code: pipeline.blocker,
+    discovery_id: discoveryId,
+    webapp_state: record.state,
+    provider_mutation_performed_by_status_read: false,
+  });
+  if (
+    pipeline.discoveryStatus.status !== "not_found"
+    && (
+      pipeline.discoveryStatus.request_digest !== record.request_digest
+      || pipeline.discoveryStatus.team_namespace !== record.team_namespace
+      || pipeline.discoveryStatus.expected_production_commit !== record.expected_production_commit
+    )
+  ) return res.status(409).json({
+    error: "Pipeline scene object discovery status identity mismatch",
+    code: "scene_object_discovery_status_identity_mismatch",
+    discovery_id: discoveryId,
+    provider_mutation_performed_by_status_read: false,
+  });
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state: pipeline.discoveryStatus.status,
+      pipeline_status: pipeline.discoveryStatus,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({ error: "Scene object discovery status store is unavailable", code });
+  }
+  res.set("Cache-Control", "no-store");
+  return res.json({
+    schema_version: "scene_object_discovery_web_status.v1",
+    discovery_id: discoveryId,
+    team_namespace: record.team_namespace,
+    request_digest: record.request_digest,
+    expected_production_commit: record.expected_production_commit,
+    state: pipeline.discoveryStatus.status,
+    pipeline: pipeline.discoveryStatus,
+    provider_mutation_performed_by_status_read: false,
+  });
+});
+
+router.post("/discoveries/:discoveryId/selection", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Scene object discovery store is unavailable" });
+  const parsed = sceneObjectDiscoverySelectionInputSchema.safeParse(req.body);
+  if (!parsed.success || parsed.data.discovery_id !== req.params.discoveryId) return res.status(400).json({
+    error: "Scene object discovery selection is invalid",
+    code: "scene_object_discovery_selection_input_invalid",
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+  });
+  const request = parsed.data;
+  const selectionDigest = sceneObjectDiscoverySelectionDigest(request);
+  const ref = db.collection(DISCOVERY_COLLECTION).doc(request.discovery_id);
+  let record: Record<string, any>;
+  try {
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(ref.get());
+    if (!snapshot.exists) return res.status(404).json({ error: "Scene object discovery not found" });
+    record = snapshot.data() as Record<string, any>;
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({ error: "Scene object discovery store is unavailable", code });
+  }
+  if (
+    record.request_digest !== request.request_digest
+    || record.expected_production_commit !== request.expected_production_commit
+    || record.pipeline_status?.discovery_digest !== request.discovery_digest
+  ) return res.status(409).json({
+    error: "Scene object discovery selection identity mismatch",
+    code: "scene_object_discovery_selection_identity_mismatch",
+  });
+  if (
+    record.state !== "selection_required"
+    || !Array.isArray(record.pipeline_status?.candidates)
+    || !record.pipeline_status.candidates.some((candidate: Record<string, unknown>) =>
+      candidate.candidate_id === request.candidate_id
+      && candidate.eligible_for_automatic_source_object === true)
+  ) return res.status(409).json({
+    error: "Scene object candidate is not eligible for selection",
+    code: "scene_object_discovery_candidate_not_selectable",
+  });
+  if (record.selection_digest && record.selection_digest !== selectionDigest) return res.status(409).json({
+    error: "Immutable scene object selection conflict",
+    code: "scene_object_discovery_selection_immutable_conflict",
+  });
+  if (record.selection_digest === selectionDigest && record.selection_pipeline) {
+    return res.status(200).json({
+      schema_version: "scene_object_discovery_selection_web_receipt.v1",
+      status: "selection_sealed",
+      already_exists: true,
+      discovery_id: request.discovery_id,
+      candidate_id: request.candidate_id,
+      selection_digest: selectionDigest,
+      pipeline: record.selection_pipeline,
+      provider_mutation_performed_inside_web_request: false,
+      paid_execution_requested: false,
+    });
+  }
+  const forwarded = await forwardSceneObjectDiscoverySelection({ request });
+  if (forwarded.status !== "forwarded") return res.status(503).json({
+    error: "Pipeline scene object selection was blocked",
+    code: forwarded.blocker,
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+  });
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(ref.set({
+      state: "selection_sealed",
+      selection_request: request,
+      selection_digest: selectionDigest,
+      selection_pipeline: forwarded,
+      updated_at_iso: new Date().toISOString(),
+    }, { merge: true }));
+  } catch (error) {
+    const code = taskEvaluationLaunchStoreErrorCode(error);
+    return res.status(503).json({
+      error: "Scene object selection receipt store is unavailable",
+      code,
+      persistence_state: "forward_receipt_unknown",
+    });
+  }
+  return res.status(202).json({
+    schema_version: "scene_object_discovery_selection_web_receipt.v1",
+    status: "selection_sealed",
+    already_exists: false,
+    discovery_id: request.discovery_id,
+    candidate_id: request.candidate_id,
+    selection_digest: selectionDigest,
+    pipeline: forwarded,
+    provider_mutation_performed_inside_web_request: false,
+    paid_execution_requested: false,
+  });
 });
 
 router.post("/activations", async (req, res) => {

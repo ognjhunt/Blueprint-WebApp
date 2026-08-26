@@ -219,6 +219,48 @@ function preparationInput() {
   };
 }
 
+function discoveryInput() {
+  return {
+    schema_version: "scene_object_discovery_request.v1",
+    discovery_id: "discover-scene-001",
+    expected_production_commit: "a".repeat(40),
+    team_namespace: "robot-team-001",
+    scene: {
+      identity: { id: "public-scene-001", version: "v1" },
+      source_splat: immutableRef("source-splat"),
+      scene_analysis: immutableRef("scene-analysis"),
+      metric_registration: immutableRef("metric-registration"),
+      renderer_qualification: immutableRef("renderer-qualification"),
+      retained_gaussian_count: 1234,
+    },
+    task: {
+      kind: "rigid_relocation",
+      strategy: "pick_and_place",
+      task_statement: "Pick the red tote",
+      target_hint: "red tote",
+    },
+    analysis: {
+      analyzers: ["splat_analyzer", "sam31"],
+      prompts: ["red tote", "container"],
+      minimum_confidence: 0.5,
+      minimum_task_relevance: 0.5,
+      require_metric_source_object: true,
+      full_scene_survey_required: true,
+    },
+    rights: {
+      admission: immutableRef("discovery-rights"),
+      human_authority_record: immutableRef("discovery-human-authority"),
+      source_bytes_redistributable: false,
+      provider_disclosure_scope: "derived_only",
+    },
+    execution: { mode: "qualified_local_runtime" },
+    publication: {
+      input_namespace: "robot-team-001-public-scene-001-discovery",
+      service_account_readback_required: true,
+    },
+  };
+}
+
 function evaluationPreparationInput() {
   const input: any = preparationInput();
   input.run_mode = "episode_evaluation";
@@ -474,6 +516,86 @@ beforeEach(() => {
         paid_execution_requested: false,
       }), { status: 200, headers: { "content-type": "application/json" } });
     }
+    if (url === "https://pipeline.example/api/live-pipeline/scene-object-discoveries") {
+      const request = JSON.parse(String(init?.body || "{}"));
+      const receipt: Record<string, unknown> = {
+        schema_version: "scene_object_discovery_intake_receipt.v1",
+        status: "queued_for_no_spend_discovery_preparation",
+        accepted: true,
+        already_exists: false,
+        discovery_id: request.discovery_id,
+        team_namespace: request.team_namespace,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        expected_production_commit: request.expected_production_commit,
+        provider_mutation_performed_inside_http_request: false,
+        paid_execution_requested: false,
+        canonical_allocator_required_for_provider_execution: true,
+        receipt_digest: "",
+      };
+      receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+      return new Response(JSON.stringify(receipt), {
+        status: 202, headers: { "content-type": "application/json" },
+      });
+    }
+    if (url === "https://pipeline.example/api/live-pipeline/scene-object-discoveries/discover-scene-001") {
+      const request = discoveryInput();
+      return new Response(JSON.stringify({
+        schema_version: "scene_object_discovery_status.v1",
+        status: "selection_required",
+        discovery_id: request.discovery_id,
+        team_namespace: request.team_namespace,
+        expected_production_commit: request.expected_production_commit,
+        request_digest: canonicalArtifactDigest(request, "request_digest"),
+        discovery_digest: sha("7"),
+        source_commit: request.expected_production_commit,
+        candidates: [
+          {
+            candidate_id: "sam31-tote-001",
+            label: "red tote",
+            backend: "sam31",
+            confidence: 0.94,
+            task_match_score: 0.9,
+            eligible_for_automatic_source_object: true,
+            candidate_claim_boundary: "metric_source_object_candidate",
+          },
+          {
+            candidate_id: "splat-box-001",
+            label: "red tote rough box",
+            backend: "splat_analyzer",
+            confidence: 0.88,
+            task_match_score: 0.8,
+            eligible_for_automatic_source_object: false,
+            candidate_claim_boundary: "model_derived_visual_candidate_not_metric_source_object",
+          },
+        ],
+        selected_candidate_id: null,
+        source_object: null,
+        unseen_regions: ["behind_uncaptured_partition"],
+        blockers: [],
+        provider_mutation_performed_by_status_read: false,
+        paid_execution_performed: false,
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url === "https://pipeline.example/api/live-pipeline/scene-object-discoveries/discover-scene-001/selection") {
+      const request = JSON.parse(String(init?.body || "{}"));
+      const selectionDigest = canonicalArtifactDigest(request, "selection_digest");
+      const receipt: Record<string, unknown> = {
+        schema_version: "scene_object_discovery_selection_receipt.v1",
+        status: "selection_sealed",
+        discovery_id: request.discovery_id,
+        request_digest: request.request_digest,
+        discovery_digest: request.discovery_digest,
+        candidate_id: request.candidate_id,
+        selection_digest: selectionDigest,
+        provider_mutation_performed_inside_http_request: false,
+        paid_execution_requested: false,
+        receipt_digest: "",
+      };
+      receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+      return new Response(JSON.stringify(receipt), {
+        status: 202, headers: { "content-type": "application/json" },
+      });
+    }
     if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-activations") {
       const request = JSON.parse(String(init?.body || "{}"));
       const receipt: Record<string, unknown> = {
@@ -549,6 +671,80 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("durably stages discovery, exposes candidates, and seals only an eligible selection", async () => {
+    const { server, url } = await startServer();
+    const input = discoveryInput();
+    try {
+      const queued = await fetch(`${url}/discoveries`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      expect(queued.status).toBe(202);
+      await expect(queued.json()).resolves.toMatchObject({
+        schema_version: "scene_object_discovery_web_receipt.v1",
+        status: "queued_for_no_spend_discovery_preparation",
+        discovery_id: input.discovery_id,
+        paid_execution_requested: false,
+        discovery_preparation_is_not_execution: true,
+      });
+
+      const status = await fetch(`${url}/discoveries/${input.discovery_id}`);
+      expect(status.status).toBe(200);
+      const statusPayload = await status.json();
+      expect(statusPayload).toMatchObject({
+        state: "selection_required",
+        pipeline: {
+          discovery_digest: sha("7"),
+          candidates: [
+            { candidate_id: "sam31-tote-001", eligible_for_automatic_source_object: true },
+            { candidate_id: "splat-box-001", eligible_for_automatic_source_object: false },
+          ],
+          unseen_regions: ["behind_uncaptured_partition"],
+        },
+      });
+
+      const requestDigest = canonicalArtifactDigest(input, "request_digest");
+      const ineligible = await fetch(`${url}/discoveries/${input.discovery_id}/selection`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          schema_version: "scene_object_discovery_selection_request.v1",
+          discovery_id: input.discovery_id,
+          expected_production_commit: input.expected_production_commit,
+          request_digest: requestDigest,
+          discovery_digest: sha("7"),
+          candidate_id: "splat-box-001",
+          confirm_selection: true,
+        }),
+      });
+      expect(ineligible.status).toBe(409);
+
+      const eligibleSelection = {
+        schema_version: "scene_object_discovery_selection_request.v1",
+        discovery_id: input.discovery_id,
+        expected_production_commit: input.expected_production_commit,
+        request_digest: requestDigest,
+        discovery_digest: sha("7"),
+        candidate_id: "sam31-tote-001",
+        confirm_selection: true,
+      };
+      const selected = await fetch(`${url}/discoveries/${input.discovery_id}/selection`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(eligibleSelection),
+      });
+      expect(selected.status).toBe(202);
+      await expect(selected.json()).resolves.toMatchObject({
+        status: "selection_sealed",
+        candidate_id: "sam31-tote-001",
+        paid_execution_requested: false,
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("starts a production scene-configuration run without an evaluation controller", async () => {
     const { server, url } = await startServer();
     const input = preparationInput();
