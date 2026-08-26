@@ -18,7 +18,7 @@ function request(headers: Record<string, string>, body = BODY): Request {
   );
   return {
     rawBody: body,
-    body: JSON.parse(body),
+    body: body ? JSON.parse(body) : undefined,
     header: (name: string) => normalized[name.toLowerCase()],
   } as unknown as Request;
 }
@@ -90,5 +90,22 @@ describe("Task Evaluation launch submission authentication", () => {
       status: 401,
       code: "task_evaluation_launch_submit_signature_invalid",
     });
+  });
+
+  it("admits an explicitly empty signed body only for read-only callers", () => {
+    const emptyHeaders = signedHeaders({}, "");
+    const emptyRequest = request(emptyHeaders, "");
+    expect(verifyTaskEvaluationLaunchSubmissionRequest(emptyRequest, {
+      expectedSecret: SECRET,
+      nowMs: NOW,
+    })).toMatchObject({
+      ok: false,
+      code: "task_evaluation_launch_submit_raw_body_unavailable",
+    });
+    expect(verifyTaskEvaluationLaunchSubmissionRequest(emptyRequest, {
+      expectedSecret: SECRET,
+      nowMs: NOW,
+      allowEmptyRawBody: true,
+    })).toMatchObject({ ok: true, clientId: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID });
   });
 });

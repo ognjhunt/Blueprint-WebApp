@@ -49,6 +49,7 @@ export function verifyTaskEvaluationLaunchSubmissionRequest(
     expectedClientId?: string;
     nowMs?: number;
     maxClockSkewMs?: number;
+    allowEmptyRawBody?: boolean;
   } = {},
 ): TaskEvaluationLaunchSubmissionAuthResult {
   const expectedSecret = String(
@@ -113,8 +114,13 @@ export function verifyTaskEvaluationLaunchSubmissionRequest(
     code: "task_evaluation_launch_submit_signature_invalid",
     message: "Task Evaluation launch submission signature is invalid.",
   };
-  const rawBody = (req as Request & { rawBody?: string }).rawBody;
-  if (typeof rawBody !== "string" || rawBody.length === 0) return {
+  const capturedRawBody = (req as Request & { rawBody?: string }).rawBody;
+  const rawBody = typeof capturedRawBody === "string"
+    ? capturedRawBody
+    : options.allowEmptyRawBody
+      ? ""
+      : undefined;
+  if (typeof rawBody !== "string" || (!options.allowEmptyRawBody && rawBody.length === 0)) return {
     ok: false,
     status: 400,
     code: "task_evaluation_launch_submit_raw_body_unavailable",
