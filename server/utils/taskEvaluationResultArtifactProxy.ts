@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 
 import type { Request, Response } from "express";
 
-function configuredArtifactEndpoint(runId: string, artifactId: string) {
+export function configuredArtifactEndpoint(runId: string, artifactId: string) {
   const template = String(process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE || "").trim();
   if (template) {
     return template
@@ -11,16 +11,31 @@ function configuredArtifactEndpoint(runId: string, artifactId: string) {
       .replace("{artifact_id}", encodeURIComponent(artifactId));
   }
   const executeUrl = String(process.env.TASK_EVALUATION_RUN_EXECUTE_URL || "").trim();
-  if (!executeUrl) return "";
-  return executeUrl
-    .replace("{run_id}", encodeURIComponent(runId))
-    .replace(/\/execute\/?$/, `/artifacts/${encodeURIComponent(artifactId)}`);
+  if (executeUrl) {
+    return executeUrl
+      .replace("{run_id}", encodeURIComponent(runId))
+      .replace(/\/execute\/?$/, `/artifacts/${encodeURIComponent(artifactId)}`);
+  }
+  const launchUrl = String(process.env.TASK_EVALUATION_LAUNCH_URL || "").trim();
+  if (!/\/task-evaluation-launches\/?$/.test(launchUrl)) return "";
+  return launchUrl.replace(
+    /\/task-evaluation-launches\/?$/,
+    `/task-evaluation-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`,
+  );
 }
 
-function signedPipelineHeaders(body = "") {
-  const token = String(process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN || "").trim();
+export function signedPipelineHeaders(body = "") {
+  const token = String(
+    process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
+      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
+      || "",
+  ).trim();
   if (!token) return null;
-  const clientId = String(process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID || "blueprint-webapp").trim();
+  const clientId = String(
+    process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID
+      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID
+      || "blueprint-webapp",
+  ).trim();
   const timestamp = new Date().toISOString();
   const nonce = randomUUID();
   const signature = createHmac("sha256", token)
