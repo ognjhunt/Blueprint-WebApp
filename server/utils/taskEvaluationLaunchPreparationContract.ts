@@ -146,6 +146,18 @@ const runtimeMountSchema = z.object({
   });
 });
 
+const externalServiceCapsSchema = z.object({
+  openai: z.object({
+    maximum_cost_usd: z.number().nonnegative().max(5),
+    maximum_requests: z.number().int().nonnegative().max(100),
+    stage_max_cost_usd: z.object({
+      artifixer_semantic_teacher: z.number().nonnegative().max(5),
+      artifixer_visual_review: z.number().nonnegative().max(5),
+      content_agents: z.number().nonnegative().max(5),
+    }).strict(),
+  }).strict(),
+}).strict();
+
 export const taskEvaluationLaunchPreparationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_request.v1"),
   run_mode: z.enum(["scene_configuration", "episode_evaluation"]),
@@ -206,8 +218,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   }).strict(),
   spend: z.object({
     maximum_hourly_rate_usd: z.number().positive().max(0.8),
-    hard_cap_usd: z.number().positive().max(50),
+    hard_cap_usd: z.number().positive().max(5),
     hard_ttl_seconds: z.number().int().min(1).max(9000),
+    provider_compute_spend_cap_usd: z.number().positive().max(1).optional(),
+    external_service_caps: externalServiceCapsSchema.optional(),
     retry_cap: z.literal(0),
     selected_provider: z.enum(["vast", "runpod", "gcp", "aws", "azure"]),
     provider_allowlist: z.array(z.enum(["vast", "runpod", "gcp", "aws", "azure"]))
@@ -239,6 +253,26 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "production scene construction requires derived-only disclosure",
     });
+    const providerComputeCap = value.spend.provider_compute_spend_cap_usd;
+    const externalCaps = value.spend.external_service_caps;
+    if (providerComputeCap === undefined || externalCaps === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scene configuration requires provider-compute and external-service spend caps",
+      });
+    } else {
+      const openai = externalCaps.openai;
+      const stageTotal = Object.values(openai.stage_max_cost_usd)
+        .reduce((total, amount) => total + amount, 0);
+      if (
+        providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
+        || stageTotal > openai.maximum_cost_usd + 1e-9
+        || (openai.maximum_cost_usd === 0) !== (openai.maximum_requests === 0)
+      ) context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scene configuration spend caps exceed their parent authority",
+      });
+    }
   } else {
     if (value.construction.mode !== "reuse_configured_scene") context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -259,6 +293,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     if (value.execution_adapter.kind !== "native_task_arena") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation requires production native-Arena compilation",
+    });
+    if (
+      value.spend.provider_compute_spend_cap_usd !== undefined
+      || value.spend.external_service_caps !== undefined
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation cannot carry scene-construction service spend caps",
     });
   }
   if (

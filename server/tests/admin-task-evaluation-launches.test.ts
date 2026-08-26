@@ -201,7 +201,19 @@ function preparationInput() {
       service_account_readback_required: true,
     },
     spend: {
-      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 1, hard_ttl_seconds: 3600,
+      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 2.25, hard_ttl_seconds: 3600,
+      provider_compute_spend_cap_usd: 0.75,
+      external_service_caps: {
+        openai: {
+          maximum_cost_usd: 1.5,
+          maximum_requests: 32,
+          stage_max_cost_usd: {
+            artifixer_semantic_teacher: 0.4,
+            artifixer_visual_review: 0.75,
+            content_agents: 0.35,
+          },
+        },
+      },
       retry_cap: 0, selected_provider: "vast", provider_allowlist: ["vast"],
     },
   };
@@ -246,6 +258,8 @@ function evaluationPreparationInput() {
     },
   };
   input.execution_adapter.kind = "native_task_arena";
+  delete input.spend.provider_compute_spend_cap_usd;
+  delete input.spend.external_service_caps;
   return input;
 }
 
@@ -642,6 +656,26 @@ describe("admin Task Evaluation launch route", () => {
         body: JSON.stringify(unauthorizedProvider),
       });
       expect(providerRejected.status).toBe(400);
+      expect(state.records.size).toBe(0);
+
+      const overcommittedServices = preparationInput();
+      overcommittedServices.spend.hard_cap_usd = 2;
+      const overcommittedRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(overcommittedServices),
+      });
+      expect(overcommittedRejected.status).toBe(400);
+      expect(state.records.size).toBe(0);
+
+      const missingServiceAuthority = preparationInput();
+      delete missingServiceAuthority.spend.external_service_caps;
+      const missingServiceAuthorityRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(missingServiceAuthority),
+      });
+      expect(missingServiceAuthorityRejected.status).toBe(400);
       expect(state.records.size).toBe(0);
 
       const firstInput = preparationInput();

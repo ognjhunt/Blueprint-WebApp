@@ -49,6 +49,40 @@ type LaunchProgress = {
   };
 };
 
+type PreparationContractPreview = {
+  runMode: "scene_configuration" | "episode_evaluation";
+  teamNamespace: string;
+  sceneId: string;
+  sceneVersion: string;
+  hardCapUsd: number;
+  providerComputeCapUsd: number | null;
+  externalServiceCapUsd: number | null;
+};
+
+function previewPreparationContract(value: string): PreparationContractPreview | null {
+  try {
+    const request = JSON.parse(value) as Record<string, any>;
+    if (request.run_mode !== "scene_configuration" && request.run_mode !== "episode_evaluation") {
+      return null;
+    }
+    const hardCapUsd = Number(request.spend?.hard_cap_usd);
+    if (!Number.isFinite(hardCapUsd)) return null;
+    const providerCompute = request.spend?.provider_compute_spend_cap_usd;
+    const externalService = request.spend?.external_service_caps?.openai?.maximum_cost_usd;
+    return {
+      runMode: request.run_mode,
+      teamNamespace: String(request.team_namespace || ""),
+      sceneId: String(request.scene?.identity?.id || ""),
+      sceneVersion: String(request.scene?.identity?.version || ""),
+      hardCapUsd,
+      providerComputeCapUsd: Number.isFinite(Number(providerCompute)) ? Number(providerCompute) : null,
+      externalServiceCapUsd: Number.isFinite(Number(externalService)) ? Number(externalService) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function formatElapsedSeconds(value: unknown): string | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   const total = Math.floor(value);
@@ -121,6 +155,10 @@ export default function AdminTaskEvaluationLaunches() {
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
     [profileKey, profiles],
+  );
+  const preparationPreview = useMemo(
+    () => previewPreparationContract(preparationJson),
+    [preparationJson],
   );
   const requiredSpend = requiredTaskEvaluationMaxSpendUsd(selected);
   useEffect(() => {
@@ -423,8 +461,10 @@ export default function AdminTaskEvaluationLaunches() {
             Task Evaluation launch
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-stone-600">
-            Authorize one immutable Pipeline profile. The website queues it; the canonical allocator,
-            watchdog, reconciler, artifact retention, teardown, and provider-zero contracts own execution.
+            A scene's first run configures its observed appearance, derived collision geometry, source-object
+            replacement, cameras, and task into one immutable revision. Every later robot or policy run reuses
+            that revision. The website queues both run types; the canonical allocator, watchdog, reconciler,
+            artifact retention, teardown, and provider-zero contracts own execution.
           </p>
           {launchLabToken ? (
             <p className="mt-3 text-sm font-medium text-emerald-800">
@@ -455,10 +495,12 @@ export default function AdminTaskEvaluationLaunches() {
               <h2 className="text-xl font-semibold">Prepare versioned inputs</h2>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-              Submit one strict Task Evaluation preparation contract for any admitted scene, robot,
-              controller, task, sensors, and digest-pinned runtime. Pipeline verifies and reads back the
-              immutable bytes under its service account. This step cannot publish a launch profile,
-              allocate a GPU, spend money, or start an episode.
+              Upload one strict Task Evaluation contract. Choose <code>scene_configuration</code> once to run
+              the production construction recipe and produce a reusable immutable scene revision. Choose
+              <code>episode_evaluation</code> later to bind a robot or policy to that exact revision without
+              rebuilding the scene. Pipeline validates every reference and spend envelope before it can reach
+              execution. Preparation itself cannot publish a launch profile, allocate a GPU, spend money, or start an
+              episode.
             </p>
             <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-preparation-json">
               Preparation contract JSON
@@ -495,6 +537,30 @@ export default function AdminTaskEvaluationLaunches() {
                   ));
               }}
             />
+            {preparationPreview ? (
+              <div className="mt-4 border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
+                <p className="font-semibold">
+                  {preparationPreview.runMode === "scene_configuration"
+                    ? "First run · configure and seal a reusable scene revision"
+                    : "Evaluation run · reuse a configured scene revision"}
+                </p>
+                <p>
+                  {preparationPreview.teamNamespace || "Missing team namespace"} · {preparationPreview.sceneId || "Missing scene"}
+                  {preparationPreview.sceneVersion ? ` @ ${preparationPreview.sceneVersion}` : ""}
+                </p>
+                <p>Total run authority: ${preparationPreview.hardCapUsd.toFixed(2)}</p>
+                {preparationPreview.runMode === "scene_configuration" ? (
+                  <p>
+                    Provider compute: {preparationPreview.providerComputeCapUsd === null
+                      ? "missing"
+                      : `$${preparationPreview.providerComputeCapUsd.toFixed(2)}`}
+                    {" · "}Construction services: {preparationPreview.externalServiceCapUsd === null
+                      ? "missing"
+                      : `$${preparationPreview.externalServiceCapUsd.toFixed(2)}`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -550,6 +616,22 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 break-all text-xs leading-5 text-stone-600">
                 Source commit: {preparationStatus.pipeline.source_commit}
               </p>
+            ) : null}
+            {preparationStatus?.pipeline?.configured_scene_revision_digest ? (
+              <div className="mt-4 border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
+                <p className="font-semibold">Reusable configured scene revision sealed</p>
+                <p className="mt-1 break-all text-xs leading-5">
+                  {preparationStatus.pipeline.configured_scene_revision_digest}
+                </p>
+                {preparationStatus.pipeline.configured_scene_bundle_digest ? (
+                  <p className="mt-1 break-all text-xs leading-5">
+                    Bundle {preparationStatus.pipeline.configured_scene_bundle_digest}
+                  </p>
+                ) : null}
+                <p className="mt-2 text-xs leading-5">
+                  Use this revision for subsequent zero-action, scripted-positive, robot, and policy runs.
+                </p>
+              </div>
             ) : null}
             {(preparationStatus?.pipeline?.blockers || []).map((blocker: string) => (
               <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">

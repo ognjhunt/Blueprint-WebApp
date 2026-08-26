@@ -82,6 +82,8 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
             request_digest: `sha256:${"1".repeat(64)}`,
             result_digest: `sha256:${"2".repeat(64)}`,
             source_commit: "b".repeat(40),
+            configured_scene_revision_digest: `sha256:${"3".repeat(64)}`,
+            configured_scene_bundle_digest: `sha256:${"4".repeat(64)}`,
             blockers: [],
           },
         }), { status: 200, headers: { "content-type": "application/json" } });
@@ -143,6 +145,9 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     expect(screen.getByText(`Request digest: sha256:${"1".repeat(64)}`)).toBeInTheDocument();
     expect(screen.getByText(`Result digest: sha256:${"2".repeat(64)}`)).toBeInTheDocument();
     expect(screen.getByText(`Source commit: ${"b".repeat(40)}`)).toBeInTheDocument();
+    expect(screen.getByText("Reusable configured scene revision sealed")).toBeInTheDocument();
+    expect(screen.getByText(`sha256:${"3".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Bundle sha256:${"4".repeat(64)}`)).toBeInTheDocument();
     expect(screen.getByText(/verified input readiness, not execution or scientific success/i))
       .toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([target]) =>
@@ -185,6 +190,31 @@ describe("AdminTaskEvaluationLaunches preparation workflow", () => {
     });
     await waitFor(() => expect(screen.getByLabelText("Activation contract JSON"))
       .toHaveValue(JSON.stringify(activation, null, 2)));
+  });
+
+  it("shows the first-run scene configuration and bounded service-spend split", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    fireEvent.change(screen.getByLabelText("Preparation contract JSON"), {
+      target: {
+        value: JSON.stringify({
+          run_mode: "scene_configuration",
+          team_namespace: "robot-team-001",
+          scene: { identity: { id: "public-scene-001", version: "v1" } },
+          spend: {
+            hard_cap_usd: 2.25,
+            provider_compute_spend_cap_usd: 0.75,
+            external_service_caps: { openai: { maximum_cost_usd: 1.5 } },
+          },
+        }),
+      },
+    });
+
+    expect(screen.getByText("First run · configure and seal a reusable scene revision"))
+      .toBeInTheDocument();
+    expect(screen.getByText("robot-team-001 · public-scene-001 @ v1")).toBeInTheDocument();
+    expect(screen.getByText("Total run authority: $2.25")).toBeInTheDocument();
+    expect(screen.getByText("Provider compute: $0.75 · Construction services: $1.50"))
+      .toBeInTheDocument();
   });
 
   it("rejects malformed and oversized contract files before submission", async () => {
