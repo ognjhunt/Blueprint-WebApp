@@ -24,6 +24,13 @@ const TERMINAL_LAUNCH_STATES = [
 ];
 const TERMINAL_PREPARATION_STATES = ["materialized", "blocked"];
 const TERMINAL_ACTIVATION_STATES = ["prepared", "blocked"];
+const TERMINAL_DISCOVERY_STATES = [
+  "selection_required",
+  "ready_auto_selected",
+  "metric_refinement_required",
+  "abstained_no_candidates",
+  "blocked",
+];
 const MAX_CONTRACT_FILE_BYTES = 2 * 1024 * 1024;
 
 async function normalizedContractFileJson(file: File): Promise<string> {
@@ -58,6 +65,34 @@ type PreparationContractPreview = {
   providerComputeCapUsd: number | null;
   externalServiceCapUsd: number | null;
 };
+
+type DiscoveryContractPreview = {
+  teamNamespace: string;
+  sceneId: string;
+  sceneVersion: string;
+  taskStatement: string;
+  analyzers: string[];
+  executionMode: string;
+};
+
+function previewDiscoveryContract(value: string): DiscoveryContractPreview | null {
+  try {
+    const request = JSON.parse(value) as Record<string, any>;
+    if (request.schema_version !== "scene_object_discovery_request.v1") return null;
+    return {
+      teamNamespace: String(request.team_namespace || ""),
+      sceneId: String(request.scene?.identity?.id || ""),
+      sceneVersion: String(request.scene?.identity?.version || ""),
+      taskStatement: String(request.task?.task_statement || ""),
+      analyzers: Array.isArray(request.analysis?.analyzers)
+        ? request.analysis.analyzers.map(String)
+        : [],
+      executionMode: String(request.execution?.mode || ""),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function previewPreparationContract(value: string): PreparationContractPreview | null {
   try {
@@ -146,6 +181,12 @@ export default function AdminTaskEvaluationLaunches() {
   const [preparationStatus, setPreparationStatus] = useState<Record<string, any> | null>(null);
   const [preparationError, setPreparationError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [discoveryJson, setDiscoveryJson] = useState("");
+  const [discoveryId, setDiscoveryId] = useState("");
+  const [discoveryStatus, setDiscoveryStatus] = useState<Record<string, any> | null>(null);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [selectingCandidateId, setSelectingCandidateId] = useState<string | null>(null);
   const [activationJson, setActivationJson] = useState("");
   const [activationId, setActivationId] = useState("");
   const [activationStatus, setActivationStatus] = useState<Record<string, any> | null>(null);
@@ -159,6 +200,10 @@ export default function AdminTaskEvaluationLaunches() {
   const preparationPreview = useMemo(
     () => previewPreparationContract(preparationJson),
     [preparationJson],
+  );
+  const discoveryPreview = useMemo(
+    () => previewDiscoveryContract(discoveryJson),
+    [discoveryJson],
   );
   const requiredSpend = requiredTaskEvaluationMaxSpendUsd(selected);
   useEffect(() => {
@@ -237,6 +282,21 @@ export default function AdminTaskEvaluationLaunches() {
     return true;
   }
 
+  async function refreshDiscoveryStatus(id = discoveryId) {
+    if ((!currentUser && !launchLabToken) || !id) return false;
+    const response = await fetchWithTimeout(
+      `/api/admin/task-evaluation-launches/discoveries/${encodeURIComponent(id)}`,
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(
+      payload.code || payload.error || "Scene object discovery status is unavailable",
+    );
+    setDiscoveryStatus(payload);
+    setDiscoveryError(null);
+    return true;
+  }
+
   async function refreshActivationStatus(id = activationId) {
     if ((!currentUser && !launchLabToken) || !id) return false;
     const response = await fetchWithTimeout(
@@ -281,6 +341,18 @@ export default function AdminTaskEvaluationLaunches() {
   }, [preparationId, preparationStatus?.state, preparationStatus?.status, currentUser, launchLabToken]);
 
   useEffect(() => {
+    const state = discoveryStatus?.state || discoveryStatus?.status;
+    if (!discoveryId || !discoveryStatus || TERMINAL_DISCOVERY_STATES.includes(state)) {
+      return undefined;
+    }
+    const timer = window.setInterval(
+      () => void refreshDiscoveryStatus().catch((reason) => setDiscoveryError(String(reason))),
+      5000,
+    );
+    return () => window.clearInterval(timer);
+  }, [discoveryId, discoveryStatus?.state, discoveryStatus?.status, currentUser, launchLabToken]);
+
+  useEffect(() => {
     const state = activationStatus?.state || activationStatus?.status;
     if (!activationId || !activationStatus || TERMINAL_ACTIVATION_STATES.includes(state)) {
       return undefined;
@@ -322,6 +394,76 @@ export default function AdminTaskEvaluationLaunches() {
       setPreparationError(reason instanceof Error ? reason.message : "Preparation was blocked");
     } finally {
       setPreparing(false);
+    }
+  }
+
+  async function submitDiscovery() {
+    setDiscovering(true);
+    setDiscoveryError(null);
+    try {
+      let request: Record<string, any>;
+      try {
+        request = JSON.parse(discoveryJson) as Record<string, any>;
+      } catch {
+        throw new Error("Discovery JSON is invalid.");
+      }
+      const id = typeof request.discovery_id === "string" ? request.discovery_id : "";
+      if (!id) throw new Error("Discovery JSON must include discovery_id.");
+      setDiscoveryId(id);
+      const response = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/discoveries",
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify(request),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      setDiscoveryStatus(payload);
+      if (!response.ok) throw new Error(payload.code || payload.error || "Discovery was blocked");
+      await refreshDiscoveryStatus(id);
+    } catch (reason) {
+      setDiscoveryError(reason instanceof Error ? reason.message : "Discovery was blocked");
+    } finally {
+      setDiscovering(false);
+    }
+  }
+
+  async function selectDiscoveryCandidate(candidateId: string) {
+    const pipeline = discoveryStatus?.pipeline;
+    if (!discoveryId || !pipeline?.request_digest || !pipeline?.discovery_digest) return;
+    setSelectingCandidateId(candidateId);
+    setDiscoveryError(null);
+    try {
+      const expectedProductionCommit = String(
+        pipeline.expected_production_commit || discoveryStatus?.expected_production_commit || "",
+      );
+      const response = await fetchWithTimeout(
+        `/api/admin/task-evaluation-launches/discoveries/${encodeURIComponent(discoveryId)}/selection`,
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify({
+            schema_version: "scene_object_discovery_selection_request.v1",
+            discovery_id: discoveryId,
+            expected_production_commit: expectedProductionCommit,
+            request_digest: pipeline.request_digest,
+            discovery_digest: pipeline.discovery_digest,
+            candidate_id: candidateId,
+            confirm_selection: true,
+          }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.code || payload.error || "Candidate selection was blocked");
+      setDiscoveryStatus((current) => ({ ...(current || {}), state: "selection_sealed", selection: payload }));
+      await refreshDiscoveryStatus(discoveryId);
+    } catch (reason) {
+      setDiscoveryError(reason instanceof Error ? reason.message : "Candidate selection was blocked");
+    } finally {
+      setSelectingCandidateId(null);
     }
   }
 
@@ -486,6 +628,173 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 text-sm leading-6 text-stone-600">{detail}</p>
             </div>
           ))}
+        </section>
+
+        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.05fr_0.95fr] md:p-8">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Discover objects in a new splat</h2>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              Start with a full-scene survey before any target close-up. Pipeline binds the exact splat,
+              registration, camera plan, renderer, and rendered pixels, then combines Splat Analyzer,
+              SAM 3.1, publisher labels, or a rendered-scene agent behind one deterministic gate. Visual
+              proposals stay candidates until publisher metric labels or independently validated production
+              semantic geometry support them.
+            </p>
+            <label className="mt-5 block text-sm font-medium" htmlFor="scene-object-discovery-json">
+              Discovery contract JSON
+            </label>
+            <textarea
+              id="scene-object-discovery-json"
+              className="mt-2 min-h-72 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              value={discoveryJson}
+              onChange={(event) => setDiscoveryJson(event.target.value)}
+              placeholder="Paste scene_object_discovery_request.v1 JSON"
+              spellCheck={false}
+            />
+            <label className="mt-3 block text-sm font-medium" htmlFor="scene-object-discovery-file">
+              Or upload a versioned discovery contract
+            </label>
+            <input
+              id="scene-object-discovery-file"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm text-stone-600"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void normalizedContractFileJson(file)
+                  .then((value) => {
+                    setDiscoveryJson(value);
+                    setDiscoveryError(null);
+                  })
+                  .catch((reason) => setDiscoveryError(
+                    reason instanceof SyntaxError
+                      ? "Discovery contract file is not valid JSON."
+                      : String(reason instanceof Error ? reason.message : reason),
+                  ));
+              }}
+            />
+            {discoveryPreview ? (
+              <div className="mt-4 border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
+                <p className="font-semibold">Whole-scene discovery · metric selection required</p>
+                <p>
+                  {discoveryPreview.teamNamespace || "Missing team namespace"} · {discoveryPreview.sceneId || "Missing scene"}
+                  {discoveryPreview.sceneVersion ? ` @ ${discoveryPreview.sceneVersion}` : ""}
+                </p>
+                <p>{discoveryPreview.taskStatement || "Missing task statement"}</p>
+                <p>
+                  Analyzers: {discoveryPreview.analyzers.length
+                    ? discoveryPreview.analyzers.join(" · ")
+                    : "missing"}
+                </p>
+                <p>Execution preparation: {discoveryPreview.executionMode || "missing"}</p>
+              </div>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                disabled={discovering || !discoveryJson.trim()}
+                onClick={() => void submitDiscovery()}
+              >
+                {discovering ? "Preparing discovery…" : "Validate and discover"}
+              </button>
+              {discoveryId ? (
+                <button
+                  type="button"
+                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  onClick={() => void refreshDiscoveryStatus().catch((reason) => setDiscoveryError(String(reason)))}
+                >
+                  <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
+                </button>
+              ) : null}
+            </div>
+            {discoveryError ? (
+              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{discoveryError}</p>
+            ) : null}
+          </div>
+          <aside className="border border-stone-200 bg-stone-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Discovery state
+            </p>
+            <p className="mt-3 text-lg font-semibold">
+              {discoveryStatus?.state || discoveryStatus?.status || "Not submitted"}
+            </p>
+            {discoveryId ? <p className="mt-2 break-all text-xs text-stone-500">{discoveryId}</p> : null}
+            {discoveryStatus?.pipeline?.discovery_digest ? (
+              <p className="mt-3 break-all text-xs leading-5 text-stone-600">
+                Discovery digest: {discoveryStatus.pipeline.discovery_digest}
+              </p>
+            ) : null}
+            {(discoveryStatus?.pipeline?.unseen_regions || []).length ? (
+              <div className="mt-4 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                <p className="font-semibold">Unseen or uncaptured regions</p>
+                {(discoveryStatus?.pipeline?.unseen_regions || []).map((region: string) => (
+                  <p key={region} className="mt-1">{region}</p>
+                ))}
+                <p className="mt-2 text-xs leading-5">
+                  Moving a virtual camera cannot recover observations absent from the source splat.
+                </p>
+              </div>
+            ) : null}
+            {(discoveryStatus?.pipeline?.candidates || []).length ? (
+              <div className="mt-5 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Candidate objects
+                </p>
+                {(discoveryStatus?.pipeline?.candidates || []).map((candidate: Record<string, any>) => (
+                  <article key={candidate.candidate_id} className="border border-stone-300 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{candidate.label}</p>
+                        <p className="mt-1 text-xs text-stone-500">
+                          {candidate.backend} · confidence {Number(candidate.confidence).toFixed(2)} · task {Number(candidate.task_match_score).toFixed(2)}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${candidate.eligible_for_automatic_source_object ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+                        {candidate.eligible_for_automatic_source_object ? "metric candidate" : "visual only"}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-stone-600">
+                      {candidate.candidate_claim_boundary}
+                    </p>
+                    {discoveryStatus?.state === "selection_required" && candidate.eligible_for_automatic_source_object ? (
+                      <button
+                        type="button"
+                        className="mt-3 border border-stone-950 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+                        disabled={selectingCandidateId !== null}
+                        onClick={() => void selectDiscoveryCandidate(candidate.candidate_id)}
+                      >
+                        {selectingCandidateId === candidate.candidate_id ? "Sealing…" : "Select this metric candidate"}
+                      </button>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {discoveryStatus?.pipeline?.source_object ? (
+              <div className="mt-4 border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
+                <p className="font-semibold">Source object sealed</p>
+                <p className="mt-1">{discoveryStatus.pipeline.source_object.label}</p>
+                <p className="mt-1 break-all text-xs">
+                  {discoveryStatus.pipeline.source_object.source_object_artifact?.digest}
+                </p>
+              </div>
+            ) : null}
+            {(discoveryStatus?.pipeline?.blockers || []).map((blocker: string) => (
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
+              </p>
+            ))}
+            <p className="mt-5 text-xs leading-5 text-stone-500">
+              Splat Analyzer boxes and RGB masks never self-authorize metric placement, physics,
+              robot execution, or physical truth. Provider execution remains separately authority-gated.
+            </p>
+          </aside>
         </section>
 
         <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
