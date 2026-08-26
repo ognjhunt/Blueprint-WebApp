@@ -1,0 +1,281 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import AdminTaskEvaluationLaunches from "@/pages/AdminTaskEvaluationLaunches";
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ currentUser: { uid: "operator-001" } }),
+}));
+
+vi.mock("@/lib/csrf", () => ({
+  withCsrfHeader: async (headers: Record<string, string> = {}) => headers,
+}));
+
+vi.mock("@/lib/firebaseAuthHeaders", () => ({
+  withFirebaseAuthHeaders: async (_user: unknown, headers: Record<string, string> = {}) => headers,
+}));
+
+vi.mock("@/lib/taskEvaluationLaunchLabAccess", () => ({
+  resolveTaskEvaluationLaunchLabToken: () => null,
+  withTaskEvaluationLaunchLabHeader: (_token: null, headers: Record<string, string>) => headers,
+}));
+
+describe("AdminTaskEvaluationLaunches preparation workflow", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/task-evaluation-launches/profiles") {
+        return new Response(JSON.stringify({ profiles: [{
+          profile_id: "scene-841007-construction-r1",
+          profile_digest: `sha256:${"a".repeat(64)}`,
+          source_commit: "b".repeat(40),
+          source_bundle: {
+            bundle_id: "scene-841007-v1",
+            source_kind: "interiorgs_sage",
+            uri: "https://pipeline.example/scene-841007.json",
+            digest: `sha256:${"c".repeat(64)}`,
+          },
+          evaluation_run_spec: {
+            uri: "https://pipeline.example/evaluation-run.json",
+            digest: `sha256:${"d".repeat(64)}`,
+          },
+          execution_admission: {
+            live_enabled: true,
+            readiness_receipt: {
+              uri: "https://pipeline.example/readiness.json",
+              digest: `sha256:${"e".repeat(64)}`,
+            },
+            blockers: [],
+          },
+          claim_ceiling: "development_only",
+          required_authorization: { max_spend_usd: 0.75, hard_ttl_seconds: 3300 },
+        }] }), {
+          status: 200, headers: { "content-type": "application/json" },
+        });
+      }
+      if (url === "/api/admin/task-evaluation-launches/supervision") {
+        return new Response(JSON.stringify({}), {
+          status: 200, headers: { "content-type": "application/json" },
+        });
+      }
+      if (url === "/api/admin/task-evaluation-launches/preparations") {
+        expect(init?.method).toBe("POST");
+        const request = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_preparation_web_receipt.v1",
+          status: "queued_for_no_spend_preparation",
+          preparation_id: request.preparation_id,
+          paid_execution_requested: false,
+          preparation_is_not_execution: true,
+        }), { status: 202, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/preparations/prep-scene-001") {
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_preparation_web_status.v1",
+          state: "materialized",
+          preparation_id: "prep-scene-001",
+          paid_execution_requested: false,
+          preparation_is_not_execution: true,
+          pipeline: {
+            worker_status: "native_arena_inputs_verified_awaiting_profile_authority",
+            full_byte_service_account_readback_passed: true,
+            request_digest: `sha256:${"1".repeat(64)}`,
+            result_digest: `sha256:${"2".repeat(64)}`,
+            source_commit: "b".repeat(40),
+            configured_scene_revision_digest: `sha256:${"3".repeat(64)}`,
+            configured_scene_bundle_digest: `sha256:${"4".repeat(64)}`,
+            blockers: [],
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/activations") {
+        expect(init?.method).toBe("POST");
+        const request = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_activation_web_receipt.v1",
+          status: "queued_for_authority_gated_activation",
+          activation_id: request.activation_id,
+          paid_execution_requested: false,
+          activation_is_not_execution: true,
+        }), { status: 202, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/activations/activate-scene-001") {
+        return new Response(JSON.stringify({
+          schema_version: "task_evaluation_launch_activation_web_status.v1",
+          state: "prepared",
+          activation_id: "activate-scene-001",
+          paid_execution_requested: false,
+          activation_is_not_execution: true,
+          pipeline: {
+            worker_status: "profile_authority_materialized_no_execution",
+            profile_id: "scene-001-construction-r1",
+            blockers: [],
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/admin/task-evaluation-launches/launch-scene-841007") {
+        return new Response(JSON.stringify({
+          state: "completed",
+          request_digest: `sha256:${"f".repeat(64)}`,
+          terminal_receipt: {
+            status: "completed",
+            source_commit: "b".repeat(40),
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("keeps preparation visibly separate from paid launch and synchronizes materialization", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+
+    expect(screen.getByRole("heading", { name: "Prepare versioned inputs" })).toBeInTheDocument();
+    expect(screen.getByText(/cannot publish a launch profile, allocate a GPU, spend money/i))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Preparation contract JSON"), {
+      target: { value: JSON.stringify({ preparation_id: "prep-scene-001" }) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and prepare" }));
+
+    await waitFor(() => expect(screen.getByText("materialized")).toBeInTheDocument());
+    expect(screen.getByText("Full-byte service-account readback passed")).toBeInTheDocument();
+    expect(screen.getByText(`Request digest: sha256:${"1".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Result digest: sha256:${"2".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Source commit: ${"b".repeat(40)}`)).toBeInTheDocument();
+    expect(screen.getByText("Reusable configured scene revision sealed")).toBeInTheDocument();
+    expect(screen.getByText(`sha256:${"3".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Bundle sha256:${"4".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText(/verified input readiness, not execution or scientific success/i))
+      .toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/preparations/prep-scene-001"
+    )).toBe(true);
+  });
+
+  it("does not submit malformed preparation JSON", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    fireEvent.change(screen.getByLabelText("Preparation contract JSON"), {
+      target: { value: "{" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and prepare" }));
+    expect(await screen.findByText("Preparation JSON is invalid.")).toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/preparations"
+    )).toBe(false);
+  });
+
+  it("loads bounded preparation and activation contract files without Codex", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    const preparation = { preparation_id: "prep-scene-841007" };
+    fireEvent.change(screen.getByLabelText("Or upload a versioned preparation contract"), {
+      target: {
+        files: [new File([JSON.stringify(preparation)], "preparation.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    await waitFor(() => expect(screen.getByLabelText("Preparation contract JSON"))
+      .toHaveValue(JSON.stringify(preparation, null, 2)));
+
+    const activation = { activation_id: "activation-scene-841007-construction" };
+    fireEvent.change(screen.getByLabelText("Or upload a coordinator-authorized activation contract"), {
+      target: {
+        files: [new File([JSON.stringify(activation)], "activation.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    await waitFor(() => expect(screen.getByLabelText("Activation contract JSON"))
+      .toHaveValue(JSON.stringify(activation, null, 2)));
+  });
+
+  it("shows the first-run scene configuration and bounded service-spend split", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    fireEvent.change(screen.getByLabelText("Preparation contract JSON"), {
+      target: {
+        value: JSON.stringify({
+          run_mode: "scene_configuration",
+          team_namespace: "robot-team-001",
+          scene: { identity: { id: "public-scene-001", version: "v1" } },
+          spend: {
+            hard_cap_usd: 2.25,
+            provider_compute_spend_cap_usd: 0.75,
+            external_service_caps: { openai: { maximum_cost_usd: 1.5 } },
+          },
+        }),
+      },
+    });
+
+    expect(screen.getByText("First run · configure and seal a reusable scene revision"))
+      .toBeInTheDocument();
+    expect(screen.getByText("robot-team-001 · public-scene-001 @ v1")).toBeInTheDocument();
+    expect(screen.getByText("Total run authority: $2.25")).toBeInTheDocument();
+    expect(screen.getByText("Provider compute: $0.75 · Construction services: $1.50"))
+      .toBeInTheDocument();
+  });
+
+  it("rejects malformed and oversized contract files before submission", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    fireEvent.change(screen.getByLabelText("Or upload a versioned preparation contract"), {
+      target: {
+        files: [new File(["{"], "invalid.json", { type: "application/json" })],
+      },
+    });
+    expect(await screen.findByText("Preparation contract file is not valid JSON."))
+      .toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Or upload a coordinator-authorized activation contract"), {
+      target: {
+        files: [new File([new Uint8Array(2 * 1024 * 1024 + 1)], "too-large.json", {
+          type: "application/json",
+        })],
+      },
+    });
+    expect(await screen.findByText("Contract file must be between 1 byte and 2 MiB."))
+      .toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/activations"
+    )).toBe(false);
+  });
+
+  it("keeps activation visibly separate from paid execution and synchronizes publication", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+
+    expect(screen.getByRole("heading", { name: "Activate verified inputs" })).toBeInTheDocument();
+    expect(screen.getByText(/activation never submits a paid request or allocates a provider resource/i))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Activation contract JSON"), {
+      target: { value: JSON.stringify({ activation_id: "activate-scene-001" }) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Validate and activate" }));
+
+    await waitFor(() => expect(screen.getByText("prepared")).toBeInTheDocument());
+    expect(screen.getByText(/Published profile: scene-001-construction-r1/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a GPU allocation, simulator episode, or scientific result/i))
+      .toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([target]) =>
+      String(target) === "/api/admin/task-evaluation-launches/activations/activate-scene-001"
+    )).toBe(true);
+  });
+
+  it("shows the exact source commit before launch and from the terminal receipt", async () => {
+    render(<AdminTaskEvaluationLaunches />);
+    await waitFor(() => expect(screen.getByText(/scene-841007-construction-r1/)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Pipeline-owned profile"), {
+      target: {
+        value: `scene-841007-construction-r1:sha256:${"a".repeat(64)}`,
+      },
+    });
+    expect(screen.getByText(`Source commit ${"b".repeat(40)}`)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Launch ID"), {
+      target: { value: "launch-scene-841007" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(screen.getByText("completed")).toBeInTheDocument());
+    expect(screen.getAllByText(`Source commit ${"b".repeat(40)}`)).toHaveLength(2);
+  });
+});

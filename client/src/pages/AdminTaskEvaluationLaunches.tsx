@@ -22,6 +22,20 @@ const TERMINAL_LAUNCH_STATES = [
   "dry_run_completed",
   "control_plane_terminal_blocked",
 ];
+const TERMINAL_PREPARATION_STATES = ["materialized", "blocked"];
+const TERMINAL_ACTIVATION_STATES = ["prepared", "blocked"];
+const MAX_CONTRACT_FILE_BYTES = 2 * 1024 * 1024;
+
+async function normalizedContractFileJson(file: File): Promise<string> {
+  if (file.size < 1 || file.size > MAX_CONTRACT_FILE_BYTES) {
+    throw new Error("Contract file must be between 1 byte and 2 MiB.");
+  }
+  const parsed = JSON.parse(await file.text());
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Contract file must contain one JSON object.");
+  }
+  return JSON.stringify(parsed, null, 2);
+}
 
 type LaunchProgress = {
   phase?: string;
@@ -35,6 +49,40 @@ type LaunchProgress = {
   };
 };
 
+type PreparationContractPreview = {
+  runMode: "scene_configuration" | "episode_evaluation";
+  teamNamespace: string;
+  sceneId: string;
+  sceneVersion: string;
+  hardCapUsd: number;
+  providerComputeCapUsd: number | null;
+  externalServiceCapUsd: number | null;
+};
+
+function previewPreparationContract(value: string): PreparationContractPreview | null {
+  try {
+    const request = JSON.parse(value) as Record<string, any>;
+    if (request.run_mode !== "scene_configuration" && request.run_mode !== "episode_evaluation") {
+      return null;
+    }
+    const hardCapUsd = Number(request.spend?.hard_cap_usd);
+    if (!Number.isFinite(hardCapUsd)) return null;
+    const providerCompute = request.spend?.provider_compute_spend_cap_usd;
+    const externalService = request.spend?.external_service_caps?.openai?.maximum_cost_usd;
+    return {
+      runMode: request.run_mode,
+      teamNamespace: String(request.team_namespace || ""),
+      sceneId: String(request.scene?.identity?.id || ""),
+      sceneVersion: String(request.scene?.identity?.version || ""),
+      hardCapUsd,
+      providerComputeCapUsd: Number.isFinite(Number(providerCompute)) ? Number(providerCompute) : null,
+      externalServiceCapUsd: Number.isFinite(Number(externalService)) ? Number(externalService) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function formatElapsedSeconds(value: unknown): string | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   const total = Math.floor(value);
@@ -45,6 +93,7 @@ function formatElapsedSeconds(value: unknown): string | null {
 type LaunchProfile = {
   profile_id: string;
   profile_digest: string;
+  source_commit?: string;
   source_bundle: { bundle_id: string; source_kind: string; uri: string; digest: string };
   evaluation_run_spec: { uri: string; digest: string };
   execution_admission: {
@@ -92,10 +141,24 @@ export default function AdminTaskEvaluationLaunches() {
   const [releaseExpectedLabel, setReleaseExpectedLabel] = useState("");
   const [releaseConfirmed, setReleaseConfirmed] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [preparationJson, setPreparationJson] = useState("");
+  const [preparationId, setPreparationId] = useState("");
+  const [preparationStatus, setPreparationStatus] = useState<Record<string, any> | null>(null);
+  const [preparationError, setPreparationError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [activationJson, setActivationJson] = useState("");
+  const [activationId, setActivationId] = useState("");
+  const [activationStatus, setActivationStatus] = useState<Record<string, any> | null>(null);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
 
   const selected = useMemo(
     () => profiles.find((profile) => `${profile.profile_id}:${profile.profile_digest}` === profileKey),
     [profileKey, profiles],
+  );
+  const preparationPreview = useMemo(
+    () => previewPreparationContract(preparationJson),
+    [preparationJson],
   );
   const requiredSpend = requiredTaskEvaluationMaxSpendUsd(selected);
   useEffect(() => {
@@ -159,6 +222,36 @@ export default function AdminTaskEvaluationLaunches() {
     return false;
   }
 
+  async function refreshPreparationStatus(id = preparationId) {
+    if ((!currentUser && !launchLabToken) || !id) return false;
+    const response = await fetchWithTimeout(
+      `/api/admin/task-evaluation-launches/preparations/${encodeURIComponent(id)}`,
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(
+      payload.code || payload.error || "Task Evaluation preparation status is unavailable",
+    );
+    setPreparationStatus(payload);
+    setPreparationError(null);
+    return true;
+  }
+
+  async function refreshActivationStatus(id = activationId) {
+    if ((!currentUser && !launchLabToken) || !id) return false;
+    const response = await fetchWithTimeout(
+      `/api/admin/task-evaluation-launches/activations/${encodeURIComponent(id)}`,
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(
+      payload.code || payload.error || "Task Evaluation activation status is unavailable",
+    );
+    setActivationStatus(payload);
+    setActivationError(null);
+    return true;
+  }
+
   useEffect(() => {
     void loadProfiles().catch((reason) => setError(String(reason)));
   }, [currentUser, launchLabToken]);
@@ -174,6 +267,96 @@ export default function AdminTaskEvaluationLaunches() {
     const timer = window.setInterval(() => void refreshStatus(), 5000);
     return () => window.clearInterval(timer);
   }, [launchId, status?.state, currentUser, launchLabToken, recoveringSubmission]);
+
+  useEffect(() => {
+    const state = preparationStatus?.state || preparationStatus?.status;
+    if (!preparationId || !preparationStatus || TERMINAL_PREPARATION_STATES.includes(state)) {
+      return undefined;
+    }
+    const timer = window.setInterval(
+      () => void refreshPreparationStatus().catch((reason) => setPreparationError(String(reason))),
+      5000,
+    );
+    return () => window.clearInterval(timer);
+  }, [preparationId, preparationStatus?.state, preparationStatus?.status, currentUser, launchLabToken]);
+
+  useEffect(() => {
+    const state = activationStatus?.state || activationStatus?.status;
+    if (!activationId || !activationStatus || TERMINAL_ACTIVATION_STATES.includes(state)) {
+      return undefined;
+    }
+    const timer = window.setInterval(
+      () => void refreshActivationStatus().catch((reason) => setActivationError(String(reason))),
+      5000,
+    );
+    return () => window.clearInterval(timer);
+  }, [activationId, activationStatus?.state, activationStatus?.status, currentUser, launchLabToken]);
+
+  async function submitPreparation() {
+    setPreparing(true);
+    setPreparationError(null);
+    try {
+      let request: Record<string, unknown>;
+      try {
+        request = JSON.parse(preparationJson) as Record<string, unknown>;
+      } catch {
+        throw new Error("Preparation JSON is invalid.");
+      }
+      const id = typeof request.preparation_id === "string" ? request.preparation_id : "";
+      if (!id) throw new Error("Preparation JSON must include preparation_id.");
+      setPreparationId(id);
+      const response = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/preparations",
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify(request),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      setPreparationStatus(payload);
+      if (!response.ok) throw new Error(payload.code || payload.error || "Preparation was blocked");
+      await refreshPreparationStatus(id);
+    } catch (reason) {
+      setPreparationError(reason instanceof Error ? reason.message : "Preparation was blocked");
+    } finally {
+      setPreparing(false);
+    }
+  }
+
+  async function submitActivation() {
+    setActivating(true);
+    setActivationError(null);
+    try {
+      let request: Record<string, unknown>;
+      try {
+        request = JSON.parse(activationJson) as Record<string, unknown>;
+      } catch {
+        throw new Error("Activation JSON is invalid.");
+      }
+      const id = typeof request.activation_id === "string" ? request.activation_id : "";
+      if (!id) throw new Error("Activation JSON must include activation_id.");
+      setActivationId(id);
+      const response = await fetchWithTimeout(
+        "/api/admin/task-evaluation-launches/activations",
+        {
+          method: "POST",
+          headers: await authHeaders(true),
+          credentials: "include",
+          body: JSON.stringify(request),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      setActivationStatus(payload);
+      if (!response.ok) throw new Error(payload.code || payload.error || "Activation was blocked");
+      await refreshActivationStatus(id);
+    } catch (reason) {
+      setActivationError(reason instanceof Error ? reason.message : "Activation was blocked");
+    } finally {
+      setActivating(false);
+    }
+  }
 
   async function submit() {
     if (!selected) return;
@@ -278,8 +461,10 @@ export default function AdminTaskEvaluationLaunches() {
             Task Evaluation launch
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-stone-600">
-            Authorize one immutable Pipeline profile. The website queues it; the canonical allocator,
-            watchdog, reconciler, artifact retention, teardown, and provider-zero contracts own execution.
+            A scene's first run configures its observed appearance, derived collision geometry, source-object
+            replacement, cameras, and task into one immutable revision. Every later robot or policy run reuses
+            that revision. The website queues both run types; the canonical allocator, watchdog, reconciler,
+            artifact retention, teardown, and provider-zero contracts own execution.
           </p>
           {launchLabToken ? (
             <p className="mt-3 text-sm font-medium text-emerald-800">
@@ -301,6 +486,264 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 text-sm leading-6 text-stone-600">{detail}</p>
             </div>
           ))}
+        </section>
+
+        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Prepare versioned inputs</h2>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              Upload one strict Task Evaluation contract. Choose <code>scene_configuration</code> once to run
+              the production construction recipe and produce a reusable immutable scene revision. Choose
+              <code>episode_evaluation</code> later to bind a robot or policy to that exact revision without
+              rebuilding the scene. Pipeline validates every reference and spend envelope before it can reach
+              execution. Preparation itself cannot publish a launch profile, allocate a GPU, spend money, or start an
+              episode.
+            </p>
+            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-preparation-json">
+              Preparation contract JSON
+            </label>
+            <textarea
+              id="task-evaluation-preparation-json"
+              className="mt-2 min-h-72 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              value={preparationJson}
+              onChange={(event) => setPreparationJson(event.target.value)}
+              placeholder="Paste task_evaluation_launch_preparation_request.v1 JSON"
+              spellCheck={false}
+            />
+            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-preparation-file">
+              Or upload a versioned preparation contract
+            </label>
+            <input
+              id="task-evaluation-preparation-file"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm text-stone-600"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void normalizedContractFileJson(file)
+                  .then((value) => {
+                    setPreparationJson(value);
+                    setPreparationError(null);
+                  })
+                  .catch((reason) => setPreparationError(
+                    reason instanceof SyntaxError
+                      ? "Preparation contract file is not valid JSON."
+                      : String(reason instanceof Error ? reason.message : reason),
+                  ));
+              }}
+            />
+            {preparationPreview ? (
+              <div className="mt-4 border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
+                <p className="font-semibold">
+                  {preparationPreview.runMode === "scene_configuration"
+                    ? "First run · configure and seal a reusable scene revision"
+                    : "Evaluation run · reuse a configured scene revision"}
+                </p>
+                <p>
+                  {preparationPreview.teamNamespace || "Missing team namespace"} · {preparationPreview.sceneId || "Missing scene"}
+                  {preparationPreview.sceneVersion ? ` @ ${preparationPreview.sceneVersion}` : ""}
+                </p>
+                <p>Total run authority: ${preparationPreview.hardCapUsd.toFixed(2)}</p>
+                {preparationPreview.runMode === "scene_configuration" ? (
+                  <p>
+                    Provider compute: {preparationPreview.providerComputeCapUsd === null
+                      ? "missing"
+                      : `$${preparationPreview.providerComputeCapUsd.toFixed(2)}`}
+                    {" · "}Construction services: {preparationPreview.externalServiceCapUsd === null
+                      ? "missing"
+                      : `$${preparationPreview.externalServiceCapUsd.toFixed(2)}`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                disabled={preparing || !preparationJson.trim()}
+                onClick={() => void submitPreparation()}
+              >
+                {preparing ? "Preparing…" : "Validate and prepare"}
+              </button>
+              {preparationId ? (
+                <button
+                  type="button"
+                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  onClick={() => void refreshPreparationStatus().catch((reason) => setPreparationError(String(reason)))}
+                >
+                  <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
+                </button>
+              ) : null}
+            </div>
+            {preparationError ? (
+              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{preparationError}</p>
+            ) : null}
+          </div>
+          <aside className="border border-stone-200 bg-stone-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Preparation state
+            </p>
+            <p className="mt-3 text-lg font-semibold">
+              {preparationStatus?.state || preparationStatus?.status || "Not submitted"}
+            </p>
+            {preparationId ? <p className="mt-2 break-all text-xs text-stone-500">{preparationId}</p> : null}
+            {preparationStatus?.pipeline?.worker_status ? (
+              <p className="mt-4 text-sm leading-6 text-stone-700">
+                Pipeline: {preparationStatus.pipeline.worker_status}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.full_byte_service_account_readback_passed === true ? (
+              <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-800">
+                <CheckCircle2 className="h-4 w-4" /> Full-byte service-account readback passed
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.request_digest ? (
+              <p className="mt-4 break-all text-xs leading-5 text-stone-600">
+                Request digest: {preparationStatus.pipeline.request_digest}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.result_digest ? (
+              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+                Result digest: {preparationStatus.pipeline.result_digest}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.source_commit ? (
+              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+                Source commit: {preparationStatus.pipeline.source_commit}
+              </p>
+            ) : null}
+            {preparationStatus?.pipeline?.configured_scene_revision_digest ? (
+              <div className="mt-4 border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
+                <p className="font-semibold">Reusable configured scene revision sealed</p>
+                <p className="mt-1 break-all text-xs leading-5">
+                  {preparationStatus.pipeline.configured_scene_revision_digest}
+                </p>
+                {preparationStatus.pipeline.configured_scene_bundle_digest ? (
+                  <p className="mt-1 break-all text-xs leading-5">
+                    Bundle {preparationStatus.pipeline.configured_scene_bundle_digest}
+                  </p>
+                ) : null}
+                <p className="mt-2 text-xs leading-5">
+                  Use this revision for subsequent zero-action, scripted-positive, robot, and policy runs.
+                </p>
+              </div>
+            ) : null}
+            {(preparationStatus?.pipeline?.blockers || []).map((blocker: string) => (
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
+              </p>
+            ))}
+            <p className="mt-5 text-xs leading-5 text-stone-500">
+              A materialized preparation is verified input readiness, not execution or scientific success.
+              Launch authority remains a separate step below.
+            </p>
+          </aside>
+        </section>
+
+        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Activate verified inputs</h2>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              After preparation is materialized, submit its digest-bound activation contract. The
+              authority-gated Pipeline worker verifies the released mutation window, predecessor or
+              project lineage, and exact production commit before publishing the immutable profile,
+              catalog entry, and standing authorization. Activation never submits a paid request or
+              allocates a provider resource; execution remains the separate authority envelope below.
+            </p>
+            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-activation-json">
+              Activation contract JSON
+            </label>
+            <textarea
+              id="task-evaluation-activation-json"
+              className="mt-2 min-h-64 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              value={activationJson}
+              onChange={(event) => setActivationJson(event.target.value)}
+              placeholder="Paste task_evaluation_launch_activation_request.v1 JSON"
+              spellCheck={false}
+            />
+            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-activation-file">
+              Or upload a coordinator-authorized activation contract
+            </label>
+            <input
+              id="task-evaluation-activation-file"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm text-stone-600"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void normalizedContractFileJson(file)
+                  .then((value) => {
+                    setActivationJson(value);
+                    setActivationError(null);
+                  })
+                  .catch((reason) => setActivationError(
+                    reason instanceof SyntaxError
+                      ? "Activation contract file is not valid JSON."
+                      : String(reason instanceof Error ? reason.message : reason),
+                  ));
+              }}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                disabled={activating || !activationJson.trim()}
+                onClick={() => void submitActivation()}
+              >
+                {activating ? "Activating…" : "Validate and activate"}
+              </button>
+              {activationId ? (
+                <button
+                  type="button"
+                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  onClick={() => void refreshActivationStatus().catch((reason) => setActivationError(String(reason)))}
+                >
+                  <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
+                </button>
+              ) : null}
+            </div>
+            {activationError ? (
+              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{activationError}</p>
+            ) : null}
+          </div>
+          <aside className="border border-stone-200 bg-stone-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Activation state
+            </p>
+            <p className="mt-3 text-lg font-semibold">
+              {activationStatus?.state || activationStatus?.status || "Not submitted"}
+            </p>
+            {activationId ? <p className="mt-2 break-all text-xs text-stone-500">{activationId}</p> : null}
+            {activationStatus?.pipeline?.worker_status ? (
+              <p className="mt-4 text-sm leading-6 text-stone-700">
+                Pipeline: {activationStatus.pipeline.worker_status}
+              </p>
+            ) : null}
+            {activationStatus?.pipeline?.profile_id ? (
+              <p className="mt-4 break-all text-sm text-stone-700">
+                Published profile: {activationStatus.pipeline.profile_id}
+              </p>
+            ) : null}
+            {(activationStatus?.pipeline?.blockers || []).map((blocker: string) => (
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
+              </p>
+            ))}
+            <p className="mt-5 text-xs leading-5 text-stone-500">
+              A prepared activation proves profile and authority publication only. It is not a GPU
+              allocation, simulator episode, or scientific result.
+            </p>
+          </aside>
         </section>
 
         <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
@@ -325,6 +768,7 @@ export default function AdminTaskEvaluationLaunches() {
               <div className="bg-stone-100 p-4 text-xs leading-6 text-stone-600">
                 <p>Bundle {selected.source_bundle.bundle_id} · {selected.source_bundle.digest}</p>
                 <p>Profile {selected.profile_digest}</p>
+                {selected.source_commit ? <p>Source commit {selected.source_commit}</p> : null}
                 <p>
                   Execution {selected.execution_admission.live_enabled ? "live-admitted" : "dry-only"}
                 </p>
@@ -383,6 +827,11 @@ export default function AdminTaskEvaluationLaunches() {
               <p className="mt-2 break-all text-xs leading-5 text-stone-400">
                 {status?.request_digest || "No immutable request digest yet."}
               </p>
+              {status?.terminal_receipt?.source_commit ? (
+                <p className="mt-2 break-all text-xs leading-5 text-stone-400">
+                  Source commit {status.terminal_receipt.source_commit}
+                </p>
+              ) : null}
               {progress ? (
                 <div className="mt-5 space-y-1 border-t border-stone-800 pt-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">

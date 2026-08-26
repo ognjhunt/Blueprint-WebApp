@@ -12,13 +12,20 @@ const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const reference = z.object({ uri: z.string().min(1), digest }).passthrough();
 const vastInstanceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 const terminalVastLabel = z.string().regex(/^blueprint-adp009d-[1-9][0-9]{9,}$/);
+const sourceCommit = z.string().regex(/^[0-9a-f]{40}$/);
 
 export const publishedLaunchProfileSchema = z.object({
   profile_id: identifier,
   profile_digest: digest,
+  source_commit: sourceCommit.optional(),
   source_bundle: reference.extend({
     bundle_id: identifier,
-    source_kind: z.enum(["interiorgs_sage", "raw_v3_2_capture", "scaniverse_derived"]),
+    source_kind: z.enum([
+      "interiorgs_sage",
+      "raw_v3_2_capture",
+      "scaniverse_derived",
+      "nvidia_simready_warehouse",
+    ]),
   }).passthrough(),
   evaluation_run_spec: reference.passthrough(),
   required_controls: z.object({
@@ -57,6 +64,7 @@ export const taskEvaluationLaunchInputSchema = z.object({
   run_id: identifier,
   profile_id: identifier,
   profile_digest: digest,
+  authorization_issued_at: z.string().datetime({ offset: true }).optional(),
   rights: z.object({
     scope: z.string().trim().min(1).max(1000),
     evidence: reference.strict(),
@@ -67,6 +75,45 @@ export const taskEvaluationLaunchInputSchema = z.object({
   }).strict(),
   confirm_execution: z.literal(true),
 }).strict();
+
+export const taskEvaluationLaunchWebPreflightReceiptSchema = z.object({
+  schema_version: z.literal("task_evaluation_launch_web_preflight_receipt.v1"),
+  status: z.literal("ready"),
+  launch_id: identifier,
+  run_id: identifier,
+  profile_id: identifier,
+  profile_digest: digest,
+  authorization_issued_at: z.string().datetime({ offset: true }),
+  candidate_request_digest: digest,
+  authenticated_client_id: identifier,
+  submission_channel: z.literal("production_webapp_service_api"),
+  webapp_store_available: z.literal(true),
+  webapp_record_persisted: z.literal(false),
+  pipeline_request_forwarded: z.literal(false),
+  pipeline_queue_created: z.literal(false),
+  provider_mutation_performed_inside_web_request: z.literal(false),
+  preflight_is_not_execution: z.literal(true),
+  receipt_digest: digest,
+}).strict();
+
+export function parseTaskEvaluationLaunchWebPreflightReceipt(value: unknown) {
+  const parsed = taskEvaluationLaunchWebPreflightReceiptSchema.safeParse(value);
+  if (!parsed.success) return {
+    ok: false as const,
+    blockers: ["task_evaluation_launch_web_preflight_receipt_schema_invalid"],
+  };
+  const receipt = parsed.data;
+  if (
+    canonicalArtifactDigest(
+      receipt as unknown as Record<string, unknown>,
+      "receipt_digest",
+    ) !== receipt.receipt_digest
+  ) return {
+    ok: false as const,
+    blockers: ["task_evaluation_launch_web_preflight_receipt_digest_mismatch"],
+  };
+  return { ok: true as const, receipt };
+}
 
 // This is a release-only recovery action. It can name one stopped Vast record
 // after a website-owned launch is terminally blocked; it cannot restart or
@@ -85,6 +132,7 @@ export const taskEvaluationLaunchReceiptSchema = z.object({
   run_id: identifier,
   request_digest: digest,
   launch_profile_digest: digest.nullable(),
+  source_commit: sourceCommit.optional(),
   binding_digest: digest,
   canonical_allocator: z.literal(CANONICAL_TASK_EVALUATION_ALLOCATOR),
   allocator_exit_code: z.number().int().nullable(),
@@ -365,6 +413,7 @@ export function buildTaskEvaluationLaunchRequest(params: {
     claim_ceiling: params.profile.claim_ceiling,
     idempotency_key: params.input.launch_id,
   };
+  if (params.profile.source_commit) request.source_commit = params.profile.source_commit;
   request.request_digest = canonicalArtifactDigest(request, "request_digest");
   return request;
 }
