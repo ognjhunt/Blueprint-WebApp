@@ -371,6 +371,24 @@ async function startSubmissionServer(): Promise<{ server: Server; url: string }>
   return { server, url: `http://127.0.0.1:${address.port}` };
 }
 
+async function startPreparationSubmissionServer(): Promise<{ server: Server; url: string }> {
+  const { default: router } = await import(
+    "../routes/internal-task-evaluation-launch-preparations"
+  );
+  const app = express();
+  app.use(express.json({
+    verify: (req, _res, buffer) => {
+      (req as express.Request & { rawBody?: string }).rawBody = buffer.toString("utf8");
+    },
+  }));
+  app.use(router);
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("server address unavailable");
+  return { server, url: `http://127.0.0.1:${address.port}` };
+}
+
 function signedSubmissionHeaders(body: string, idempotencyKey = "launch-001") {
   const timestamp = new Date().toISOString();
   const nonce = `test-nonce-${crypto.randomUUID()}`;
@@ -551,6 +569,7 @@ describe("admin Task Evaluation launch route", () => {
         catalog_mutation_performed_inside_web_request: false,
         paid_execution_requested: false,
         preparation_is_not_execution: true,
+        submission_channel: "production_webapp_browser",
       });
       expect(state.records.get(input.preparation_id)).toMatchObject({
         state: "queued_for_no_spend_preparation",
@@ -993,6 +1012,128 @@ describe("admin Task Evaluation launch route", () => {
       expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
         String(target) === "https://pipeline.example/launches",
       )).toHaveLength(1);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("submits one immutable no-spend preparation through the service HMAC API", async () => {
+    const { server, url } = await startPreparationSubmissionServer();
+    const input = preparationInput();
+    const body = JSON.stringify(input);
+    const headers = () => signedSubmissionHeaders(body, input.preparation_id) as HeadersInit;
+    try {
+      const unsigned = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      });
+      expect(unsigned.status).toBe(401);
+      expect(state.records.size).toBe(0);
+
+      const missingIdempotency = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body, "") as HeadersInit,
+        body,
+      });
+      expect(missingIdempotency.status).toBe(400);
+      await expect(missingIdempotency.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_preparation_idempotency_key_missing",
+        paid_execution_requested: false,
+      });
+      expect(state.records.size).toBe(0);
+
+      const mismatch = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(body, "different-preparation") as HeadersInit,
+        body,
+      });
+      expect(mismatch.status).toBe(409);
+      await expect(mismatch.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_preparation_idempotency_key_mismatch",
+        provider_mutation_performed_inside_web_request: false,
+        catalog_mutation_performed_inside_web_request: false,
+      });
+      expect(state.records.size).toBe(0);
+
+      const first = await fetch(url, { method: "POST", headers: headers(), body });
+      expect(first.status).toBe(202);
+      const firstReceipt = await first.json();
+      expect(firstReceipt).toMatchObject({
+        schema_version: "task_evaluation_launch_preparation_web_receipt.v1",
+        status: "queued_for_no_spend_preparation",
+        already_exists: false,
+        preparation_id: input.preparation_id,
+        provider_mutation_performed_inside_web_request: false,
+        catalog_mutation_performed_inside_web_request: false,
+        paid_execution_requested: false,
+        preparation_is_not_execution: true,
+        submission_channel: "production_webapp_service_api",
+      });
+      expect(state.records.get(input.preparation_id)).toMatchObject({
+        request_digest: firstReceipt.request_digest,
+        submission: {
+          channel: "production_webapp_service_api",
+          actor_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+          actor_role: "ops",
+          service_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+          idempotency_key: input.preparation_id,
+        },
+        provider_mutation_observed: false,
+        catalog_mutation_observed: false,
+        paid_execution_requested: false,
+      });
+
+      const replay = await fetch(url, { method: "POST", headers: headers(), body });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({
+        already_exists: true,
+        request_digest: firstReceipt.request_digest,
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
+      )).toHaveLength(1);
+
+      const unsignedStatus = await fetch(`${url}/${input.preparation_id}`);
+      expect(unsignedStatus.status).toBe(401);
+      const status = await fetch(`${url}/${input.preparation_id}`, {
+        headers: signedSubmissionHeaders("", input.preparation_id) as HeadersInit,
+      });
+      expect(status.status).toBe(200);
+      await expect(status.json()).resolves.toMatchObject({
+        schema_version: "task_evaluation_launch_preparation_web_status.v1",
+        preparation_id: input.preparation_id,
+        state: "materialized",
+        pipeline: {
+          status: "materialized",
+          full_byte_service_account_readback_passed: true,
+        },
+        provider_mutation_performed_by_status_read: false,
+        paid_execution_requested: false,
+        preparation_is_not_execution: true,
+      });
+
+      const changed = JSON.stringify({ ...input, run_id: "different-run" });
+      const conflict = await fetch(url, {
+        method: "POST",
+        headers: signedSubmissionHeaders(changed, input.preparation_id) as HeadersInit,
+        body: changed,
+      });
+      expect(conflict.status).toBe(409);
+      await expect(conflict.json()).resolves.toMatchObject({
+        code: "task_evaluation_launch_preparation_immutable_conflict",
+      });
+      expect(vi.mocked(fetch).mock.calls.filter(([target]) =>
+        String(target) === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
+      )).toHaveLength(1);
+
+      expect((await fetch(`${url}/profiles`)).status).toBe(401);
+      expect((await fetch(`${url}/preparations/${input.preparation_id}`)).status).toBe(404);
+      expect((await fetch(`${url}/activations`, {
+        method: "POST",
+        headers: headers(),
+        body,
+      })).status).toBe(404);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

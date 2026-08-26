@@ -62,6 +62,14 @@ export interface TaskEvaluationLaunchSubmissionContext {
   idempotencyKey: string;
 }
 
+export interface TaskEvaluationLaunchPreparationSubmissionContext {
+  actorId: string;
+  actorRole: "admin" | "ops";
+  channel: "production_webapp_browser" | "production_webapp_service_api";
+  serviceId: string | null;
+  idempotencyKey: string;
+}
+
 async function resolveTaskEvaluationLaunchInput(
   body: unknown,
   options: { requireAuthorizationIssuedAt?: boolean } = {},
@@ -353,7 +361,11 @@ export async function submitTaskEvaluationLaunch(
 // Input preparation is deliberately separate from launch authority. It may
 // validate and materialize immutable customer inputs, but it cannot publish a
 // launch profile, allocate a provider, or request paid execution.
-router.post("/preparations", async (req, res) => {
+export async function submitTaskEvaluationLaunchPreparation(
+  req: Request,
+  res: Response,
+  context: TaskEvaluationLaunchPreparationSubmissionContext,
+) {
   if (!db) return res.status(503).json({
     error: "Task Evaluation preparation store is unavailable",
     code: "task_evaluation_launch_preparation_store_unavailable",
@@ -366,9 +378,6 @@ router.post("/preparations", async (req, res) => {
     provider_mutation_performed_inside_web_request: false,
     paid_execution_requested: false,
   });
-  const access = await resolveAccessContext(res);
-  const actorId = access.uid || access.email;
-  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
   const request = parsed.data;
   const requestDigest = taskEvaluationLaunchPreparationRequestDigest(request);
   const ref = db.collection(PREPARATION_COLLECTION).doc(request.preparation_id);
@@ -387,9 +396,11 @@ router.post("/preparations", async (req, res) => {
     catalog_mutation_observed: false,
     paid_execution_requested: false,
     submission: {
-      channel: "production_webapp_browser",
-      actor_id: actorId,
-      actor_role: access.isAdmin ? "admin" : "ops",
+      channel: context.channel,
+      actor_id: context.actorId,
+      actor_role: context.actorRole,
+      service_id: context.serviceId,
+      idempotency_key: context.idempotencyKey,
     },
     created_at_iso: now,
   };
@@ -442,6 +453,7 @@ router.post("/preparations", async (req, res) => {
       catalog_mutation_performed_inside_web_request: false,
       paid_execution_requested: false,
       preparation_is_not_execution: true,
+      submission_channel: priorRecord.submission?.channel || context.channel,
     });
   }
   const priorAttempts = Number(priorRecord?.forward_attempt_count || 0);
@@ -488,12 +500,29 @@ router.post("/preparations", async (req, res) => {
     catalog_mutation_performed_inside_web_request: false,
     paid_execution_requested: false,
     preparation_is_not_execution: true,
+    submission_channel: priorRecord?.submission?.channel || initialRecord.submission.channel,
+  });
+}
+
+router.post("/preparations", async (req, res) => {
+  const access = await resolveAccessContext(res);
+  const actorId = access.uid || access.email;
+  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
+  return submitTaskEvaluationLaunchPreparation(req, res, {
+    actorId,
+    actorRole: access.isAdmin ? "admin" : "ops",
+    channel: "production_webapp_browser",
+    serviceId: null,
+    idempotencyKey: String(req.body?.preparation_id || ""),
   });
 });
 
-router.get("/preparations/:preparationId", async (req, res) => {
+export async function readTaskEvaluationLaunchPreparationStatus(
+  preparationIdValue: string,
+  res: Response,
+) {
   if (!db) return res.status(503).json({ error: "Task Evaluation preparation store is unavailable" });
-  const preparationId = String(req.params.preparationId || "");
+  const preparationId = String(preparationIdValue || "");
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/.test(preparationId)) return res.status(400).json({
     error: "Task Evaluation preparation ID is invalid",
     code: "task_evaluation_launch_preparation_id_invalid",
@@ -556,6 +585,10 @@ router.get("/preparations/:preparationId", async (req, res) => {
     paid_execution_requested: false,
     preparation_is_not_execution: true,
   });
+}
+
+router.get("/preparations/:preparationId", async (req, res) => {
+  return readTaskEvaluationLaunchPreparationStatus(req.params.preparationId, res);
 });
 
 router.post("/activations", async (req, res) => {
