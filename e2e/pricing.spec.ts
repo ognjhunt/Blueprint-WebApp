@@ -33,7 +33,7 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
   await expect(page.getByText("3.2%", { exact: true })).toBeVisible();
   await expect(page.getByText(/Customer total: \$10,320,000/i)).toBeVisible();
   await expect(
-    page.getByText(/Free submission does not mean a free site visit/i),
+    page.getByText(/Free to submit does not mean free camera crew/i),
   ).toBeVisible();
   await expect(
     page

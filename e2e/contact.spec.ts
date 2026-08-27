@@ -54,7 +54,7 @@ test("site-operator contact path presents the same Task Evaluation Run", async (
 
   await expect(
     page.getByRole("heading", {
-      name: /Show us the job before you choose the robot\./i,
+      name: /Show us the job\. We find the robot that can do it\./i,
     }),
   ).toBeVisible();
   await expect(

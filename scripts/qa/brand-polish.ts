@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
+    expectedHeading: "Evaluate robots. Deploy the one that works.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
+    expectedHeading: "Evaluate robots. Deploy the one that works.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -182,7 +182,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Agents (legacy, redirects to Contact)",
     path: "/agents",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Start before the first onsite visit.",
+    expectedHeading: "Get evaluated against a job someone is ready to buy.",
     requiredCtas: [
       { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
       { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Free until a robot is earning.",
+    expectedHeading: "Free to evaluate. You pay when a robot is working.",
     requiredCtas: [
       { label: "Submit a site task", hrefStartsWith: "/signup/business" },
       { label: "Join as a robot team", hrefStartsWith: "/signup/business" },
@@ -221,7 +221,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Contact (redirects to /contact/robot-team)",
     path: "/contact",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Start before the first onsite visit.",
+    expectedHeading: "Get evaluated against a job someone is ready to buy.",
     requiredCtas: [
       { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
       { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
@@ -231,7 +231,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Careers (legacy, redirects to Contact)",
     path: "/careers",
     canonicalPath: "/contact/robot-team",
-    expectedHeading: "Start before the first onsite visit.",
+    expectedHeading: "Get evaluated against a job someone is ready to buy.",
     requiredCtas: [
       { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
       { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
@@ -241,7 +241,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "FAQ",
     path: "/faq",
     canonicalPath: "/faq",
-    expectedHeading: "The robot comes later. Blueprint does the homework first.",
+    expectedHeading: "We find the robot that can do the job, then help you deploy it.",
     requiredCtas: [
       { label: "Submit a site task", hrefStartsWith: "/signup/business" },
     ],
@@ -250,7 +250,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "About",
     path: "/about",
     canonicalPath: "/about",
-    expectedHeading: "We automate the work before the robot arrives.",
+    expectedHeading: "We evaluate robots for sites that are ready to buy.",
     requiredCtas: [
       { label: "See the four steps", hrefStartsWith: "/how-it-works" },
       { label: "Read the evidence", hrefStartsWith: "/proof" },
@@ -260,28 +260,28 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "How it works",
     path: "/how-it-works",
     canonicalPath: "/how-it-works",
-    expectedHeading: "Capture the job. Recreate it. Test fit. Hand it off.",
+    expectedHeading: "Record the job. Rebuild it. Run the robots. Hand it off.",
     requiredCtas: [{ label: "Prepare a deployment", hrefStartsWith: "/contact" }],
   },
   {
     label: "For sites",
     path: "/for-site-operators",
     canonicalPath: "/for-site-operators",
-    expectedHeading: "Robot-ready sites get robots first.",
+    expectedHeading: "Show us the job. We find the robot that can do it.",
     requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "For robot teams",
     path: "/for-robot-teams",
     canonicalPath: "/for-robot-teams",
-    expectedHeading: "Your scarcest resource isn't robots. It's engineer-weeks.",
+    expectedHeading: "Every job here has a buyer behind it.",
     requiredCtas: [{ label: "Join the robot network", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "Governance",
     path: "/governance",
     canonicalPath: "/governance",
-    expectedHeading: "Let robot teams test the site without giving them the site.",
+    expectedHeading: "Robot teams test your site without ever getting your site.",
     requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
   },
   {
@@ -319,7 +319,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Robots aren't the bottleneck. Deploying them is.",
+    expectedHeading: "Evaluate robots. Deploy the one that works.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },

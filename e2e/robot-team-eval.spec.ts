@@ -26,7 +26,7 @@ test("robot-team and site-operator pages describe one service and intake", async
     page.getByText(/Deployment-engineer weeks/i).first(),
   ).toBeVisible();
   await expect(
-    page.getByText(/We prepare\. You integrate and prove/i),
+    page.getByText(/We prepare it\. You install it and prove it/i),
   ).toBeVisible();
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);
 
