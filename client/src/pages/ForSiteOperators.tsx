@@ -86,8 +86,8 @@ export default function ForSiteOperators() {
   return (
     <>
       <SEO
-        title="Get robots to your site sooner | Blueprint"
-        description="Robot capacity is allocated, not just sold. Explain one real workflow once, keep control of the site data, and let qualified robot teams test fit before they ever visit."
+        title="Find the robot that can do your job | Blueprint for sites"
+        description="Describe one real job once. We rebuild it as a test, run robot teams against it, and show you who actually fits — before anyone visits your floor."
         canonical="/for-site-operators"
         jsonLd={[
           webPageJsonLd({
@@ -109,7 +109,7 @@ export default function ForSiteOperators() {
         body={siteOperatorHero.body}
         chips={siteOperatorHero.chips}
         ctaHref={submitHref}
-        ctaLabel="Submit a site task"
+        ctaLabel="Submit a job"
         secondaryHref="/capture-visit"
         secondaryLabel="See the capture visit"
         imageSrc="/redesign/pov/loading-dock.jpg"
@@ -123,8 +123,8 @@ export default function ForSiteOperators() {
           <SectionHead
             index="01"
             eyebrow="What you do"
-            title="Show the job. Set the rules. Review the fit."
-            lede="You do not need to choose a robot, a simulator, or an evaluation stack before starting."
+            title="Show the job. Set the rules. See who fits."
+            lede="You do not have to pick a robot, a simulator, or an evaluation stack to start. You just have to know the job you want done."
           />
           <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
             {siteSteps.map(({ title, body, Icon }, index) => (
@@ -227,8 +227,8 @@ export default function ForSiteOperators() {
           <SectionHead
             index="05"
             eyebrow="Progressive access"
-            title="Teams learn more only when the opportunity earns it."
-            lede="Evaluation rights are not training rights. The underlying site model is never a download."
+            title="Robot teams see more only as they earn it."
+            lede="Permission to test is not permission to train. The site model is never a download."
           />
           <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
             {accessLevels.map((level, index) => (
@@ -265,7 +265,7 @@ export default function ForSiteOperators() {
           <SectionHead
             index="06"
             eyebrow="Why not do it yourself"
-            title="Stop rebuilding the same opportunity for every vendor."
+            title="Stop explaining the same job to every vendor."
           />
           <div className="mt-14">
             <StructuralCompareFigure />
@@ -302,7 +302,7 @@ export default function ForSiteOperators() {
         title="You don't need a robot vendor to begin."
         body="Describe the workflow, the operating conditions, the success criteria, and the access rules. Blueprint will tell you what can be screened now and what evidence is still missing."
         primaryHref={submitHref}
-        primaryLabel="Submit a site task"
+        primaryLabel="Submit a job"
         secondaryHref="/pricing"
         secondaryLabel="See the success fee"
       />

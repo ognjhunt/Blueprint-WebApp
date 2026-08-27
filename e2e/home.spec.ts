@@ -10,7 +10,7 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
   // claim is unchanged, and still holds.
   await expect(
     page.getByRole("heading", {
-      name: /Robots aren't the bottleneck\. Deploying them is/i,
+      name: /Evaluate robots\. Deploy the one that works/i,
     }),
   ).toBeVisible();
   const nav = page.getByRole("banner").getByRole("navigation");
@@ -56,6 +56,14 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
     page.getByRole("heading", {
       name: /One workflow in\. One qualified deployment out/i,
     }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: /Every evaluation has a paying site behind it/i,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/They are the bar to get in/i),
   ).toBeVisible();
 
   // The physical boundary stays on the page, not in the terms.

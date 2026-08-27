@@ -25,8 +25,8 @@ export default function About() {
   return (
     <>
       <SEO
-        title="About Blueprint | Deployment preparation before the robot arrives"
-        description="Blueprint turns repeated site discovery and robot-fit work into one capture-first Task Evaluation Run."
+        title="About Blueprint | We evaluate robots for sites ready to buy"
+        description="Blueprint turns the discovery and fit-testing every robot vendor repeats into one Task Evaluation Run, for sites that have a job and a budget."
         canonical="/about"
         jsonLd={[
           webPageJsonLd({
@@ -64,7 +64,7 @@ export default function About() {
                 The thesis
               </p>
               <h2 className="mt-5 text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-runway-text">
-                Robot supply scales. Deployment homework does not.
+                Robot supply is scaling. The work of matching one to a job is not.
               </h2>
             </div>
             <p className="max-w-[40rem] text-body-l leading-8 text-runway-mute">
@@ -82,7 +82,7 @@ export default function About() {
           <SectionHeader
             index="01"
             eyebrow="Why a shared layer"
-            title="The same deployment homework should not be rebuilt inside every OEM."
+            title="Every robot company should not rebuild the same site from scratch."
           />
           <Reveal className="mt-14">
             <StructuralCompareFigure />
@@ -116,7 +116,7 @@ export default function About() {
 
       <ClosingCta
         eyebrow="One public product"
-        title="One Task Evaluation Run. One deployment handoff."
+        title="One evaluation. One handoff to the install."
         body="The capture, testbed, simulation, permissions, and results are support layers inside the run—not separate products a buyer has to assemble."
         primaryHref="/how-it-works"
         primaryLabel="See how it works"

@@ -127,7 +127,7 @@ export default function Login() {
                 <div className="relative flex h-full items-end p-8 lg:p-10">
                   <div className="max-w-[14rem] border border-white/15 bg-black/30 p-5 backdrop-blur">
                     <SurfaceMiniLabel className="text-white/50">Exact-site context</SurfaceMiniLabel>
-                    <p className="mt-3 text-xl font-semibold tracking-[-0.04em] text-white">The deployment homework, ready before the robot.</p>
+                    <p className="mt-3 text-xl font-semibold tracking-[-0.04em] text-white">The evaluation, done before the robot arrives.</p>
                     <p className="mt-3 text-sm leading-7 text-white/70">
                       Review captured workflows, controlled evaluations, access rights, and onsite handoffs.
                     </p>

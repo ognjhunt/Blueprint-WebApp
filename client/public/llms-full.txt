@@ -1,6 +1,8 @@
 # Blueprint: AI-readable public overview
 
-Blueprint is the deployment-preparation layer between real sites and robot providers. Its one customer-facing product is the Task Evaluation Run.
+Blueprint evaluates robots for real sites and prepares the deployment. It is the evaluation layer between sites that want robots and the providers that deploy them. Its one customer-facing product is the Task Evaluation Run.
+
+Every evaluation is tied to a site seeking a pilot or deployment that is prepared to pay for one. Site intake requires a budget range, a named internal owner, a pilot area, timing, and a procurement path before a workflow becomes an opportunity visible to robot teams. This is an admission bar Blueprint applies to demand; it is not verified funding, a signed order, or a guaranteed purchase.
 
 The active lifecycle returns a bounded decision or abstention.
 

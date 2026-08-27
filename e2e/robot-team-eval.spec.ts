@@ -7,7 +7,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
     page.getByRole("heading", {
-      name: "Your scarcest resource isn't robots. It's engineer-weeks.",
+      name: "Every job here has a buyer behind it.",
     }),
   ).toBeVisible();
   await expect(
@@ -33,17 +33,17 @@ test("robot-team and site-operator pages describe one service and intake", async
   await page.goto("/for-site-operators");
   await expect(
     page.getByRole("heading", {
-      name: "Robot-ready sites get robots first.",
+      name: "Show us the job. We find the robot that can do it.",
     }),
   ).toBeVisible();
   await expect(
     page
       .locator("main")
-      .getByRole("link", { name: /Submit a site task/i })
+      .getByRole("link", { name: /Submit a job/i })
       .first(),
   ).toHaveAttribute("href", /intent=pilot-opportunity/);
   await expect(
-    page.getByRole("link", { name: /Submit a site task/i }).first(),
+    page.getByRole("link", { name: /Submit a job/i }).first(),
   ).toHaveAttribute(
     "href",
     /\/signup\/business\?buyerType=site_operator&intent=pilot-opportunity/,
@@ -74,7 +74,7 @@ test("persona pages are usable on mobile", async ({ page }) => {
 
   await page.goto("/for-site-operators");
   await expect(
-    page.getByRole("link", { name: /Submit a site task/i }).first(),
+    page.getByRole("link", { name: /Submit a job/i }).first(),
   ).toBeVisible();
   const operatorHasHorizontalOverflow = await page.evaluate(
     () =>

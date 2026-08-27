@@ -62,6 +62,7 @@ import {
   observedDeploymentsNote,
 } from "@/data/deploymentMarket";
 import { qualifyingStandard } from "@/data/qualifyingEnvironments";
+import { demandQualifier, homeHero } from "@/data/publicSiteCopy";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
 const siteHref =
@@ -70,33 +71,61 @@ const robotHref = "/signup/business?buyerType=robot_team&source=home";
 const runHref =
   "/contact/robot-team?interest=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=home";
 
+/**
+ * What a site has to put on the table before its job becomes an evaluation.
+ * Each row is a required intake field, not a sentiment: budget range is
+ * `BudgetBucket`, and the owner/procurement answers are the pilot-opportunity
+ * fields. Keep them mapped that way — the band is only honest while the form
+ * behind it still asks.
+ */
+const siteEntryBar = [
+  {
+    title: "A real job",
+    body: "One specific workflow on one floor, with its objects, timing, shifts, and the failures the site will not accept.",
+  },
+  {
+    title: "A budget",
+    body: "A range they are prepared to spend on a pilot or deployment. Sites that will not name one do not enter the network.",
+  },
+  {
+    title: "Someone who owns it",
+    body: "A named person inside the building, a pilot area, a timeline, and the path this actually gets bought through.",
+  },
+] as const;
+
 export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Deployment infrastructure for robotics"
-        description="Deployment is the bottleneck, not capability. Blueprint automates months 0–2 of a robot deployment: capture one real workflow, rebuild it as a secure testbed, and prove robot fit before anyone ships hardware."
+        title="Blueprint | Evaluate robots. Deploy the one that works."
+        description="We record a real job at a site that has budget to fill it, rebuild it as one test every robot takes, and help get the winner deployed. Deployment is the bottleneck, not capability."
         canonical="/"
         jsonLd={[
           webPageJsonLd({
             path: "/",
-            name: "Blueprint deployment infrastructure",
+            name: "Blueprint robot evaluation and deployment",
             description:
-              "Automating the months 0–2 preparation work that sits between a site with a job and a robot that can do it.",
+              "Evaluating robots against one real site job and preparing the deployment — the months 0–2 work between a site with a job and a robot that can do it.",
           }),
         ]}
       />
 
       <RunwayHero
-        eyebrow="Deployment infrastructure · months 0–2"
-        title="Robots aren't the bottleneck. Deploying them is."
-        body="Blueprint captures one real workflow, rebuilds it as a secure testbed, and proves robot fit — before a robot company spends a single engineer-week on site."
+        eyebrow={homeHero.eyebrow}
+        title={homeHero.title}
+        titleLines={homeHero.titleLines}
+        body={homeHero.body}
         primaryHref={runHref}
         primaryLabel="Prepare a deployment"
         secondaryHref="/how-it-works"
         secondaryLabel="See the method"
         boundaryNote="We do the two months before the truck rolls. Onsite integration, commissioning, and the physical pilot stay with the robot company."
         readouts={[
+          {
+            value: "Every job",
+            label: "Comes from a site with a budget and someone inside who owns it",
+            tone: "cyan",
+          },
           {
             value: "97 of 100",
             label: "Humanoids shipped in H1 2026 that came from a Chinese maker",
@@ -111,11 +140,6 @@ export default function Home() {
             value: "2 of 6",
             label: "Months that happen before a robot is ever crated",
             tone: "signal",
-          },
-          {
-            value: "×1",
-            label: "Times a site explains its job, instead of once per vendor",
-            tone: "cyan",
           },
         ]}
       />
@@ -355,11 +379,45 @@ export default function Home() {
         </Inner>
       </Band>
 
-      {/* 07 ──────────────────────────────────────── the structural claim */}
+      {/* 07 ─────────────────────────────────────────────── the demand */}
       <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="07"
+            eyebrow="Who we work with"
+            title={demandQualifier.short}
+            lede={demandQualifier.body}
+          />
+          <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
+            {siteEntryBar.map((item, index) => (
+              <Reveal key={item.title} delay={index * 0.06}>
+                <article className="h-full bg-runway-black p-6 lg:p-8">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-runway-signal">
+                    0{index + 1}
+                  </span>
+                  <h3 className="mt-5 text-[clamp(1.35rem,2.2vw,1.9rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-[14.5px] leading-[1.75] text-runway-mute">
+                    {item.body}
+                  </p>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal className="mt-8">
+            <p className="max-w-[62ch] text-[14.5px] leading-[1.75] text-runway-mute">
+              {demandQualifier.note}
+            </p>
+          </Reveal>
+        </Inner>
+      </Band>
+
+      {/* 08 ──────────────────────────────────────── the structural claim */}
+      <Band tone="deep" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="08"
             eyebrow="Why it is cheaper"
             title="Do the work once. Not once per vendor."
             lede="Nothing here claims a faster robot. It claims the same discovery work stops being repeated inside every vendor relationship."
@@ -370,11 +428,11 @@ export default function Home() {
         </Inner>
       </Band>
 
-      {/* 08 ────────────────────────────────────────────── the flywheel */}
+      {/* 09 ────────────────────────────────────────────── the flywheel */}
       <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="08"
+            index="09"
             eyebrow="Why it compounds"
             title="Cheaper preparation means more pilots get tried at all."
             lede="The loop closes on the last stage: every prepared deployment sharpens what fit and failure look like, which makes the next one cheaper to prepare."
@@ -385,11 +443,11 @@ export default function Home() {
         </Inner>
       </Band>
 
-      {/* 09 ────────────────────────────────────────────── the boundary */}
+      {/* 10 ────────────────────────────────────────────── the boundary */}
       <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="09"
+            index="10"
             eyebrow="The line we keep"
             title="Prepare the deployment. Don't pretend you deployed the robot."
           />
@@ -414,7 +472,7 @@ export default function Home() {
                   can see it.
                 </p>
                 <a className="runway-cta mt-8" href={siteHref}>
-                  Submit a site task
+                  Submit a job
                 </a>
               </div>
             </Reveal>

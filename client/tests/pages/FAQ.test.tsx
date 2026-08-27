@@ -8,7 +8,7 @@ describe("FAQ", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /robot comes later\. Blueprint does the homework first/i,
+        name: /We find the robot that can do the job, then help you deploy it/i,
       }),
     ).toBeInTheDocument();
     for (const question of [

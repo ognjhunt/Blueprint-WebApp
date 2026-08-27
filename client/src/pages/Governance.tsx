@@ -73,11 +73,11 @@ export default function Governance() {
 
       <PageHero
         eyebrow="Site data controls"
-        title="Let robot teams test the site without giving them the site."
+        title="Robot teams test your site without ever getting your site."
         body="Written for the operations lead and the counsel who will ask. Every mechanism below is enforced in the pipeline rather than in a policy binder — several of them block our own runs when a record is missing."
         chips={["Consent fails closed", "Hosted, not downloadable", "Revocable after delivery"]}
         ctaHref={submitHref}
-        ctaLabel="Submit a site task"
+        ctaLabel="Submit a job"
         secondaryHref="/capture-visit"
         secondaryLabel="See the capture visit"
         imageSrc="/redesign/pov/loading-dock.jpg"
@@ -240,7 +240,7 @@ export default function Governance() {
         title="Bring your counsel to the scoping call."
         body={closingNote}
         primaryHref={submitHref}
-        primaryLabel="Submit a site task"
+        primaryLabel="Submit a job"
         secondaryHref="/capture-visit"
         secondaryLabel="See the capture visit"
       />

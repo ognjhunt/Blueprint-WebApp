@@ -9,9 +9,14 @@ const definitions = [
     definition: captureGroundedPublicCopy.productSummary,
   },
   {
-    term: "Deployment preparation",
+    term: "Robot evaluation and deployment preparation",
     definition:
-      "The task discovery, site-condition recreation, robot-fit testing, and handoff work completed before onsite integration. Blueprint focuses on this months 0–2 phase and does not replace commissioning or the physical pilot.",
+      "What Blueprint does: work out the job, recreate the site conditions, test which robots fit, and hand the result to the team doing the install. This is the months 0–2 phase. Blueprint does not perform onsite integration, commissioning, the physical pilot, or safety approval.",
+  },
+  {
+    term: "Paying-site admission bar",
+    definition:
+      "Blueprint only runs evaluations for sites seeking a pilot or deployment they are prepared to pay for. Intake requires a budget range, a named internal owner, a pilot area, timing, and a procurement path before a workflow becomes an opportunity robot teams can see. This is an admission bar, not verified funding, a signed order, or a guaranteed purchase.",
   },
   {
     term: "Exact-site world model",
@@ -129,7 +134,7 @@ const pages = [
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Four steps: capture the workflow, build the testbed, test robot fit, and hand off the deployment homework before onsite work.",
+      "Four steps: record the job, rebuild it as a test, run the robots against it, and hand off the deployment before onsite work begins.",
   },
   {
     path: "/faq",

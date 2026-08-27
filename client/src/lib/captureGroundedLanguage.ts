@@ -1,6 +1,6 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint automates the deployment homework before the robot arrives. One Task Evaluation Run captures a real workflow, builds a permissioned Site-Task Testbed, tests robot fit, returns a bounded decision or explicit abstention, and packages the onsite handoff.",
+    "Blueprint evaluates robots for real sites and prepares the deployment. One Task Evaluation Run records a real workflow at a site with a named budget and owner, builds a permissioned Site-Task Testbed, tests robot fit, returns a bounded decision or explicit abstention, and packages the onsite handoff. Blueprint does not perform the onsite install, commissioning, or safety approval.",
   seoDescription:
     "Blueprint helps sites and robot teams do the task discovery, site recreation, and robot-fit evaluation that happens before onsite deployment.",
   groundTruthDefinition:

@@ -55,28 +55,81 @@
 // Buyer-facing vocabulary: "candidate", not "checkpoint" (a non-technical
 // buyer reads that as a milestone); "ranking", not "ordering".
 //
-// And "candidate", not "robot", in the headline. A run compares policies or
-// configurations against one site-task; it does not pick an embodiment
-// (PLATFORM_CONTEXT.md exact v1 scope: one fixed robot arm, two frozen policy
-// checkpoints or configurations). "Which robot do you send" markets a
-// different service. "Candidate" is also the one word that covers both halves
-// of the offer — the screening pass rules out on physical envelope, the
-// ranking pass orders what survives on policy.
+// "Candidate" vs "robot", and where each one belongs. Inside a run the noun is
+// "candidate": a run compares policies or configurations against one site-task
+// and does not pick an embodiment (PLATFORM_CONTEXT.md exact v1 scope: one
+// fixed robot arm, two frozen policy checkpoints or configurations). Every
+// figure, result, ranking, and boundary line below still says "candidate", and
+// that is not negotiable — "we ranked the robots" would describe a service the
+// evidence does not support.
+//
+// The hero is the one place that says "robots", deliberately. A site lead
+// arriving cold is choosing between robot companies, not between checkpoints,
+// and a headline written in the run's internal vocabulary fails the only job a
+// headline has. The two coexist because they answer different questions:
+// "evaluate robots" is what the business does, "rank candidates" is what a run
+// returns. The moment a *result* is described in the headline's vocabulary,
+// that is the line being crossed.
+//
+// On "deploy". The offer is evaluation plus the handoff into deployment, and
+// the pricing proves the alignment: Blueprint is paid only on collected
+// provider revenue from a real deployment (see `pricingHero`). So "help get
+// the winner installed" is true and worth saying. What stays false, and is
+// contradicted on the same page every time it appears, is that Blueprint
+// performs the install, the commissioning, the physical validation, or the
+// safety approval. Every surface carrying the deploy claim also carries the
+// boundary — that pairing is the rule, not a nicety.
+//
+// On "a paying site". See `demandQualifier` below for what backs it and what
+// it may never be stretched into.
 
 import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTile, LifecycleStage } from "@/components/site/figures";
 
 /* -------------------------------------------------------------- home page */
 
 export const homeHero = {
-  eyebrow: "Deployment infrastructure · months 0–2",
-  title: "Robots aren't the bottleneck. Deploying them is.",
+  eyebrow: "Robot evaluation and deployment",
+  title: "Evaluate robots. Deploy the one that works.",
+  /**
+   * The same headline, pre-split at the sentence.
+   *
+   * Greedy wrapping breaks this line as "Evaluate robots. Deploy the / one
+   * that works.", which strands the second verb and kills the two-beat read
+   * the headline is built on. No max-width fixes it: any width narrow enough
+   * to push "Deploy" down also fragments the second sentence. So the break is
+   * authored. `title` stays the flat string for SEO, structured data, and
+   * anything that needs one value; the renderer joins these with a real space
+   * so the accessible name still matches it exactly.
+   */
+  titleLines: ["Evaluate robots.", "Deploy the one that works."],
   body:
-    "Blueprint captures one real workflow, rebuilds it as a secure testbed, and proves robot fit — before a robot company spends a single engineer-week on site.",
+    "We only run evaluations for real sites with a real job and a budget to fill it. We record the job, rebuild it as one test every robot takes, and help get the winner installed.",
   chips: [
-    "One workflow, captured once",
-    "One testbed, every robot team",
-    "Onsite validation still required",
+    "Every job has a buyer behind it",
+    "One test, every robot takes it",
+    "The robot company still does the install",
   ],
+} as const;
+
+/**
+ * The demand rule, in one place, because it is the claim the whole site rests
+ * on and it must read the same everywhere it appears.
+ *
+ * It is grounded, not aspirational. Site intake requires a budget range
+ * (`BudgetBucket` in `types/inbound-request.ts`), and the pilot-opportunity
+ * fields ask for a named internal owner, a pilot area, timing, and the
+ * procurement path before an opportunity can be shown to robot teams. A site
+ * that will not answer those does not become an evaluation.
+ *
+ * What it must never say: that a budget is a signed order, that a named owner
+ * is a purchase commitment, or that Blueprint has verified funds. The honest
+ * claim is about *who we accept*, not about a guaranteed sale.
+ */
+export const demandQualifier = {
+  short: "Every evaluation has a paying site behind it.",
+  body:
+    "We do not run evaluations against hypothetical sites. Before a job becomes an evaluation, the site names the work, a budget range, an internal owner, and how it buys. Robot teams are testing against demand, not a demo.",
+  note: "A budget and an owner are not a signed order. They are the bar to get in.",
 } as const;
 
 export const homeStats: readonly StatTile[] = [
@@ -393,26 +446,26 @@ export const homeLimits = [
 
 export const robotTeamHero = {
   eyebrow: "For robot teams",
-  title: "Your scarcest resource isn't robots. It's engineer-weeks.",
+  title: "Every job here has a buyer behind it.",
   body:
-    "Opportunities arrive with the task defined, the site modelled, the envelope screened, and the acceptance test written — so your deployment team spends its weeks on sites that will work.",
+    "We only take sites that name a real job, a budget, and someone inside who owns it. That job reaches you with the task defined, the site modelled, the envelope screened, and the acceptance test already written.",
   chips: [
+    "Real sites, real budgets",
     "No listing or lead fee",
     "Standard evaluations included",
-    "Site files stay controlled",
   ],
 } as const;
 
 export const robotTeamValue = [
   {
+    title: "The site already wants to buy",
+    body:
+      "Every workflow reaches you with a budget range, a named internal owner, and a procurement path. You are not qualifying the lead — that already happened.",
+  },
+  {
     title: "Skip repeated site discovery",
     body:
       "Read one standard dossier instead of rebuilding the task from calls, phone videos, floor plans, and scattered notes.",
-  },
-  {
-    title: "Test before field engineering",
-    body:
-      "Check geometry, interfaces, assumptions, and bounded policy performance before sending people or scarce hardware onsite.",
   },
   {
     title: "Arrive with the gaps named",
@@ -449,10 +502,10 @@ export const robotTeamFlow: readonly LifecycleStage[] = [
 
 export const siteOperatorHero = {
   eyebrow: "For site operators",
-  title: "Robot-ready sites get robots first.",
+  title: "Show us the job. We find the robot that can do it.",
   body:
-    "Explain the job once. Blueprint turns it into a private, reusable work package that robot teams can evaluate without you handing over the building.",
-  chips: ["Submit free", "No robot chosen yet", "Site data stays controlled"],
+    "Tell us one real job you want a robot to do. We record it, rebuild it as a test, and run robot teams against it — without you handing over the building.",
+  chips: ["Free to submit", "No robot picked yet", "Your site data stays controlled"],
 } as const;
 
 export const siteOperatorNeeds = [
@@ -506,9 +559,9 @@ export const howItWorksSplit = {
 
 export const pricingHero = {
   eyebrow: "Free to start · site-paid when it works",
-  title: "Free until a robot is earning.",
+  title: "Free to evaluate. You pay when a robot is working.",
   body:
-    "Sites submit workflows free. Robot teams discover and run standard evaluations free. The site pays Blueprint only when a deployment produces collected provider revenue.",
+    "Sites submit jobs free. Robot teams match and run standard evaluations free. The site pays Blueprint only after a deployment produces collected provider revenue — which is why we only take sites that intend to buy.",
 } as const;
 
 export const pricingIncluded = [
@@ -542,10 +595,10 @@ export const pricingBoundaries = [
 
 export const aboutHero = {
   eyebrow: "About Blueprint",
-  title: "We automate the work before the robot arrives.",
+  title: "We evaluate robots for sites that are ready to buy.",
   body:
-    "Robot deployments begin with weeks of task discovery, site recreation, simulation, and fit testing. Blueprint turns that repeated project into one reusable Task Evaluation Run.",
-  chips: ["Capture once", "Test privately", "Hand off before onsite work"],
+    "A robot deployment starts with weeks of discovery, site recreation, simulation, and fit testing — repeated inside every vendor conversation. Blueprint does that work once, as one Task Evaluation Run, for sites that have a job and a budget.",
+  chips: ["Record the job once", "Test every robot on it", "Hand off to the install"],
 } as const;
 
 export const aboutStats: readonly StatTile[] = [

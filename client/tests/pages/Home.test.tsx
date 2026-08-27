@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Home", () => {
-  it("leads with the deployment-bottleneck thesis and the months 0–2 scope", () => {
+  it("says plainly that it evaluates robots and deploys the winner, over the months 0–2 scope", () => {
     render(<Home />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Robots aren't the bottleneck\. Deploying them is/i,
+        name: /Evaluate robots\. Deploy the one that works/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -42,12 +42,31 @@ describe("Home", () => {
     expect(container).toHaveTextContent(/Simulation filters, it does not certify/i);
   });
 
+  it("states that every evaluation sits behind a paying site, without overclaiming it", () => {
+    render(<Home />);
+    expect(
+      screen.getByRole("heading", {
+        name: /Every evaluation has a paying site behind it/i,
+      }),
+    ).toBeInTheDocument();
+    for (const bar of [/A real job/i, /^A budget$/i, /Someone who owns it/i]) {
+      expect(screen.getByRole("heading", { name: bar })).toBeInTheDocument();
+    }
+    // The admission bar is a bar, not a signed order. If this line ever goes
+    // missing, the claim above has quietly become a funding guarantee.
+    expect(
+      screen.getByText(
+        /A budget and an owner are not a signed order\. They are the bar to get in/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("routes both sides of the market", () => {
     render(<Home />);
     expect(
       screen.getAllByRole("link", { name: /Prepare a deployment/i }).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Submit a site task/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Submit a job/i })).toHaveAttribute(
       "href",
       expect.stringContaining("buyerType=site_operator"),
     );
