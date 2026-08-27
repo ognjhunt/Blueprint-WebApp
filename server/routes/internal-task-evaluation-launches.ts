@@ -5,12 +5,74 @@ import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configur
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import {
   parseTaskEvaluationLaunchProgress,
+  taskEvaluationLaunchPublicationReadinessRequestSchema,
   parseTaskEvaluationLaunchReceipt,
   parseTaskEvaluationLaunchSupervision,
 } from "../utils/taskEvaluationLaunchContract";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
+
+router.post(
+  "/task-evaluation-launch-publication-readiness",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    if (!db) return res.status(503).json({
+      error: "Task Evaluation launch store is unavailable",
+      code: "task_evaluation_launch_store_unavailable",
+    });
+    const parsed = taskEvaluationLaunchPublicationReadinessRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({
+      error: "Task Evaluation launch publication readiness request is invalid",
+      code: "task_evaluation_launch_publication_readiness_request_invalid",
+    });
+    const request = parsed.data;
+    let snapshot;
+    try {
+      snapshot = await db.collection("taskEvaluationLaunches").doc(request.launch_id).get();
+    } catch {
+      return res.status(503).json({
+        error: "Task Evaluation launch store is unavailable",
+        code: "task_evaluation_launch_store_unavailable",
+      });
+    }
+    if (!snapshot.exists) return res.status(404).json({
+      error: "Task Evaluation launch not found",
+      code: "task_evaluation_launch_publication_record_missing",
+    });
+    const existing = snapshot.data() as Record<string, any>;
+    const storedTeamNamespace = String(
+      existing.team_namespace || existing.request?.team_namespace || "",
+    );
+    if (
+      existing.run_id !== request.run_id
+      || existing.request_digest !== request.request_digest
+      || storedTeamNamespace !== request.team_namespace
+      || existing.configured_scene_context?.run_mode !== "scene_configuration"
+      || existing.configured_scene_context?.team_namespace !== request.team_namespace
+    ) return res.status(409).json({
+      error: "Task Evaluation launch publication binding mismatch",
+      code: "task_evaluation_launch_publication_binding_mismatch",
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(200).json({
+      schema_version: "task_evaluation_launch_publication_readiness_receipt.v1",
+      status: "ready",
+      launch_id: request.launch_id,
+      run_id: request.run_id,
+      request_digest: request.request_digest,
+      team_namespace: request.team_namespace,
+      terminal_receipt_schema_version: "task_evaluation_launch_receipt.v1",
+      web_sync_receipt_schema_version: "task_evaluation_launch_web_sync_receipt.v1",
+      configured_scene_offering_schema_version:
+        "task_evaluation_configured_scene_offering.v1",
+      launch_record_read_succeeded: true,
+      team_namespace_binding_passed: true,
+      firestore_mutation_performed: false,
+    });
+  },
+);
 
 function requirePipelineSignature(req: Request, res: Response, next: () => void) {
   const result = verifyPipelineSyncRequest(req, {
