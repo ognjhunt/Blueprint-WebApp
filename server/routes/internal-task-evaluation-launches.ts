@@ -44,7 +44,8 @@ router.post(
     });
     const offering = configuredSceneOffering.offering;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
-    type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch" | "immutable_conflict";
+    type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch"
+      | "configured_scene_offering_missing" | "immutable_conflict";
     let outcome: Outcome;
     try {
       outcome = await db.runTransaction<Outcome>(async (transaction) => {
@@ -58,6 +59,10 @@ router.post(
         const expectedTeamNamespace = String(
           existing.team_namespace || existing.request?.team_namespace || "",
         );
+        const configuredSceneExpected =
+          existing.configured_scene_context?.run_mode === "scene_configuration";
+        if (configuredSceneExpected && !offering) return "configured_scene_offering_missing";
+        if (!configuredSceneExpected && offering) return "binding_mismatch";
         if (offering && offering.team_namespace !== expectedTeamNamespace) {
           return "binding_mismatch";
         }
@@ -89,6 +94,10 @@ router.post(
     }
     if (outcome === "not_found") return res.status(404).json({ error: "Task Evaluation launch not found" });
     if (outcome === "binding_mismatch") return res.status(409).json({ error: "Task Evaluation launch binding mismatch" });
+    if (outcome === "configured_scene_offering_missing") return res.status(409).json({
+      error: "Configured scene offering is required",
+      code: "configured_scene_offering_missing",
+    });
     if (outcome === "immutable_conflict") return res.status(409).json({ error: "Immutable Task Evaluation launch receipt conflict" });
     res.set("Cache-Control", "no-store");
     return res.status(outcome === "replayed" ? 200 : 201).json({

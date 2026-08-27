@@ -1872,6 +1872,14 @@ describe("admin Task Evaluation launch route", () => {
       run_id: "run-001",
       request_digest: requestDigest,
       team_namespace: "robot-team-001",
+      configured_scene_context: {
+        run_mode: "scene_configuration",
+        team_namespace: "robot-team-001",
+        scene_id: "interiorgs-839873",
+        task_id: "planar-mug-push",
+        configuration_run_id: "run-001",
+        evaluation_episode_executed: false,
+      },
       state: "queued_in_pipeline",
     });
     const offering = configuredSceneOffering();
@@ -1938,6 +1946,41 @@ describe("admin Task Evaluation launch route", () => {
           },
         },
       });
+
+      state.records.set("launch-missing-offering", {
+        launch_id: "launch-missing-offering",
+        run_id: "run-missing-offering",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        configured_scene_context: {
+          run_mode: "scene_configuration",
+          team_namespace: "robot-team-001",
+          scene_id: "interiorgs-839873",
+          task_id: "planar-mug-push",
+          configuration_run_id: "run-missing-offering",
+          evaluation_episode_executed: false,
+        },
+        state: "queued_in_pipeline",
+      });
+      const missingOffering = structuredClone(receipt);
+      missingOffering.launch_id = "launch-missing-offering";
+      missingOffering.run_id = "run-missing-offering";
+      delete missingOffering.terminal_evidence.scene_configuration;
+      missingOffering.receipt_digest = canonicalArtifactDigest(
+        missingOffering,
+        "receipt_digest",
+      );
+      const missingOfferingResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(missingOffering),
+      });
+      expect(missingOfferingResponse.status).toBe(409);
+      await expect(missingOfferingResponse.json()).resolves.toMatchObject({
+        code: "configured_scene_offering_missing",
+      });
+      expect(state.records.get("launch-missing-offering")?.terminal_receipt)
+        .toBeUndefined();
 
       state.records.set("launch-invalid", {
         launch_id: "launch-invalid",
