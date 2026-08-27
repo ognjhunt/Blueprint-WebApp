@@ -85,6 +85,28 @@ export const configuredSceneOfferingSchema = z.object({
 
 export type ConfiguredSceneOffering = z.infer<typeof configuredSceneOfferingSchema>;
 
+function sameIdentity(
+  left: unknown,
+  right: { id: string; version: string },
+) {
+  if (!left || typeof left !== "object" || Array.isArray(left)) return false;
+  const record = left as Record<string, unknown>;
+  if (Object.keys(record).sort().join(",") !== "id,version") return false;
+  return record.id === right.id && record.version === right.version;
+}
+
+function sameArtifactReference(
+  left: unknown,
+  right: { uri: string; digest: string; size_bytes: number },
+) {
+  if (!left || typeof left !== "object" || Array.isArray(left)) return false;
+  const record = left as Record<string, unknown>;
+  if (Object.keys(record).sort().join(",") !== "digest,size_bytes,uri") return false;
+  return record.uri === right.uri
+    && record.digest === right.digest
+    && record.size_bytes === right.size_bytes;
+}
+
 export function configuredSceneOfferingBinding(
   offering: ConfiguredSceneOffering,
   sourceLaunchId: string,
@@ -108,14 +130,17 @@ export function preparationMatchesConfiguredSceneOffering(
   return request.run_mode === "episode_evaluation"
     && request.team_namespace === offering.team_namespace
     && request.scene?.mode === binding.scene_mode
-    && JSON.stringify(request.scene?.identity) === JSON.stringify(offering.scene_identity)
-    && JSON.stringify(request.scene?.configured_revision) === JSON.stringify(binding.configured_scene_revision)
+    && sameIdentity(request.scene?.identity, offering.scene_identity)
+    && sameArtifactReference(
+      request.scene?.configured_revision,
+      binding.configured_scene_revision,
+    )
     && request.construction?.mode === binding.construction_mode
     && request.task?.binding_mode === binding.task_binding_mode
-    && JSON.stringify(request.task?.identity) === JSON.stringify(offering.task.identity)
+    && sameIdentity(request.task?.identity, offering.task.identity)
     && request.task?.kind === offering.task.kind
     && request.task?.strategy === offering.task.strategy
-    && JSON.stringify(request.task?.subject?.identity) === JSON.stringify(offering.task.subject_identity)
+    && sameIdentity(request.task?.subject?.identity, offering.task.subject_identity)
     && request.task?.configured_scene_revision_digest === binding.configured_scene_revision_digest;
 }
 
@@ -152,13 +177,21 @@ export function parseConfiguredSceneOfferingFromLaunchReceipt(receipt: Record<st
   };
   const binding = offering.evaluation_preparation_binding;
   const presentation = offering.presentation;
-  const sameReference = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
   if (
     scene.configured_scene_revision_digest !== binding.configured_scene_revision_digest
-    || !sameReference(scene.configured_scene_revision_reference, binding.configured_scene_revision)
-    || !sameReference(scene.configured_scene_bundle_reference, binding.configured_scene_bundle)
-    || !sameReference(scene.task_thumbnail_reference, presentation.task_thumbnail)
-    || !sameReference(
+    || !sameArtifactReference(
+      scene.configured_scene_revision_reference,
+      binding.configured_scene_revision,
+    )
+    || !sameArtifactReference(
+      scene.configured_scene_bundle_reference,
+      binding.configured_scene_bundle,
+    )
+    || !sameArtifactReference(
+      scene.task_thumbnail_reference,
+      presentation.task_thumbnail,
+    )
+    || !sameArtifactReference(
       scene.task_thumbnail_selection_receipt_reference,
       presentation.selection_receipt,
     )
