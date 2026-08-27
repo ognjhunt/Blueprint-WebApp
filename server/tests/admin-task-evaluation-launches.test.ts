@@ -5,6 +5,7 @@ import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CANONICAL_TASK_EVALUATION_ALLOCATOR } from "../utils/taskEvaluationLaunchContract";
+import { taskEvaluationLaunchPreparationInputSchema } from "../utils/taskEvaluationLaunchPreparationContract";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
@@ -316,8 +317,8 @@ function preparationInput() {
       service_account_readback_required: true,
     },
     spend: {
-      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 2.25, hard_ttl_seconds: 3600,
-      provider_compute_spend_cap_usd: 0.75,
+      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 10, hard_ttl_seconds: 25_200,
+      provider_compute_spend_cap_usd: 6,
       external_service_caps: {
         openai: {
           maximum_cost_usd: 1.5,
@@ -415,6 +416,8 @@ function evaluationPreparationInput() {
     },
   };
   input.execution_adapter.kind = "native_task_arena";
+  input.spend.hard_cap_usd = 0.75;
+  input.spend.hard_ttl_seconds = 3_300;
   delete input.spend.provider_compute_spend_cap_usd;
   delete input.spend.external_service_caps;
   return input;
@@ -813,6 +816,25 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("scopes the seven-hour authority to scene configuration", () => {
+    expect(
+      taskEvaluationLaunchPreparationInputSchema.safeParse(preparationInput()).success,
+    ).toBe(true);
+
+    const shortScene = preparationInput();
+    shortScene.spend.hard_ttl_seconds = 9_000;
+    expect(
+      taskEvaluationLaunchPreparationInputSchema.safeParse(shortScene).success,
+    ).toBe(false);
+
+    const widenedEpisode = evaluationPreparationInput();
+    widenedEpisode.spend.hard_cap_usd = 10;
+    widenedEpisode.spend.hard_ttl_seconds = 25_200;
+    expect(
+      taskEvaluationLaunchPreparationInputSchema.safeParse(widenedEpisode).success,
+    ).toBe(false);
+  });
+
   it("isolates the launch-ready offering catalog to the authenticated team", async () => {
     state.isOps = false;
     const own = configuredSceneOffering();
@@ -1163,6 +1185,37 @@ describe("admin Task Evaluation launch route", () => {
         body: JSON.stringify(overcommittedServices),
       });
       expect(overcommittedRejected.status).toBe(400);
+      expect(state.records.size).toBe(0);
+
+      const shortParent = preparationInput();
+      shortParent.spend.hard_ttl_seconds = 9_000;
+      const shortParentRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(shortParent),
+      });
+      expect(shortParentRejected.status).toBe(400);
+      expect(state.records.size).toBe(0);
+
+      const underfundedCompute = preparationInput();
+      underfundedCompute.spend.provider_compute_spend_cap_usd = 5.59;
+      const underfundedComputeRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(underfundedCompute),
+      });
+      expect(underfundedComputeRejected.status).toBe(400);
+      expect(state.records.size).toBe(0);
+
+      const widenedEpisode = evaluationPreparationInput();
+      widenedEpisode.spend.hard_cap_usd = 10;
+      widenedEpisode.spend.hard_ttl_seconds = 25_200;
+      const widenedEpisodeRejected = await fetch(`${url}/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(widenedEpisode),
+      });
+      expect(widenedEpisodeRejected.status).toBe(400);
       expect(state.records.size).toBe(0);
 
       const missingServiceAuthority = preparationInput();
