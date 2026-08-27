@@ -104,6 +104,23 @@ export const taskEvaluationLaunchWebPreflightReceiptSchema = z.object({
   receipt_digest: digest,
 }).strict();
 
+export const taskEvaluationLaunchPublicationReadinessRequestSchema = z.object({
+  schema_version: z.literal("task_evaluation_launch_publication_readiness_request.v1"),
+  launch_id: identifier,
+  run_id: identifier,
+  request_digest: digest,
+  team_namespace: identifier,
+  expected_terminal_receipt_schema_version: z.literal(
+    "task_evaluation_launch_receipt.v1",
+  ),
+  expected_web_sync_receipt_schema_version: z.literal(
+    "task_evaluation_launch_web_sync_receipt.v1",
+  ),
+  expected_configured_scene_offering_schema_version: z.literal(
+    "task_evaluation_configured_scene_offering.v1",
+  ),
+}).strict();
+
 export function parseTaskEvaluationLaunchWebPreflightReceipt(value: unknown) {
   const parsed = taskEvaluationLaunchWebPreflightReceiptSchema.safeParse(value);
   if (!parsed.success) return {
