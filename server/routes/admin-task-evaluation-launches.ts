@@ -5,6 +5,13 @@ import { logger } from "../logger";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 import {
+  configuredSceneOfferingBinding,
+  configuredSceneOfferingSchema,
+  preparationMatchesConfiguredSceneOffering,
+  type ConfiguredSceneOffering,
+} from "../utils/configuredSceneOfferingContract";
+import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
+import {
   fetchSceneObjectDiscoveryStatus,
   forwardSceneObjectDiscovery,
   forwardSceneObjectDiscoverySelection,
@@ -49,6 +56,92 @@ const DISCOVERY_COLLECTION = "taskEvaluationSceneObjectDiscoveries";
 
 router.use(requireAdminRole);
 
+async function loadConfiguredSceneOffering(launchId: string) {
+  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+    db!.collection(COLLECTION).doc(launchId).get(),
+  );
+  if (!snapshot.exists) return null;
+  const record = snapshot.data() as Record<string, unknown>;
+  if (record.configured_scene_offering_state !== "launch_ready") return null;
+  const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
+  if (!parsed.success || parsed.data.offering_digest !== record.configured_scene_offering_digest) {
+    throw new Error("configured_scene_offering_store_invalid");
+  }
+  return parsed.data;
+}
+
+router.get("/configured-scene-offerings", async (_req, res) => {
+  if (!db) return res.status(503).json({ error: "Configured scene offering store is unavailable" });
+  try {
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+      db.collection(COLLECTION)
+        .where("configured_scene_offering_state", "==", "launch_ready")
+        .limit(100)
+        .get(),
+    );
+    const offerings = snapshot.docs.map((document) => {
+      const record = document.data() as Record<string, unknown>;
+      const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
+      if (!parsed.success || parsed.data.offering_digest !== record.configured_scene_offering_digest) {
+        throw new Error("configured_scene_offering_store_invalid");
+      }
+      const offering = parsed.data;
+      return {
+        source_launch_id: document.id,
+        offering_digest: offering.offering_digest,
+        configuration_run_id: offering.configuration_run_id,
+        team_namespace: offering.team_namespace,
+        scene_identity: offering.scene_identity,
+        task: offering.task,
+        presentation: {
+          thumbnail_url: `/api/admin/task-evaluation-launches/configured-scene-offerings/${encodeURIComponent(document.id)}/thumbnail`,
+          selection: offering.presentation.selection,
+          selected_from_exact_reviewed_frame_count:
+            offering.presentation.selected_from_exact_reviewed_frame_count,
+        },
+        evaluation_preparation_binding: offering.evaluation_preparation_binding,
+        proof_boundary: offering.proof_boundary,
+      };
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      schema_version: "task_evaluation_configured_scene_offering_catalog.v1",
+      offerings,
+    });
+  } catch (error) {
+    const invalid = error instanceof Error
+      && error.message === "configured_scene_offering_store_invalid";
+    return res.status(503).json({
+      error: "Configured scene offering store is unavailable",
+      code: invalid
+        ? "configured_scene_offering_store_invalid"
+        : taskEvaluationLaunchStoreErrorCode(error),
+      offerings: [],
+    });
+  }
+});
+
+router.get("/configured-scene-offerings/:launchId/thumbnail", async (req, res) => {
+  if (!db) return res.status(503).json({
+    error: "Configured scene thumbnail store is unavailable",
+  });
+  try {
+    const offering = await loadConfiguredSceneOffering(req.params.launchId);
+    if (!offering) return res.status(404).json({ error: "Launch-ready configured scene offering not found" });
+    const buffer = await readConfiguredSceneThumbnail(
+      offering.presentation.task_thumbnail,
+    );
+    res.set("Cache-Control", "private, no-store");
+    res.type("png");
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(503).json({
+      error: "Configured scene thumbnail store is unavailable",
+      code: error instanceof Error ? error.message : "configured_scene_thumbnail_store_unavailable",
+    });
+  }
+});
+
 router.get("/profiles", async (_req, res) => {
   const catalog = await resolvePublishedLaunchProfileCatalog();
   res.set("Cache-Control", "no-store");
@@ -74,10 +167,17 @@ export interface TaskEvaluationLaunchSubmissionContext {
 
 export interface TaskEvaluationLaunchPreparationSubmissionContext {
   actorId: string;
-  actorRole: "admin" | "ops";
+  actorRole: "admin" | "ops" | "team_member";
   channel: "production_webapp_browser" | "production_webapp_service_api";
   serviceId: string | null;
   idempotencyKey: string;
+  configuredSceneOfferingBinding?: {
+    source_launch_id: string;
+    offering_digest: string;
+    configured_scene_revision_digest: string;
+    configured_scene_bundle_digest: string;
+    task_thumbnail_digest: string;
+  };
 }
 
 async function resolveTaskEvaluationLaunchInput(
@@ -239,6 +339,10 @@ export async function submitTaskEvaluationLaunch(
     state: "forward_pending",
     forward_attempt_count: 0,
     provider_mutation_observed: false,
+    ...(profile.task_evaluation_run ? {
+      team_namespace: profile.task_evaluation_run.team_namespace,
+      configured_scene_context: profile.task_evaluation_run,
+    } : {}),
     submission: {
       channel: context.channel,
       service_id: context.serviceId,
@@ -405,6 +509,9 @@ export async function submitTaskEvaluationLaunchPreparation(
     provider_mutation_observed: false,
     catalog_mutation_observed: false,
     paid_execution_requested: false,
+    ...(context.configuredSceneOfferingBinding ? {
+      configured_scene_offering_binding: context.configuredSceneOfferingBinding,
+    } : {}),
     submission: {
       channel: context.channel,
       actor_id: context.actorId,
@@ -421,6 +528,11 @@ export async function submitTaskEvaluationLaunchPreparation(
       if (snapshot.exists) {
         const existing = snapshot.data() as Record<string, any>;
         if (existing.request_digest !== requestDigest) throw new Error("immutable_preparation_conflict");
+        if (
+          context.configuredSceneOfferingBinding
+          && JSON.stringify(existing.configured_scene_offering_binding)
+            !== JSON.stringify(context.configuredSceneOfferingBinding)
+        ) throw new Error("immutable_preparation_conflict");
         return existing;
       }
       transaction.create(ref, initialRecord);
@@ -513,6 +625,37 @@ export async function submitTaskEvaluationLaunchPreparation(
     submission_channel: priorRecord?.submission?.channel || initialRecord.submission.channel,
   });
 }
+
+router.post("/configured-scene-offerings/:launchId/preparations", async (req, res) => {
+  const access = await resolveAccessContext(res);
+  const actorId = access.uid || access.email;
+  if (!actorId) return res.status(401).json({ error: "Authenticated actor identity is missing" });
+  if (!db) return res.status(503).json({ error: "Configured scene offering store is unavailable" });
+  let offering: ConfiguredSceneOffering | null;
+  try {
+    offering = await loadConfiguredSceneOffering(req.params.launchId);
+  } catch {
+    return res.status(503).json({
+      error: "Configured scene offering store is unavailable",
+      code: "configured_scene_offering_store_invalid",
+    });
+  }
+  if (!offering) return res.status(404).json({ error: "Launch-ready configured scene offering not found" });
+  if (!preparationMatchesConfiguredSceneOffering(req.body as Record<string, any>, offering)) return res.status(409).json({
+    error: "Task Evaluation preparation does not match the configured scene offering",
+    code: "configured_scene_offering_preparation_binding_mismatch",
+    paid_execution_requested: false,
+    provider_mutation_performed_inside_web_request: false,
+  });
+  return submitTaskEvaluationLaunchPreparation(req, res, {
+    actorId,
+    actorRole: access.isAdmin ? "admin" : "ops",
+    channel: "production_webapp_browser",
+    serviceId: null,
+    idempotencyKey: String(req.header("idempotency-key") || req.body?.preparation_id || ""),
+    configuredSceneOfferingBinding: configuredSceneOfferingBinding(offering, req.params.launchId),
+  });
+});
 
 router.post("/preparations", async (req, res) => {
   const access = await resolveAccessContext(res);

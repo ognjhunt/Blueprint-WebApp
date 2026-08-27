@@ -73,6 +73,7 @@ import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-la
 import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationLaunchAccess";
 import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
+import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -213,6 +214,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyTaskEvaluationLaunchAccess,
     adminTaskEvaluationLaunchesRouter,
+  );
+  app.use(
+    "/api/configured-scene-offerings",
+    csrfProtection,
+    verifyFirebaseToken,
+    configuredSceneOfferingsRouter,
   );
   app.use(
     "/api/internal/task-evaluation-launch-submissions",
