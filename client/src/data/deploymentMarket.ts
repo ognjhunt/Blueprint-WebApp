@@ -130,27 +130,57 @@ export const regionalShare2024 = [
  * The IFR figures above measure deployment *capacity* — the muscle a country
  * has for taking any robot from "we should automate this" to "it is running on
  * the floor." This block measures the leading edge of the same race, and the
- * gap is far wider there: 54% of all industrial robots against more than 97% of
- * humanoids.
+ * gap is far wider there: China took 54% of all industrial-robot installations,
+ * and more than 85% of humanoid demand.
  *
  * Why this is charted as a share and not as a volume. Two independent datasets
  * cover the same half-year. They agree on the share almost exactly and disagree
  * on the volume by more than a factor of two — see `excludedVolumeFigure`. A
  * quantity two credible sources cannot agree on is not a quantity this site
  * puts on an axis; a share they both land on is.
+ *
+ * ## Two different shares, and they are easy to conflate
+ *
+ *   - `chineseVendorSharePct` (97%) is **who built the robot**. Bloomberg's own
+ *     headline is "China humanoid makers hold 97% of global shipments." This is
+ *     the headline figure, on an owner decision of 2026-08-24.
+ *   - `chinaDemandSharePct` (85%) is **where the robot went**. Smart Analytics
+ *     Global: "China represented more than 85% of global demand."
+ *
+ * Both are charted, and the pair is what makes the section work. On its own the
+ * 97% is a supply-side claim — China is better at *manufacturing* — which sits
+ * slightly across this site's thesis that deployment rather than robot
+ * capability is the binding constraint. The demand bar is what converts it into
+ * a deployment argument: the robots are not merely built there, they are
+ * absorbed there, and the rest of the world receives several times more than it
+ * builds. That is the opposite of a supply problem, which is exactly the point.
+ *
+ * Never let one of these be relabelled as the other. "Shipped from" and
+ * "deployed into" are different claims and only the second is our thesis.
+ *
+ * Both source figures say "more than", so both percentages here are stated
+ * conservatively at the floor rather than rounded up.
  */
 export const humanoidShare = {
   period: "H1 2026",
+  /** The supply figure — who built them. The headline, by owner decision. */
   headline: "97 of 100",
   chineseVendorSharePct: 97,
   restOfWorldSharePct: 3,
+  /** The demand figure — where the robots went. Charted beneath the headline. */
+  chinaDemandSharePct: 85,
+  /**
+   * Derived from the demand share, so stated as a ceiling rather than a
+   * quantity: the source says China took "more than 85%", which makes everyone
+   * else "under 15%" rather than exactly 15%.
+   */
+  restOfWorldDemandSharePct: 15,
   /** Global shipments in the half-year, and the same half a year earlier. */
   globalUnits: 19_100,
   priorPeriodUnits: 5_100,
   growthPct: 272,
   /** Derived: 3% of global shipments. Rounded, and labelled as derived. */
   restOfWorldUnits: 570,
-  chinaDemandSharePct: 85,
   leaders: [
     { name: "AgiBot", units: 8_400, sharePct: 44 },
     { name: "Unitree", units: 5_900, sharePct: 31 },
