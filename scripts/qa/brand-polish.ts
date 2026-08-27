@@ -194,7 +194,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/pricing",
     expectedHeading: "Free to evaluate. You pay when a robot is working.",
     requiredCtas: [
-      { label: "Submit a site task", hrefStartsWith: "/signup/business" },
+      { label: "Submit a job", hrefStartsWith: "/signup/business" },
       { label: "Join as a robot team", hrefStartsWith: "/signup/business" },
     ],
   },
@@ -243,7 +243,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/faq",
     expectedHeading: "We find the robot that can do the job, then help you deploy it.",
     requiredCtas: [
-      { label: "Submit a site task", hrefStartsWith: "/signup/business" },
+      { label: "Submit a job", hrefStartsWith: "/signup/business" },
     ],
   },
   {
@@ -268,7 +268,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     path: "/for-site-operators",
     canonicalPath: "/for-site-operators",
     expectedHeading: "Show us the job. We find the robot that can do it.",
-    requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
+    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "For robot teams",
@@ -282,14 +282,14 @@ export const publicQaRoutes: PublicQaRoute[] = [
     path: "/governance",
     canonicalPath: "/governance",
     expectedHeading: "Robot teams test your site without ever getting your site.",
-    requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
+    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "The capture visit",
     path: "/capture-visit",
     canonicalPath: "/capture-visit",
     expectedHeading: "We come to you. One access window. Nothing left behind.",
-    requiredCtas: [{ label: "Submit a site task", hrefStartsWith: "/signup/business" }],
+    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
   },
   {
     label: "Site-task intake",
