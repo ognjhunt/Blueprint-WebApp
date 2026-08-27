@@ -152,6 +152,12 @@ const immutableRef = (name: string, character = "f") => ({
   size_bytes: 128,
 });
 
+const pipelineReference = (reference: Record<string, unknown>) => ({
+  digest: reference.digest,
+  size_bytes: reference.size_bytes,
+  uri: reference.uri,
+});
+
 function configuredSceneOffering() {
   const thumbnailBytes = Buffer.from("exact-selected-frame");
   const thumbnail = {
@@ -845,8 +851,9 @@ describe("admin Task Evaluation launch route", () => {
       // preparation correctly targets the currently deployed commit B.
       request.expected_production_commit = "b".repeat(40);
       request.scene.identity = own.scene_identity;
-      request.scene.configured_revision =
-        own.evaluation_preparation_binding.configured_scene_revision;
+      request.scene.configured_revision = pipelineReference(
+        own.evaluation_preparation_binding.configured_scene_revision,
+      );
       request.task.identity = own.task.identity;
       request.task.kind = own.task.kind;
       request.task.strategy = own.task.strategy;
@@ -885,8 +892,9 @@ describe("admin Task Evaluation launch route", () => {
     const request = evaluationPreparationInput();
     request.expected_production_commit = "b".repeat(40);
     request.scene.identity = offering.scene_identity;
-    request.scene.configured_revision =
-      offering.evaluation_preparation_binding.configured_scene_revision;
+    request.scene.configured_revision = pipelineReference(
+      offering.evaluation_preparation_binding.configured_scene_revision,
+    );
     request.task.identity = offering.task.identity;
     request.task.kind = offering.task.kind;
     request.task.strategy = offering.task.strategy;
@@ -1885,6 +1893,10 @@ describe("admin Task Evaluation launch route", () => {
     const offering = configuredSceneOffering();
     offering.configuration_run_id = "run-001";
     offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    // Pipeline seals the terminal receipt with canonical JSON, so its artifact
+    // reference keys arrive alphabetically even though Zod reconstructs the
+    // embedded offering references in schema order. Binding is about the exact
+    // fields and values, not their object insertion order.
     const receipt: Record<string, any> = {
       schema_version: "task_evaluation_launch_receipt.v1",
       status: "completed",
@@ -1902,13 +1914,18 @@ describe("admin Task Evaluation launch route", () => {
         scene_configuration: {
           configured_scene_revision_digest:
             offering.evaluation_preparation_binding.configured_scene_revision_digest,
-          configured_scene_revision_reference:
+          configured_scene_revision_reference: pipelineReference(
             offering.evaluation_preparation_binding.configured_scene_revision,
-          configured_scene_bundle_reference:
+          ),
+          configured_scene_bundle_reference: pipelineReference(
             offering.evaluation_preparation_binding.configured_scene_bundle,
-          task_thumbnail_reference: offering.presentation.task_thumbnail,
-          task_thumbnail_selection_receipt_reference:
+          ),
+          task_thumbnail_reference: pipelineReference(
+            offering.presentation.task_thumbnail,
+          ),
+          task_thumbnail_selection_receipt_reference: pipelineReference(
             offering.presentation.selection_receipt,
+          ),
           configured_scene_offering: offering,
         },
       },
