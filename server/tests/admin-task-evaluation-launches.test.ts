@@ -2014,13 +2014,13 @@ describe("admin Task Evaluation launch route", () => {
         team_namespace: "robot-team-001",
         scene_id: "interiorgs-839873",
         task_id: "planar-mug-push",
-        configuration_run_id: "run-001",
+        configuration_run_id: "configuration-run-001",
         evaluation_episode_executed: false,
       },
       state: "queued_in_pipeline",
     });
     const offering = configuredSceneOffering();
-    offering.configuration_run_id = "run-001";
+    offering.configuration_run_id = "configuration-run-001";
     offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
     // Pipeline seals the terminal receipt with canonical JSON, so its artifact
     // reference keys arrive alphabetically even though Zod reconstructs the
@@ -2128,6 +2128,47 @@ describe("admin Task Evaluation launch route", () => {
       expect(state.records.get("launch-missing-offering")?.terminal_receipt)
         .toBeUndefined();
 
+      state.records.set("launch-blocked", {
+        launch_id: "launch-blocked",
+        run_id: "run-blocked",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        configured_scene_context: {
+          run_mode: "scene_configuration",
+          team_namespace: "robot-team-001",
+          scene_id: "interiorgs-839873",
+          task_id: "planar-mug-push",
+          configuration_run_id: "configuration-run-blocked",
+          evaluation_episode_executed: false,
+        },
+        state: "queued_in_pipeline",
+      });
+      const blocked = structuredClone(receipt);
+      blocked.launch_id = "launch-blocked";
+      blocked.run_id = "run-blocked";
+      blocked.status = "blocked";
+      blocked.allocator_exit_code = 2;
+      blocked.terminal_evidence.status = "failed";
+      delete blocked.terminal_evidence.scene_configuration;
+      blocked.blockers = ["provider_refused"];
+      blocked.receipt_digest = canonicalArtifactDigest(blocked, "receipt_digest");
+      const blockedTerminalResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(blocked),
+      });
+      expect(blockedTerminalResponse.status).toBe(201);
+      expect(state.records.get("launch-blocked")).toMatchObject({
+        state: "blocked",
+        terminal_receipt_digest: blocked.receipt_digest,
+        terminal_receipt: {
+          status: "blocked",
+          blockers: ["provider_refused"],
+        },
+      });
+      expect(state.records.get("launch-blocked")?.configured_scene_offering)
+        .toBeUndefined();
+
       state.records.set("launch-invalid", {
         launch_id: "launch-invalid",
         run_id: "run-invalid",
@@ -2194,6 +2235,15 @@ describe("admin Task Evaluation launch route", () => {
         launch_id: "launch-wrong-run",
         run_id: "run-wrong-run",
         request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        configured_scene_context: {
+          run_mode: "scene_configuration",
+          team_namespace: "robot-team-001",
+          scene_id: "interiorgs-839873",
+          task_id: "planar-mug-push",
+          configuration_run_id: "configuration-run-other",
+          evaluation_episode_executed: false,
+        },
         state: "queued_in_pipeline",
       });
       const wrongRun = structuredClone(receipt);
@@ -2205,7 +2255,7 @@ describe("admin Task Evaluation launch route", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(wrongRun),
       });
-      expect(wrongRunResponse.status).toBe(400);
+      expect(wrongRunResponse.status).toBe(409);
       expect(state.records.get("launch-wrong-run")?.configured_scene_offering).toBeUndefined();
 
       state.records.set("launch-wrong-team", {

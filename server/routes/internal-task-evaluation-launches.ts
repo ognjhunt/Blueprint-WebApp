@@ -123,9 +123,20 @@ router.post(
         );
         const configuredSceneExpected =
           existing.configured_scene_context?.run_mode === "scene_configuration";
-        if (configuredSceneExpected && !offering) return "configured_scene_offering_missing";
+        const completedConfiguredSceneExpected = configuredSceneExpected
+          && receipt.status === "completed";
+        if (completedConfiguredSceneExpected && !offering) {
+          return "configured_scene_offering_missing";
+        }
         if (!configuredSceneExpected && offering) return "binding_mismatch";
-        if (offering && offering.team_namespace !== expectedTeamNamespace) {
+        if (
+          offering
+          && (
+            offering.team_namespace !== expectedTeamNamespace
+            || offering.configuration_run_id
+              !== existing.configured_scene_context?.configuration_run_id
+          )
+        ) {
           return "binding_mismatch";
         }
         if (existing.terminal_receipt) {

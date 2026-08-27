@@ -161,20 +161,19 @@ export function parseConfiguredSceneOfferingFromLaunchReceipt(receipt: Record<st
     || !Array.isArray(receipt.blockers)
     || receipt.blockers.length !== 0
     || (terminalEvidence as Record<string, unknown>).status !== "passed"
-  ) return {
-    ok: false as const,
-    blockers: ["configured_scene_offering_terminal_status_invalid"],
-  };
+  ) {
+    if (scene.configured_scene_offering !== undefined) return {
+      ok: false as const,
+      blockers: ["configured_scene_offering_terminal_status_invalid"],
+    };
+    return { ok: true as const, offering: null };
+  }
   const parsed = configuredSceneOfferingSchema.safeParse(scene.configured_scene_offering);
   if (!parsed.success) return {
     ok: false as const,
     blockers: ["configured_scene_offering_invalid"],
   };
   const offering = parsed.data;
-  if (offering.configuration_run_id !== receipt.run_id) return {
-    ok: false as const,
-    blockers: ["configured_scene_offering_run_binding_mismatch"],
-  };
   const binding = offering.evaluation_preparation_binding;
   const presentation = offering.presentation;
   if (
