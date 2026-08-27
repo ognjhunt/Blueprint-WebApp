@@ -57,6 +57,14 @@ export const publishedLaunchProfileSchema = z.object({
     max_spend_usd: z.number().positive().finite(),
     hard_ttl_seconds: z.number().int().positive(),
   }).strict().optional(),
+  task_evaluation_run: z.object({
+    run_mode: z.literal("scene_configuration"),
+    team_namespace: identifier,
+    scene_id: identifier,
+    task_id: identifier,
+    configuration_run_id: identifier,
+    evaluation_episode_executed: z.literal(false),
+  }).strict().optional(),
 }).strict();
 
 export const taskEvaluationLaunchInputSchema = z.object({

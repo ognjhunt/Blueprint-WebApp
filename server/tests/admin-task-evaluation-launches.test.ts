@@ -5,18 +5,22 @@ import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CANONICAL_TASK_EVALUATION_ALLOCATOR } from "../utils/taskEvaluationLaunchContract";
+import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   buildTaskEvaluationLaunchSubmissionSignature,
   TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
 } from "../utils/taskEvaluationLaunchSubmissionAuth";
+import pipelineConfiguredSceneOffering from "./fixtures/pipeline-configured-scene-offering.v1.json";
 
 const realFetch = globalThis.fetch.bind(globalThis);
 const LAUNCH_SUBMIT_SECRET = "task-evaluation-launch-submit-secret-0123456789abcdef";
 
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
+  blobs: new Map<string, Buffer>(),
   hangTransaction: false,
+  isOps: true,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
@@ -34,7 +38,21 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   });
   return {
     dbAdmin: {
-      collection: () => ({ doc: reference }),
+      collection: () => ({
+        doc: reference,
+        where: (field: string, _operator: string, value: unknown) => ({
+          limit: () => ({
+            get: async () => ({
+              docs: Array.from(state.records.entries())
+                .filter(([, record]) => record[field] === value)
+                .map(([id, record]) => ({
+                  id,
+                  data: () => structuredClone(record),
+                })),
+            }),
+          }),
+        }),
+      }),
       runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => {
         if (state.hangTransaction) return new Promise<T>(() => undefined);
         return callback({
@@ -50,6 +68,17 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
         });
       },
     },
+    storageAdmin: {
+      bucket: (bucket: string) => ({
+        file: (objectPath: string) => ({
+          download: async () => {
+            const value = state.blobs.get(`${bucket}/${objectPath}`);
+            if (!value) throw new Error("fixture_blob_missing");
+            return [value];
+          },
+        }),
+      }),
+    },
   };
 });
 
@@ -57,7 +86,7 @@ vi.mock("../utils/access-control", () => ({
   hasAnyRole: async () => true,
   resolveAccessContext: async () => ({
     uid: "founder-001", email: "founder@example.com", roles: ["admin"],
-    isAdmin: true, isOps: true,
+    isAdmin: state.isOps, isOps: state.isOps,
   }),
 }));
 
@@ -121,6 +150,86 @@ const immutableRef = (name: string, character = "f") => ({
   uri: `s3://blueprint-inputs/${name}.json`,
   digest: sha(character),
   size_bytes: 128,
+});
+
+function configuredSceneOffering() {
+  const thumbnailBytes = Buffer.from("exact-selected-frame");
+  const thumbnail = {
+    uri: `s3://blueprint-inputs/blueprint/arm-decision-proof-v1/configured-scenes/team/thumbnail/sha256/${crypto.createHash("sha256").update(thumbnailBytes).digest("hex")}/task-thumbnail.png`,
+    digest: `sha256:${crypto.createHash("sha256").update(thumbnailBytes).digest("hex")}`,
+    size_bytes: thumbnailBytes.byteLength,
+  };
+  const revision = immutableRef("configured/revision", "c");
+  const bundle = immutableRef("configured/bundle", "d");
+  const offering: Record<string, any> = {
+    schema_version: "task_evaluation_configured_scene_offering.v1",
+    status: "launch_ready",
+    configuration_run_id: "scene-run-001",
+    team_namespace: "robot-team-001",
+    catalog_visibility: "team_only",
+    scene_identity: { id: "public-scene-001", version: "v1" },
+    task: {
+      identity: { id: "rigid-relocation", version: "v1" },
+      kind: "rigid_relocation",
+      strategy: "planar_push",
+      subject_identity: { id: "source-mug-replacement", version: "v1" },
+    },
+    presentation: {
+      task_thumbnail: thumbnail,
+      selection_receipt: immutableRef("configured/thumbnail-selection", "f"),
+      selection: {
+        camera_id: "camera-03",
+        frame_digest: thumbnail.digest,
+        rationale: "Upright wide view with the task surface visible.",
+        reviewer: {
+          kind: "ai",
+          identity: "artifixer-independent-vision-reviewer-v1",
+          runtime: "openai_agents_sdk",
+          model: "gpt-5.4",
+        },
+      },
+      selected_from_exact_reviewed_frame_count: 8,
+      derived_appearance_evidence: true,
+      capture_or_physical_evidence: false,
+      image_bytes_modified_after_selection: false,
+    },
+    evaluation_preparation_binding: {
+      scene_mode: "reuse_configured_revision",
+      construction_mode: "reuse_configured_scene",
+      task_binding_mode: "reuse_configured_template",
+      configuration_source_commit: "a".repeat(40),
+      configured_scene_revision: revision,
+      configured_scene_revision_digest: sha("8"),
+      configured_scene_bundle: bundle,
+    },
+    proof_boundary: {
+      thumbnail_is_derived_appearance_evidence: true,
+      thumbnail_is_capture_or_physical_evidence: false,
+      configuration_is_policy_evaluation: false,
+      configuration_is_deployment_or_safety_approval: false,
+    },
+    offering_digest: "",
+  };
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return offering;
+}
+
+it("refuses an offering whose thumbnail cannot cross the private proxy ceiling", () => {
+  const oversized = configuredSceneOffering();
+  oversized.presentation.task_thumbnail.size_bytes = 16 * 1024 * 1024 + 1;
+  oversized.offering_digest = canonicalArtifactDigest(oversized, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(oversized).success).toBe(false);
+});
+
+it("refuses launch-ready offerings with unreachable artifact schemes", () => {
+  const unreachable = configuredSceneOffering();
+  unreachable.presentation.task_thumbnail.uri = "file:///tmp/task-thumbnail.png";
+  unreachable.offering_digest = canonicalArtifactDigest(unreachable, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(unreachable).success).toBe(false);
+});
+
+it("accepts the exact configured-scene offering shape emitted by Pipeline", () => {
+  expect(configuredSceneOfferingSchema.safeParse(pipelineConfiguredSceneOffering).success).toBe(true);
 });
 
 function preparationInput() {
@@ -397,6 +506,25 @@ async function startInternalServer(): Promise<{ server: Server; url: string }> {
   return { server, url: `http://127.0.0.1:${address.port}` };
 }
 
+async function startTeamOfferingServer(): Promise<{ server: Server; url: string }> {
+  const { default: router } = await import("../routes/configured-scene-offerings");
+  const app = express();
+  app.use(express.json());
+  app.use((_req, res, next) => {
+    res.locals.firebaseUser = {
+      uid: "team-member-001",
+      tenantId: "robot-team-001",
+    };
+    next();
+  });
+  app.use(router);
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("server address unavailable");
+  return { server, url: `http://127.0.0.1:${address.port}` };
+}
+
 async function startSubmissionServer(): Promise<{ server: Server; url: string }> {
   const { default: router } = await import("../routes/internal-task-evaluation-launch-submissions");
   const app = express();
@@ -452,7 +580,9 @@ function signedSubmissionHeaders(body: string, idempotencyKey = "launch-001") {
 
 beforeEach(() => {
   state.records.clear();
+  state.blobs.clear();
   state.hangTransaction = false;
+  state.isOps = true;
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
   process.env.TASK_EVALUATION_LAUNCH_URL = "https://pipeline.example/launches";
   process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "forward-secret";
@@ -466,6 +596,12 @@ beforeEach(() => {
         schema_version: "task_evaluation_launch_profile_catalog.v1",
         profiles: [profile()],
       }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url === "https://pipeline.example/task-evaluation-configured-scene-artifact-readback") {
+      return new Response(Buffer.from("exact-selected-frame"), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
     }
     if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations") {
       const request = JSON.parse(String(init?.body || "{}"));
@@ -671,6 +807,144 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("isolates the launch-ready offering catalog to the authenticated team", async () => {
+    state.isOps = false;
+    const own = configuredSceneOffering();
+    const other = configuredSceneOffering();
+    other.team_namespace = "other-team";
+    other.offering_digest = canonicalArtifactDigest(other, "offering_digest");
+    state.records.set("own-launch", {
+      configured_scene_offering_state: "launch_ready",
+      configured_scene_offering_team_namespace: own.team_namespace,
+      configured_scene_offering_digest: own.offering_digest,
+      configured_scene_offering: own,
+    });
+    state.records.set("other-launch", {
+      configured_scene_offering_state: "launch_ready",
+      configured_scene_offering_team_namespace: other.team_namespace,
+      configured_scene_offering_digest: other.offering_digest,
+      configured_scene_offering: other,
+    });
+    state.blobs.set("blueprint-inputs/configured/task-thumbnail.png", Buffer.from("exact-selected-frame"));
+    const { server, url } = await startTeamOfferingServer();
+    try {
+      const response = await fetch(url);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        scope: "verified_team",
+        offerings: [{ source_launch_id: "own-launch", team_namespace: "robot-team-001" }],
+      });
+      const denied = await fetch(`${url}/other-launch/thumbnail`);
+      expect(denied.status).toBe(404);
+      const thumbnail = await fetch(`${url}/own-launch/thumbnail`);
+      expect(thumbnail.status).toBe(200);
+      expect(Buffer.from(await thumbnail.arrayBuffer())).toEqual(Buffer.from("exact-selected-frame"));
+
+      const request = evaluationPreparationInput();
+      // The offering was configured at commit A, while this future evaluator
+      // preparation correctly targets the currently deployed commit B.
+      request.expected_production_commit = "b".repeat(40);
+      request.scene.identity = own.scene_identity;
+      request.scene.configured_revision =
+        own.evaluation_preparation_binding.configured_scene_revision;
+      request.task.identity = own.task.identity;
+      request.task.kind = own.task.kind;
+      request.task.strategy = own.task.strategy;
+      request.task.subject.identity = own.task.subject_identity;
+      request.task.configured_scene_revision_digest =
+        own.evaluation_preparation_binding.configured_scene_revision_digest;
+      const queued = await fetch(`${url}/own-launch/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      expect(queued.status).toBe(202);
+      expect(state.records.get(request.preparation_id)).toMatchObject({
+        submission: { actor_role: "team_member" },
+        configured_scene_offering_binding: {
+          source_launch_id: "own-launch",
+          offering_digest: own.offering_digest,
+          configured_scene_bundle_digest:
+            own.evaluation_preparation_binding.configured_scene_bundle.digest,
+          task_thumbnail_digest: own.presentation.task_thumbnail.digest,
+        },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("browses an accepted offering and starts only its exact configured revision", async () => {
+    const offering = configuredSceneOffering();
+    state.records.set("scene-launch-001", {
+      configured_scene_offering_state: "launch_ready",
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    state.blobs.set("blueprint-inputs/configured/task-thumbnail.png", Buffer.from("exact-selected-frame"));
+    const request = evaluationPreparationInput();
+    request.expected_production_commit = "b".repeat(40);
+    request.scene.identity = offering.scene_identity;
+    request.scene.configured_revision =
+      offering.evaluation_preparation_binding.configured_scene_revision;
+    request.task.identity = offering.task.identity;
+    request.task.kind = offering.task.kind;
+    request.task.strategy = offering.task.strategy;
+    request.task.subject.identity = offering.task.subject_identity;
+    request.task.configured_scene_revision_digest =
+      offering.evaluation_preparation_binding.configured_scene_revision_digest;
+    const { server, url } = await startServer();
+    try {
+      const catalog = await fetch(`${url}/configured-scene-offerings`);
+      expect(catalog.status).toBe(200);
+      await expect(catalog.json()).resolves.toMatchObject({
+        schema_version: "task_evaluation_configured_scene_offering_catalog.v1",
+        offerings: [{
+          source_launch_id: "scene-launch-001",
+          offering_digest: offering.offering_digest,
+          presentation: {
+            thumbnail_url:
+              "/api/admin/task-evaluation-launches/configured-scene-offerings/scene-launch-001/thumbnail",
+          },
+        }],
+      });
+      const thumbnail = await fetch(`${url}/configured-scene-offerings/scene-launch-001/thumbnail`);
+      expect(thumbnail.status).toBe(200);
+      expect(Buffer.from(await thumbnail.arrayBuffer())).toEqual(Buffer.from("exact-selected-frame"));
+
+      const queued = await fetch(`${url}/configured-scene-offerings/scene-launch-001/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      expect(queued.status).toBe(202);
+      expect(state.records.get(request.preparation_id)).toMatchObject({
+        configured_scene_offering_binding: {
+          source_launch_id: "scene-launch-001",
+          offering_digest: offering.offering_digest,
+          configured_scene_revision_digest:
+            offering.evaluation_preparation_binding.configured_scene_revision_digest,
+          configured_scene_bundle_digest:
+            offering.evaluation_preparation_binding.configured_scene_bundle.digest,
+          task_thumbnail_digest: offering.presentation.task_thumbnail.digest,
+        },
+      });
+
+      const mismatched = structuredClone(request);
+      mismatched.preparation_id = "prep-mismatch";
+      mismatched.scene.configured_revision.digest = sha("9");
+      const refused = await fetch(`${url}/configured-scene-offerings/scene-launch-001/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mismatched),
+      });
+      expect(refused.status).toBe(409);
+      expect(state.records.has("prep-mismatch")).toBe(false);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("durably stages discovery, exposes candidates, and seals only an eligible selection", async () => {
     const { server, url } = await startServer();
     const input = discoveryInput();
@@ -1546,6 +1820,7 @@ describe("admin Task Evaluation launch route", () => {
       launch_id: "launch-001",
       run_id: "run-001",
       request_digest: requestDigest,
+      team_namespace: "robot-team-001",
       state: "control_plane_terminal_blocked",
       control_plane_terminal_blocker: {
         code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
@@ -1585,6 +1860,222 @@ describe("admin Task Evaluation launch route", () => {
         terminal_receipt: { terminal_evidence: { status: "passed" } },
         control_plane_terminal_blocker: { execution_result: "not_observed" },
       });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("atomically publishes only a fully bound configured-scene offering", async () => {
+    const requestDigest = sha("a");
+    state.records.set("launch-001", {
+      launch_id: "launch-001",
+      run_id: "run-001",
+      request_digest: requestDigest,
+      team_namespace: "robot-team-001",
+      state: "queued_in_pipeline",
+    });
+    const offering = configuredSceneOffering();
+    offering.configuration_run_id = "run-001";
+    offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    const receipt: Record<string, any> = {
+      schema_version: "task_evaluation_launch_receipt.v1",
+      status: "completed",
+      launch_id: "launch-001",
+      run_id: "run-001",
+      request_digest: requestDigest,
+      launch_profile_digest: sha("b"),
+      binding_digest: sha("c"),
+      canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+      allocator_exit_code: 0,
+      execute_requested: true,
+      provider_mutation_attempted: true,
+      terminal_evidence: {
+        status: "passed",
+        scene_configuration: {
+          configured_scene_revision_digest:
+            offering.evaluation_preparation_binding.configured_scene_revision_digest,
+          configured_scene_revision_reference:
+            offering.evaluation_preparation_binding.configured_scene_revision,
+          configured_scene_bundle_reference:
+            offering.evaluation_preparation_binding.configured_scene_bundle,
+          task_thumbnail_reference: offering.presentation.task_thumbnail,
+          task_thumbnail_selection_receipt_reference:
+            offering.presentation.selection_receipt,
+          configured_scene_offering: offering,
+        },
+      },
+      blockers: [],
+      raw_secret_values_recorded: false,
+      agent_operator_used: false,
+      claim_ceiling: "development_only",
+    };
+    receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+    const { server, url } = await startInternalServer();
+    try {
+      const response = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(receipt),
+      });
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        configured_scene_offering_digest: offering.offering_digest,
+        configured_scene_offering_status: "launch_ready",
+      });
+      expect(state.records.get("launch-001")).toMatchObject({
+        state: "completed",
+        configured_scene_offering_state: "launch_ready",
+        configured_scene_offering_digest: offering.offering_digest,
+        configured_scene_offering: {
+          presentation: {
+            task_thumbnail: offering.presentation.task_thumbnail,
+          },
+          evaluation_preparation_binding: {
+            configured_scene_revision:
+              offering.evaluation_preparation_binding.configured_scene_revision,
+            configured_scene_bundle:
+              offering.evaluation_preparation_binding.configured_scene_bundle,
+          },
+        },
+      });
+
+      state.records.set("launch-invalid", {
+        launch_id: "launch-invalid",
+        run_id: "run-invalid",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        state: "queued_in_pipeline",
+      });
+      const invalidReceipt = structuredClone(receipt);
+      invalidReceipt.launch_id = "launch-invalid";
+      invalidReceipt.run_id = "run-invalid";
+      invalidReceipt.terminal_evidence.scene_configuration.configured_scene_offering
+        .presentation.task_thumbnail.digest = sha("9");
+      invalidReceipt.receipt_digest = canonicalArtifactDigest(invalidReceipt, "receipt_digest");
+      const refused = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(invalidReceipt),
+      });
+      expect(refused.status).toBe(400);
+      expect(state.records.get("launch-invalid")).toEqual({
+        launch_id: "launch-invalid",
+        run_id: "run-invalid",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        state: "queued_in_pipeline",
+      });
+
+      state.records.set("launch-wrong-selection", {
+        launch_id: "launch-wrong-selection",
+        run_id: "run-wrong-selection",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        state: "queued_in_pipeline",
+      });
+      const wrongSelection = structuredClone(receipt);
+      wrongSelection.launch_id = "launch-wrong-selection";
+      wrongSelection.run_id = "run-wrong-selection";
+      const wrongSelectionOffering = wrongSelection.terminal_evidence.scene_configuration
+        .configured_scene_offering;
+      wrongSelectionOffering.configuration_run_id = "run-wrong-selection";
+      wrongSelectionOffering.offering_digest = canonicalArtifactDigest(
+        wrongSelectionOffering,
+        "offering_digest",
+      );
+      wrongSelection.terminal_evidence.scene_configuration
+        .task_thumbnail_selection_receipt_reference = immutableRef(
+          "wrong-selection-receipt",
+          "9",
+        );
+      wrongSelection.receipt_digest = canonicalArtifactDigest(
+        wrongSelection,
+        "receipt_digest",
+      );
+      const wrongSelectionResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(wrongSelection),
+      });
+      expect(wrongSelectionResponse.status).toBe(400);
+      expect(state.records.get("launch-wrong-selection")?.configured_scene_offering)
+        .toBeUndefined();
+
+      state.records.set("launch-wrong-run", {
+        launch_id: "launch-wrong-run",
+        run_id: "run-wrong-run",
+        request_digest: requestDigest,
+        state: "queued_in_pipeline",
+      });
+      const wrongRun = structuredClone(receipt);
+      wrongRun.launch_id = "launch-wrong-run";
+      wrongRun.run_id = "run-wrong-run";
+      wrongRun.receipt_digest = canonicalArtifactDigest(wrongRun, "receipt_digest");
+      const wrongRunResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(wrongRun),
+      });
+      expect(wrongRunResponse.status).toBe(400);
+      expect(state.records.get("launch-wrong-run")?.configured_scene_offering).toBeUndefined();
+
+      state.records.set("launch-wrong-team", {
+        launch_id: "launch-wrong-team",
+        run_id: "run-wrong-team",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        state: "queued_in_pipeline",
+      });
+      const wrongTeam = structuredClone(receipt);
+      wrongTeam.launch_id = "launch-wrong-team";
+      wrongTeam.run_id = "run-wrong-team";
+      const wrongTeamOffering = wrongTeam.terminal_evidence.scene_configuration
+        .configured_scene_offering;
+      wrongTeamOffering.configuration_run_id = "run-wrong-team";
+      wrongTeamOffering.team_namespace = "other-team";
+      wrongTeamOffering.offering_digest = canonicalArtifactDigest(
+        wrongTeamOffering,
+        "offering_digest",
+      );
+      wrongTeam.receipt_digest = canonicalArtifactDigest(wrongTeam, "receipt_digest");
+      const wrongTeamResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(wrongTeam),
+      });
+      expect(wrongTeamResponse.status).toBe(409);
+      expect(state.records.get("launch-wrong-team")?.configured_scene_offering).toBeUndefined();
+
+      state.records.set("launch-blocked-offering", {
+        launch_id: "launch-blocked-offering",
+        run_id: "run-blocked-offering",
+        request_digest: requestDigest,
+        team_namespace: "robot-team-001",
+        state: "queued_in_pipeline",
+      });
+      const blockedOffering = structuredClone(receipt);
+      blockedOffering.launch_id = "launch-blocked-offering";
+      blockedOffering.run_id = "run-blocked-offering";
+      blockedOffering.status = "blocked";
+      blockedOffering.blockers = ["provider_refused"];
+      const blockedEmbeddedOffering = blockedOffering.terminal_evidence
+        .scene_configuration.configured_scene_offering;
+      blockedEmbeddedOffering.configuration_run_id = "run-blocked-offering";
+      blockedEmbeddedOffering.offering_digest = canonicalArtifactDigest(
+        blockedEmbeddedOffering,
+        "offering_digest",
+      );
+      blockedOffering.receipt_digest = canonicalArtifactDigest(
+        blockedOffering,
+        "receipt_digest",
+      );
+      const blockedResponse = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(blockedOffering),
+      });
+      expect(blockedResponse.status).toBe(400);
+      expect(state.records.get("launch-blocked-offering")?.configured_scene_offering).toBeUndefined();
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

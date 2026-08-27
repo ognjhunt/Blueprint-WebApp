@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configuredSceneOfferingContract";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import {
   parseTaskEvaluationLaunchProgress,
@@ -34,6 +35,14 @@ router.post(
       blockers: parsed.blockers,
     });
     const receipt = parsed.receipt;
+    const configuredSceneOffering = parseConfiguredSceneOfferingFromLaunchReceipt(
+      receipt as unknown as Record<string, unknown>,
+    );
+    if (!configuredSceneOffering.ok) return res.status(400).json({
+      error: "Configured scene offering is invalid",
+      blockers: configuredSceneOffering.blockers,
+    });
+    const offering = configuredSceneOffering.offering;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
     type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch" | "immutable_conflict";
     let outcome: Outcome;
@@ -46,8 +55,17 @@ router.post(
           existing.request_digest !== receipt.request_digest
           || existing.run_id !== receipt.run_id
         ) return "binding_mismatch";
+        const expectedTeamNamespace = String(
+          existing.team_namespace || existing.request?.team_namespace || "",
+        );
+        if (offering && offering.team_namespace !== expectedTeamNamespace) {
+          return "binding_mismatch";
+        }
         if (existing.terminal_receipt) {
-          return existing.terminal_receipt.receipt_digest === receipt.receipt_digest
+          const sameOffering = offering
+            ? existing.configured_scene_offering_digest === offering.offering_digest
+            : existing.configured_scene_offering_digest === undefined;
+          return existing.terminal_receipt.receipt_digest === receipt.receipt_digest && sameOffering
             ? "replayed"
             : "immutable_conflict";
         }
@@ -57,6 +75,12 @@ router.post(
           terminal_receipt_digest: receipt.receipt_digest,
           provider_mutation_observed: receipt.provider_mutation_attempted,
           terminal_updated_at_iso: new Date().toISOString(),
+          ...(offering ? {
+            configured_scene_offering: offering,
+            configured_scene_offering_digest: offering.offering_digest,
+            configured_scene_offering_state: "launch_ready",
+            configured_scene_offering_team_namespace: offering.team_namespace,
+          } : {}),
         }, { merge: true });
         return "updated";
       });
@@ -75,6 +99,10 @@ router.post(
       run_id: receipt.run_id,
       request_digest: receipt.request_digest,
       receipt_digest: receipt.receipt_digest,
+      ...(offering ? {
+        configured_scene_offering_digest: offering.offering_digest,
+        configured_scene_offering_status: "launch_ready",
+      } : {}),
     });
   },
 );

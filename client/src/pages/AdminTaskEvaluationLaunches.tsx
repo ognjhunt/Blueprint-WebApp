@@ -5,6 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
+  bindConfiguredSceneOfferingToPreparation,
+  type ConfiguredSceneOfferingCard,
+} from "@/lib/configuredSceneOffering";
+import {
   resolveTaskEvaluationLaunchLabToken,
   withTaskEvaluationLaunchLabHeader,
 } from "@/lib/taskEvaluationLaunchLabAccess";
@@ -158,6 +162,8 @@ export default function AdminTaskEvaluationLaunches() {
   const { currentUser } = useAuth();
   const [launchLabToken] = useState(resolveTaskEvaluationLaunchLabToken);
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
+  const [configuredSceneOfferings, setConfiguredSceneOfferings] = useState<ConfiguredSceneOfferingCard[]>([]);
+  const [configuredSceneOfferingLaunchId, setConfiguredSceneOfferingLaunchId] = useState("");
   const [profileKey, setProfileKey] = useState("");
   const [launchId, setLaunchId] = useState("");
   const [runId, setRunId] = useState("");
@@ -236,6 +242,15 @@ export default function AdminTaskEvaluationLaunches() {
       throw new Error(payload.code || payload.error || "Published Pipeline launch profiles are unavailable");
     }
     setProfiles(payload.profiles || []);
+    const offeringsResponse = await fetchWithTimeout(
+      "/api/admin/task-evaluation-launches/configured-scene-offerings",
+      { headers: await authHeaders(), credentials: "include" },
+    );
+    const offeringsPayload = await offeringsResponse.json().catch(() => ({}));
+    if (!offeringsResponse.ok) throw new Error(
+      offeringsPayload.code || offeringsPayload.error || "Configured scene offerings are unavailable",
+    );
+    setConfiguredSceneOfferings(offeringsPayload.offerings || []);
     setError(null);
     try {
       const supervisionResponse = await fetchWithTimeout(
@@ -378,7 +393,9 @@ export default function AdminTaskEvaluationLaunches() {
       if (!id) throw new Error("Preparation JSON must include preparation_id.");
       setPreparationId(id);
       const response = await fetchWithTimeout(
-        "/api/admin/task-evaluation-launches/preparations",
+        configuredSceneOfferingLaunchId
+          ? `/api/admin/task-evaluation-launches/configured-scene-offerings/${encodeURIComponent(configuredSceneOfferingLaunchId)}/preparations`
+          : "/api/admin/task-evaluation-launches/preparations",
         {
           method: "POST",
           headers: await authHeaders(true),
@@ -394,6 +411,24 @@ export default function AdminTaskEvaluationLaunches() {
       setPreparationError(reason instanceof Error ? reason.message : "Preparation was blocked");
     } finally {
       setPreparing(false);
+    }
+  }
+
+  function bindOfferingToPreparation(offering: ConfiguredSceneOfferingCard) {
+    try {
+      const draft = preparationJson.trim()
+        ? JSON.parse(preparationJson) as Record<string, any>
+        : {};
+      const bound = bindConfiguredSceneOfferingToPreparation(draft, offering);
+      setPreparationJson(JSON.stringify(bound, null, 2));
+      setConfiguredSceneOfferingLaunchId(offering.source_launch_id);
+      setPreparationError(null);
+      document.getElementById("task-evaluation-preparation-json")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    } catch (reason) {
+      setPreparationError(reason instanceof Error ? reason.message : "Offering could not be bound");
     }
   }
 
@@ -795,6 +830,74 @@ export default function AdminTaskEvaluationLaunches() {
               robot execution, or physical truth. Provider execution remains separately authority-gated.
             </p>
           </aside>
+        </section>
+
+        <section className="border border-stone-300 bg-white p-6 md:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                Team-only offerings
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold">Configured site-task testbeds</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+                A card appears automatically only after Pipeline seals the revision, bundle, selected frame,
+                and launch binding and the website accepts them in one terminal transaction. In-progress or
+                blocked configuration runs remain visible in launch status and cannot appear launch-ready here.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="border border-stone-300 px-4 py-2 text-sm font-medium"
+              onClick={() => void loadProfiles().catch((reason) => setError(String(reason)))}
+            >
+              <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh offerings
+            </button>
+          </div>
+          {configuredSceneOfferings.length ? (
+            <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {configuredSceneOfferings.map((offering) => (
+                <article
+                  key={offering.offering_digest}
+                  className="overflow-hidden border border-stone-300 bg-stone-50"
+                >
+                  <div className="flex aspect-video items-center justify-center bg-stone-200 px-5 text-center text-xs text-stone-600">
+                    Private thumbnail is rendered with authenticated bytes on the team Testbeds page.
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{offering.scene_identity.id}</p>
+                        <p className="mt-1 text-sm text-stone-600">
+                          {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
+                        </p>
+                      </div>
+                      <span className="bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                        Launch ready
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-stone-600">
+                      Camera {offering.presentation.selection.camera_id}: {offering.presentation.selection.rationale}
+                    </p>
+                    <p className="mt-3 text-[11px] leading-5 text-stone-500">
+                      Selected unchanged from exactly eight digest-bound rendered frames. Derived appearance
+                      evidence only; not capture truth, physical evidence, policy evaluation, or safety approval.
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-4 w-full bg-stone-950 px-4 py-3 text-sm font-semibold text-white"
+                      onClick={() => bindOfferingToPreparation(offering)}
+                    >
+                      Prepare a Task Evaluation Run
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-6 border border-dashed border-stone-300 p-5 text-sm text-stone-600">
+              No configuration run has completed the immutable publication and website acceptance gates yet.
+            </p>
+          )}
         </section>
 
         <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">

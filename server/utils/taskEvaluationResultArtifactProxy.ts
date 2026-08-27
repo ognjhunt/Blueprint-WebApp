@@ -26,14 +26,14 @@ export function configuredArtifactEndpoint(runId: string, artifactId: string) {
 
 export function signedPipelineHeaders(body = "") {
   const token = String(
-    process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
-      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
+      || process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
       || "",
   ).trim();
   if (!token) return null;
   const clientId = String(
-    process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID
-      || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID
+      || process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID
       || "blueprint-webapp",
   ).trim();
   const timestamp = new Date().toISOString();
