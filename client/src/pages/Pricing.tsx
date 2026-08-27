@@ -80,8 +80,8 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Deployment network pricing | Blueprint"
-        description="Sites and robot teams start free. The site pays a success fee only when a deployment produces collected provider revenue."
+        title="Pricing | Free to evaluate, paid when a robot is working"
+        description="Sites submit jobs free. Robot teams evaluate free. The site pays a success fee only after a deployment produces collected provider revenue."
         canonical="/pricing"
         jsonLd={[
           webPageJsonLd({
@@ -104,7 +104,7 @@ export default function Pricing() {
         body={pricingHero.body}
         chips={["$0 site submission", "$0 robot-team core", "5% success fee"]}
         ctaHref={siteHref}
-        ctaLabel="Submit a site task"
+        ctaLabel="Submit a job"
         secondaryHref={robotHref}
         secondaryLabel="Join as a robot team"
         imageSrc="/redesign/pov/factory-conveyor.jpg"
@@ -117,7 +117,7 @@ export default function Pricing() {
           <SectionHeader
             index="01"
             eyebrow="Start free"
-            title="Both sides can do the months 0–2 homework without a core platform fee."
+            title="Both sides get through months 0–2 without a platform fee."
             onInk
           />
           <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
@@ -150,7 +150,7 @@ export default function Pricing() {
           <SectionHeader
             index="02"
             eyebrow="Human capture"
-            title="Free submission does not mean a free site visit for everyone."
+            title="Free to submit does not mean free camera crew for everyone."
             lede="Blueprint reviews the self-captured task first. Professional capture is reserved for opportunities with credible value, complete intake, robot-team interest, repeat-site leverage, or a refundable commitment deposit."
           />
           <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line sm:grid-cols-3">
@@ -198,10 +198,10 @@ export default function Pricing() {
 
       <ClosingCta
         eyebrow="Start free"
-        title="Bring the task or bring the robot."
+        title="Bring the job, or bring the robot."
         body="The site submits the workflow. The robot team tests fit. Blueprint earns when the deployment produces collected provider revenue."
         primaryHref={siteHref}
-        primaryLabel="Submit a site task"
+        primaryLabel="Submit a job"
         secondaryHref={robotHref}
         secondaryLabel="Join as a robot team"
         imageSrc="/redesign/pov/laundry-folding.jpg"

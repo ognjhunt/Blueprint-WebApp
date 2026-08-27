@@ -53,7 +53,7 @@ describe("brand polish QA harness contract", () => {
 
     const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
     expect(agentsRoute).toMatchObject({
-      expectedHeading: "Start before the first onsite visit.",
+      expectedHeading: "Get evaluated against a job someone is ready to buy.",
       requiredCtas: expect.arrayContaining([
         { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
         { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
@@ -63,7 +63,7 @@ describe("brand polish QA harness contract", () => {
     const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
     expect(faqRoute).toMatchObject({
       canonicalPath: "/faq",
-      expectedHeading: "The robot comes later. Blueprint does the homework first.",
+      expectedHeading: "We find the robot that can do the job, then help you deploy it.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

@@ -67,8 +67,8 @@ export default function ForRobotTeams() {
   return (
     <>
       <SEO
-        title="Qualified deployment opportunities for robot teams | Blueprint"
-        description="Spend deployment-engineer weeks on sites that will work. Opportunities arrive with the task captured, the site modelled, the envelope screened, and the acceptance test written."
+        title="Real jobs at sites with budget | Blueprint for robot teams"
+        description="Every job on Blueprint comes from a site with a named budget, an internal owner, and a procurement path. Test against it before you send anyone onsite."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
@@ -189,7 +189,7 @@ export default function ForRobotTeams() {
           <SectionHead
             index="04"
             eyebrow="Your place in the timeline"
-            title="We prepare. You integrate and prove."
+            title="We prepare it. You install it and prove it."
             lede="The handoff makes onsite work narrower and better informed. It does not claim a virtual test deployed your robot."
           />
           <Reveal className="mt-14">
@@ -228,7 +228,7 @@ export default function ForRobotTeams() {
 
       <RunwayCta
         eyebrow="Before field engineering"
-        title="Start with a task your team can inspect."
+        title="Start with a job your team can inspect."
         body="Browse permission-matched opportunities, submit your robot specification, and use the shared testbed before deciding whether the onsite proof of concept is worth the weeks."
         primaryHref={joinHref}
         primaryLabel="Join the robot network"

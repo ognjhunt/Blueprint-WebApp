@@ -30,7 +30,7 @@ test("contact page leads with the robot-team Task Evaluation Run flow", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /Start before the first onsite visit\./i,
+      name: /Get evaluated against a job someone is ready to buy\./i,
     }),
   ).toBeVisible();
   await expect(page.getByText(/Tell us what your robot can do/i)).toBeVisible();
@@ -42,7 +42,7 @@ test("contact page leads with the robot-team Task Evaluation Run flow", async ({
     page.getByRole("textbox", { name: /Robot team \/ company/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Prepare deployment/i }),
+    page.getByRole("button", { name: /Request evaluation/i }),
   ).toBeVisible();
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
@@ -54,7 +54,7 @@ test("site-operator contact path presents the same Task Evaluation Run", async (
 
   await expect(
     page.getByRole("heading", {
-      name: /Show us the job before you choose the robot\./i,
+      name: /Show us the job\. We find the robot that can do it\./i,
     }),
   ).toBeVisible();
   await expect(
@@ -65,7 +65,7 @@ test("site-operator contact path presents the same Task Evaluation Run", async (
     page.getByRole("textbox", { name: /Organization/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Prepare deployment/i }),
+    page.getByRole("button", { name: /Request evaluation/i }),
   ).toBeVisible();
   await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
@@ -90,7 +90,7 @@ test("robot-team contact form submits a Task Evaluation Run payload through a mo
       "Tote transfer at a Chicago warehouse. Need to decide whether field time is justified.",
     );
 
-  await page.getByRole("button", { name: /Prepare deployment/i }).click();
+  await page.getByRole("button", { name: /Request evaluation/i }).click();
 
   await expect(
     page.getByRole("heading", { name: /Message received\./i }),
@@ -138,13 +138,13 @@ test("contact form surfaces a retryable error when intake submission fails", asy
   await page
     .getByRole("textbox", { name: /Robot team \/ company/i })
     .fill("Analytical Engines");
-  await page.getByRole("button", { name: /Prepare deployment/i }).click();
+  await page.getByRole("button", { name: /Request evaluation/i }).click();
 
   await expect(page.getByRole("alert")).toContainText(
     /Service temporarily unavailable/i,
   );
   // The form stays visible so the visitor can retry without losing input.
   await expect(
-    page.getByRole("button", { name: /Prepare deployment/i }),
+    page.getByRole("button", { name: /Request evaluation/i }),
   ).toBeVisible();
 });

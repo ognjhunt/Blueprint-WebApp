@@ -16,7 +16,7 @@ describe("Governance", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Let robot teams test the site without giving them the site/i,
+        name: /Robot teams test your site without ever getting your site/i,
       }),
     ).toBeInTheDocument();
     expect(

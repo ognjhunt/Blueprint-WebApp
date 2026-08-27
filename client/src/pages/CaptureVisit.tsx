@@ -80,7 +80,7 @@ export default function CaptureVisit() {
         body="A capture happens only after your task matches a robot team we are actually in conversation with. When it does, we send a trained operator with a 360 camera and phone rig — one workcell, two passes, and a named escort from your team. This is the only part of the service your site physically experiences."
         chips={["Match first, then capture", "We send the operator", "Austin metro"]}
         ctaHref={submitHref}
-        ctaLabel="Submit a site task"
+        ctaLabel="Submit a job"
         secondaryHref="/governance"
         secondaryLabel="See data controls"
         imageSrc="/redesign/pov/inspection-bench.jpg"
@@ -332,7 +332,7 @@ export default function CaptureVisit() {
         title="Describe the workflow first."
         body="Nothing is captured until the task is scoped, matched to a robot team, and the no-capture list and consent are agreed in writing. Start with the workflow, not with a date."
         primaryHref={submitHref}
-        primaryLabel="Submit a site task"
+        primaryLabel="Submit a job"
         secondaryHref="/governance"
         secondaryLabel="See how the data is handled"
       />

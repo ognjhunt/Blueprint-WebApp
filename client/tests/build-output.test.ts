@@ -209,7 +209,11 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Robots aren&#x27;t the bottleneck. Deploying them is.");
+    expect(homeHtml).toContain("Evaluate robots.");
+    expect(homeHtml).toContain("Deploy the one that works.");
+    // The demand rule and the admission bar that limits it both prerender.
+    expect(homeHtml).toContain("Every evaluation has a paying site behind it.");
+    expect(homeHtml).toContain("They are the bar to get in.");
     expect(homeHtml).toContain("Capture");
     expect(homeHtml).toContain("Recreate");
     expect(homeHtml).toContain("Evaluate");
@@ -223,11 +227,11 @@ describe("build output", () => {
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders free core access and the site-paid network schedule.
-    expect(pricingHtml).toContain("Free until a robot is earning.");
+    expect(pricingHtml).toContain("Free to evaluate. You pay when a robot is working.");
     expect(pricingHtml).toContain("$0 site submission");
     expect(pricingHtml).toContain("5% deployment-network fee");
     expect(pricingHtml).toContain("$170,000 Blueprint fee");
-    expect(pricingHtml).toContain("Submit a site task");
+    expect(pricingHtml).toContain("Submit a job");
     expect(pricingHtml).not.toContain("From $2,500");
     expect(pricingHtml).not.toContain("Policy Shortlist");
     expect(pricingHtml).not.toContain("Robot Match");
@@ -236,7 +240,7 @@ describe("build output", () => {
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("The first two months are real work");
     expect(proofHtml).toContain("Published anchor — not a market price");
-    expect(proofHtml).toContain("A useful filter is not a deployment certificate");
+    expect(proofHtml).toContain("A good filter is not a deployment certificate");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
 
@@ -261,6 +265,8 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
-    expect(browserJavaScript).toContain("deployment homework");
+    // Sentinels that the current public message actually shipped to the browser.
+    expect(browserJavaScript).toContain("Evaluate robots. Deploy the one that works.");
+    expect(browserJavaScript).toContain("Every evaluation has a paying site behind it.");
   });
 });

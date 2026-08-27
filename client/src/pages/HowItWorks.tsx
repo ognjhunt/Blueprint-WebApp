@@ -39,27 +39,27 @@ const runHref =
 const blueprintSteps = [
   {
     step: "01",
-    title: "Capture one workflow",
+    title: "Record the job",
     detail:
-      "The task area, objects, routes, timing, exceptions, systems, and access rules. Not the whole building.",
+      "The work area, objects, routes, timing, exceptions, systems, and access rules. Not the whole building.",
   },
   {
     step: "02",
-    title: "Build the testbed",
+    title: "Rebuild it as a test",
     detail:
-      "A secure, versioned recreation of the job, with the same success criteria for every robot team that sees it.",
+      "A secure, versioned copy of the job, with the same pass mark for every robot team that takes it.",
   },
   {
     step: "03",
-    title: "Screen and evaluate",
+    title: "Run the robots",
     detail:
-      "Rule out on measured envelope first — reach, clearance, footprint. Then run controlled evaluations where the evidence supports them.",
+      "Rule out anything that physically will not fit — reach, clearance, footprint. Then run controlled evaluations on whatever survives.",
   },
   {
     step: "04",
-    title: "Hand off the homework",
+    title: "Hand off the deployment",
     detail:
-      "Shortlisted teams get the gaps, the assumptions, the acceptance test, and the onsite checklist before hardware ships.",
+      "Shortlisted teams get the gaps, the assumptions, the pass mark, and the onsite checklist before hardware ships.",
   },
 ] as const;
 
@@ -67,8 +67,8 @@ export default function HowItWorks() {
   return (
     <>
       <SEO
-        title="How Blueprint compiles a robot deployment"
-        description="Four steps turn one real workflow into a secure testbed, a screened robot-fit result, and an onsite deployment handoff — before anyone ships hardware."
+        title="How Blueprint evaluates robots and prepares the deployment"
+        description="Four steps: record a real job, rebuild it as a test, run the robots against it, and hand the winner to the install team — before anyone ships hardware."
         canonical="/how-it-works"
         jsonLd={[
           webPageJsonLd({
@@ -85,7 +85,7 @@ export default function HowItWorks() {
 
       <PageHero
         eyebrow="The method · months 0–2"
-        title="Capture the job. Recreate it. Test fit. Hand it off."
+        title="Record the job. Rebuild it. Run the robots. Hand it off."
         body="The work a robot company normally discovers from scratch, done once and packaged. Four steps, one controlled record, no downloadable copy of your site."
         chips={["One workflow", "One secure testbed", "One onsite checklist"]}
         ctaHref={runHref}
@@ -137,7 +137,7 @@ export default function HowItWorks() {
             index="03"
             eyebrow="Inputs and outputs"
             title="One workflow in. One qualified deployment out."
-            lede="A site never picks a simulator. A robot team never receives unrestricted site files. Blueprint runs the layer between them."
+            lede="The site never picks a simulator. The robot team never gets the raw site files. We sit in the middle and run the test both sides can trust."
           />
           <div className="mt-14">
             <CompilerFigure />
@@ -175,7 +175,7 @@ export default function HowItWorks() {
           <SectionHead
             index="05"
             eyebrow="Where we sit"
-            title="Blueprint ends where onsite deployment begins."
+            title="We stop where the install begins."
           />
           <Reveal className="mt-14">
             <FigureFrame

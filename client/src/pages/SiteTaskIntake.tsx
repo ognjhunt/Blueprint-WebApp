@@ -156,25 +156,25 @@ export default function SiteTaskIntake() {
   return (
     <>
       <SEO
-        title="Submit a site task | Blueprint"
+        title="Submit a job | Blueprint"
         description="Five questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — no account, no password."
         canonical="/site-task"
         jsonLd={[
           webPageJsonLd({
             path: "/site-task",
-            name: "Submit a site task to Blueprint",
+            name: "Submit a job to Blueprint",
             description:
               "The structured site-task intake: five screening questions, the task specification, and an immediate verdict.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Submit a site task", path: "/site-task" },
+            { name: "Submit a job", path: "/site-task" },
           ]),
         ]}
       />
 
       <PageHero
-        eyebrow="Submit a site task"
+        eyebrow="Submit a job"
         title="Six questions decide this."
         body="Answer them and you will know where you stand before anyone calls you. No account, no password — we ask for one only if there is something to give you access to."
         chips={["~2 minutes", "No account", "Answer before you submit"]}

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import ForRobotTeams from "@/pages/ForRobotTeams";
 
 describe("ForRobotTeams", () => {
-  it("leads with the allocation constraint rather than with lead volume", () => {
+  it("leads with budget-qualified demand rather than with lead volume", () => {
     render(<ForRobotTeams />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /scarcest resource isn't robots/i,
+        name: /Every job here has a buyer behind it/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -17,9 +17,9 @@ describe("ForRobotTeams", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Deployment-engineer weeks/i)).toBeInTheDocument();
-    expect(screen.getByText(/Site files stay controlled/i)).toBeInTheDocument();
+    expect(screen.getByText(/Real sites, real budgets/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /We prepare\. You integrate and prove/i }),
+      screen.getByRole("heading", { name: /We prepare it\. You install it and prove it/i }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Join the robot network/i }).length,

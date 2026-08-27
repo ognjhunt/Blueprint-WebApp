@@ -81,8 +81,8 @@ export function Footer() {
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            Blueprint prepares months 0–2. Onsite integration, physical validation, and safety
-            approval remain with the site and robot provider.
+            Blueprint covers months 0–2: the evaluation and the deployment handoff. Onsite install,
+            physical validation, and safety approval stay with the site and the robot provider.
           </p>
         </div>
       </div>

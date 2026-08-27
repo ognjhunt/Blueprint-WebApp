@@ -8,20 +8,20 @@ describe("HowItWorks", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Capture the job\. Recreate it\. Test fit\. Hand it off/i,
+        name: /Record the job\. Rebuild it\. Run the robots\. Hand it off/i,
       }),
     ).toBeInTheDocument();
     for (const heading of [
-      "Capture one workflow",
-      "Build the testbed",
-      "Screen and evaluate",
-      "Hand off the homework",
+      "Record the job",
+      "Rebuild it as a test",
+      "Run the robots",
+      "Hand off the deployment",
     ]) {
       expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
     }
     expect(
       screen.getByRole("heading", {
-        name: /Blueprint ends where onsite deployment begins/i,
+        name: /We stop where the install begins/i,
       }),
     ).toBeInTheDocument();
     expect(

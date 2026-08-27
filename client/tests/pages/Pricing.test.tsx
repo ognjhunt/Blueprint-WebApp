@@ -8,17 +8,17 @@ describe("Pricing", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Free until a robot is earning/i,
+        name: /Free to evaluate\. You pay when a robot is working/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Both sides can do the months 0–2 homework without a core platform fee/i,
+        name: /Both sides get through months 0–2 without a platform fee/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Free submission does not mean a free site visit for everyone/i,
+        name: /Free to submit does not mean free camera crew for everyone/i,
       }),
     ).toBeInTheDocument();
     expect(

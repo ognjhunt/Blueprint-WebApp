@@ -8,12 +8,12 @@ describe("ForSiteOperators", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Robot-ready sites get robots first/i,
+        name: /Show us the job\. We find the robot that can do it/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Show the job\. Set the rules\. Review the fit/i,
+        name: /Show the job\. Set the rules\. See who fits/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -23,7 +23,7 @@ describe("ForSiteOperators", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Teams learn more only when the opportunity earns it/i,
+        name: /Robot teams see more only as they earn it/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -35,7 +35,7 @@ describe("ForSiteOperators", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Submit a site task/i })[0],
+      screen.getAllByRole("link", { name: /Submit a job/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("intent=pilot-opportunity"));
   });
 });

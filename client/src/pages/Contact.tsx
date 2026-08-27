@@ -69,11 +69,11 @@ export default function Contact() {
   const [selectedIntent, setSelectedIntent] = useState(initialIntent);
 
   const headline = isSiteOperator
-    ? "Show us the job before you choose the robot."
-    : "Start before the first onsite visit.";
+    ? "Show us the job. We find the robot that can do it."
+    : "Get evaluated against a job someone is ready to buy.";
   const subhead = isSiteOperator
     ? "A short workflow description, phone video, and the operating numbers are enough to begin automatic screening. No robot vendor is required."
-    : "Tell us what your robot can do and which deployment opportunity or real site-task you want to evaluate. We will identify the missing months 0–2 inputs.";
+    : "Tell us what your robot can do and which site job you want to be evaluated against. Every job on Blueprint comes from a site with a budget and a named owner. We will identify the missing months 0–2 inputs.";
 
   const intentOptions = isSiteOperator
     ? [
@@ -144,7 +144,7 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Prepare a robot deployment | Blueprint"
+        title="Get a robot evaluated | Blueprint"
         description={
           isSiteOperator
             ? "Submit a real workflow for private robot-deployment screening and a permissioned Task Evaluation Run."
@@ -297,7 +297,7 @@ export default function Contact() {
                       ? "Continue to secure dossier"
                       : submitting
                         ? "Sending…"
-                        : "Prepare deployment"}
+                        : "Request evaluation"}
                   </Button>
                 </div>
               </form>

@@ -111,7 +111,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Cohort scope",
       body:
-        "The buyer beta is for the deployment homework before onsite work: a request-scoped Task Evaluation Run grounded in captured real-site evidence.",
+        "The buyer beta covers the evaluation before onsite work: a request-scoped Task Evaluation Run grounded in captured real-site evidence.",
       items: [
         "Best-fit requests name the robot family, workflow, site type, interfaces, success criteria, and what the onsite proof of concept must settle.",
         "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",

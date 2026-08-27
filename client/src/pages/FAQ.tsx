@@ -16,12 +16,22 @@ export const faqItems = [
   {
     question: "What does Blueprint do?",
     answer:
-      "Blueprint does the deployment homework before the robot arrives: capture one real workflow, recreate it as a secure testbed, test robot fit, and package the gaps and acceptance criteria for the onsite team.",
+      "Blueprint evaluates robots for real sites and prepares the deployment. We record one real job, rebuild it as a secure test, find out which robots can do it, and hand the gaps and acceptance criteria to the team doing the install. We only take sites that want a pilot or deployment and have budget for one.",
   },
   {
     question: "Why is that useful?",
     answer:
       "Without Blueprint, every robot company repeats site discovery, modeling, assumptions, and early testing. The answers are hard to compare, and basic mismatches are often found after engineers or hardware are already committed.",
+  },
+  {
+    question: "Do you work with any site that asks?",
+    answer:
+      "No. We only run evaluations for sites that want a pilot or deployment and are prepared to pay for one. Before a job becomes an evaluation, the site names the work, a budget range, an internal owner, a pilot area, timing, and how it actually buys. That is our admission bar — it is not a signed order, verified funding, or a promise that the site will purchase.",
+  },
+  {
+    question: "Why does that matter to a robot team?",
+    answer:
+      "Because you are testing against demand instead of a demo. Every job you see on Blueprint already carries a budget, a named owner, and a procurement path, so the qualifying work is done before your deployment engineers spend a day on it.",
   },
   {
     question: "Why call this months 0–2?",
@@ -41,7 +51,7 @@ export const faqItems = [
   {
     question: "What does a site need to submit?",
     answer:
-      "Answers, not artifacts. Six questions about the room decide whether a robot could work there today, and a description of the task in your own words does the rest. Object weights, cycle time, volume, and your acceptance threshold are dropdowns. Nothing has to be measured, drawn, or exported first. If you already have a short video of the task being done, you can point us at it — useful, and optional.",
+      "Answers, not artifacts. Six questions about the room decide whether a robot could work there today, and a description of the task in your own words does the rest. Object weights, cycle time, volume, and your acceptance threshold are dropdowns. Nothing has to be measured, drawn, or exported first. If you already have a short video of the task being done, you can point us at it — useful, and optional. Alongside the job we also ask the commercial side: a budget range, a named internal owner, and the procurement path.",
   },
   {
     question: "Do we have to capture the site ourselves?",
@@ -74,8 +84,8 @@ export default function FAQ() {
   return (
     <>
       <SEO
-        title="Robot deployment preparation FAQ | Blueprint"
-        description="Plain-English answers about months 0–2, site capture, controlled evaluation, onsite integration, physical pilots, data access, and pricing."
+        title="FAQ | Robot evaluation and deployment | Blueprint"
+        description="Plain answers about how we record a job, test robots against it, hand off the deployment, and what we charge."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
@@ -95,7 +105,7 @@ export default function FAQ() {
               Plain English
             </p>
             <h1 className="mt-6 max-w-[17ch] text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-runway-text">
-              The robot comes later. Blueprint does the homework first.
+              We find the robot that can do the job, then help you deploy it.
             </h1>
             <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">
               Ten short answers. No simulation jargon required.
@@ -111,7 +121,7 @@ export default function FAQ() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             eyebrow="Keep the boundary visible"
-            title="Blueprint covers the highlighted phase."
+            title="We cover the highlighted phase."
           />
           <Reveal className="mt-14">
             <FigureFrame
@@ -129,10 +139,10 @@ export default function FAQ() {
 
       <ClosingCta
         eyebrow="Still have a question?"
-        title="Show us the workflow."
+        title="Show us the job."
         body="A short video and a plain-English description are enough to start the screening conversation."
         primaryHref="/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=faq"
-        primaryLabel="Submit a site task"
+        primaryLabel="Submit a job"
         secondaryHref="/contact/robot-team?source=faq"
         secondaryLabel="Talk as a robot team"
         imageSrc="/redesign/pov/route-scan.jpg"

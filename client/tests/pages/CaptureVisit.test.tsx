@@ -137,7 +137,7 @@ describe("CaptureVisit", () => {
 
   it("routes to intake and to the data controls", () => {
     render(<CaptureVisit />);
-    expect(screen.getAllByRole("link", { name: /Submit a site task/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Submit a job/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("buyerType=site_operator"),
     );

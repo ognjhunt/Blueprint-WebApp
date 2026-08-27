@@ -44,6 +44,7 @@ const readoutTone: Record<NonNullable<RunwayHeroReadout["tone"]>, string> = {
 export function RunwayHero({
   eyebrow,
   title,
+  titleLines,
   body,
   primaryHref,
   primaryLabel,
@@ -54,6 +55,13 @@ export function RunwayHero({
 }: {
   eyebrow: string;
   title: string;
+  /**
+   * Optional authored line breaks for `title`. Greedy wrapping puts the break
+   * wherever the box runs out, which strands the second half of a two-sentence
+   * headline mid-line. When supplied, these render as blocks instead — joined
+   * with a real space so the accessible name still equals `title` exactly.
+   */
+  titleLines?: readonly string[];
   body: string;
   primaryHref: string;
   primaryLabel: string;
@@ -107,8 +115,15 @@ export function RunwayHero({
               />
               {eyebrow}
             </p>
-            <h1 className="mt-8 max-w-[19ch] text-[clamp(2.7rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
-              {title}
+            <h1 className="mt-8 max-w-[24ch] text-[clamp(2.7rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
+              {titleLines && titleLines.length > 0
+                ? titleLines.map((line, index) => (
+                    <span key={line} className="block">
+                      {line}
+                      {index < titleLines.length - 1 ? " " : null}
+                    </span>
+                  ))
+                : title}
             </h1>
           </div>
 

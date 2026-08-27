@@ -70,7 +70,7 @@ test("FAQ remains a real public destination", async ({ page }) => {
   await expect(page).toHaveURL(/\/faq$/);
   await expect(
     page.getByRole("heading", {
-      name: /robot comes later\. Blueprint does the homework first/i,
+      name: /We find the robot that can do the job, then help you deploy it/i,
     }),
   ).toBeVisible();
 });

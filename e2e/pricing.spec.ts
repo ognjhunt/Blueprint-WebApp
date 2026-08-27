@@ -7,12 +7,12 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
 
   await expect(
     page.getByRole("heading", {
-      name: "Free until a robot is earning.",
+      name: "Free to evaluate. You pay when a robot is working.",
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "Both sides can do the months 0–2 homework without a core platform fee.",
+      name: "Both sides get through months 0–2 without a platform fee.",
       exact: true,
     }),
   ).toBeVisible();
@@ -33,12 +33,12 @@ test("pricing page presents the scoped run and deployment-network schedule", asy
   await expect(page.getByText("3.2%", { exact: true })).toBeVisible();
   await expect(page.getByText(/Customer total: \$10,320,000/i)).toBeVisible();
   await expect(
-    page.getByText(/Free submission does not mean a free site visit/i),
+    page.getByText(/Free to submit does not mean free camera crew/i),
   ).toBeVisible();
   await expect(
     page
       .locator("main")
-      .getByRole("link", { name: /Submit a site task/i })
+      .getByRole("link", { name: /Submit a job/i })
       .first(),
   ).toHaveAttribute("href", /buyerType=site_operator/);
   await expect(page.getByText(/Policy Shortlist/i)).toHaveCount(0);

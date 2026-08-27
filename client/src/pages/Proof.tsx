@@ -54,8 +54,8 @@ export default function Proof() {
   return (
     <>
       <SEO
-        title="Evidence behind the months 0–2 deployment problem | Blueprint"
-        description="The primary-source timeline, illustrative economics, and proof boundaries behind Blueprint's deployment-preparation use case."
+        title="Evidence behind the months 0–2 problem | Blueprint"
+        description="The primary-source timeline, illustrative economics, and proof boundaries behind what Blueprint claims to do."
         canonical="/proof"
         jsonLd={[
           webPageJsonLd({
@@ -94,7 +94,7 @@ export default function Proof() {
           <SectionHeader
             index="01"
             eyebrow="The published process"
-            title="Blueprint is built for the first highlighted phase."
+            title="We are built for the first highlighted phase."
           />
           <Reveal className="mt-14">
             <FigureFrame
@@ -176,7 +176,7 @@ export default function Proof() {
           <SectionHeader
             index="04"
             eyebrow="Blueprint's claim boundary"
-            title="A useful filter is not a deployment certificate."
+            title="A good filter is not a deployment certificate."
           />
           <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
             {evidenceLayers.map((layer, index) => (
@@ -205,7 +205,7 @@ export default function Proof() {
 
       <ClosingCta
         eyebrow="The practical result"
-        title="Use simulation to narrow the trip. Use hardware to prove the deployment."
+        title="Simulation narrows the trip. Hardware proves the deployment."
         body="Blueprint reports what fits, what fails, what remains unknown, and what the onsite proof of concept must settle."
         primaryHref="/how-it-works"
         primaryLabel="See how it works"

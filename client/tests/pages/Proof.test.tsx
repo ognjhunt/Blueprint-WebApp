@@ -29,7 +29,7 @@ describe("Proof", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /A useful filter is not a deployment certificate/i,
+        name: /A good filter is not a deployment certificate/i,
       }),
     ).toBeInTheDocument();
     expect(

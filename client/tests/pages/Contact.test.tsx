@@ -81,7 +81,7 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Start before the first onsite visit\./i }),
+      screen.getByRole("heading", { name: /Get evaluated against a job someone is ready to buy\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Tell us what your robot can do/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test a captured site task\./i })).toHaveAttribute(
@@ -93,7 +93,7 @@ describe("Contact page", () => {
     ).toHaveAttribute("href", "/contact/site-operator#contact-intake");
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Prepare deployment/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
     expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
   });
 
@@ -104,7 +104,7 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Start before the first onsite visit\./i }),
+      screen.getByRole("heading", { name: /Get evaluated against a job someone is ready to buy\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/missing months 0–2 inputs/i)).toBeInTheDocument();
     expect(screen.queryByText(/Policy Improvement Run/i)).not.toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /About the workflow/i }), {
       target: { value: "Tote transfer. Decide whether field time is justified." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Prepare deployment/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       "/api/contact",
@@ -148,13 +148,13 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Show us the job before you choose the robot\./i }),
+      screen.getByRole("heading", { name: /Show us the job\. We find the robot that can do it\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/short workflow description, phone video/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Submit one workflow for screening/i)[0]).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Prepare deployment/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
     expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
   });
 

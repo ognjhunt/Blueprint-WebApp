@@ -3,22 +3,22 @@ import { describe, expect, it } from "vitest";
 import About from "@/pages/About";
 
 describe("About", () => {
-  it("centers the company on reusable pre-deployment work", () => {
+  it("centers the company on evaluating robots for sites that can buy", () => {
     render(<About />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /We automate the work before the robot arrives/i,
+        name: /We evaluate robots for sites that are ready to buy/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Robot supply scales\. Deployment homework does not/i,
+        name: /Robot supply is scaling\. The work of matching one to a job is not/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /same deployment homework should not be rebuilt inside every OEM/i,
+        name: /Every robot company should not rebuild the same site from scratch/i,
       }),
     ).toBeInTheDocument();
     expect(
