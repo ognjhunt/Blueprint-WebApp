@@ -5,6 +5,11 @@ import { z } from "zod";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
 
+const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 25_200;
+const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 1.5;
+const EPISODE_EVALUATION_MAX_ATTEMPT_SPEND_USD = 5;
+const EPISODE_EVALUATION_MAX_TTL_SECONDS = 9_000;
+
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const immutableReference = z.object({
@@ -218,9 +223,9 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   }).strict(),
   spend: z.object({
     maximum_hourly_rate_usd: z.number().positive().max(0.8),
-    hard_cap_usd: z.number().positive().max(5),
-    hard_ttl_seconds: z.number().int().min(1).max(9000),
-    provider_compute_spend_cap_usd: z.number().positive().max(1).optional(),
+    hard_cap_usd: z.number().positive().max(10),
+    hard_ttl_seconds: z.number().int().min(1).max(25_200),
+    provider_compute_spend_cap_usd: z.number().positive().max(6).optional(),
     external_service_caps: externalServiceCapsSchema.optional(),
     retry_cap: z.literal(0),
     selected_provider: z.enum(["vast", "runpod", "gcp", "aws", "azure"]),
@@ -265,7 +270,11 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       const stageTotal = Object.values(openai.stage_max_cost_usd)
         .reduce((total, amount) => total + amount, 0);
       if (
-        providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
+        value.spend.hard_ttl_seconds !== SCENE_CONFIGURATION_PARENT_TTL_SECONDS
+        || providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
+        || providerComputeCap + 1e-9 < value.spend.maximum_hourly_rate_usd
+          * SCENE_CONFIGURATION_PARENT_TTL_SECONDS / 3_600
+        || openai.maximum_cost_usd > SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD
         || stageTotal > openai.maximum_cost_usd + 1e-9
         || (openai.maximum_cost_usd === 0) !== (openai.maximum_requests === 0)
       ) context.addIssue({
@@ -300,6 +309,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     ) context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation cannot carry scene-construction service spend caps",
+    });
+    if (
+      value.spend.hard_cap_usd > EPISODE_EVALUATION_MAX_ATTEMPT_SPEND_USD
+      || value.spend.hard_ttl_seconds > EPISODE_EVALUATION_MAX_TTL_SECONDS
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation spend authority exceeds its lane ceiling",
     });
   }
   if (
