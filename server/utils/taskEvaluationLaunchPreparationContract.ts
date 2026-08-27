@@ -6,7 +6,13 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
 
 const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 25_200;
-const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 1.5;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = 2.4;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = 0.3;
+const SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD = 0.2;
+const SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD = 2.9;
+const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 3;
+const SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD = 6;
+const SCENE_CONFIGURATION_ATTEMPT_SPEND_USD = 10;
 const EPISODE_EVALUATION_MAX_ATTEMPT_SPEND_USD = 5;
 const EPISODE_EVALUATION_MAX_TTL_SECONDS = 9_000;
 
@@ -267,19 +273,30 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       });
     } else {
       const openai = externalCaps.openai;
+      const stageCaps = openai.stage_max_cost_usd;
       const stageTotal = Object.values(openai.stage_max_cost_usd)
         .reduce((total, amount) => total + amount, 0);
       if (
         value.spend.hard_ttl_seconds !== SCENE_CONFIGURATION_PARENT_TTL_SECONDS
+        || value.spend.hard_cap_usd !== SCENE_CONFIGURATION_ATTEMPT_SPEND_USD
+        || providerComputeCap !== SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
         || providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
         || providerComputeCap + 1e-9 < value.spend.maximum_hourly_rate_usd
           * SCENE_CONFIGURATION_PARENT_TTL_SECONDS / 3_600
+        || openai.maximum_cost_usd + 1e-9
+          < SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD
         || openai.maximum_cost_usd > SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD
+        || stageCaps.artifixer_semantic_teacher + 1e-9
+          < SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD
+        || stageCaps.artifixer_visual_review + 1e-9
+          < SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD
+        || stageCaps.content_agents + 1e-9
+          < SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD
         || stageTotal > openai.maximum_cost_usd + 1e-9
         || (openai.maximum_cost_usd === 0) !== (openai.maximum_requests === 0)
       ) context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "scene configuration spend caps exceed their parent authority",
+        message: "scene configuration spend caps do not cover required stages or exceed their parent authority",
       });
     }
   } else {
