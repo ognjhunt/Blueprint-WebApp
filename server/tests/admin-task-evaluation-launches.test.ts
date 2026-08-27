@@ -321,12 +321,12 @@ function preparationInput() {
       provider_compute_spend_cap_usd: 6,
       external_service_caps: {
         openai: {
-          maximum_cost_usd: 1.5,
+          maximum_cost_usd: 2.9,
           maximum_requests: 32,
           stage_max_cost_usd: {
-            artifixer_semantic_teacher: 0.4,
-            artifixer_visual_review: 0.75,
-            content_agents: 0.35,
+            artifixer_semantic_teacher: 2.4,
+            artifixer_visual_review: 0.3,
+            content_agents: 0.2,
           },
         },
       },
@@ -835,6 +835,41 @@ describe("admin Task Evaluation launch route", () => {
     ).toBe(false);
   });
 
+  it("requires scene configuration authority to fund every admitted OpenAI stage", () => {
+    const underfundedCases: Array<[string, (input: ReturnType<typeof preparationInput>) => void]> = [
+      ["semantic teacher", (input) => {
+        input.spend.external_service_caps.openai.stage_max_cost_usd
+          .artifixer_semantic_teacher = 2.39;
+      }],
+      ["visual review", (input) => {
+        input.spend.external_service_caps.openai.stage_max_cost_usd
+          .artifixer_visual_review = 0.29;
+      }],
+      ["content agents", (input) => {
+        input.spend.external_service_caps.openai.stage_max_cost_usd
+          .content_agents = 0.19;
+      }],
+      ["external aggregate", (input) => {
+        input.spend.external_service_caps.openai.maximum_cost_usd = 2.89;
+      }],
+      ["parent attempt", (input) => {
+        input.spend.hard_cap_usd = 9.99;
+      }],
+      ["provider compute", (input) => {
+        input.spend.provider_compute_spend_cap_usd = 5.99;
+      }],
+    ];
+
+    for (const [, mutate] of underfundedCases) {
+      const input = preparationInput();
+      mutate(input);
+      expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(false);
+    }
+
+    const episode = evaluationPreparationInput();
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(episode).success).toBe(true);
+  });
+
   it("isolates the launch-ready offering catalog to the authenticated team", async () => {
     state.isOps = false;
     const own = configuredSceneOffering();
@@ -1227,6 +1262,47 @@ describe("admin Task Evaluation launch route", () => {
       });
       expect(missingServiceAuthorityRejected.status).toBe(400);
       expect(state.records.size).toBe(0);
+
+      const underfundedServiceCases: Array<
+        (input: ReturnType<typeof preparationInput>) => void
+      > = [
+        (input) => {
+          input.spend.external_service_caps.openai.stage_max_cost_usd
+            .artifixer_semantic_teacher = 2.39;
+        },
+        (input) => {
+          input.spend.external_service_caps.openai.stage_max_cost_usd
+            .artifixer_visual_review = 0.29;
+        },
+        (input) => {
+          input.spend.external_service_caps.openai.stage_max_cost_usd
+            .content_agents = 0.19;
+        },
+        (input) => {
+          input.spend.external_service_caps.openai.maximum_cost_usd = 2.89;
+        },
+        (input) => {
+          input.spend.hard_cap_usd = 9.99;
+        },
+        (input) => {
+          input.spend.provider_compute_spend_cap_usd = 5.99;
+        },
+      ];
+      for (const mutate of underfundedServiceCases) {
+        const underfunded = preparationInput();
+        mutate(underfunded);
+        const underfundedRejected = await fetch(`${url}/preparations`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(underfunded),
+        });
+        expect(underfundedRejected.status).toBe(400);
+        expect(await underfundedRejected.json()).toMatchObject({
+          code: "task_evaluation_launch_preparation_input_invalid",
+          paid_execution_requested: false,
+        });
+        expect(state.records.size).toBe(0);
+      }
 
       const firstInput = preparationInput();
       const first = await fetch(`${url}/preparations`, {
