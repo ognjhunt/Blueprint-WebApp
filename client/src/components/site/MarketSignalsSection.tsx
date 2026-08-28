@@ -189,7 +189,7 @@ export function MarketSignalsSection({
             <BarChart3 className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
-          <h2 className="mt-4 font-display uppercase tracking-[0.005em] text-3xl font-bold tracking-[0.005em] text-runway-text sm:text-4xl">
+          <h2 className="mt-4 font-display uppercase tracking-[0.005em] text-3xl font-bold text-runway-text sm:text-4xl">
             {title}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-runway-mute sm:text-lg">

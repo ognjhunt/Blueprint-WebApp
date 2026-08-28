@@ -79,7 +79,7 @@ export function LaunchCityAvailability({
             <MapPinned className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
-          <h2 className="mt-4 text-2xl font-semibold tracking-[0.005em] sm:font-display uppercase tracking-[0.005em] text-3xl">{title}</h2>
+          <h2 className="mt-4 font-display text-2xl font-semibold uppercase tracking-[0.005em] sm:text-3xl">{title}</h2>
           <p className={`mt-3 text-sm leading-7 sm:text-base ${classes.body}`}>{description}</p>
           <div className={`mt-4 rounded-none border px-4 py-3 text-sm leading-6 ${classes.note}`}>
             <span className="font-semibold">
