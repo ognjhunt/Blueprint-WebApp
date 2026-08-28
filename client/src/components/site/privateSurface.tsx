@@ -12,8 +12,8 @@ export function SurfacePage({ children, tone = "paper", className }: SurfacePage
       className={cn(
         "min-h-screen",
         tone === "ink"
-          ? "bg-[#0c0c0b] text-white"
-          : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),rgba(244,240,232,0.96)_54%,rgba(240,236,229,1))] text-[#111110]",
+          ? "bg-runway-black text-runway-text"
+          : "bg-[radial-gradient(circle_at_top,#171b19,#101312_54%,#0c0f0e)] text-runway-text",
         className,
       )}
     >
@@ -26,24 +26,21 @@ export function SurfaceTopBar(props: {
   eyebrow?: string;
   rightLabel?: string;
   rightNode?: ReactNode;
-  dark?: boolean;
 }) {
-  const tone = props.dark ? "text-white/70 border-white/10" : "text-black/55 border-black/10";
-  const brandTone = props.dark ? "text-white" : "text-[#111110]";
   return (
-    <div className={cn("border-b", tone)}>
+    <div className="border-b border-runway-line">
       <div className="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-6 py-5 lg:px-10">
-        <a href="/" className={cn("font-editorial text-[2.2rem] tracking-[-0.06em]", brandTone)}>
+        <a href="/" className="font-editorial font-display uppercase text-[2.2rem] tracking-[0.005em] text-runway-text">
           Blueprint
         </a>
         {props.eyebrow ? (
-          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.32em] md:block">
+          <p className="runway-eyebrow-muted hidden md:block">
             {props.eyebrow}
           </p>
         ) : (
           <span />
         )}
-        {props.rightNode ? props.rightNode : <p className="text-[11px] uppercase tracking-[0.24em]">{props.rightLabel}</p>}
+        {props.rightNode ? props.rightNode : <p className="runway-meta">{props.rightLabel}</p>}
       </div>
     </div>
   );
@@ -55,7 +52,7 @@ export function SurfaceSection(props: PropsWithChildren<{ className?: string }>)
 
 export function SurfaceEyebrow({ children, className }: PropsWithChildren<{ className?: string }>) {
   return (
-    <p className={cn("text-[11px] font-semibold uppercase tracking-[0.28em] text-black/45", className)}>
+    <p className={cn("runway-eyebrow-muted", className)}>
       {children}
     </p>
   );
@@ -63,7 +60,7 @@ export function SurfaceEyebrow({ children, className }: PropsWithChildren<{ clas
 
 export function SurfaceTitle(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <h1 className={cn("font-sans text-[clamp(2.8rem,6vw,5.4rem)] font-semibold tracking-[-0.07em] leading-[0.9]", props.className)}>
+    <h1 className={cn("font-display uppercase text-[clamp(2.8rem,6vw,5.4rem)] font-semibold tracking-[0.005em] leading-[0.9] text-runway-text", props.className)}>
       {props.children}
     </h1>
   );
@@ -71,7 +68,7 @@ export function SurfaceTitle(props: PropsWithChildren<{ className?: string }>) {
 
 export function SurfaceLead(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <p className={cn("max-w-3xl text-[1.08rem] leading-8 text-black/65", props.className)}>
+    <p className={cn("max-w-3xl text-[1.08rem] leading-[1.6] text-runway-body", props.className)}>
       {props.children}
     </p>
   );
@@ -79,23 +76,12 @@ export function SurfaceLead(props: PropsWithChildren<{ className?: string }>) {
 
 export function SurfaceBrowserFrame(props: PropsWithChildren<{ className?: string; dark?: boolean }>) {
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-[2rem] border shadow-[0_24px_80px_rgba(17,17,16,0.08)]",
-        props.dark ? "border-white/10 bg-[#111110] text-white" : "border-black/10 bg-white text-[#111110]",
-        props.className,
-      )}
-    >
-      <div
-        className={cn(
-          "flex items-center justify-between border-b px-5 py-3 text-[11px] uppercase tracking-[0.22em]",
-          props.dark ? "border-white/10 bg-[#151514] text-white/45" : "border-black/10 bg-[#f7f3ec] text-black/45",
-        )}
-      >
+    <div className={cn("runway-panel overflow-hidden", props.className)}>
+      <div className="flex items-center justify-between border-b border-runway-line bg-runway-black px-5 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-runway-faint">
         <div className="flex items-center gap-2">
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
+          <span className="h-2 w-2 rounded-full bg-runway-line-strong" />
+          <span className="h-2 w-2 rounded-full bg-runway-line-strong" />
+          <span className="h-2 w-2 rounded-full bg-runway-line-strong" />
         </div>
         <span>Private Workspace</span>
         <span>{props.dark ? "Secured" : "Blueprint"}</span>
@@ -105,15 +91,9 @@ export function SurfaceBrowserFrame(props: PropsWithChildren<{ className?: strin
   );
 }
 
-export function SurfaceCard(props: PropsWithChildren<{ className?: string; dark?: boolean }>) {
+export function SurfaceCard(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <div
-      className={cn(
-        "rounded-[1.75rem] border p-6",
-        props.dark ? "border-white/10 bg-white/5 text-white" : "border-black/10 bg-white text-[#111110]",
-        props.className,
-      )}
-    >
+    <div className={cn("runway-panel p-6 text-runway-text", props.className)}>
       {props.children}
     </div>
   );
@@ -128,12 +108,11 @@ export function SurfaceButton(props: {
   type?: "button" | "submit";
 }) {
   const classes = cn(
-    "inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition",
     props.tone === "secondary"
-      ? "border-black/10 bg-white text-[#111110] hover:bg-[#f4f0ea]"
+      ? "runway-cta-ghost"
       : props.tone === "ghost"
-        ? "border-transparent bg-transparent text-black/70 hover:text-black"
-        : "border-[#111110] bg-[#111110] text-white hover:bg-black",
+        ? "inline-flex min-h-[3.25rem] items-center justify-center gap-3 px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-mute transition-colors duration-200 hover:text-runway-text"
+        : "runway-cta",
     props.className,
   );
 
@@ -152,15 +131,9 @@ export function SurfaceButton(props: {
   );
 }
 
-export function SurfacePill(props: PropsWithChildren<{ className?: string; dark?: boolean }>) {
+export function SurfacePill(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em]",
-        props.dark ? "border-white/15 bg-white/5 text-white/70" : "border-black/10 bg-[#faf7f1] text-black/60",
-        props.className,
-      )}
-    >
+    <span className={cn("runway-chip runway-chip-quiet", props.className)}>
       {props.children}
     </span>
   );
@@ -173,10 +146,10 @@ export function SurfaceStat(props: {
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-[1.4rem] border border-black/10 bg-white px-5 py-4", props.className)}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">{props.label}</p>
-      <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em]">{props.value}</div>
-      {props.detail ? <p className="mt-2 text-sm text-black/55">{props.detail}</p> : null}
+    <div className={cn("runway-panel px-5 py-4", props.className)}>
+      <p className="runway-meta">{props.label}</p>
+      <div className="runway-num mt-3 text-[2rem] font-semibold leading-none text-runway-text">{props.value}</div>
+      {props.detail ? <p className="mt-2 text-sm text-runway-mute">{props.detail}</p> : null}
     </div>
   );
 }
@@ -184,15 +157,9 @@ export function SurfaceStat(props: {
 export function SurfaceInput(props: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   const { label, className, ...rest } = props;
   return (
-    <label className="block space-y-2">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">{label}</span>
-      <input
-        {...rest}
-        className={cn(
-          "h-12 w-full rounded-[1.1rem] border border-black/10 bg-white px-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30",
-          className,
-        )}
-      />
+    <label className="block">
+      <span className="runway-label">{label}</span>
+      <input {...rest} className={cn("runway-input h-12", className)} />
     </label>
   );
 }
@@ -202,40 +169,28 @@ export function SurfaceTextarea(
 ) {
   const { label, className, ...rest } = props;
   return (
-    <label className="block space-y-2">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">{label}</span>
-      <textarea
-        {...rest}
-        className={cn(
-          "min-h-[120px] w-full rounded-[1.2rem] border border-black/10 bg-white px-4 py-3 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30",
-          className,
-        )}
-      />
+    <label className="block">
+      <span className="runway-label">{label}</span>
+      <textarea {...rest} className={cn("runway-input min-h-[120px]", className)} />
     </label>
   );
 }
 
 export function SurfaceDivider({ className }: { className?: string }) {
-  return <div className={cn("h-px w-full bg-black/10", className)} />;
+  return <div className={cn("h-px w-full bg-runway-line", className)} />;
 }
 
 export function SurfaceMiniLabel({ children, className }: PropsWithChildren<{ className?: string }>) {
   return (
-    <p className={cn("text-[10px] font-semibold uppercase tracking-[0.22em] text-black/40", className)}>
+    <p className={cn("runway-meta font-semibold", className)}>
       {children}
     </p>
   );
 }
 
-export function SurfaceSidebar(props: PropsWithChildren<{ className?: string; dark?: boolean }>) {
+export function SurfaceSidebar(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <aside
-      className={cn(
-        "rounded-[1.8rem] border p-5",
-        props.dark ? "border-white/10 bg-white/5" : "border-black/10 bg-[#fbf8f2]",
-        props.className,
-      )}
-    >
+    <aside className={cn("runway-panel p-5", props.className)}>
       {props.children}
     </aside>
   );
@@ -243,7 +198,6 @@ export function SurfaceSidebar(props: PropsWithChildren<{ className?: string; da
 
 export function SurfaceStatusList(props: {
   items: Array<{ label: string; value: ReactNode }>;
-  dark?: boolean;
   className?: string;
 }) {
   return (
@@ -256,13 +210,10 @@ export function SurfaceStatusList(props: {
       {props.items.map((item) => (
         <div
           key={item.label}
-          className={cn(
-            "flex items-center justify-between rounded-[1.1rem] border px-4 py-3 text-sm",
-            props.dark ? "border-white/10 bg-white/5 text-white" : "border-black/10 bg-white text-[#111110]",
-          )}
+          className="flex items-center justify-between gap-4 border border-runway-line bg-runway-black px-4 py-3 text-sm text-runway-text"
         >
-          <span className={cn(props.dark ? "text-white/60" : "text-black/50")}>{item.label}</span>
-          <span className="font-semibold">{item.value}</span>
+          <span className="text-runway-mute">{item.label}</span>
+          <span className="text-right font-semibold">{item.value}</span>
         </div>
       ))}
     </div>

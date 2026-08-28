@@ -121,9 +121,9 @@ export function PlaceAutocompleteInput({
   label,
   placeholder,
   wrapperClassName = "",
-  labelClassName = "mb-1 block text-sm font-medium text-zinc-700",
+  labelClassName = "mb-1 block text-sm font-medium text-runway-body",
   inputWrapperClassName = "relative",
-  inputClassName = "w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm",
+  inputClassName = "w-full rounded-xl border border-runway-line px-4 py-3 text-sm",
   icon,
   country = "us",
   required = false,
@@ -294,7 +294,7 @@ export function PlaceAutocompleteInput({
           <div
             id={`${id}-place-options`}
             role="listbox"
-            className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 overflow-hidden rounded-xl border border-zinc-200 bg-white text-left shadow-lg"
+            className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 overflow-hidden rounded-xl border border-runway-line bg-paper-0 text-left shadow-lg"
           >
             {predictions.map((prediction) => (
               <button
@@ -302,7 +302,7 @@ export function PlaceAutocompleteInput({
                 type="button"
                 role="option"
                 aria-selected={prediction.description === value}
-                className="block w-full px-4 py-3 text-left text-sm text-zinc-800 transition hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                className="block w-full px-4 py-3 text-left text-sm text-runway-text transition hover:bg-runway-line-soft focus:bg-runway-line-soft focus:outline-none"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handlePredictionSelect(prediction)}
               >
@@ -310,7 +310,7 @@ export function PlaceAutocompleteInput({
                   {prediction.structured_formatting?.main_text || prediction.description}
                 </span>
                 {prediction.structured_formatting?.secondary_text ? (
-                  <span className="mt-0.5 block text-xs text-zinc-500">
+                  <span className="mt-0.5 block text-xs text-runway-faint">
                     {prediction.structured_formatting.secondary_text}
                   </span>
                 ) : null}

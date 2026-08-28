@@ -90,49 +90,49 @@ function matchesLooseText(value: string, patterns: string[]) {
 function statusColor(status: AgentRunRecord["status"]) {
   switch (status) {
     case "completed":
-      return "bg-emerald-100 text-emerald-700";
+      return "runway-chip-live";
     case "running":
-      return "bg-blue-100 text-blue-700";
+      return "runway-chip-neutral";
     case "pending_approval":
-      return "bg-amber-100 text-amber-800";
+      return "runway-chip-open";
     case "failed":
-      return "bg-rose-100 text-rose-700";
+      return "runway-chip-fail";
     case "cancelled":
-      return "bg-zinc-200 text-zinc-700";
+      return "runway-chip-quiet";
     default:
-      return "bg-zinc-100 text-zinc-700";
+      return "runway-chip-quiet";
   }
 }
 
 function actionLogStatusColor(status: OpsActionLogRecord["status"]) {
   switch (status) {
     case "completed":
-      return "bg-emerald-100 text-emerald-700";
+      return "runway-chip-live";
     case "started":
-      return "bg-blue-100 text-blue-700";
+      return "runway-chip-neutral";
     case "pending_approval":
-      return "bg-amber-100 text-amber-800";
+      return "runway-chip-open";
     case "failed":
-      return "bg-rose-100 text-rose-700";
+      return "runway-chip-fail";
     case "cancelled":
-      return "bg-zinc-200 text-zinc-700";
+      return "runway-chip-quiet";
     case "queued":
-      return "bg-violet-100 text-violet-700";
+      return "runway-chip-neutral";
     default:
-      return "bg-zinc-100 text-zinc-700";
+      return "runway-chip-quiet";
   }
 }
 
 function riskColor(riskLevel: OpsActionLogRecord["riskLevel"]) {
   switch (riskLevel) {
     case "critical":
-      return "text-rose-700";
+      return "text-runway-red";
     case "high":
-      return "text-amber-700";
+      return "text-runway-signal";
     case "medium":
-      return "text-blue-700";
+      return "text-runway-sky";
     default:
-      return "text-zinc-500";
+      return "text-runway-faint";
   }
 }
 
@@ -145,13 +145,13 @@ function formatLatency(latencyMs?: number | null) {
 function runtimeEventStatusColor(status: RuntimeEventRecord["status"]) {
   switch (status) {
     case "success":
-      return "bg-emerald-100 text-emerald-700";
+      return "runway-chip-live";
     case "warning":
-      return "bg-amber-100 text-amber-800";
+      return "runway-chip-open";
     case "error":
-      return "bg-rose-100 text-rose-700";
+      return "runway-chip-fail";
     default:
-      return "bg-zinc-100 text-zinc-700";
+      return "runway-chip-quiet";
   }
 }
 
@@ -1095,40 +1095,40 @@ export default function AdminAgentConsole() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Sessions</p>
-          <p className="mt-2 text-3xl font-semibold text-zinc-950">{sessionStats.totalSessions}</p>
+        <div className="runway-panel p-5">
+          <p className="runway-meta">Sessions</p>
+          <p className="runway-num mt-2 text-3xl font-semibold text-runway-text">{sessionStats.totalSessions}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Pending approval</p>
-          <p className="mt-2 text-3xl font-semibold text-amber-700">{sessionStats.pendingApprovals}</p>
+        <div className="runway-panel p-5">
+          <p className="runway-meta">Pending approval</p>
+          <p className="runway-num mt-2 text-3xl font-semibold text-runway-signal">{sessionStats.pendingApprovals}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Running</p>
-          <p className="mt-2 text-3xl font-semibold text-blue-700">{sessionStats.running}</p>
+        <div className="runway-panel p-5">
+          <p className="runway-meta">Running</p>
+          <p className="runway-num mt-2 text-3xl font-semibold text-runway-sky">{sessionStats.running}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Failed</p>
-          <p className="mt-2 text-3xl font-semibold text-rose-700">{sessionStats.failed}</p>
+        <div className="runway-panel p-5">
+          <p className="runway-meta">Failed</p>
+          <p className="runway-num mt-2 text-3xl font-semibold text-runway-red">{sessionStats.failed}</p>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Create agent session</h2>
+              <Bot className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Create agent session</h2>
             </div>
             <div className="mt-4 space-y-3">
               <input
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Session title"
               />
               <select
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input"
                 value={taskKind}
                 onChange={(event) => setTaskKind(event.target.value as AgentTaskKind)}
               >
@@ -1139,7 +1139,7 @@ export default function AdminAgentConsole() {
                 ))}
               </select>
               <select
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input"
                 value={selectedAgentProfileId}
                 onChange={(event) => setSelectedAgentProfileId(event.target.value)}
               >
@@ -1152,7 +1152,7 @@ export default function AdminAgentConsole() {
                 ))}
               </select>
               <select
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input"
                 value={selectedEnvironmentProfileId}
                 onChange={(event) => setSelectedEnvironmentProfileId(event.target.value)}
               >
@@ -1164,16 +1164,16 @@ export default function AdminAgentConsole() {
                   </option>
                 ))}
               </select>
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+              <div className="border border-runway-line bg-runway-black px-3 py-2 text-sm text-runway-mute">
                 Execution backend: {selectedProfile?.default_provider || "openai_responses"}
               </div>
               {selectedProfile ? (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-                  <p className="font-medium text-zinc-900">{selectedProfile.name}</p>
+                <div className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">
+                  <p className="font-medium text-runway-text">{selectedProfile.name}</p>
                   {selectedProfile.description ? (
-                    <p className="mt-1 text-zinc-600">{selectedProfile.description}</p>
+                    <p className="mt-1 text-runway-mute">{selectedProfile.description}</p>
                   ) : null}
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 text-xs text-runway-faint">
                     Task kind: {selectedProfile.task_kind}
                     {selectedProfile.outcome_contract?.bounded_scope
                       ? ` · ${selectedProfile.outcome_contract.bounded_scope}`
@@ -1182,35 +1182,35 @@ export default function AdminAgentConsole() {
                 </div>
               ) : null}
               {selectedEnvironment ? (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-                  <p className="font-medium text-zinc-900">{selectedEnvironment.name}</p>
+                <div className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">
+                  <p className="font-medium text-runway-text">{selectedEnvironment.name}</p>
                   {selectedEnvironment.description ? (
-                    <p className="mt-1 text-zinc-600">{selectedEnvironment.description}</p>
+                    <p className="mt-1 text-runway-mute">{selectedEnvironment.description}</p>
                   ) : null}
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 text-xs text-runway-faint">
                     Lane: {selectedEnvironment.lane} · Packages:{" "}
                     {selectedEnvironment.package_set.join(", ") || "None"}
                   </p>
                 </div>
               ) : null}
 
-              <div className="rounded-xl border border-zinc-200 p-3">
+              <div className="border border-runway-line p-3">
                 <div className="flex items-center gap-2">
-                  <Layers3 className="h-4 w-4 text-zinc-500" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <Layers3 className="h-4 w-4 text-runway-faint" />
+                  <p className="runway-eyebrow-muted">
                     Attach startup packs
                   </p>
                 </div>
                 <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
                   {availableStartupPacks.length === 0 ? (
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-runway-faint">
                       No saved startup packs yet.
                     </p>
                   ) : (
                     availableStartupPacks.map((pack) => (
                       <div
                         key={pack.id}
-                        className="flex items-start justify-between gap-3 text-sm text-zinc-700"
+                        className="flex items-start justify-between gap-3 text-sm text-runway-body"
                       >
                         <label className="flex items-start gap-2">
                           <input
@@ -1226,11 +1226,11 @@ export default function AdminAgentConsole() {
                           />
                           <span>
                             {pack.name}
-                            <span className="ml-1 text-xs text-zinc-400">
+                            <span className="ml-1 text-xs text-runway-faint">
                               v{pack.version}
                             </span>
                             {pack.description ? (
-                              <span className="block text-xs text-zinc-500">
+                              <span className="block text-xs text-runway-faint">
                                 {pack.description}
                               </span>
                             ) : null}
@@ -1238,7 +1238,7 @@ export default function AdminAgentConsole() {
                         </label>
                         <button
                           type="button"
-                          className="text-xs text-zinc-500 underline"
+                          className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setEditingStartupPackId(pack.id);
                             setStartupPackName(pack.name);
@@ -1269,13 +1269,13 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-runway-line p-3">
+                <p className="runway-eyebrow-muted">
                   Attach repo docs
                 </p>
                 <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
                   {availableRepoDocs.slice(0, 20).map((docPath) => (
-                    <label key={docPath} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <label key={docPath} className="flex items-start gap-2 text-sm text-runway-body">
                       <input
                         type="checkbox"
                         checked={selectedRepoDocs.includes(docPath)}
@@ -1293,19 +1293,19 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-runway-line p-3">
+                <p className="runway-eyebrow-muted">
                   Attach KB pages
                 </p>
                 {recommendedKnowledgePages.length > 0 ? (
-                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                  <div className="mt-2 border border-runway-green-dim p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-runway-green">
                         Recommended
                       </p>
                       <button
                         type="button"
-                        className="text-xs text-emerald-700 underline"
+                        className="text-xs text-runway-green underline"
                         onClick={() =>
                           setSelectedKnowledgePagePaths((current) => [
                             ...current,
@@ -1322,15 +1322,15 @@ export default function AdminAgentConsole() {
                       {recommendedKnowledgePages.map((page) => (
                         <div
                           key={page.path}
-                          className="flex items-start justify-between gap-3 text-sm text-zinc-700"
+                          className="flex items-start justify-between gap-3 text-sm text-runway-body"
                         >
                           <div>
-                            <p className="font-medium text-zinc-900">{page.title}</p>
-                            <p className="text-xs text-zinc-500">{page.reason}</p>
+                            <p className="font-medium text-runway-text">{page.title}</p>
+                            <p className="text-xs text-runway-faint">{page.reason}</p>
                           </div>
                           <button
                             type="button"
-                            className="text-xs text-emerald-700 underline"
+                            className="text-xs text-runway-green underline"
                             onClick={() =>
                               setSelectedKnowledgePagePaths((current) =>
                                 current.includes(page.path) ? current : [...current, page.path],
@@ -1346,10 +1346,10 @@ export default function AdminAgentConsole() {
                 ) : null}
                 <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
                   {availableKnowledgePages.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No KB pages available yet.</p>
+                    <p className="text-sm text-runway-faint">No KB pages available yet.</p>
                   ) : (
                     availableKnowledgePages.map((page) => (
-                      <label key={page.path} className="flex items-start gap-2 text-sm text-zinc-700">
+                      <label key={page.path} className="flex items-start gap-2 text-sm text-runway-body">
                         <input
                           type="checkbox"
                           checked={selectedKnowledgePagePaths.includes(page.path)}
@@ -1364,9 +1364,9 @@ export default function AdminAgentConsole() {
                         <span>
                           {page.title}
                           {page.pageKind ? (
-                            <span className="ml-1 text-xs text-zinc-400">{page.pageKind}</span>
+                            <span className="ml-1 text-xs text-runway-faint">{page.pageKind}</span>
                           ) : null}
-                          <span className="block text-xs text-zinc-500">{page.path}</span>
+                          <span className="block text-xs text-runway-faint">{page.path}</span>
                         </span>
                       </label>
                     ))
@@ -1374,18 +1374,18 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-runway-line p-3">
+                <p className="runway-eyebrow-muted">
                   Attach ops documents
                 </p>
                 <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
                   {availableOpsDocuments.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No ops documents yet.</p>
+                    <p className="text-sm text-runway-faint">No ops documents yet.</p>
                   ) : (
                     availableOpsDocuments.map((document) => (
                       <label
                         key={document.id}
-                        className="flex items-start gap-2 text-sm text-zinc-700"
+                        className="flex items-start gap-2 text-sm text-runway-body"
                       >
                         <input
                           type="checkbox"
@@ -1400,7 +1400,7 @@ export default function AdminAgentConsole() {
                         />
                         <span>
                           {document.title}
-                          <span className="ml-1 text-xs text-zinc-400">
+                          <span className="ml-1 text-xs text-runway-faint">
                             {document.extractionStatus}
                           </span>
                         </span>
@@ -1410,16 +1410,16 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-runway-line p-3">
+                <p className="runway-eyebrow-muted">
                   Attach recent creative runs
                 </p>
                 <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
                   {availableCreativeRuns.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No durable creative runs yet.</p>
+                    <p className="text-sm text-runway-faint">No durable creative runs yet.</p>
                   ) : (
                     availableCreativeRuns.map((run) => (
-                      <label key={run.id} className="flex items-start gap-2 text-sm text-zinc-700">
+                      <label key={run.id} className="flex items-start gap-2 text-sm text-runway-body">
                         <input
                           type="checkbox"
                           checked={selectedCreativeRunIds.includes(run.id)}
@@ -1433,10 +1433,10 @@ export default function AdminAgentConsole() {
                         />
                         <span>
                           {run.skuName}
-                          <span className="ml-1 text-xs text-zinc-400">
+                          <span className="runway-num ml-1 text-xs text-runway-faint">
                             {run.createdAt ? formatTimestamp(run.createdAt) : "Unknown time"}
                           </span>
-                          <span className="block break-all font-mono text-[11px] text-zinc-500">
+                          <span className="runway-num block break-all text-[11px] text-runway-faint">
                             {run.storageUri}
                           </span>
                         </span>
@@ -1446,13 +1446,13 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-runway-line p-3">
+                <p className="runway-eyebrow-muted">
                   Attach blueprints
                 </p>
                 <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
                   {availableBlueprints.map((blueprint) => (
-                    <label key={blueprint.id} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <label key={blueprint.id} className="flex items-start gap-2 text-sm text-runway-body">
                       <input
                         type="checkbox"
                         checked={selectedBlueprintIds.includes(blueprint.id)}
@@ -1471,31 +1471,31 @@ export default function AdminAgentConsole() {
               </div>
 
               <textarea
-                className="min-h-[90px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input min-h-[90px]"
                 value={operatorNotes}
                 onChange={(event) => setOperatorNotes(event.target.value)}
                 placeholder="Operator notes for this session"
               />
               <textarea
-                className="min-h-[90px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="runway-input min-h-[90px]"
                 value={externalSourcesText}
                 onChange={(event) => setExternalSourcesText(event.target.value)}
                 placeholder={"External references, one per line:\nTitle | https://url | Optional description"}
               />
 
-              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-dashed border-runway-line-strong p-3">
+                <p className="runway-eyebrow-muted">
                   {editingStartupPackId ? "Update startup pack" : "Save current context as startup pack"}
                 </p>
                 <div className="mt-3 space-y-3">
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={startupPackName}
                     onChange={(event) => setStartupPackName(event.target.value)}
                     placeholder="Startup pack name"
                   />
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={startupPackDescription}
                     onChange={(event) => setStartupPackDescription(event.target.value)}
                     placeholder="Short description"
@@ -1503,7 +1503,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => createStartupPackMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                     disabled={
                       createStartupPackMutation.isPending || !startupPackName.trim()
                     }
@@ -1518,7 +1518,7 @@ export default function AdminAgentConsole() {
                   {editingStartupPackId ? (
                     <button
                       type="button"
-                      className="ml-2 inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-700"
+                      className="runway-cta-ghost ml-2 min-h-0 px-4 py-2 text-sm"
                       onClick={() => {
                         setEditingStartupPackId(null);
                         setStartupPackName("");
@@ -1532,19 +1532,19 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-dashed border-runway-line-strong p-3">
+                <p className="runway-eyebrow-muted">
                   Create ops document
                 </p>
                 <div className="mt-3 space-y-3">
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={opsDocumentTitle}
                     onChange={(event) => setOpsDocumentTitle(event.target.value)}
                     placeholder="Document title"
                   />
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={opsDocumentSourceFileUri}
                     onChange={(event) => setOpsDocumentSourceFileUri(event.target.value)}
                     placeholder="PDF source URI"
@@ -1552,7 +1552,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => createOpsDocumentMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                     disabled={
                       createOpsDocumentMutation.isPending ||
                       !opsDocumentTitle.trim() ||
@@ -1569,21 +1569,21 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-dashed border-runway-line-strong p-3">
+                <p className="runway-eyebrow-muted">
                   Agent profile library
                 </p>
                 <div className="mt-3 space-y-2">
                   <div className="max-h-36 space-y-2 overflow-y-auto">
                     {availableProfiles.map((profile) => (
-                      <div key={profile.id} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-200 p-2 text-sm">
+                      <div key={profile.id} className="flex items-start justify-between gap-3 border border-runway-line p-2 text-sm">
                         <div>
-                          <p className="font-medium text-zinc-900">{profile.name}</p>
-                          <p className="text-xs text-zinc-500">{profile.task_kind}</p>
+                          <p className="font-medium text-runway-text">{profile.name}</p>
+                          <p className="text-xs text-runway-faint">{profile.task_kind}</p>
                         </div>
                         <button
                           type="button"
-                          className="text-xs text-zinc-500 underline"
+                          className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setProfileEditorId(profile.built_in ? null : profile.id);
                             setProfileEditorName(profile.name);
@@ -1600,19 +1600,19 @@ export default function AdminAgentConsole() {
                     ))}
                   </div>
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={profileEditorName}
                     onChange={(event) => setProfileEditorName(event.target.value)}
                     placeholder="Profile name"
                   />
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={profileEditorKey}
                     onChange={(event) => setProfileEditorKey(event.target.value)}
                     placeholder="Profile key"
                   />
                   <select
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={profileEditorTaskKind}
                     onChange={(event) => setProfileEditorTaskKind(event.target.value as AgentTaskKind)}
                   >
@@ -1623,19 +1623,19 @@ export default function AdminAgentConsole() {
                     ))}
                   </select>
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={profileEditorDescription}
                     onChange={(event) => setProfileEditorDescription(event.target.value)}
                     placeholder="Profile description"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={profileEditorCapabilities}
                     onChange={(event) => setProfileEditorCapabilities(event.target.value)}
                     placeholder="Capabilities, one per line"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={profileEditorHumanGates}
                     onChange={(event) => setProfileEditorHumanGates(event.target.value)}
                     placeholder="Human gates, one per line"
@@ -1643,7 +1643,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => saveProfileMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                     disabled={!profileEditorName.trim() || !profileEditorKey.trim() || saveProfileMutation.isPending}
                   >
                     {saveProfileMutation.isPending ? (
@@ -1656,21 +1656,21 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="border border-dashed border-runway-line-strong p-3">
+                <p className="runway-eyebrow-muted">
                   Environment library
                 </p>
                 <div className="mt-3 space-y-2">
                   <div className="max-h-36 space-y-2 overflow-y-auto">
                     {availableEnvironments.map((environment) => (
-                      <div key={environment.id} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-200 p-2 text-sm">
+                      <div key={environment.id} className="flex items-start justify-between gap-3 border border-runway-line p-2 text-sm">
                         <div>
-                          <p className="font-medium text-zinc-900">{environment.name}</p>
-                          <p className="text-xs text-zinc-500">{environment.lane}</p>
+                          <p className="font-medium text-runway-text">{environment.name}</p>
+                          <p className="text-xs text-runway-faint">{environment.lane}</p>
                         </div>
                         <button
                           type="button"
-                          className="text-xs text-zinc-500 underline"
+                          className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setEnvironmentEditorId(environment.built_in ? null : environment.id);
                             setEnvironmentEditorName(environment.name);
@@ -1688,43 +1688,43 @@ export default function AdminAgentConsole() {
                     ))}
                   </div>
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={environmentEditorName}
                     onChange={(event) => setEnvironmentEditorName(event.target.value)}
                     placeholder="Environment name"
                   />
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={environmentEditorKey}
                     onChange={(event) => setEnvironmentEditorKey(event.target.value)}
                     placeholder="Environment key"
                   />
                   <input
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input"
                     value={environmentEditorLane}
                     onChange={(event) => setEnvironmentEditorLane(event.target.value)}
                     placeholder="Lane"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={environmentEditorDescription}
                     onChange={(event) => setEnvironmentEditorDescription(event.target.value)}
                     placeholder="Environment description"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={environmentEditorPackages}
                     onChange={(event) => setEnvironmentEditorPackages(event.target.value)}
                     placeholder="Packages, one per line"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={environmentEditorSecrets}
                     onChange={(event) => setEnvironmentEditorSecrets(event.target.value)}
                     placeholder="Secrets, one per line"
                   />
                   <textarea
-                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input min-h-[72px]"
                     value={environmentEditorMounts}
                     onChange={(event) => setEnvironmentEditorMounts(event.target.value)}
                     placeholder="Repo mounts, one per line"
@@ -1732,7 +1732,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => saveEnvironmentMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                     disabled={!environmentEditorName.trim() || !environmentEditorKey.trim() || saveEnvironmentMutation.isPending}
                   >
                     {saveEnvironmentMutation.isPending ? (
@@ -1748,7 +1748,7 @@ export default function AdminAgentConsole() {
               <button
                 type="button"
                 onClick={() => createSessionMutation.mutate()}
-                className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                className="runway-cta min-h-0 px-4 py-2 text-sm"
                 disabled={createSessionMutation.isPending}
               >
                 {createSessionMutation.isPending ? (
@@ -1761,36 +1761,36 @@ export default function AdminAgentConsole() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Sessions</h2>
+              <MessageSquare className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Sessions</h2>
             </div>
             <div className="mt-4 space-y-2">
               {sessionsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading sessions...</p>
+                <p className="text-sm text-runway-faint">Loading sessions...</p>
               ) : (sessionsQuery.data?.sessions || []).length === 0 ? (
-                <p className="text-sm text-zinc-500">No agent sessions yet.</p>
+                <p className="text-sm text-runway-faint">No agent sessions yet.</p>
               ) : (
                 sessionsQuery.data?.sessions.map((session) => (
                   <button
                     key={session.id}
                     type="button"
                     onClick={() => setSelectedSessionId(session.id)}
-                    className={`w-full rounded-xl border p-3 text-left ${
+                    className={`w-full border p-3 text-left transition-colors ${
                       selectedSessionId === session.id
-                        ? "border-zinc-950 bg-zinc-50"
-                        : "border-zinc-200 bg-white"
+                        ? "border-runway-signal bg-runway-raised"
+                        : "border-runway-line bg-runway-panel hover:bg-runway-raised"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-zinc-900">{session.title}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="font-medium text-runway-text">{session.title}</p>
+                        <p className="text-xs text-runway-faint">
                           {session.task_kind} · {session.provider}
                         </p>
                         {session.metadata?.managedRuntime?.profileName ? (
-                          <p className="text-[11px] text-zinc-400">
+                          <p className="text-[11px] text-runway-faint">
                             {session.metadata.managedRuntime.profileName}
                             {session.metadata.managedRuntime.environmentName
                               ? ` · ${session.metadata.managedRuntime.environmentName}`
@@ -1798,11 +1798,11 @@ export default function AdminAgentConsole() {
                           </p>
                         ) : null}
                       </div>
-                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                      <span className="runway-chip runway-chip-quiet">
                         {session.status}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs text-zinc-400">
+                    <p className="runway-num mt-2 text-xs text-runway-faint">
                       Updated {formatTimestamp(session.updated_at)}
                     </p>
                   </button>
@@ -1813,11 +1813,11 @@ export default function AdminAgentConsole() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-zinc-500" />
-                <h2 className="font-semibold text-zinc-950">Agent runtime</h2>
+                <Bot className="h-4 w-4 text-runway-faint" />
+                <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Agent runtime</h2>
               </div>
               <button
                 type="button"
@@ -1826,34 +1826,34 @@ export default function AdminAgentConsole() {
                     throwOnError: false,
                   })
                 }
-                className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                 disabled={openClawConnectivityQuery.isFetching}
               >
                 {openClawConnectivityQuery.isFetching ? "Checking..." : "Check runtime connectivity"}
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-sm text-zinc-700">
+            <div className="mt-4 space-y-3 text-sm text-runway-body">
               {openClawConnectivityQuery.isLoading ? (
-                <p className="text-zinc-500">Loading runtime connectivity...</p>
+                <p className="text-runway-faint">Loading runtime connectivity...</p>
               ) : openClawConnectivity ? (
                 <>
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="border border-runway-line bg-runway-black p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        className={`runway-chip ${
                           openClawConnectivity.configured
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
+                            ? "runway-chip-live"
+                            : "runway-chip-fail"
                         }`}
                       >
                         {openClawConnectivity.configured ? "configured" : "not configured"}
                       </span>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        className={`runway-chip ${
                           openClawConnectivity.auth_configured
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-zinc-100 text-zinc-700"
+                            ? "runway-chip-neutral"
+                            : "runway-chip-quiet"
                         }`}
                       >
                         {openClawConnectivity.auth_configured ? "configured" : "not configured"}
@@ -1867,12 +1867,12 @@ export default function AdminAgentConsole() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-dashed border-zinc-300 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <div className="border border-dashed border-runway-line-strong p-4">
+                    <p className="runway-eyebrow-muted">
                       Smoke test
                     </p>
                     <input
-                      className="mt-3 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="runway-input mt-3"
                       value={openClawSmokeModel}
                       onChange={(event) => setOpenClawSmokeModel(event.target.value)}
                       placeholder="Optional model override"
@@ -1880,7 +1880,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => openClawSmokeTestMutation.mutate()}
-                      className="mt-3 inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                      className="runway-cta-ghost mt-3 min-h-0 px-4 py-2 text-sm"
                       disabled={openClawSmokeTestMutation.isPending}
                     >
                       {openClawSmokeTestMutation.isPending ? (
@@ -1891,10 +1891,10 @@ export default function AdminAgentConsole() {
                       Run smoke test
                     </button>
                     {openClawSmokeError ? (
-                      <p className="mt-3 text-sm text-rose-700">{openClawSmokeError}</p>
+                      <p className="mt-3 text-sm text-runway-red">{openClawSmokeError}</p>
                     ) : null}
                     {openClawSmokeResult ? (
-                      <div className="mt-3 rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      <div className="runway-num mt-3 border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         <p>Status: {openClawSmokeResult.ok ? "passed" : "failed"}</p>
                         <p>Duration: {formatLatency(openClawSmokeResult.duration_ms) || `${openClawSmokeResult.duration_ms} ms`}</p>
                         <p>Provider: {("provider" in (openClawSmokeResult.final || {}) ? (openClawSmokeResult.final as { provider?: string }).provider : "openai_responses") || "openai_responses"}</p>
@@ -1904,22 +1904,22 @@ export default function AdminAgentConsole() {
                   </div>
                 </>
               ) : (
-                <p className="text-zinc-500">No runtime connectivity data yet.</p>
+                <p className="text-runway-faint">No runtime connectivity data yet.</p>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <h2 className="font-semibold text-zinc-950">Selected session</h2>
+          <div className="runway-panel p-5">
+            <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Selected session</h2>
             {selectedSession ? (
               <div className="mt-4 space-y-4">
-                <div className="rounded-xl bg-zinc-50 p-4">
-                  <p className="font-medium text-zinc-900">{selectedSession.title}</p>
-                  <p className="mt-1 text-sm text-zinc-600">
+                <div className="border border-runway-line bg-runway-black p-4">
+                  <p className="font-medium text-runway-text">{selectedSession.title}</p>
+                  <p className="mt-1 text-sm text-runway-mute">
                     {selectedSession.task_kind} · {selectedSession.provider}
                   </p>
                   {selectedSession.metadata?.managedRuntime?.profileName ? (
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-runway-faint">
                       Profile: {selectedSession.metadata.managedRuntime.profileName}
                       {selectedSession.metadata.managedRuntime.environmentName
                         ? ` · Environment: ${selectedSession.metadata.managedRuntime.environmentName}`
@@ -1927,25 +1927,25 @@ export default function AdminAgentConsole() {
                     </p>
                   ) : null}
                   {workflowPhase ? (
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-runway-faint">
                       Phase: {phaseLabel(workflowPhase)}
                       {workflowRetryCount > 0 ? ` · Retry ${workflowRetryCount + 1}` : ""}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="runway-num mt-2 text-xs text-runway-faint">
                     Last updated {formatTimestamp(selectedSession.updated_at)}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="border border-runway-line p-4">
+                  <p className="runway-eyebrow-muted">
                     Live controls
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => startSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                       disabled={startSessionMutation.isPending}
                     >
                       {startSessionMutation.isPending ? (
@@ -1958,7 +1958,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => interruptSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800"
+                      className="runway-cta-ghost min-h-0 border-runway-signal-dim px-3 py-2 text-xs text-runway-signal"
                       disabled={interruptSessionMutation.isPending}
                     >
                       {interruptSessionMutation.isPending ? (
@@ -1971,7 +1971,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => resumeSessionMutation.mutate(selectedSession.latest_checkpoint_id || undefined)}
-                      className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700"
+                      className="runway-cta-ghost min-h-0 border-runway-sky-dim px-3 py-2 text-xs text-runway-sky"
                       disabled={resumeSessionMutation.isPending}
                     >
                       {resumeSessionMutation.isPending ? (
@@ -1984,7 +1984,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => cancelSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700"
+                      className="runway-cta-ghost min-h-0 border-runway-red-dim px-3 py-2 text-xs text-runway-red"
                       disabled={cancelSessionMutation.isPending}
                     >
                       {cancelSessionMutation.isPending ? (
@@ -1997,7 +1997,7 @@ export default function AdminAgentConsole() {
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <select
-                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs"
+                      className="runway-input text-xs"
                       value={compactPhase}
                       onChange={(event) => setCompactPhase(event.target.value as AgentThreadPhase)}
                     >
@@ -2008,7 +2008,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => compactSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                       disabled={compactSessionMutation.isPending}
                     >
                       {compactSessionMutation.isPending ? (
@@ -2020,7 +2020,7 @@ export default function AdminAgentConsole() {
                     </button>
                   </div>
                   <textarea
-                    className="mt-3 min-h-[88px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                    className="runway-input mt-3 min-h-[88px]"
                     value={steerMessage}
                     onChange={(event) => setSteerMessage(event.target.value)}
                     placeholder="Steer the active session with a fresh instruction"
@@ -2028,7 +2028,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => steerSessionMutation.mutate()}
-                    className="mt-3 inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                    className="runway-cta-ghost mt-3 min-h-0 px-3 py-2 text-xs"
                     disabled={steerSessionMutation.isPending || !steerMessage.trim()}
                   >
                     {steerSessionMutation.isPending ? (
@@ -2040,22 +2040,22 @@ export default function AdminAgentConsole() {
                   </button>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="border border-runway-line p-4">
+                  <p className="runway-eyebrow-muted">
                     Human delegation
                   </p>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-runway-mute">
                     Assign a bounded task to another managed agent profile without touching raw Paperclip state.
                   </p>
                   <div className="mt-3 grid gap-3">
                     <input
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="runway-input"
                       value={delegationTitle}
                       onChange={(event) => setDelegationTitle(event.target.value)}
                       placeholder="Delegation title"
                     />
                     <select
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="runway-input"
                       value={delegationProfileId}
                       onChange={(event) => setDelegationProfileId(event.target.value)}
                     >
@@ -2067,7 +2067,7 @@ export default function AdminAgentConsole() {
                       ))}
                     </select>
                     <select
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="runway-input"
                       value={delegationEnvironmentProfileId}
                       onChange={(event) => setDelegationEnvironmentProfileId(event.target.value)}
                     >
@@ -2079,12 +2079,12 @@ export default function AdminAgentConsole() {
                       ))}
                     </select>
                     {selectedDelegationProfile?.outcome_contract ? (
-                      <div className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
+                      <div className="border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         Outcome contract: {selectedDelegationProfile.outcome_contract.objective}
                       </div>
                     ) : null}
                     <textarea
-                      className="min-h-[100px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                      className="runway-input min-h-[100px]"
                       value={delegationMessage}
                       onChange={(event) => setDelegationMessage(event.target.value)}
                       placeholder="Bounded task for the delegated agent"
@@ -2092,7 +2092,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => delegationMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                       disabled={
                         delegationMutation.isPending ||
                         !delegationTitle.trim() ||
@@ -2111,37 +2111,37 @@ export default function AdminAgentConsole() {
                 </div>
 
                 {selectedSession.metadata?.latest_outcome_evaluation ? (
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <div className="border border-runway-line p-4">
+                    <p className="runway-eyebrow-muted">
                       Latest outcome grade
                     </p>
                     <div className="mt-3 flex items-center gap-2">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        className={`runway-chip ${
                           selectedSession.metadata.latest_outcome_evaluation.status === "pass"
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "runway-chip-live"
                             : selectedSession.metadata.latest_outcome_evaluation.status === "partial"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-rose-100 text-rose-700"
+                              ? "runway-chip-open"
+                              : "runway-chip-fail"
                         }`}
                       >
                         {selectedSession.metadata.latest_outcome_evaluation.status}
                       </span>
-                      <span className="text-sm text-zinc-600">
+                      <span className="text-sm text-runway-mute">
                         {scorePercent(selectedSession.metadata.latest_outcome_evaluation.score)}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedSession.metadata.latest_outcome_evaluation.summary}
                     </p>
                   </div>
                 ) : null}
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="border border-runway-line p-4">
+                  <p className="runway-eyebrow-muted">
                     Fresh thread actions
                   </p>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-runway-mute">
                     Create bounded follow-up sessions with a compressed handoff instead of carrying the full history forward.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -2150,7 +2150,7 @@ export default function AdminAgentConsole() {
                         key={phase}
                         type="button"
                         onClick={() => forkSessionMutation.mutate(phase)}
-                        className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                        className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                         disabled={forkSessionMutation.isPending}
                       >
                         {forkSessionMutation.isPending ? (
@@ -2163,12 +2163,12 @@ export default function AdminAgentConsole() {
                     ))}
                   </div>
                   {forkSessionMutation.isError && forkSessionMutation.error instanceof Error ? (
-                    <p className="mt-3 text-sm text-rose-700">{forkSessionMutation.error.message}</p>
+                    <p className="mt-3 text-sm text-runway-red">{forkSessionMutation.error.message}</p>
                   ) : null}
                 </div>
 
                 {latestRunNeedsFreshThread ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                  <div className="border border-runway-signal-dim p-4 text-sm text-runway-body">
                     <p className="font-medium">Latest run hit a context-window failure.</p>
                     <p className="mt-2">
                       Start a fresh thread with a compressed handoff, retry once there, then split or reroute the work if it fails again.
@@ -2176,11 +2176,11 @@ export default function AdminAgentConsole() {
                   </div>
                 ) : null}
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="border border-runway-line p-4">
+                  <p className="runway-eyebrow-muted">
                     Attached startup context
                   </p>
-                  <div className="mt-3 space-y-2 text-sm text-zinc-700">
+                  <div className="mt-3 space-y-2 text-sm text-runway-body">
                     <p>
                       Startup packs:{" "}
                       {(selectedSession.metadata?.startupContext?.startupPackIds || [])
@@ -2227,7 +2227,7 @@ export default function AdminAgentConsole() {
                       {(selectedSession.metadata?.startupContext?.creativeContexts || []).length > 0 ? (
                         <div className="mt-2 space-y-2">
                           {(selectedSession.metadata?.startupContext?.creativeContexts || []).map((context) => (
-                            <p key={context.id} className="break-all font-mono text-[11px] text-zinc-500">
+                            <p key={context.id} className="runway-num break-all text-[11px] text-runway-faint">
                               {context.storage_uri}
                             </p>
                           ))}
@@ -2241,18 +2241,18 @@ export default function AdminAgentConsole() {
                 </div>
 
                 {workflowHandoffPrompt ? (
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <div className="border border-runway-line p-4">
+                    <p className="runway-eyebrow-muted">
                       Generated handoff
                     </p>
-                    <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                    <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                       {workflowHandoffPrompt}
                     </pre>
                   </div>
                 ) : null}
 
                 <textarea
-                  className="min-h-[120px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                  className="runway-input min-h-[120px]"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Send a message into this agent session"
@@ -2260,7 +2260,7 @@ export default function AdminAgentConsole() {
                 <button
                   type="button"
                   onClick={() => sendMessageMutation.mutate()}
-                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                  className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                   disabled={sendMessageMutation.isPending || !message.trim()}
                 >
                   {sendMessageMutation.isPending ? (
@@ -2272,36 +2272,36 @@ export default function AdminAgentConsole() {
                 </button>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-zinc-500">Select or create a session to begin.</p>
+              <p className="mt-4 text-sm text-runway-faint">Select or create a session to begin.</p>
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Run history</h2>
+              <Clock3 className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Run history</h2>
             </div>
             <div className="mt-4 space-y-3">
               {runsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading runs...</p>
+                <p className="text-sm text-runway-faint">Loading runs...</p>
               ) : runs.length === 0 ? (
-                <p className="text-sm text-zinc-500">No runs for this session yet.</p>
+                <p className="text-sm text-runway-faint">No runs for this session yet.</p>
               ) : (
                 runs.map((run) => (
-                  <div key={run.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div key={run.id} className="border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(run.status)}`}>
+                      <span className={`runway-chip ${statusColor(run.status)}`}>
                         {run.status}
                       </span>
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-runway-faint">
                         {run.provider} · {run.model}
                       </span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="runway-num text-xs text-runway-faint">
                         {formatTimestamp(run.created_at)}
                       </span>
                     </div>
                     {run.approval_reason ? (
-                      <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                      <div className="mt-3 border border-runway-signal-dim p-3 text-sm text-runway-signal">
                         <div className="flex items-start gap-2">
                           <ShieldAlert className="mt-0.5 h-4 w-4" />
                           <p>{run.approval_reason}</p>
@@ -2309,23 +2309,23 @@ export default function AdminAgentConsole() {
                       </div>
                     ) : null}
                     {run.error ? (
-                      <p className="mt-3 text-sm text-rose-700">{run.error}</p>
+                      <p className="mt-3 text-sm text-runway-red">{run.error}</p>
                     ) : null}
                     {run.outcome_evaluation ? (
-                      <div className="mt-3 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
+                      <div className="mt-3 border border-runway-line bg-runway-black p-3 text-sm text-runway-body">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            className={`runway-chip ${
                               run.outcome_evaluation.status === "pass"
-                                ? "bg-emerald-100 text-emerald-700"
+                                ? "runway-chip-live"
                                 : run.outcome_evaluation.status === "partial"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-rose-100 text-rose-700"
+                                  ? "runway-chip-open"
+                                  : "runway-chip-fail"
                             }`}
                           >
                             {run.outcome_evaluation.status}
                           </span>
-                          <span className="text-xs text-zinc-500">
+                          <span className="text-xs text-runway-faint">
                             {scorePercent(run.outcome_evaluation.score)}
                           </span>
                         </div>
@@ -2333,20 +2333,20 @@ export default function AdminAgentConsole() {
                       </div>
                     ) : null}
                     {run.outcome_contract ? (
-                      <div className="mt-3 rounded-lg border border-zinc-200 p-3 text-sm text-zinc-700">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      <div className="mt-3 border border-runway-line p-3 text-sm text-runway-body">
+                        <p className="runway-eyebrow-muted">
                           Outcome contract
                         </p>
                         <p className="mt-2">{run.outcome_contract.objective}</p>
                       </div>
                     ) : null}
                     {run.output ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         {JSON.stringify(run.output, null, 2)}
                       </pre>
                     ) : null}
                     {run.metadata && Object.keys(run.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs text-zinc-800">
+                      <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-body">
                         {JSON.stringify(run.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2356,7 +2356,7 @@ export default function AdminAgentConsole() {
                         <button
                           type="button"
                           onClick={() => approveRunMutation.mutate(run.id)}
-                          className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
+                          className="runway-cta-ghost min-h-0 border-runway-green-dim px-3 py-2 text-xs text-runway-green"
                         >
                           <CheckCircle2 className="mr-1 h-3 w-3" />
                           Approve
@@ -2366,7 +2366,7 @@ export default function AdminAgentConsole() {
                         <button
                           type="button"
                           onClick={() => cancelRunMutation.mutate(run.id)}
-                          className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700"
+                          className="runway-cta-ghost min-h-0 border-runway-red-dim px-3 py-2 text-xs text-runway-red"
                         >
                           <SquareX className="mr-1 h-3 w-3" />
                           Cancel
@@ -2374,7 +2374,7 @@ export default function AdminAgentConsole() {
                       ) : null}
                       {run.raw_output_text ? (
                         <a
-                          className="inline-flex items-center rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                          className="runway-cta-ghost min-h-0 px-3 py-2 text-xs"
                           href={`data:text/plain;charset=utf-8,${encodeURIComponent(run.raw_output_text)}`}
                           target="_blank"
                           rel="noreferrer"
@@ -2390,39 +2390,39 @@ export default function AdminAgentConsole() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Layers3 className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Action trail</h2>
+              <Layers3 className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Action trail</h2>
             </div>
             <div className="mt-4 space-y-3">
               {actionLogsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading action logs...</p>
+                <p className="text-sm text-runway-faint">Loading action logs...</p>
               ) : actionLogs.length === 0 ? (
-                <p className="text-sm text-zinc-500">No action logs for this session yet.</p>
+                <p className="text-sm text-runway-faint">No action logs for this session yet.</p>
               ) : (
                 actionLogs.map((log) => (
-                  <div key={log.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div key={log.id} className="border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${actionLogStatusColor(log.status)}`}
+                        className={`runway-chip ${actionLogStatusColor(log.status)}`}
                       >
                         {log.status}
                       </span>
-                      <span className="text-xs font-medium text-zinc-700">
+                      <span className="text-xs font-medium text-runway-body">
                         {log.actionKey}
                       </span>
                       <span className={`text-xs ${riskColor(log.riskLevel)}`}>
                         {log.riskLevel} risk
                       </span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="runway-num text-xs text-runway-faint">
                         {formatTimestamp(log.createdAt)}
                       </span>
                     </div>
                     {log.summary ? (
-                      <p className="mt-3 text-sm text-zinc-700">{log.summary}</p>
+                      <p className="mt-3 text-sm text-runway-body">{log.summary}</p>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-500">
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-runway-faint">
                       {log.provider ? <span>{log.provider}</span> : null}
                       {log.taskKind ? <span>{log.taskKind}</span> : null}
                       {formatLatency(log.latencyMs) ? (
@@ -2432,7 +2432,7 @@ export default function AdminAgentConsole() {
                       {!log.reversible ? <span>non-reversible</span> : null}
                     </div>
                     {log.metadata && Object.keys(log.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         {JSON.stringify(log.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2442,30 +2442,30 @@ export default function AdminAgentConsole() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Managed runtime timeline</h2>
+              <Clock3 className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Managed runtime timeline</h2>
             </div>
             <div className="mt-4 space-y-3">
               {eventsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading runtime events...</p>
+                <p className="text-sm text-runway-faint">Loading runtime events...</p>
               ) : sessionTimeline.length === 0 ? (
-                <p className="text-sm text-zinc-500">No runtime events yet.</p>
+                <p className="text-sm text-runway-faint">No runtime events yet.</p>
               ) : (
                 sessionTimeline.map((item) => (
-                  <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div key={item.id} className="border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${runtimeEventStatusColor(item.status as RuntimeEventRecord["status"])}`}>
+                      <span className={`runway-chip ${runtimeEventStatusColor(item.status as RuntimeEventRecord["status"])}`}>
                         {item.status}
                       </span>
-                      <span className="text-xs font-medium text-zinc-700">{item.kind}</span>
-                      <span className="text-xs text-zinc-400">{formatTimestamp(item.created_at)}</span>
+                      <span className="text-xs font-medium text-runway-body">{item.kind}</span>
+                      <span className="runway-num text-xs text-runway-faint">{formatTimestamp(item.created_at)}</span>
                     </div>
-                    <p className="mt-3 text-sm text-zinc-700">{item.summary}</p>
-                    {item.detail ? <p className="mt-2 text-xs text-zinc-500">{item.detail}</p> : null}
+                    <p className="mt-3 text-sm text-runway-body">{item.summary}</p>
+                    {item.detail ? <p className="mt-2 text-xs text-runway-faint">{item.detail}</p> : null}
                     {item.metadata && Object.keys(item.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         {JSON.stringify(item.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2475,34 +2475,34 @@ export default function AdminAgentConsole() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Layers3 className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Checkpoints</h2>
+              <Layers3 className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Checkpoints</h2>
             </div>
             <div className="mt-4 space-y-3">
               {checkpointsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading checkpoints...</p>
+                <p className="text-sm text-runway-faint">Loading checkpoints...</p>
               ) : checkpoints.length === 0 ? (
-                <p className="text-sm text-zinc-500">No checkpoints for this session yet.</p>
+                <p className="text-sm text-runway-faint">No checkpoints for this session yet.</p>
               ) : (
                 checkpoints.map((checkpoint) => (
-                  <div key={checkpoint.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div key={checkpoint.id} className="border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                      <span className="runway-chip runway-chip-quiet">
                         {checkpoint.trigger}
                       </span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="runway-num text-xs text-runway-faint">
                         {formatTimestamp(checkpoint.created_at)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-zinc-700">{checkpoint.label}</p>
+                    <p className="mt-3 text-sm text-runway-body">{checkpoint.label}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {checkpoint.replayable ? (
                         <button
                           type="button"
                           onClick={() => resumeSessionMutation.mutate(checkpoint.id)}
-                          className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700"
+                          className="runway-cta-ghost min-h-0 border-runway-sky-dim px-3 py-2 text-xs text-runway-sky"
                           disabled={resumeSessionMutation.isPending}
                         >
                           {resumeSessionMutation.isPending ? (
@@ -2520,41 +2520,41 @@ export default function AdminAgentConsole() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="runway-panel p-5">
             <div className="flex items-center gap-2">
-              <Layers3 className="h-4 w-4 text-zinc-500" />
-              <h2 className="font-semibold text-zinc-950">Compactions</h2>
+              <Layers3 className="h-4 w-4 text-runway-faint" />
+              <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Compactions</h2>
             </div>
             <div className="mt-4 space-y-3">
               {compactionsQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Loading compactions...</p>
+                <p className="text-sm text-runway-faint">Loading compactions...</p>
               ) : compactions.length === 0 ? (
-                <p className="text-sm text-zinc-500">No compactions for this session yet.</p>
+                <p className="text-sm text-runway-faint">No compactions for this session yet.</p>
               ) : (
                 compactions.map((compaction) => (
-                  <div key={compaction.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div key={compaction.id} className="border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      <span className={`runway-chip ${
                         compaction.status === "continued"
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "runway-chip-live"
                           : compaction.status === "failed"
-                            ? "bg-rose-100 text-rose-700"
-                            : "bg-zinc-100 text-zinc-700"
+                            ? "runway-chip-fail"
+                            : "runway-chip-quiet"
                       }`}>
                         {compaction.status}
                       </span>
-                      <span className="text-xs text-zinc-500">{compaction.reason}</span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-runway-faint">{compaction.reason}</span>
+                      <span className="runway-num text-xs text-runway-faint">
                         {formatTimestamp(compaction.created_at)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-zinc-700">{compaction.summary}</p>
+                    <p className="mt-3 text-sm text-runway-body">{compaction.summary}</p>
                     {compaction.phase ? (
-                      <p className="mt-2 text-xs text-zinc-500">
+                      <p className="mt-2 text-xs text-runway-faint">
                         Phase: {phaseLabel(compaction.phase)}
                       </p>
                     ) : null}
-                    <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                    <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                       {compaction.handoff_prompt}
                     </pre>
                   </div>

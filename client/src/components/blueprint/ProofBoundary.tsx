@@ -17,10 +17,30 @@ interface LevelTokens {
 }
 
 const levelTokens: Record<ProofBoundaryLevel, LevelTokens> = {
-  info: { fg: "text-info-fg", bg: "bg-info-bg", bd: "border-info-bd", accent: "#1f4f8f" },
-  proof: { fg: "text-proof-fg", bg: "bg-proof-bg", bd: "border-proof-bd", accent: "#1f6b4f" },
-  warn: { fg: "text-warn-fg", bg: "bg-warn-bg", bd: "border-warn-bd", accent: "#9a6a16" },
-  block: { fg: "text-block-fg", bg: "bg-block-bg", bd: "border-block-bd", accent: "#9b3027" },
+  info: {
+    fg: "text-runway-sky",
+    bg: "bg-info-bg",
+    bd: "border-runway-sky-dim",
+    accent: "#9fb9cf",
+  },
+  proof: {
+    fg: "text-runway-green",
+    bg: "bg-proof-bg",
+    bd: "border-runway-green-dim",
+    accent: "#46b96c",
+  },
+  warn: {
+    fg: "text-runway-signal",
+    bg: "bg-warn-bg",
+    bd: "border-runway-signal-dim",
+    accent: "#ffb000",
+  },
+  block: {
+    fg: "text-runway-red",
+    bg: "bg-block-bg",
+    bd: "border-runway-red-dim",
+    accent: "#ff5c45",
+  },
 };
 
 export interface ProofBoundaryProps
@@ -48,7 +68,7 @@ const ProofBoundary = React.forwardRef<HTMLDivElement, ProofBoundaryProps>(
       <div
         ref={ref}
         className={cn(
-          "flex gap-3 rounded-sm border px-4 py-[0.85rem]",
+          "flex gap-3 rounded-none border px-4 py-[0.85rem]",
           tokens.bg,
           tokens.bd,
           className,
@@ -64,13 +84,13 @@ const ProofBoundary = React.forwardRef<HTMLDivElement, ProofBoundaryProps>(
         <div className="flex min-w-0 flex-col gap-1">
           <span
             className={cn(
-              "text-caption font-bold uppercase tracking-[0.08em]",
+              "font-mono text-[11px] font-bold uppercase tracking-[0.14em]",
               tokens.fg,
             )}
           >
             {title}
           </span>
-          <div className="text-body-s leading-[1.55] text-ink-800">
+          <div className="text-body-s leading-[1.55] text-runway-body">
             {children}
           </div>
         </div>

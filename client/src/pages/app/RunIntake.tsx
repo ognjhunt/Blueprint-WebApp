@@ -14,7 +14,7 @@ import {
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
+  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
 const labelClass = "text-body-s font-semibold text-ink-800";
 
 type IntakeState = {
@@ -89,7 +89,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="rounded-md border border-line bg-white p-5">
+    <fieldset className="rounded-md border border-line bg-paper-0 p-5">
       <legend className="px-1 text-title-m font-semibold text-ink-900">{title}</legend>
       <p className="mb-4 text-body-s text-ink-500">{description}</p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
@@ -303,7 +303,7 @@ export default function RunIntake() {
           <label className="md:col-span-2 flex items-center gap-3 text-body-s font-semibold text-ink-800"><input type="checkbox" checked={form.physicalTestingPossible} onChange={(e) => set("physicalTestingPossible", e.target.checked)} />Authoritative physical testing is possible for this task</label>
         </Section>
 
-        <details className="rounded-md border border-line bg-white p-5">
+        <details className="rounded-md border border-line bg-paper-0 p-5">
           <summary className="cursor-pointer text-title-m font-semibold text-ink-900">Optional evidence and authorization details</summary>
           <p className="mt-2 text-body-s text-ink-500">Add exact references only. Do not paste credentials, private endpoints, or raw policy weights.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">

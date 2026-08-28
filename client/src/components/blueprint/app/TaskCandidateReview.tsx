@@ -8,9 +8,8 @@ import type {
   TaskDecisionCommandRequest,
 } from "@/lib/captureUploads";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
-const labelClass = "text-body-s font-semibold text-ink-800";
+const fieldClass = "runway-input mt-1.5";
+const labelClass = "text-body-s font-semibold text-runway-text";
 
 function displayRows(rows: Array<Record<string, unknown>>) {
   return rows.map((row) => String(row.description || row.label || row.object_id || row.region_id || ""))
@@ -21,12 +20,12 @@ function EvidenceList({ title, rows }: { title: string; rows: Array<Record<strin
   const items = displayRows(rows);
   return (
     <div>
-      <h3 className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{title}</h3>
+      <h3 className="runway-meta font-semibold">{title}</h3>
       {items.length ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-ink-600">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
           {items.map((item) => <li key={item}>{item}</li>)}
         </ul>
-      ) : <p className="mt-2 text-body-s text-ink-400">None reported.</p>}
+      ) : <p className="mt-2 text-body-s text-runway-faint">None reported.</p>}
     </div>
   );
 }
@@ -81,7 +80,7 @@ function CandidateActionPanel({
       </label>
 
       {editing ? (
-        <div className="mt-4 grid gap-3 rounded-md border border-line bg-inset p-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 border border-runway-line bg-runway-black p-4 md:grid-cols-2">
           <label className="md:col-span-2"><span className={labelClass}>Exact task</span><textarea className={fieldClass} rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
           <label><span className={labelClass}>Task family</span><input className={fieldClass} value={taskFamily} onChange={(event) => setTaskFamily(event.target.value)} /></label>
           <label><span className={labelClass}>Metric</span><input className={fieldClass} value={metric} onChange={(event) => setMetric(event.target.value)} /></label>
@@ -145,8 +144,8 @@ export function TaskCandidateReview({
     <section className="flex flex-col gap-5" aria-labelledby="task-candidate-heading">
       <div>
         <StatusChip tone="warn" square>Customer intent required</StatusChip>
-        <h2 id="task-candidate-heading" className="mt-3 text-title-l font-semibold tracking-tight text-ink-900">Review proposed tasks</h2>
-        <p className="mt-2 max-w-3xl text-body-s text-ink-500">These are Pipeline-authored hypotheses grounded in the capture. Approving one records your intent; it does not prove the task succeeds.</p>
+        <h2 id="task-candidate-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">Review proposed tasks</h2>
+        <p className="mt-2 max-w-3xl text-body-s text-runway-mute">These are Pipeline-authored hypotheses grounded in the capture. Approving one records your intent; it does not prove the task succeeds.</p>
       </div>
 
       <ProofBoundary level="info" title="Approval command boundary" icon={AlertTriangle}>
@@ -192,21 +191,21 @@ export function TaskCandidateReview({
             <Card key={candidate.task_candidate_id} pad="lg">
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
-                  <h3 className="text-title-m font-semibold text-ink-900">{candidate.description}</h3>
-                  <p className="mt-1 font-mono text-[0.68rem] text-ink-400">{candidate.task_candidate_id}</p>
+                  <h3 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">{candidate.description}</h3>
+                  <p className="runway-num mt-1 text-[0.68rem] text-runway-faint">{candidate.task_candidate_id}</p>
                 </div>
                 <StatusChip tone="neutral" square>{Math.round(candidate.confidence * 100)}% proposal confidence</StatusChip>
               </div>
               <dl className="mt-5 grid gap-4 text-body-s md:grid-cols-2 lg:grid-cols-3">
-                <div><dt className="font-semibold text-ink-800">Task family</dt><dd className="mt-1 text-ink-600">{candidate.likely_task_family}</dd></div>
-                <div><dt className="font-semibold text-ink-800">Proposed success condition</dt><dd className="mt-1 text-ink-600">{condition.metric} {condition.operator} {String(condition.threshold)} {condition.units}</dd></div>
-                <div><dt className="font-semibold text-ink-800">Estimated evaluation cost</dt><dd className="mt-1 text-ink-600">${candidate.estimated_evaluation_cost_usd.toFixed(2)}</dd></div>
-                <div><dt className="font-semibold text-ink-800">Observed objects</dt><dd className="mt-1 text-ink-600">{displayRows(candidate.observed_objects).join(", ")}</dd></div>
-                <div><dt className="font-semibold text-ink-800">Target regions</dt><dd className="mt-1 text-ink-600">{displayRows(candidate.target_regions).join(", ")}</dd></div>
-                <div><dt className="font-semibold text-ink-800">Required reset</dt><dd className="mt-1 text-ink-600">{candidate.required_site_reset}</dd></div>
+                <div><dt className="runway-meta font-semibold">Task family</dt><dd className="mt-1 text-runway-body">{candidate.likely_task_family}</dd></div>
+                <div><dt className="runway-meta font-semibold">Proposed success condition</dt><dd className="runway-num mt-1 text-runway-text">{condition.metric} {condition.operator} {String(condition.threshold)} {condition.units}</dd></div>
+                <div><dt className="runway-meta font-semibold">Estimated evaluation cost</dt><dd className="runway-num mt-1 text-runway-text">${candidate.estimated_evaluation_cost_usd.toFixed(2)}</dd></div>
+                <div><dt className="runway-meta font-semibold">Observed objects</dt><dd className="mt-1 text-runway-body">{displayRows(candidate.observed_objects).join(", ")}</dd></div>
+                <div><dt className="runway-meta font-semibold">Target regions</dt><dd className="mt-1 text-runway-body">{displayRows(candidate.target_regions).join(", ")}</dd></div>
+                <div><dt className="runway-meta font-semibold">Required reset</dt><dd className="mt-1 text-runway-body">{candidate.required_site_reset}</dd></div>
               </dl>
-              {candidate.missing_evidence.length ? <p className="mt-4 text-body-s text-warn"><strong>Missing evidence:</strong> {candidate.missing_evidence.join(" ")}</p> : null}
-              {candidate.prohibited_claims.length ? <p className="mt-2 text-body-s text-ink-500"><strong>Prohibited claims:</strong> {candidate.prohibited_claims.join(", ")}</p> : null}
+              {candidate.missing_evidence.length ? <p className="mt-4 text-body-s text-runway-signal"><strong>Missing evidence:</strong> {candidate.missing_evidence.join(" ")}</p> : null}
+              {candidate.prohibited_claims.length ? <p className="mt-2 text-body-s text-runway-mute"><strong>Prohibited claims:</strong> {candidate.prohibited_claims.join(", ")}</p> : null}
               {actionsAvailable ? <CandidateActionPanel candidate={candidate} submitting={submitting} onSubmit={onSubmit} /> : null}
             </Card>
           );

@@ -131,7 +131,7 @@ export default function Capture() {
                 </a>
                 <a
                   href={cityStatusHref}
-                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-slate-500"
+                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-runway-faint"
                 >
                   Check city status
                 </a>
@@ -145,7 +145,7 @@ export default function Capture() {
                 className="absolute inset-0 h-full w-full object-cover grayscale"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-white/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   Assignment boundary
@@ -165,7 +165,7 @@ export default function Capture() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   Accepted methods
                 </p>
-                <h2 className="mt-3 text-3xl font-semibold leading-tight">
+                <h2 className="mt-3 font-display uppercase tracking-[0.005em] text-3xl font-semibold leading-tight">
                   Use the device named in the assignment.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-white/70">
@@ -201,7 +201,7 @@ export default function Capture() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   How assignments work
                 </p>
-                <h2 className="mt-3 text-4xl font-semibold leading-tight text-runway-text">
+                <h2 className="mt-3 font-display uppercase tracking-[0.005em] text-4xl font-semibold leading-tight text-runway-text">
                   Review first. Assignment second. Payout after QA.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-runway-mute">
@@ -228,7 +228,7 @@ export default function Capture() {
               <div className="flex h-11 w-11 items-center justify-center bg-runway-panel text-white">
                 <ClipboardCheck className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-runway-text">
+              <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">
                 Every approved assignment includes
               </h2>
               <div className="mt-5 grid gap-3">
@@ -245,7 +245,7 @@ export default function Capture() {
               <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
                 <WalletCards className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-runway-text">
+              <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">
                 No public payout promises
               </h2>
               <p className="mt-4 text-sm leading-7 text-runway-mute">
@@ -267,7 +267,7 @@ export default function Capture() {
               <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
                 <ShieldCheck className="h-5 w-5" />
               </div>
-              <h2 className="mt-5 text-3xl font-semibold text-runway-text">Safety and QA rules</h2>
+              <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">Safety and QA rules</h2>
               <p className="mt-3 text-sm leading-7 text-runway-mute">
                 These rules protect the site, people inside it, and the provenance of the resulting package.
               </p>
@@ -290,7 +290,7 @@ export default function Capture() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                 Start with your city
               </p>
-              <h2 className="mt-3 text-4xl font-semibold leading-tight">
+              <h2 className="mt-3 font-display uppercase tracking-[0.005em] text-4xl font-semibold leading-tight">
                 Apply for review or leave a city signal.
               </h2>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70">
@@ -300,7 +300,7 @@ export default function Capture() {
             <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
               <a
                 href={applicationHref}
-                className="inline-flex min-h-12 items-center justify-center bg-runway-signal px-6 text-sm font-semibold text-runway-black transition hover:bg-runway-signal-deep"
+                className="inline-flex min-h-12 items-center justify-center bg-runway-signal px-6 text-sm font-semibold text-runway-signal-ink transition hover:bg-runway-signal-deep"
               >
                 Apply to capture
                 <ArrowRight className="ml-2 h-4 w-4" />

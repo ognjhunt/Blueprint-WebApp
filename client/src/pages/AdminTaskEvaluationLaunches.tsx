@@ -628,23 +628,23 @@ export default function AdminTaskEvaluationLaunches() {
   const elapsed = formatElapsedSeconds(progress?.elapsed_seconds);
 
   return (
-    <main className="min-h-screen bg-[#f4f0e7] px-4 py-8 text-stone-950">
+    <main className="min-h-screen bg-runway-deep px-4 py-8 text-runway-text">
       <div className="mx-auto max-w-6xl space-y-8">
-        <header className="border-b border-stone-300 pb-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">
+        <header className="border-b border-runway-line pb-7">
+          <p className="runway-eyebrow-muted">
             Production control room
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">
+          <h1 className="mt-3 font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text md:text-6xl">
             Task Evaluation launch
           </h1>
-          <p className="mt-4 max-w-3xl leading-7 text-stone-600">
+          <p className="mt-4 max-w-3xl leading-7 text-runway-mute">
             A scene's first run configures its observed appearance, derived collision geometry, source-object
             replacement, cameras, and task into one immutable revision. Every later robot or policy run reuses
             that revision. The website queues both run types; the canonical allocator, watchdog, reconciler,
             artifact retention, teardown, and provider-zero contracts own execution.
           </p>
           {launchLabToken ? (
-            <p className="mt-3 text-sm font-medium text-emerald-800">
+            <p className="mt-3 text-sm font-medium text-runway-green">
               Temporary launch-lab access is active. Firebase sign-in is not required in this tab.
             </p>
           ) : null}
@@ -657,46 +657,46 @@ export default function AdminTaskEvaluationLaunches() {
             ["3", "Canonical allocator", "The only component allowed to mutate GPU providers"],
             ["4", "Optional supervisor", "Explains blockers and recommends admitted profiles only"],
           ].map(([number, title, detail]) => (
-            <div key={number} className="border border-stone-300 bg-white/70 p-5">
-              <span className="text-xs font-semibold text-stone-400">{number}</span>
-              <h2 className="mt-3 font-semibold">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-stone-600">{detail}</p>
+            <div key={number} className="runway-panel p-5">
+              <span className="runway-num text-xs font-semibold text-runway-faint">{number}</span>
+              <h2 className="mt-3 font-display uppercase text-base font-semibold tracking-[0.005em] text-runway-text">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-runway-mute">{detail}</p>
             </div>
           ))}
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.05fr_0.95fr] md:p-8">
+        <section className="runway-panel grid gap-6 p-6 md:grid-cols-[1.05fr_0.95fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Discover objects in a new splat</h2>
+              <ShieldCheck className="h-5 w-5 text-runway-signal" />
+              <h2 className="font-display uppercase text-xl font-semibold tracking-[0.005em] text-runway-text">Discover objects in a new splat</h2>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-runway-mute">
               Start with a full-scene survey before any target close-up. Pipeline binds the exact splat,
               registration, camera plan, renderer, and rendered pixels, then combines Splat Analyzer,
               SAM 3.1, publisher labels, or a rendered-scene agent behind one deterministic gate. Visual
               proposals stay candidates until publisher metric labels or independently validated production
               semantic geometry support them.
             </p>
-            <label className="mt-5 block text-sm font-medium" htmlFor="scene-object-discovery-json">
+            <label className="runway-label mt-5" htmlFor="scene-object-discovery-json">
               Discovery contract JSON
             </label>
             <textarea
               id="scene-object-discovery-json"
-              className="mt-2 min-h-72 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              className="runway-input min-h-72 font-mono text-xs leading-5"
               value={discoveryJson}
               onChange={(event) => setDiscoveryJson(event.target.value)}
               placeholder="Paste scene_object_discovery_request.v1 JSON"
               spellCheck={false}
             />
-            <label className="mt-3 block text-sm font-medium" htmlFor="scene-object-discovery-file">
+            <label className="runway-label mt-3" htmlFor="scene-object-discovery-file">
               Or upload a versioned discovery contract
             </label>
             <input
               id="scene-object-discovery-file"
               type="file"
               accept="application/json,.json"
-              className="mt-2 block w-full text-sm text-stone-600"
+              className="mt-2 block w-full text-sm text-runway-mute file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-runway-line-strong file:bg-transparent file:px-3 file:py-2 file:font-mono file:text-[10px] file:font-semibold file:uppercase file:tracking-[0.14em] file:text-runway-text"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = "";
@@ -714,8 +714,8 @@ export default function AdminTaskEvaluationLaunches() {
               }}
             />
             {discoveryPreview ? (
-              <div className="mt-4 border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
-                <p className="font-semibold">Whole-scene discovery · metric selection required</p>
+              <div className="mt-4 border border-runway-line bg-runway-black p-4 text-sm leading-6 text-runway-body">
+                <p className="font-semibold text-runway-text">Whole-scene discovery · metric selection required</p>
                 <p>
                   {discoveryPreview.teamNamespace || "Missing team namespace"} · {discoveryPreview.sceneId || "Missing scene"}
                   {discoveryPreview.sceneVersion ? ` @ ${discoveryPreview.sceneVersion}` : ""}
@@ -732,7 +732,7 @@ export default function AdminTaskEvaluationLaunches() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                className="runway-cta-ghost disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={discovering || !discoveryJson.trim()}
                 onClick={() => void submitDiscovery()}
               >
@@ -741,7 +741,7 @@ export default function AdminTaskEvaluationLaunches() {
               {discoveryId ? (
                 <button
                   type="button"
-                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  className="runway-cta-ghost"
                   onClick={() => void refreshDiscoveryStatus().catch((reason) => setDiscoveryError(String(reason)))}
                 >
                   <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
@@ -749,25 +749,25 @@ export default function AdminTaskEvaluationLaunches() {
               ) : null}
             </div>
             {discoveryError ? (
-              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{discoveryError}</p>
+              <p className="mt-4 border-l-2 border-runway-red pl-3 text-sm text-runway-red">{discoveryError}</p>
             ) : null}
           </div>
-          <aside className="border border-stone-200 bg-stone-50 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <aside className="border border-runway-line bg-runway-black p-5">
+            <p className="runway-eyebrow-muted">
               Discovery state
             </p>
-            <p className="mt-3 text-lg font-semibold">
+            <p className="runway-num mt-3 text-lg font-semibold text-runway-text">
               {discoveryStatus?.state || discoveryStatus?.status || "Not submitted"}
             </p>
-            {discoveryId ? <p className="mt-2 break-all text-xs text-stone-500">{discoveryId}</p> : null}
+            {discoveryId ? <p className="runway-num mt-2 break-all text-xs text-runway-faint">{discoveryId}</p> : null}
             {discoveryStatus?.pipeline?.discovery_digest ? (
-              <p className="mt-3 break-all text-xs leading-5 text-stone-600">
+              <p className="runway-num mt-3 break-all text-xs leading-5 text-runway-mute">
                 Discovery digest: {discoveryStatus.pipeline.discovery_digest}
               </p>
             ) : null}
             {(discoveryStatus?.pipeline?.unseen_regions || []).length ? (
-              <div className="mt-4 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-                <p className="font-semibold">Unseen or uncaptured regions</p>
+              <div className="mt-4 border border-runway-signal-dim bg-runway-panel p-3 text-sm text-runway-body">
+                <p className="font-semibold text-runway-signal">Unseen or uncaptured regions</p>
                 {(discoveryStatus?.pipeline?.unseen_regions || []).map((region: string) => (
                   <p key={region} className="mt-1">{region}</p>
                 ))}
@@ -778,29 +778,29 @@ export default function AdminTaskEvaluationLaunches() {
             ) : null}
             {(discoveryStatus?.pipeline?.candidates || []).length ? (
               <div className="mt-5 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                <p className="runway-eyebrow-muted">
                   Candidate objects
                 </p>
                 {(discoveryStatus?.pipeline?.candidates || []).map((candidate: Record<string, any>) => (
-                  <article key={candidate.candidate_id} className="border border-stone-300 bg-white p-4">
+                  <article key={candidate.candidate_id} className="runway-panel p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold">{candidate.label}</p>
-                        <p className="mt-1 text-xs text-stone-500">
+                        <p className="font-semibold text-runway-text">{candidate.label}</p>
+                        <p className="runway-num mt-1 text-xs text-runway-faint">
                           {candidate.backend} · confidence {Number(candidate.confidence).toFixed(2)} · task {Number(candidate.task_match_score).toFixed(2)}
                         </p>
                       </div>
-                      <span className={`px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${candidate.eligible_for_automatic_source_object ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+                      <span className={`runway-chip ${candidate.eligible_for_automatic_source_object ? "runway-chip-live" : "runway-chip-open"}`}>
                         {candidate.eligible_for_automatic_source_object ? "metric candidate" : "visual only"}
                       </span>
                     </div>
-                    <p className="mt-3 text-xs leading-5 text-stone-600">
+                    <p className="mt-3 text-xs leading-5 text-runway-mute">
                       {candidate.candidate_claim_boundary}
                     </p>
                     {discoveryStatus?.state === "selection_required" && candidate.eligible_for_automatic_source_object ? (
                       <button
                         type="button"
-                        className="mt-3 border border-stone-950 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+                        className="runway-cta-ghost mt-3 min-h-0 px-3 py-2 text-xs disabled:opacity-40"
                         disabled={selectingCandidateId !== null}
                         onClick={() => void selectDiscoveryCandidate(candidate.candidate_id)}
                       >
@@ -812,34 +812,34 @@ export default function AdminTaskEvaluationLaunches() {
               </div>
             ) : null}
             {discoveryStatus?.pipeline?.source_object ? (
-              <div className="mt-4 border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
-                <p className="font-semibold">Source object sealed</p>
+              <div className="mt-4 border border-runway-green-dim bg-runway-panel p-3 text-sm text-runway-body">
+                <p className="font-semibold text-runway-green">Source object sealed</p>
                 <p className="mt-1">{discoveryStatus.pipeline.source_object.label}</p>
-                <p className="mt-1 break-all text-xs">
+                <p className="runway-num mt-1 break-all text-xs">
                   {discoveryStatus.pipeline.source_object.source_object_artifact?.digest}
                 </p>
               </div>
             ) : null}
             {(discoveryStatus?.pipeline?.blockers || []).map((blocker: string) => (
-              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-runway-signal">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
               </p>
             ))}
-            <p className="mt-5 text-xs leading-5 text-stone-500">
+            <p className="mt-5 text-xs leading-5 text-runway-faint">
               Splat Analyzer boxes and RGB masks never self-authorize metric placement, physics,
               robot execution, or physical truth. Provider execution remains separately authority-gated.
             </p>
           </aside>
         </section>
 
-        <section className="border border-stone-300 bg-white p-6 md:p-8">
+        <section className="runway-panel p-6 md:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              <p className="runway-eyebrow-muted">
                 Team-only offerings
               </p>
-              <h2 className="mt-2 text-2xl font-semibold">Configured site-task testbeds</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+              <h2 className="mt-2 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Configured site-task testbeds</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-runway-mute">
                 A card appears automatically only after Pipeline seals the revision, bundle, selected frame,
                 and launch binding and the website accepts them in one terminal transaction. In-progress or
                 blocked configuration runs remain visible in launch status and cannot appear launch-ready here.
@@ -847,7 +847,7 @@ export default function AdminTaskEvaluationLaunches() {
             </div>
             <button
               type="button"
-              className="border border-stone-300 px-4 py-2 text-sm font-medium"
+              className="runway-cta-ghost min-h-0 px-4 py-2 text-[13px]"
               onClick={() => void loadProfiles().catch((reason) => setError(String(reason)))}
             >
               <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh offerings
@@ -858,33 +858,33 @@ export default function AdminTaskEvaluationLaunches() {
               {configuredSceneOfferings.map((offering) => (
                 <article
                   key={offering.offering_digest}
-                  className="overflow-hidden border border-stone-300 bg-stone-50"
+                  className="overflow-hidden border border-runway-line bg-runway-black"
                 >
-                  <div className="flex aspect-video items-center justify-center bg-stone-200 px-5 text-center text-xs text-stone-600">
+                  <div className="flex aspect-video items-center justify-center border-b border-runway-line bg-runway-raised px-5 text-center text-xs text-runway-mute">
                     Private thumbnail is rendered with authenticated bytes on the team Testbeds page.
                   </div>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold">{offering.scene_identity.id}</p>
-                        <p className="mt-1 text-sm text-stone-600">
+                        <p className="runway-num text-sm font-semibold text-runway-text">{offering.scene_identity.id}</p>
+                        <p className="mt-1 text-sm text-runway-mute">
                           {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
                         </p>
                       </div>
-                      <span className="bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                      <span className="runway-chip runway-chip-live">
                         Launch ready
                       </span>
                     </div>
-                    <p className="mt-3 text-xs leading-5 text-stone-600">
+                    <p className="mt-3 text-xs leading-5 text-runway-mute">
                       Camera {offering.presentation.selection.camera_id}: {offering.presentation.selection.rationale}
                     </p>
-                    <p className="mt-3 text-[11px] leading-5 text-stone-500">
+                    <p className="mt-3 text-[11px] leading-5 text-runway-faint">
                       Selected unchanged from exactly eight digest-bound rendered frames. Derived appearance
                       evidence only; not capture truth, physical evidence, policy evaluation, or safety approval.
                     </p>
                     <button
                       type="button"
-                      className="mt-4 w-full bg-stone-950 px-4 py-3 text-sm font-semibold text-white"
+                      className="runway-cta-ghost mt-4 w-full"
                       onClick={() => bindOfferingToPreparation(offering)}
                     >
                       Prepare a Task Evaluation Run
@@ -894,19 +894,19 @@ export default function AdminTaskEvaluationLaunches() {
               ))}
             </div>
           ) : (
-            <p className="mt-6 border border-dashed border-stone-300 p-5 text-sm text-stone-600">
+            <p className="mt-6 border border-dashed border-runway-line-strong p-5 text-sm text-runway-mute">
               No configuration run has completed the immutable publication and website acceptance gates yet.
             </p>
           )}
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+                <section className="runway-panel grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Prepare versioned inputs</h2>
+              <ShieldCheck className="h-5 w-5 text-runway-signal" />
+              <h2 className="font-display uppercase text-xl font-semibold tracking-[0.005em] text-runway-text">Prepare versioned inputs</h2>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-runway-mute">
               Upload one strict Task Evaluation contract. Choose <code>scene_configuration</code> once to run
               the production construction recipe and produce a reusable immutable scene revision. Choose
               <code>episode_evaluation</code> later to bind a robot or policy to that exact revision without
@@ -914,25 +914,25 @@ export default function AdminTaskEvaluationLaunches() {
               execution. Preparation itself cannot publish a launch profile, allocate a GPU, spend money, or start an
               episode.
             </p>
-            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-preparation-json">
+            <label className="runway-label mt-5" htmlFor="task-evaluation-preparation-json">
               Preparation contract JSON
             </label>
             <textarea
               id="task-evaluation-preparation-json"
-              className="mt-2 min-h-72 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              className="runway-input min-h-72 font-mono text-xs leading-5"
               value={preparationJson}
               onChange={(event) => setPreparationJson(event.target.value)}
               placeholder="Paste task_evaluation_launch_preparation_request.v1 JSON"
               spellCheck={false}
             />
-            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-preparation-file">
+            <label className="runway-label mt-3" htmlFor="task-evaluation-preparation-file">
               Or upload a versioned preparation contract
             </label>
             <input
               id="task-evaluation-preparation-file"
               type="file"
               accept="application/json,.json"
-              className="mt-2 block w-full text-sm text-stone-600"
+              className="mt-2 block w-full text-sm text-runway-mute file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-runway-line-strong file:bg-transparent file:px-3 file:py-2 file:font-mono file:text-[10px] file:font-semibold file:uppercase file:tracking-[0.14em] file:text-runway-text"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = "";
@@ -950,8 +950,8 @@ export default function AdminTaskEvaluationLaunches() {
               }}
             />
             {preparationPreview ? (
-              <div className="mt-4 border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-700">
-                <p className="font-semibold">
+              <div className="mt-4 border border-runway-line bg-runway-black p-4 text-sm leading-6 text-runway-body">
+                <p className="font-semibold text-runway-text">
                   {preparationPreview.runMode === "scene_configuration"
                     ? "First run · configure and seal a reusable scene revision"
                     : "Evaluation run · reuse a configured scene revision"}
@@ -976,7 +976,7 @@ export default function AdminTaskEvaluationLaunches() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                className="runway-cta-ghost disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={preparing || !preparationJson.trim()}
                 onClick={() => void submitPreparation()}
               >
@@ -985,7 +985,7 @@ export default function AdminTaskEvaluationLaunches() {
               {preparationId ? (
                 <button
                   type="button"
-                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  className="runway-cta-ghost"
                   onClick={() => void refreshPreparationStatus().catch((reason) => setPreparationError(String(reason)))}
                 >
                   <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
@@ -993,102 +993,102 @@ export default function AdminTaskEvaluationLaunches() {
               ) : null}
             </div>
             {preparationError ? (
-              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{preparationError}</p>
+              <p className="mt-4 border-l-2 border-runway-red pl-3 text-sm text-runway-red">{preparationError}</p>
             ) : null}
           </div>
-          <aside className="border border-stone-200 bg-stone-50 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <aside className="border border-runway-line bg-runway-black p-5">
+            <p className="runway-eyebrow-muted">
               Preparation state
             </p>
-            <p className="mt-3 text-lg font-semibold">
+            <p className="runway-num mt-3 text-lg font-semibold text-runway-text">
               {preparationStatus?.state || preparationStatus?.status || "Not submitted"}
             </p>
-            {preparationId ? <p className="mt-2 break-all text-xs text-stone-500">{preparationId}</p> : null}
+            {preparationId ? <p className="runway-num mt-2 break-all text-xs text-runway-faint">{preparationId}</p> : null}
             {preparationStatus?.pipeline?.worker_status ? (
-              <p className="mt-4 text-sm leading-6 text-stone-700">
+              <p className="mt-4 text-sm leading-6 text-runway-body">
                 Pipeline: {preparationStatus.pipeline.worker_status}
               </p>
             ) : null}
             {preparationStatus?.pipeline?.full_byte_service_account_readback_passed === true ? (
-              <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-800">
+              <p className="mt-4 flex items-center gap-2 text-sm font-medium text-runway-green">
                 <CheckCircle2 className="h-4 w-4" /> Full-byte service-account readback passed
               </p>
             ) : null}
             {preparationStatus?.pipeline?.request_digest ? (
-              <p className="mt-4 break-all text-xs leading-5 text-stone-600">
+              <p className="runway-num mt-4 break-all text-xs leading-5 text-runway-mute">
                 Request digest: {preparationStatus.pipeline.request_digest}
               </p>
             ) : null}
             {preparationStatus?.pipeline?.result_digest ? (
-              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+              <p className="runway-num mt-2 break-all text-xs leading-5 text-runway-mute">
                 Result digest: {preparationStatus.pipeline.result_digest}
               </p>
             ) : null}
             {preparationStatus?.pipeline?.source_commit ? (
-              <p className="mt-2 break-all text-xs leading-5 text-stone-600">
+              <p className="runway-num mt-2 break-all text-xs leading-5 text-runway-mute">
                 Source commit: {preparationStatus.pipeline.source_commit}
               </p>
             ) : null}
             {preparationStatus?.pipeline?.configured_scene_revision_digest ? (
-              <div className="mt-4 border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
-                <p className="font-semibold">Reusable configured scene revision sealed</p>
-                <p className="mt-1 break-all text-xs leading-5">
+              <div className="mt-4 border border-runway-green-dim bg-runway-panel p-3 text-sm text-runway-body">
+                <p className="font-semibold text-runway-green">Reusable configured scene revision sealed</p>
+                <p className="runway-num mt-1 break-all text-xs leading-5">
                   {preparationStatus.pipeline.configured_scene_revision_digest}
                 </p>
                 {preparationStatus.pipeline.configured_scene_bundle_digest ? (
-                  <p className="mt-1 break-all text-xs leading-5">
+                  <p className="runway-num mt-1 break-all text-xs leading-5">
                     Bundle {preparationStatus.pipeline.configured_scene_bundle_digest}
                   </p>
                 ) : null}
-                <p className="mt-2 text-xs leading-5">
+                <p className="mt-2 text-xs leading-5 text-runway-mute">
                   Use this revision for subsequent zero-action, scripted-positive, robot, and policy runs.
                 </p>
               </div>
             ) : null}
             {(preparationStatus?.pipeline?.blockers || []).map((blocker: string) => (
-              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-runway-signal">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
               </p>
             ))}
-            <p className="mt-5 text-xs leading-5 text-stone-500">
+            <p className="mt-5 text-xs leading-5 text-runway-faint">
               A materialized preparation is verified input readiness, not execution or scientific success.
               Launch authority remains a separate step below.
             </p>
           </aside>
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+        <section className="runway-panel grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Activate verified inputs</h2>
+              <ShieldCheck className="h-5 w-5 text-runway-signal" />
+              <h2 className="font-display uppercase text-xl font-semibold tracking-[0.005em] text-runway-text">Activate verified inputs</h2>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-runway-mute">
               After preparation is materialized, submit its digest-bound activation contract. The
               authority-gated Pipeline worker verifies the released mutation window, predecessor or
               project lineage, and exact production commit before publishing the immutable profile,
               catalog entry, and standing authorization. Activation never submits a paid request or
               allocates a provider resource; execution remains the separate authority envelope below.
             </p>
-            <label className="mt-5 block text-sm font-medium" htmlFor="task-evaluation-activation-json">
+            <label className="runway-label mt-5" htmlFor="task-evaluation-activation-json">
               Activation contract JSON
             </label>
             <textarea
               id="task-evaluation-activation-json"
-              className="mt-2 min-h-64 w-full border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-5"
+              className="runway-input min-h-64 font-mono text-xs leading-5"
               value={activationJson}
               onChange={(event) => setActivationJson(event.target.value)}
               placeholder="Paste task_evaluation_launch_activation_request.v1 JSON"
               spellCheck={false}
             />
-            <label className="mt-3 block text-sm font-medium" htmlFor="task-evaluation-activation-file">
+            <label className="runway-label mt-3" htmlFor="task-evaluation-activation-file">
               Or upload a coordinator-authorized activation contract
             </label>
             <input
               id="task-evaluation-activation-file"
               type="file"
               accept="application/json,.json"
-              className="mt-2 block w-full text-sm text-stone-600"
+              className="mt-2 block w-full text-sm text-runway-mute file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-runway-line-strong file:bg-transparent file:px-3 file:py-2 file:font-mono file:text-[10px] file:font-semibold file:uppercase file:tracking-[0.14em] file:text-runway-text"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = "";
@@ -1108,7 +1108,7 @@ export default function AdminTaskEvaluationLaunches() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-400"
+                className="runway-cta-ghost disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={activating || !activationJson.trim()}
                 onClick={() => void submitActivation()}
               >
@@ -1117,7 +1117,7 @@ export default function AdminTaskEvaluationLaunches() {
               {activationId ? (
                 <button
                   type="button"
-                  className="border border-stone-300 px-4 py-3 text-sm font-medium"
+                  className="runway-cta-ghost"
                   onClick={() => void refreshActivationStatus().catch((reason) => setActivationError(String(reason)))}
                 >
                   <RefreshCw className="mr-2 inline h-4 w-4" /> Refresh
@@ -1125,33 +1125,33 @@ export default function AdminTaskEvaluationLaunches() {
               ) : null}
             </div>
             {activationError ? (
-              <p className="mt-4 border-l-2 border-red-600 pl-3 text-sm text-red-800">{activationError}</p>
+              <p className="mt-4 border-l-2 border-runway-red pl-3 text-sm text-runway-red">{activationError}</p>
             ) : null}
           </div>
-          <aside className="border border-stone-200 bg-stone-50 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <aside className="border border-runway-line bg-runway-black p-5">
+            <p className="runway-eyebrow-muted">
               Activation state
             </p>
-            <p className="mt-3 text-lg font-semibold">
+            <p className="runway-num mt-3 text-lg font-semibold text-runway-text">
               {activationStatus?.state || activationStatus?.status || "Not submitted"}
             </p>
-            {activationId ? <p className="mt-2 break-all text-xs text-stone-500">{activationId}</p> : null}
+            {activationId ? <p className="runway-num mt-2 break-all text-xs text-runway-faint">{activationId}</p> : null}
             {activationStatus?.pipeline?.worker_status ? (
-              <p className="mt-4 text-sm leading-6 text-stone-700">
+              <p className="mt-4 text-sm leading-6 text-runway-body">
                 Pipeline: {activationStatus.pipeline.worker_status}
               </p>
             ) : null}
             {activationStatus?.pipeline?.profile_id ? (
-              <p className="mt-4 break-all text-sm text-stone-700">
+              <p className="runway-num mt-4 break-all text-sm text-runway-body">
                 Published profile: {activationStatus.pipeline.profile_id}
               </p>
             ) : null}
             {(activationStatus?.pipeline?.blockers || []).map((blocker: string) => (
-              <p key={blocker} className="mt-3 flex gap-2 text-sm text-amber-800">
+              <p key={blocker} className="mt-3 flex gap-2 text-sm text-runway-signal">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {blocker}
               </p>
             ))}
-            <p className="mt-5 text-xs leading-5 text-stone-500">
+            <p className="mt-5 text-xs leading-5 text-runway-faint">
               A prepared activation proves profile and authority publication only. It is not a GPU
               allocation, simulator episode, or scientific result.
             </p>
@@ -1159,13 +1159,13 @@ export default function AdminTaskEvaluationLaunches() {
         </section>
 
         <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-5 border border-stone-300 bg-white p-6 md:p-8">
+          <div className="runway-panel space-y-5 p-6 md:p-8">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Authority envelope</h2>
+              <ShieldCheck className="h-5 w-5 text-runway-signal" />
+              <h2 className="font-display uppercase text-xl font-semibold tracking-[0.005em] text-runway-text">Authority envelope</h2>
             </div>
-            <label className="block text-sm font-medium">Pipeline-owned profile
-              <select className="mt-2 w-full border border-stone-300 bg-white p-3" value={profileKey}
+            <label className="block"><span className="runway-label">Pipeline-owned profile</span>
+              <select className="runway-input" value={profileKey}
                 onChange={(event) => setProfileKey(event.target.value)}>
                 <option value="">Select an immutable profile</option>
                 {profiles.map((profile) => (
@@ -1177,7 +1177,7 @@ export default function AdminTaskEvaluationLaunches() {
               </select>
             </label>
             {selected ? (
-              <div className="bg-stone-100 p-4 text-xs leading-6 text-stone-600">
+              <div className="runway-num border border-runway-line bg-runway-black p-4 text-xs leading-6 text-runway-mute">
                 <p>Bundle {selected.source_bundle.bundle_id} · {selected.source_bundle.digest}</p>
                 <p>Profile {selected.profile_digest}</p>
                 {selected.source_commit ? <p>Source commit {selected.source_commit}</p> : null}
@@ -1185,7 +1185,7 @@ export default function AdminTaskEvaluationLaunches() {
                   Execution {selected.execution_admission.live_enabled ? "live-admitted" : "dry-only"}
                 </p>
                 {selected.execution_admission.blockers.map((blocker) => (
-                  <p key={blocker} className="text-amber-800">Readiness blocker · {blocker}</p>
+                  <p key={blocker} className="text-runway-signal">Readiness blocker · {blocker}</p>
                 ))}
                 <p>Claim ceiling {selected.claim_ceiling}</p>
               </div>
@@ -1203,22 +1203,22 @@ export default function AdminTaskEvaluationLaunches() {
               <div>
                 <Input label="Maximum spend (USD)" value={maxSpend} onChange={setMaxSpend} type="number" />
                 {requiredSpend !== null ? (
-                  <p className={`mt-1 text-xs ${Number(maxSpend) >= requiredSpend ? "text-stone-500" : "text-red-700"}`}>
+                  <p className={`mt-1 text-xs ${Number(maxSpend) >= requiredSpend ? "text-runway-faint" : "text-runway-red"}`}>
                     This profile requires at least ${requiredSpend.toFixed(2)} of authorized spend.
                   </p>
                 ) : null}
               </div>
               <Input label="Authority expires" value={expiresAt} onChange={setExpiresAt} type="datetime-local" />
             </div>
-            <label className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 text-sm leading-6">
-              <input className="mt-1" type="checkbox" checked={confirmed}
+            <label className="flex items-start gap-3 border border-runway-signal-dim bg-runway-black p-4 text-sm leading-6 text-runway-body">
+              <input className="mt-1 accent-runway-signal" type="checkbox" checked={confirmed}
                 onChange={(event) => setConfirmed(event.target.checked)} />
               <span>I authorize this exact profile, rights scope, spend ceiling, and execution window.
                 There are no automatic paid retries.</span>
             </label>
             <button type="button" onClick={() => void submit()}
               disabled={!canSubmit || submitting || recoveringSubmission}
-              className="w-full bg-stone-950 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">
+              className="runway-cta w-full disabled:cursor-not-allowed disabled:opacity-40">
               {submitting
                 ? "Queuing immutable launch…"
                 : recoveringSubmission
@@ -1228,36 +1228,36 @@ export default function AdminTaskEvaluationLaunches() {
           </div>
 
           <aside className="space-y-4">
-            <div className="border border-stone-300 bg-stone-950 p-6 text-stone-100">
+            <div className="border border-runway-line bg-runway-black p-6 text-runway-body">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Run state</h2>
-                <button type="button" onClick={() => void refreshStatus()} className="p-2" aria-label="Refresh">
+                <h2 className="font-display uppercase text-xl font-semibold tracking-[0.005em] text-runway-text">Run state</h2>
+                <button type="button" onClick={() => void refreshStatus()} className="p-2 text-runway-mute transition-colors hover:text-runway-signal" aria-label="Refresh">
                   <RefreshCw className="h-4 w-4" />
                 </button>
               </div>
-              <p className="mt-5 text-2xl font-semibold">{status?.state || status?.status || "Not queued"}</p>
-              <p className="mt-2 break-all text-xs leading-5 text-stone-400">
+              <p className="runway-num mt-5 text-2xl font-semibold text-runway-text">{status?.state || status?.status || "Not queued"}</p>
+              <p className="runway-num mt-2 break-all text-xs leading-5 text-runway-faint">
                 {status?.request_digest || "No immutable request digest yet."}
               </p>
               {status?.terminal_receipt?.source_commit ? (
-                <p className="mt-2 break-all text-xs leading-5 text-stone-400">
+                <p className="runway-num mt-2 break-all text-xs leading-5 text-runway-faint">
                   Source commit {status.terminal_receipt.source_commit}
                 </p>
               ) : null}
               {progress ? (
-                <div className="mt-5 space-y-1 border-t border-stone-800 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                <div className="mt-5 space-y-1 border-t border-runway-line pt-4">
+                  <p className="runway-eyebrow-muted">
                     In flight
                   </p>
-                  <p className="text-sm font-medium text-stone-100">
+                  <p className="text-sm font-medium text-runway-text">
                     {progress.phase || "starting"}
                     {progress.phase_status ? ` · ${progress.phase_status}` : ""}
                   </p>
                   {elapsed ? (
-                    <p className="text-xs leading-5 text-stone-400">{elapsed} elapsed</p>
+                    <p className="runway-num text-xs leading-5 text-runway-mute">{elapsed} elapsed</p>
                   ) : null}
                   {progress.provider ? (
-                    <p className="text-xs leading-5 text-stone-400">
+                    <p className="runway-num text-xs leading-5 text-runway-mute">
                       Instance {progress.provider.instance_state || "unknown"}
                       {typeof progress.provider.estimated_cost_usd === "number"
                         ? ` · ~$${progress.provider.estimated_cost_usd.toFixed(2)} estimated so far`
@@ -1267,24 +1267,24 @@ export default function AdminTaskEvaluationLaunches() {
                 </div>
               ) : null}
               {status?.state === "control_plane_terminal_blocked" ? (
-                <div className="mt-5 flex items-center gap-2 text-amber-300">
+                <div className="mt-5 flex items-center gap-2 text-runway-signal">
                   <AlertTriangle className="h-4 w-4" /> Control-plane blocker retained; no execution result was observed
                 </div>
               ) : terminal ? (
-                <div className="mt-5 flex items-center gap-2 text-emerald-300">
+                <div className="mt-5 flex items-center gap-2 text-runway-green">
                   <CheckCircle2 className="h-4 w-4" /> Terminal receipt retained
                 </div>
               ) : null}
             </div>
             {error ? (
-              <div className="flex gap-3 border border-rose-300 bg-rose-50 p-5 text-sm text-rose-800">
+              <div className="flex gap-3 border border-runway-red-dim bg-runway-panel p-5 text-sm text-runway-red">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
                 <span>{error}</span>
               </div>
             ) : null}
             {status?.state === "control_plane_terminal_blocked" ? (
-              <div className="border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
-                <p className="font-semibold">Release one retained stopped provider record</p>
+              <div className="border border-runway-signal-dim bg-runway-panel p-5 text-sm leading-6 text-runway-body">
+                <p className="font-semibold text-runway-signal">Release one retained stopped provider record</p>
                 <p className="mt-2">
                   This is an operational recovery only. It cannot start, retry, or score an evaluation.
                   Pipeline will inspect the exact ID and label before its canonical allocator may delete it,
@@ -1296,40 +1296,40 @@ export default function AdminTaskEvaluationLaunches() {
                   <Input label="Expected immutable instance label" value={releaseExpectedLabel}
                     onChange={setReleaseExpectedLabel} placeholder="blueprint-adp009d-..." />
                   <label className="flex items-start gap-3 text-sm">
-                    <input className="mt-1" type="checkbox" checked={releaseConfirmed}
+                    <input className="mt-1 accent-runway-signal" type="checkbox" checked={releaseConfirmed}
                       onChange={(event) => setReleaseConfirmed(event.target.checked)} />
                     <span>I authorize release of only this stopped record. No evaluation will be launched or retried.</span>
                   </label>
                   <button type="button" onClick={() => void submitTerminalResourceRelease()}
                     disabled={!canReleaseTerminalResource || releasing}
-                    className="bg-amber-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    className="runway-cta-ghost disabled:cursor-not-allowed disabled:opacity-40">
                     {releasing ? "Queuing release-only recovery…" : "Authorize and queue resource release"}
                   </button>
                 </div>
               </div>
             ) : null}
-            <div className="border border-stone-300 p-5 text-sm leading-6 text-stone-600">
+            <div className="border border-runway-line p-5 text-sm leading-6 text-runway-mute">
               A completed simulation receipt is development evidence. It does not establish physical
               success, deployment readiness, or safety approval.
             </div>
-            <div className="border border-stone-300 bg-white/70 p-5 text-sm leading-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            <div className="runway-panel p-5 text-sm leading-6">
+              <p className="runway-eyebrow-muted">
                 Optional supervisor
               </p>
-              <p className="mt-3 font-medium">
+              <p className="mt-3 font-medium text-runway-text">
                 {supervision?.recommendation?.summary || "No Agents SDK recommendation observed."}
               </p>
               {supervision?.recommendation?.recommended_profile_id ? (
-                <p className="mt-2 text-stone-600">
+                <p className="mt-2 text-runway-mute">
                   Recommended admitted profile: {supervision.recommendation.recommended_profile_id}
                 </p>
               ) : null}
               {supervision?.recommendation?.human_decision_required ? (
-                <p className="mt-3 border-l-2 border-amber-500 pl-3 text-amber-800">
+                <p className="mt-3 border-l-2 border-runway-signal pl-3 text-runway-signal">
                   {supervision.recommendation.human_decision_prompt}
                 </p>
               ) : null}
-              <p className="mt-3 text-xs text-stone-500">
+              <p className="mt-3 text-xs text-runway-faint">
                 Advisory only: no allocator, provider, retry, spend, rights, or teardown authority.
               </p>
             </div>
@@ -1348,8 +1348,8 @@ function Input(props: {
   placeholder?: string;
 }) {
   return (
-    <label className="block text-sm font-medium">{props.label}
-      <input className="mt-2 w-full border border-stone-300 p-3" type={props.type || "text"}
+    <label className="block"><span className="runway-label">{props.label}</span>
+      <input className="runway-input" type={props.type || "text"}
         value={props.value} placeholder={props.placeholder}
         onChange={(event) => props.onChange(event.target.value)} />
     </label>

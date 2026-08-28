@@ -18,6 +18,14 @@ type BetaCohortGuidePageProps = {
   guide: BetaCohortGuide;
 };
 
+const panelCard = "rounded-none border-runway-line bg-runway-panel";
+const bandCard = "rounded-none border-runway-line bg-runway-black";
+const sectionHeading =
+  "font-display text-[1.35rem] font-semibold uppercase leading-[1.05] tracking-[0.005em] text-runway-text";
+const prose = "text-[16px] leading-[1.7] text-runway-body";
+const metaPill =
+  "rounded-none border-runway-line bg-runway-panel font-mono text-[10px] tracking-[0.16em] text-runway-mute";
+
 export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
   return (
     <>
@@ -43,35 +51,35 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.38fr_0.62fr]">
-              <div className="border-b border-black/10 bg-[#f7f3eb] p-8 xl:border-b-0 xl:border-r lg:p-10">
-                <SurfaceMiniLabel>{guide.persona} cohort</SurfaceMiniLabel>
-                <h1 className="mt-5 text-[clamp(3.2rem,5.8vw,5.1rem)] font-semibold uppercase leading-[0.86] tracking-[-0.09em]">
+              <div className="border-b border-runway-line bg-runway-black p-8 xl:border-b-0 xl:border-r lg:p-10">
+                <SurfaceMiniLabel className="font-mono text-runway-faint">{guide.persona} cohort</SurfaceMiniLabel>
+                <h1 className="mt-5 font-display uppercase text-[clamp(3.2rem,5.8vw,5.1rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-runway-text">
                   {guide.title}
                 </h1>
-                <p className="mt-5 max-w-[22rem] text-sm uppercase tracking-[0.18em] text-black/50">
+                <p className="mt-5 max-w-[30ch] text-[16px] leading-[1.7] text-runway-body">
                   {guide.summary}
                 </p>
-                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-runway-panel">
+                <div className="mt-8 overflow-hidden border border-runway-line bg-runway-panel">
                   <img src={guide.heroImage} alt={guide.heroAlt} className="h-full w-full object-cover" />
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill>External beta</SurfacePill>
-                  <SurfacePill>Review-gated</SurfacePill>
+                  <SurfacePill className={metaPill}>External beta</SurfacePill>
+                  <SurfacePill className={metaPill}>Review-gated</SurfacePill>
                 </div>
               </div>
 
-              <div className="bg-runway-panel p-8 lg:p-10">
+              <div className="bg-runway-deep p-8 lg:p-10">
                 <div className="grid gap-5 md:grid-cols-2">
                   {guide.sections.map((section) => (
-                    <SurfaceCard key={section.title} className="h-full">
+                    <SurfaceCard key={section.title} className={`${panelCard} h-full`}>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf6ef]">
-                          <ListChecks className="h-4.5 w-4.5 text-black/65" />
+                        <div className="flex h-10 w-10 items-center justify-center border border-runway-line bg-runway-black">
+                          <ListChecks className="h-4.5 w-4.5 text-runway-mute" />
                         </div>
-                        <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
+                        <h2 className={sectionHeading}>{section.title}</h2>
                       </div>
-                      <p className="mt-4 text-sm leading-7 text-black/60">{section.body}</p>
-                      <ul className="mt-4 space-y-3 text-sm leading-7 text-black/60">
+                      <p className={`mt-4 max-w-[68ch] ${prose}`}>{section.body}</p>
+                      <ul className={`mt-4 max-w-[68ch] space-y-3 ${prose}`}>
                         {section.items.map((item) => (
                           <li key={item}>{item}</li>
                         ))}
@@ -81,33 +89,33 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.58fr_0.42fr]">
-                  <SurfaceCard className="bg-[#111110] text-runway-text">
+                  <SurfaceCard className={bandCard}>
                     <div className="flex items-center gap-3">
-                      <AlertTriangle className="h-4.5 w-4.5 text-runway-mute" />
-                      <SurfaceMiniLabel className="text-white/50">Escalate</SurfaceMiniLabel>
+                      <AlertTriangle className="h-4.5 w-4.5 text-runway-signal" />
+                      <h2 className={sectionHeading}>Escalate</h2>
                     </div>
-                    <div className="mt-5 divide-y divide-white/10 border border-runway-line">
+                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
                       {guide.escalation.map((item) => (
-                        <p key={item} className="p-4 text-sm leading-7 text-runway-mute">
+                        <p key={item} className={`p-4 ${prose}`}>
                           {item}
                         </p>
                       ))}
                     </div>
                   </SurfaceCard>
 
-                  <SurfaceCard className="bg-[#faf7f1]">
+                  <SurfaceCard className={panelCard}>
                     <div className="flex items-center gap-3">
-                      <LifeBuoy className="h-4.5 w-4.5 text-black/60" />
-                      <SurfaceMiniLabel>Single support path</SurfaceMiniLabel>
+                      <LifeBuoy className="h-4.5 w-4.5 text-runway-mute" />
+                      <h2 className={sectionHeading}>Single support path</h2>
                     </div>
-                    <p className="mt-4 text-sm leading-7 text-black/60">
+                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
                       Keep support attached to the account, request, capture, package, or session id. Use one channel unless Blueprint gives you a named operator thread.
                     </p>
-                    <a href={`mailto:${betaSupportEmail}`} className="mt-5 inline-flex items-center gap-3 text-sm font-semibold">
+                    <a href={`mailto:${betaSupportEmail}`} className="mt-5 inline-flex items-center gap-3 font-mono text-[13px] text-runway-signal">
                       <Mail className="h-4 w-4" />
                       {betaSupportEmail}
                     </a>
-                    <Link href={guide.primaryAction.href} className="mt-5 inline-flex items-center gap-3 text-sm font-semibold">
+                    <Link href={guide.primaryAction.href} className="runway-cta mt-6 w-full">
                       {guide.primaryAction.label}
                       <ArrowRight className="h-4 w-4" />
                     </Link>

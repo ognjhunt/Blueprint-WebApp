@@ -44,9 +44,9 @@ export interface SelectFieldProps {
 }
 
 /**
- * Blueprint-styled Radix Select trigger. Matches Field exactly: white bg,
- * #c8bfac border (-> #9b3027 on error), radius xs (2px), height 2.625rem,
- * pad 0 .65rem, body-s 14px strong text, brass focus ring, faint chevron at right.
+ * Blueprint-styled Radix Select trigger. Matches Field exactly: panel ground,
+ * line-strong border (-> runway-red on error), square, height 2.625rem,
+ * pad 0 .65rem, body-s 14px strong text, signal focus ring, faint chevron.
  */
 const SelectFieldTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
@@ -58,13 +58,13 @@ const SelectFieldTrigger = React.forwardRef<
     ref={ref}
     aria-invalid={hasError || undefined}
     className={cn(
-      "flex h-[2.625rem] w-full items-center justify-between gap-2 rounded-xs border border-line-strong bg-white px-[0.65rem]",
-      "text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard",
-      "data-[placeholder]:font-normal data-[placeholder]:text-ink-400",
-      "focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60",
+      "flex h-[2.625rem] w-full items-center justify-between gap-2 rounded-none border border-runway-line-strong bg-runway-panel px-[0.65rem]",
+      "text-body-s font-medium text-runway-text outline-none transition-shadow duration-200 ease-standard",
+      "data-[placeholder]:font-normal data-[placeholder]:text-runway-faint",
+      "focus:border-runway-signal focus:ring-1 focus:ring-runway-signal",
       "disabled:cursor-not-allowed disabled:opacity-45",
       "[&>span]:line-clamp-1 [&>span]:text-left",
-      hasError && "border-block-fg focus:border-block-fg focus:ring-block-fg/50",
+      hasError && "border-runway-red focus:border-runway-red focus:ring-runway-red",
       className,
     )}
     {...props}
@@ -72,7 +72,7 @@ const SelectFieldTrigger = React.forwardRef<
     {children}
     <SelectPrimitive.Icon asChild>
       <ChevronDown
-        className="h-[0.85rem] w-[0.85rem] shrink-0 text-ink-400"
+        className="h-[0.85rem] w-[0.85rem] shrink-0 text-runway-faint"
         strokeWidth={1.75}
       />
     </SelectPrimitive.Icon>
@@ -111,7 +111,7 @@ export function SelectField({
       {label ? (
         <label
           htmlFor={triggerId}
-          className="text-caption font-semibold text-ink-800"
+          className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint"
         >
           {label}
         </label>
@@ -133,7 +133,7 @@ export function SelectField({
           <SelectValue placeholder={placeholder} />
         </SelectFieldTrigger>
 
-        <SelectContent className="rounded-xs border-line bg-white text-ink-900 shadow-md">
+        <SelectContent className="rounded-none border-runway-line bg-runway-panel text-runway-body">
           {children ??
             (options ? (
               <SelectGroup>
@@ -142,7 +142,7 @@ export function SelectField({
                     key={option.value}
                     value={option.value}
                     disabled={option.disabled}
-                    className="rounded-xs text-body-s text-ink-900 focus:bg-inset focus:text-ink-900 data-[state=checked]:font-semibold"
+                    className="rounded-none text-body-s text-runway-body focus:bg-runway-raised focus:text-runway-text data-[state=checked]:font-semibold data-[state=checked]:text-runway-signal"
                   >
                     {option.label}
                   </SelectItem>
@@ -153,11 +153,11 @@ export function SelectField({
       </Select>
 
       {hasError ? (
-        <p id={errorId} className="text-caption text-block-fg">
+        <p id={errorId} className="text-caption text-runway-red">
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className="text-caption text-ink-500">
+        <p id={hintId} className="text-caption text-runway-mute">
           {hint}
         </p>
       ) : null}

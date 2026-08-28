@@ -37,7 +37,7 @@ export function Footer() {
             >
               Blueprint
             </a>
-            <p className="mt-7 text-[clamp(1.35rem,2vw,1.9rem)] font-medium leading-[1.22] tracking-[-0.035em] text-runway-text">
+            <p className="mt-7 font-display uppercase text-[clamp(1.35rem,2vw,1.9rem)] font-semibold leading-[1.22] tracking-[0.005em] text-runway-text">
               Deployment is the bottleneck. We take out the first two months.
             </p>
             {/*

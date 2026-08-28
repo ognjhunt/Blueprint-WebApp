@@ -126,7 +126,7 @@ const trajectorySignals: TrajectorySignal[] = [
 ];
 
 const toneClassNames: Record<TrajectorySignal["tone"], string> = {
-  early: "border-zinc-300 bg-zinc-200",
+  early: "border-runway-line-strong bg-runway-line",
   actual: "border-runway-green bg-runway-green",
   forecast: "border-runway-amber border-dashed bg-runway-amber/60",
 };
@@ -182,30 +182,30 @@ export function MarketSignalsSection({
   description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, transfer points, safety rules, and pass bar. Blueprint helps teams evaluate that gap earlier, before pilot budget gets burned.",
 }: MarketSignalsSectionProps) {
   return (
-    <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">
+    <section className="border-y border-runway-line-soft bg-runway-line-soft/60 py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-runway-panel px-3 py-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
+          <div className="inline-flex items-center gap-2 rounded-full border border-runway-line bg-runway-panel px-3 py-1 text-xs font-semibold uppercase tracking-widest text-runway-mute">
             <BarChart3 className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">
+          <h2 className="mt-4 font-display uppercase tracking-[0.005em] text-3xl font-bold text-runway-text sm:text-4xl">
             {title}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-zinc-600 sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-runway-mute sm:text-lg">
             {description}
           </p>
         </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[0.95fr_1.35fr]">
-          <article className="rounded-3xl border border-zinc-200 bg-runway-panel p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          <article className="rounded-none border border-runway-line bg-runway-panel p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
               Why Blueprint exists
             </p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950">
+            <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-text">
               The demo is not the problem.
             </h3>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+            <p className="mt-3 text-sm leading-relaxed text-runway-mute">
               The problem is whether the same system still passes once the real site adds
               variability, workflow constraints, and a real operating threshold.
             </p>
@@ -213,26 +213,26 @@ export function MarketSignalsSection({
               {whyBlueprintExists.map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                  className="rounded-none border border-runway-line bg-runway-line-soft p-4"
                 >
-                  <p className="text-sm font-semibold text-zinc-900">{item.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-zinc-600">{item.description}</p>
+                  <p className="text-sm font-semibold text-runway-text">{item.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-runway-mute">{item.description}</p>
                 </div>
               ))}
             </div>
           </article>
 
-          <article className="rounded-3xl border border-zinc-200 bg-runway-panel p-6 shadow-sm">
+          <article className="rounded-none border border-runway-line bg-runway-panel p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
                   Market trajectory
                 </p>
-                <h3 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950">
+                <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-text">
                   Volume is going up fast. Deployment work does not disappear with it.
                 </h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-runway-green" />
                   Reported
@@ -243,12 +243,12 @@ export function MarketSignalsSection({
                 </span>
               </div>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-600">
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-runway-mute">
               US signals point in the same direction: factory buildout, named rollouts, and
               production plans are all moving forward. Each deployment still needs a site, a task,
               and a safety case.
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+            <p className="mt-2 text-xs leading-relaxed text-runway-faint">
               Bar height is directional. The labels combine public milestones and forward-looking
               production signals because clean audited deployment counts are still rare.
             </p>
@@ -256,16 +256,16 @@ export function MarketSignalsSection({
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
               {trajectorySignals.map((signal) => (
                 <div key={signal.year} className="flex flex-col">
-                  <div className="flex h-44 items-end rounded-3xl border border-zinc-200 bg-zinc-50 px-2 pb-2">
+                  <div className="flex h-44 items-end rounded-none border border-runway-line bg-runway-line-soft px-2 pb-2">
                     <div
-                      className={`w-full rounded-2xl border ${signal.heightClassName} ${toneClassNames[signal.tone]}`}
+                      className={`w-full rounded-none border ${signal.heightClassName} ${toneClassNames[signal.tone]}`}
                     />
                   </div>
-                  <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-runway-faint">
                     {signal.year}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-zinc-950">{signal.metric}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">{signal.label}</p>
+                  <p className="mt-1 text-sm font-bold text-runway-text">{signal.metric}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-runway-mute">{signal.label}</p>
                 </div>
               ))}
             </div>
@@ -274,13 +274,13 @@ export function MarketSignalsSection({
               {trajectorySignals.map((signal) => (
                 <div
                   key={`${signal.year}-${signal.metric}`}
-                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                  className="rounded-none border border-runway-line bg-runway-line-soft p-4"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
                     {signal.year}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">{signal.metric}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">{signal.detail}</p>
+                  <p className="mt-1 text-sm font-semibold text-runway-text">{signal.metric}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-runway-mute">{signal.detail}</p>
                 </div>
               ))}
             </div>
@@ -291,9 +291,9 @@ export function MarketSignalsSection({
           {humanoidEvidenceCards.map((card) => (
             <article
               key={card.title}
-              className="overflow-hidden rounded-3xl border border-zinc-200 bg-runway-panel shadow-sm"
+              className="overflow-hidden rounded-none border border-runway-line bg-runway-panel shadow-sm"
             >
-              <div className="aspect-[4/3] overflow-hidden bg-zinc-200">
+              <div className="aspect-[4/3] overflow-hidden bg-runway-line">
                 <img
                   src={card.imageSrc}
                   alt={card.imageAlt}
@@ -302,19 +302,19 @@ export function MarketSignalsSection({
                 />
               </div>
               <div className="p-5 sm:p-6">
-                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <span className="inline-flex rounded-full border border-runway-line bg-runway-line-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   {card.tag}
                 </span>
-                <h3 className="mt-4 text-xl font-bold tracking-tight text-zinc-950">
+                <h3 className="mt-4 text-xl font-bold tracking-tight text-runway-text">
                   {card.title}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-600">{card.summary}</p>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-800">{card.insight}</p>
+                <p className="mt-3 text-sm leading-relaxed text-runway-mute">{card.summary}</p>
+                <p className="mt-3 text-sm leading-relaxed text-runway-text">{card.insight}</p>
                 <a
                   href={card.ctaHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-runway-body hover:text-runway-text"
                 >
                   {card.ctaLabel}
                   <ArrowUpRight className="h-3 w-3" />
@@ -324,24 +324,24 @@ export function MarketSignalsSection({
           ))}
         </div>
 
-        <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-runway-text shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">The takeaway</p>
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
+        <div className="mt-8 rounded-none border border-runway-line bg-runway-black p-6 text-runway-text shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">The takeaway</p>
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-runway-mute">
             Humanoid supply is starting to move. Deployment infrastructure is not. Blueprint exists
             to qualify the site, define the task, and make the pass bar explicit before a robot
             team burns time on a weak pilot.
           </p>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3 text-xs text-zinc-500">
-          <span className="font-semibold text-zinc-600">Sources:</span>
+        <div className="mt-6 flex flex-wrap gap-3 text-xs text-runway-faint">
+          <span className="font-semibold text-runway-mute">Sources:</span>
           {sourceLinks.map((source) => (
             <a
               key={source.label}
               href={source.href}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-zinc-800"
+              className="inline-flex items-center gap-1 hover:text-runway-text"
             >
               {source.label}
               <ArrowUpRight className="h-3 w-3" />

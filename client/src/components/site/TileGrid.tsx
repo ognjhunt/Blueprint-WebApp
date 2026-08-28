@@ -18,7 +18,7 @@ export interface TileGridProps {
   className?: string;
   /**
    * Flexible API: pass arbitrary tile nodes. Each direct child should carry its
-   * own `bg-white` (or `bg-ink` for dark tiles) so the 1px gap reads as a
+   * own `bg-paper-0` (or `bg-runway-deep` for dark tiles) so the 1px gap reads as a
    * hairline. Takes precedence over `items` when provided.
    */
   children?: ReactNode;
@@ -28,7 +28,7 @@ export interface TileGridProps {
  * TileGrid — the workhorse hairline grid for feature / spec grids.
  *
  * Children read as tiles separated by 1px hairlines: a `repeat(cols,1fr)` grid
- * with a 1px gap over a #ded7c8 (deep-sand) background, wrapped by a 1px outer
+ * with a 1px gap over a #1a1f1c (deep-sand) background, wrapped by a 1px outer
  * line border + radius md. Each tile sits on white paper.
  *
  * Use `items` for uniform label tiles, or pass `children` for rich tiles

@@ -6,15 +6,18 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        // Blueprint radius scale (intentionally overrides the var-based sm/md/lg):
-        // square chrome -> small product radius. shadcn's --radius is still set in
-        // index.css for any primitive that reads it directly.
-        none: "0", // nav, chips, ops chrome
-        xs: "2px", // inputs, micro-chips
-        sm: "4px", // buttons, status chips
-        md: "8px", // cards, panels
-        lg: "12px", // feature cards
-        xl: "16px", // large marketing surfaces
+        // Square chrome, everywhere. The instrument surface has no rounded
+        // corners: panels, chips, buttons and inputs are all cut square, and
+        // the hairline is what separates them. The scale is kept (rather than
+        // deleted) so existing `rounded-md` / `rounded-lg` call sites stay
+        // valid and simply resolve to square. `rounded-full` still comes from
+        // Tailwind's base scale, for status dots and avatars.
+        none: "0",
+        xs: "0",
+        sm: "0",
+        md: "0",
+        lg: "0",
+        xl: "0",
       },
       colors: {
         // ---- shadcn HSL role colors (KEEP EXACTLY — read from index.css vars) ----
@@ -72,136 +75,156 @@ export default {
         // ---- Blueprint palette (literal hex; consume directly as utilities) ----
         // NOTE: intentionally NO flat `card` key here — that would clobber the
         // shadcn `card` object above. White surfaces use `bg-white` / `bg-paper-0`.
+        // `ink` is the TEXT ramp and `paper` is the SURFACE ramp. On the
+        // instrument surface both invert: 900 is the strongest text (bone,
+        // not black) and paper-0 is the card (panel, not white). The rung
+        // ordering is preserved — 900 is still "strongest", 400 still
+        // "faint" — so every existing `text-ink-500` keeps its intent and
+        // simply resolves to the dark-ground equivalent.
         ink: {
-          DEFAULT: "#101318",
-          900: "#101318",
-          800: "#171b22",
-          700: "#252a33",
-          600: "#3e454f",
-          500: "#626a75",
-          400: "#858d96",
-          300: "#aab0b7",
-          200: "#d2d6da",
-          100: "#e7e9eb",
-          50: "#f1f2f3",
+          DEFAULT: "#e8e6dd",
+          900: "#e8e6dd", // strongest text
+          800: "#dcdad0",
+          700: "#c9cdc4", // body copy
+          600: "#b3b8ae",
+          500: "#9ba19a", // muted
+          400: "#818880",
+          300: "#828981", // faint / meta
+          200: "#4a524d",
+          100: "#3a423e",
+          50: "#2a302d",
         },
-        graphite: "#171b22",
+        graphite: "#141816",
         paper: {
-          DEFAULT: "#f5f1e8",
-          0: "#ffffff",
-          1: "#f7f8f9",
-          2: "#f1f2f3",
-          3: "#e7e9eb",
-          4: "#d6d9dd",
+          DEFAULT: "#101312",
+          0: "#141816", // card / panel
+          1: "#101312", // page canvas
+          2: "#1a1f1c", // inset
+          3: "#232926", // sunken
+          4: "#2a302d",
         },
-        bone: "#e7e9eb",
-        brass: { DEFAULT: "#2457ff", deep: "#1244ef", lit: "#8fe8ff" },
+        bone: "#e8e6dd",
+        brass: { DEFAULT: "#ffb000", deep: "#e09a00", lit: "#ffc63d" },
 
-        // Kinetic public-site palette. Names are explicit so product surfaces can
-        // keep their existing semantic status colors while marketing uses this
-        // cooler optical system.
-        kinetic: {
-          white: "#f8f9fa",
-          graphite: "#101318",
-          dark: "#07111d",
-          muted: "#535c68",
-          faint: "#858d96",
-          line: "#d9dde2",
-          blue: "#1554ff",
-          "blue-deep": "#003bd8",
-          cyan: "#8fe8ff",
-        },
 
-        // ---- Runway: the deployment-operations palette for the public site.
+        // ---- Runway: the deployment-operations palette for the whole product.
         //
         // First principles. Blueprint's job is to get more robots deployed,
-        // sooner. The surface should read like the room a deployment is run
-        // from, not like a research paper or a SaaS landing page. So: a
-        // near-black instrument base where measured quantities carry the page,
-        // one high-visibility "go" colour taken from the actual language of
-        // robot workcells (hazard tape, safety marking, e-stop surrounds), and
-        // a cool cyan reserved for the after-Blueprint series in every
-        // before/after figure so the comparison reads without a legend.
+        // sooner. Every surface — marketing, product, admin — should read like
+        // the room a deployment is run from, not like a research paper or a
+        // SaaS landing page. So: a warm near-black instrument base where
+        // measured quantities carry the page, and one high-visibility signal
+        // taken from the actual language of robot workcells (hazard tape,
+        // safety marking, e-stop surrounds).
+        //
+        // The ground is deliberately green-black rather than blue-black. It
+        // sits under a warm amber signal without the colour clash a cool base
+        // produces, and it keeps bone-white body text from reading clinical.
         //
         // `signal` never carries small white text — its contrast partner is
-        // `runway.black` (6.0:1). White on signal is 3.2:1 and is reserved for
-        // large display type only.
+        // `signal-ink` (11.4:1). It is the only saturated colour permitted for
+        // a primary action, so a filled amber control always means "the one
+        // thing to do here".
+        //
+        // Status colours are outlined chips, never fills, so they never
+        // compete with a filled signal control in the same view. Each pairs a
+        // legible foreground with a `-dim` border tuned for the dark ground.
         runway: {
-          black: "#07080b",
-          deep: "#0b0d12",
-          panel: "#11141b",
-          raised: "#171b24",
-          line: "#232834",
-          "line-soft": "#1a1e27",
-          text: "#f4f6f8",
-          mute: "#9aa4b4",
-          faint: "#6a7484",
-          signal: "#ff5c24",
-          "signal-deep": "#e0430d",
-          "signal-soft": "#ffb08a",
-          cyan: "#54e0ee",
-          green: "#3ed598",
-          amber: "#f6be3e",
-          red: "#f2584b",
-          paper: "#f5f6f8",
-          "paper-2": "#e9ecf0",
-          "paper-line": "#d8dde4",
+          black: "#0c0f0e", // deepest ground: section bands, table heads
+          deep: "#101312", // page base
+          panel: "#141816", // cards, panels
+          raised: "#1a1f1c", // hover, raised rows
+          line: "#2a302d", // default hairline
+          "line-soft": "#232926", // row dividers inside a panel
+          "line-strong": "#3a423e", // emphasised edge, input borders
+          text: "#e8e6dd", // primary bone
+          body: "#c9cdc4", // secondary body copy
+          mute: "#9ba19a", // supporting copy
+          faint: "#828981", // meta, labels, disabled
+          signal: "#ffb000", // brand + primary action
+          "signal-deep": "#e09a00", // pressed, and amber on light ground
+          "signal-lit": "#ffc63d", // hover on dark
+          "signal-dim": "#5c4a12", // chip borders on dark
+          "signal-soft": "#5c4a12", // legacy alias of signal-dim
+          "signal-ink": "#171200", // text on a signal fill
+          cyan: "#6fc3d4", // "after Blueprint" data series
+          sky: "#9fb9cf", // site-reported provenance, neutral state
+          "sky-dim": "#33434e",
+          green: "#46b96c", // pass, measured, live
+          "green-dim": "#22513a",
+          amber: "#ffb000", // open, attention (same hue as signal)
+          red: "#ff5c45", // fail, did-not-qualify
+          "red-dim": "#59261e",
+          paper: "#f5f4ef", // light ground, print + inverted blocks
+          "paper-2": "#e9e7df",
+          "paper-line": "#d5d2c8",
         },
 
         // semantic surfaces
-        canvas: "#f7f8f9",
-        inset: "#f1f2f3",
-        sunken: "#e7e9eb",
-        line: { DEFAULT: "#d9dde2", soft: "#e7e9eb", strong: "#bcc2c9" },
+        canvas: "#101312",
+        inset: "#1a1f1c",
+        sunken: "#232926",
+        line: { DEFAULT: "#2a302d", soft: "#232926", strong: "#3a423e" },
 
         // action / focus
-        action: { DEFAULT: "#1554ff", hover: "#003bd8" },
+        action: { DEFAULT: "#ffb000", hover: "#ffc63d" },
 
-        // signal families — fg / bg / bd (+ 700/600/500 ramps)
+        // Signal families — fg / bg / bd. Re-cut for the dark ground: the
+        // foreground is the legible tint, `bg` a barely-there wash, `bd` the
+        // chip border. Same three-part contract as before, so every existing
+        // `bg-proof-bg text-proof-fg border-proof-bd` chip keeps working.
         proof: {
-          fg: "#1f6b4f",
-          bg: "#eef5f1",
-          bd: "#dcebe3",
-          700: "#1f6b4f",
-          600: "#2a7d5e",
-          500: "#3a9170",
+          fg: "#46b96c",
+          bg: "#12211a",
+          bd: "#22513a",
+          700: "#58c97b",
+          600: "#46b96c",
+          500: "#39a35d",
         },
         warn: {
-          fg: "#9a6a16",
-          bg: "#faf3e2",
-          bd: "#f3e7cb",
-          700: "#9a6a16",
-          600: "#b8821f",
-          500: "#d09a2c",
+          fg: "#ffb000",
+          bg: "#241c07",
+          bd: "#5c4a12",
+          700: "#ffc63d",
+          600: "#ffb000",
+          500: "#e09a00",
         },
         block: {
-          fg: "#9b3027",
-          bg: "#faeae7",
-          bd: "#f1d9d5",
-          700: "#9b3027",
-          600: "#b63d32",
-          500: "#cf5247",
+          fg: "#ff5c45",
+          bg: "#2a120e",
+          bd: "#59261e",
+          700: "#ff7a66",
+          600: "#ff5c45",
+          500: "#e04530",
         },
         info: {
-          fg: "#1f4f8f",
-          bg: "#eaf1f9",
-          bd: "#d7e4f2",
-          700: "#1f4f8f",
-          600: "#2563a6",
-          500: "#3a79c2",
+          fg: "#9fb9cf",
+          bg: "#151d24",
+          bd: "#33434e",
+          700: "#b8ccdd",
+          600: "#9fb9cf",
+          500: "#7f9db6",
         },
       },
 
       fontFamily: {
-        sans: ['"Inter Tight"', '"Inter"', "system-ui", "sans-serif"],
-        display: ['"Inter Tight"', '"Inter"', "system-ui", "sans-serif"],
+        // Barlow is the workhorse: a grotesque drawn for signage and transit
+        // wayfinding, which is the register this product wants. Barlow
+        // Condensed carries display type — set uppercase with near-zero
+        // tracking, it holds a 96px headline in the width a proportional face
+        // would need 40% more of. IBM Plex Mono carries every figure.
+        sans: ["Barlow", '"Helvetica Neue"', "system-ui", "sans-serif"],
+        display: ['"Barlow Condensed"', '"Arial Narrow"', "Barlow", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", '"SF Mono"', "Menlo", "monospace"],
       },
 
       fontSize: {
-        "display-xl": ["4.5rem", { lineHeight: "0.95", letterSpacing: "-0.035em" }],
-        "display-l": ["3.5rem", { lineHeight: "0.95", letterSpacing: "-0.035em" }],
-        "display-m": ["2.75rem", { lineHeight: "1.0", letterSpacing: "-0.03em" }],
+        // Display sizes assume Barlow Condensed set uppercase. A condensed
+        // face at these sizes needs no negative tracking — it is already
+        // narrow, and pulling it tighter closes the counters.
+        "display-xl": ["6rem", { lineHeight: "0.94", letterSpacing: "0.005em" }],
+        "display-l": ["4rem", { lineHeight: "0.96", letterSpacing: "0.005em" }],
+        "display-m": ["2.875rem", { lineHeight: "1.02", letterSpacing: "0.005em" }],
         "title-xl": ["2rem", { lineHeight: "1.12", letterSpacing: "-0.03em" }],
         "title-l": ["1.5rem", { lineHeight: "1.12", letterSpacing: "-0.02em" }],
         "title-m": ["1.25rem", { lineHeight: "1.2", letterSpacing: "-0.02em" }],

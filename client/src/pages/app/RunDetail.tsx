@@ -28,7 +28,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-title-m font-semibold tracking-tight text-ink-900">{title}</h2>
-      <div className="rounded-md border border-line bg-white p-5">{children}</div>
+      <div className="rounded-md border border-line bg-paper-0 p-5">{children}</div>
     </section>
   );
 }
@@ -80,7 +80,7 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
       <Section title="Claims answered, rejected, and unresolved">
         <div className="space-y-4">
           {envelope.claim_outcomes.map((claim) => (
-            <article key={claim.claim_id} className="border-l-2 border-brass pl-4">
+            <article key={claim.claim_id} className="border-l-2 border-runway-signal pl-4">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold text-ink-900">{claim.statement}</h3>
                 <StatusChip tone={claim.outcome === "supported" ? "proof" : claim.outcome === "not_supported" ? "block" : "warn"} square>{claim.outcome.replace(/_/g, " ")}</StatusChip>
@@ -166,7 +166,7 @@ function RunRecord({ run }: { run: BuyerRunDetail }) {
   const projection = run.decision_projection;
   return (
     <>
-      <section className="rounded-md border border-line bg-white px-4">
+      <section className="rounded-md border border-line bg-paper-0 px-4">
         <DataField label="Request ID" value={run.request_id || run.job_id} />
         {run.decision_id ? <DataField label="Decision ID" value={run.decision_id} /> : null}
         <DataField label="Status" value={runStatusLabel(run.status)} mono={false} trailing={<StatusChip tone={runStatusTone(run.status)} square>{runStatusLabel(run.status)}</StatusChip>} />

@@ -114,7 +114,7 @@ export default function Nav({
               className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 border ${
                 isScrolled
                   ? "bg-white/8 text-white/75 border-white/10"
-                  : "bg-black/40 text-white/75 border-white/10 backdrop-blur"
+                  : "bg-white/40 text-white/75 border-white/10 backdrop-blur"
               }`}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -137,7 +137,7 @@ export default function Nav({
               >
                 {link.label}
                 {link.badge && (
-                  <span className="text-[10px] leading-none bg-[#c7a775] text-[#0d0d0b] px-2 py-0.5">
+                  <span className="text-[10px] leading-none bg-[#c7a775] text-runway-text px-2 py-0.5">
                     {link.badge}
                   </span>
                 )}
@@ -157,7 +157,7 @@ export default function Nav({
                   <Button
                     variant="ghost"
                     className={`relative h-10 w-10 p-0 rounded-full overflow-hidden ring-2 ${
-                      isScrolled ? "ring-slate-700" : "ring-slate-600"
+                      isScrolled ? "ring-runway-line-strong" : "ring-runway-mute"
                     } hover:ring-[#c7a775] transition-all duration-300`}
                     aria-label="User menu"
                   >
@@ -181,7 +181,7 @@ export default function Nav({
 
         {/* Mobile menu button */}
         <button
-          className="md:hidden flex items-center justify-center w-11 h-11 rounded-none bg-white/5 text-slate-100 border border-white/15"
+          className="md:hidden flex items-center justify-center w-11 h-11 rounded-none bg-white/5 text-runway-faint border border-white/15"
           onClick={() => setIsMobileMenuOpen((v) => !v)}
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileMenuOpen}
@@ -224,10 +224,10 @@ export default function Nav({
                   className="w-full"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <div className="flex items-center justify-between text-slate-200 hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 transition">
+                  <div className="flex items-center justify-between text-runway-mute hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 transition">
                     <span>{link.label}</span>
                     {link.badge && (
-                      <span className="text-[10px] bg-[#c7a775] text-[#0d0d0b] px-2 py-1">
+                      <span className="text-[10px] bg-[#c7a775] text-runway-text px-2 py-1">
                         {link.badge}
                       </span>
                     )}
@@ -244,7 +244,7 @@ export default function Nav({
                   >
                     <Button
                       variant="outline"
-                      className="w-full rounded-none border border-white/20 text-slate-100 hover:bg-white/8"
+                      className="w-full rounded-none border border-white/20 text-runway-faint hover:bg-white/8"
                     >
                       Log in
                     </Button>
@@ -258,7 +258,7 @@ export default function Nav({
                       className="w-full"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <div className="text-slate-300 hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 text-center">
+                      <div className="text-runway-body hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 text-center">
                         Settings
                       </div>
                     </Link>
@@ -295,7 +295,7 @@ const UserAvatarDisplay = memo(({ photoURL, displayName, initials }) => {
           e.target.style.display = "none";
         }}
       />
-      <AvatarFallback className="bg-[#c7a775] text-[#0d0d0b] font-bold text-sm">
+      <AvatarFallback className="bg-[#c7a775] text-runway-text font-bold text-sm">
         {initials ? initials : <User className="h-5 w-5" />}
       </AvatarFallback>
     </Avatar>
@@ -308,27 +308,27 @@ const MemoizedDropdownMenuContent = memo(
     return (
       <DropdownMenuContent
         align="end"
-        className="w-60 p-3 rounded-none shadow-xl border border-white/10 bg-[#0d0d0b]/95 backdrop-blur-xl text-slate-200"
+        className="w-60 p-3 rounded-none shadow-xl border border-white/10 bg-[#0d0d0b]/95 backdrop-blur-xl text-runway-mute"
       >
         <DropdownMenuLabel className="font-normal p-3 bg-white/5">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-semibold leading-none">
               {userData?.name || userData?.displayName || "User"}
             </p>
-            <p className="text-xs leading-none text-slate-400">
+            <p className="text-xs leading-none text-runway-faint">
               {currentUser?.email || "No email"}
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="my-2 bg-slate-700" />
+        <DropdownMenuSeparator className="my-2 bg-runway-line-strong" />
         {!hideAuthenticatedFeatures && (
           <>
             <Link href="/settings">
-              <DropdownMenuItem className="cursor-pointer hover:bg-white/8 rounded-none p-3 font-medium text-slate-200">
+              <DropdownMenuItem className="cursor-pointer hover:bg-white/8 rounded-none p-3 font-medium text-runway-mute">
                 Settings
               </DropdownMenuItem>
             </Link>
-            <DropdownMenuSeparator className="my-2 bg-slate-700" />
+            <DropdownMenuSeparator className="my-2 bg-runway-line-strong" />
           </>
         )}
         <DropdownMenuItem
@@ -348,7 +348,7 @@ const SignInButtonInternal = memo(() => (
     <Link href="/login">
       <Button
         variant="outline"
-        className="rounded-none border border-white/20 text-[#0d0d0b] bg-white hover:bg-slate-50 font-semibold px-8 py-2.5"
+        className="rounded-none border border-white/20 text-runway-text bg-paper-0 hover:bg-runway-line-soft font-semibold px-8 py-2.5"
       >
         Log in
       </Button>

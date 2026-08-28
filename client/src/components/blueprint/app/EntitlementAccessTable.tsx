@@ -22,61 +22,46 @@ export function EntitlementAccessTable({
   actionLabel?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-white">
-      <table className="w-full min-w-[62rem] border-collapse text-left">
+    <div className="overflow-x-auto">
+      <table className="runway-table min-w-[62rem]">
         <thead>
-          <tr className="border-b border-line">
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-              Entitlement
-            </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-              Access
-            </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-              Delivery
-            </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-              Granted
-            </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
-              Scope
-            </th>
-            <th className="px-4 py-3 text-right text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+          <tr>
+            <th>Entitlement</th>
+            <th>Access</th>
+            <th>Delivery</th>
+            <th>Granted</th>
+            <th>Scope</th>
+            <th className="text-right">
               <span className="sr-only">Action</span>
             </th>
           </tr>
         </thead>
         <tbody>
           {entitlements.map((entitlement) => (
-            <tr
-              key={entitlement.id}
-              className="border-b border-line-soft transition-colors last:border-b-0 hover:bg-inset"
-            >
-              <td className="px-4 py-3.5 align-middle">
+            <tr key={entitlement.id}>
+              <td>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-body-s font-semibold text-ink-900">
+                  <span className="font-semibold text-runway-text">
                     {entitlementDisplayName(entitlement)}
                   </span>
-                  <span className="font-mono text-[0.7rem] text-ink-400">
+                  <span className="runway-num text-[0.7rem] text-runway-faint">
                     {entitlement.id}
                   </span>
                 </div>
               </td>
-              <td className="px-4 py-3.5 align-middle">
+              <td>
                 <StatusChip tone={entitlementStateTone(entitlement.access_state)} square>
                   {entitlementStateLabel(entitlement.access_state)}
                 </StatusChip>
               </td>
-              <td className="px-4 py-3.5 align-middle font-mono text-[0.72rem] text-ink-600">
+              <td className="runway-num text-[0.72rem]">
                 {entitlement.delivery_mode || "Manual review"}
               </td>
-              <td className="px-4 py-3.5 align-middle font-mono text-[0.72rem] text-ink-700">
+              <td className="runway-num text-[0.72rem]">
                 {formatEntitlementDate(entitlement.granted_at)}
               </td>
-              <td className="px-4 py-3.5 align-middle text-body-s text-ink-600">
-                {entitlementScope(entitlement)}
-              </td>
-              <td className="px-4 py-3.5 text-right align-middle">
+              <td>{entitlementScope(entitlement)}</td>
+              <td className="text-right">
                 <EntitlementAccessButton
                   entitlement={entitlement}
                   actionLabel={actionLabel}
@@ -121,7 +106,7 @@ export function EntitlementAccessButton({
 
   if (entitlement.access_state !== "provisioned") {
     return (
-      <span className="font-mono text-[0.7rem] text-ink-400">
+      <span className="runway-num text-[0.7rem] text-runway-faint">
         Access review
       </span>
     );
@@ -171,7 +156,7 @@ export function EntitlementAccessButton({
         {isMinting ? "Preparing" : actionLabel}
       </Button>
       {error ? (
-        <span className="max-w-[14rem] text-right font-mono text-[0.68rem] text-red-700">
+        <span className="runway-num max-w-[14rem] text-right text-[0.68rem] text-runway-red">
           {error}
         </span>
       ) : null}

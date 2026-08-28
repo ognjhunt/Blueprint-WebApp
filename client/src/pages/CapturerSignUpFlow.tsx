@@ -20,7 +20,6 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
 import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
@@ -81,6 +80,9 @@ type EquipmentValue = (typeof EQUIPMENT_OPTIONS)[number]["value"];
 type AvailabilityValue = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 type ReferralValue = (typeof REFERRAL_OPTIONS)[number]["value"];
 
+const RUNWAY_LABEL_CLASS =
+  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -100,14 +102,16 @@ function normalizeCityToken(value: string) {
 
 function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
   return (
-    <div className="flex items-center gap-3 text-sm text-[color:var(--ink-soft)]">
+    <div className="flex items-center gap-3">
       {[1, 2].map((step) => (
         <React.Fragment key={step}>
           <div
-            className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
-              step <= currentStep
-                ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
-                : "border-[color:var(--line-strong)] bg-white text-[color:var(--ink-muted)]"
+            className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold transition ${
+              step < currentStep
+                ? "border-runway-green-dim text-runway-green"
+                : step === currentStep
+                  ? "border-runway-signal text-runway-signal"
+                  : "border-runway-line-strong text-runway-faint"
             }`}
           >
             {step}
@@ -115,13 +119,13 @@ function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
           {step < 2 ? (
             <div
               className={`h-px w-12 ${
-                step < currentStep ? "bg-[color:var(--leaf)]" : "bg-[color:var(--line)]"
+                step < currentStep ? "bg-runway-green" : "bg-runway-line"
               }`}
             />
           ) : null}
         </React.Fragment>
       ))}
-      <span>Step {currentStep} of 2</span>
+      <span className="runway-meta">Step {currentStep} of 2</span>
     </div>
   );
 }
@@ -217,8 +221,8 @@ export default function CapturerSignUpFlow() {
           width: 320,
           margin: 1,
           color: {
-            dark: "#2f2a23",
-            light: "#fffdf8",
+            dark: "#0c0f0e",
+            light: "#e8e6dd",
           },
         });
         if (active) {
@@ -468,64 +472,45 @@ export default function CapturerSignUpFlow() {
       <SurfacePage>
         <SurfaceTopBar eyebrow="Invite-Gated Capture" rightLabel="Field Ops Access" />
         <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="overflow-hidden border-black/10 bg-[#f8f4ec]">
-            <main
-              className="px-6 py-8 text-[color:var(--ink)] lg:px-8"
-              style={
-                {
-                  "--paper": "oklch(0.985 0.008 95)",
-                  "--paper-strong": "oklch(0.965 0.012 95)",
-                  "--panel": "oklch(0.994 0.004 95)",
-                  "--ink": "oklch(0.18 0.01 95)",
-                  "--ink-soft": "oklch(0.38 0.01 95)",
-                  "--ink-muted": "oklch(0.56 0.008 95)",
-                  "--line": "oklch(0.9 0.01 95)",
-                  "--line-strong": "oklch(0.82 0.01 95)",
-                  "--leaf": "oklch(0.2 0.01 95)",
-                  "--leaf-deep": "oklch(0.16 0.006 95)",
-                  "--amber": "oklch(0.7 0.03 80)",
-                  "--rose": "oklch(0.62 0.14 28)",
-                } as React.CSSProperties
-              }
-            >
+          <SurfaceBrowserFrame className="overflow-hidden rounded-none border-runway-line bg-runway-deep shadow-none">
+            <main className="bg-runway-deep px-6 py-8 text-runway-text lg:px-8">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-        <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper-strong)] p-7 sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(17,17,16,0.08),_transparent_62%)]" />
+        <section className="runway-panel relative overflow-hidden p-7 sm:p-8">
           <div className="relative space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line-strong)] bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--leaf-deep)]">
+            <div className="runway-chip runway-chip-open">
               <Compass className="h-3.5 w-3.5" />
               Capturer access application
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-md text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              <h1 className="max-w-md font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text sm:text-5xl">
                 Apply to get paid for approved field capture.
               </h1>
-              <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
+              <p className="max-w-lg text-base leading-7 text-runway-body">
                 Capturer access is public to request and review-based by market. This page creates
                 the account and routes the application for phone-first walkthrough work; actual
                 capture assignments happen in Blueprint Capture, not the operator dashboard.
               </p>
-              <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="max-w-lg text-sm leading-6 text-runway-body">
                 Review is required before any assignment or payout eligibility. The assignment
                 payout is shown before you start, and only an accepted capture can move forward.
                 Accepted capture gear is a 360 camera and a smartphone. No other device class
                 is approved for assignments.
               </p>
-              <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="max-w-lg text-sm leading-6 text-runway-body">
                 Robot teams and site operators use the{" "}
-                <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/signup/business">
+                <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/signup/business">
                   Buyer access request
                 </a>
                 {" "}or the{" "}
-                <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/book-exact-site-review">
+                <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/book-exact-site-review">
                   exact-site scoping request
                 </a>
                 {" "}instead of this capturer path.
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-[1.75rem] border border-[color:var(--line)] bg-white">
+            <div className="overflow-hidden border border-runway-line bg-runway-deep">
               <img
                 src={publicCaptureGeneratedAssets.captureAppHero}
                 alt="Blueprint public-facing capture walkthrough"
@@ -534,56 +519,56 @@ export default function CapturerSignUpFlow() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Field task
                 </p>
-                <p className="mt-3 text-2xl font-semibold">One route</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Walk, upload, review.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">One route</p>
+                <p className="mt-1 text-sm text-runway-mute">Walk, upload, review.</p>
               </div>
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Gear
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Phone + 360</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">No other device class is approved.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Phone + 360</p>
+                <p className="mt-1 text-sm text-runway-mute">No other device class is approved.</p>
               </div>
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Web role
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Apply + review</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">No guaranteed assignments.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Apply + review</p>
+                <p className="mt-1 text-sm text-runway-mute">No guaranteed assignments.</p>
               </div>
             </div>
 
             <LaunchCityAvailability
-              tone="paper"
+              tone="dark"
               className="p-5"
               title="Current capture rollout is city-limited."
               description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until Blueprint opens them."
               primaryCta={{ href: "/capture", label: "Capture overview" }}
             />
 
-              <div className="rounded-[1.6rem] border border-[color:var(--line-strong)] bg-[color:var(--panel)] p-5">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
+              <div className="border border-runway-line-strong bg-runway-deep p-5">
+                <p className="runway-meta">
                   What happens next
                 </p>
-                <ol className="mt-4 space-y-4 text-sm leading-6 text-[color:var(--ink-soft)]">
+                <ol className="mt-4 space-y-4 text-sm leading-6 text-runway-body">
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
                       1
                     </span>
                     Create your account and tell us where you can capture. If you have an access or invite code, include it so your application routes correctly.
                   </li>
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--amber)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-signal-dim text-xs font-semibold text-runway-signal">
                       2
                     </span>
                     Your application enters review. We confirm market fit, device availability, and cohort capacity before approval.
                   </li>
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
                       3
                     </span>
                     Approved capturers receive mobile access instructions, see assignment payout
@@ -592,9 +577,9 @@ export default function CapturerSignUpFlow() {
                 </ol>
               </div>
 
-            <div className="rounded-2xl border border-dashed border-[color:var(--line-strong)] px-4 py-3 text-sm text-[color:var(--ink-soft)]">
+            <div className="border border-dashed border-runway-line-strong px-4 py-3 text-sm text-runway-body">
               For site operators or robot teams, use{" "}
-              <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/signup/business">
+              <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/signup/business">
                 business signup
               </a>
               .
@@ -602,7 +587,7 @@ export default function CapturerSignUpFlow() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--panel)] p-6 shadow-[0_24px_80px_rgba(76,68,46,0.08)] sm:p-8">
+        <section className="runway-panel relative overflow-hidden p-6 sm:p-8">
           <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(232,171,58,0.28),_transparent_70%)]" />
           {!isComplete ? (
             <motion.div
@@ -612,13 +597,13 @@ export default function CapturerSignUpFlow() {
               transition={{ duration: 0.22 }}
               className="relative"
             >
-              <div className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-4 border-b border-runway-line pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[color:var(--leaf-deep)]">Capturer application</p>
-              <h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">
+                  <p className="runway-eyebrow">Capturer application</p>
+              <h2 className="mt-1 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
                 {step === 1 ? "Create your account" : "Tell us where you can work"}
               </h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-runway-body">
                 {step === 1
                   ? "Keep the web form short. We only need enough to open your account and move you into the right market."
                   : "This is a capturer application, not a buyer site intake. Keep it focused on where you can capture, your device fit, and the review path for approved assignments."}
@@ -632,40 +617,40 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="fullName" className="text-[color:var(--ink)]">
+                        <Label htmlFor="fullName" className={RUNWAY_LABEL_CLASS}>
                           Full name
                         </Label>
                         <div className="relative mt-2">
-                          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
+                          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-mute" />
                           <Input
                             id="fullName"
                             value={fullName}
                             onChange={(event) => setFullName(event.target.value)}
                             placeholder="Jordan Lee"
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="email" className="text-[color:var(--ink)]">
+                        <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
                           Email
                         </Label>
                         <div className="relative mt-2">
-                          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
+                          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-mute" />
                           <Input
                             id="email"
                             type="email"
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
                             placeholder="you@example.com"
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <Label htmlFor="password" className="text-[color:var(--ink)]">
+                        <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
                           Password
                         </Label>
                         <Input
@@ -674,12 +659,12 @@ export default function CapturerSignUpFlow() {
                           value={password}
                           onChange={(event) => setPassword(event.target.value)}
                           placeholder="At least 8 characters"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="confirmPassword" className="text-[color:var(--ink)]">
+                        <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
                           Confirm password
                         </Label>
                         <Input
@@ -688,30 +673,29 @@ export default function CapturerSignUpFlow() {
                           value={confirmPassword}
                           onChange={(event) => setConfirmPassword(event.target.value)}
                           placeholder="Repeat password"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12"
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-[color:var(--paper)] p-5">
+                    <div className="border border-runway-line bg-runway-raised p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="text-sm font-semibold text-[color:var(--ink)]">
+                          <p className="text-sm font-semibold text-runway-text">
                             Prefer Google?
                           </p>
-                          <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                          <p className="mt-1 text-sm text-runway-body">
                             Use Google to skip retyping your name and email, then finish your market details here.
                           </p>
                         </div>
-                        <Button
+                        <button
                           type="button"
-                          variant="outline"
                           onClick={handleGoogleSignUp}
                           disabled={isSubmitting}
-                          className="rounded-full border-[color:var(--line-strong)]"
+                          className="runway-cta-ghost disabled:opacity-50"
                         >
                           Continue with Google
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   </>
@@ -719,10 +703,10 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="market" className="text-[color:var(--ink)]">
+                        <Label htmlFor="market" className={RUNWAY_LABEL_CLASS}>
                           Capture city
                         </Label>
-                        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                        <p className="mt-2 text-sm leading-6 text-runway-body">
                           Choose a current launch city if Blueprint is already opening there, or
                           tell us which city to watch next. Current rollout:{" "}
                           {launchCitiesLoading ? "loading..." : supportedLaunchCitySummary}.
@@ -736,10 +720,10 @@ export default function CapturerSignUpFlow() {
                                   key={city.citySlug}
                                   type="button"
                                   onClick={() => setMarket(city.displayName)}
-                                  className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                                  className={`runway-chip transition ${
                                     active
-                                      ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
-                                      : "border-[color:var(--line-strong)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--paper)]"
+                                      ? "runway-chip-open"
+                                      : "runway-chip-quiet hover:border-runway-signal hover:text-runway-signal"
                                   }`}
                                 >
                                   {city.displayName}
@@ -749,7 +733,7 @@ export default function CapturerSignUpFlow() {
                           </div>
                         ) : null}
                         <div className="relative mt-2">
-                          <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
+                          <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-mute" />
                           <Input
                             id="market"
                             value={market}
@@ -757,10 +741,10 @@ export default function CapturerSignUpFlow() {
                             placeholder={
                               supportedLaunchCities[0]?.displayName || "Austin, TX"
                             }
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-[color:var(--ink-muted)]">
+                        <p className="mt-2 text-xs leading-5 text-runway-mute">
                           {market.trim()
                             ? marketIsSupportedLaunchCity
                               ? `${market} is in the current capture rollout.`
@@ -770,7 +754,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="phoneNumber" className="text-[color:var(--ink)]">
+                        <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
                           Phone number
                         </Label>
                         <Input
@@ -778,17 +762,17 @@ export default function CapturerSignUpFlow() {
                           value={phoneNumber}
                           onChange={(event) => setPhoneNumber(event.target.value)}
                           placeholder="(555) 555-5555"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12"
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-[color:var(--amber)]/30 bg-[color:var(--amber)]/8 p-5">
+                    <div className="border border-runway-signal-dim bg-runway-raised p-5">
                       <div className="flex items-start gap-3">
-                        <Shield className="mt-0.5 h-5 w-5 text-[color:var(--amber)]" />
+                        <Shield className="mt-0.5 h-5 w-5 text-runway-signal" />
                         <div>
-                          <p className="font-semibold text-[color:var(--ink)]">Gated access and approval</p>
-                          <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                          <p className="font-semibold text-runway-text">Gated access and approval</p>
+                          <p className="mt-1 text-sm leading-6 text-runway-body">
                             Blueprint capturer access is public to request and review-based. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, privacy fit, and cohort capacity before sending capture onboarding instructions.
                           </p>
                         </div>
@@ -796,28 +780,28 @@ export default function CapturerSignUpFlow() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <Label htmlFor="accessCode" className="text-[color:var(--ink)]">
-                        Access or invite code <span className="text-[color:var(--ink-muted)]">(if you have one)</span>
+                      <Label htmlFor="accessCode" className={RUNWAY_LABEL_CLASS}>
+                        Access or invite code <span className="text-runway-mute">(if you have one)</span>
                       </Label>
                       <div className="relative mt-2">
-                        <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
+                        <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-mute" />
                         <Input
                           id="accessCode"
                           value={accessCode}
                           onChange={(event) => setAccessCode(event.target.value)}
                           placeholder="Enter your access or invite code"
-                          className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                          className="h-12 pl-10"
                         />
                       </div>
-                      <p className="mt-1.5 text-xs text-[color:var(--ink-muted)]">
+                      <p className="mt-1.5 text-xs text-runway-mute">
                         If someone gave you a code, enter it here. It helps us route your application faster.
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">What can you capture with?</p>
-                        <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                        <p className="text-sm font-semibold text-runway-text">What can you capture with?</p>
+                        <p className="mt-1 text-sm text-runway-body">
                           Select the devices you can reliably use for public-facing walkthroughs.
                         </p>
                       </div>
@@ -827,10 +811,10 @@ export default function CapturerSignUpFlow() {
                           return (
                             <label
                               key={option.value}
-                              className={`flex cursor-pointer items-start gap-4 rounded-[1.4rem] border p-4 transition ${
+                              className={`flex cursor-pointer items-start gap-4 border p-4 transition ${
                                 checked
-                                  ? "border-[color:var(--leaf)] bg-[color:var(--paper)]"
-                                  : "border-[color:var(--line)] bg-white"
+                                  ? "border-runway-signal bg-runway-raised"
+                                  : "border-runway-line bg-runway-deep"
                               }`}
                             >
                               <Checkbox
@@ -839,8 +823,8 @@ export default function CapturerSignUpFlow() {
                                 className="mt-0.5"
                               />
                               <div>
-                                <p className="font-semibold text-[color:var(--ink)]">{option.label}</p>
-                                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">{option.detail}</p>
+                                <p className="font-semibold text-runway-text">{option.label}</p>
+                                <p className="mt-1 text-sm text-runway-body">{option.detail}</p>
                               </div>
                             </label>
                           );
@@ -850,7 +834,7 @@ export default function CapturerSignUpFlow() {
 
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">Availability</p>
+                        <p className="text-sm font-semibold text-runway-text">Availability</p>
                         <RadioGroup
                           value={availability}
                           onValueChange={(value) => setAvailability(value as AvailabilityValue)}
@@ -859,18 +843,18 @@ export default function CapturerSignUpFlow() {
                           {AVAILABILITY_OPTIONS.map((option) => (
                             <label
                               key={option.value}
-                              className="flex items-center gap-3 rounded-2xl border border-[color:var(--line)] px-4 py-3"
+                              className="flex items-center gap-3 rounded-none border border-runway-line px-4 py-3"
                             >
                               <RadioGroupItem value={option.value} id={option.value} />
-                              <span className="text-sm text-[color:var(--ink)]">{option.label}</span>
+                              <span className="text-sm text-runway-text">{option.label}</span>
                             </label>
                           ))}
                         </RadioGroup>
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">How did you get access?</p>
-                        <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                        <p className="text-sm font-semibold text-runway-text">How did you get access?</p>
+                        <p className="mt-1 text-sm text-runway-body">
                           If you were invited or given an access code, select that here so we can route review correctly.
                         </p>
                         <RadioGroup
@@ -881,24 +865,24 @@ export default function CapturerSignUpFlow() {
                           {REFERRAL_OPTIONS.map((option) => (
                             <label
                               key={option.value}
-                              className="flex items-center gap-3 rounded-2xl border border-[color:var(--line)] px-4 py-3"
+                              className="flex items-center gap-3 rounded-none border border-runway-line px-4 py-3"
                             >
                               <RadioGroupItem value={option.value} id={`ref-${option.value}`} />
-                              <span className="text-sm text-[color:var(--ink)]">{option.label}</span>
+                              <span className="text-sm text-runway-text">{option.label}</span>
                             </label>
                           ))}
                         </RadioGroup>
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-[color:var(--paper)] p-5">
+                    <div className="border border-runway-line bg-runway-raised p-5">
                       <label className="flex items-start gap-3">
                         <Checkbox
                           checked={agreedToTerms}
                           onCheckedChange={(checked) => setAgreedToTerms(Boolean(checked))}
                           className="mt-1"
                         />
-                        <span className="text-sm leading-6 text-[color:var(--ink-soft)]">
+                        <span className="text-sm leading-6 text-runway-body">
                           I understand this is an application for capturer access, not an open
                           signup. Approval is not guaranteed; Blueprint reviews each submission for
                           market fit, device availability, privacy fit, and cohort capacity before
@@ -906,11 +890,11 @@ export default function CapturerSignUpFlow() {
                           payout eligibility requires an accepted capture after review. Actual
                           capture sessions, verification, and payout setup happen in Blueprint
                           Capture. I agree to Blueprint&apos;s{" "}
-                          <a href="/terms" className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline">
+                          <a href="/terms" className="font-semibold text-runway-signal underline-offset-4 hover:underline">
                             Terms
                           </a>{" "}
                           and{" "}
-                          <a href="/privacy" className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline">
+                          <a href="/privacy" className="font-semibold text-runway-signal underline-offset-4 hover:underline">
                             Privacy Policy
                           </a>
                           .
@@ -921,37 +905,36 @@ export default function CapturerSignUpFlow() {
                 )}
 
                 {errorMessage ? (
-                  <div className="rounded-2xl border border-[color:var(--rose)]/30 bg-[color:var(--rose)]/8 px-4 py-3 text-sm text-[color:var(--rose)]">
+                  <div className="rounded-none border border-runway-red-dim bg-runway-panel px-4 py-3 text-sm text-runway-red">
                     {errorMessage}
                   </div>
                 ) : null}
 
-                <div className="flex flex-col gap-3 border-t border-[color:var(--line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-runway-line pt-6 sm:flex-row sm:items-center sm:justify-between">
                   {step === 2 ? (
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
                       onClick={() => setStep(1)}
-                      className="justify-start rounded-full px-0 text-[color:var(--ink-soft)] hover:bg-transparent hover:text-[color:var(--ink)]"
+                      className="inline-flex items-center text-sm font-medium text-runway-mute transition hover:text-runway-text"
                     >
                       <ChevronLeft className="mr-2 h-4 w-4" />
                       Back
-                    </Button>
+                    </button>
                   ) : (
                     <a
                       href="/capture"
-                      className="inline-flex items-center text-sm font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+                      className="inline-flex items-center text-sm font-medium text-runway-body hover:text-runway-text"
                     >
                       <ChevronLeft className="mr-2 h-4 w-4" />
                       Back to capture overview
                     </a>
                   )}
 
-                  <Button
+                  <button
                     type="button"
                     onClick={step === 1 ? handleContinue : handleSubmit}
                     disabled={isSubmitting}
-                    className="rounded-full bg-[color:var(--ink)] px-6 text-white hover:bg-[color:var(--leaf-deep)]"
+                    className="runway-cta disabled:opacity-50"
                   >
                     {isSubmitting
                       ? "Submitting..."
@@ -961,7 +944,7 @@ export default function CapturerSignUpFlow() {
                           ? "Join future-city waitlist"
                           : "Create capturer account"}
                     {!isSubmitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -974,13 +957,13 @@ export default function CapturerSignUpFlow() {
               className="relative flex h-full flex-col justify-between"
             >
               <div>
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--leaf)] text-white">
+                <div className="inline-flex h-14 w-14 items-center justify-center border border-runway-green-dim text-runway-green">
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
-                <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">
+                <h2 className="mt-6 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
                   Application submitted.
                 </h2>
-                <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--ink-soft)]">
+                <p className="mt-3 max-w-xl text-base leading-7 text-runway-body">
                   {successSummary
                     ? successSummary.isSupportedLaunchCity
                       ? `${successSummary.name}, your capturer application for ${successSummary.market} has been submitted.`
@@ -993,12 +976,12 @@ export default function CapturerSignUpFlow() {
               </div>
 
               <div className="mt-8 grid gap-4">
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-[color:var(--paper)] p-5">
+                <div className="border border-runway-line bg-runway-raised p-5">
                   <div className="flex items-start gap-4">
-                    <Smartphone className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
+                    <Smartphone className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
-                      <p className="font-semibold text-[color:var(--ink)]">Application under review</p>
-                      <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      <p className="font-semibold text-runway-text">Application under review</p>
+                      <p className="mt-1 text-sm leading-6 text-runway-body">
                         {successSummary?.isSupportedLaunchCity === false
                           ? "Your submission is in the future-city queue. We will only send access instructions if that city becomes part of the approved launch rollout."
                           : "Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. In the meantime, the Blueprint Capture app is where actual capture sessions, review steps, and payout setup live."}
@@ -1007,39 +990,38 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <QrCode className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
+                    <QrCode className="mt-1 h-5 w-5 text-runway-mute" />
                     <div className="w-full">
-                      <p className="font-semibold text-[color:var(--ink)]">Mobile access link and QR</p>
-                      <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      <p className="font-semibold text-runway-text">Mobile access link and QR</p>
+                      <p className="mt-1 text-sm leading-6 text-runway-body">
                         This stays stable even if the downstream mobile destination changes, so
                         signup does not need to be reworked when the app access path is updated.
                       </p>
 
                       <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-center">
-                        <div className="flex h-40 w-40 items-center justify-center rounded-[1.5rem] border border-[color:var(--line)] bg-[color:var(--paper)] p-3">
+                        <div className="flex h-40 w-40 items-center justify-center border border-runway-line bg-runway-raised p-3">
                           {captureAppQrCode ? (
                             <img
                               src={captureAppQrCode}
                               alt="QR code for the Blueprint Capture access link"
-                              className="h-full w-full rounded-xl"
+                              className="h-full w-full"
                             />
                           ) : (
-                            <div className="text-xs text-[color:var(--ink-muted)]">Generating QR...</div>
+                            <div className="text-xs text-runway-mute">Generating QR...</div>
                           )}
                         </div>
 
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3 text-sm text-[color:var(--ink)]">
+                          <div className="runway-num border border-runway-line bg-runway-raised px-4 py-3 text-xs text-runway-text">
                             <span className="break-all">{captureAppUrl}</span>
                           </div>
                           <div className="flex flex-col gap-3 sm:flex-row">
-                            <Button
+                            <button
                               type="button"
-                              variant="outline"
                               onClick={handleCopyUrl}
-                              className="rounded-full border-[color:var(--line-strong)]"
+                              className="runway-cta-ghost"
                             >
                               <Copy className="mr-2 h-4 w-4" />
                               {copyState === "copied"
@@ -1047,18 +1029,16 @@ export default function CapturerSignUpFlow() {
                                 : copyState === "failed"
                                   ? "Copy failed"
                                   : "Copy link"}
-                            </Button>
-                            <Button
-                              asChild
-                              type="button"
-                              variant="outline"
-                              className="rounded-full border-[color:var(--line-strong)]"
+                            </button>
+                            <a
+                              href={captureAppUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="runway-cta-ghost"
                             >
-                              <a href={captureAppUrl} target="_blank" rel="noreferrer">
-                                Open access link
-                                <ExternalLink className="ml-2 h-4 w-4" />
-                              </a>
-                            </Button>
+                              Open access link
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                            </a>
                           </div>
                         </div>
                       </div>
@@ -1066,12 +1046,12 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <Sparkles className="mt-1 h-5 w-5 text-[color:var(--amber)]" />
+                    <Sparkles className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
-                      <p className="font-semibold text-[color:var(--ink)]">Recommended next steps</p>
-                      <ul className="mt-2 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      <p className="font-semibold text-runway-text">Recommended next steps</p>
+                      <ul className="mt-2 space-y-2 text-sm leading-6 text-runway-body">
                         <li>Watch for approval or access instructions.</li>
                         <li>Complete identity and payout setup in the capture workflow when prompted.</li>
                         <li>Return to the capture overview if you want to review pay, device fit, or process details.</li>
@@ -1080,12 +1060,12 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <Shield className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
+                    <Shield className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
-                      <p className="font-semibold text-[color:var(--ink)]">Need a business account instead?</p>
-                      <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      <p className="font-semibold text-runway-text">Need a business account instead?</p>
+                      <p className="mt-1 text-sm leading-6 text-runway-body">
                         Site operators and robot teams stay on the business route so they get the right intake, not the worker flow.
                       </p>
                     </div>
@@ -1094,21 +1074,20 @@ export default function CapturerSignUpFlow() {
               </div>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button
+                <button
                   type="button"
                   onClick={() => setLocation("/capture")}
-                  className="rounded-full bg-[color:var(--ink)] text-white hover:bg-[color:var(--leaf-deep)]"
+                  className="runway-cta"
                 >
                   Back to capture overview
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setLocation("/signup/business")}
-                  className="rounded-full border-[color:var(--line-strong)]"
+                  className="runway-cta-ghost"
                 >
                   Business signup
-                </Button>
+                </button>
               </div>
             </motion.div>
           )}

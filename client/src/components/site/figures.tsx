@@ -49,7 +49,7 @@ const ACCENT_ON_INK = "#3a79c2";
 const MUTED = "#817e72";
 const MUTED_ON_INK = "#a8a496";
 
-export const surfaceFor = (onInk: boolean) => (onInk ? "#0d0d0b" : "#ffffff");
+export const surfaceFor = (onInk: boolean) => (onInk ? "#0d0d0b" : "#101312");
 export const accentFor = (onInk: boolean) => (onInk ? ACCENT_ON_INK : ACCENT);
 export const mutedFor = (onInk: boolean) => (onInk ? MUTED_ON_INK : MUTED);
 
@@ -91,7 +91,7 @@ export function Figure({
     <figure
       className={cn(
         "overflow-hidden rounded-lg border",
-        onInk ? "border-white/10 bg-ink" : "border-line bg-white",
+        onInk ? "border-white/10 bg-runway-deep" : "border-line bg-paper-0",
         className,
       )}
     >
@@ -211,7 +211,7 @@ export function RunLifecycleRail({
           y1="12"
           x2="1000"
           y2="12"
-          stroke={onInk ? "rgba(255,255,255,0.12)" : "#ded7c8"}
+          stroke={onInk ? "rgba(255,255,255,0.12)" : "#1a1f1c"}
           strokeWidth="1"
         />
         <DrawIn
@@ -418,7 +418,7 @@ export function EvidenceLadderChart({
                     style={{ width: `${Math.round(rung.cost * 100)}%` }}
                   >
                     <div
-                      className="h-full rounded-r-[4px] transition-opacity duration-200"
+                      className="h-full rounded-r-none transition-opacity duration-200"
                       style={{
                         background: isStopped ? accent : muted,
                         opacity: isStopped || isHovered ? 1 : 0.72,
@@ -577,7 +577,7 @@ export function ClaimThresholdChart({
               y1="0"
               x2="9"
               y2="10"
-              stroke={onInk ? "#f3efe6" : "#0d0d0b"}
+              stroke={onInk ? "#141816" : "#0d0d0b"}
               strokeWidth="1.5"
             />
           </svg>
@@ -654,7 +654,7 @@ export function ClaimThresholdChart({
                 {/* Hairline solid baseline. */}
                 <div
                   className="absolute inset-x-0 top-1/2 h-px"
-                  style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#ebe4d7" }}
+                  style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#1a1f1c" }}
                   aria-hidden="true"
                 />
                 {/* Threshold rule. */}
@@ -698,7 +698,7 @@ export function ClaimThresholdChart({
                   style={{
                     left: `${claim.estimate * 100}%`,
                     transform: "translateX(-50%)",
-                    color: onInk ? "#f3efe6" : "#0d0d0b",
+                    color: onInk ? "#141816" : "#0d0d0b",
                   }}
                 >
                   {pct(claim.estimate)}
@@ -880,7 +880,7 @@ export function ClearanceMarginChart({
               y1="0"
               x2="5"
               y2="10"
-              stroke={onInk ? "#f3efe6" : "#0d0d0b"}
+              stroke={onInk ? "#141816" : "#0d0d0b"}
               strokeWidth="1.5"
             />
           </svg>
@@ -956,7 +956,7 @@ export function ClearanceMarginChart({
               <div className="relative mt-2.5 h-9">
                 <div
                   className="absolute inset-x-0 top-1/2 h-px"
-                  style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#ebe4d7" }}
+                  style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#1a1f1c" }}
                   aria-hidden="true"
                 />
                 {/* Zero rule — the line a margin has to clear outright. */}
@@ -981,7 +981,7 @@ export function ClearanceMarginChart({
                   />
                   {/* Margin bar, drawn from zero. */}
                   <div
-                    className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px] transition-colors duration-200"
+                    className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-none transition-colors duration-200"
                     style={{
                       left: `${barLeft}%`,
                       width: `${barWidth}%`,
@@ -1010,7 +1010,7 @@ export function ClearanceMarginChart({
                   style={{
                     left: `${x(row.marginM)}%`,
                     transform: "translateX(-50%)",
-                    color: onInk ? "#f3efe6" : "#0d0d0b",
+                    color: onInk ? "#141816" : "#0d0d0b",
                   }}
                 >
                   {signedMetres(row.marginM)}
@@ -1253,7 +1253,7 @@ export function RankingMarginChart({
                 <div className="relative mt-2 h-7">
                   <div
                     className="absolute inset-x-0 top-1/2 h-px"
-                    style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#ebe4d7" }}
+                    style={{ background: onInk ? "rgba(255,255,255,0.12)" : "#1a1f1c" }}
                     aria-hidden="true"
                   />
                   <GrowIn origin="left" delay={index * 0.08} className="absolute inset-0">
@@ -1361,11 +1361,11 @@ const bandMeta: Record<
   OutcomeBand["tone"],
   { icon: LucideIcon; fg: string; bg: string; bd: string }
 > = {
-  supported: { icon: CheckCircle2, fg: "#1f6b4f", bg: "#eef5f1", bd: "#dcebe3" },
-  rejected: { icon: XCircle, fg: "#9b3027", bg: "#faeae7", bd: "#f1d9d5" },
-  partial: { icon: MinusCircle, fg: "#9a6a16", bg: "#faf3e2", bd: "#f3e7cb" },
-  abstained: { icon: CircleSlash, fg: "#45443d", bg: "#f0ece1", bd: "#ded7c8" },
-  next: { icon: Info, fg: "#1f4f8f", bg: "#eaf1f9", bd: "#d7e4f2" },
+  supported: { icon: CheckCircle2, fg: "#1f6b4f", bg: "#101312", bd: "#141816" },
+  rejected: { icon: XCircle, fg: "#9b3027", bg: "#141816", bd: "#1a1f1c" },
+  partial: { icon: MinusCircle, fg: "#9a6a16", bg: "#101312", bd: "#141816" },
+  abstained: { icon: CircleSlash, fg: "#45443d", bg: "#141816", bd: "#1a1f1c" },
+  next: { icon: Info, fg: "#1f4f8f", bg: "#101312", bd: "#1a1f1c" },
 };
 
 /**
@@ -1456,7 +1456,7 @@ export function CoverageMeter({
         aria-label={label}
       >
         <GrowIn origin="left" className="h-full" style={{ width: `${percent}%` }}>
-          <div className="h-full rounded-r-[4px]" style={{ background: accentFor(onInk) }} />
+          <div className="h-full rounded-r-none" style={{ background: accentFor(onInk) }} />
         </GrowIn>
       </div>
       {caption ? (
@@ -1580,7 +1580,7 @@ export function StatRow({ tiles, onInk = false }: { tiles: readonly StatTile[]; 
           key={tile.label}
           className={cn(
             "flex h-full flex-col justify-between gap-5 p-5",
-            onInk ? "bg-ink" : "bg-white",
+            onInk ? "bg-runway-deep" : "bg-paper-0",
           )}
         >
           <p
@@ -1594,7 +1594,7 @@ export function StatRow({ tiles, onInk = false }: { tiles: readonly StatTile[]; 
           <div>
             <p
               className={cn(
-                "font-display text-[2.6rem] font-medium leading-none tracking-[-0.04em]",
+                "font-display uppercase text-[2.6rem] font-semibold leading-none tracking-[0.005em]",
                 onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
               )}
             >

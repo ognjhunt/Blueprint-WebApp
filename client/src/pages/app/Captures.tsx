@@ -43,7 +43,7 @@ import {
 import { Helmet } from "@/lib/helmet";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
+  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
 const labelClass = "text-body-s font-semibold text-ink-800";
 const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
@@ -130,7 +130,7 @@ function SessionHistory({
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
       <h2 className="text-title-m font-semibold tracking-tight text-ink-900">History</h2>
       {sessions.length ? (
-        <div className="overflow-x-auto rounded-md border border-line bg-white">
+        <div className="overflow-x-auto rounded-md border border-line bg-paper-0">
           <table className="w-full min-w-[48rem] border-collapse text-left">
             <thead><tr className="border-b border-line">
               <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Capture</th>

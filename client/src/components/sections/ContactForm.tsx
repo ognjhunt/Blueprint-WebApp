@@ -6,9 +6,6 @@
 
 import { Loader } from "@googlemaps/js-api-loader";
 import { motion, useInView } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { withCsrfHeader } from "@/lib/csrf";
 import { logger } from "@/utils/logger";
 import React, { useState, useEffect, useRef } from "react";
@@ -246,17 +243,11 @@ export default function ContactForm() {
     <motion.section
       ref={formRef}
       id="contactForm"
-      className="py-12 md:py-20 lg:py-24 relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900"
+      className="py-12 md:py-20 lg:py-24 relative overflow-hidden bg-runway-deep"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      {/* ambient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute -top-48 -right-48 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -bottom-48 -left-48 w-[28rem] h-[28rem] rounded-full bg-cyan-500/10 blur-3xl" />
-      </div>
-
       <div className="container mx-auto px-6">
         {/* Header */}
         <motion.div
@@ -265,19 +256,17 @@ export default function ContactForm() {
           animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 30 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="inline-flex items-center justify-center gap-2 mb-4 bg-emerald-400/10 text-emerald-300 py-2 px-4 rounded-full border border-emerald-500/30">
+          <div className="runway-chip runway-chip-open mb-4">
             <RocketLaunchIcon className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-wider">
-              Early Access
-            </span>
+            Early Access
           </div>
-          <h2 className="text-3xl md:text-5xl font-black leading-tight text-white">
+          <h2 className="font-display text-[clamp(2rem,5vw,3.25rem)] font-bold uppercase leading-[0.98] tracking-[0.005em] text-runway-text">
             Ready to Turn Your{" "}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-300 to-cyan-300">
+            <span className="text-runway-signal">
               Real Site Into Readiness Evidence?
             </span>
           </h2>
-          <p className="text-base md:text-xl text-slate-300 mt-3">
+          <p className="mx-auto mt-4 max-w-[68ch] text-[17px] leading-[1.7] text-runway-body">
             Blueprint captures your space, packages site-specific evidence,
             and helps your team scope a Task Evaluation Run around the exact environment and decision that matter.
           </p>
@@ -285,48 +274,50 @@ export default function ContactForm() {
 
         {/* Card */}
         <motion.div
-          className="bg-slate-900/70 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-slate-800"
+          className="runway-panel overflow-hidden"
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 40 }}
           transition={{ duration: 0.6, delay: 0.15 }}
         >
           <div className="grid grid-cols-1 lg:grid-cols-5">
             {/* Left panel */}
-            <div className="lg:col-span-2 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 p-6 md:p-10 relative">
+            <div className="lg:col-span-2 border-b border-runway-line bg-runway-black p-6 md:p-10 relative lg:border-b-0 lg:border-r">
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-3">
-                  <SparklesIcon className="w-5 h-5 text-amber-300" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
-                    Early Access
-                  </span>
-                </div>
-                <h3 className="font-black text-2xl md:text-3xl mb-4 leading-tight">
+                <p className="runway-eyebrow mb-3 flex items-center gap-2">
+                  <SparklesIcon className="w-4 h-4" />
+                  Early Access
+                </p>
+                <h3 className="mb-4 font-display text-[1.75rem] font-semibold uppercase leading-[1.02] tracking-[0.005em] text-runway-text md:text-[2rem]">
                   Bring your real site into Blueprint
                 </h3>
-                <p className="mb-6 text-sm md:text-base text-slate-300">
+                <p className="mb-6 max-w-[60ch] text-[16px] leading-[1.7] text-runway-body">
                   Blueprint turns real retail, hospitality, workplace, and venue spaces into
                   real-site Task Evaluation Runs, maintained testbeds, and evidence-bound result review.
                 </p>
 
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-white/5 rounded-xl p-2">
-                      <Award className="w-5 h-5 text-emerald-300" />
+                    <div className="border border-runway-line bg-runway-panel p-2">
+                      <Award className="w-5 h-5 text-runway-green" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">Exclusive Early Access</h4>
-                      <p className="text-sm text-slate-400">
+                      <h4 className="font-display text-[1.05rem] font-semibold uppercase tracking-[0.005em] text-runway-text">
+                        Exclusive Early Access
+                      </h4>
+                      <p className="mt-1 text-[15px] leading-[1.7] text-runway-mute">
                         Priority support for early world-model and hosted-access requests.
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="bg-white/5 rounded-xl p-2">
-                      <Users className="w-5 h-5 text-cyan-300" />
+                    <div className="border border-runway-line bg-runway-panel p-2">
+                      <Users className="w-5 h-5 text-runway-sky" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">White-Glove Onboarding</h4>
-                      <p className="text-sm text-slate-400">
+                      <h4 className="font-display text-[1.05rem] font-semibold uppercase tracking-[0.005em] text-runway-text">
+                        White-Glove Onboarding
+                      </h4>
+                      <p className="mt-1 text-[15px] leading-[1.7] text-runway-mute">
                         We help scope capture, packaging, and hosted access around your exact site.
                       </p>
                     </div>
@@ -335,17 +326,17 @@ export default function ContactForm() {
 
                 {isPriorityMarket && (
                   <motion.div
-                    className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl"
+                    className="mt-6 border border-runway-green-dim bg-runway-panel p-4"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <StarIcon className="w-4 h-4 text-emerald-300" />
-                      <span className="font-semibold text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <StarIcon className="w-4 h-4 text-runway-green" />
+                      <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-runway-green">
                         Priority Market Detected!
                       </span>
                     </div>
-                    <p className="text-sm text-emerald-200">
+                    <p className="mt-2 text-[15px] leading-[1.7] text-runway-body">
                       {formData.city} qualifies for immediate onboarding.
                     </p>
                   </motion.div>
@@ -354,28 +345,29 @@ export default function ContactForm() {
             </div>
 
             {/* Form */}
-            <div className="lg:col-span-3 p-6 md:p-10 bg-white">
+            <div className="lg:col-span-3 p-6 md:p-10 bg-runway-deep">
               {isSuccess ? (
                 <motion.div
                   className="h-full flex flex-col items-center justify-center text-center p-6"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
-                    <CheckCircleIcon className="h-10 w-10 text-emerald-600" />
+                  <div className="mb-6 flex h-20 w-20 items-center justify-center border border-runway-green-dim bg-runway-black">
+                    <CheckCircleIcon className="h-10 w-10 text-runway-green" />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-3">
+                  <h3 className="mb-3 font-display text-[2rem] font-semibold uppercase leading-[1.02] tracking-[0.005em] text-runway-text">
                     Request received
                   </h3>
-                  <p className="text-slate-600 max-w-md">
+                  <p className="max-w-[52ch] text-[16px] leading-[1.7] text-runway-body">
                     We have your site and contact details. Expect a follow-up from Blueprint shortly.
                   </p>
-                  <Button
-                    className="mt-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold border-0"
+                  <button
+                    type="button"
+                    className="runway-cta-ghost mt-6"
                     onClick={() => setIsSuccess(false)}
                   >
                     Submit Another Request
-                  </Button>
+                  </button>
                 </motion.div>
               ) : (
                 <motion.form
@@ -386,16 +378,13 @@ export default function ContactForm() {
                   transition={{ duration: 0.6, delay: 0.2 }}
                 >
                   <div>
-                    <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
-                      htmlFor="name"
-                    >
+                    <label className="runway-label" htmlFor="name">
                       <span className="inline-flex items-center gap-2">
-                        <UserIcon className="w-4 h-4 text-emerald-600" /> Full
+                        <UserIcon className="w-4 h-4 text-runway-faint" /> Full
                         Name
                       </span>
                     </label>
-                    <Input
+                    <input
                       ref={nameRef}
                       type="text"
                       id="name"
@@ -404,25 +393,22 @@ export default function ContactForm() {
                       value={formData.name}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, emailRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="runway-input"
                     />
 
                     {errors.name && (
-                      <p className="text-red-500 text-sm mt-2">{errors.name}</p>
+                      <p className="mt-2 text-[13px] text-runway-red">{errors.name}</p>
                     )}
                   </div>
 
                   <div>
-                    <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
-                      htmlFor="email"
-                    >
+                    <label className="runway-label" htmlFor="email">
                       <span className="inline-flex items-center gap-2">
-                        <EnvelopeIcon className="w-4 h-4 text-emerald-600" />{" "}
+                        <EnvelopeIcon className="w-4 h-4 text-runway-faint" />{" "}
                         Business Email
                       </span>
                     </label>
-                    <Input
+                    <input
                       ref={emailRef}
                       type="email"
                       id="email"
@@ -431,26 +417,23 @@ export default function ContactForm() {
                       value={formData.email}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, companyRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="runway-input"
                     />
                     {errors.email && (
-                      <p className="text-red-500 text-sm mt-2">
+                      <p className="mt-2 text-[13px] text-runway-red">
                         {errors.email}
                       </p>
                     )}
                   </div>
 
                   <div className="relative">
-                    <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
-                      htmlFor="company"
-                    >
+                    <label className="runway-label" htmlFor="company">
                       <span className="inline-flex items-center gap-2">
-                        <BuildingOfficeIcon className="w-4 h-4 text-emerald-600" />{" "}
+                        <BuildingOfficeIcon className="w-4 h-4 text-runway-faint" />{" "}
                         Company Name
                       </span>
                     </label>
-                    <Input
+                    <input
                       ref={companyRef}
                       type="text"
                       id="company"
@@ -462,21 +445,21 @@ export default function ContactForm() {
                         setTimeout(() => setCompanyPredictions([]), 150)
                       }
                       onKeyDown={(e) => handleKeyDown(e, messageRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="runway-input"
                     />
                     {errors.company && (
-                      <p className="text-red-500 text-sm mt-2">
+                      <p className="mt-2 text-[13px] text-runway-red">
                         {errors.company}
                       </p>
                     )}
 
                     {companyPredictions.length > 0 && (
                       <div className="relative z-20">
-                        <div className="absolute w-full mt-2 bg-white border-2 border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                        <div className="absolute mt-1 max-h-60 w-full overflow-y-auto border border-runway-line-strong bg-runway-panel">
                           {companyPredictions.map((prediction) => (
                             <div
                               key={prediction.place_id}
-                              className="px-4 py-3 hover:bg-emerald-50 cursor-pointer transition-colors border-b last:border-b-0"
+                              className="cursor-pointer border-b border-runway-line-soft px-4 py-3 transition-colors last:border-b-0 hover:bg-runway-raised"
                               onClick={() => {
                                 wasSelection.current = true;
                                 setFormData({
@@ -541,7 +524,7 @@ export default function ContactForm() {
                                 }
                               }}
                             >
-                              <div className="font-medium text-slate-900">
+                              <div className="text-[14px] font-medium text-runway-text">
                                 {prediction.description}
                               </div>
                             </div>
@@ -552,16 +535,13 @@ export default function ContactForm() {
                   </div>
 
                   <div>
-                    <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
-                      htmlFor="message"
-                    >
+                    <label className="runway-label" htmlFor="message">
                       <span className="inline-flex items-center gap-2">
-                        <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-emerald-600" />{" "}
+                        <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-runway-faint" />{" "}
                         Tell Us About Your Vision (Optional)
                       </span>
                     </label>
-                    <Textarea
+                    <textarea
                       ref={messageRef}
                       id="message"
                       name="message"
@@ -569,19 +549,19 @@ export default function ContactForm() {
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="runway-input"
                     />
                   </div>
 
-                  <Button
+                  <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-4 text-lg font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 border-0 rounded-xl shadow-xl hover:opacity-90"
+                    className="runway-cta w-full disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center gap-3">
                         <svg
-                          className="animate-spin h-6 w-6"
+                          className="animate-spin h-5 w-5"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -608,9 +588,9 @@ export default function ContactForm() {
                         Request early access
                       </div>
                     )}
-                  </Button>
+                  </button>
 
-                  <p className="text-xs text-slate-500 text-center">
+                  <p className="text-center text-[13px] leading-[1.6] text-runway-mute">
                     By submitting, you agree to receive updates about Blueprint.
                     We respect your privacy and never share your information.
                   </p>

@@ -77,7 +77,7 @@ export default function Entitlements() {
               className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
             >
               {metrics.map((metric) => (
-                <div key={metric.label} className="bg-white p-5">
+                <div key={metric.label} className="bg-paper-0 p-5">
                   <MetricStat
                     label={metric.label}
                     value={metric.value}

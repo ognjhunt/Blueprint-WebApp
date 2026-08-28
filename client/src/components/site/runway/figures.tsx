@@ -172,18 +172,24 @@ export function InstallationGapChart() {
 
 /** Regional share of 2024 installations, as one stacked rule. */
 export function RegionalShareBar() {
-  const tones = ["bg-runway-red", "bg-runway-line", "bg-runway-signal"];
+  // Each fill carries its own label colour: bone is unreadable on the two
+  // saturated segments, and ink is unreadable on the neutral one.
+  const tones = [
+    { fill: "bg-runway-red", label: "text-runway-signal-ink" },
+    { fill: "bg-runway-line", label: "text-runway-text" },
+    { fill: "bg-runway-signal", label: "text-runway-signal-ink" },
+  ];
 
   return (
     <div>
-      <div className="flex h-9 w-full overflow-hidden rounded-sm border border-runway-line">
+      <div className="flex h-9 w-full overflow-hidden rounded-none border border-runway-line">
         {regionalShare2024.map((row, index) => (
           <div
             key={row.region}
-            className={cn("flex items-center justify-center", tones[index])}
+            className={cn("flex items-center justify-center", tones[index].fill)}
             style={{ width: `${row.share}%` }}
           >
-            <span className="runway-num text-[11px] text-runway-black/80">{row.share}%</span>
+            <span className={cn("runway-num text-[11px] font-medium", tones[index].label)}>{row.share}%</span>
           </div>
         ))}
         <div className="flex-1 bg-runway-raised" />
@@ -554,7 +560,7 @@ export function FlywheelFigure() {
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff5c24" />
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffb000" />
             </marker>
           </defs>
 
@@ -573,7 +579,7 @@ export function FlywheelFigure() {
                 key={`arc-${node.id}`}
                 d={`M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`}
                 fill="none"
-                stroke="#ff5c24"
+                stroke="#ffb000"
                 strokeWidth="2"
                 markerEnd="url(#runway-flywheel-arrow)"
                 opacity="0.9"
@@ -583,20 +589,20 @@ export function FlywheelFigure() {
 
           {nodes.map((node, index) => (
             <g key={node.id}>
-              <circle cx={node.x} cy={node.y} r="34" fill="#07080b" />
+              <circle cx={node.x} cy={node.y} r="34" fill="#0c0f0e" />
               <circle
                 cx={node.x}
                 cy={node.y}
                 r="34"
                 fill="none"
-                stroke="#ff5c24"
+                stroke="#ffb000"
                 strokeWidth="2"
               />
               <text
                 x={node.x}
                 y={node.y + 6}
                 textAnchor="middle"
-                fill="#ff5c24"
+                fill="#ffb000"
                 fontSize="17"
                 fontFamily="IBM Plex Mono, ui-monospace, monospace"
               >
@@ -609,7 +615,7 @@ export function FlywheelFigure() {
             x={centre}
             y={centre - 8}
             textAnchor="middle"
-            fill="#f4f6f8"
+            fill="#e8e6dd"
             fontSize="22"
             fontWeight="600"
             fontFamily="Inter Tight, Inter, sans-serif"
@@ -620,7 +626,7 @@ export function FlywheelFigure() {
             x={centre}
             y={centre + 16}
             textAnchor="middle"
-            fill="#f4f6f8"
+            fill="#e8e6dd"
             fontSize="22"
             fontWeight="600"
             fontFamily="Inter Tight, Inter, sans-serif"
@@ -922,7 +928,7 @@ export function AllocationFigure() {
       <Reveal>
         <div className="rounded-sm border border-runway-line bg-runway-panel p-7">
           <p className="runway-meta">Scarcest resource</p>
-          <p className="mt-4 text-[clamp(1.4rem,2.4vw,1.9rem)] font-semibold leading-tight tracking-[-0.03em] text-runway-signal">
+          <p className="mt-4 font-display uppercase text-[clamp(1.4rem,2.4vw,1.9rem)] font-semibold leading-tight tracking-[0.005em] text-runway-signal">
             {allocationThesis.scarcest}
           </p>
           <p className="mt-5 border-t border-runway-line pt-5 text-[13px] leading-6 text-runway-faint">
@@ -1052,7 +1058,7 @@ export function ProgramAdoptionFigure() {
     <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14">
       <Reveal>
         <div>
-          <p className="runway-num text-[clamp(3rem,6vw,5rem)] font-medium leading-none tracking-[-0.04em] text-runway-signal">
+          <p className="runway-num text-[clamp(3rem,6vw,5rem)] font-semibold leading-none tracking-[0.005em] text-runway-signal">
             {capAdoption.headline}
           </p>
           <p className="mt-5 max-w-[26ch] text-[14px] leading-6 text-runway-mute">
@@ -1093,7 +1099,12 @@ export function ProgramAdoptionFigure() {
                 >
                   {name}
                 </span>
-                <span className="runway-meta ml-auto shrink-0">
+                <span
+                  className={cn(
+                    "runway-meta ml-auto shrink-0",
+                    viaProgram ? "text-runway-signal/80" : "text-runway-mute",
+                  )}
+                >
                   {viaProgram ? "via program" : "bespoke"}
                 </span>
               </Reveal>
@@ -1361,7 +1372,7 @@ export function HumanoidShareFigure() {
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-        <p className="runway-num text-[clamp(2.6rem,5.5vw,4.4rem)] font-medium leading-none tracking-[-0.04em] text-runway-red">
+        <p className="runway-num text-[clamp(2.6rem,5.5vw,4.4rem)] font-medium leading-none tracking-[-0.02em] text-runway-red">
           {humanoidShare.headline}
         </p>
         <p className="max-w-[30ch] text-[14px] leading-6 text-runway-mute">
@@ -1371,12 +1382,12 @@ export function HumanoidShareFigure() {
 
       {/* The split, as one rule. */}
       <div className="mt-8">
-        <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
+        <div className="flex h-10 w-full overflow-hidden rounded-none border border-runway-line">
           <div
             className="flex items-center justify-center bg-runway-red"
             style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
           >
-            <span className="runway-num text-[12px] text-runway-black/85">
+            <span className="runway-num text-[12px] font-medium text-runway-signal-ink/90">
               Chinese makers · {humanoidShare.chineseVendorSharePct}%
             </span>
           </div>
@@ -1524,7 +1535,7 @@ export function VisitScheduleFigure() {
       </ol>
 
       <Reveal delay={0.2} className="mt-8 border-t border-runway-line pt-6">
-        <h3 className="text-[clamp(1.15rem,2vw,1.5rem)] font-semibold tracking-[-0.03em] text-runway-text">
+        <h3 className="font-display uppercase text-[clamp(1.15rem,2vw,1.5rem)] font-semibold tracking-[0.005em] text-runway-text">
           {visitScheduleNote.headline}
         </h3>
         <p className="mt-3 max-w-[70ch] text-[13px] leading-6 text-runway-mute">

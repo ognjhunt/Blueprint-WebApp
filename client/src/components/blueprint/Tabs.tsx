@@ -25,10 +25,10 @@ export interface TabsProps
 /**
  * Tabs — Blueprint underline tab bar.
  *
- * Flex gap 1.5rem, bottom border #ded7c8. Each tab: body-s 600, padding .75rem 0,
- * margin-bottom -1px; active = strong text + 2px brass bottom border (inactive
- * transparent + muted). Optional mono count badge (.7rem, xs radius, warn-050 bg
- * when active else sunken). Controlled via value + onChange.
+ * Flex gap 1.5rem, bottom hairline. Each tab: mono uppercase meta label, padding
+ * .75rem 0, margin-bottom -1px; active = signal text + 2px signal bottom border
+ * (inactive transparent + faint). Optional mono count badge rendered as an
+ * outlined chip. Controlled via value + onChange.
  */
 export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
   (
@@ -79,7 +79,7 @@ export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
           role="tablist"
           aria-label={ariaLabel}
           className={cn(
-            "flex gap-6 border-b border-line",
+            "flex gap-6 border-b border-runway-line",
             listClassName,
           )}
         >
@@ -99,23 +99,23 @@ export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
                 onClick={() => !item.disabled && onChange(item.value)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
                 className={cn(
-                  "-mb-px inline-flex items-center gap-2 border-b-2 py-3 text-body-s font-semibold",
+                  "-mb-px inline-flex items-center gap-2 border-b-2 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em]",
                   "outline-none transition-colors duration-200 ease-standard",
-                  "focus-visible:ring-2 focus-visible:ring-brass-deep/60",
+                  "focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep",
                   "disabled:cursor-not-allowed disabled:opacity-45",
                   isActive
-                    ? "border-brass text-ink-900"
-                    : "border-transparent text-ink-500 hover:text-ink-700",
+                    ? "border-runway-signal text-runway-signal"
+                    : "border-transparent text-runway-faint hover:text-runway-text",
                 )}
               >
                 <span>{item.label}</span>
                 {typeof item.count === "number" ? (
                   <span
                     className={cn(
-                      "inline-flex min-w-[1.25rem] items-center justify-center rounded-xs px-1 py-px font-mono text-[0.7rem] leading-none",
+                      "runway-num inline-flex min-w-[1.25rem] items-center justify-center rounded-none border px-1 py-px text-[0.7rem] leading-none",
                       isActive
-                        ? "bg-warn-bg text-ink-700"
-                        : "bg-sunken text-ink-500",
+                        ? "border-runway-signal-dim text-runway-signal"
+                        : "border-runway-line-strong text-runway-mute",
                     )}
                   >
                     {item.count}

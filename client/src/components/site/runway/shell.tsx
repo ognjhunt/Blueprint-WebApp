@@ -29,7 +29,7 @@ const bandToneClass: Record<BandTone, string> = {
   black: "bg-runway-black text-runway-text",
   deep: "bg-runway-deep text-runway-text",
   panel: "bg-runway-panel text-runway-text",
-  paper: "bg-runway-paper text-runway-black",
+  paper: "bg-runway-paper text-runway-text",
 };
 
 export function Band({
@@ -129,8 +129,8 @@ export function SectionHead({
         </div>
         <h2
           className={cn(
-            "mt-5 max-w-[20ch] text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[-0.045em]",
-            onLight ? "text-runway-black" : "text-runway-text",
+            "mt-5 max-w-[20ch] font-display uppercase text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[0.005em]",
+            onLight ? "text-runway-text" : "text-runway-text",
           )}
         >
           {title}
@@ -140,7 +140,7 @@ export function SectionHead({
         <p
           className={cn(
             "max-w-[40ch] self-end text-[15px] leading-[1.7]",
-            onLight ? "text-[#4a5462]" : "text-runway-mute",
+            onLight ? "text-runway-body" : "text-runway-mute",
           )}
         >
           {lede}
@@ -192,7 +192,7 @@ export function FigureFrame({
       className={cn(
         "overflow-hidden rounded-md border",
         onLight
-          ? "border-runway-paper-line bg-white"
+          ? "border-runway-paper-line bg-paper-0"
           : "border-runway-line bg-runway-panel",
         className,
       )}
@@ -208,7 +208,7 @@ export function FigureFrame({
           <h3
             className={cn(
               "text-[15px] font-semibold tracking-[-0.015em]",
-              onLight ? "text-runway-black" : "text-runway-text",
+              onLight ? "text-runway-text" : "text-runway-text",
             )}
           >
             {title}
@@ -238,7 +238,7 @@ export function FigureFrame({
           )}
         >
           {caveat ? (
-            <p className={cn("max-w-[52ch] text-[12.5px] leading-6", onLight ? "text-[#5a6472]" : "text-runway-mute")}>
+            <p className={cn("max-w-[52ch] text-[12.5px] leading-6", onLight ? "text-runway-mute" : "text-runway-mute")}>
               {caveat}
             </p>
           ) : (
@@ -272,7 +272,7 @@ export function SourceLink({
       className={cn(
         "inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.12em] underline-offset-4 transition-colors hover:underline",
         onLight
-          ? "text-[#5a6472] hover:text-runway-black"
+          ? "text-runway-mute hover:text-runway-text"
           : "text-runway-faint hover:text-runway-signal",
       )}
     >
@@ -327,7 +327,7 @@ export function MetricStrip({
           <div>
             <dd
               className={cn(
-                "runway-num text-[clamp(2rem,3.4vw,2.9rem)] font-medium leading-none tracking-[-0.03em]",
+                "runway-num text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-none tracking-[0.005em]",
                 metricTone[metric.tone ?? "text"],
               )}
             >
@@ -367,7 +367,7 @@ export function Pullquote({
 }) {
   return (
     <Reveal className={cn("border-l-2 border-runway-signal pl-6 sm:pl-8", className)}>
-      <p className="max-w-[30ch] text-[clamp(1.5rem,2.8vw,2.4rem)] font-medium leading-[1.18] tracking-[-0.035em] text-runway-text">
+      <p className="max-w-[30ch] font-display uppercase text-[clamp(1.5rem,2.8vw,2.4rem)] font-semibold leading-[1.18] tracking-[0.005em] text-runway-text">
         {children}
       </p>
       {attribution ? (
@@ -409,21 +409,21 @@ export function RunwayCta({
       <Inner className="relative py-16 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end">
           <div>
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-signal-ink/70">
               {eyebrow}
             </p>
-            <h2 className="mt-5 max-w-[16ch] text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-runway-black">
+            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-signal-ink">
               {title}
             </h2>
           </div>
           <div>
             {body ? (
-              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-black/75">{body}</p>
+              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-signal-ink/80">{body}</p>
             ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href={primaryHref}
-                className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-black px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+                className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none bg-runway-black px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
               >
                 {primaryLabel}
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -431,7 +431,7 @@ export function RunwayCta({
               {secondaryHref && secondaryLabel ? (
                 <a
                   href={secondaryHref}
-                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-none border border-runway-signal-ink/40 px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-signal-ink transition-colors hover:border-runway-signal-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
                 >
                   {secondaryLabel}
                 </a>

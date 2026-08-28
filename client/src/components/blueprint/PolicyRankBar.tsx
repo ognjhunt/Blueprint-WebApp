@@ -63,10 +63,10 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
           {rank != null && (
             <span
               className={cn(
-                "shrink-0 rounded-xs border px-1.5 py-0.5 font-mono text-[0.7rem] font-semibold leading-none",
+                "runway-num shrink-0 rounded-none border px-1.5 py-0.5 text-[0.7rem] font-semibold leading-none",
                 onInk
-                  ? "border-[color:var(--border-ink)] text-ink-200"
-                  : "border-line-strong text-ink-500",
+                  ? "border-runway-line text-runway-body"
+                  : "border-runway-line-strong text-runway-mute",
               )}
             >
               {rank}
@@ -75,8 +75,7 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
           <span
             className={cn(
               "truncate text-body-s",
-              winner ? "font-bold" : "font-semibold",
-              onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+              winner ? "font-bold text-runway-text" : "font-semibold text-runway-body",
             )}
           >
             {label}
@@ -85,8 +84,8 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
 
         <div
           className={cn(
-            "h-2 w-full overflow-hidden rounded-full",
-            onInk ? "bg-ink-700" : "bg-sunken",
+            "h-2 w-full overflow-hidden rounded-none",
+            onInk ? "bg-runway-raised" : "bg-runway-line-soft",
           )}
           role="progressbar"
           aria-valuenow={Math.round(ratio * 100)}
@@ -95,8 +94,8 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
         >
           <div
             className={cn(
-              "h-full rounded-full transition-[width] duration-[350ms] ease-out-bp",
-              winner ? "bg-action" : "bg-ink-400",
+              "h-full rounded-none transition-[width] duration-[350ms] ease-out-bp",
+              winner ? "bg-runway-signal" : "bg-runway-mute",
             )}
             style={{ width: `${ratio * 100}%` }}
           />
@@ -104,8 +103,8 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
 
         <span
           className={cn(
-            "justify-self-end font-mono text-[13px]",
-            onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+            "runway-num justify-self-end text-[13px]",
+            winner ? "text-runway-signal" : "text-runway-text",
           )}
         >
           {metric ?? computed}

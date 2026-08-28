@@ -212,7 +212,7 @@ export default function SitePacks() {
               {entitlements.map((entitlement) => (
                 <article
                   key={entitlement.id}
-                  className="flex flex-col rounded-md border border-line bg-white p-5 transition-colors hover:border-line-strong"
+                  className="flex flex-col rounded-md border border-line bg-paper-0 p-5 transition-colors hover:border-line-strong"
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-3">

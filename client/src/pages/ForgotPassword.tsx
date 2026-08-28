@@ -5,7 +5,6 @@ import { ArrowLeft, ArrowRight, CheckCircle, Loader2, Mail } from "lucide-react"
 import { SEO } from "@/components/SEO";
 import {
   SurfaceBrowserFrame,
-  SurfaceButton,
   SurfaceMiniLabel,
   SurfacePage,
   SurfaceSection,
@@ -52,23 +51,23 @@ export default function ForgotPassword() {
                   alt="Blueprint dossier sheet"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.2))]" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,15,14,0.32),rgba(12,15,14,0.78))]" />
               </div>
 
-              <div className="flex items-center bg-[#fbf7f0] p-8 lg:p-10">
+              <div className="flex items-center bg-runway-deep p-8 lg:p-10">
                 <div className="mx-auto grid w-full max-w-[38rem] gap-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-                  <div className="rounded-[1.6rem] border border-black/10 bg-white p-6">
-                    <SurfaceMiniLabel>Reset your password</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-black/60">
+                  <div className="runway-panel p-6">
+                    <SurfaceMiniLabel className="text-runway-faint">Reset your password</SurfaceMiniLabel>
+                    <p className="mt-4 text-sm leading-7 text-runway-mute">
                       Enter your email and we&apos;ll send you a secure reset link.
                     </p>
 
                     {!isSubmitted ? (
                       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                        <label className="block space-y-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/45">Email</span>
+                        <label className="block">
+                          <span className="runway-label">Email</span>
                           <div className="relative">
-                            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" />
+                            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                             <input
                               id="email"
                               name="email"
@@ -78,12 +77,12 @@ export default function ForgotPassword() {
                               placeholder="you@company.com"
                               required
                               disabled={isLoading}
-                              className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30"
+                              className="runway-input h-12 pl-11 pr-4"
                             />
                           </div>
                         </label>
 
-                        <SurfaceButton type="submit" className="w-full gap-2">
+                        <button type="submit" className="runway-cta w-full gap-2">
                           {isLoading ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -95,41 +94,41 @@ export default function ForgotPassword() {
                               <ArrowRight className="h-4 w-4" />
                             </>
                           )}
-                        </SurfaceButton>
+                        </button>
 
-                        <a href="/sign-in" className="inline-flex items-center gap-2 text-sm text-black/55 transition hover:text-black">
+                        <a href="/sign-in" className="inline-flex items-center gap-2 text-sm text-runway-mute transition hover:text-runway-text">
                           <ArrowLeft className="h-4 w-4" />
                           Back to sign in
                         </a>
                       </form>
                     ) : (
                       <div className="mt-6 space-y-4">
-                        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-[#f6f1e7]">
-                          <CheckCircle className="h-6 w-6 text-black/70" />
+                        <div className="inline-flex h-12 w-12 items-center justify-center border border-runway-green-dim bg-runway-raised">
+                          <CheckCircle className="h-6 w-6 text-runway-green" />
                         </div>
-                        <p className="text-sm leading-7 text-black/60">
-                          If an account exists for <span className="font-semibold text-black">{email}</span>,
+                        <p className="text-sm leading-7 text-runway-mute">
+                          If an account exists for <span className="font-semibold text-runway-text">{email}</span>,
                           we&apos;ve sent a reset link.
                         </p>
-                        <SurfaceButton href="/sign-in" tone="secondary" className="w-full">
+                        <a href="/sign-in" className="runway-cta-ghost w-full">
                           Return to sign in
-                        </SurfaceButton>
+                        </a>
                       </div>
                     )}
                   </div>
 
                   <div className="hidden justify-center lg:flex">
-                    <ArrowRight className="h-5 w-5 text-black/30" />
+                    <ArrowRight className="h-5 w-5 text-runway-faint" />
                   </div>
 
-                  <div className="rounded-[1.6rem] border border-black/10 bg-white p-6">
-                    <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-black/10 bg-[#faf6ee]">
-                      <CheckCircle className="h-7 w-7 text-black/70" />
+                  <div className="runway-panel p-6">
+                    <div className="mx-auto inline-flex h-14 w-14 items-center justify-center border border-runway-line-strong bg-runway-raised">
+                      <CheckCircle className="h-7 w-7 text-runway-mute" />
                     </div>
-                    <p className="mt-6 text-[2rem] font-semibold tracking-[-0.06em]">
+                    <p className="mt-6 font-display uppercase text-[2rem] font-semibold tracking-[0.005em] text-runway-text">
                       {isSubmitted ? "Check your email" : "Private reset flow"}
                     </p>
-                    <p className="mt-3 text-sm leading-7 text-black/60">
+                    <p className="mt-3 text-sm leading-7 text-runway-mute">
                       {isSubmitted
                         ? "If an account exists, the next step is now in your inbox."
                         : "We use the same response for all requests so account state is never exposed on this screen."}

@@ -14,8 +14,9 @@ export interface SwitchProps
 /**
  * Switch — Blueprint toggle.
  *
- * Track 2.2rem x 1.25rem, radius full; brass when on (#a8854f border) else #cdc9bb.
- * Knob .95rem white circle, shadow-sm, slides 200ms ease-out. Optional label.
+ * Track 2.2rem x 1.25rem, square; signal amber when on, raised ground with a
+ * line-strong edge when off. Knob .95rem square — mute when off, signal-ink on
+ * the amber fill — slides 200ms ease-out. Optional label.
  * Built on shadcn/Radix Switch.
  */
 export const Switch = React.forwardRef<
@@ -32,19 +33,19 @@ export const Switch = React.forwardRef<
       className={cn(
         "peer relative inline-flex h-[1.25rem] w-[2.2rem] shrink-0 cursor-pointer items-center rounded-full border",
         "transition-colors duration-200 ease-out-bp outline-none",
-        "focus-visible:ring-2 focus-visible:ring-brass-deep/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+        "focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep",
         "disabled:cursor-not-allowed disabled:opacity-45",
-        "border-[#cdc9bb] bg-[#cdc9bb]",
-        "data-[state=checked]:border-brass-deep data-[state=checked]:bg-brass",
+        "border-runway-line-strong bg-runway-raised",
+        "data-[state=checked]:border-runway-signal data-[state=checked]:bg-runway-signal",
         className,
       )}
       {...props}
     >
       <SwitchPrimitives.Thumb
         className={cn(
-          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-full bg-white shadow-sm ring-0",
+          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-full bg-runway-mute ring-0",
           "translate-x-[0.15rem] transition-transform duration-200 ease-out-bp",
-          "data-[state=checked]:translate-x-[1.1rem]",
+          "data-[state=checked]:translate-x-[1.1rem] data-[state=checked]:bg-runway-signal-ink",
         )}
       />
     </SwitchPrimitives.Root>
@@ -59,7 +60,7 @@ export const Switch = React.forwardRef<
       {control}
       <label
         htmlFor={switchId}
-        className="cursor-pointer text-body-s font-medium text-ink-900 peer-disabled:cursor-not-allowed peer-disabled:opacity-45"
+        className="cursor-pointer text-body-s font-medium text-runway-text peer-disabled:cursor-not-allowed peer-disabled:opacity-45"
       >
         {label}
       </label>

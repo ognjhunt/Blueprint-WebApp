@@ -43,10 +43,10 @@ export function TaskEvaluationRunInspection({
           <StatusChip tone={inspection.status === "decided" ? "proof" : "warn"} square>
             {outcomeLabel[inspection.status]}
           </StatusChip>
-          <h2 id="task-evaluation-run-heading" className="mt-3 text-title-l font-semibold tracking-tight text-ink-900">
+          <h2 id="task-evaluation-run-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
             Task Evaluation Run
           </h2>
-          <p className="mt-2 font-mono text-[0.72rem] text-ink-500">
+          <p className="runway-num mt-2 text-[0.72rem] text-runway-faint">
             {publication.run_id} · {envelope.decision_envelope_digest}
           </p>
         </div>
@@ -64,22 +64,22 @@ export function TaskEvaluationRunInspection({
           <Card key={claim.claim_id} pad="md">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{claim.claim_type.replace(/_/g, " ")}</p>
-                <h3 className="mt-1 font-mono text-body-s font-semibold text-ink-900">{claim.claim_id}</h3>
+                <p className="runway-meta font-semibold">{claim.claim_type.replace(/_/g, " ")}</p>
+                <h3 className="runway-num mt-1 text-body-s font-semibold text-runway-text">{claim.claim_id}</h3>
               </div>
               <StatusChip tone={verdictTone(claim.verdict)} square>{claim.verdict.replace(/_/g, " ")}</StatusChip>
             </div>
-            <p className="mt-3 text-body-s text-ink-600">{claim.rationale.replace(/_/g, " ")}</p>
+            <p className="mt-3 text-body-s text-runway-body">{claim.rationale.replace(/_/g, " ")}</p>
           </Card>
         ))}
       </div>
 
       <Card pad="lg" className="grid gap-5 md:grid-cols-2">
         <div>
-          <h3 className="flex items-center gap-2 text-micro font-semibold uppercase tracking-eyebrow text-ink-400"><FlaskConical className="size-4" /> Next cheapest experiment</h3>
-          <p className="mt-2 text-body-s font-semibold text-ink-800">{envelope.next_cheapest_experiment.replace(/_/g, " ")}</p>
+          <h3 className="runway-meta flex items-center gap-2 font-semibold"><FlaskConical className="size-4" /> Next cheapest experiment</h3>
+          <p className="mt-2 text-body-s font-semibold text-runway-text">{envelope.next_cheapest_experiment.replace(/_/g, " ")}</p>
           {physicalRequests.length ? (
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-body-s text-ink-600">
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-body-s text-runway-body">
               {physicalRequests.map((request, index) => (
                 <li key={`${String(request.request_id || request.claim_id || "physical-request")}-${index}`}>
                   {String(request.description || request.evidence_needed || request.claim_id || "Physical evidence required")}
@@ -89,8 +89,8 @@ export function TaskEvaluationRunInspection({
           ) : null}
         </div>
         <div>
-          <h3 className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Unsupported conditions</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-ink-600">
+          <h3 className="runway-meta font-semibold">Unsupported conditions</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
             {envelope.unsupported_conditions.map((condition) => (
               <li key={condition}>{condition.replace(/_/g, " ")}</li>
             ))}
@@ -104,9 +104,9 @@ export function TaskEvaluationRunInspection({
         </ProofBoundary>
       ) : null}
 
-      <details className="rounded-md border border-line bg-white p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-ink-800">Inspect deterministic Evidence Plan and Decision Envelope</summary>
-        <pre className="mt-4 max-h-[32rem] overflow-auto rounded-md bg-ink-950 p-4 text-[0.7rem] leading-relaxed text-white">
+      <details className="runway-panel p-4">
+        <summary className="cursor-pointer text-body-s font-semibold text-runway-text">Inspect deterministic Evidence Plan and Decision Envelope</summary>
+        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto border border-runway-line bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">
           {JSON.stringify({ evidence_plan: publication.evidence_plan, decision_envelope: envelope }, null, 2)}
         </pre>
       </details>

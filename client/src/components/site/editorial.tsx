@@ -151,7 +151,7 @@ export function EditorialSectionIntro({
       <EditorialSectionLabel light={light}>{eyebrow}</EditorialSectionLabel>
       <Heading
         className={cn(
-          "mt-4 font-display font-medium leading-[1.02] tracking-[-0.03em]",
+          "mt-4 font-display uppercase font-semibold leading-[1.02] tracking-[0.005em]",
           "text-[clamp(2rem,3.2vw,3.1rem)]",
           light ? "text-runway-text" : "text-runway-text",
         )}
@@ -502,7 +502,7 @@ export function EditorialCtaBand({
             href={primaryHref}
             onClick={primaryOnClick}
             className={cn(
-              "inline-flex h-[2.625rem] items-center justify-center gap-2 rounded-sm bg-brass px-[1.125rem] text-sm font-semibold tracking-[-0.01em] text-runway-text",
+              "inline-flex h-[2.625rem] items-center justify-center gap-2 rounded-sm bg-runway-signal px-[1.125rem] text-sm font-semibold tracking-[-0.01em] text-runway-text",
               "transition-[background-color,transform] duration-200 ease-standard hover:bg-brass-lit active:translate-y-px",
             )}
           >

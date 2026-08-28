@@ -25,35 +25,26 @@ function toneClasses(tone: LaunchCityAvailabilityProps["tone"]) {
         shell: "border-runway-line bg-runway-panel text-runway-text",
         badge: "border-runway-line bg-runway-panel text-runway-mute",
         body: "text-runway-mute",
-        chip: "border-runway-line bg-slate-900/80 text-runway-text hover:border-slate-600",
-        note: "border-runway-line bg-slate-900/70 text-runway-mute",
-        primary: "bg-runway-panel text-runway-text hover:bg-slate-100",
-        secondary: "border-runway-line text-runway-text hover:bg-slate-900",
+        chip: "border-runway-line bg-runway-deep/80 text-runway-text hover:border-runway-mute",
+        note: "border-runway-line bg-runway-deep/70 text-runway-mute",
+        primary: "bg-runway-panel text-runway-text hover:bg-runway-line-soft",
+        secondary: "border-runway-line text-runway-text hover:bg-runway-deep",
       };
+    // `paper` addressed CSS variables that were scoped to a page-level light
+    // palette; that palette is gone, so the branch resolved to nothing. It
+    // falls through to the panel treatment, and the prop stays for callers.
     case "paper":
-      return {
-        shell: "border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--ink)]",
-        badge:
-          "border-[color:var(--line-strong)] bg-runway-panel text-[color:var(--leaf-deep)]",
-        body: "text-[color:var(--ink-soft)]",
-        chip:
-          "border-[color:var(--line)] bg-runway-panel text-[color:var(--ink)] hover:border-[color:var(--line-strong)]",
-        note:
-          "border-[color:var(--amber)]/30 bg-[color:var(--amber)]/8 text-[color:var(--ink-soft)]",
-        primary: "bg-[color:var(--ink)] text-runway-text hover:bg-[color:var(--leaf-deep)]",
-        secondary:
-          "border-[color:var(--line-strong)] text-[color:var(--ink)] hover:bg-[color:var(--paper)]",
-      };
     case "light":
     default:
       return {
         shell: "border-runway-line bg-runway-panel text-runway-text",
         badge: "border-runway-line bg-runway-deep text-runway-mute",
         body: "text-runway-mute",
-        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-slate-300 hover:bg-slate-100",
-        note: "border-runway-line bg-runway-raised text-runway-mute",
-        primary: "bg-runway-panel text-runway-text hover:bg-slate-800",
-        secondary: "border-runway-line text-runway-text hover:bg-slate-100",
+        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-runway-line-strong hover:bg-runway-raised",
+        note: "border-runway-signal-dim bg-runway-signal/[0.06] text-runway-mute",
+        primary:
+          "border border-runway-signal bg-runway-signal text-runway-signal-ink hover:border-runway-signal-lit hover:bg-runway-signal-lit",
+        secondary: "border-runway-line-strong text-runway-text hover:border-runway-signal hover:text-runway-signal",
       };
   }
 }
@@ -81,16 +72,16 @@ export function LaunchCityAvailability({
     : `Blueprint operates in ${serviceArea.city} only right now.`;
 
   return (
-    <section className={`rounded-[1.8rem] border p-6 sm:p-7 ${classes.shell} ${className}`}>
+    <section className={`rounded-none border p-6 sm:p-7 ${classes.shell} ${className}`}>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${classes.badge}`}>
             <MapPinned className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
+          <h2 className="mt-4 font-display text-2xl font-semibold uppercase tracking-[0.005em] sm:text-3xl">{title}</h2>
           <p className={`mt-3 text-sm leading-7 sm:text-base ${classes.body}`}>{description}</p>
-          <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${classes.note}`}>
+          <div className={`mt-4 rounded-none border px-4 py-3 text-sm leading-6 ${classes.note}`}>
             <span className="font-semibold">
               {loading ? "Reviewing public capture-market status..." : supportedCitySummary}
             </span>{" "}

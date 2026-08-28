@@ -17,9 +17,9 @@ export interface CheckboxProps
 /**
  * Checkbox — Blueprint square check.
  *
- * Square box 1.1rem, radius xs; brass fill + ink check when checked, else white +
- * #c8bfac border. Optional label (body-s 500 strong) + description (caption muted).
- * Built on shadcn/Radix Checkbox.
+ * Square box 1.1rem; signal-amber fill + signal-ink check when checked, else the
+ * panel ground with a line-strong border. Optional label (body-s 500 strong) +
+ * description (caption muted). Built on shadcn/Radix Checkbox.
  */
 export const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
@@ -33,12 +33,13 @@ export const Checkbox = React.forwardRef<
       ref={ref}
       id={boxId}
       className={cn(
-        "peer flex h-[1.1rem] w-[1.1rem] shrink-0 items-center justify-center rounded-xs border border-line-strong bg-white",
+        "peer flex h-[1.1rem] w-[1.1rem] shrink-0 items-center justify-center rounded-none border border-runway-line-strong bg-runway-panel text-runway-signal-ink",
         "outline-none transition-colors duration-200 ease-standard",
-        "focus-visible:ring-2 focus-visible:ring-brass-deep/60",
+        "hover:border-runway-signal",
+        "focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep",
         "disabled:cursor-not-allowed disabled:opacity-45",
-        "data-[state=checked]:border-brass data-[state=checked]:bg-brass data-[state=checked]:text-ink-900",
-        "data-[state=indeterminate]:border-brass data-[state=indeterminate]:bg-brass data-[state=indeterminate]:text-ink-900",
+        "data-[state=checked]:border-runway-signal data-[state=checked]:bg-runway-signal data-[state=checked]:text-runway-signal-ink",
+        "data-[state=indeterminate]:border-runway-signal data-[state=indeterminate]:bg-runway-signal data-[state=indeterminate]:text-runway-signal-ink",
         className,
       )}
       {...props}
@@ -60,13 +61,13 @@ export const Checkbox = React.forwardRef<
         {label ? (
           <label
             htmlFor={boxId}
-            className="cursor-pointer text-body-s font-medium text-ink-900 peer-disabled:cursor-not-allowed peer-disabled:opacity-45"
+            className="cursor-pointer text-body-s font-medium text-runway-text peer-disabled:cursor-not-allowed peer-disabled:opacity-45"
           >
             {label}
           </label>
         ) : null}
         {description ? (
-          <span className="text-caption text-ink-500">{description}</span>
+          <span className="text-caption text-runway-mute">{description}</span>
         ) : null}
       </div>
     </div>

@@ -79,7 +79,7 @@ function ActStepper({
                     isActive
                       ? "bg-[color:var(--text-on-ink)]"
                       : index < active
-                        ? "bg-ink-400"
+                        ? "bg-runway-line-strong"
                         : "bg-white/15",
                   )}
                 />
@@ -160,7 +160,7 @@ function RunFilmScrub({ compact, className }: { compact: boolean; className?: st
                 <motion.p
                   key={filmAct.id}
                   className={cn(
-                    "absolute inset-0 max-w-[68ch] font-display font-medium leading-[1.2] tracking-[-0.02em] text-[color:var(--text-on-ink)]",
+                    "absolute inset-0 max-w-[68ch] font-display uppercase font-semibold leading-[1.2] tracking-[0.005em] text-[color:var(--text-on-ink)]",
                     compact ? "text-[0.95rem]" : "text-[0.95rem] sm:text-[1.1rem]",
                   )}
                   initial={false}

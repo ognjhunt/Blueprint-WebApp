@@ -13,7 +13,7 @@ export function FilmScreen({ children, className }: { children: ReactNode; class
   return (
     <div
       className={cn(
-        "flex flex-col overflow-hidden rounded-lg border border-white/10 bg-ink",
+        "flex flex-col overflow-hidden rounded-lg border border-white/10 bg-runway-deep",
         className,
       )}
     >

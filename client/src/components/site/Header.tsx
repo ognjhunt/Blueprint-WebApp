@@ -213,7 +213,7 @@ export function Header() {
             <>
               <a
                 href={visibleHeaderCta.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-signal-ink transition hover:bg-runway-signal-deep"
               >
                 {visibleHeaderCta.label}
               </a>
@@ -232,7 +232,7 @@ export function Header() {
                         event.currentTarget.style.display = "none";
                       }}
                     />
-                    <AvatarFallback className="bg-[#2563a6]/15 text-xs font-semibold text-[#2563a6]">
+                    <AvatarFallback className="bg-[#2563a6]/15 text-xs font-semibold text-runway-body">
                       {userInitials || "?"}
                     </AvatarFallback>
                   </Avatar>
@@ -240,10 +240,10 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 rounded-none border-runway-line">
                 <DropdownMenuLabel>
-                  <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#0d0d0b]/55">
+                  <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-runway-text/55">
                     {userPersona.badge}
                   </span>
-                  <span className="mt-1 block truncate text-sm text-[#0d0d0b]">
+                  <span className="mt-1 block truncate text-sm text-runway-text">
                     {userData?.organizationName || userData?.name || userData?.email || userPersona.label}
                   </span>
                 </DropdownMenuLabel>
@@ -308,7 +308,7 @@ export function Header() {
                         <Icon className="mt-0.5 h-4 w-4 shrink-0" />
                         <span>
                           <span className="block font-semibold">{label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-[#0d0d0b]/55">
+                          <span className="mt-1 block text-xs leading-5 text-runway-text/55">
                             {description}
                           </span>
                         </span>
@@ -319,7 +319,7 @@ export function Header() {
               </DropdownMenu>
               <a
                 href={headerRequestEvaluation.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-signal-ink transition hover:bg-runway-signal-deep"
               >
                 {headerRequestEvaluation.label}
               </a>
@@ -359,7 +359,7 @@ export function Header() {
 
             <a
               href={visibleHeaderCta.href}
-              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-runway-signal px-4 py-2.5 text-center font-semibold text-runway-black"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-runway-signal px-4 py-2.5 text-center font-semibold text-runway-signal-ink"
               onClick={() => setOpen(false)}
             >
               {visibleHeaderCta.label}

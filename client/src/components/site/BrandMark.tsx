@@ -14,9 +14,9 @@ type BrandLockupProps = BrandMarkProps & {
 };
 
 const toneClass: Record<BrandTone, string> = {
-  ink: "text-slate-950",
+  ink: "text-runway-text",
   paper: "text-white",
-  muted: "text-slate-600",
+  muted: "text-runway-mute",
 };
 
 export function BrandMark({

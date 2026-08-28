@@ -115,7 +115,7 @@ export default function Vision() {
               />
               Vision
             </p>
-            <h1 className="mt-8 max-w-[15ch] text-[clamp(2.9rem,6.4vw,6.4rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
+            <h1 className="mt-8 max-w-[15ch] font-display uppercase text-[clamp(2.9rem,6.4vw,6.4rem)] font-semibold leading-[0.94] tracking-[0.005em] text-runway-text">
               The country that deploys fastest wins.
             </h1>
             <p className="mt-8 max-w-[46rem] text-[clamp(1rem,1.2vw,1.15rem)] leading-[1.7] text-runway-mute">

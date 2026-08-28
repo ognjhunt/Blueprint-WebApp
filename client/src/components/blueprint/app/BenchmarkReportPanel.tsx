@@ -30,7 +30,7 @@ function shortDigest(value: string) {
 function PolicyResults({ benchmark }: { benchmark: BenchmarkProjection }) {
   if (benchmark.policy_aggregates.length === 0) {
     return (
-      <p className="rounded-md border border-line bg-paper-1 p-4 text-body-s text-ink-600">
+      <p className="runway-panel p-4 text-body-s text-runway-body">
         The protocol is frozen, but no completed aggregate has been supplied by the
         Pipeline yet.
       </p>
@@ -38,29 +38,27 @@ function PolicyResults({ benchmark }: { benchmark: BenchmarkProjection }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-line">
-      <table className="min-w-[78rem] border-collapse bg-white text-left text-body-xs">
-        <thead className="bg-paper-1 text-ink-600">
+    <div className="overflow-x-auto">
+      <table className="runway-table min-w-[78rem]">
+        <thead>
           <tr>
-            <th className="px-3 py-3 font-semibold">Policy / checkpoint</th>
+            <th>Policy / checkpoint</th>
             {metricColumns.map((metric) => (
-              <th key={metric.key} className="px-3 py-3 font-semibold">
-                {metric.label}
-              </th>
+              <th key={metric.key}>{metric.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {benchmark.policy_aggregates.map((policy) => (
-            <tr key={`${policy.policy_id}:${policy.checkpoint_sha256}`} className="border-t border-line">
-              <td className="px-3 py-3 align-top">
-                <div className="font-semibold text-ink-900">{policy.policy_id}</div>
-                <code className="text-[0.68rem] text-ink-500" title={policy.checkpoint_sha256}>
+            <tr key={`${policy.policy_id}:${policy.checkpoint_sha256}`}>
+              <td className="align-top">
+                <div className="runway-num font-semibold text-runway-text">{policy.policy_id}</div>
+                <code className="runway-num text-[0.68rem] text-runway-faint" title={policy.checkpoint_sha256}>
                   {shortDigest(policy.checkpoint_sha256)}
                 </code>
               </td>
               {metricColumns.map((metric) => (
-                <td key={metric.key} className="px-3 py-3 align-top text-ink-700">
+                <td key={metric.key} className="runway-num align-top">
                   {formatBenchmarkMetric(policy.metrics[metric.key], {
                     count: metric.count,
                   })}
@@ -81,9 +79,9 @@ function GeneralizationResults({ benchmark }: { benchmark: BenchmarkProjection }
         const counts = benchmark.split_summary.generalization_counts[axis];
         const breakdown = benchmark.breakdowns.generalization[axis];
         return (
-          <article key={axis} className="rounded-md border border-line bg-white p-4">
-            <h4 className="text-body-s font-semibold capitalize text-ink-900">{axis}</h4>
-            <p className="mt-1 text-body-xs text-ink-500">
+          <article key={axis} className="runway-panel p-4">
+            <h4 className="font-display uppercase text-body-s font-semibold tracking-[0.005em] text-runway-text">{axis}</h4>
+            <p className="mt-1 text-body-xs text-runway-mute">
               {counts.seen} seen · {counts.unseen} unseen scenarios
             </p>
             {benchmark.policy_aggregates.map((policy) => {
@@ -91,12 +89,12 @@ function GeneralizationResults({ benchmark }: { benchmark: BenchmarkProjection }
               const unseen = breakdown?.unseen?.[policy.policy_id]?.full_task_success;
               if (!seen && !unseen) return null;
               return (
-                <p key={policy.policy_id} className="mt-3 text-body-xs leading-5 text-ink-700">
-                  <span className="font-semibold">{policy.policy_id}</span>
+                <p key={policy.policy_id} className="mt-3 text-body-xs leading-5 text-runway-body">
+                  <span className="runway-num font-semibold text-runway-text">{policy.policy_id}</span>
                   <br />
-                  seen {seen ? formatBenchmarkMetric(seen) : "—"}
+                  seen <span className="runway-num">{seen ? formatBenchmarkMetric(seen) : "—"}</span>
                   <br />
-                  unseen {unseen ? formatBenchmarkMetric(unseen) : "—"}
+                  unseen <span className="runway-num">{unseen ? formatBenchmarkMetric(unseen) : "—"}</span>
                 </p>
               );
             })}
@@ -112,13 +110,13 @@ function ExternalComparison({ benchmark }: { benchmark: BenchmarkProjection }) {
   if (!external) return null;
 
   return (
-    <section className="rounded-md border border-line bg-white p-4" aria-label="External rank fidelity">
+    <section className="runway-panel p-4" aria-label="External rank fidelity">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-title-s font-semibold text-ink-900">
+          <h3 className="font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">
             {externalScopeLabel(external.measurement_scope)}
           </h3>
-          <p className="mt-1 text-body-xs text-ink-500">
+          <p className="mt-1 text-body-xs text-runway-mute">
             {external.matched_policies.length} exact checkpoint matches
           </p>
         </div>
@@ -131,11 +129,11 @@ function ExternalComparison({ benchmark }: { benchmark: BenchmarkProjection }) {
         <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Object.entries(external.metrics).map(([name, metric]) =>
             metric ? (
-              <div key={name} className="rounded-md bg-paper-1 p-3">
-                <dt className="text-body-xs font-semibold capitalize text-ink-600">
+              <div key={name} className="border border-runway-line-soft bg-runway-black p-3">
+                <dt className="runway-meta">
                   {name.replace(/_/g, " ")}
                 </dt>
-                <dd className="mt-1 text-body-s text-ink-900">
+                <dd className="runway-num mt-1 text-body-s text-runway-text">
                   {formatBenchmarkMetric(metric, { count: name === "mmrv" })}
                 </dd>
               </div>
@@ -145,13 +143,13 @@ function ExternalComparison({ benchmark }: { benchmark: BenchmarkProjection }) {
       ) : null}
 
       {external.site_alignment === "different_site" ? (
-        <p className="mt-4 text-body-xs leading-5 text-ink-600">
+        <p className="mt-4 text-body-xs leading-5 text-runway-body">
           This tests whether policy ordering transfers across sites. It is not
           validation of the captured target site.
         </p>
       ) : null}
       {external.blockers.length > 0 ? (
-        <p className="mt-4 text-body-xs text-block-700">
+        <p className="mt-4 text-body-xs text-runway-red">
           Blocked: {external.blockers.join(", ").replace(/_/g, " ")}
         </p>
       ) : null}
@@ -164,10 +162,10 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
     <section className="flex flex-col gap-4" aria-label="Benchmark report">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+          <h2 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">
             Benchmark-grade evaluation
           </h2>
-          <p className="mt-1 text-body-s text-ink-500">
+          <p className="runway-num mt-1 text-body-s text-runway-mute">
             {benchmark.benchmark_id} · {benchmark.benchmark_version}
           </p>
         </div>
@@ -177,43 +175,43 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-md border border-line bg-white p-4">
-          <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Fixed rollouts</div>
-          <div className="mt-2 text-title-m font-semibold text-ink-900">
+        <div className="runway-panel p-4">
+          <div className="runway-meta">Fixed rollouts</div>
+          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">
             {benchmark.rollout_protocol.fixed_rollouts_per_scenario_policy}
           </div>
-          <div className="text-body-xs text-ink-500">per policy and scenario</div>
+          <div className="text-body-xs text-runway-mute">per policy and scenario</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
-          <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Hidden test</div>
-          <div className="mt-2 text-title-m font-semibold text-ink-900">
+        <div className="runway-panel p-4">
+          <div className="runway-meta">Hidden test</div>
+          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">
             {benchmark.split_summary.counts.hidden_test}
           </div>
-          <div className="text-body-xs text-ink-500">identifiers redacted</div>
+          <div className="text-body-xs text-runway-mute">identifiers redacted</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
-          <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Uncertainty</div>
-          <div className="mt-2 text-title-m font-semibold text-ink-900">95% CI</div>
-          <div className="text-body-xs text-ink-500">10,000 bootstrap replicates</div>
+        <div className="runway-panel p-4">
+          <div className="runway-meta">Uncertainty</div>
+          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">95% CI</div>
+          <div className="text-body-xs text-runway-mute">10,000 bootstrap replicates</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
-          <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Benchmark card</div>
-          <code className="mt-2 block text-body-s font-semibold text-ink-900" title={benchmark.benchmark_card_sha256}>
+        <div className="runway-panel p-4">
+          <div className="runway-meta">Benchmark card</div>
+          <code className="runway-num mt-2 block text-body-s font-semibold text-runway-text" title={benchmark.benchmark_card_sha256}>
             {shortDigest(benchmark.benchmark_card_sha256)}
           </code>
-          <div className="text-body-xs text-ink-500">content-addressed</div>
+          <div className="text-body-xs text-runway-mute">content-addressed</div>
         </div>
       </div>
 
       {benchmark.environment_summary ? (
-        <div className="rounded-md border border-line bg-white p-4">
-          <h3 className="text-title-s font-semibold text-ink-900">Environment binding</h3>
-          <p className="mt-2 text-body-s text-ink-700">
+        <div className="runway-panel p-4">
+          <h3 className="font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Environment binding</h3>
+          <p className="mt-2 text-body-s text-runway-body">
             {benchmark.environment_summary.site_id} ·{" "}
             {benchmark.environment_summary.representation_type.replace(/_/g, " ")} ·
             physics authority {benchmark.environment_summary.physics_authority}
           </p>
-          <p className="mt-1 text-body-xs text-ink-500">
+          <p className="mt-1 text-body-xs text-runway-mute">
             {benchmark.environment_summary.same_site_capture
               ? "Bound to the captured target site."
               : "Cross-site environment."}{" "}
@@ -228,15 +226,15 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       <PolicyResults benchmark={benchmark} />
 
       {benchmark.evidence_summary ? (
-        <div className="rounded-md border border-line bg-white p-4">
-          <h3 className="text-title-s font-semibold text-ink-900">Evidence completeness</h3>
-          <p className="mt-2 text-body-s text-ink-700">
+        <div className="runway-panel p-4">
+          <h3 className="font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Evidence completeness</h3>
+          <p className="mt-2 text-body-s text-runway-body">
             {benchmark.evidence_summary.video_count} videos ·{" "}
             {benchmark.evidence_summary.action_trace_count} action traces ·{" "}
             {benchmark.evidence_summary.evaluator_output_count} evaluator outputs
             across {benchmark.evidence_summary.attempt_count} scheduled attempts
           </p>
-          <p className="mt-1 text-body-xs text-ink-500">
+          <p className="mt-1 text-body-xs text-runway-mute">
             {benchmark.evidence_summary.all_attempts_digest_bound
               ? "Every scheduled attempt is digest-bound."
               : "Evidence coverage is incomplete."}
@@ -245,7 +243,7 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       ) : null}
 
       <div>
-        <h3 className="mb-3 text-title-s font-semibold text-ink-900">Seen / unseen generalization</h3>
+        <h3 className="mb-3 font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Seen / unseen generalization</h3>
         <GeneralizationResults benchmark={benchmark} />
       </div>
 

@@ -208,7 +208,7 @@ export default function RobotTeamIntake() {
             <Reveal className="mt-14 border border-runway-line bg-runway-panel p-8 lg:p-10">
               <div>
                 <span className="runway-meta text-runway-signal">Received</span>
-                <h2 className="mt-4 max-w-[24ch] text-[clamp(1.6rem,3vw,2.4rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
+                <h2 className="mt-4 max-w-[24ch] font-display uppercase text-[clamp(1.6rem,3vw,2.4rem)] font-semibold leading-[1.1] tracking-[0.005em] text-runway-text">
                   {copy.headline}
                 </h2>
                 <p className="mt-5 max-w-[62ch] text-[15px] leading-[1.75] text-runway-mute">
@@ -260,7 +260,7 @@ export default function RobotTeamIntake() {
               {showSpec ? (
                 <Reveal className="mt-16 border-t border-runway-line pt-16">
                   <div>
-                    <h2 className="max-w-[26ch] text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
+                    <h2 className="max-w-[26ch] font-display uppercase text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[0.005em] text-runway-text">
                       Now the envelope we match against.
                     </h2>
                     <p className="mt-4 max-w-[62ch] text-[14px] leading-[1.75] text-runway-mute">
@@ -302,7 +302,7 @@ export default function RobotTeamIntake() {
               {gatesAnswered ? (
                 <Reveal className="mt-16 border-t border-runway-line pt-16">
                   <div>
-                    <h2 className="text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
+                    <h2 className="font-display uppercase text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-[1.1] tracking-[0.005em] text-runway-text">
                       Where do we send matches?
                     </h2>
                     <div className="mt-10 grid gap-8 md:grid-cols-2">
