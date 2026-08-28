@@ -42,24 +42,19 @@ const DataField = React.forwardRef<HTMLDivElement, DataFieldProps>(
           "grid items-baseline gap-3 py-2",
           "[grid-template-columns:minmax(7rem,0.42fr)_1fr_auto]",
           border && "border-b",
-          border && (onInk ? "border-[color:var(--border-ink)]" : "border-line-soft"),
+          border && (onInk ? "border-runway-line" : "border-runway-line-soft"),
           className,
         )}
         {...props}
       >
-        <span
-          className={cn(
-            "text-caption font-medium",
-            onInk ? "text-ink-300" : "text-ink-500",
-          )}
-        >
+        <span className="runway-meta">
           {label}
         </span>
         <span
           className={cn(
-            mono ? "font-mono text-[13px]" : "text-body-s",
+            mono ? "runway-num text-[13px]" : "text-body-s",
             "min-w-0 break-words",
-            onInk ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
+            onInk ? "text-runway-text" : "text-runway-body",
           )}
         >
           {value}

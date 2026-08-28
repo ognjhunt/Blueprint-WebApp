@@ -127,10 +127,10 @@ export default function CaptureLaunchAccess() {
         ]}
       />
 
-      <div className="bg-[#101312] text-runway-text">
-        <section className="border-b border-white/10 bg-paper-0">
+      <div className="bg-runway-deep text-runway-body">
+        <section className="border-b border-runway-line bg-runway-panel">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.58fr_0.42fr]">
-            <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-14">
+            <div className="bg-runway-deep px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture rollout request</EditorialSectionLabel>
               <h1 className="font-editorial mt-6 max-w-[12ch] font-display uppercase text-[4.2rem] leading-[0.88] tracking-[0.005em] text-runway-text sm:text-[5.6rem]">
                 Signal demand for paid capture in your city.
@@ -150,17 +150,17 @@ export default function CaptureLaunchAccess() {
                 <ProofChip>{selectedRoleLabel}</ProofChip>
                 {city ? <ProofChip>{city}</ProofChip> : null}
               </div>
-              <div className="mt-8 grid max-w-[34rem] gap-4 border-t border-white/10 pt-5 sm:grid-cols-3">
+              <div className="mt-8 grid max-w-[34rem] gap-4 border-t border-runway-line pt-5 sm:grid-cols-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Purpose</p>
+                  <p className="runway-meta">Purpose</p>
                   <p className="mt-2 text-sm text-runway-text">Paid capture demand</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Who it finds</p>
+                  <p className="runway-meta">Who it finds</p>
                   <p className="mt-2 text-sm text-runway-text">Capturers, operators, city leads</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">What happens next</p>
+                  <p className="runway-meta">What happens next</p>
                   <p className="mt-2 text-sm text-runway-text">Launch review + follow-up</p>
                 </div>
               </div>
@@ -172,12 +172,12 @@ export default function CaptureLaunchAccess() {
               className="min-h-[34rem] rounded-none"
               loading="eager"
               imageClassName="min-h-[34rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.34))]"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(12,15,14,0.2),rgba(12,15,14,0.72))]"
             >
               <div className="absolute inset-x-0 bottom-0 p-6 lg:p-8">
-                <div className="max-w-[22rem] rounded-[1.6rem] border border-white/10 bg-white/55 p-5 text-white backdrop-blur-sm">
+                <div className="max-w-[22rem] border border-runway-line bg-runway-black/70 p-5 backdrop-blur-sm">
                   <EditorialSectionLabel light>Why this matters</EditorialSectionLabel>
-                  <p className="mt-4 text-sm leading-7 text-white/75">
+                  <p className="mt-4 text-sm leading-7 text-runway-mute">
                     This is how we spot
                     markets with enough real local support to justify opening paid field capture.
                   </p>
@@ -193,9 +193,9 @@ export default function CaptureLaunchAccess() {
               {signalReasons.map((reason) => {
                 const Icon = reason.icon;
                 return (
-                  <article key={reason.title} className="border border-white/10 bg-paper-0 p-6">
+                  <article key={reason.title} className="runway-panel p-6">
                     <div className="flex items-start gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#101312] text-runway-text">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-runway-line bg-runway-raised text-runway-mute">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
@@ -209,8 +209,8 @@ export default function CaptureLaunchAccess() {
                 );
               })}
 
-              <div className="border border-white/10 bg-paper-0 p-6">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <div className="runway-meta flex items-center gap-2">
                   <MapPinned className="h-4 w-4" />
                   Current launch cities
                 </div>
@@ -228,7 +228,7 @@ export default function CaptureLaunchAccess() {
                     supportedCities.map((launchCity) => (
                       <span
                         key={launchCity.citySlug}
-                        className="inline-flex rounded-full border border-white/10 bg-[#101312] px-3 py-2 text-sm text-runway-text"
+                        className="runway-chip runway-chip-live"
                       >
                         {launchCity.displayName}
                       </span>
@@ -243,7 +243,7 @@ export default function CaptureLaunchAccess() {
               </div>
             </div>
 
-            <div className="border border-white/10 bg-paper-0 p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)] lg:p-7">
+            <div className="runway-panel p-6 lg:p-7">
               <EditorialSectionLabel>Leave a city signal</EditorialSectionLabel>
               <h2 className="font-editorial mt-4 font-display uppercase text-[2.6rem] leading-[0.92] tracking-[0.005em] text-runway-text">
                 Tell us where you are and what you can capture.
@@ -255,7 +255,7 @@ export default function CaptureLaunchAccess() {
 
               <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     Email
                   </span>
                   <input
@@ -264,12 +264,12 @@ export default function CaptureLaunchAccess() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@company.com"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     City
                   </span>
                   <input
@@ -277,18 +277,18 @@ export default function CaptureLaunchAccess() {
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
                     placeholder="Durham, NC"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     How can you help?
                   </span>
                   <select
                     value={role}
                     onChange={(event) => setRole(event.target.value as LaunchAccessRole)}
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input"
                   >
                     {roleOptions.map((option) => (
                       <option key={option} value={option}>
@@ -299,19 +299,19 @@ export default function CaptureLaunchAccess() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     Organization or site
                   </span>
                   <input
                     value={company}
                     onChange={(event) => setCompany(event.target.value)}
                     placeholder="Triangle Robotics or Durham Warehouse District"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     Phone (optional)
                   </span>
                   <input
@@ -319,12 +319,12 @@ export default function CaptureLaunchAccess() {
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
                     placeholder="Best number if we need local follow-up"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <span className="runway-label">
                     Notes
                   </span>
                   <textarea
@@ -332,34 +332,34 @@ export default function CaptureLaunchAccess() {
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
                     placeholder="Tell us what public-facing routes, public-area-only capture candidates, or operator access you could help with in your city."
-                    className="w-full resize-none border border-white/10 bg-[#101312] px-4 py-3 text-sm leading-7 text-runway-text outline-none transition focus:border-runway-faint"
+                    className="runway-input resize-none leading-7"
                   />
                 </label>
 
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-runway-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-runway-panel disabled:opacity-60"
+                  className="runway-cta w-full disabled:opacity-60"
                 >
                   {status === "loading" ? "Saving your city signal..." : "Request launch access"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
 
                 {message ? (
-                  <p className={`text-sm leading-7 ${status === "error" ? "text-red-600" : "text-emerald-700"}`}>
+                  <p className={`text-sm leading-7 ${status === "error" ? "text-runway-red" : "text-runway-green"}`}>
                     {message}
                   </p>
                 ) : null}
               </form>
 
-              <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-runway-mute">
+              <div className="mt-6 border-t border-runway-line pt-4 text-sm leading-7 text-runway-mute">
                 We only use this for Blueprint launch updates and local rollout follow-up. If your
                 city enters launch planning, this is the list we come back to before opening
                 approved assignments.
               </div>
               <a
                 href="mailto:hello@tryblueprint.io?subject=Blueprint%20future%20city%20launch"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text transition hover:text-runway-body hover:underline"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text transition hover:text-runway-signal"
               >
                 <Mail className="h-4 w-4" />
                 Prefer email? Write to hello@tryblueprint.io
@@ -368,16 +368,16 @@ export default function CaptureLaunchAccess() {
           </div>
         </section>
 
-        <section className="border-t border-white/10 bg-paper-0">
+        <section className="border-t border-runway-line bg-runway-panel">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.44fr_0.56fr]">
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.everydayPlacesCollage}
               alt="Blueprint launch board"
               className="min-h-[26rem] rounded-none"
               imageClassName="min-h-[26rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(12,15,14,0.14),rgba(12,15,14,0.5))]"
             />
-            <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-12">
+            <div className="bg-runway-deep px-8 py-10 lg:px-12 lg:py-12">
               <EditorialSectionLabel>What this queue does</EditorialSectionLabel>
               <h2 className="font-editorial mt-5 max-w-[12ch] font-display uppercase text-[3.2rem] leading-[0.92] tracking-[0.005em] text-runway-text">
                 Buyer demand, local capturers, and site access in one place.

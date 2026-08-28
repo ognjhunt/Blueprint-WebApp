@@ -6,41 +6,40 @@ import { cn } from "@/lib/utils";
 /**
  * StatusChip — the core signal device used in every table/card/queue.
  *
- * Each tone pulls fg/bg/bd from its signal family (see TOKENS.md).
- *  - proof   green  · validated / success
- *  - warn    amber  · pending / missing-evidence
- *  - block   clay   · failure / destructive
- *  - info    blue   · action / ranking
- *  - neutral        · fg #3a3a33, bg #1a1f1c (sunken)
- *  - ink            · dark chip on chrome
+ * Outlined, never filled — a filled control on this surface always means
+ * "primary action", so states have to read a different way. Each tone maps onto
+ * a `.runway-chip-*` modifier (see the design system's status table).
+ *  - proof   green  · validated / success        -> runway-chip-live
+ *  - warn    amber  · pending / missing-evidence -> runway-chip-open
+ *  - block   red    · failure / destructive      -> runway-chip-fail
+ *  - info    sky    · action / ranking           -> runway-chip-neutral
+ *  - neutral mute   · inactive                   -> runway-chip-quiet
+ *  - ink     bone   · chip on the deepest chrome -> runway-chip-quiet, strong text
  *
- * Inline-flex, gap .4rem; padding .25rem .6rem; font micro (11px) 600 uppercase
- * 0.08em; radius sm (or xs when `square`). Leading dot (.4rem circle in fg)
- * toggled by `dot` (default on; off for label-style chips like "Rank 1").
+ * Carries the `.runway-chip` shape: mono, uppercase, square, hairline border.
+ * Leading dot (.4rem circle in fg) toggled by `dot` (default on; off for
+ * label-style chips like "Rank 1").
  */
-const statusChipVariants = cva(
-  "inline-flex items-center gap-[0.4rem] px-[0.6rem] py-1 text-[11px] font-semibold uppercase tracking-[0.08em] leading-none border whitespace-nowrap",
-  {
-    variants: {
-      tone: {
-        proof: "text-proof-fg bg-proof-bg border-proof-bd",
-        warn: "text-warn-fg bg-warn-bg border-warn-bd",
-        block: "text-block-fg bg-block-bg border-block-bd",
-        info: "text-info-fg bg-info-bg border-info-bd",
-        neutral: "text-runway-body bg-sunken border-line",
-        ink: "text-runway-text bg-runway-deep border-white/10",
-      },
-      square: {
-        true: "rounded-xs",
-        false: "rounded-sm",
-      },
+const statusChipVariants = cva("runway-chip", {
+  variants: {
+    tone: {
+      proof: "runway-chip-live",
+      warn: "runway-chip-open",
+      block: "runway-chip-fail",
+      info: "runway-chip-neutral",
+      neutral: "runway-chip-quiet",
+      ink: "runway-chip-quiet text-runway-text",
     },
-    defaultVariants: {
-      tone: "neutral",
-      square: false,
+    square: {
+      true: "rounded-none",
+      false: "rounded-none",
     },
   },
-);
+  defaultVariants: {
+    tone: "neutral",
+    square: false,
+  },
+});
 
 export interface StatusChipProps
   extends React.HTMLAttributes<HTMLSpanElement>,

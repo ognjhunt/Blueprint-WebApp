@@ -6,22 +6,22 @@ import { cn } from "@/lib/utils";
 /**
  * Eyebrow — uppercase tracked kicker above titles.
  *
- * Inline-flex, micro (11px) 600 uppercase 0.2em. Tones:
- *  - muted   secondary paper text (default)
- *  - brass   brass-deep accent
- *  - ink     strong ink
- *  - onInk   text on dark chrome (#141816)
+ * Inline-flex, mono micro (11px) 600 uppercase 0.2em. Tones:
+ *  - muted   faint meta text (default) — `.runway-eyebrow-muted`
+ *  - brass   signal amber accent — `.runway-eyebrow`
+ *  - ink     strong bone text
+ *  - onInk   strong bone text on the deepest chrome
  *
  * `rule` adds a leading 1.5rem hairline tick in currentColor at .5 opacity.
  */
 const eyebrowVariants = cva(
-  "inline-flex items-center gap-[0.6rem] text-[11px] font-semibold uppercase tracking-[0.2em] leading-none",
+  "inline-flex items-center gap-[0.6rem] font-mono text-[11px] font-semibold uppercase tracking-[0.2em] leading-none",
   {
     variants: {
       tone: {
-        muted: "text-runway-body",
-        brass: "text-brass-deep",
-        ink: "text-ink",
+        muted: "text-runway-faint",
+        brass: "text-runway-signal",
+        ink: "text-runway-text",
         onInk: "text-runway-text",
       },
     },

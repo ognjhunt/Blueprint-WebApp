@@ -81,8 +81,8 @@ export default function AdminCapturers() {
         <header className="flex flex-col gap-4 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Eyebrow tone="brass" rule>Field operations</Eyebrow>
-            <h1 className="mt-5 text-4xl font-semibold tracking-tight">Capturer applications</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-500">
+            <h1 className="mt-5 font-display text-4xl font-semibold uppercase tracking-[0.005em] text-runway-text">Capturer applications</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-runway-mute">
               Review the real user application record. Approval changes the capturer's account state;
               it does not create an assignment, accepted capture, or payout.
             </p>
@@ -92,10 +92,10 @@ export default function AdminCapturers() {
           </Button>
         </header>
 
-        {query.isLoading ? <p className="py-12 text-ink-500">Loading applications…</p> : null}
-        {query.error ? <p className="py-12 text-block-fg">{(query.error as Error).message}</p> : null}
+        {query.isLoading ? <p className="py-12 text-runway-mute">Loading applications…</p> : null}
+        {query.error ? <p className="py-12 text-runway-red">{(query.error as Error).message}</p> : null}
         {!query.isLoading && !query.error && !query.data?.applications.length ? (
-          <Card pad="lg" className="mt-8"><p className="text-ink-500">No capturer applications are recorded.</p></Card>
+          <Card pad="lg" className="mt-8"><p className="text-runway-mute">No capturer applications are recorded.</p></Card>
         ) : null}
 
         <section className="mt-8 grid gap-4" aria-label="Capturer application queue">
@@ -103,27 +103,27 @@ export default function AdminCapturers() {
             <Card key={application.id} pad="lg" className="flex flex-col gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold">{application.name}</h2>
-                  <p className="mt-1 text-sm text-ink-500">{application.email || application.id}</p>
+                  <h2 className="text-xl font-semibold text-runway-text">{application.name}</h2>
+                  <p className="mt-1 text-sm text-runway-mute">{application.email || application.id}</p>
                 </div>
                 <StatusChip tone={statusTone(application.application_status)} square>
                   {application.application_status?.replace(/_/g, " ") || "Not recorded"}
                 </StatusChip>
               </div>
               <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                <div><dt className="text-ink-400">Market</dt><dd className="mt-1 font-semibold">{application.market || "Not recorded"}</dd></div>
-                <div><dt className="text-ink-400">Availability</dt><dd className="mt-1 font-semibold">{application.availability || "Not recorded"}</dd></div>
-                <div><dt className="text-ink-400">Submitted</dt><dd className="mt-1 font-semibold">{application.submitted_at ? new Date(application.submitted_at).toLocaleString() : "Not recorded"}</dd></div>
+                <div><dt className="runway-meta">Market</dt><dd className="mt-1 font-semibold text-runway-text">{application.market || "Not recorded"}</dd></div>
+                <div><dt className="runway-meta">Availability</dt><dd className="mt-1 font-semibold text-runway-text">{application.availability || "Not recorded"}</dd></div>
+                <div><dt className="runway-meta">Submitted</dt><dd className="runway-num mt-1 font-semibold text-runway-text">{application.submitted_at ? new Date(application.submitted_at).toLocaleString() : "Not recorded"}</dd></div>
               </dl>
-              {application.review_note ? <p className="rounded-md bg-inset p-3 text-sm text-ink-600">{application.review_note}</p> : null}
+              {application.review_note ? <p className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">{application.review_note}</p> : null}
               <div className="flex flex-wrap gap-3 border-t border-line pt-4">
-                <Button variant="action" iconLeft={<Check />} disabled={updating === application.id || application.application_status === "approved"} onClick={() => review(application, "approved")}>
+                <Button variant="secondary" iconLeft={<Check />} disabled={updating === application.id || application.application_status === "approved"} onClick={() => review(application, "approved")}>
                   Approve
                 </Button>
-                <Button variant="secondary" iconLeft={<X />} disabled={updating === application.id || application.application_status === "rejected"} onClick={() => review(application, "rejected")}>
+                <Button variant="danger" iconLeft={<X />} disabled={updating === application.id || application.application_status === "rejected"} onClick={() => review(application, "rejected")}>
                   Reject
                 </Button>
-                {updating === application.id ? <span className="inline-flex items-center gap-2 text-sm text-ink-500"><Clock3 className="h-4 w-4" />Saving review…</span> : null}
+                {updating === application.id ? <span className="inline-flex items-center gap-2 text-sm text-runway-mute"><Clock3 className="h-4 w-4" />Saving review…</span> : null}
               </div>
             </Card>
           ))}

@@ -43,10 +43,10 @@ export function SiteTaskTestbedInspection({
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <StatusChip tone="proof" square>Testbed ready</StatusChip>
-          <h2 id="site-task-testbed-heading" className="mt-3 text-title-l font-semibold tracking-tight text-ink-900">
+          <h2 id="site-task-testbed-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
             Maintained Site-Task Testbed
           </h2>
-          <p className="mt-2 font-mono text-[0.72rem] text-ink-500">
+          <p className="runway-num mt-2 text-[0.72rem] text-runway-faint">
             {String(testbed.testbed_id)} · {String(testbed.version)} · {String(testbed.testbed_digest)}
           </p>
         </div>
@@ -61,8 +61,8 @@ export function SiteTaskTestbedInspection({
 
       <Card pad="lg" className="grid gap-5 md:grid-cols-2">
         <div>
-          <h3 className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Evidence inventory</h3>
-          <ul className="mt-2 space-y-2 text-body-s text-ink-600">
+          <h3 className="runway-meta font-semibold">Evidence inventory</h3>
+          <ul className="mt-2 space-y-2 text-body-s text-runway-body">
             {evidence.map((row, index) => (
               <li key={`${String(row.evidence_id || "evidence")}-${index}`}>
                 <strong>{String(row.evidence_id || "evidence")}</strong> · {String(row.status || row.authority || "recorded")}
@@ -71,8 +71,8 @@ export function SiteTaskTestbedInspection({
           </ul>
         </div>
         <div>
-          <h3 className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Unsupported conditions</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-ink-600">
+          <h3 className="runway-meta font-semibold">Unsupported conditions</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
             {unsupported.map((item) => <li key={item}>{item.replace(/_/g, " ")}</li>)}
           </ul>
         </div>
@@ -82,10 +82,10 @@ export function SiteTaskTestbedInspection({
         <Card pad="lg">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <h3 className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+              <h3 className="runway-meta font-semibold">
                 Semantic object candidates
               </h3>
-              <p className="mt-2 max-w-3xl text-body-s text-ink-600">
+              <p className="mt-2 max-w-3xl text-body-s text-runway-body">
                 Pipeline-projected object hypotheses and metric boxes from observed multi-view support. These candidates remain separate from collision geometry and physics qualification.
               </p>
             </div>
@@ -97,13 +97,13 @@ export function SiteTaskTestbedInspection({
               const dimensions = metricVector(object.dimensions_m);
               const qualified = object.semantic_status === "qualified_metric_obb_candidate";
               return (
-                <li key={object.track_id} className="rounded-md border border-line bg-surface-50 p-4">
+                <li key={object.track_id} className="border border-runway-line bg-runway-black p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <h4 className="text-body-s font-semibold text-ink-900">
+                      <h4 className="font-display uppercase text-body-s font-semibold tracking-[0.005em] text-runway-text">
                         {object.label || "Unlabeled object"}
                       </h4>
-                      <p className="mt-1 font-mono text-[0.68rem] text-ink-500">{object.track_id}</p>
+                      <p className="runway-num mt-1 text-[0.68rem] text-runway-faint">{object.track_id}</p>
                     </div>
                     <StatusChip tone={qualified ? "proof" : "warn"} square>
                       {qualified ? "Metric box candidate" : "Abstained"}
@@ -112,21 +112,21 @@ export function SiteTaskTestbedInspection({
                   {qualified && center && dimensions ? (
                     <dl className="mt-4 grid gap-3 text-body-s sm:grid-cols-2">
                       <div>
-                        <dt className="text-ink-400">Center (m, Z-up)</dt>
-                        <dd className="mt-1 font-mono text-ink-700">{center}</dd>
+                        <dt className="runway-meta">Center (m, Z-up)</dt>
+                        <dd className="runway-num mt-1 text-runway-text">{center}</dd>
                       </div>
                       <div>
-                        <dt className="text-ink-400">Dimensions (m)</dt>
-                        <dd className="mt-1 font-mono text-ink-700">{dimensions}</dd>
+                        <dt className="runway-meta">Dimensions (m)</dt>
+                        <dd className="runway-num mt-1 text-runway-text">{dimensions}</dd>
                       </div>
                     </dl>
                   ) : null}
-                  <p className="mt-4 text-body-s text-ink-600">
+                  <p className="mt-4 text-body-s text-runway-body">
                     Collision consistency: {object.collision_consistency_status.replace(/_/g, " ")}.
                     {" "}This does not establish collision, contact, physical success, or deployment readiness.
                   </p>
                   {typeof object.next_experiment === "string" && object.next_experiment ? (
-                    <p className="mt-2 text-body-s text-ink-600">
+                    <p className="mt-2 text-body-s text-runway-body">
                       <strong>Next experiment:</strong> {object.next_experiment.replace(/_/g, " ")}
                     </p>
                   ) : null}
@@ -137,9 +137,9 @@ export function SiteTaskTestbedInspection({
         </Card>
       ) : null}
 
-      <details className="rounded-md border border-line bg-paper-0 p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-ink-800">Inspect exact Cards, layers, transforms, and provenance</summary>
-        <pre className="mt-4 max-h-[32rem] overflow-auto rounded-md bg-runway-black p-4 text-[0.7rem] leading-relaxed text-white">
+      <details className="runway-panel p-4">
+        <summary className="cursor-pointer text-body-s font-semibold text-runway-text">Inspect exact Cards, layers, transforms, and provenance</summary>
+        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto border border-runway-line bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">
           {JSON.stringify(testbed, null, 2)}
         </pre>
       </details>

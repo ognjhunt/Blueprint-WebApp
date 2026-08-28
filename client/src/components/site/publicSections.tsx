@@ -475,29 +475,29 @@ export function ClosingCta({
           overlay="none"
           className="h-full w-full"
           imageClassName="h-full"
-          overlayClassName="bg-[linear-gradient(90deg,rgba(255,92,36,1),rgba(255,92,36,0.9)_44%,rgba(255,92,36,0.32))] opacity-85"
+          overlayClassName="bg-[linear-gradient(90deg,rgba(255,176,0,1),rgba(255,176,0,0.9)_44%,rgba(255,176,0,0.32))] opacity-85"
         />
       </div>
       <Inner className="relative py-20 lg:py-28">
         <Reveal className="max-w-[38rem]">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-text/65">{eyebrow}</p>
-          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.24em] text-runway-signal-ink/70">{eyebrow}</p>
+          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-signal-ink">
             {title}
           </h2>
-          <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-text/75">
+          <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-signal-ink/80">
             {body}
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
               href={primaryHref}
-              className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-black px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+              className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none bg-runway-black px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
             >
               {primaryLabel} <ArrowRightIcon className="h-4 w-4" />
             </a>
             {secondaryHref && secondaryLabel ? (
               <a
                 href={secondaryHref}
-                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-5 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:border-runway-black"
+                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-none border border-runway-signal-ink/40 px-5 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-signal-ink transition-colors hover:border-runway-signal-ink"
               >
                 {secondaryLabel}
               </a>

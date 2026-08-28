@@ -5,17 +5,17 @@ import { cn } from "@/lib/utils";
 type DeltaTone = "proof" | "block" | "warn" | "neutral";
 
 const deltaToneClasses: Record<DeltaTone, string> = {
-  proof: "text-proof-fg",
-  block: "text-block-fg",
-  warn: "text-warn-fg",
-  neutral: "text-ink-400",
+  proof: "text-runway-green",
+  block: "text-runway-red",
+  warn: "text-runway-signal",
+  neutral: "text-runway-faint",
 };
 
 const deltaToneOnInkClasses: Record<DeltaTone, string> = {
-  proof: "text-proof-500",
-  block: "text-block-500",
-  warn: "text-warn-500",
-  neutral: "text-ink-300",
+  proof: "text-proof-700",
+  block: "text-block-700",
+  warn: "text-runway-signal-lit",
+  neutral: "text-runway-mute",
 };
 
 export interface MetricStatProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -67,28 +67,16 @@ const MetricStat = React.forwardRef<HTMLDivElement, MetricStatProps>(
         )}
         {...props}
       >
-        <span
-          className={cn(
-            "text-micro font-semibold uppercase tracking-eyebrow",
-            onInk ? "text-ink-300" : "text-ink-400",
-          )}
-        >
+        <span className="runway-meta">
           {label}
         </span>
-        <span
-          className={cn(
-            "flex items-baseline gap-1 font-mono font-medium leading-none tracking-tight",
-            onInk
-              ? "text-[color:var(--text-on-ink)]"
-              : "text-ink-900",
-          )}
-        >
+        <span className="runway-num flex items-baseline gap-1 font-medium leading-none text-runway-text">
           <span className="text-[2rem]">{value}</span>
           {unit != null && (
             <span
               className={cn(
                 "text-[0.9rem] font-normal",
-                onInk ? "text-ink-300" : "text-ink-500",
+                onInk ? "text-runway-body" : "text-runway-mute",
               )}
             >
               {unit}
@@ -98,7 +86,7 @@ const MetricStat = React.forwardRef<HTMLDivElement, MetricStatProps>(
         {delta != null && (
           <span
             className={cn(
-              "font-mono text-[13px] leading-none",
+              "runway-num text-[13px] leading-none",
               onInk ? deltaToneOnInkClasses[deltaTone] : deltaToneClasses[deltaTone],
             )}
           >
@@ -109,7 +97,7 @@ const MetricStat = React.forwardRef<HTMLDivElement, MetricStatProps>(
           <span
             className={cn(
               "text-[13px] leading-snug",
-              onInk ? "text-ink-300" : "text-ink-500",
+              onInk ? "text-runway-body" : "text-runway-mute",
             )}
           >
             {caption}

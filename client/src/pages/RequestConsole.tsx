@@ -602,7 +602,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <SurfaceStatusList
                     className="mt-5"
                     items={[
-                      { label: "Request ID", value: request.requestId },
+                      { label: "Request ID", value: <span className="runway-num">{request.requestId}</span> },
                       {
                         label: "Rights",
                         value: ops?.rights_status
@@ -615,7 +615,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                           ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
                           : "Not recorded",
                       },
-                      { label: "Requested on", value: request.createdAt || "Not recorded" },
+                      { label: "Requested on", value: <span className="runway-num">{request.createdAt || "Not recorded"}</span> },
                     ]}
                   />
                 </SurfaceCard>
@@ -636,12 +636,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       items={[
                         { label: "Target", value: displayMetadata.targetName || request.request.siteName },
                         { label: "Address", value: displayMetadata.addressLabel || request.request.siteLocation },
-                        { label: "Request ID", value: displayMetadata.requestId || request.requestId },
-                        { label: "Capture job", value: displayMetadata.captureJobId || "Not recorded" },
+                        { label: "Request ID", value: <span className="runway-num">{displayMetadata.requestId || request.requestId}</span> },
+                        { label: "Capture job", value: <span className="runway-num">{displayMetadata.captureJobId || "Not recorded"}</span> },
                       ]}
                     />
                     {displayMetadata.captureBrief ? (
-                      <p className="mt-5 text-sm leading-7 text-white/60">
+                      <p className="mt-5 text-sm leading-[1.6] text-runway-body">
                         {displayMetadata.captureBrief}
                       </p>
                     ) : null}
@@ -650,34 +650,34 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                         {displayHintLabels.map((label) => (
                           <span
                             key={label}
-                            className="rounded-full border border-white/10 bg-[#101312] px-3 py-1 text-xs text-white/60"
+                            className="runway-chip runway-chip-quiet"
                           >
                             {label}
                           </span>
                         ))}
                       </div>
                     ) : null}
-                    <p className="mt-5 text-xs leading-6 text-white/50">
+                    <p className="mt-5 text-xs leading-[1.6] text-runway-mute">
                       {displayMetadata.privacyReminder || "Capture only approved areas."} HUD prompts are advisory UX telemetry, not geometry, pose, depth, coverage, rights, or qualification proof.
                     </p>
                   </SurfaceCard>
                 ) : null}
 
-                <SurfaceCard className="bg-[#111110] text-white">
+                <SurfaceCard className="bg-runway-black">
                   <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-white/60" />
+                    <Sparkles className="h-5 w-5 text-runway-signal" />
                     <div>
-                      <SurfaceMiniLabel className="text-white/40">Next Step</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/70">
+                      <SurfaceMiniLabel>Next Step</SurfaceMiniLabel>
+                      <p className="mt-1 text-sm text-runway-mute">
                         Preview generation waits for the review record.
                       </p>
                     </div>
                   </div>
-                  <p className="mt-5 text-base leading-7 text-white/80">
+                  <p className="mt-5 text-base leading-[1.6] text-runway-body">
                     {structuredIntake?.next_action || ops?.next_step || "No next action is recorded."}
                   </p>
                   {previewRun?.provider_name ? (
-                    <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
+                    <div className="runway-chip runway-chip-quiet mt-5">
                       <BadgeCheck className="h-4 w-4" />
                       {previewRun.provider_name}
                     </div>
@@ -694,7 +694,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       </p>
                     </div>
                   </div>
-                  <p className="mt-5 text-sm leading-7 text-white/60">
+                  <p className="mt-5 text-sm leading-[1.6] text-runway-body">
                     This console shows request state, buyer context, and attached evidence labels.
                     Package files, provider previews, live hosted sessions, payment, and fulfillment
                     stay blocked until the backing record explicitly supports them.
@@ -709,7 +709,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       <p className="mt-1 text-sm text-runway-mute">Provider-backed preview state when attached.</p>
                     </div>
                   </div>
-                  <p className="mt-5 text-sm leading-7 text-white/60">
+                  <p className="mt-5 text-sm leading-[1.6] text-runway-body">
                     {readiness?.preview_status
                       ? `Current preview status: ${String(readiness.preview_status).replaceAll("_", " ")}.`
                       : "No preview run has been attached yet."}

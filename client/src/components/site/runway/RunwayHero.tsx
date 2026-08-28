@@ -152,7 +152,7 @@ export function RunwayHero({
             <div key={readout.label} className="bg-runway-black px-1 py-6 sm:px-5">
               <dd
                 className={cn(
-                  "runway-num font-display uppercase text-[clamp(1.8rem,3vw,2.6rem)] font-semibold leading-none tracking-[0.005em]",
+                  "runway-num text-[clamp(1.8rem,3vw,2.6rem)] font-semibold leading-none tracking-[0.005em]",
                   readoutTone[readout.tone ?? "text"],
                 )}
               >

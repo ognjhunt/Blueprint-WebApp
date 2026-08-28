@@ -4,9 +4,8 @@ import { AlertTriangle } from "lucide-react";
 import { Button, Card, ProofBoundary } from "@/components/blueprint";
 import type { CaptureTestbedCompilationCommand } from "@/lib/captureUploads";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
-const labelClass = "text-body-s font-semibold text-ink-800";
+const fieldClass = "runway-input mt-1.5";
+const labelClass = "text-body-s font-semibold text-runway-text";
 
 function defaultDeadline() {
   return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -55,10 +54,10 @@ export function TestbedCompilationControl({
   return (
     <section className="flex flex-col gap-4" aria-labelledby="testbed-compile-heading">
       <div>
-        <h2 id="testbed-compile-heading" className="text-title-l font-semibold tracking-tight text-ink-900">
+        <h2 id="testbed-compile-heading" className="font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
           Compile the maintained testbed
         </h2>
-        <p className="mt-2 max-w-3xl text-body-s text-ink-500">
+        <p className="mt-2 max-w-3xl text-body-s text-runway-mute">
           Bind the approved task to the exact robot and decision limits. Pipeline owns
           SimReady, placement, qualification, and verdict calculations.
         </p>

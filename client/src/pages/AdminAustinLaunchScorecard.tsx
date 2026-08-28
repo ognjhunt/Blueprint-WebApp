@@ -103,44 +103,57 @@ function formatTarget(metric: ScoreMetric) {
 function tone(metric: ScoreMetric) {
   switch (metric.status) {
     case "on_track":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+      return "border-runway-green-dim";
     case "at_risk":
-      return "border-amber-200 bg-amber-50 text-amber-900";
+      return "border-runway-signal-dim";
     case "blocked":
-      return "border-rose-200 bg-rose-50 text-rose-900";
+      return "border-runway-red-dim";
     default:
-      return "border-runway-line bg-runway-line-soft text-runway-body";
+      return "border-runway-line";
+  }
+}
+
+function chipTone(metric: ScoreMetric) {
+  switch (metric.status) {
+    case "on_track":
+      return "runway-chip runway-chip-live";
+    case "at_risk":
+      return "runway-chip runway-chip-open";
+    case "blocked":
+      return "runway-chip runway-chip-fail";
+    default:
+      return "runway-chip runway-chip-quiet";
   }
 }
 
 function sectionTone(metric: ScoreMetric) {
   return metric.status === "on_track"
-    ? "text-emerald-700"
+    ? "runway-num text-runway-green"
     : metric.status === "at_risk"
-      ? "text-amber-700"
+      ? "runway-num text-runway-signal"
       : metric.status === "blocked"
-        ? "text-rose-700"
-        : "text-runway-faint";
+        ? "runway-num text-runway-red"
+        : "runway-num text-runway-faint";
 }
 
 function MetricCard({ metric }: { metric: ScoreMetric }) {
   return (
-    <div className={`rounded-none border p-5 ${tone(metric)}`}>
+    <div className={`rounded-none border bg-runway-panel p-5 ${tone(metric)}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+          <p className={metric.tracked ? chipTone(metric) : "runway-chip runway-chip-quiet"}>
             {metric.tracked ? metric.status.replace(/_/g, " ") : "not tracked"}
           </p>
-          <h3 className="mt-2 text-base font-semibold">{metric.label}</h3>
+          <h3 className="mt-3 text-base font-semibold text-runway-text">{metric.label}</h3>
         </div>
         <div className="text-right">
-          <p className="text-3xl font-semibold">
+          <p className="runway-num text-3xl font-semibold text-runway-text">
             {metric.actual === null ? "N/A" : metric.actual}
           </p>
-          <p className="text-xs opacity-70">Target {formatTarget(metric)}</p>
+          <p className="runway-meta mt-1">Target {formatTarget(metric)}</p>
         </div>
       </div>
-      {metric.note ? <p className="mt-3 text-sm opacity-80">{metric.note}</p> : null}
+      {metric.note ? <p className="mt-3 text-sm text-runway-mute">{metric.note}</p> : null}
     </div>
   );
 }
@@ -216,14 +229,14 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
   const scorecard = scorecardQuery.data;
 
   return (
-    <div className="min-h-screen bg-runway-line-soft px-4 py-8">
+    <div className="min-h-screen bg-runway-deep px-4 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-runway-faint">
+            <p className="runway-eyebrow-muted">
               City Launch
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-runway-text">
+            <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-[0.005em] text-runway-text">
               Generic city launcher scorecard
             </h1>
             <p className="mt-2 max-w-3xl text-runway-mute">
@@ -233,45 +246,46 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
           <div className="flex gap-3">
             <Link
               href="/admin/growth-ops-scorecard"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
+              className="runway-cta-ghost"
             >
               Growth scorecard
             </Link>
             <Link
               href="/admin/leads"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
+              className="runway-cta-ghost"
             >
               Admin queue
             </Link>
           </div>
         </div>
 
-        <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-          <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_auto]">
-            <label className="space-y-2 text-sm text-runway-body">
-              <span className="font-medium">City</span>
+        <div className="runway-panel p-6">
+          <div className="grid items-end gap-4 lg:grid-cols-[2fr_1fr_1fr_auto]">
+            <label className="block">
+              <span className="runway-label">City</span>
               <input
                 value={cityInput}
                 onChange={(event) => setCityInput(event.target.value)}
-                className="w-full rounded-xl border border-runway-line-strong px-3 py-2"
+                className="runway-input"
                 placeholder="Chicago, IL"
               />
             </label>
-            <label className="space-y-2 text-sm text-runway-body">
-              <span className="font-medium">Budget Tier</span>
+            <label className="block">
+              <span className="runway-label">Budget Tier</span>
               <select
                 value={budgetTier}
                 onChange={(event) => setBudgetTier(event.target.value)}
-                className="w-full rounded-xl border border-runway-line-strong px-3 py-2"
+                className="runway-input"
               >
                 <option value="lean">Lean</option>
                 <option value="standard">Standard</option>
                 <option value="aggressive">Aggressive</option>
               </select>
             </label>
-            <label className="flex items-center gap-3 rounded-xl border border-runway-line px-4 py-2 text-sm text-runway-body">
+            <label className="flex min-h-[3.25rem] items-center gap-3 border border-runway-line-strong px-4 py-2 text-sm text-runway-body">
               <input
                 type="checkbox"
+                className="accent-runway-signal"
                 checked={founderApproved}
                 onChange={(event) => setFounderApproved(event.target.checked)}
               />
@@ -280,44 +294,44 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             <button
               onClick={() => activateMutation.mutate()}
               disabled={activateMutation.isPending}
-              className="rounded-xl bg-runway-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              className="runway-cta disabled:opacity-60"
             >
               {activateMutation.isPending ? "Refreshing…" : "Refresh launch"}
             </button>
           </div>
           {activationNotice ? (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <div className="mt-4 border border-runway-green-dim px-4 py-3 text-sm text-runway-green">
               {activationNotice}
             </div>
           ) : null}
           {activationError ? (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            <div className="mt-4 border border-runway-red-dim px-4 py-3 text-sm text-runway-red">
               {activationError}
             </div>
           ) : null}
         </div>
 
         {scorecardQuery.isLoading ? (
-          <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
+          <div className="runway-panel p-6 text-runway-mute">
             Loading city launch scorecard...
           </div>
         ) : scorecardQuery.isError || !scorecard ? (
-          <div className="rounded-none border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          <div className="rounded-none border border-runway-red-dim bg-runway-panel p-6 text-runway-red">
             Failed to load the city launch scorecard.
           </div>
         ) : (
           <>
-            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+            <div className="runway-panel p-6">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <p className="runway-eyebrow-muted">
                     City
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-runway-text">
+                  <h2 className="mt-2 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">
                     {scorecard.city.label}
                   </h2>
                 </div>
-                <div className="text-sm text-runway-faint">
+                <div className="runway-num text-sm text-runway-faint">
                   Generated {new Date(scorecard.generatedAt).toLocaleString()}
                 </div>
               </div>
@@ -325,7 +339,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 {scorecard.dataSources.map((source) => (
                   <span
                     key={source}
-                    className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-mute"
+                    className="runway-chip runway-chip-quiet"
                   >
                     {source}
                   </span>
@@ -334,8 +348,8 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <p className="runway-eyebrow-muted">
                   Activation
                 </p>
                 <div className="mt-4 space-y-2 text-sm text-runway-body">
@@ -346,31 +360,31 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 </div>
               </div>
 
-              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <p className="runway-eyebrow-muted">
                   Budget
                 </p>
                 <div className="mt-4 space-y-2 text-sm text-runway-body">
                   <div>Tier: {scorecard.budget.tier || "Unknown"}</div>
-                  <div>Total recorded: ${scorecard.budget.totalRecordedSpendUsd.toLocaleString()}</div>
-                  <div>Within policy: ${scorecard.budget.withinPolicySpendUsd.toLocaleString()}</div>
-                  <div>Outside policy: ${scorecard.budget.outsidePolicySpendUsd.toLocaleString()}</div>
+                  <div>Total recorded: <span className="runway-num">${scorecard.budget.totalRecordedSpendUsd.toLocaleString()}</span></div>
+                  <div>Within policy: <span className="runway-num">${scorecard.budget.withinPolicySpendUsd.toLocaleString()}</span></div>
+                  <div>Outside policy: <span className="runway-num">${scorecard.budget.outsidePolicySpendUsd.toLocaleString()}</span></div>
                 </div>
               </div>
 
-              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <p className="runway-eyebrow-muted">
                   Expansion Guard
                 </p>
                 <div className="mt-4 space-y-2 text-sm text-runway-body">
                   {scorecard.activation.wideningReasons.length > 0 ? (
                     scorecard.activation.wideningReasons.map((reason) => (
-                      <div key={reason} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                      <div key={reason} className="border border-runway-signal-dim px-3 py-2 text-runway-signal">
                         {reason}
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-900">
+                    <div className="border border-runway-green-dim px-3 py-2 text-runway-green">
                       Current city has met the widening threshold.
                     </div>
                   )}
@@ -379,8 +393,8 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <p className="runway-eyebrow-muted">
                   Activation Payload
                 </p>
                 <div className="mt-4 space-y-3 text-sm text-runway-body">
@@ -413,8 +427,8 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 </div>
               </div>
 
-              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+              <div className="runway-panel p-6">
+                <p className="runway-eyebrow-muted">
                   Validation Blockers
                 </p>
                 <div className="mt-4 space-y-3">
@@ -422,18 +436,18 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                     scorecard.activation.validationBlockers.map((blocker) => (
                       <div
                         key={blocker.key}
-                        className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                        className="border border-runway-signal-dim px-4 py-3 text-sm text-runway-body"
                       >
-                        <div className="font-medium">
+                        <div className="font-medium text-runway-signal">
                           {blocker.severity.toUpperCase()} · {blocker.summary}
                         </div>
-                        <div className="mt-1 text-xs opacity-80">
+                        <div className="mt-1 text-xs text-runway-faint">
                           owner: {blocker.ownerLane || "none"} · validation required: {blocker.validationRequired ? "yes" : "no"}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                    <div className="border border-runway-green-dim px-4 py-3 text-sm text-runway-green">
                       No activation-payload validation blockers recorded.
                     </div>
                   )}
@@ -444,10 +458,10 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             <div className="grid gap-6 lg:grid-cols-2">
               <section className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <p className="runway-eyebrow-muted">
                     Supply loop
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-runway-text">
+                  <h2 className="mt-2 font-display text-xl font-semibold uppercase tracking-[0.005em] text-runway-text">
                     Capturer activation
                   </h2>
                 </div>
@@ -460,10 +474,10 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
 
               <section className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+                  <p className="runway-eyebrow-muted">
                     Demand loop
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-runway-text">
+                  <h2 className="mt-2 font-display text-xl font-semibold uppercase tracking-[0.005em] text-runway-text">
                     Proof-led buyer motion
                   </h2>
                 </div>
@@ -475,43 +489,43 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
               </section>
             </div>
 
-            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+            <div className="runway-panel p-6">
+              <p className="runway-eyebrow-muted">
                 Metrics Readiness
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {scorecard.activation.metricsDependencies.map((dependency) => (
                   <div
                     key={dependency.key}
-                    className={`rounded-xl border px-4 py-3 text-sm ${
+                    className={`border px-4 py-3 text-sm ${
                       dependency.status === "verified"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        ? "border-runway-green-dim"
                         : dependency.status === "tracked_not_verified"
-                          ? "border-amber-200 bg-amber-50 text-amber-900"
-                          : "border-rose-200 bg-rose-50 text-rose-900"
+                          ? "border-runway-signal-dim"
+                          : "border-runway-red-dim"
                     }`}
                   >
-                    <div className="font-medium">{dependency.key}</div>
-                    <div className="mt-1 text-xs opacity-80">
+                    <div className="font-medium text-runway-text">{dependency.key}</div>
+                    <div className="mt-1 text-xs text-runway-faint">
                       status: {dependency.status} · count: {dependency.actualCount} · owner: {dependency.ownerLane || "none"}
                     </div>
                     {dependency.notes ? (
-                      <div className="mt-2 text-xs opacity-80">{dependency.notes}</div>
+                      <div className="mt-2 text-xs text-runway-mute">{dependency.notes}</div>
                     ) : null}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+            <div className="runway-panel p-6">
+              <p className="runway-eyebrow-muted">
                 Warnings
               </p>
               <div className="mt-4 space-y-3">
                 {scorecard.warnings.map((warning) => (
                   <div
                     key={warning}
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                    className="border border-runway-signal-dim px-4 py-3 text-sm text-runway-signal"
                   >
                     {warning}
                   </div>
@@ -519,13 +533,13 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
               </div>
             </div>
 
-            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
+            <div className="runway-panel p-6">
+              <p className="runway-eyebrow-muted">
                 Quick read
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {[...scorecard.supply, ...scorecard.demand].map((metric) => (
-                  <div key={`summary-${metric.key}`} className="flex items-center justify-between rounded-xl border border-runway-line px-4 py-3 text-sm">
+                  <div key={`summary-${metric.key}`} className="flex items-center justify-between border border-runway-line px-4 py-3 text-sm">
                     <span className="text-runway-body">{metric.label}</span>
                     <span className={sectionTone(metric)}>
                       {metric.actual === null ? "N/A" : metric.actual} / {formatTarget(metric)}

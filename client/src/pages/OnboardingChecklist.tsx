@@ -17,7 +17,6 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -61,16 +60,16 @@ function ChecklistCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className={`rounded-xl border p-4 ${
-        item.completed
-          ? "border-emerald-200 bg-emerald-50/60"
-          : "border-runway-line bg-paper-0"
+      className={`runway-panel p-4 ${
+        item.completed ? "border-runway-green-dim" : "border-runway-line"
       }`}
     >
       <div className="flex items-start gap-4">
         <div
-          className={`flex h-9 w-9 items-center justify-center rounded-full ${
-            item.completed ? "bg-emerald-500 text-white" : "bg-runway-line-soft text-runway-faint"
+          className={`runway-num flex h-9 w-9 items-center justify-center border text-sm ${
+            item.completed
+              ? "border-runway-green-dim text-runway-green"
+              : "border-runway-line-strong text-runway-faint"
           }`}
         >
           {item.completed ? <CheckCircle2 className="h-5 w-5" /> : <span>{index}</span>}
@@ -79,27 +78,26 @@ function ChecklistCard({
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-runway-text">{item.title}</h3>
             {item.optional ? (
-              <span className="rounded bg-runway-line-soft px-2 py-0.5 text-xs text-runway-faint">
+              <span className="runway-chip runway-chip-quiet">
                 Optional
               </span>
             ) : null}
           </div>
           <p className="mt-1 text-sm text-runway-mute">{item.description}</p>
           {item.completed ? (
-            <p className="mt-2 text-sm text-emerald-700">Completed</p>
+            <p className="mt-2 text-sm text-runway-green">Completed</p>
           ) : item.action ? (
-            <Button
+            <button
               type="button"
-              size="sm"
-              className="mt-3"
+              className="runway-cta-ghost mt-3 h-9 min-h-0 px-4"
               onClick={() => onAction(item)}
             >
               {item.action.label}
               <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
+            </button>
           ) : null}
         </div>
-        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-runway-body"}`} />
+        <Icon className={`h-5 w-5 ${item.completed ? "text-runway-green" : "text-runway-faint"}`} />
       </div>
     </motion.div>
   );
@@ -473,10 +471,10 @@ export default function OnboardingChecklist() {
   ];
 
   return (
-    <main className="min-h-screen bg-paper-0 px-4 py-12">
+    <main className="min-h-screen bg-runway-deep px-4 py-12">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-runway-text">Intake review hub</h1>
+          <h1 className="font-display text-3xl font-semibold uppercase tracking-[0.005em] text-runway-text">Intake review hub</h1>
           <p className="mt-2 text-runway-mute">
             Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
           </p>
@@ -495,14 +493,14 @@ export default function OnboardingChecklist() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-none border border-runway-line bg-runway-line-soft p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-runway-faint">
+            <div className="runway-panel p-6">
+              <p className="runway-meta">
                 Submission summary
               </p>
               <div className="mt-4 space-y-3">
                 {intakeSummary.map((item) => (
                   <div key={item.label}>
-                    <p className="text-xs uppercase tracking-[0.14em] text-runway-faint">
+                    <p className="runway-meta">
                       {item.label}
                     </p>
                     <p className="text-sm text-runway-text">{item.value}</p>
@@ -511,18 +509,18 @@ export default function OnboardingChecklist() {
               </div>
             </div>
 
-            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+            <div className="runway-panel p-6">
               {!isRobotTeam ? (
                 <div className="mb-6 border-b border-runway-line pb-6">
-                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-runway-faint">
+                  <p className="runway-meta">
                     Operator control map
                   </p>
                   <div className="mt-4 grid gap-3">
                     {operatorControlRows.map((item) => (
-                      <div key={item.label} className="rounded-lg border border-runway-line bg-runway-line-soft p-3">
+                      <div key={item.label} className="border border-runway-line bg-runway-raised p-3">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold text-runway-text">{item.label}</p>
-                          <p className="text-xs font-medium text-runway-faint">{item.value}</p>
+                          <p className="text-xs font-medium text-runway-mute">{item.value}</p>
                         </div>
                         <p className="mt-1 text-xs leading-5 text-runway-mute">{item.detail}</p>
                       </div>
@@ -530,24 +528,24 @@ export default function OnboardingChecklist() {
                   </div>
                 </div>
               ) : null}
-              <div className="mb-4 flex items-center justify-between text-sm text-runway-faint">
+              <div className="mb-4 flex items-center justify-between text-sm text-runway-mute">
                 <span>Checklist progress</span>
-                <span>
+                <span className="runway-num text-runway-text">
                   {completedCount} / {checklistItems.length}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-runway-line-soft">
+              <div className="h-2 overflow-hidden bg-runway-line">
                 <div
-                  className="h-full rounded-full bg-emerald-500"
+                  className="h-full bg-runway-signal"
                   style={{ width: `${(completedCount / checklistItems.length) * 100}%` }}
                 />
               </div>
               <p className="mt-4 text-sm text-runway-mute">
                 Finish onboarding once the intake path is clear. You can still return here later.
               </p>
-              <Button type="button" className="mt-4 w-full" onClick={handleFinish}>
+              <button type="button" className="runway-cta mt-4 w-full" onClick={handleFinish}>
                 Finish onboarding
-              </Button>
+              </button>
             </div>
           </div>
         </div>

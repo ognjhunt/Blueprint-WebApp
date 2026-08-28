@@ -4,7 +4,6 @@ import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   SurfaceBrowserFrame,
-  SurfaceButton,
   SurfaceMiniLabel,
   SurfacePage,
   SurfaceSection,
@@ -105,9 +104,15 @@ function capturerStepState(
 }
 
 const capturerStepStyles: Record<"done" | "current" | "upcoming", string> = {
-  done: "border-white/10 bg-[#111110] text-white",
-  current: "border-white/40 bg-paper-0 text-runway-text",
-  upcoming: "border-white/10 bg-[#101312] text-runway-text opacity-60",
+  done: "border-runway-green-dim bg-runway-panel",
+  current: "border-runway-signal-dim bg-runway-panel",
+  upcoming: "border-runway-line bg-runway-deep",
+};
+
+const capturerStepMetaStyles: Record<"done" | "current" | "upcoming", string> = {
+  done: "text-runway-green",
+  current: "text-runway-signal",
+  upcoming: "text-runway-faint",
 };
 
 const hasExternalAppLink = (value: string) => {
@@ -149,8 +154,8 @@ export default function CaptureAppPlaceholder() {
           width: 280,
           margin: 1,
           color: {
-            dark: "#111110",
-            light: "#101312",
+            dark: "#0c0f0e",
+            light: "#e8e6dd",
           },
         });
         if (active) {
@@ -181,10 +186,18 @@ export default function CaptureAppPlaceholder() {
         <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Path" />
         {ladderState ? (
           <SurfaceSection className="pt-8">
-            <div className="rounded-[1.75rem] border border-white/10 bg-paper-0 p-6 lg:p-8">
+            <div className="runway-panel p-6 lg:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <SurfaceMiniLabel>Your Capturer Application</SurfaceMiniLabel>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                <SurfaceMiniLabel className="text-runway-faint">Your Capturer Application</SurfaceMiniLabel>
+                <span
+                  className={`runway-chip ${
+                    ladderState === "pending"
+                      ? "runway-chip-open"
+                      : ladderState === "approved"
+                        ? "runway-chip-live"
+                        : "runway-chip-fail"
+                  }`}
+                >
                   {ladderState === "pending"
                     ? "In review"
                     : ladderState === "approved"
@@ -198,13 +211,9 @@ export default function CaptureAppPlaceholder() {
                   return (
                     <div
                       key={step.key}
-                      className={`rounded-[1.35rem] border p-4 ${capturerStepStyles[state]}`}
+                      className={`border p-4 ${capturerStepStyles[state]}`}
                     >
-                      <p
-                        className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                          state === "done" ? "text-white/50" : "text-white/40"
-                        }`}
-                      >
+                      <p className={`runway-meta ${capturerStepMetaStyles[state]}`}>
                         0{index + 1} ·{" "}
                         {state === "done"
                           ? "Done"
@@ -212,19 +221,15 @@ export default function CaptureAppPlaceholder() {
                             ? "Current"
                             : "Next"}
                       </p>
-                      <p className="mt-2 text-sm font-semibold">{step.label}</p>
-                      <p
-                        className={`mt-2 text-sm leading-6 ${
-                          state === "done" ? "text-white/65" : "text-white/60"
-                        }`}
-                      >
+                      <p className="mt-2 text-sm font-semibold text-runway-text">{step.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-runway-mute">
                         {step.body}
                       </p>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-5 max-w-[46rem] text-sm leading-7 text-white/60">
+              <p className="mt-5 max-w-[46rem] text-sm leading-7 text-runway-mute">
                 {ladderState === "pending"
                   ? "Your application is in review — we'll email you when there's a decision. Nothing else is needed from you right now."
                   : ladderState === "approved"
@@ -234,7 +239,7 @@ export default function CaptureAppPlaceholder() {
               {ladderState === "rejected" ? (
                 <a
                   href="/contact"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text transition hover:text-runway-signal"
                 >
                   Contact the Blueprint team
                   <ArrowRight className="h-4 w-4" />
@@ -244,59 +249,53 @@ export default function CaptureAppPlaceholder() {
           </SurfaceSection>
         ) : null}
         <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="overflow-hidden">
+          <SurfaceBrowserFrame className="overflow-hidden rounded-none shadow-none">
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">
-              <div className="relative min-h-[42rem] overflow-hidden bg-black text-white">
+              <div className="relative min-h-[42rem] overflow-hidden bg-runway-black text-runway-text">
                 <img
                   src={publicCaptureGeneratedAssets.captureAppHero}
                   alt="Blueprint public-facing capture app walkthrough"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.76),rgba(0,0,0,0.38)_58%,rgba(0,0,0,0.18))]" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.22em] text-white/60">
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(12,15,14,0.86),rgba(12,15,14,0.55)_58%,rgba(12,15,14,0.3))]" />
+                <div className="runway-meta pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 border-b border-runway-line px-6 py-4">
                   <span>Capture App</span>
 	                  <span>Paid Field Capture</span>
                   <span>Capture Basics</span>
                 </div>
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
-	                    <SurfaceMiniLabel className="text-white/50">Approved Capture Assignments</SurfaceMiniLabel>
-	                    <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-white">
+	                    <SurfaceMiniLabel className="text-runway-faint">Approved Capture Assignments</SurfaceMiniLabel>
+	                    <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,7vw,6rem)] font-semibold leading-[0.86] tracking-[0.005em] text-runway-text">
 	                      Get paid to capture the job before the robot arrives.
 	                      <br />
 	                      Phone first.
 	                    </h1>
-	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-white/75">
+	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-runway-body">
 	                      Open Blueprint Capture when you have an approved assignment: record the
                         named workflow, follow the access boundary, upload one complete walkthrough,
                         and wait for QA.
 	                    </p>
-                      <p className="mt-4 max-w-[22rem] text-sm leading-7 text-white/65">
+                      <p className="mt-4 max-w-[22rem] text-sm leading-7 text-runway-mute">
                         Payout applies only to an accepted capture. The assignment payout is shown
                         before you start; review is required after upload.
                       </p>
                     <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       {showExternalHandoff ? (
-                        <a
-                          href={captureAppUrl}
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-paper-0 px-5 text-sm font-semibold text-runway-text transition hover:bg-[#101312]"
-                        >
+                        <a href={captureAppUrl} className="runway-cta">
                           Open assignment app
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       ) : (
                         <a
                           href="/capture-app/launch-access?source=capture-app-placeholder"
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-paper-0 px-5 text-sm font-semibold text-runway-text transition hover:bg-[#101312]"
+                          className="runway-cta"
                         >
 	                          Request assignment access
 	                          <Mail className="h-4 w-4" />
                         </a>
                       )}
-                      <a
-                        href="/signup/capturer"
-                        className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
-                      >
+                      <a href="/signup/capturer" className="runway-cta-ghost">
 	                        Apply for approved capture assignments
                       </a>
                     </div>
@@ -304,22 +303,22 @@ export default function CaptureAppPlaceholder() {
                 </div>
               </div>
 
-              <div className="bg-[#101312] p-8 lg:p-9">
+              <div className="bg-runway-deep p-8 lg:p-9">
                 <div className="mx-auto flex h-full max-w-[24rem] flex-col justify-between gap-6">
-                  <div className="rounded-[2rem] border border-white/10 bg-[#111110] p-6 text-white shadow-[0_22px_70px_rgba(17,17,16,0.16)]">
+                  <div className="runway-panel p-6">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                      <div className="runway-chip runway-chip-neutral">
                         <Smartphone className="h-3.5 w-3.5" />
                         Phone-first capture
                       </div>
-	                      <span className="text-[10px] uppercase tracking-[0.22em] text-white/45">Review required</span>
+	                      <span className="runway-meta">Review required</span>
                     </div>
-                    <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
-                      <p className="text-center text-sm font-semibold uppercase tracking-[0.22em] text-white/55">
+                    <div className="mt-6 border border-runway-line bg-runway-raised p-5">
+                      <p className="runway-meta text-center">
                       {showExternalHandoff ? "Scan to open" : "Scan to request assignment access"}
                       </p>
                       <div className="mt-4 flex justify-center">
-                        <div className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-3">
+                        <div className="border border-runway-line bg-runway-panel p-3">
                           {qrCode ? (
                             <img
                               src={qrCode}
@@ -328,48 +327,47 @@ export default function CaptureAppPlaceholder() {
                                   ? "QR code for the Blueprint Capture App"
                                   : "QR code for Blueprint capture access"
                               }
-                              className="h-44 w-44 rounded-xl"
+                              className="h-44 w-44"
                             />
                           ) : (
-                            <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-white/5 text-sm text-white/45">
+                            <div className="flex h-44 w-44 items-center justify-center bg-runway-raised text-sm text-runway-mute">
                               Rendering QR
                             </div>
                           )}
                         </div>
                       </div>
-                    <p className="mt-4 text-center text-sm leading-6 text-white/65">
+                    <p className="mt-4 text-center text-sm leading-6 text-runway-mute">
                       {showExternalHandoff
                         ? "Capturers use this stable path to open the app, follow field rules, and submit accepted-capture candidates for review."
                         : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right city, invite, and review path."}
                     </p>
                     </div>
                     <div className="mt-5">
-                      <SurfaceButton
+                      <a
                         href={
                           showExternalHandoff
                             ? captureAppUrl
                             : captureAccessUrl
                         }
-                        tone="secondary"
-                        className="w-full rounded-full"
+                        className="runway-cta-ghost w-full"
                       >
                         {showExternalHandoff ? "Open assignment app" : "Request assignment access"}
-                      </SurfaceButton>
+                      </a>
                     </div>
                   </div>
 
-                  <div className="rounded-[1.75rem] border border-white/10 bg-paper-0 p-5">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
+                  <div className="runway-panel p-5">
+                    <div className="runway-meta flex items-center gap-2">
                       <MapPinned className="h-4 w-4" />
                       Open capture markets
                     </div>
                     <div className="mt-4 grid gap-2">
                       {launchStatusLoading ? (
-                        <p className="text-sm leading-7 text-white/55">
+                        <p className="text-sm leading-7 text-runway-mute">
                           Reviewing public capture-market status before showing open cities.
                         </p>
                       ) : launchStatusError ? (
-                        <p className="text-sm leading-7 text-white/55">
+                        <p className="text-sm leading-7 text-runway-mute">
                           Launch status is unavailable. Request access instead of relying on a
                           cached city list.
                         </p>
@@ -377,16 +375,16 @@ export default function CaptureAppPlaceholder() {
                         launchCityLabels.slice(0, 5).map((label) => (
                           <div
                             key={label}
-                            className="flex items-center justify-between rounded-full border border-white/10 bg-[#101312] px-4 py-2 text-sm"
+                            className="flex items-center justify-between gap-3 border border-runway-line bg-runway-deep px-4 py-2 text-sm"
                           >
                             <span className="text-runway-text">{label}</span>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                            <span className="runway-chip runway-chip-open">
                               Open
                             </span>
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm leading-7 text-white/55">
+                        <p className="text-sm leading-7 text-runway-mute">
 	                        No open public capture market is listed here right now. Leave your city if you can capture public-area-only routes in common public-facing locations.
                         </p>
                       )}
@@ -396,30 +394,30 @@ export default function CaptureAppPlaceholder() {
               </div>
             </div>
 
-            <div className="border-t border-white/10 bg-paper-0 p-6 lg:p-8">
+            <div className="border-t border-runway-line bg-runway-panel p-6 lg:p-8">
               <div className="grid gap-6 xl:grid-cols-[0.78fr_0.22fr]">
                 <div className="grid gap-5 lg:grid-cols-3">
                   {steps.map((step, index) => (
-                    <div key={step.label} className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-5">
-                      <p className="font-display uppercase text-[2rem] font-semibold tracking-[0.005em] text-runway-text">
+                    <div key={step.label} className="border border-runway-line bg-runway-deep p-5">
+                      <p className="runway-num text-[2rem] font-semibold text-runway-text">
                         0{index + 1}
                       </p>
-                      <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-white/40">
+                      <p className="runway-meta mt-3">
                         {step.label}
                       </p>
-                      <p className="mt-3 text-sm leading-7 text-white/60">{step.body}</p>
+                      <p className="mt-3 text-sm leading-7 text-runway-mute">{step.body}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="rounded-[1.35rem] border border-white/10 bg-[#111110] p-5 text-white">
-                  <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
-                  <p className="mt-4 text-base leading-7 text-white/75">
+                <div className="border border-runway-line bg-runway-deep p-5">
+                  <SurfaceMiniLabel className="text-runway-faint">Need The Buyer Side Instead?</SurfaceMiniLabel>
+                  <p className="mt-4 text-base leading-7 text-runway-body">
 	                    Robot teams use these records for the task discovery, site recreation, and fit testing that happens before onsite deployment. Capturers use this path only for approved assignments and review-gated payout eligibility.
                   </p>
                   <a
                     href="/sites"
-                    className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white"
+                    className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-runway-text transition hover:text-runway-signal"
                   >
                     Explore sites
                     <ArrowRight className="h-4 w-4" />
@@ -428,9 +426,9 @@ export default function CaptureAppPlaceholder() {
               </div>
 
               <div className="mt-8 grid gap-5 lg:grid-cols-[0.36fr_0.64fr]">
-                <div className="rounded-[1.35rem] border border-white/10 bg-[#111110] p-5 text-white">
-                  <SurfaceMiniLabel className="text-white/50">Capture Opportunities</SurfaceMiniLabel>
-                  <p className="mt-4 text-base leading-7 text-white/75">
+                <div className="border border-runway-line bg-runway-deep p-5">
+                  <SurfaceMiniLabel className="text-runway-faint">Capture Opportunities</SurfaceMiniLabel>
+                  <p className="mt-4 text-base leading-7 text-runway-body">
                     The public app is for ordinary places with useful robot workflows: store
                     aisles, lobbies, corridors, common areas, venues, and service spaces.
                     Accepted capture gear is a 360 camera and a smartphone; no other device class
@@ -439,9 +437,9 @@ export default function CaptureAppPlaceholder() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {captureLocationTypes.map((item) => (
-                    <div key={item.label} className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-4">
+                    <div key={item.label} className="border border-runway-line bg-runway-deep p-4">
                       <p className="text-sm font-semibold text-runway-text">{item.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-white/60">{item.detail}</p>
+                      <p className="mt-2 text-sm leading-6 text-runway-mute">{item.detail}</p>
                     </div>
                   ))}
                 </div>

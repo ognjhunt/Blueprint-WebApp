@@ -172,18 +172,24 @@ export function InstallationGapChart() {
 
 /** Regional share of 2024 installations, as one stacked rule. */
 export function RegionalShareBar() {
-  const tones = ["bg-runway-red", "bg-runway-line", "bg-runway-signal"];
+  // Each fill carries its own label colour: bone is unreadable on the two
+  // saturated segments, and ink is unreadable on the neutral one.
+  const tones = [
+    { fill: "bg-runway-red", label: "text-runway-signal-ink" },
+    { fill: "bg-runway-line", label: "text-runway-text" },
+    { fill: "bg-runway-signal", label: "text-runway-signal-ink" },
+  ];
 
   return (
     <div>
-      <div className="flex h-9 w-full overflow-hidden rounded-sm border border-runway-line">
+      <div className="flex h-9 w-full overflow-hidden rounded-none border border-runway-line">
         {regionalShare2024.map((row, index) => (
           <div
             key={row.region}
-            className={cn("flex items-center justify-center", tones[index])}
+            className={cn("flex items-center justify-center", tones[index].fill)}
             style={{ width: `${row.share}%` }}
           >
-            <span className="runway-num text-[11px] text-runway-text/80">{row.share}%</span>
+            <span className={cn("runway-num text-[11px] font-medium", tones[index].label)}>{row.share}%</span>
           </div>
         ))}
         <div className="flex-1 bg-runway-raised" />
@@ -1052,7 +1058,7 @@ export function ProgramAdoptionFigure() {
     <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14">
       <Reveal>
         <div>
-          <p className="runway-num font-display uppercase text-[clamp(3rem,6vw,5rem)] font-semibold leading-none tracking-[0.005em] text-runway-signal">
+          <p className="runway-num text-[clamp(3rem,6vw,5rem)] font-semibold leading-none tracking-[0.005em] text-runway-signal">
             {capAdoption.headline}
           </p>
           <p className="mt-5 max-w-[26ch] text-[14px] leading-6 text-runway-mute">
@@ -1361,7 +1367,7 @@ export function HumanoidShareFigure() {
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-        <p className="runway-num font-display uppercase text-[clamp(2.6rem,5.5vw,4.4rem)] font-semibold leading-none tracking-[0.005em] text-runway-red">
+        <p className="runway-num text-[clamp(2.6rem,5.5vw,4.4rem)] font-medium leading-none tracking-[-0.02em] text-runway-red">
           {humanoidShare.headline}
         </p>
         <p className="max-w-[30ch] text-[14px] leading-6 text-runway-mute">
@@ -1371,12 +1377,12 @@ export function HumanoidShareFigure() {
 
       {/* The split, as one rule. */}
       <div className="mt-8">
-        <div className="flex h-10 w-full overflow-hidden rounded-sm border border-runway-line">
+        <div className="flex h-10 w-full overflow-hidden rounded-none border border-runway-line">
           <div
             className="flex items-center justify-center bg-runway-red"
             style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
           >
-            <span className="runway-num text-[12px] text-runway-text/85">
+            <span className="runway-num text-[12px] font-medium text-runway-signal-ink/90">
               Chinese makers · {humanoidShare.chineseVendorSharePct}%
             </span>
           </div>

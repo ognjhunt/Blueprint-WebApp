@@ -67,10 +67,10 @@ function SidebarBrand() {
   return (
     <Link
       href="/app"
-      className="flex items-center gap-2.5 px-5 py-5 text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+      className="flex items-center gap-2.5 px-5 py-5 text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
       aria-label="Blueprint — buyer app home"
     >
-      <BrandMark tone="paper" className="h-7 w-7" />
+      <BrandMark tone="ink" className="h-7 w-7" />
       <span className="font-display uppercase text-[1.15rem] font-semibold leading-none tracking-[0.005em]">
         Blueprint
       </span>
@@ -94,10 +94,10 @@ function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 rounded-none px-3 py-2.5 text-[0.85rem] font-semibold leading-none transition-colors duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal",
               isActive
-                ? "bg-runway-signal text-ink"
-                : "text-[#cdc9bb] hover:bg-white/[0.06] hover:text-runway-text",
+                ? "bg-runway-signal text-runway-signal-ink"
+                : "text-runway-body hover:bg-runway-raised hover:text-runway-text",
             )}
           >
             <Icon
@@ -117,23 +117,23 @@ function SidebarPlanCard() {
   const { userData } = useAuth();
   if (userData?.buyerType === "site_operator") {
     return (
-      <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">Operator record</div>
-        <div className="mt-1 font-mono text-[0.78rem] text-runway-text">Run-scoped</div>
-        <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">Testbed, authorization, evidence, and decision states stay linked to each request.</div>
+      <div className="runway-panel mx-3 mb-4 mt-auto p-3.5">
+        <div className="runway-meta font-semibold">Operator record</div>
+        <div className="runway-num mt-1 text-[0.78rem] text-runway-text">Run-scoped</div>
+        <div className="mt-3 text-[0.78rem] leading-[1.45] text-runway-body">Testbed, authorization, evidence, and decision states stay linked to each request.</div>
       </div>
     );
   }
   return (
-    <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">
+    <div className="runway-panel mx-3 mb-4 mt-auto p-3.5">
+      <div className="runway-meta font-semibold">
         Scoped engagement
       </div>
-      <div className="mt-1 font-mono text-[0.78rem] text-runway-text">
+      <div className="runway-num mt-1 text-[0.78rem] text-runway-text">
         Quote required
       </div>
 
-      <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">
+      <div className="mt-3 text-[0.78rem] leading-[1.45] text-runway-body">
         Each run is scoped to the decision, evidence, timing, compute, and any
         physical requirements. Existing entitlements remain readable.
       </div>
@@ -198,27 +198,27 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
   const initials = initialsForName(displayName);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-paper-0 px-4 lg:px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-runway-line bg-runway-panel px-4 lg:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
           onClick={onOpenMenu}
-          className="-ml-1 flex h-9 w-9 items-center justify-center rounded-none text-ink-700 hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action lg:hidden"
+          className="-ml-1 flex h-9 w-9 items-center justify-center rounded-none text-runway-body hover:bg-runway-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal lg:hidden"
           aria-label="Open navigation"
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
         </button>
-        <div className="min-w-0 truncate font-mono text-[0.78rem] text-ink-500">
-          <span className="text-ink-400">blueprint</span>
-          <span className="px-1.5 text-ink-300">/</span>
-          <span className="text-ink-800">{breadcrumb}</span>
+        <div className="min-w-0 truncate font-mono text-[0.78rem] text-runway-mute">
+          <span className="text-runway-faint">blueprint</span>
+          <span className="px-1.5 text-runway-faint">/</span>
+          <span className="text-runway-text">{breadcrumb}</span>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="relative flex h-9 w-9 items-center justify-center rounded-none text-ink-600 hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action"
+          className="relative flex h-9 w-9 items-center justify-center rounded-none text-runway-mute hover:bg-runway-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
           aria-label="Notifications"
         >
           <Bell className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.75} aria-hidden="true" />
@@ -227,11 +227,11 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-info-bg font-mono text-[0.72rem] font-semibold text-info-fg"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-runway-sky-dim font-mono text-[0.72rem] font-semibold text-runway-sky"
           >
             {initials}
           </span>
-          <span className="hidden text-[0.82rem] font-semibold leading-none text-ink-800 sm:inline">
+          <span className="hidden text-[0.82rem] font-semibold leading-none text-runway-text sm:inline">
             {displayName}
           </span>
         </div>
@@ -271,7 +271,7 @@ export function AppShell({
   return (
     <div className="flex h-screen w-full overflow-hidden bg-canvas">
       {/* Fixed sidebar — desktop */}
-      <aside className="hidden w-[15.5rem] shrink-0 border-r border-white/10 lg:block">
+      <aside className="hidden w-[15.5rem] shrink-0 border-r border-runway-line lg:block">
         <SidebarBody active={active} />
       </aside>
 

@@ -327,7 +327,7 @@ export function MetricStrip({
           <div>
             <dd
               className={cn(
-                "runway-num font-display uppercase text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-none tracking-[0.005em]",
+                "runway-num text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-none tracking-[0.005em]",
                 metricTone[metric.tone ?? "text"],
               )}
             >
@@ -409,21 +409,21 @@ export function RunwayCta({
       <Inner className="relative py-16 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end">
           <div>
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-text/65">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-signal-ink/70">
               {eyebrow}
             </p>
-            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text">
+            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-signal-ink">
               {title}
             </h2>
           </div>
           <div>
             {body ? (
-              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-text/75">{body}</p>
+              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-signal-ink/80">{body}</p>
             ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href={primaryHref}
-                className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-black px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+                className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none bg-runway-black px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:bg-runway-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
               >
                 {primaryLabel}
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -431,7 +431,7 @@ export function RunwayCta({
               {secondaryHref && secondaryLabel ? (
                 <a
                   href={secondaryHref}
-                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-none border border-runway-signal-ink/40 px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-signal-ink transition-colors hover:border-runway-signal-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
                 >
                   {secondaryLabel}
                 </a>

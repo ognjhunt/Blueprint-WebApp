@@ -23,9 +23,10 @@ export interface FieldProps
 /**
  * Field — Blueprint text input.
  *
- * Field wrapper: white bg, #c8bfac border (-> #9b3027 on error), radius xs (2px),
- * height 2.625rem, pad 0 .65rem. Input body-s 14px strong, no outline. Label caption
- * 600. Hint caption muted; error caption blocker-fg. Focus -> brass ring.
+ * Field wrapper: panel ground, line-strong border (-> runway-red on error),
+ * square, height 2.625rem, pad 0 .65rem. Input body-s 14px strong, no outline.
+ * Label is a mono uppercase runway-label. Hint caption muted; error caption
+ * runway-red. Focus -> signal border + ring, matching `.runway-input`.
  */
 export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
   (
@@ -55,7 +56,7 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
         {label ? (
           <label
             htmlFor={inputId}
-            className="text-caption font-semibold text-ink-800"
+            className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint"
           >
             {label}
           </label>
@@ -63,16 +64,16 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
 
         <div
           className={cn(
-            "flex h-[2.625rem] items-center gap-2 rounded-xs border border-line-strong bg-paper-0 px-[0.65rem] transition-shadow duration-200 ease-standard",
-            "focus-within:border-brass-deep focus-within:ring-2 focus-within:ring-brass-deep/60",
+            "flex h-[2.625rem] items-center gap-2 rounded-none border border-runway-line-strong bg-runway-panel px-[0.65rem] transition-shadow duration-200 ease-standard",
+            "focus-within:border-runway-signal focus-within:ring-1 focus-within:ring-runway-signal",
             hasError &&
-              "border-block-fg focus-within:border-block-fg focus-within:ring-block-fg/50",
+              "border-runway-red focus-within:border-runway-red focus-within:ring-runway-red",
             disabled && "opacity-45",
             fieldClassName,
           )}
         >
           {leading ? (
-            <span className="flex shrink-0 items-center text-ink-400">
+            <span className="flex shrink-0 items-center text-runway-faint">
               {leading}
             </span>
           ) : null}
@@ -86,8 +87,8 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
               hasError ? errorId : hint ? hintId : undefined
             }
             className={cn(
-              "h-full w-full min-w-0 bg-transparent text-body-s font-medium text-ink-900",
-              "outline-none placeholder:font-normal placeholder:text-ink-400",
+              "h-full w-full min-w-0 bg-transparent text-body-s font-medium text-runway-text",
+              "outline-none placeholder:font-normal placeholder:text-runway-faint",
               "disabled:cursor-not-allowed",
               className,
             )}
@@ -95,18 +96,18 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
           />
 
           {trailing ? (
-            <span className="flex shrink-0 items-center text-ink-400">
+            <span className="flex shrink-0 items-center text-runway-faint">
               {trailing}
             </span>
           ) : null}
         </div>
 
         {hasError ? (
-          <p id={errorId} className="text-caption text-block-fg">
+          <p id={errorId} className="text-caption text-runway-red">
             {error}
           </p>
         ) : hint ? (
-          <p id={hintId} className="text-caption text-ink-500">
+          <p id={hintId} className="text-caption text-runway-mute">
             {hint}
           </p>
         ) : null}

@@ -44,8 +44,8 @@ export function TaskEvaluationRunControl({
     return (
       <Card pad="lg" className="flex flex-col gap-4">
         <div>
-          <h3 className="text-title-m font-semibold text-ink-900">Create the Evidence Plan</h3>
-          <p className="mt-2 text-body-s text-ink-600">
+          <h3 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">Create the Evidence Plan</h3>
+          <p className="mt-2 text-body-s text-runway-body">
             Pipeline will decompose the approved task and select qualified claim-level methods from its immutable catalog. This interface cannot choose providers or qualifications.
           </p>
         </div>
@@ -66,7 +66,7 @@ export function TaskEvaluationRunControl({
         <StatusChip tone={control.state === "planning_failed" ? "block" : "neutral"} square>
           {control.state.replace(/_/g, " ")}
         </StatusChip>
-        <p className="mt-3 text-body-s text-ink-600">
+        <p className="mt-3 text-body-s text-runway-body">
           {control.blocker || "Pipeline is compiling the deterministic claim-level Evidence Plan."}
         </p>
         {control.state === "planning_failed" ? (
@@ -103,14 +103,14 @@ export function TaskEvaluationRunControl({
         <StatusChip tone={control.state === "authorization_failed" ? "block" : "warn"} square>
           {control.state.replace(/_/g, " ")}
         </StatusChip>
-        <h3 className="mt-3 text-title-m font-semibold text-ink-900">Approve exact execution methods</h3>
-        <p className="mt-2 text-body-s text-ink-600">
+        <h3 className="mt-3 font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">Approve exact execution methods</h3>
+        <p className="mt-2 text-body-s text-runway-body">
           Pipeline selected these candidates from catalog {control.method_catalog.catalog_id} {control.method_catalog.version}. Review cost and proof tier, then explicitly authorize the local methods you permit.
         </p>
       </div>
 
       {candidates.length ? (
-        <div className="divide-y divide-line rounded-md border border-line bg-paper-0">
+        <div className="divide-y divide-runway-line-soft border border-runway-line bg-runway-panel">
           {candidates.map((candidate) => (
             <label key={candidate.adapter_reference} className="flex cursor-pointer items-start gap-3 p-4">
               <input
@@ -120,11 +120,11 @@ export function TaskEvaluationRunControl({
                 onChange={() => toggle(candidate.adapter_reference)}
               />
               <span className="min-w-0 flex-1">
-                <span className="block text-body-s font-semibold text-ink-900">{candidate.method_id} · {candidate.method_version}</span>
-                <span className="mt-1 block text-body-xs text-ink-500">
-                  {candidate.method_family.replace(/_/g, " ")} · {candidate.proof_tier.replace(/_/g, " ")} · ${candidate.expected_cost_usd.toFixed(2)} expected
+                <span className="runway-num block text-body-s font-semibold text-runway-text">{candidate.method_id} · {candidate.method_version}</span>
+                <span className="mt-1 block text-body-xs text-runway-mute">
+                  {candidate.method_family.replace(/_/g, " ")} · {candidate.proof_tier.replace(/_/g, " ")} · <span className="runway-num">${candidate.expected_cost_usd.toFixed(2)}</span> expected
                 </span>
-                <span className="mt-1 block break-all font-mono text-[0.67rem] text-ink-400">{candidate.adapter_reference}</span>
+                <span className="runway-num mt-1 block break-all text-[0.67rem] text-runway-faint">{candidate.adapter_reference}</span>
               </span>
             </label>
           ))}
@@ -135,7 +135,7 @@ export function TaskEvaluationRunControl({
         </ProofBoundary>
       )}
 
-      {control.blocker ? <p className="text-body-s text-danger">{control.blocker}</p> : null}
+      {control.blocker ? <p className="text-body-s text-runway-red">{control.blocker}</p> : null}
       <ProofBoundary level="warn" title="Authorization boundary">
         Authorization permits only the selected, already-qualified local adapters for this exact plan digest. It does not authorize paid compute, a live external provider, a physical robot, deployment, safety certification, or comparative policy ranking.
       </ProofBoundary>

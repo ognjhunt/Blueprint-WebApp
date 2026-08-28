@@ -8,24 +8,24 @@ import { Eyebrow } from "./Eyebrow";
  * Card — base paper panel with optional eyebrow/title header + footer.
  *
  * Tones:
- *  - card      white surface, #1a1f1c (line) border (default)
- *  - inset     #101312 inset surface
- *  - ink       dark chrome (on-ink text)
- *  - elevated  white + shadow-lg
+ *  - card      panel surface, line hairline (default)
+ *  - inset     recessed onto the page canvas
+ *  - ink       deepest chrome band
+ *  - elevated  raised ground + a stronger edge (no shadow on the dark ground)
  *
- * Radius md (8px). Padding `pad`: none / sm 1rem / md 1.5rem / lg 2rem.
- * Header: eyebrow (micro uppercase muted) + title (title-m 20px, 600, -0.02em)
- * with optional right slot (`headerRight`, e.g. a StatusChip). Footer sits above
- * a #1a1f1c (line-soft) top border.
+ * Square. Padding `pad`: none / sm 1rem / md 1.5rem / lg 2rem.
+ * Header: eyebrow (mono uppercase muted) + condensed uppercase title with an
+ * optional right slot (`headerRight`, e.g. a StatusChip). Footer sits above a
+ * line-soft top border.
  * `framed` adds corner registration marks via `.bp-focus-frame`.
  */
-const cardVariants = cva("relative rounded-md border", {
+const cardVariants = cva("relative rounded-none border", {
   variants: {
     tone: {
-      card: "bg-paper-0 border-line text-ink",
-      inset: "bg-inset border-line text-ink",
-      ink: "bg-runway-deep border-white/10 text-runway-text",
-      elevated: "bg-paper-0 border-line text-ink shadow-lg",
+      card: "bg-runway-panel border-runway-line text-runway-body",
+      inset: "bg-runway-deep border-runway-line text-runway-body",
+      ink: "bg-runway-black border-runway-line text-runway-body",
+      elevated: "bg-runway-raised border-runway-line-strong text-runway-body",
     },
   },
   defaultVariants: {
@@ -98,12 +98,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
                 <Eyebrow tone={onInk ? "onInk" : "muted"}>{eyebrow}</Eyebrow>
               ) : null}
               {title != null ? (
-                <h3
-                  className={cn(
-                    "text-title-m font-semibold tracking-tight",
-                    onInk ? "text-runway-text" : "text-ink",
-                  )}
-                >
+                <h3 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-runway-text">
                   {title}
                 </h3>
               ) : null}
@@ -122,7 +117,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
           <div
             className={cn(
               "border-t",
-              onInk ? "border-white/10" : "border-line-soft",
+              onInk ? "border-runway-line" : "border-runway-line-soft",
               bodyPad || "p-6",
             )}
           >

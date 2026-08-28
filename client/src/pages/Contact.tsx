@@ -3,7 +3,6 @@ import { useLocation, useSearch } from "wouter";
 import { ArrowRight, Bot, MapPin, Mail } from "lucide-react";
 
 import {
-  Button,
   Eyebrow,
   Field,
   SelectField,
@@ -169,20 +168,20 @@ export default function Contact() {
         ]}
       />
 
-      <div className="bg-canvas text-ink">
+      <div className="bg-runway-deep text-runway-text">
         {/* Hero */}
-        <section className="border-b border-line">
+        <section className="border-b border-runway-line bg-runway-black">
           <div className="mx-auto max-w-[88rem] px-5 py-14 sm:px-8 lg:px-10 lg:py-20">
             <div className="max-w-[44rem]">
               <Eyebrow tone="brass" rule>
                 Months 0–2 intake
               </Eyebrow>
-              <h1 className="font-editorial mt-6 font-display uppercase text-[clamp(2.4rem,4.6vw,3.8rem)] font-semibold leading-[0.98] tracking-[0.005em] text-ink">
+              <h1 className="font-editorial mt-6 font-display uppercase text-[clamp(2.4rem,4.6vw,3.8rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text">
                 {headline}
               </h1>
-              <p className="mt-6 text-lg leading-[1.7] text-ink-600">{subhead}</p>
+              <p className="mt-6 max-w-[68ch] text-[17px] leading-[1.7] text-runway-body">{subhead}</p>
               {!isSiteOperator ? (
-                <p className="mt-3 text-caption font-semibold uppercase tracking-eyebrow text-brass-deep">
+                <p className="runway-eyebrow mt-4">
                   Beachhead: {robotPolicyBeachheadShort}
                 </p>
               ) : null}
@@ -310,16 +309,16 @@ export default function Contact() {
               overlay="bg"
             >
               <div className="absolute inset-0 flex flex-col justify-between p-5">
-                <span className="inline-flex w-fit items-center gap-2 rounded-sm border border-white/15 bg-white/40 px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[color:var(--text-on-ink)]">
+                <span className="runway-chip runway-chip-quiet w-fit bg-runway-black/80">
                   Review support · not real-world proof
                 </span>
-                <p className="font-editorial max-w-[20rem] font-display uppercase text-[1.4rem] leading-[1.06] tracking-[0.005em] text-[color:var(--text-on-ink)]">
+                <p className="font-editorial max-w-[20rem] font-display uppercase text-[1.4rem] leading-[1.06] tracking-[0.005em] text-runway-text">
                   Bring the site or bring the robot.
                 </p>
               </div>
             </MonochromeMedia>
 
-            <div className="grid gap-px overflow-hidden rounded-md border border-line bg-[#1a1f1c]">
+            <div className="grid gap-px overflow-hidden border border-runway-line bg-runway-line">
               {routeCards.map(({ href, eyebrow, title, body, Icon, persona: cardPersona }) => {
                 const active = cardPersona !== null && cardPersona === persona;
                 return (
@@ -327,31 +326,29 @@ export default function Contact() {
                     key={href}
                     href={href}
                     aria-current={active ? "page" : undefined}
-                    className="group flex items-start gap-4 bg-paper-0 p-5 transition-colors duration-200 ease-standard hover:bg-inset"
+                    className="group flex items-start gap-4 bg-runway-panel p-5 transition-colors duration-200 ease-standard hover:bg-runway-raised"
                   >
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line bg-inset text-ink-700 group-hover:border-brass-deep">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center border border-runway-line bg-runway-black text-runway-body group-hover:border-runway-signal">
                       <Icon className="h-[1.1rem] w-[1.1rem]" strokeWidth={1.75} aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="text-micro font-semibold uppercase tracking-eyebrow text-brass-deep">
-                          {eyebrow}
-                        </span>
+                        <span className="runway-eyebrow">{eyebrow}</span>
                         {active ? (
                           <StatusChip tone="info" square dot={false}>
                             You
                           </StatusChip>
                         ) : null}
                       </span>
-                      <span className="mt-1.5 block text-body-s font-semibold text-ink">
+                      <span className="mt-1.5 block text-[15px] font-semibold text-runway-text">
                         {title}
                       </span>
-                      <span className="mt-1 block text-caption leading-[1.55] text-ink-500">
+                      <span className="mt-1 block text-[15px] leading-[1.7] text-runway-mute">
                         {body}
                       </span>
                     </span>
                     <ArrowRight
-                      className="mt-0.5 h-4 w-4 shrink-0 text-ink-400 transition-transform duration-200 group-hover:translate-x-0.5"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-runway-faint transition-transform duration-200 group-hover:translate-x-0.5"
                       aria-hidden="true"
                     />
                   </a>
@@ -362,33 +359,31 @@ export default function Contact() {
             <a
               href="/contact/site-operator#contact-intake"
               aria-current={isSiteOperator ? "page" : undefined}
-              className="flex items-center justify-between gap-3 rounded-md border border-line bg-paper-0 px-5 py-3 text-caption text-ink-500 transition-colors duration-200 ease-standard hover:bg-inset"
+              className="runway-panel flex items-center justify-between gap-3 px-5 py-3 text-[15px] leading-[1.7] text-runway-body transition-colors duration-200 ease-standard hover:bg-runway-raised"
             >
               <span className="inline-flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-runway-faint" strokeWidth={1.75} aria-hidden="true" />
                 Operate a site? Submit one workflow for screening.
               </span>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-runway-faint" aria-hidden="true" />
             </a>
 
             {!isSiteOperator ? (
-              <div className="rounded-md border border-line bg-paper-0 p-5">
+              <div className="runway-panel p-5">
                 <Eyebrow tone="muted">Run / receive path</Eyebrow>
-                <h2 className="mt-3 text-title-m font-semibold tracking-tight text-ink">
+                <h2 className="mt-3 font-display text-[1.25rem] font-semibold uppercase leading-[1.1] tracking-[0.005em] text-runway-text">
                   What happens after this request
                 </h2>
                 <div className="mt-4 grid gap-3">
                   {buyerRunOnboardingTimeline.map((step) => (
-                    <div key={step.phase} className="rounded-sm border border-line-soft bg-inset p-4">
+                    <div key={step.phase} className="border border-runway-line-soft bg-runway-black p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-caption font-semibold uppercase tracking-eyebrow text-brass-deep">
+                        <span className="runway-eyebrow">
                           {step.phase}. {step.title}
                         </span>
-                        <span className="text-right text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          {step.owner}
-                        </span>
+                        <span className="runway-meta text-right">{step.owner}</span>
                       </div>
-                      <p className="mt-2 text-caption font-semibold text-ink-800">{step.target}</p>
+                      <p className="mt-2 text-[15px] leading-[1.7] text-runway-body">{step.target}</p>
                     </div>
                   ))}
                 </div>
@@ -397,7 +392,7 @@ export default function Contact() {
                     <a
                       key={link.href}
                       href={link.href === "/requests/:requestId" ? "/beta/buyer-guide" : link.href}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-line px-3 text-caption font-semibold text-ink-800 hover:bg-inset"
+                      className="inline-flex min-h-10 items-center gap-2 border border-runway-line px-3 text-[13px] font-semibold text-runway-text hover:border-runway-signal hover:text-runway-signal"
                     >
                       {link.label}
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -407,9 +402,9 @@ export default function Contact() {
               </div>
             ) : null}
 
-            <div className="flex items-center gap-2 rounded-md border border-line bg-paper-0 px-5 py-4">
-              <Mail className="h-4 w-4 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
-              <span className="font-mono text-[13px] text-ink-700">team@tryblueprint.io</span>
+            <div className="runway-panel flex items-center gap-2 px-5 py-4">
+              <Mail className="h-4 w-4 shrink-0 text-runway-faint" strokeWidth={1.75} aria-hidden="true" />
+              <span className="font-mono text-[13px] text-runway-body">team@tryblueprint.io</span>
             </div>
           </aside>
         </section>

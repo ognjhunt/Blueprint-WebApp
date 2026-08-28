@@ -74,22 +74,22 @@ export default function SiteDetail({ params }: SiteDetailProps) {
         ]}
       />
 
-      <div className="bg-paper-0 px-5 py-12 text-runway-text md:px-8 md:py-16">
+      <div className="bg-runway-deep px-5 py-12 text-runway-text md:px-8 md:py-16">
         <main className="mx-auto max-w-[88rem]">
           <a href="/sites" className="inline-flex items-center gap-2 text-sm font-semibold text-runway-mute hover:text-runway-text">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to sites
           </a>
 
           {loading ? (
-            <div className="mt-8 flex min-h-72 items-center justify-center rounded-lg border border-runway-line">
-              <Loader2 className="h-7 w-7 animate-spin text-blue-600" aria-label="Loading site record" />
+            <div className="runway-panel mt-8 flex min-h-72 items-center justify-center">
+              <Loader2 className="h-7 w-7 animate-spin text-runway-signal" aria-label="Loading site record" />
             </div>
           ) : error || !site ? (
-            <section className="mt-8 rounded-lg border border-runway-line p-8">
-              <Database className="h-7 w-7 text-blue-600" aria-hidden="true" />
-              <h1 className="mt-5 text-4xl font-semibold">This public site record is not available.</h1>
+            <section className="runway-panel mt-8 p-8">
+              <Database className="h-7 w-7 text-runway-signal" aria-hidden="true" />
+              <h1 className="mt-5 font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">This public site record is not available.</h1>
               <p className="mt-3 text-runway-mute">{error || "No Pipeline-backed record was returned."}</p>
-              <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=capture-access&path=new-capture&source=site-detail-unavailable" className="mt-7 inline-flex min-h-11 items-center justify-center rounded-lg bg-runway-black px-4 text-sm font-semibold text-white">
+              <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=capture-access&path=new-capture&source=site-detail-unavailable" className="runway-cta mt-7">
                 Request the exact site
               </a>
             </section>
@@ -97,46 +97,46 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             <>
               <section className="mt-8 grid gap-10 border-b border-runway-line pb-12 md:grid-cols-[0.9fr_1.1fr] md:items-center">
                 <div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-900">Pipeline record</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="runway-prov"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-runway-green" />Pipeline record</span>
                     {site.evaluationReadiness?.qualification_state ? (
-                      <span className="rounded-md border border-runway-line bg-runway-line-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-runway-body">
+                      <span className="runway-chip runway-chip-neutral">
                         {site.evaluationReadiness.qualification_state.replace(/_/g, " ")}
                       </span>
                     ) : null}
                   </div>
-                  <h1 className="mt-5 text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">{site.siteName}</h1>
-                  <p className="mt-5 max-w-xl text-lg leading-8 text-runway-mute">{site.summary}</p>
-                  <a href={requestHref(site)} className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700">
+                  <h1 className="mt-5 font-display uppercase text-5xl font-bold leading-[0.95] tracking-[0.005em] text-runway-text sm:text-6xl">{site.siteName}</h1>
+                  <p className="mt-5 max-w-xl text-lg leading-[1.6] text-runway-body">{site.summary}</p>
+                  <a href={requestHref(site)} className="runway-cta mt-8">
                     Test robot fit <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </a>
                 </div>
                 <div>
-                  <img src={wamPolicyEvalAssets.hero} alt="Illustrative humanoid robot evaluation workflow" className="aspect-[16/10] w-full rounded-lg border border-runway-line object-cover" />
-                  <p className="mt-2 text-xs text-runway-faint">Illustrative workflow image; not evidence from this capture record.</p>
+                  <img src={wamPolicyEvalAssets.hero} alt="Illustrative humanoid robot evaluation workflow" className="aspect-[16/10] w-full border border-runway-line object-cover" />
+                  <p className="runway-meta mt-2">Illustrative workflow image; not evidence from this capture record.</p>
                 </div>
               </section>
 
               <section className="grid gap-8 py-12 md:grid-cols-[0.34fr_0.66fr]">
                 <div>
-                  <h2 className="text-4xl font-semibold">Recorded task scope</h2>
-                  <p className="mt-4 text-sm leading-7 text-runway-mute">Tasks and scenarios below come from this record. Run outcomes appear only after an owned evaluation executes.</p>
+                  <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Recorded task scope</h2>
+                  <p className="mt-4 text-sm leading-[1.6] text-runway-mute">Tasks and scenarios below come from this record. Run outcomes appear only after an owned evaluation executes.</p>
                 </div>
                 <div className="grid gap-3">
                   {site.taskCatalog.length ? site.taskCatalog.map((task) => (
-                    <article key={task.id} className="rounded-lg border border-runway-line p-5">
-                      <p className="text-lg font-semibold">{task.taskText || task.taskId || task.id}</p>
+                    <article key={task.id} className="runway-panel p-5">
+                      <p className="text-lg font-semibold text-runway-text">{task.taskText || task.taskId || task.id}</p>
                       {task.taskCategory ? <p className="mt-2 text-sm text-runway-mute">{task.taskCategory}</p> : null}
                     </article>
                   )) : (
-                    <div className="rounded-lg border border-runway-line p-5 text-sm text-runway-mute">Task detail will be scoped with the buyer request.</div>
+                    <div className="runway-panel p-5 text-sm text-runway-mute">Task detail will be scoped with the buyer request.</div>
                   )}
                 </div>
               </section>
 
               <section className="flex gap-4 border-t border-runway-line pt-8">
-                <ShieldCheck className="h-7 w-7 shrink-0 text-blue-600" aria-hidden="true" />
-                <p className="max-w-4xl text-sm font-semibold leading-6 text-runway-mute">
+                <ShieldCheck className="h-7 w-7 shrink-0 text-runway-signal" aria-hidden="true" />
+                <p className="max-w-4xl text-sm font-semibold leading-[1.6] text-runway-mute">
                   This page proves only that a current public capture record exists. It does not prove policy execution, ranking performance, deployment safety, rights beyond the stated request, or fulfillment.
                 </p>
               </section>
