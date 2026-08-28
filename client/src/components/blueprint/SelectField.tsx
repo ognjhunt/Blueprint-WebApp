@@ -58,7 +58,7 @@ const SelectFieldTrigger = React.forwardRef<
     ref={ref}
     aria-invalid={hasError || undefined}
     className={cn(
-      "flex h-[2.625rem] w-full items-center justify-between gap-2 rounded-xs border border-line-strong bg-white px-[0.65rem]",
+      "flex h-[2.625rem] w-full items-center justify-between gap-2 rounded-xs border border-line-strong bg-paper-0 px-[0.65rem]",
       "text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard",
       "data-[placeholder]:font-normal data-[placeholder]:text-ink-400",
       "focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60",
@@ -133,7 +133,7 @@ export function SelectField({
           <SelectValue placeholder={placeholder} />
         </SelectFieldTrigger>
 
-        <SelectContent className="rounded-xs border-line bg-white text-ink-900 shadow-md">
+        <SelectContent className="rounded-xs border-line bg-paper-0 text-ink-900 shadow-md">
           {children ??
             (options ? (
               <SelectGroup>

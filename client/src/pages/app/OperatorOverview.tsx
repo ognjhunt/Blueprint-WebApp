@@ -79,7 +79,7 @@ export default function OperatorOverview() {
           <>
             <Card pad="lg" className="flex flex-col gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-mono text-xs text-ink-400">{query.data.request.request_id}</p><h2 className="mt-2 text-2xl font-semibold">{query.data.request.site_name || "Site request"}</h2><p className="mt-2 text-sm text-ink-500">{query.data.request.site_type || "Site type pending"} · {query.data.request.site_location || "Location held in request"}</p></div><StatusChip tone={tone(query.data.request.qualification_state)} square>{displayStatus(query.data.request.qualification_state)}</StatusChip></div>
-              <div className="rounded-md border border-line bg-white">
+              <div className="rounded-md border border-line bg-paper-0">
                 <DataField label="Workflow" value={query.data.request.workflow || "Needs operator detail"} mono={false} />
                 <DataField label="Rights" value={displayStatus(query.data.request.rights_status)} mono={false} />
                 <DataField label="Capture" value={displayStatus(query.data.request.capture_status)} mono={false} />

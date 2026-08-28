@@ -8,24 +8,24 @@ import { Eyebrow } from "./Eyebrow";
  * Card — base paper panel with optional eyebrow/title header + footer.
  *
  * Tones:
- *  - card      white surface, #ded7c8 (line) border (default)
- *  - inset     #f5f1e8 inset surface
+ *  - card      white surface, #1a1f1c (line) border (default)
+ *  - inset     #101312 inset surface
  *  - ink       dark chrome (on-ink text)
  *  - elevated  white + shadow-lg
  *
  * Radius md (8px). Padding `pad`: none / sm 1rem / md 1.5rem / lg 2rem.
  * Header: eyebrow (micro uppercase muted) + title (title-m 20px, 600, -0.02em)
  * with optional right slot (`headerRight`, e.g. a StatusChip). Footer sits above
- * a #ebe4d7 (line-soft) top border.
+ * a #1a1f1c (line-soft) top border.
  * `framed` adds corner registration marks via `.bp-focus-frame`.
  */
 const cardVariants = cva("relative rounded-md border", {
   variants: {
     tone: {
-      card: "bg-white border-line text-ink",
+      card: "bg-paper-0 border-line text-ink",
       inset: "bg-inset border-line text-ink",
-      ink: "bg-ink border-white/10 text-[#f3efe6]",
-      elevated: "bg-white border-line text-ink shadow-lg",
+      ink: "bg-runway-deep border-white/10 text-runway-text",
+      elevated: "bg-paper-0 border-line text-ink shadow-lg",
     },
   },
   defaultVariants: {
@@ -101,7 +101,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
                 <h3
                   className={cn(
                     "text-title-m font-semibold tracking-tight",
-                    onInk ? "text-[#f3efe6]" : "text-ink",
+                    onInk ? "text-runway-text" : "text-ink",
                   )}
                 >
                   {title}

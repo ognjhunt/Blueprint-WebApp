@@ -22,7 +22,7 @@ export function EntitlementAccessTable({
   actionLabel?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-white">
+    <div className="overflow-x-auto rounded-md border border-line bg-paper-0">
       <table className="w-full min-w-[62rem] border-collapse text-left">
         <thead>
           <tr className="border-b border-line">

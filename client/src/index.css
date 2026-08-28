@@ -5,30 +5,35 @@
 @layer base {
   :root {
     /* ============================================================
-       shadcn/ui HSL role vars — REMAPPED to Blueprint values.
+       shadcn/ui HSL role vars — REMAPPED to the Runway instrument
+       surface, so every primitive built on these roles (inputs,
+       selects, dialogs, toasts, the admin and product surfaces)
+       inherits the dark ground without touching each component.
        Format is "H S% L%" (no hsl() wrapper); Tailwind wraps them.
        ============================================================ */
-    --background: 210 17% 98%;
-    --foreground: 218 20% 8%;
-    --card: 0 0% 100%; /* #ffffff */
-    --card-foreground: 60 8% 5%; /* ink-900 */
-    --popover: 0 0% 100%; /* #ffffff */
-    --popover-foreground: 60 8% 5%; /* ink-900 */
-    --primary: 222 100% 54%;
-    --primary-foreground: 0 0% 100%; /* #ffffff */
-    --secondary: 210 8% 95%;
-    --secondary-foreground: 60 8% 5%; /* ink-900 */
-    --muted: 210 7% 93%;
-    --muted-foreground: 216 9% 38%;
-    --accent: 210 7% 91%;
-    --accent-foreground: 60 8% 5%; /* ink-900 */
-    --destructive: 5 60% 38%; /* blocker clay #9b3027 */
-    --destructive-foreground: 0 0% 100%; /* #ffffff */
-    --border: 214 12% 87%;
-    --input: 214 9% 76%;
-    --ring: 222 100% 54%;
-    --radius: 0.5rem;
-    --heading: 220 20% 8%;
+    --background: 160 9% 7%; /* runway.deep   #101312 */
+    --foreground: 49 19% 89%; /* runway.text   #e8e6dd */
+    --card: 150 9% 9%; /* runway.panel  #141816 */
+    --card-foreground: 49 19% 89%;
+    --popover: 150 9% 9%;
+    --popover-foreground: 49 19% 89%;
+    --primary: 41 100% 50%; /* runway.signal #ffb000 */
+    --primary-foreground: 47 100% 5%; /* signal-ink    #171200 */
+    --secondary: 144 9% 11%; /* runway.raised #1a1f1c */
+    --secondary-foreground: 49 19% 89%;
+    --muted: 144 9% 11%;
+    --muted-foreground: 111 4% 62%; /* runway.mute   #9ba19a */
+    --accent: 144 9% 11%;
+    --accent-foreground: 41 100% 50%;
+    --destructive: 7 100% 64%; /* runway.red    #ff5c45 */
+    --destructive-foreground: 47 100% 5%;
+    --border: 150 7% 18%; /* runway.line   #2a302d */
+    --input: 150 6% 24%; /* line-strong   #3a423e */
+    --ring: 41 100% 50%;
+    /* Square chrome. Every radius token below resolves to 0 except the
+       handful of product cards that opt into `rounded-md` explicitly. */
+    --radius: 0rem;
+    --heading: 49 19% 89%;
 
     /* ============================================================
        Blueprint — Layer 1: raw brand scales
@@ -158,9 +163,10 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: "Inter Tight", "Inter", sans-serif;
+    font-family: "Barlow", "Helvetica Neue", system-ui, sans-serif;
     font-feature-settings: "liga" 1, "kern" 1;
     -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
   }
 
   h1,
@@ -170,7 +176,7 @@
   h5,
   h6 {
     color: inherit;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.01em;
   }
 
   a {
@@ -221,7 +227,9 @@
 }
 
 .font-editorial {
-  font-family: "Inter Tight", "Inter", sans-serif;
+  font-family: "Barlow Condensed", "Arial Narrow", "Barlow", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
 }
 
 @keyframes fade-up {
@@ -303,7 +311,7 @@
 
 .tile-grid > a,
 .tile-grid > div {
-  background-color: white;
+  background-color: hsl(var(--card));
   padding: 2.5rem 1.75rem;
   display: flex;
   align-items: flex-end;
@@ -374,39 +382,125 @@
 
 @layer components {
   .runway-eyebrow {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-signal;
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-runway-signal;
   }
 
   .runway-eyebrow-muted {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-faint;
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-runway-faint;
   }
 
-  /* Primary action. Black on signal is 6.0:1 — white would be 3.2:1. */
+  /* Display type. Barlow Condensed, uppercase, square corners on the page.
+     Every heading on the site goes through this or its smaller siblings, so
+     the condensed voice is consistent rather than per-page. */
+  .runway-display {
+    @apply font-display font-bold uppercase leading-[0.94] tracking-[0.005em] text-runway-text;
+  }
+
+  .runway-display-sm {
+    @apply font-display font-semibold uppercase leading-[1.02] tracking-[0.005em] text-runway-text;
+  }
+
+  /* Primary action. signal-ink on signal is 11.4:1. Square, not pill: this is
+     a control on an instrument, not a bubble. */
   .runway-cta {
-    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm bg-runway-signal px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-all duration-200 ease-out hover:bg-runway-signal-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-black;
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none border border-runway-signal bg-runway-signal px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-signal-ink transition-colors duration-200 ease-out hover:border-runway-signal-lit hover:bg-runway-signal-lit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep;
   }
 
   .runway-cta-ghost {
-    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm border border-runway-line px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors duration-200 hover:border-runway-signal hover:text-runway-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-black;
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none border border-runway-line-strong px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors duration-200 hover:border-runway-signal hover:text-runway-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep;
   }
 
   .runway-cta-onlight {
-    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-sm border border-runway-paper-line px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors duration-200 hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2;
+    @apply inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-none border border-runway-paper-line px-6 text-[14px] font-semibold uppercase tracking-[0.04em] text-runway-black transition-colors duration-200 hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2;
   }
 
   /* Instrument panel: the card every figure sits in. */
   .runway-panel {
-    @apply rounded-md border border-runway-line bg-runway-panel;
+    @apply rounded-none border border-runway-line bg-runway-panel;
   }
 
   .runway-meta {
-    @apply font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint;
+    @apply font-mono text-[10px] uppercase tracking-[0.16em] text-runway-faint;
   }
 
   /* Tabular numerals so columns of figures line up. */
   .runway-num {
     @apply font-mono tabular-nums;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Status chip. Outlined, never filled — a filled control on this surface
+     always means "primary action", so states have to read a different way.
+     Colour comes from a `runway-chip-*` modifier. */
+  .runway-chip {
+    @apply inline-flex items-center gap-2 whitespace-nowrap border px-[9px] py-[6px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em];
+  }
+
+  .runway-chip-open {
+    @apply border-runway-signal-dim text-runway-signal;
+  }
+
+  .runway-chip-live {
+    @apply border-runway-green-dim text-runway-green;
+  }
+
+  .runway-chip-neutral {
+    @apply border-runway-sky-dim text-runway-sky;
+  }
+
+  .runway-chip-fail {
+    @apply border-runway-red-dim text-runway-red;
+  }
+
+  .runway-chip-quiet {
+    @apply border-runway-line-strong text-runway-mute;
+  }
+
+  /* Provenance tag. Every published figure carries where it came from; this
+     is the shape that carries it, so grade is never a footnote. */
+  .runway-prov {
+    @apply inline-flex items-center gap-[6px] whitespace-nowrap border border-runway-line px-[7px] py-[4px] font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-runway-mute;
+  }
+
+  /* Section label with a rule running to the end of the measure. */
+  .runway-rule-head {
+    @apply flex items-center gap-3;
+  }
+
+  .runway-rule-head::after {
+    @apply block h-px flex-1 bg-runway-line;
+    content: "";
+  }
+
+  /* Data table. Used for the eval board, comparisons, and every admin list,
+     so a figure looks the same wherever it is read. */
+  .runway-table {
+    @apply w-full border-collapse border border-runway-line;
+  }
+
+  .runway-table thead tr {
+    @apply bg-runway-black;
+  }
+
+  .runway-table th {
+    @apply border-b border-runway-line px-[14px] py-3 text-left font-mono text-[10px] font-semibold uppercase leading-tight tracking-[0.12em] text-runway-faint;
+  }
+
+  .runway-table td {
+    @apply border-b border-runway-line-soft px-[14px] py-[15px] align-middle text-[13px] leading-[1.35] text-runway-body;
+  }
+
+  .runway-table tbody tr:hover td {
+    @apply bg-runway-raised;
+  }
+
+  /* Form control. Square, hairline, signal on focus. */
+  .runway-input {
+    @apply w-full rounded-none border border-runway-line-strong bg-runway-panel px-3 py-[11px] text-[14px] text-runway-text placeholder:text-runway-faint focus:border-runway-signal focus:outline-none focus:ring-1 focus:ring-runway-signal;
+  }
+
+  .runway-label {
+    @apply mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint;
   }
 }
 
@@ -422,8 +516,8 @@
 .runway-hazard {
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(255, 92, 36, 0.85) 0,
-    rgba(255, 92, 36, 0.85) 6px,
+    rgba(255, 176, 0, 0.8) 0,
+    rgba(255, 176, 0, 0.8) 6px,
     transparent 6px,
     transparent 12px
   );
@@ -433,8 +527,8 @@
 .runway-hatch {
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(84, 224, 238, 0.5) 0,
-    rgba(84, 224, 238, 0.5) 3px,
+    rgba(111, 195, 212, 0.5) 0,
+    rgba(111, 195, 212, 0.5) 3px,
     transparent 3px,
     transparent 7px
   );

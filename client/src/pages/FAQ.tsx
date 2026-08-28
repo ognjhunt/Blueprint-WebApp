@@ -104,7 +104,7 @@ export default function FAQ() {
             <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
               Plain English
             </p>
-            <h1 className="mt-6 max-w-[17ch] text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-runway-text">
+            <h1 className="mt-6 max-w-[17ch] font-display uppercase text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[0.005em] text-runway-text">
               We find the robot that can do the job, then help you deploy it.
             </h1>
             <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">

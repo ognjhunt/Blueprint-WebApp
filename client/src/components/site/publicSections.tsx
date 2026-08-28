@@ -143,7 +143,7 @@ export function PageHero({
             </Reveal>
 
             <Reveal from="up" distance={20} delay={0.06}>
-              <h1 className="mt-7 max-w-[18ch] font-display text-[clamp(2.8rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
+              <h1 className="mt-7 max-w-[18ch] font-display uppercase text-[clamp(2.8rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[0.005em] text-runway-text">
                 {title}
               </h1>
             </Reveal>
@@ -257,7 +257,7 @@ export function SectionHeader({
         </div>
         <h2
           className={cn(
-            "mt-5 max-w-[21ch] font-display text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[-0.045em]",
+            "mt-5 max-w-[21ch] font-display uppercase text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[0.005em]",
             onInk ? "text-runway-text" : "text-runway-text",
           )}
         >
@@ -375,7 +375,7 @@ export function FullBleedMedia({
               {eyebrow}
             </p>
           ) : null}
-          <h2 className="mt-5 font-display text-[clamp(2.3rem,4.6vw,4.4rem)] font-semibold leading-[1.0] tracking-[-0.048em] text-runway-text">
+          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.6vw,4.4rem)] font-semibold leading-[1.0] tracking-[0.005em] text-runway-text">
             {title}
           </h2>
           {body ? (
@@ -481,7 +481,7 @@ export function ClosingCta({
       <Inner className="relative py-20 lg:py-28">
         <Reveal className="max-w-[38rem]">
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">{eyebrow}</p>
-          <h2 className="mt-5 font-display text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-runway-black">
+          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-black">
             {title}
           </h2>
           <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-black/75">

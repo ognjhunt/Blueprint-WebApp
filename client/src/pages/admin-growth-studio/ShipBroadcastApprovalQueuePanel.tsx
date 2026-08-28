@@ -34,16 +34,16 @@ export function ShipBroadcastApprovalQueuePanel({
   onRejectReasonChange,
 }: ShipBroadcastApprovalQueuePanelProps) {
   return (
-    <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+    <div className="mt-4 rounded-none border border-runway-line bg-paper-0 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-runway-faint">
             Ship-broadcast approval queue
           </p>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-runway-mute">
             Fresh SendGrid ship-broadcast drafts already queued for human approval.
           </p>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">
+          <p className="mt-1 text-xs leading-5 text-runway-faint">
             Approving a queued item can dispatch through the configured delivery provider;
             rejecting keeps the item parked with a durable reason.
           </p>
@@ -51,31 +51,31 @@ export function ShipBroadcastApprovalQueuePanel({
         <button
           type="button"
           onClick={() => query.refetch()}
-          className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+          className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
         >
           Refresh
         </button>
       </div>
 
       {query.isLoading ? (
-        <p className="mt-4 text-sm text-zinc-500">Loading approval queue...</p>
+        <p className="mt-4 text-sm text-runway-faint">Loading approval queue...</p>
       ) : query.isError ? (
         <p className="mt-4 text-sm text-rose-700">Failed to load ship-broadcast approval queue.</p>
       ) : query.data?.items?.length ? (
         <div className="mt-4 space-y-3">
           {query.data.items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+            <div key={item.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-line-strong">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-zinc-950">{item.name}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{item.subject}</p>
+                  <p className="font-medium text-runway-black">{item.name}</p>
+                  <p className="mt-1 text-xs text-runway-faint">{item.subject}</p>
                 </div>
-                <div className="text-right text-xs text-zinc-500">
+                <div className="text-right text-xs text-runway-faint">
                   <p>Status: {item.sendStatus}</p>
                   <p>Recipients: {item.recipientCount}</p>
                 </div>
               </div>
-              <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+              <div className="mt-3 grid gap-2 text-xs text-runway-faint sm:grid-cols-2">
                 <p>Created: {formatEventTime(item.createdAt)}</p>
                 <p>Ledger: {item.lastLedgerDocId || "none"}</p>
                 <p>Asset key: {item.assetKey || "none"}</p>
@@ -88,7 +88,7 @@ export function ShipBroadcastApprovalQueuePanel({
                       type="button"
                       onClick={() => approveMutation.mutate(item.lastLedgerDocId!)}
                       disabled={approveMutation.isPending || rejectMutation.isPending}
-                      className="rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-full border border-runway-deep bg-runway-deep px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {approveMutation.isPending ? "Approving..." : "Approve and Send"}
                     </button>
@@ -97,7 +97,7 @@ export function ShipBroadcastApprovalQueuePanel({
                       value={rejectReasons[item.lastLedgerDocId] || ""}
                       onChange={(event) => onRejectReasonChange(item.lastLedgerDocId!, event.target.value)}
                       placeholder="Required reject reason"
-                      className="min-w-[220px] rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                      className="min-w-[220px] rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
                       aria-label={`Reject reason for ${item.id}`}
                     />
                     <button
@@ -112,7 +112,7 @@ export function ShipBroadcastApprovalQueuePanel({
                         || rejectMutation.isPending
                         || !(rejectReasons[item.lastLedgerDocId!] || "").trim()
                       }
-                      className="rounded-full border border-rose-300 bg-white px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-full border border-rose-300 bg-paper-0 px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {rejectMutation.isPending ? "Rejecting..." : "Reject"}
                     </button>
@@ -120,8 +120,8 @@ export function ShipBroadcastApprovalQueuePanel({
                 </div>
               ) : null}
               {item.proofLinks.length ? (
-                <div className="mt-3 text-xs text-zinc-600">
-                  <p className="font-medium text-zinc-800">Proof links</p>
+                <div className="mt-3 text-xs text-runway-mute">
+                  <p className="font-medium text-runway-panel">Proof links</p>
                   {item.proofLinks.slice(0, 2).map((link) => (
                     <p key={link} className="truncate">{link}</p>
                   ))}
@@ -131,7 +131,7 @@ export function ShipBroadcastApprovalQueuePanel({
           ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-zinc-500">No ship-broadcast drafts are currently waiting approval.</p>
+        <p className="mt-4 text-sm text-runway-faint">No ship-broadcast drafts are currently waiting approval.</p>
       )}
     </div>
   );

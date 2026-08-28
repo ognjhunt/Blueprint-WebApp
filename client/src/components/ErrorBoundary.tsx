@@ -97,18 +97,18 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-[400px] flex items-center justify-center p-6">
           <div className="max-w-md w-full">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+            <div className="bg-paper-0 rounded-none border border-runway-line shadow-lg overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-slate-100">
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-runway-line-soft">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                     <AlertTriangle className="w-5 h-5 text-red-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
+                    <h2 className="text-lg font-semibold text-runway-deep">
                       Something went wrong
                     </h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-runway-mute">
                       We've been notified and are working on a fix
                     </p>
                   </div>
@@ -118,17 +118,17 @@ export class ErrorBoundary extends Component<Props, State> {
               {/* Content */}
               <div className="px-6 py-4 space-y-4">
                 {/* Error message */}
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-sm font-mono text-slate-700 break-words">
+                <div className="bg-runway-line-soft rounded-lg p-3">
+                  <p className="text-sm font-mono text-runway-line-strong break-words">
                     {this.state.error?.message || 'An unexpected error occurred'}
                   </p>
                 </div>
 
                 {/* Event ID for support */}
                 {this.state.eventId && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-runway-faint">
                     Reference ID:{' '}
-                    <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">
+                    <code className="bg-runway-line-soft px-1.5 py-0.5 rounded text-runway-line-strong">
                       {this.state.eventId}
                     </code>
                   </p>
@@ -145,7 +145,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   </button>
                   <button
                     onClick={this.handleGoHome}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-runway-line-soft text-runway-line-strong text-sm font-medium rounded-lg hover:bg-runway-line transition-colors"
                   >
                     <Home className="w-4 h-4" />
                     Go Home
@@ -155,7 +155,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 {/* Report bug link */}
                 <button
                   onClick={this.handleReportBug}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-runway-mute hover:text-runway-deep transition-colors"
                 >
                   <Bug className="w-4 h-4" />
                   Report this issue

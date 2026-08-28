@@ -31,7 +31,7 @@ export function DeploymentNetworkPricing() {
           <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
             Site-paid · success-aligned
           </p>
-          <h3 className="mt-4 font-display text-[clamp(2rem,3.5vw,3rem)] font-medium leading-none tracking-tight">
+          <h3 className="mt-4 font-display uppercase text-[clamp(2rem,3.5vw,3rem)] font-semibold leading-none tracking-[0.005em]">
             5% deployment-network fee
           </h3>
           <p className="mt-4 max-w-[42rem] text-body-s leading-7 text-runway-mute">

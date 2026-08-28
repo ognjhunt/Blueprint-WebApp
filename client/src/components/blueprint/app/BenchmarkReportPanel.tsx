@@ -39,7 +39,7 @@ function PolicyResults({ benchmark }: { benchmark: BenchmarkProjection }) {
 
   return (
     <div className="overflow-x-auto rounded-md border border-line">
-      <table className="min-w-[78rem] border-collapse bg-white text-left text-body-xs">
+      <table className="min-w-[78rem] border-collapse bg-paper-0 text-left text-body-xs">
         <thead className="bg-paper-1 text-ink-600">
           <tr>
             <th className="px-3 py-3 font-semibold">Policy / checkpoint</th>
@@ -81,7 +81,7 @@ function GeneralizationResults({ benchmark }: { benchmark: BenchmarkProjection }
         const counts = benchmark.split_summary.generalization_counts[axis];
         const breakdown = benchmark.breakdowns.generalization[axis];
         return (
-          <article key={axis} className="rounded-md border border-line bg-white p-4">
+          <article key={axis} className="rounded-md border border-line bg-paper-0 p-4">
             <h4 className="text-body-s font-semibold capitalize text-ink-900">{axis}</h4>
             <p className="mt-1 text-body-xs text-ink-500">
               {counts.seen} seen · {counts.unseen} unseen scenarios
@@ -112,7 +112,7 @@ function ExternalComparison({ benchmark }: { benchmark: BenchmarkProjection }) {
   if (!external) return null;
 
   return (
-    <section className="rounded-md border border-line bg-white p-4" aria-label="External rank fidelity">
+    <section className="rounded-md border border-line bg-paper-0 p-4" aria-label="External rank fidelity">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-title-s font-semibold text-ink-900">
@@ -177,26 +177,26 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Fixed rollouts</div>
           <div className="mt-2 text-title-m font-semibold text-ink-900">
             {benchmark.rollout_protocol.fixed_rollouts_per_scenario_policy}
           </div>
           <div className="text-body-xs text-ink-500">per policy and scenario</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Hidden test</div>
           <div className="mt-2 text-title-m font-semibold text-ink-900">
             {benchmark.split_summary.counts.hidden_test}
           </div>
           <div className="text-body-xs text-ink-500">identifiers redacted</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Uncertainty</div>
           <div className="mt-2 text-title-m font-semibold text-ink-900">95% CI</div>
           <div className="text-body-xs text-ink-500">10,000 bootstrap replicates</div>
         </div>
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <div className="text-body-xs font-semibold uppercase tracking-wide text-ink-500">Benchmark card</div>
           <code className="mt-2 block text-body-s font-semibold text-ink-900" title={benchmark.benchmark_card_sha256}>
             {shortDigest(benchmark.benchmark_card_sha256)}
@@ -206,7 +206,7 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       </div>
 
       {benchmark.environment_summary ? (
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <h3 className="text-title-s font-semibold text-ink-900">Environment binding</h3>
           <p className="mt-2 text-body-s text-ink-700">
             {benchmark.environment_summary.site_id} ·{" "}
@@ -228,7 +228,7 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       <PolicyResults benchmark={benchmark} />
 
       {benchmark.evidence_summary ? (
-        <div className="rounded-md border border-line bg-white p-4">
+        <div className="rounded-md border border-line bg-paper-0 p-4">
           <h3 className="text-title-s font-semibold text-ink-900">Evidence completeness</h3>
           <p className="mt-2 text-body-s text-ink-700">
             {benchmark.evidence_summary.video_count} videos ·{" "}

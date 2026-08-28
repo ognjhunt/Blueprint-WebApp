@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  *  - warn    amber  · pending / missing-evidence
  *  - block   clay   · failure / destructive
  *  - info    blue   · action / ranking
- *  - neutral        · fg #3a3a33, bg #ebe4d7 (sunken)
+ *  - neutral        · fg #3a3a33, bg #1a1f1c (sunken)
  *  - ink            · dark chip on chrome
  *
  * Inline-flex, gap .4rem; padding .25rem .6rem; font micro (11px) 600 uppercase
@@ -27,8 +27,8 @@ const statusChipVariants = cva(
         warn: "text-warn-fg bg-warn-bg border-warn-bd",
         block: "text-block-fg bg-block-bg border-block-bd",
         info: "text-info-fg bg-info-bg border-info-bd",
-        neutral: "text-[#3a3a33] bg-sunken border-line",
-        ink: "text-[#f3efe6] bg-ink border-white/10",
+        neutral: "text-runway-body bg-sunken border-line",
+        ink: "text-runway-text bg-runway-deep border-white/10",
       },
       square: {
         true: "rounded-xs",

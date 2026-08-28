@@ -165,7 +165,7 @@ function humanizeKey(value: string) {
 }
 
 function statusTone(status: string, enabled: boolean) {
-  if (!enabled) return "text-zinc-500";
+  if (!enabled) return "text-runway-faint";
   if (status === "idle" || status === "scheduled") return "text-emerald-700";
   if (status === "running") return "text-sky-700";
   if (status === "failed") return "text-rose-700";
@@ -194,30 +194,30 @@ export default function AdminGrowthOpsScorecard() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8">
+    <div className="min-h-screen bg-runway-line-soft px-4 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-runway-faint">
               Growth Ops
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+            <h1 className="mt-2 text-3xl font-semibold text-runway-black">
               Exact-site hosted-review scorecard
             </h1>
-            <p className="mt-2 text-zinc-600">
+            <p className="mt-2 text-runway-mute">
               First-party wedge metrics from the `growth_events` stream and the hosted-review admin queue.
             </p>
           </div>
           <div className="flex gap-3">
             <Link
               href="/admin/city-launch/austin"
-              className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
             >
               Austin launch
             </Link>
             <Link
               href="/admin/leads"
-              className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
             >
               Back to admin queue
             </Link>
@@ -225,50 +225,50 @@ export default function AdminGrowthOpsScorecard() {
         </div>
 
         {scorecardQuery.isLoading ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+          <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
             Loading scorecard...
           </div>
         ) : scorecardQuery.isError || !scorecard ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          <div className="rounded-none border border-rose-200 bg-rose-50 p-6 text-rose-700">
             Failed to load the growth scorecard.
           </div>
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-4">
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">Home landing views</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-950">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-5">
+                <p className="text-sm text-runway-faint">Home landing views</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-black">
                   {scorecard.funnel.homeRobotTeamViews}
                 </p>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">Home CTA clicks</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-950">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-5">
+                <p className="text-sm text-runway-faint">Home CTA clicks</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-black">
                   {scorecard.funnel.homeRobotTeamCtaClicks}
                 </p>
-                <p className="mt-2 text-xs text-zinc-500">
+                <p className="mt-2 text-xs text-runway-faint">
                   {conversionRate(
                     scorecard.funnel.homeRobotTeamCtaClicks,
                     scorecard.funnel.homeRobotTeamViews,
                   )} view → click
                 </p>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">Current queue</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-950">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-5">
+                <p className="text-sm text-runway-faint">Current queue</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-black">
                   {scorecard.queue.currentHostedReviewItems}
                 </p>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">High priority queue</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-950">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-5">
+                <p className="text-sm text-runway-faint">High priority queue</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-black">
                   {scorecard.queue.highPriorityHostedReview}
                 </p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                 Immediate blockers
               </p>
               <div className="mt-4 space-y-3 text-sm">
@@ -289,28 +289,28 @@ export default function AdminGrowthOpsScorecard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Homepage robot-team experiment
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-zinc-950">
+                  <h2 className="mt-2 text-xl font-semibold text-runway-black">
                     {homeRobotTeamLanding.experimentKey}
                   </h2>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-runway-faint">
                     Goal: {humanizeKey(homeRobotTeamLanding.conversionGoal)}
                   </p>
                 </div>
-                <div className="text-sm text-zinc-600">
+                <div className="text-sm text-runway-mute">
                   {conversionRate(
                     scorecard.funnel.homeRobotTeamContactCompleted,
                     scorecard.funnel.homeRobotTeamViews,
                   )} view → completed intake
                 </div>
               </div>
-              <div className="mt-5 overflow-hidden rounded-xl border border-zinc-200">
-                <div className="grid grid-cols-6 bg-zinc-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              <div className="mt-5 overflow-hidden rounded-xl border border-runway-line">
+                <div className="grid grid-cols-6 bg-runway-line-soft px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-runway-faint">
                   <span>Variant</span>
                   <span>Views</span>
                   <span>Clicks</span>
@@ -319,18 +319,18 @@ export default function AdminGrowthOpsScorecard() {
                   <span>Completed</span>
                 </div>
                 {homeRobotTeamLanding.variants.length === 0 ? (
-                  <p className="px-4 py-5 text-sm text-zinc-500">No homepage experiment data yet.</p>
+                  <p className="px-4 py-5 text-sm text-runway-faint">No homepage experiment data yet.</p>
                 ) : (
                   homeRobotTeamLanding.variants.map((variant) => (
                     <div
                       key={variant.variant}
-                      className="grid grid-cols-6 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700"
+                      className="grid grid-cols-6 border-t border-runway-line px-4 py-3 text-sm text-runway-line-strong"
                     >
-                      <strong className="text-zinc-950">{humanizeKey(variant.variant)}</strong>
+                      <strong className="text-runway-black">{humanizeKey(variant.variant)}</strong>
                       <span>{variant.views}</span>
                       <span>
                         {variant.ctaClicks}{" "}
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-xs text-runway-faint">
                           ({conversionRate(variant.ctaClicks, variant.views)})
                         </span>
                       </span>
@@ -344,14 +344,14 @@ export default function AdminGrowthOpsScorecard() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   30-day wedge trend
                 </p>
                 <div className="mt-4 h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={scorecard.eventsByDay}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1a1f1c" />
                       <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip />
@@ -374,11 +374,11 @@ export default function AdminGrowthOpsScorecard() {
               </div>
 
               <div className="space-y-6">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Funnel
                   </p>
-                  <div className="mt-4 space-y-3 text-sm text-zinc-700">
+                  <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
                     <div className="flex items-center justify-between">
                       <span>Views</span>
                       <strong>{scorecard.funnel.exactSiteViews}</strong>
@@ -406,11 +406,11 @@ export default function AdminGrowthOpsScorecard() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Queue quality
                   </p>
-                  <div className="mt-4 space-y-3 text-sm text-zinc-700">
+                  <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
                     <div className="flex items-center justify-between">
                       <span>New last 7d</span>
                       <strong>{scorecard.queue.newHostedReviewLast7d}</strong>
@@ -434,31 +434,31 @@ export default function AdminGrowthOpsScorecard() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Provider health
                 </p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
-                    <p className="font-medium text-zinc-950">Analytics</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                    <p className="font-medium text-runway-black">Analytics</p>
                     <p className="mt-2">First-party ingest: {String(Boolean(scorecard.operatorStatus.providers.analytics?.firstPartyIngest?.enabled))}</p>
                     <p>GA4 live access: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.liveAccessConfigured))}</p>
                     <p>GA4 measurement: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.configured))}</p>
                     <p>PostHog: {String(Boolean(scorecard.operatorStatus.providers.analytics?.posthog?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
-                    <p className="font-medium text-zinc-950">Email and outbound</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                    <p className="font-medium text-runway-black">Email and outbound</p>
                     <p>SendGrid: {String(Boolean(scorecard.operatorStatus.providers.sendgrid?.configured))}</p>
                     <p>SendGrid webhook: {String(Boolean(scorecard.operatorStatus.providers.sendgridWebhook?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
-                    <p className="font-medium text-zinc-950">Creative</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                    <p className="font-medium text-runway-black">Creative</p>
                     <p>Google image: {String(Boolean(scorecard.operatorStatus.providers.googleImage?.configured))}</p>
                     <p>Google image state: {scorecard.operatorStatus.providers.googleImage?.executionState || "unknown"}</p>
                     <p>OpenRouter video: {String(Boolean(scorecard.operatorStatus.providers.runway?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
-                    <p className="font-medium text-zinc-950">Voice and agent runtime</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                    <p className="font-medium text-runway-black">Voice and agent runtime</p>
                     <p>ElevenLabs: {String(Boolean(scorecard.operatorStatus.providers.elevenlabs?.configured))}</p>
                     <p>Telephony: {String(Boolean(scorecard.operatorStatus.providers.telephony?.configured))}</p>
                     <p>Agent runtime: {scorecard.operatorStatus.agentRuntime?.provider || "unconfigured"}</p>
@@ -469,15 +469,15 @@ export default function AdminGrowthOpsScorecard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Automation workers
                 </p>
                 <div className="mt-4 space-y-3">
                   {scorecard.operatorStatus.workers.map((worker) => (
-                    <div key={worker.workerKey} className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
+                    <div key={worker.workerKey} className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
                       <div className="flex items-center justify-between gap-3">
-                        <strong className="text-zinc-950">{humanizeKey(worker.workerKey)}</strong>
+                        <strong className="text-runway-black">{humanizeKey(worker.workerKey)}</strong>
                         <span className={statusTone(worker.status, worker.enabled)}>
                           {worker.enabled ? worker.status : "disabled"}
                         </span>
@@ -498,25 +498,25 @@ export default function AdminGrowthOpsScorecard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Recent creative runs
                 </p>
                 <div className="mt-4 space-y-3">
                   {(scorecard.operatorStatus.recentCreativeRuns || []).length === 0 ? (
-                    <p className="text-sm text-zinc-500">No durable creative runs yet.</p>
+                    <p className="text-sm text-runway-faint">No durable creative runs yet.</p>
                   ) : (
                     (scorecard.operatorStatus.recentCreativeRuns || []).map((run) => (
-                      <div key={run.id} className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
+                      <div key={run.id} className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
                         <div className="flex items-center justify-between gap-3">
-                          <strong className="text-zinc-950">{run.skuName}</strong>
-                          <span className="text-zinc-500">{run.status}</span>
+                          <strong className="text-runway-black">{run.skuName}</strong>
+                          <span className="text-runway-faint">{run.status}</span>
                         </div>
-                        <p className="mt-2 text-xs text-zinc-500">{formatDateTime(run.createdAt)}</p>
+                        <p className="mt-2 text-xs text-runway-faint">{formatDateTime(run.createdAt)}</p>
                         {run.storageUri ? (
-                          <p className="mt-2 break-all font-mono text-[11px] text-zinc-600">{run.storageUri}</p>
+                          <p className="mt-2 break-all font-mono text-[11px] text-runway-mute">{run.storageUri}</p>
                         ) : (
-                          <p className="mt-2 text-xs text-zinc-500">No durable reel URI recorded.</p>
+                          <p className="mt-2 text-xs text-runway-faint">No durable reel URI recorded.</p>
                         )}
                       </div>
                     ))
@@ -524,23 +524,23 @@ export default function AdminGrowthOpsScorecard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Campaigns
                 </p>
                 <div className="mt-4 space-y-3">
                   {scorecard.campaigns.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No campaign data yet.</p>
+                    <p className="text-sm text-runway-faint">No campaign data yet.</p>
                   ) : (
                     scorecard.campaigns.map((campaign) => (
-                      <div key={campaign.campaignName} className="rounded-xl border border-zinc-200 p-4 text-sm">
+                      <div key={campaign.campaignName} className="rounded-xl border border-runway-line p-4 text-sm">
                         <div className="flex items-center justify-between">
-                          <strong className="text-zinc-950">{campaign.campaignName}</strong>
-                          <span className="text-zinc-500">
+                          <strong className="text-runway-black">{campaign.campaignName}</strong>
+                          <span className="text-runway-faint">
                             {conversionRate(campaign.contactSubmissions, campaign.views)} submit rate
                           </span>
                         </div>
-                        <div className="mt-2 grid gap-2 text-zinc-600 md:grid-cols-2">
+                        <div className="mt-2 grid gap-2 text-runway-mute md:grid-cols-2">
                           <p>Views: {campaign.views}</p>
                           <p>Starts: {campaign.contactStarts}</p>
                           <p>Submissions: {campaign.contactSubmissions}</p>
@@ -552,25 +552,25 @@ export default function AdminGrowthOpsScorecard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Experiments
                 </p>
                 <div className="mt-4 space-y-3">
                   {scorecard.experiments.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No experiment exposure data yet.</p>
+                    <p className="text-sm text-runway-faint">No experiment exposure data yet.</p>
                   ) : (
                     scorecard.experiments.map((experiment) => (
-                      <div key={experiment.experimentKey} className="rounded-xl border border-zinc-200 p-4 text-sm">
+                      <div key={experiment.experimentKey} className="rounded-xl border border-runway-line p-4 text-sm">
                         <div className="flex items-center justify-between">
-                          <strong className="text-zinc-950">{experiment.experimentKey}</strong>
-                          <span className="text-zinc-500">{experiment.exposures} exposures</span>
+                          <strong className="text-runway-black">{experiment.experimentKey}</strong>
+                          <span className="text-runway-faint">{experiment.exposures} exposures</span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {Object.entries(experiment.variants).map(([variant, count]) => (
                             <span
                               key={variant}
-                              className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700"
+                              className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong"
                             >
                               {variant}: {count}
                             </span>

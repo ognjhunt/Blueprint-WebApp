@@ -593,13 +593,13 @@ export default function AdminTaskEvaluationLaunches() {
   const elapsed = formatElapsedSeconds(progress?.elapsed_seconds);
 
   return (
-    <main className="min-h-screen bg-[#f4f0e7] px-4 py-8 text-stone-950">
+    <main className="min-h-screen bg-[#101312] px-4 py-8 text-stone-950">
       <div className="mx-auto max-w-6xl space-y-8">
         <header className="border-b border-stone-300 pb-7">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">
             Production control room
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">
+          <h1 className="mt-3 font-display uppercase text-4xl font-semibold tracking-[0.005em] md:text-6xl">
             Task Evaluation launch
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-stone-600">
@@ -630,7 +630,7 @@ export default function AdminTaskEvaluationLaunches() {
           ))}
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.05fr_0.95fr] md:p-8">
+        <section className="grid gap-6 border border-stone-300 bg-paper-0 p-6 md:grid-cols-[1.05fr_0.95fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
@@ -747,7 +747,7 @@ export default function AdminTaskEvaluationLaunches() {
                   Candidate objects
                 </p>
                 {(discoveryStatus?.pipeline?.candidates || []).map((candidate: Record<string, any>) => (
-                  <article key={candidate.candidate_id} className="border border-stone-300 bg-white p-4">
+                  <article key={candidate.candidate_id} className="border border-stone-300 bg-paper-0 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold">{candidate.label}</p>
@@ -797,7 +797,7 @@ export default function AdminTaskEvaluationLaunches() {
           </aside>
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+        <section className="grid gap-6 border border-stone-300 bg-paper-0 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
@@ -954,7 +954,7 @@ export default function AdminTaskEvaluationLaunches() {
           </aside>
         </section>
 
-        <section className="grid gap-6 border border-stone-300 bg-white p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+        <section className="grid gap-6 border border-stone-300 bg-paper-0 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
@@ -1056,13 +1056,13 @@ export default function AdminTaskEvaluationLaunches() {
         </section>
 
         <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-5 border border-stone-300 bg-white p-6 md:p-8">
+          <div className="space-y-5 border border-stone-300 bg-paper-0 p-6 md:p-8">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
               <h2 className="text-xl font-semibold">Authority envelope</h2>
             </div>
             <label className="block text-sm font-medium">Pipeline-owned profile
-              <select className="mt-2 w-full border border-stone-300 bg-white p-3" value={profileKey}
+              <select className="mt-2 w-full border border-stone-300 bg-paper-0 p-3" value={profileKey}
                 onChange={(event) => setProfileKey(event.target.value)}>
                 <option value="">Select an immutable profile</option>
                 {profiles.map((profile) => (

@@ -42,12 +42,12 @@ export default function SettingsPage() {
         <SurfaceTopBar eyebrow="Private Workspace" rightLabel="Invite Only" />
         <SurfaceSection className="py-8">
         <SurfaceBrowserFrame>
-          <div className="border-b border-black/10 px-7 py-6 lg:px-8">
+          <div className="border-b border-white/10 px-7 py-6 lg:px-8">
             <SurfaceMiniLabel>Settings</SurfaceMiniLabel>
-            <h1 className="mt-4 text-[3.6rem] font-semibold tracking-[-0.08em] leading-[0.92]">
+            <h1 className="mt-4 font-display uppercase text-[3.6rem] font-semibold tracking-[0.005em] leading-[0.92]">
               Account overview
             </h1>
-            <p className="mt-3 max-w-[38rem] text-base leading-8 text-black/60">
+            <p className="mt-3 max-w-[38rem] text-base leading-8 text-white/60">
               Identity details from your authenticated account, with links to the
               record-backed buyer workspace.
             </p>
@@ -55,7 +55,7 @@ export default function SettingsPage() {
 
           {!currentUser ? (
             <div className="grid gap-0 xl:grid-cols-[0.34fr_0.66fr]">
-              <div className="border-b border-black/10 bg-[#f7f3ea] p-8 xl:border-b-0 xl:border-r lg:p-10">
+              <div className="border-b border-white/10 bg-[#101312] p-8 xl:border-b-0 xl:border-r lg:p-10">
                 <img
                   src={privateGeneratedAssets.privateFacilityAerial}
                   alt="Blueprint facility"
@@ -65,12 +65,12 @@ export default function SettingsPage() {
               <div className="p-8 lg:p-10">
                 <SurfaceCard className="max-w-[48rem]">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-[#faf6ee]">
-                      <ShieldCheck className="h-5 w-5 text-black/60" />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#101312]">
+                      <ShieldCheck className="h-5 w-5 text-white/60" />
                     </div>
                     <div>
-                      <p className="text-[2rem] font-semibold tracking-[-0.06em]">Sign in to view settings</p>
-                      <p className="mt-3 text-sm leading-7 text-black/60">
+                      <p className="font-display uppercase text-[2rem] font-semibold tracking-[0.005em]">Sign in to view settings</p>
+                      <p className="mt-3 text-sm leading-7 text-white/60">
                         Log in to access your account profile, billing, and purchases.
                       </p>
                       <SurfaceButton href="/sign-in" className="mt-6">
@@ -83,8 +83,8 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="grid gap-0 xl:grid-cols-[0.24fr_0.76fr]">
-              <div className="border-b border-black/10 bg-[#f7f3ea] p-6 xl:border-b-0 xl:border-r">
-                <div className="overflow-hidden rounded-[1.5rem] border border-black/10 bg-white">
+              <div className="border-b border-white/10 bg-[#101312] p-6 xl:border-b-0 xl:border-r">
+                <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-paper-0">
                   <img
                     src={privateGeneratedAssets.privateFacilityAerial}
                     alt="Blueprint private facility"
@@ -95,7 +95,7 @@ export default function SettingsPage() {
                   <SurfaceMiniLabel>Account</SurfaceMiniLabel>
                   <div className="mt-4 space-y-2">
                     {accountNav.map((item, index) => (
-                      <Link key={item.href} href={item.href} className={`block rounded-[1rem] px-3 py-2.5 text-sm ${index === 0 ? "bg-white font-semibold text-black" : "text-black/70 hover:bg-white/70"}`}>
+                      <Link key={item.href} href={item.href} className={`block rounded-[1rem] px-3 py-2.5 text-sm ${index === 0 ? "bg-paper-0 font-semibold text-runway-text" : "text-white/70 hover:bg-white/70"}`}>
                         {item.label}
                       </Link>
                     ))}
@@ -108,19 +108,19 @@ export default function SettingsPage() {
                   <SurfaceCard>
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-black/10 bg-[#faf6ee]">
+                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#101312]">
                           {currentUser.photoURL ? (
                             <img src={currentUser.photoURL} alt={currentUser.displayName || "User"} className="h-full w-full object-cover" />
                           ) : (
-                            <User className="h-6 w-6 text-black/45" />
+                            <User className="h-6 w-6 text-white/45" />
                           )}
                         </div>
                         <div>
                           <SurfaceMiniLabel>Profile</SurfaceMiniLabel>
-                          <p className="mt-2 text-[1.8rem] font-semibold tracking-[-0.05em]">
+                          <p className="mt-2 font-display uppercase text-[1.8rem] font-semibold tracking-[0.005em]">
                             {currentUser.displayName || userData?.displayName || userData?.name || "Your account"}
                           </p>
-                          <p className="mt-1 text-sm text-black/60">{currentUser.email || userData?.email}</p>
+                          <p className="mt-1 text-sm text-white/60">{currentUser.email || userData?.email}</p>
                         </div>
                       </div>
                     </div>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
 
                   <SurfaceCard>
                     <div className="flex items-center gap-3">
-                      <Mail className="h-4.5 w-4.5 text-black/55" />
+                      <Mail className="h-4.5 w-4.5 text-white/55" />
                       <SurfaceMiniLabel>Sign-In & Security</SurfaceMiniLabel>
                     </div>
                     <SurfaceStatusList
@@ -144,7 +144,7 @@ export default function SettingsPage() {
                 <div className="mt-5">
                   <SurfaceCard>
                     <SurfaceMiniLabel>Buyer records</SurfaceMiniLabel>
-                    <p className="mt-4 max-w-[42rem] text-sm leading-7 text-black/60">
+                    <p className="mt-4 max-w-[42rem] text-sm leading-7 text-white/60">
                       Evaluation runs, entitlements, and package access are loaded from
                       the authenticated buyer APIs in the Blueprint app.
                     </p>

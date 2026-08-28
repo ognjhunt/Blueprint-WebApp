@@ -16,35 +16,35 @@ import type { ReactNode } from "react";
 type Swatch = { name: string; cls: string; hex: string; dark?: boolean };
 
 const INK_RAMP: Swatch[] = [
-  { name: "ink-900", cls: "bg-ink-900", hex: "#0d0d0b", dark: true },
-  { name: "ink-800", cls: "bg-ink-800", hex: "#1a1a17", dark: true },
-  { name: "ink-700", cls: "bg-ink-700", hex: "#2b2b27", dark: true },
-  { name: "ink-600", cls: "bg-ink-600", hex: "#45443d", dark: true },
-  { name: "ink-500", cls: "bg-ink-500", hex: "#5f5d54", dark: true },
-  { name: "ink-400", cls: "bg-ink-400", hex: "#817e72", dark: true },
-  { name: "ink-300", cls: "bg-ink-300", hex: "#a8a496" },
-  { name: "ink-200", cls: "bg-ink-200", hex: "#cdc9bb" },
-  { name: "ink-100", cls: "bg-ink-100", hex: "#e4dfd2" },
-  { name: "ink-50", cls: "bg-ink-50", hex: "#f0ece1" },
+  { name: "ink-900", cls: "bg-runway-deep", hex: "#0d0d0b", dark: true },
+  { name: "ink-800", cls: "bg-runway-panel", hex: "#1a1a17", dark: true },
+  { name: "ink-700", cls: "bg-runway-raised", hex: "#2b2b27", dark: true },
+  { name: "ink-600", cls: "bg-runway-line-strong", hex: "#45443d", dark: true },
+  { name: "ink-500", cls: "bg-runway-line-strong", hex: "#5f5d54", dark: true },
+  { name: "ink-400", cls: "bg-runway-line-strong", hex: "#817e72", dark: true },
+  { name: "ink-300", cls: "bg-runway-line", hex: "#a8a496" },
+  { name: "ink-200", cls: "bg-runway-line", hex: "#cdc9bb" },
+  { name: "ink-100", cls: "bg-runway-line-soft", hex: "#1a1f1c" },
+  { name: "ink-50", cls: "bg-runway-line-soft", hex: "#141816" },
 ];
 
 const PAPER_RAMP: Swatch[] = [
-  { name: "paper-0", cls: "bg-paper-0", hex: "#ffffff" },
-  { name: "paper-1", cls: "bg-paper-1", hex: "#faf7f0" },
-  { name: "paper-2", cls: "bg-paper-2", hex: "#f5f1e8" },
-  { name: "paper-3", cls: "bg-paper-3", hex: "#ebe4d7" },
-  { name: "paper-4", cls: "bg-paper-4", hex: "#ded5c4" },
+  { name: "paper-0", cls: "bg-paper-0", hex: "#101312" },
+  { name: "paper-1", cls: "bg-paper-1", hex: "#101312" },
+  { name: "paper-2", cls: "bg-paper-2", hex: "#101312" },
+  { name: "paper-3", cls: "bg-paper-3", hex: "#1a1f1c" },
+  { name: "paper-4", cls: "bg-paper-4", hex: "#2a302d" },
 ];
 
 const BRASS_TRIO: Swatch[] = [
   { name: "brass.lit", cls: "bg-brass-lit", hex: "#d8bd8d" },
-  { name: "brass", cls: "bg-brass", hex: "#c7a775" },
+  { name: "brass", cls: "bg-runway-signal", hex: "#c7a775" },
   { name: "brass.deep", cls: "bg-brass-deep", hex: "#a8854f", dark: true },
 ];
 
 const NEUTRAL_SURFACES: Swatch[] = [
-  { name: "bone", cls: "bg-bone", hex: "#ebe4d7" },
-  { name: "graphite", cls: "bg-graphite", hex: "#1a1a17", dark: true },
+  { name: "bone", cls: "bg-bone", hex: "#1a1f1c" },
+  { name: "graphite", cls: "bg-runway-panel", hex: "#1a1a17", dark: true },
 ];
 
 type SignalFamily = {
@@ -66,8 +66,8 @@ const SIGNALS: SignalFamily[] = [
     label: "Proof",
     meaning: "validated / success",
     fg: "#1f6b4f",
-    bg: "#eef5f1",
-    bd: "#dcebe3",
+    bg: "#101312",
+    bd: "#141816",
     fgCls: "bg-proof-fg",
     bgCls: "bg-proof-bg",
     bdCls: "bg-proof-bd",
@@ -79,8 +79,8 @@ const SIGNALS: SignalFamily[] = [
     label: "Caution",
     meaning: "pending / missing-evidence",
     fg: "#9a6a16",
-    bg: "#faf3e2",
-    bd: "#f3e7cb",
+    bg: "#101312",
+    bd: "#141816",
     fgCls: "bg-warn-fg",
     bgCls: "bg-warn-bg",
     bdCls: "bg-warn-bd",
@@ -92,8 +92,8 @@ const SIGNALS: SignalFamily[] = [
     label: "Blocker",
     meaning: "failure / destructive",
     fg: "#9b3027",
-    bg: "#faeae7",
-    bd: "#f1d9d5",
+    bg: "#141816",
+    bd: "#1a1f1c",
     fgCls: "bg-block-fg",
     bgCls: "bg-block-bg",
     bdCls: "bg-block-bd",
@@ -105,8 +105,8 @@ const SIGNALS: SignalFamily[] = [
     label: "Info / Action",
     meaning: "action / ranking",
     fg: "#1f4f8f",
-    bg: "#eaf1f9",
-    bd: "#d7e4f2",
+    bg: "#101312",
+    bd: "#1a1f1c",
     fgCls: "bg-info-fg",
     bgCls: "bg-info-bg",
     bdCls: "bg-info-bd",
@@ -171,10 +171,10 @@ export default function DesignSystem() {
   return (
     <div className="min-h-screen bg-paper-1 font-sans text-ink-800">
       {/* Header — square ink chrome */}
-      <header className="border-b border-line bg-ink-900 text-paper-1">
+      <header className="border-b border-line bg-runway-deep text-paper-1">
         <div className="mx-auto max-w-container px-6 py-10">
           <Eyebrow>
-            <span className="text-brass">Blueprint</span>
+            <span className="text-runway-signal">Blueprint</span>
             <span className="text-ink-300"> / design tokens</span>
           </Eyebrow>
           <h1 className="mt-3 max-w-prose text-display-m font-semibold tracking-display">
@@ -329,7 +329,7 @@ export default function DesignSystem() {
                 <div
                   className={`flex h-24 w-full items-end rounded-md border p-3 ${s.cls} ${
                     s.dark
-                      ? "border-ink-700 bg-ink-900 text-paper-1"
+                      ? "border-ink-700 bg-runway-deep text-paper-1"
                       : "border-line bg-paper-0 text-ink-900"
                   }`}
                 >
@@ -342,7 +342,7 @@ export default function DesignSystem() {
         </section>
       </main>
 
-      <footer className="border-t border-line bg-ink-900 px-6 py-8 text-center text-paper-1">
+      <footer className="border-t border-line bg-runway-deep px-6 py-8 text-center text-paper-1">
         <Mono>blueprint · design tokens · proof sheet</Mono>
       </footer>
     </div>

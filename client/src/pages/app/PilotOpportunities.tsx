@@ -13,7 +13,7 @@ import { usePilotOpportunities, type PilotOpportunityRecord } from "@/lib/pilotO
 function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord }) {
   const approvedFull = opportunity.access_level === "shortlisted_confidential";
   return (
-    <article className="overflow-hidden rounded-md border border-line bg-white">
+    <article className="overflow-hidden rounded-md border border-line bg-paper-0">
       <header className="flex flex-col gap-4 border-b border-line-soft p-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-400">
@@ -32,7 +32,7 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
       </header>
 
       <div className="grid gap-px bg-line md:grid-cols-2">
-        <div className="bg-white">
+        <div className="bg-paper-0">
           <DataField label="Access" value={approvedFull ? "Shortlisted confidential dossier" : "Operator-approved anonymized summary"} mono={false} />
           <DataField label="Site type" value={opportunity.site_type || "Not disclosed"} mono={false} />
           <DataField label="Standardized benchmark" value={opportunity.benchmark_profile} mono={false} />
@@ -45,7 +45,7 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
               <DataField label="Identity" value="Withheld by operator permission" mono={false} border={false} />
           )}
         </div>
-        <div className="bg-white">
+        <div className="bg-paper-0">
           {approvedFull ? (
             <>
               <DataField label="Operations" value={opportunity.operational_profile || "Not recorded"} mono={false} />
@@ -69,7 +69,7 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
             ["Retain improvements", opportunity.data_use_permissions.retainImprovements.replace(/_/g, " ")],
             ["General model training", opportunity.data_use_permissions.generalModelTraining.replace(/_/g, " ")],
           ].map(([label, value]) => (
-            <div key={label} className="bg-white p-4">
+            <div key={label} className="bg-paper-0 p-4">
               <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{label}</p>
               <p className="mt-2 text-body-s font-semibold capitalize text-ink-800">{value}</p>
             </div>
@@ -139,7 +139,7 @@ export default function PilotOpportunities() {
             ["04", "Shortlisted package"],
             ["05", "Separate training rights"],
           ].map(([index, label]) => (
-            <div key={index} className="bg-white p-4">
+            <div key={index} className="bg-paper-0 p-4">
               <p className="font-mono text-micro text-ink-400">{index}</p>
               <p className="mt-2 text-caption font-semibold text-ink-800">{label}</p>
             </div>

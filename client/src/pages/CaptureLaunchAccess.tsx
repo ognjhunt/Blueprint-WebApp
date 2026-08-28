@@ -127,21 +127,21 @@ export default function CaptureLaunchAccess() {
         ]}
       />
 
-      <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10 bg-white">
+      <div className="bg-[#101312] text-runway-black">
+        <section className="border-b border-white/10 bg-paper-0">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.58fr_0.42fr]">
-            <div className="bg-[#f5f3ef] px-8 py-10 lg:px-12 lg:py-14">
+            <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture rollout request</EditorialSectionLabel>
-              <h1 className="font-editorial mt-6 max-w-[12ch] text-[4.2rem] leading-[0.88] tracking-[-0.08em] text-slate-950 sm:text-[5.6rem]">
+              <h1 className="font-editorial mt-6 max-w-[12ch] font-display uppercase text-[4.2rem] leading-[0.88] tracking-[0.005em] text-runway-black sm:text-[5.6rem]">
                 Signal demand for paid capture in your city.
               </h1>
-              <p className="mt-6 max-w-[31rem] text-base leading-8 text-slate-700">
+              <p className="mt-6 max-w-[31rem] text-base leading-8 text-runway-line-strong">
                 Leave a local capturer or operator signal if Blueprint is not live where you are
                 yet. We use this list to prioritize rollout, identify people who can complete
                 public-area-only capture candidates, and find site operators who can help a market
                 open without implying assignments are already available.
               </p>
-              <p className="mt-4 max-w-[31rem] text-sm leading-7 text-slate-600">
+              <p className="mt-4 max-w-[31rem] text-sm leading-7 text-runway-mute">
                 Approved assignments stay gated. Payout is conditional on the assignment shown
                 before capture, one complete walkthrough, and review after upload.
               </p>
@@ -150,18 +150,18 @@ export default function CaptureLaunchAccess() {
                 <ProofChip>{selectedRoleLabel}</ProofChip>
                 {city ? <ProofChip>{city}</ProofChip> : null}
               </div>
-              <div className="mt-8 grid max-w-[34rem] gap-4 border-t border-black/10 pt-5 sm:grid-cols-3">
+              <div className="mt-8 grid max-w-[34rem] gap-4 border-t border-white/10 pt-5 sm:grid-cols-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Purpose</p>
-                  <p className="mt-2 text-sm text-slate-900">Paid capture demand</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Purpose</p>
+                  <p className="mt-2 text-sm text-runway-deep">Paid capture demand</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Who it finds</p>
-                  <p className="mt-2 text-sm text-slate-900">Capturers, operators, city leads</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Who it finds</p>
+                  <p className="mt-2 text-sm text-runway-deep">Capturers, operators, city leads</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">What happens next</p>
-                  <p className="mt-2 text-sm text-slate-900">Launch review + follow-up</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">What happens next</p>
+                  <p className="mt-2 text-sm text-runway-deep">Launch review + follow-up</p>
                 </div>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function CaptureLaunchAccess() {
               overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.34))]"
             >
               <div className="absolute inset-x-0 bottom-0 p-6 lg:p-8">
-                <div className="max-w-[22rem] rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white backdrop-blur-sm">
+                <div className="max-w-[22rem] rounded-[1.6rem] border border-white/10 bg-white/55 p-5 text-white backdrop-blur-sm">
                   <EditorialSectionLabel light>Why this matters</EditorialSectionLabel>
                   <p className="mt-4 text-sm leading-7 text-white/75">
                     This is how we spot
@@ -193,34 +193,34 @@ export default function CaptureLaunchAccess() {
               {signalReasons.map((reason) => {
                 const Icon = reason.icon;
                 return (
-                  <article key={reason.title} className="border border-black/10 bg-white p-6">
+                  <article key={reason.title} className="border border-white/10 bg-paper-0 p-6">
                     <div className="flex items-start gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/10 bg-[#f5f3ef] text-slate-900">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#101312] text-runway-deep">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.05em] text-slate-950">
+                        <h2 className="font-editorial font-display uppercase text-[2rem] leading-[0.95] tracking-[0.005em] text-runway-black">
                           {reason.title}
                         </h2>
-                        <p className="mt-4 text-sm leading-7 text-slate-700">{reason.body}</p>
+                        <p className="mt-4 text-sm leading-7 text-runway-line-strong">{reason.body}</p>
                       </div>
                     </div>
                   </article>
                 );
               })}
 
-              <div className="border border-black/10 bg-white p-6">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+              <div className="border border-white/10 bg-paper-0 p-6">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-runway-faint">
                   <MapPinned className="h-4 w-4" />
                   Current launch cities
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {launchStatusLoading ? (
-                    <p className="text-sm leading-7 text-slate-600">
+                    <p className="text-sm leading-7 text-runway-mute">
                       Reviewing public capture-market status before showing open cities.
                     </p>
                   ) : launchStatusError ? (
-                    <p className="text-sm leading-7 text-slate-600">
+                    <p className="text-sm leading-7 text-runway-mute">
                       Launch status unavailable. This page will not assume a city is open from
                       saved fallback copy.
                     </p>
@@ -228,13 +228,13 @@ export default function CaptureLaunchAccess() {
                     supportedCities.map((launchCity) => (
                       <span
                         key={launchCity.citySlug}
-                        className="inline-flex rounded-full border border-black/10 bg-[#f5f3ef] px-3 py-2 text-sm text-slate-800"
+                        className="inline-flex rounded-full border border-white/10 bg-[#101312] px-3 py-2 text-sm text-runway-panel"
                       >
                         {launchCity.displayName}
                       </span>
                     ))
                   ) : (
-                    <p className="text-sm leading-7 text-slate-600">
+                    <p className="text-sm leading-7 text-runway-mute">
                       No open public capture market is listed here right now. Leave your city and
                       Blueprint will route it through launch review.
                     </p>
@@ -243,19 +243,19 @@ export default function CaptureLaunchAccess() {
               </div>
             </div>
 
-            <div className="border border-black/10 bg-white p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)] lg:p-7">
+            <div className="border border-white/10 bg-paper-0 p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)] lg:p-7">
               <EditorialSectionLabel>Leave a city signal</EditorialSectionLabel>
-              <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.92] tracking-[-0.06em] text-slate-950">
+              <h2 className="font-editorial mt-4 font-display uppercase text-[2.6rem] leading-[0.92] tracking-[0.005em] text-runway-black">
                 Tell us where you are and what you can capture.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-700">
+              <p className="mt-4 text-sm leading-7 text-runway-line-strong">
                 We will use this to keep you updated, notify you when launch planning reaches your
                 city, and potentially pull you in early as a local capturer or operator reviewer.
               </p>
 
               <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Email
                   </span>
                   <input
@@ -264,12 +264,12 @@ export default function CaptureLaunchAccess() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@company.com"
-                    className="w-full border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     City
                   </span>
                   <input
@@ -277,18 +277,18 @@ export default function CaptureLaunchAccess() {
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
                     placeholder="Durham, NC"
-                    className="w-full border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     How can you help?
                   </span>
                   <select
                     value={role}
                     onChange={(event) => setRole(event.target.value as LaunchAccessRole)}
-                    className="w-full border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
                   >
                     {roleOptions.map((option) => (
                       <option key={option} value={option}>
@@ -299,19 +299,19 @@ export default function CaptureLaunchAccess() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Organization or site
                   </span>
                   <input
                     value={company}
                     onChange={(event) => setCompany(event.target.value)}
                     placeholder="Triangle Robotics or Durham Warehouse District"
-                    className="w-full border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Phone (optional)
                   </span>
                   <input
@@ -319,12 +319,12 @@ export default function CaptureLaunchAccess() {
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
                     placeholder="Best number if we need local follow-up"
-                    className="w-full border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Notes
                   </span>
                   <textarea
@@ -332,14 +332,14 @@ export default function CaptureLaunchAccess() {
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
                     placeholder="Tell us what public-facing routes, public-area-only capture candidates, or operator access you could help with in your city."
-                    className="w-full resize-none border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm leading-7 text-slate-950 outline-none transition focus:border-slate-400"
+                    className="w-full resize-none border border-white/10 bg-[#101312] px-4 py-3 text-sm leading-7 text-runway-black outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-runway-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-runway-panel disabled:opacity-60"
                 >
                   {status === "loading" ? "Saving your city signal..." : "Request launch access"}
                   <ArrowRight className="h-4 w-4" />
@@ -352,14 +352,14 @@ export default function CaptureLaunchAccess() {
                 ) : null}
               </form>
 
-              <div className="mt-6 border-t border-black/10 pt-4 text-sm leading-7 text-slate-600">
+              <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-runway-mute">
                 We only use this for Blueprint launch updates and local rollout follow-up. If your
                 city enters launch planning, this is the list we come back to before opening
                 approved assignments.
               </div>
               <a
                 href="mailto:hello@tryblueprint.io?subject=Blueprint%20future%20city%20launch"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700 hover:underline"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-deep transition hover:text-runway-line-strong hover:underline"
               >
                 <Mail className="h-4 w-4" />
                 Prefer email? Write to hello@tryblueprint.io
@@ -368,7 +368,7 @@ export default function CaptureLaunchAccess() {
           </div>
         </section>
 
-        <section className="border-t border-black/10 bg-white">
+        <section className="border-t border-white/10 bg-paper-0">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.44fr_0.56fr]">
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.everydayPlacesCollage}
@@ -377,12 +377,12 @@ export default function CaptureLaunchAccess() {
               imageClassName="min-h-[26rem]"
               overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]"
             />
-            <div className="bg-[#f5f3ef] px-8 py-10 lg:px-12 lg:py-12">
+            <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-12">
               <EditorialSectionLabel>What this queue does</EditorialSectionLabel>
-              <h2 className="font-editorial mt-5 max-w-[12ch] text-[3.2rem] leading-[0.92] tracking-[-0.06em] text-slate-950">
+              <h2 className="font-editorial mt-5 max-w-[12ch] font-display uppercase text-[3.2rem] leading-[0.92] tracking-[0.005em] text-runway-black">
                 Buyer demand, local capturers, and site access in one place.
               </h2>
-              <p className="mt-5 max-w-[34rem] text-base leading-8 text-slate-700">
+              <p className="mt-5 max-w-[34rem] text-base leading-8 text-runway-line-strong">
                 We use this future-city intake to see where buyer demand is building, where we have
                 people who can actually capture, and where local site operators can help us move
                 from research into a real launch plan with public-area-only, privacy-safe capture rules.

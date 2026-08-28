@@ -69,21 +69,21 @@ export function CookieConsent() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-      <div className="mx-auto max-w-2xl border border-black/10 bg-[#f5f1e8] p-6 shadow-xl">
+      <div className="mx-auto max-w-2xl border border-white/10 bg-[#101312] p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border border-black/10 bg-white">
-              <Cookie className="h-5 w-5 text-slate-900" />
+            <div className="flex h-10 w-10 items-center justify-center border border-white/10 bg-paper-0">
+              <Cookie className="h-5 w-5 text-runway-deep" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-zinc-900">Cookie Preferences</h3>
-              <p className="text-sm text-zinc-500">Manage your privacy settings</p>
+              <h3 className="text-lg font-semibold text-runway-deep">Cookie Preferences</h3>
+              <p className="text-sm text-runway-faint">Manage your privacy settings</p>
             </div>
           </div>
           <button
             onClick={handleRejectAll}
-            className="flex h-11 w-11 items-center justify-center text-zinc-500 hover:bg-white hover:text-zinc-900"
+            className="flex h-11 w-11 items-center justify-center text-runway-faint hover:bg-paper-0 hover:text-runway-deep"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -91,10 +91,10 @@ export function CookieConsent() {
         </div>
 
         {/* Description */}
-        <p className="mb-4 text-sm text-zinc-600">
+        <p className="mb-4 text-sm text-runway-mute">
           We use cookies to enhance your experience, analyze site traffic, and for marketing purposes.
           Review our{" "}
-          <a href="/privacy" className="font-medium text-slate-900 underline-offset-4 hover:underline">
+          <a href="/privacy" className="font-medium text-runway-deep underline-offset-4 hover:underline">
             Privacy &amp; Cookies
           </a>{" "}
           details, customize your preferences, or accept all cookies.
@@ -102,46 +102,46 @@ export function CookieConsent() {
 
         {/* Cookie Details (expandable) */}
         {showDetails && (
-          <div className="mb-4 space-y-3 border border-black/10 bg-white p-4">
+          <div className="mb-4 space-y-3 border border-white/10 bg-paper-0 p-4">
             {/* Necessary */}
             <label className="flex min-h-[44px] items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-zinc-900">Necessary</span>
-                <p className="text-xs text-zinc-500">Required for basic site functionality</p>
+                <span className="text-sm font-medium text-runway-deep">Necessary</span>
+                <p className="text-xs text-runway-faint">Required for basic site functionality</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.necessary}
                 disabled
-                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black"
               />
             </label>
 
             {/* Analytics */}
             <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-zinc-900">Analytics</span>
-                <p className="text-xs text-zinc-500">Help us understand how you use our site</p>
+                <span className="text-sm font-medium text-runway-deep">Analytics</span>
+                <p className="text-xs text-runway-faint">Help us understand how you use our site</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.analytics}
                 onChange={(e) => setPreferences(p => ({ ...p, analytics: e.target.checked }))}
-                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950 focus:ring-slate-950"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black focus:ring-runway-black"
               />
             </label>
 
             {/* Marketing */}
             <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-zinc-900">Marketing</span>
-                <p className="text-xs text-zinc-500">Personalized ads and content</p>
+                <span className="text-sm font-medium text-runway-deep">Marketing</span>
+                <p className="text-xs text-runway-faint">Personalized ads and content</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.marketing}
                 onChange={(e) => setPreferences(p => ({ ...p, marketing: e.target.checked }))}
-                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950 focus:ring-slate-950"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black focus:ring-runway-black"
               />
             </label>
           </div>
@@ -151,7 +151,7 @@ export function CookieConsent() {
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="min-h-[44px] py-2 text-left text-sm font-medium text-zinc-600 hover:text-zinc-900"
+            className="min-h-[44px] py-2 text-left text-sm font-medium text-runway-mute hover:text-runway-deep"
           >
             {showDetails ? "Hide details" : "Customize"}
           </button>
@@ -159,21 +159,21 @@ export function CookieConsent() {
           <div className="flex gap-3">
             <button
               onClick={handleRejectAll}
-              className="min-h-[44px] flex-1 border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
+              className="min-h-[44px] flex-1 border border-white/10 bg-paper-0 px-4 py-2.5 text-sm font-semibold text-runway-line-strong transition hover:bg-runway-line-soft sm:flex-none"
             >
               Reject all
             </button>
             {showDetails ? (
               <button
                 onClick={handleAcceptSelected}
-                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
+                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-runway-panel sm:flex-none"
               >
                 Save preferences
               </button>
             ) : (
               <button
                 onClick={handleAcceptAll}
-                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
+                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-runway-panel sm:flex-none"
               >
                 Accept all
               </button>

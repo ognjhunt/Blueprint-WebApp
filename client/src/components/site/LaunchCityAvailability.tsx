@@ -25,10 +25,10 @@ function toneClasses(tone: LaunchCityAvailabilityProps["tone"]) {
         shell: "border-runway-line bg-runway-panel text-runway-text",
         badge: "border-runway-line bg-runway-panel text-runway-mute",
         body: "text-runway-mute",
-        chip: "border-runway-line bg-slate-900/80 text-runway-text hover:border-slate-600",
-        note: "border-runway-line bg-slate-900/70 text-runway-mute",
-        primary: "bg-runway-panel text-runway-text hover:bg-slate-100",
-        secondary: "border-runway-line text-runway-text hover:bg-slate-900",
+        chip: "border-runway-line bg-runway-deep/80 text-runway-text hover:border-runway-mute",
+        note: "border-runway-line bg-runway-deep/70 text-runway-mute",
+        primary: "bg-runway-panel text-runway-text hover:bg-runway-line-soft",
+        secondary: "border-runway-line text-runway-text hover:bg-runway-deep",
       };
     case "paper":
       return {
@@ -50,10 +50,10 @@ function toneClasses(tone: LaunchCityAvailabilityProps["tone"]) {
         shell: "border-runway-line bg-runway-panel text-runway-text",
         badge: "border-runway-line bg-runway-deep text-runway-mute",
         body: "text-runway-mute",
-        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-slate-300 hover:bg-slate-100",
+        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-runway-line-strong hover:bg-runway-line-soft",
         note: "border-runway-line bg-runway-raised text-runway-mute",
-        primary: "bg-runway-panel text-runway-text hover:bg-slate-800",
-        secondary: "border-runway-line text-runway-text hover:bg-slate-100",
+        primary: "bg-runway-panel text-runway-text hover:bg-runway-panel",
+        secondary: "border-runway-line text-runway-text hover:bg-runway-line-soft",
       };
   }
 }
@@ -90,7 +90,7 @@ export function LaunchCityAvailability({
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
           <p className={`mt-3 text-sm leading-7 sm:text-base ${classes.body}`}>{description}</p>
-          <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${classes.note}`}>
+          <div className={`mt-4 rounded-none border px-4 py-3 text-sm leading-6 ${classes.note}`}>
             <span className="font-semibold">
               {loading ? "Reviewing public capture-market status..." : supportedCitySummary}
             </span>{" "}

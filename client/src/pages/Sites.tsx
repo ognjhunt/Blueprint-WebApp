@@ -77,13 +77,13 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
         <a
           href={`/sites/${encodeURIComponent(site.id)}`}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text hover:bg-slate-800"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text hover:bg-runway-panel"
         >
           Inspect record <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </a>
         <a
           href={requestHref(site)}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-runway-line px-4 text-sm font-semibold text-runway-text hover:bg-slate-50"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-runway-line px-4 text-sm font-semibold text-runway-text hover:bg-runway-line-soft"
         >
           Request a Task Evaluation Run
         </a>
@@ -190,7 +190,7 @@ export default function Sites() {
                 </a>
                 <a
                   href="/signup/capturer"
-                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-runway-line px-5 text-sm font-semibold text-runway-text hover:bg-slate-50"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-runway-line px-5 text-sm font-semibold text-runway-text hover:bg-runway-line-soft"
                 >
                   Capture a workflow
                 </a>

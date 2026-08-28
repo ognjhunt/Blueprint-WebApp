@@ -63,7 +63,7 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(
 
         <div
           className={cn(
-            "flex h-[2.625rem] items-center gap-2 rounded-xs border border-line-strong bg-white px-[0.65rem] transition-shadow duration-200 ease-standard",
+            "flex h-[2.625rem] items-center gap-2 rounded-xs border border-line-strong bg-paper-0 px-[0.65rem] transition-shadow duration-200 ease-standard",
             "focus-within:border-brass-deep focus-within:ring-2 focus-within:ring-brass-deep/60",
             hasError &&
               "border-block-fg focus-within:border-block-fg focus-within:ring-block-fg/50",

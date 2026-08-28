@@ -209,7 +209,7 @@ export default function Home() {
           </div>
 
           <Reveal className="mt-14 grid gap-8 border-t border-runway-line pt-12 lg:grid-cols-2 lg:gap-16">
-            <p className="text-[clamp(1.3rem,2.2vw,1.85rem)] font-medium leading-[1.3] tracking-[-0.03em] text-runway-text">
+            <p className="font-display uppercase text-[clamp(1.3rem,2.2vw,1.85rem)] font-semibold leading-[1.3] tracking-[0.005em] text-runway-text">
               {bottleneckThesis.claim}
             </p>
             <p className="self-center text-[14.5px] leading-[1.75] text-runway-mute">
@@ -242,7 +242,7 @@ export default function Home() {
 
           <Reveal className="mt-16">
             <p className="runway-eyebrow-muted">Inside months 0–2</p>
-            <h3 className="mt-4 max-w-[30ch] text-[clamp(1.5rem,2.6vw,2.2rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+            <h3 className="mt-4 max-w-[30ch] font-display uppercase text-[clamp(1.5rem,2.6vw,2.2rem)] font-semibold leading-tight tracking-[0.005em] text-runway-text">
               Understand the task. Recreate the place. Run the robot against it.
             </h3>
           </Reveal>
@@ -358,7 +358,7 @@ export default function Home() {
 
           <Reveal className="mt-16 border-t border-runway-line pt-12">
             <p className="runway-eyebrow-muted">What &ldquo;qualified&rdquo; means</p>
-            <h3 className="mt-4 max-w-[30ch] text-[clamp(1.5rem,2.6vw,2.2rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+            <h3 className="mt-4 max-w-[30ch] font-display uppercase text-[clamp(1.5rem,2.6vw,2.2rem)] font-semibold leading-tight tracking-[0.005em] text-runway-text">
               Four gates, checked before anyone travels.
             </h3>
             <p className="mt-4 max-w-[62ch] text-[14.5px] leading-[1.75] text-runway-mute">
@@ -395,7 +395,7 @@ export default function Home() {
                   <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-runway-signal">
                     0{index + 1}
                   </span>
-                  <h3 className="mt-5 text-[clamp(1.35rem,2.2vw,1.9rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+                  <h3 className="mt-5 font-display uppercase text-[clamp(1.35rem,2.2vw,1.9rem)] font-semibold leading-tight tracking-[0.005em] text-runway-text">
                     {item.title}
                   </h3>
                   <p className="mt-3 text-[14.5px] leading-[1.75] text-runway-mute">
@@ -464,7 +464,7 @@ export default function Home() {
             <Reveal className="bg-runway-panel p-8 lg:p-10">
               <div>
                 <p className="runway-eyebrow">For sites</p>
-                <h3 className="mt-5 max-w-[18ch] text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+                <h3 className="mt-5 max-w-[18ch] font-display uppercase text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-tight tracking-[0.005em] text-runway-text">
                   You have the job. Submit it once.
                 </h3>
                 <p className="mt-4 max-w-[42ch] text-[14px] leading-[1.7] text-runway-mute">
@@ -479,7 +479,7 @@ export default function Home() {
             <Reveal delay={0.08} className="bg-runway-panel p-8 lg:p-10">
               <div>
                 <p className="runway-eyebrow-muted">For robot teams</p>
-                <h3 className="mt-5 max-w-[18ch] text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-tight tracking-[-0.035em] text-runway-text">
+                <h3 className="mt-5 max-w-[18ch] font-display uppercase text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold leading-tight tracking-[0.005em] text-runway-text">
                   You have the robot. Skip the discovery.
                 </h3>
                 <p className="mt-4 max-w-[42ch] text-[14px] leading-[1.7] text-runway-mute">

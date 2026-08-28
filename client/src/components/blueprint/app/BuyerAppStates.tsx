@@ -5,7 +5,7 @@ import { Button, Card, ProofBoundary } from "@/components/blueprint";
 
 export function BuyerAppLoadingState() {
   return (
-    <div className="flex min-h-[18rem] items-center justify-center rounded-md border border-line bg-white">
+    <div className="flex min-h-[18rem] items-center justify-center rounded-md border border-line bg-paper-0">
       <Loader2 className="h-6 w-6 animate-spin text-ink-500" aria-label="Loading buyer access" />
     </div>
   );

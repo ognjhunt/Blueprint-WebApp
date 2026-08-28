@@ -59,7 +59,7 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
 
 function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-white">
+    <div className="overflow-x-auto rounded-md border border-line bg-paper-0">
       <table className="w-full min-w-[56rem] border-collapse text-left">
         <thead>
           <tr className="border-b border-line">

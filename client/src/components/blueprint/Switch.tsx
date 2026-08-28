@@ -35,14 +35,14 @@ export const Switch = React.forwardRef<
         "focus-visible:ring-2 focus-visible:ring-brass-deep/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
         "disabled:cursor-not-allowed disabled:opacity-45",
         "border-[#cdc9bb] bg-[#cdc9bb]",
-        "data-[state=checked]:border-brass-deep data-[state=checked]:bg-brass",
+        "data-[state=checked]:border-brass-deep data-[state=checked]:bg-runway-signal",
         className,
       )}
       {...props}
     >
       <SwitchPrimitives.Thumb
         className={cn(
-          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-full bg-white shadow-sm ring-0",
+          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-full bg-paper-0 shadow-sm ring-0",
           "translate-x-[0.15rem] transition-transform duration-200 ease-out-bp",
           "data-[state=checked]:translate-x-[1.1rem]",
         )}

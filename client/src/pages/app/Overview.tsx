@@ -106,7 +106,7 @@ function BuyerOverview() {
               className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
             >
               {metrics.map((metric) => (
-                <div key={metric.label} className="bg-white p-5">
+                <div key={metric.label} className="bg-paper-0 p-5">
                   <MetricStat
                     label={metric.label}
                     value={metric.value}
@@ -131,7 +131,7 @@ function BuyerOverview() {
                     <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
                   </Link>
                 </div>
-                <div className="divide-y divide-line-soft rounded-md border border-line bg-white">
+                <div className="divide-y divide-line-soft rounded-md border border-line bg-paper-0">
                   {runs.slice(0, 5).map((run) => (
                     <Link key={run.job_id} href={`/app/runs/${encodeURIComponent(run.job_id)}`} className="flex items-center justify-between gap-4 p-4 hover:bg-inset">
                       <span className="text-body-s font-semibold text-ink-900">{runDisplayName(run)}</span>

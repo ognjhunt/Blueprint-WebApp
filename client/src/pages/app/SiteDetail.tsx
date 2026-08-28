@@ -102,7 +102,7 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
         </div>
       </header>
 
-      <section aria-label="Access record" className="rounded-md border border-line bg-white">
+      <section aria-label="Access record" className="rounded-md border border-line bg-paper-0">
         <DataField label="Entitlement id" value={entitlement.id} />
         <DataField label="Order id" value={entitlement.order_id || "Pending"} />
         <DataField label="Buyer" value={entitlement.buyer_email || "Account user"} mono={false} />
@@ -129,7 +129,7 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
           Access
         </Eyebrow>
         {entitlement.access?.url || entitlement.access_state === "provisioned" ? (
-          <div className="flex flex-col gap-4 rounded-md border border-line bg-white p-5">
+          <div className="flex flex-col gap-4 rounded-md border border-line bg-paper-0 p-5">
             <ProofBoundary
               level="proof"
               title="Provisioned access"

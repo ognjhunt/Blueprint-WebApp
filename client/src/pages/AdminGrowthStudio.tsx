@@ -551,17 +551,17 @@ export default function AdminGrowthStudio() {
   }, [runwayTask]);
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-runway-line-soft">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-10 flex items-center gap-3">
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
-            <Sparkles className="h-6 w-6 text-zinc-950" />
+          <div className="rounded-none bg-paper-0 p-3 shadow-sm">
+            <Sparkles className="h-6 w-6 text-runway-black" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-runway-faint">
               Growth Studio
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="text-3xl font-semibold tracking-tight text-runway-black">
               Build proof-led campaign kits from real Blueprint surfaces
             </h1>
           </div>
@@ -570,7 +570,7 @@ export default function AdminGrowthStudio() {
         <GrowthTruthBoundary />
 
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
             <div className="grid gap-4">
               {[
                 ["SKU", "skuName"],
@@ -580,9 +580,9 @@ export default function AdminGrowthStudio() {
                 ["Call To Action", "callToAction"],
               ].map(([label, key]) => (
                 <label key={key} className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">{label}</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">{label}</span>
                   <input
-                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form[key as keyof typeof form]}
                     onChange={(event) =>
                       setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -592,9 +592,9 @@ export default function AdminGrowthStudio() {
               ))}
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700">Asset Goal</span>
+                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Asset Goal</span>
                 <select
-                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm"
+                  className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                   value={form.assetGoal}
                   onChange={(event) => setForm((current) => ({ ...current, assetGoal: event.target.value }))}
                 >
@@ -607,29 +607,29 @@ export default function AdminGrowthStudio() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700">Proof Points</span>
+                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Proof Points</span>
                 <textarea
-                  className="min-h-28 w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                  className="min-h-28 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={form.proofPoints}
                   onChange={(event) => setForm((current) => ({ ...current, proofPoints: event.target.value }))}
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700">Differentiators</span>
+                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Differentiators</span>
                 <textarea
-                  className="min-h-24 w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                  className="min-h-24 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={form.differentiators}
                   onChange={(event) => setForm((current) => ({ ...current, differentiators: event.target.value }))}
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700">
+                <span className="mb-1 block text-sm font-medium text-runway-line-strong">
                   Recipients for early testing
                 </span>
                 <textarea
-                  className="min-h-20 w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                  className="min-h-20 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={form.recipientEmails}
                   onChange={(event) => setForm((current) => ({ ...current, recipientEmails: event.target.value }))}
                   placeholder="one email per line"
@@ -638,17 +638,17 @@ export default function AdminGrowthStudio() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">Image aspect ratio</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Image aspect ratio</span>
                   <input
-                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form.imageAspectRatio}
                     onChange={(event) => setForm((current) => ({ ...current, imageAspectRatio: event.target.value }))}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">Image size</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Image size</span>
                   <select
-                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                     value={form.imageSize}
                     onChange={(event) => setForm((current) => ({ ...current, imageSize: event.target.value }))}
                   >
@@ -657,9 +657,9 @@ export default function AdminGrowthStudio() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">Thinking level</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Thinking level</span>
                   <select
-                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                     value={form.thinkingLevel}
                     onChange={(event) => setForm((current) => ({ ...current, thinkingLevel: event.target.value }))}
                   >
@@ -672,20 +672,20 @@ export default function AdminGrowthStudio() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">Video ratio</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Video ratio</span>
                   <input
-                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form.videoRatio}
                     onChange={(event) => setForm((current) => ({ ...current, videoRatio: event.target.value }))}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-zinc-700">Video duration (sec)</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Video duration (sec)</span>
                   <input
                     type="number"
                     min={5}
                     max={10}
-                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form.videoDuration}
                     onChange={(event) => setForm((current) => ({ ...current, videoDuration: event.target.value }))}
                   />
@@ -693,13 +693,13 @@ export default function AdminGrowthStudio() {
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700">
+                <span className="mb-1 block text-sm font-medium text-runway-line-strong">
                   Lifecycle follow-up threshold (days)
                 </span>
                 <input
                   type="number"
                   min={7}
-                  className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                  className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={lifecycleDays}
                   onChange={(event) => setLifecycleDays(Math.max(7, Number(event.target.value || 30)))}
                 />
@@ -711,7 +711,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={generateCampaignKit}
                 disabled={loadingKit}
-                className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60"
+                className="rounded-full bg-runway-black px-5 py-3 text-sm font-medium text-white transition hover:bg-runway-panel disabled:opacity-60"
               >
                 {loadingKit ? "Generating…" : "Generate campaign kit"}
               </button>
@@ -719,7 +719,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={createCampaign}
                 disabled={!kit}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 Create campaign draft
               </button>
@@ -727,7 +727,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={queueCampaignSend}
                 disabled={!campaignId}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 Queue send for approval
               </button>
@@ -735,7 +735,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={renderProofReel}
                 disabled={renderingProofReel}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {renderingProofReel ? "Rendering reel…" : "Render proof reel"}
               </button>
@@ -743,14 +743,14 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runLifecycle}
                 disabled={runningLifecycle}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningLifecycle ? "Running lifecycle…" : "Queue lifecycle emails"}
               </button>
               <button
                 type="button"
                 onClick={verifyIntegrations}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint"
               >
                 Verify integrations
               </button>
@@ -758,7 +758,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={syncNotionMirror}
                 disabled={runningNotionSync}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningNotionSync ? "Syncing Notion…" : "Sync Notion mirror"}
               </button>
@@ -766,7 +766,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runExperimentRollout}
                 disabled={runningExperimentRollout}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningExperimentRollout ? "Running rollout…" : "Run experiment rollout"}
               </button>
@@ -774,7 +774,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runAutonomousOutbound}
                 disabled={runningAutonomousOutbound}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningAutonomousOutbound ? "Running outbound…" : "Run autonomous outbound"}
               </button>
@@ -782,7 +782,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runCreativeFactory}
                 disabled={runningCreativeFactory}
-                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningCreativeFactory ? "Running creative factory…" : "Run creative factory"}
               </button>
@@ -790,7 +790,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={generateVideo}
                 disabled={!kit || loadingVideo || !images?.[0]?.dataUrl}
-                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
                 {loadingVideo ? "Starting video…" : "Start OpenRouter video"}
@@ -799,7 +799,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={generateImage}
                 disabled={!kit}
-                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
                 Use Codex Image Lane
@@ -809,13 +809,13 @@ export default function AdminGrowthStudio() {
             {error ? <p className="mt-4 text-sm text-rose-700">{error}</p> : null}
             {!error && notice ? <p className="mt-4 text-sm text-emerald-700">{notice}</p> : null}
             {campaignId ? (
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-zinc-500">
+              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-runway-faint">
                 Campaign draft: {campaignId}
               </p>
             ) : null}
 
             {verifyResult ? (
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
                 <p>First-party ingest enabled: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.enabled))}</p>
                 <p>First-party verification persisted: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.persisted))}</p>
                 <p>GA4 live access: {String(Boolean(verifyResult.analytics?.ga4?.liveAccessConfigured))}</p>
@@ -830,10 +830,10 @@ export default function AdminGrowthStudio() {
                 <p>Research outbound configured: {String(Boolean(verifyResult.researchOutbound?.configured))}</p>
                 <p>Google creative state: {verifyResult.googleImage?.executionState || "unknown"}</p>
                 {verifyResult.analytics?.alignment?.note ? (
-                  <p className="mt-2 text-zinc-600">{verifyResult.analytics.alignment.note}</p>
+                  <p className="mt-2 text-runway-mute">{verifyResult.analytics.alignment.note}</p>
                 ) : null}
                 {verifyResult.googleImage?.note ? (
-                  <p className="mt-2 text-zinc-600">{verifyResult.googleImage.note}</p>
+                  <p className="mt-2 text-runway-mute">{verifyResult.googleImage.note}</p>
                 ) : null}
               </div>
             ) : null}
@@ -867,7 +867,7 @@ export default function AdminGrowthStudio() {
             />
 
             {runwayTask ? (
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
                 <p>OpenRouter task id: {runwayTask.id}</p>
                 <p>Status: {runwayTask.status}</p>
                 <p>Model: {runwayTask.model || "bytedance/seedance-2.0-fast"}</p>
@@ -900,7 +900,7 @@ export default function AdminGrowthStudio() {
                   <button
                     type="button"
                     onClick={() => void refreshRunwayTask(runwayTask.id)}
-                    className="mt-3 rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-medium text-zinc-900"
+                    className="mt-3 rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-deep"
                   >
                     Refresh video status
                   </button>
@@ -909,7 +909,7 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {imageProviderStatus ? (
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
                 <p>Google creative model: {imageProviderStatus.model || "unknown"}</p>
                 <p>Execution state: {imageProviderStatus.executionState || "unknown"}</p>
                 <p>Requested image size: {form.imageSize}</p>
@@ -922,15 +922,15 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {lifecycleResult?.results?.length ? (
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
-                <p className="font-semibold text-zinc-950">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
+                <p className="font-semibold text-runway-black">
                   Lifecycle queue results ({lifecycleResult.count || lifecycleResult.results.length})
                 </p>
                 <div className="mt-3 space-y-2">
                   {lifecycleResult.results.slice(0, 5).map((item) => (
-                    <div key={item.ledgerDocId} className="rounded-xl border border-zinc-200 bg-white p-3">
+                    <div key={item.ledgerDocId} className="rounded-xl border border-runway-line bg-paper-0 p-3">
                       <p>{item.buyerEmail}</p>
-                      <p className="text-zinc-500">
+                      <p className="text-runway-faint">
                         {item.lifecycleStage} • {item.state} • {item.ledgerDocId}
                       </p>
                     </div>
@@ -939,58 +939,58 @@ export default function AdminGrowthStudio() {
               </div>
             ) : null}
 
-            <div className="mt-4 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="mt-4 rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Recent Creative Runs
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600">
+                  <p className="mt-1 text-sm text-runway-mute">
                     Durable creative-factory outputs for operators and Paperclip agents.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => void refreshCreativeRuns()}
-                  className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-medium text-zinc-900 transition hover:border-zinc-400"
+                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-deep transition hover:border-runway-faint"
                 >
                   Refresh runs
                 </button>
               </div>
               <div className="mt-4 space-y-3">
                 {creativeRunsQuery.isLoading ? (
-                  <p className="text-sm text-zinc-500">Loading creative runs…</p>
+                  <p className="text-sm text-runway-faint">Loading creative runs…</p>
                 ) : creativeRunsQuery.isError ? (
                   <p className="text-sm text-rose-700">Failed to load creative runs.</p>
                 ) : creativeRuns.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No creative runs yet.</p>
+                  <p className="text-sm text-runway-faint">No creative runs yet.</p>
                 ) : (
                   creativeRuns.map((run) => (
-                    <div key={run.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
+                    <div key={run.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-panel">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-zinc-950">{run.skuName}</p>
-                          <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
+                          <p className="font-semibold text-runway-black">{run.skuName}</p>
+                          <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">
                             {run.status} {run.rolloutVariant ? `• ${run.rolloutVariant}` : ""}
                           </p>
                         </div>
-                        <p className="text-xs text-zinc-500">{run.createdAt || "Unknown time"}</p>
+                        <p className="text-xs text-runway-faint">{run.createdAt || "Unknown time"}</p>
                       </div>
                       {run.researchTopic ? (
-                        <p className="mt-2 text-xs text-zinc-600">Research topic: {run.researchTopic}</p>
+                        <p className="mt-2 text-xs text-runway-mute">Research topic: {run.researchTopic}</p>
                       ) : null}
                       {run.buyerObjections.length > 0 ? (
-                        <p className="mt-2 text-xs text-zinc-600">
+                        <p className="mt-2 text-xs text-runway-mute">
                           Buyer objections: {run.buyerObjections.join(", ")}
                         </p>
                       ) : null}
-                      <div className="mt-3 grid gap-2 text-xs text-zinc-600 md:grid-cols-2">
+                      <div className="mt-3 grid gap-2 text-xs text-runway-mute md:grid-cols-2">
                         <p>Generated images: {run.generatedImages}</p>
                         <p>Reel status: {run.remotionReel.status || "none"}</p>
                       </div>
                       {run.executionHandoff ? (
-                        <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-600">
-                          <p className="font-medium text-zinc-950">Codex execution handoff</p>
+                        <div className="mt-3 rounded-xl border border-runway-line bg-paper-0 p-3 text-xs text-runway-mute">
+                          <p className="font-medium text-runway-black">Codex execution handoff</p>
                           <p className="mt-2">Issue: {run.executionHandoff.issueId || "none"}</p>
                           <p>Status: {run.executionHandoff.status || "unknown"}</p>
                           <p>Assignee: {run.executionHandoff.assignee || "unknown"}</p>
@@ -1000,9 +1000,9 @@ export default function AdminGrowthStudio() {
                         </div>
                       ) : null}
                       {run.remotionReel.storageUri ? (
-                        <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3">
-                          <p className="text-xs font-medium text-zinc-950">Durable reel asset</p>
-                          <p className="mt-2 break-all font-mono text-[11px] text-zinc-600">
+                        <div className="mt-3 rounded-xl border border-runway-line bg-paper-0 p-3">
+                          <p className="text-xs font-medium text-runway-black">Durable reel asset</p>
+                          <p className="mt-2 break-all font-mono text-[11px] text-runway-mute">
                             {run.remotionReel.storageUri}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-3">
@@ -1017,7 +1017,7 @@ export default function AdminGrowthStudio() {
                               </a>
                             ) : null}
                             {run.remotionReel.outputPath ? (
-                              <span className="text-zinc-500">Local render: {run.remotionReel.outputPath}</span>
+                              <span className="text-runway-faint">Local render: {run.remotionReel.outputPath}</span>
                             ) : null}
                           </div>
                         </div>
@@ -1034,62 +1034,62 @@ export default function AdminGrowthStudio() {
           <div className="space-y-6">
             {kit ? (
               <>
-                <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Hero Options
                   </p>
                   <ul className="mt-4 space-y-3">
                     {kit.landingPage.heroHeadlineOptions.map((option) => (
-                      <li key={option} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-800">
+                      <li key={option} className="rounded-none border border-runway-line bg-runway-line-soft px-4 py-4 text-sm text-runway-panel">
                         {option}
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Prompt Pack
                   </p>
-                  <div className="mt-4 space-y-5 text-sm text-zinc-800">
+                  <div className="mt-4 space-y-5 text-sm text-runway-panel">
                     <div>
-                      <h2 className="font-semibold text-zinc-950">Google image prompt</h2>
-                      <pre className="mt-2 whitespace-pre-wrap rounded-2xl bg-zinc-50 p-4 text-xs leading-6">
+                      <h2 className="font-semibold text-runway-black">Google image prompt</h2>
+                      <pre className="mt-2 whitespace-pre-wrap rounded-none bg-runway-line-soft p-4 text-xs leading-6">
                         {kit.prompts.googleImagePrompt}
                       </pre>
                     </div>
                     <div>
-                      <h2 className="font-semibold text-zinc-950">Nano Banana variants</h2>
+                      <h2 className="font-semibold text-runway-black">Nano Banana variants</h2>
                       <ul className="mt-2 space-y-3">
                         {kit.prompts.nanoBananaVariants.map((prompt) => (
-                          <li key={prompt} className="rounded-2xl bg-zinc-50 p-4 text-xs leading-6">
+                          <li key={prompt} className="rounded-none bg-runway-line-soft p-4 text-xs leading-6">
                             {prompt}
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div>
-                      <h2 className="font-semibold text-zinc-950">Video prompt</h2>
-                      <pre className="mt-2 whitespace-pre-wrap rounded-2xl bg-zinc-50 p-4 text-xs leading-6">
+                      <h2 className="font-semibold text-runway-black">Video prompt</h2>
+                      <pre className="mt-2 whitespace-pre-wrap rounded-none bg-runway-line-soft p-4 text-xs leading-6">
                         {kit.prompts.runwayPrompt}
                       </pre>
-                      <p className="mt-2 text-xs text-zinc-500">
+                      <p className="mt-2 text-xs text-runway-faint">
                         The OpenRouter action can use the first generated proof-led image as the first frame when one exists.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Remotion Storyboard
                   </p>
                   <div className="mt-4 space-y-3">
                     {kit.remotionStoryboard.map((scene) => (
-                      <div key={`${scene.startFrame}-${scene.title}`} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
-                        <p className="font-semibold text-zinc-950">{scene.title}</p>
+                      <div key={`${scene.startFrame}-${scene.title}`} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-panel">
+                        <p className="font-semibold text-runway-black">{scene.title}</p>
                         <p className="mt-1">{scene.copy}</p>
-                        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-runway-faint">
                           Frames {scene.startFrame}-{scene.startFrame + scene.durationFrames}
                         </p>
                       </div>
@@ -1100,8 +1100,8 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {images && images.length > 0 ? (
-              <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                   Generated Image
                 </p>
                 <div className="mt-4 grid gap-4">
@@ -1110,27 +1110,27 @@ export default function AdminGrowthStudio() {
                       key={image.dataUrl.slice(0, 32)}
                       src={image.dataUrl}
                       alt="Generated Blueprint campaign concept"
-                      className="w-full rounded-3xl border border-zinc-200 object-cover"
+                      className="w-full rounded-none border border-runway-line object-cover"
                     />
                   ))}
                 </div>
               </div>
             ) : null}
 
-            <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Recent Campaigns
                   </p>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-runway-mute">
                     Draft, approval, delivery, and response state from the local campaign store, with SendGrid as the default delivery path.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => void refreshCampaigns()}
-                  className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900"
+                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-sm text-runway-deep"
                 >
                   Refresh
                 </button>
@@ -1138,32 +1138,32 @@ export default function AdminGrowthStudio() {
 
               <div className="mt-4 space-y-3">
                 {campaignsQuery.isLoading ? (
-                  <p className="text-sm text-zinc-500">Loading campaigns...</p>
+                  <p className="text-sm text-runway-faint">Loading campaigns...</p>
                 ) : campaignsQuery.isError ? (
                   <p className="text-sm text-rose-700">Failed to load campaign state.</p>
                 ) : campaigns.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No local campaigns yet.</p>
+                  <p className="text-sm text-runway-faint">No local campaigns yet.</p>
                 ) : (
                   campaigns.map((campaign) => (
-                    <div key={campaign.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div key={campaign.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-zinc-950">{campaign.name || campaign.id}</p>
-                          <p className="text-xs text-zinc-500">{campaign.subject || "No subject"}</p>
+                          <p className="font-semibold text-runway-black">{campaign.name || campaign.id}</p>
+                          <p className="text-xs text-runway-faint">{campaign.subject || "No subject"}</p>
                         </div>
-                        <div className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs uppercase tracking-[0.14em] text-zinc-700">
+                        <div className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs uppercase tracking-[0.14em] text-runway-line-strong">
                           {campaign.send_status || "draft"}
                         </div>
                       </div>
 
-                      <div className="mt-3 grid gap-2 text-xs text-zinc-600 sm:grid-cols-4">
+                      <div className="mt-3 grid gap-2 text-xs text-runway-mute sm:grid-cols-4">
                         <p>Sent: {metricValue(campaign, "sent")}</p>
                         <p>Opened: {metricValue(campaign, "opened")}</p>
                         <p>Clicked: {metricValue(campaign, "clicked")}</p>
                         <p>Replied: {metricValue(campaign, "replied")}</p>
                       </div>
 
-                      <div className="mt-3 text-xs text-zinc-500">
+                      <div className="mt-3 text-xs text-runway-faint">
                         <p>Last ledger: {campaign.last_ledger_doc_id || "none"}</p>
                         <p>Last event: {campaign.response_tracking?.last_event_type || "none"} • {formatEventTime(campaign.response_tracking?.last_event_at)}</p>
                         {campaign.response_tracking?.last_recipient ? (

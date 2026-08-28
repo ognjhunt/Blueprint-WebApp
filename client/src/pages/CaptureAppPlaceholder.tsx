@@ -105,9 +105,9 @@ function capturerStepState(
 }
 
 const capturerStepStyles: Record<"done" | "current" | "upcoming", string> = {
-  done: "border-black/10 bg-[#111110] text-white",
-  current: "border-black/40 bg-white text-[#111110]",
-  upcoming: "border-black/10 bg-[#faf6ef] text-[#111110] opacity-60",
+  done: "border-white/10 bg-[#111110] text-white",
+  current: "border-white/40 bg-paper-0 text-runway-text",
+  upcoming: "border-white/10 bg-[#101312] text-runway-text opacity-60",
 };
 
 const hasExternalAppLink = (value: string) => {
@@ -150,7 +150,7 @@ export default function CaptureAppPlaceholder() {
           margin: 1,
           color: {
             dark: "#111110",
-            light: "#f8f5ee",
+            light: "#101312",
           },
         });
         if (active) {
@@ -181,10 +181,10 @@ export default function CaptureAppPlaceholder() {
         <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Path" />
         {ladderState ? (
           <SurfaceSection className="pt-8">
-            <div className="rounded-[1.75rem] border border-black/10 bg-white p-6 lg:p-8">
+            <div className="rounded-[1.75rem] border border-white/10 bg-paper-0 p-6 lg:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <SurfaceMiniLabel>Your Capturer Application</SurfaceMiniLabel>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                   {ladderState === "pending"
                     ? "In review"
                     : ladderState === "approved"
@@ -202,7 +202,7 @@ export default function CaptureAppPlaceholder() {
                     >
                       <p
                         className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                          state === "done" ? "text-white/50" : "text-black/40"
+                          state === "done" ? "text-white/50" : "text-white/40"
                         }`}
                       >
                         0{index + 1} ·{" "}
@@ -215,7 +215,7 @@ export default function CaptureAppPlaceholder() {
                       <p className="mt-2 text-sm font-semibold">{step.label}</p>
                       <p
                         className={`mt-2 text-sm leading-6 ${
-                          state === "done" ? "text-white/65" : "text-black/60"
+                          state === "done" ? "text-white/65" : "text-white/60"
                         }`}
                       >
                         {step.body}
@@ -224,7 +224,7 @@ export default function CaptureAppPlaceholder() {
                   );
                 })}
               </div>
-              <p className="mt-5 max-w-[46rem] text-sm leading-7 text-black/60">
+              <p className="mt-5 max-w-[46rem] text-sm leading-7 text-white/60">
                 {ladderState === "pending"
                   ? "Your application is in review — we'll email you when there's a decision. Nothing else is needed from you right now."
                   : ladderState === "approved"
@@ -234,7 +234,7 @@ export default function CaptureAppPlaceholder() {
               {ladderState === "rejected" ? (
                 <a
                   href="/contact"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#111110]"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text"
                 >
                   Contact the Blueprint team
                   <ArrowRight className="h-4 w-4" />
@@ -261,7 +261,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
 	                    <SurfaceMiniLabel className="text-white/50">Approved Capture Assignments</SurfaceMiniLabel>
-	                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
+	                    <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-white">
 	                      Get paid to capture the job before the robot arrives.
 	                      <br />
 	                      Phone first.
@@ -279,7 +279,7 @@ export default function CaptureAppPlaceholder() {
                       {showExternalHandoff ? (
                         <a
                           href={captureAppUrl}
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-paper-0 px-5 text-sm font-semibold text-runway-text transition hover:bg-[#101312]"
                         >
                           Open assignment app
                           <ExternalLink className="h-4 w-4" />
@@ -287,7 +287,7 @@ export default function CaptureAppPlaceholder() {
                       ) : (
                         <a
                           href="/capture-app/launch-access?source=capture-app-placeholder"
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-paper-0 px-5 text-sm font-semibold text-runway-text transition hover:bg-[#101312]"
                         >
 	                          Request assignment access
 	                          <Mail className="h-4 w-4" />
@@ -304,9 +304,9 @@ export default function CaptureAppPlaceholder() {
                 </div>
               </div>
 
-              <div className="bg-[#f8f4ec] p-8 lg:p-9">
+              <div className="bg-[#101312] p-8 lg:p-9">
                 <div className="mx-auto flex h-full max-w-[24rem] flex-col justify-between gap-6">
-                  <div className="rounded-[2rem] border border-black/10 bg-[#111110] p-6 text-white shadow-[0_22px_70px_rgba(17,17,16,0.16)]">
+                  <div className="rounded-[2rem] border border-white/10 bg-[#111110] p-6 text-white shadow-[0_22px_70px_rgba(17,17,16,0.16)]">
                     <div className="flex items-center justify-between gap-3">
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">
                         <Smartphone className="h-3.5 w-3.5" />
@@ -319,7 +319,7 @@ export default function CaptureAppPlaceholder() {
                       {showExternalHandoff ? "Scan to open" : "Scan to request assignment access"}
                       </p>
                       <div className="mt-4 flex justify-center">
-                        <div className="rounded-[1.35rem] border border-white/10 bg-[#f8f5ee] p-3">
+                        <div className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-3">
                           {qrCode ? (
                             <img
                               src={qrCode}
@@ -331,7 +331,7 @@ export default function CaptureAppPlaceholder() {
                               className="h-44 w-44 rounded-xl"
                             />
                           ) : (
-                            <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-black/5 text-sm text-black/45">
+                            <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-white/5 text-sm text-white/45">
                               Rendering QR
                             </div>
                           )}
@@ -358,18 +358,18 @@ export default function CaptureAppPlaceholder() {
                     </div>
                   </div>
 
-                  <div className="rounded-[1.75rem] border border-black/10 bg-white p-5">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-black/40">
+                  <div className="rounded-[1.75rem] border border-white/10 bg-paper-0 p-5">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
                       <MapPinned className="h-4 w-4" />
                       Open capture markets
                     </div>
                     <div className="mt-4 grid gap-2">
                       {launchStatusLoading ? (
-                        <p className="text-sm leading-7 text-black/55">
+                        <p className="text-sm leading-7 text-white/55">
                           Reviewing public capture-market status before showing open cities.
                         </p>
                       ) : launchStatusError ? (
-                        <p className="text-sm leading-7 text-black/55">
+                        <p className="text-sm leading-7 text-white/55">
                           Launch status is unavailable. Request access instead of relying on a
                           cached city list.
                         </p>
@@ -377,16 +377,16 @@ export default function CaptureAppPlaceholder() {
                         launchCityLabels.slice(0, 5).map((label) => (
                           <div
                             key={label}
-                            className="flex items-center justify-between rounded-full border border-black/10 bg-[#faf6ef] px-4 py-2 text-sm"
+                            className="flex items-center justify-between rounded-full border border-white/10 bg-[#101312] px-4 py-2 text-sm"
                           >
-                            <span className="text-[#111110]">{label}</span>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                            <span className="text-runway-text">{label}</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                               Open
                             </span>
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm leading-7 text-black/55">
+                        <p className="text-sm leading-7 text-white/55">
 	                        No open public capture market is listed here right now. Leave your city if you can capture public-area-only routes in common public-facing locations.
                         </p>
                       )}
@@ -396,23 +396,23 @@ export default function CaptureAppPlaceholder() {
               </div>
             </div>
 
-            <div className="border-t border-black/10 bg-white p-6 lg:p-8">
+            <div className="border-t border-white/10 bg-paper-0 p-6 lg:p-8">
               <div className="grid gap-6 xl:grid-cols-[0.78fr_0.22fr]">
                 <div className="grid gap-5 lg:grid-cols-3">
                   {steps.map((step, index) => (
-                    <div key={step.label} className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5">
-                      <p className="text-[2rem] font-semibold tracking-[-0.06em] text-[#111110]">
+                    <div key={step.label} className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-5">
+                      <p className="font-display uppercase text-[2rem] font-semibold tracking-[0.005em] text-runway-text">
                         0{index + 1}
                       </p>
-                      <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-black/40">
+                      <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-white/40">
                         {step.label}
                       </p>
-                      <p className="mt-3 text-sm leading-7 text-black/60">{step.body}</p>
+                      <p className="mt-3 text-sm leading-7 text-white/60">{step.body}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
+                <div className="rounded-[1.35rem] border border-white/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
 	                    Robot teams use these records for the task discovery, site recreation, and fit testing that happens before onsite deployment. Capturers use this path only for approved assignments and review-gated payout eligibility.
@@ -428,7 +428,7 @@ export default function CaptureAppPlaceholder() {
               </div>
 
               <div className="mt-8 grid gap-5 lg:grid-cols-[0.36fr_0.64fr]">
-                <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
+                <div className="rounded-[1.35rem] border border-white/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Capture Opportunities</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
                     The public app is for ordinary places with useful robot workflows: store
@@ -439,9 +439,9 @@ export default function CaptureAppPlaceholder() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {captureLocationTypes.map((item) => (
-                    <div key={item.label} className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-4">
-                      <p className="text-sm font-semibold text-[#111110]">{item.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-black/60">{item.detail}</p>
+                    <div key={item.label} className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-4">
+                      <p className="text-sm font-semibold text-runway-text">{item.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/60">{item.detail}</p>
                     </div>
                   ))}
                 </div>

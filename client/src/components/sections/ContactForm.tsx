@@ -277,7 +277,7 @@ export default function ContactForm() {
               Real Site Into Readiness Evidence?
             </span>
           </h2>
-          <p className="text-base md:text-xl text-slate-300 mt-3">
+          <p className="text-base md:text-xl text-runway-line-strong mt-3">
             Blueprint captures your space, packages site-specific evidence,
             and helps your team scope a Task Evaluation Run around the exact environment and decision that matter.
           </p>
@@ -285,14 +285,14 @@ export default function ContactForm() {
 
         {/* Card */}
         <motion.div
-          className="bg-slate-900/70 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-slate-800"
+          className="bg-runway-deep/70 backdrop-blur-sm rounded-none shadow-2xl overflow-hidden border border-runway-panel"
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 40 }}
           transition={{ duration: 0.6, delay: 0.15 }}
         >
           <div className="grid grid-cols-1 lg:grid-cols-5">
             {/* Left panel */}
-            <div className="lg:col-span-2 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 p-6 md:p-10 relative">
+            <div className="lg:col-span-2 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-runway-line-soft p-6 md:p-10 relative">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-3">
                   <SparklesIcon className="w-5 h-5 text-amber-300" />
@@ -303,7 +303,7 @@ export default function ContactForm() {
                 <h3 className="font-black text-2xl md:text-3xl mb-4 leading-tight">
                   Bring your real site into Blueprint
                 </h3>
-                <p className="mb-6 text-sm md:text-base text-slate-300">
+                <p className="mb-6 text-sm md:text-base text-runway-line-strong">
                   Blueprint turns real retail, hospitality, workplace, and venue spaces into
                   real-site Task Evaluation Runs, maintained testbeds, and evidence-bound result review.
                 </p>
@@ -315,7 +315,7 @@ export default function ContactForm() {
                     </div>
                     <div>
                       <h4 className="font-semibold">Exclusive Early Access</h4>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-runway-faint">
                         Priority support for early world-model and hosted-access requests.
                       </p>
                     </div>
@@ -326,7 +326,7 @@ export default function ContactForm() {
                     </div>
                     <div>
                       <h4 className="font-semibold">White-Glove Onboarding</h4>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-runway-faint">
                         We help scope capture, packaging, and hosted access around your exact site.
                       </p>
                     </div>
@@ -354,7 +354,7 @@ export default function ContactForm() {
             </div>
 
             {/* Form */}
-            <div className="lg:col-span-3 p-6 md:p-10 bg-white">
+            <div className="lg:col-span-3 p-6 md:p-10 bg-paper-0">
               {isSuccess ? (
                 <motion.div
                   className="h-full flex flex-col items-center justify-center text-center p-6"
@@ -364,14 +364,14 @@ export default function ContactForm() {
                   <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
                     <CheckCircleIcon className="h-10 w-10 text-emerald-600" />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-3">
+                  <h3 className="text-2xl md:text-3xl font-black text-runway-deep mb-3">
                     Request received
                   </h3>
-                  <p className="text-slate-600 max-w-md">
+                  <p className="text-runway-mute max-w-md">
                     We have your site and contact details. Expect a follow-up from Blueprint shortly.
                   </p>
                   <Button
-                    className="mt-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold border-0"
+                    className="mt-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-runway-deep font-semibold border-0"
                     onClick={() => setIsSuccess(false)}
                   >
                     Submit Another Request
@@ -387,7 +387,7 @@ export default function ContactForm() {
                 >
                   <div>
                     <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
+                      className="block text-sm font-semibold mb-2 text-runway-line-strong"
                       htmlFor="name"
                     >
                       <span className="inline-flex items-center gap-2">
@@ -404,7 +404,7 @@ export default function ContactForm() {
                       value={formData.name}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, emailRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="border-2 border-runway-line focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-runway-deep"
                     />
 
                     {errors.name && (
@@ -414,7 +414,7 @@ export default function ContactForm() {
 
                   <div>
                     <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
+                      className="block text-sm font-semibold mb-2 text-runway-line-strong"
                       htmlFor="email"
                     >
                       <span className="inline-flex items-center gap-2">
@@ -431,7 +431,7 @@ export default function ContactForm() {
                       value={formData.email}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, companyRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="border-2 border-runway-line focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-runway-deep"
                     />
                     {errors.email && (
                       <p className="text-red-500 text-sm mt-2">
@@ -442,7 +442,7 @@ export default function ContactForm() {
 
                   <div className="relative">
                     <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
+                      className="block text-sm font-semibold mb-2 text-runway-line-strong"
                       htmlFor="company"
                     >
                       <span className="inline-flex items-center gap-2">
@@ -462,7 +462,7 @@ export default function ContactForm() {
                         setTimeout(() => setCompanyPredictions([]), 150)
                       }
                       onKeyDown={(e) => handleKeyDown(e, messageRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="border-2 border-runway-line focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-runway-deep"
                     />
                     {errors.company && (
                       <p className="text-red-500 text-sm mt-2">
@@ -472,7 +472,7 @@ export default function ContactForm() {
 
                     {companyPredictions.length > 0 && (
                       <div className="relative z-20">
-                        <div className="absolute w-full mt-2 bg-white border-2 border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                        <div className="absolute w-full mt-2 bg-paper-0 border-2 border-runway-line rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                           {companyPredictions.map((prediction) => (
                             <div
                               key={prediction.place_id}
@@ -541,7 +541,7 @@ export default function ContactForm() {
                                 }
                               }}
                             >
-                              <div className="font-medium text-slate-900">
+                              <div className="font-medium text-runway-deep">
                                 {prediction.description}
                               </div>
                             </div>
@@ -553,7 +553,7 @@ export default function ContactForm() {
 
                   <div>
                     <label
-                      className="block text-sm font-semibold mb-2 text-slate-700"
+                      className="block text-sm font-semibold mb-2 text-runway-line-strong"
                       htmlFor="message"
                     >
                       <span className="inline-flex items-center gap-2">
@@ -569,14 +569,14 @@ export default function ContactForm() {
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
+                      className="border-2 border-runway-line focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-runway-deep"
                     />
                   </div>
 
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-4 text-lg font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 border-0 rounded-xl shadow-xl hover:opacity-90"
+                    className="w-full py-4 text-lg font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 text-runway-deep border-0 rounded-xl shadow-xl hover:opacity-90"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center gap-3">
@@ -610,7 +610,7 @@ export default function ContactForm() {
                     )}
                   </Button>
 
-                  <p className="text-xs text-slate-500 text-center">
+                  <p className="text-xs text-runway-faint text-center">
                     By submitting, you agree to receive updates about Blueprint.
                     We respect your privacy and never share your information.
                   </p>

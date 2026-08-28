@@ -212,9 +212,9 @@ const previewTasks: PreviewTask[] = [
 ];
 
 const toneStyles: Record<OutcomeTone, string> = {
-  complete: "border-[#8ca579]/45 bg-[#8ca579]/15 text-[#dce8d2]",
-  incomplete: "border-[#c98774]/45 bg-[#c98774]/15 text-[#f0d4cc]",
-  stopped: "border-brass/45 bg-brass/15 text-[#efe1bd]",
+  complete: "border-[#8ca579]/45 bg-[#8ca579]/15 text-runway-text",
+  incomplete: "border-[#c98774]/45 bg-[#c98774]/15 text-runway-text",
+  stopped: "border-runway-signal/45 bg-runway-signal/15 text-runway-text",
 };
 
 const toneIcons = {
@@ -264,7 +264,7 @@ export function InteractiveEvaluationPreview() {
           </p>
           <h2
             id="evaluation-preview-heading"
-            className="mt-5 max-w-[19ch] font-display text-[clamp(2.25rem,4.6vw,4.25rem)] font-medium leading-[0.98] tracking-[-0.045em] text-runway-text"
+            className="mt-5 max-w-[19ch] font-display uppercase text-[clamp(2.25rem,4.6vw,4.25rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text"
           >
             Change the task. Swap the candidate. See what changed.
           </h2>
@@ -285,22 +285,22 @@ export function InteractiveEvaluationPreview() {
               alt={outcome.imageAlt}
               className="absolute inset-0 h-full w-full object-cover motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/85" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/35 via-transparent to-white/85" />
             <div
               aria-hidden="true"
               className="absolute inset-x-0 top-[34%] h-px bg-gradient-to-r from-transparent via-brass/55 to-transparent opacity-60 motion-safe:animate-pulse"
             />
 
             <div className="absolute inset-x-0 top-0 flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-              <div className="inline-flex items-center gap-2 rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 rounded-xs border border-runway-line bg-white/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">
                 <span className="h-1.5 w-1.5 rounded-full bg-runway-signal motion-safe:animate-pulse" />
                 Preview loop
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
+                <span className="rounded-xs border border-runway-line bg-white/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
                   {selectedTask.embodiment}
                 </span>
-                <span className="rounded-xs border border-runway-line bg-black/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
+                <span className="rounded-xs border border-runway-line bg-white/45 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-runway-mute backdrop-blur-md">
                   Thumbnail mode
                 </span>
               </div>
@@ -313,7 +313,7 @@ export function InteractiveEvaluationPreview() {
                     <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                     {selectedTask.site}
                   </p>
-                  <p className="mt-2 max-w-[24ch] font-display text-[clamp(1.65rem,3vw,2.7rem)] font-medium leading-[1.05] tracking-[-0.035em] text-runway-text">
+                  <p className="mt-2 max-w-[24ch] font-display uppercase text-[clamp(1.65rem,3vw,2.7rem)] font-semibold leading-[1.05] tracking-[0.005em] text-runway-text">
                     {selectedTask.task}
                   </p>
                 </div>
@@ -359,7 +359,7 @@ export function InteractiveEvaluationPreview() {
                       className={cn(
                         "rounded-md border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass focus-visible:ring-offset-2 focus-visible:ring-offset-[#171a17]",
                         isSelected
-                          ? "border-brass/70 bg-brass/[0.12]"
+                          ? "border-runway-signal/70 bg-runway-signal/[0.12]"
                           : "border-runway-line bg-runway-panel hover:border-white/25 hover:bg-white/[0.05]",
                       )}
                     >
@@ -384,7 +384,7 @@ export function InteractiveEvaluationPreview() {
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
                 Illustrative outcome
               </p>
-              <h3 className="mt-3 font-display text-2xl font-medium tracking-[-0.025em] text-runway-text">
+              <h3 className="mt-3 font-display uppercase text-2xl font-semibold tracking-[0.005em] text-runway-text">
                 {outcome.terminalEvent}
               </h3>
               <p className="mt-3 text-sm leading-6 text-white/60">
@@ -470,7 +470,7 @@ export function InteractiveEvaluationPreview() {
                   className={cn(
                     "group grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-3 rounded-md border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass",
                     isSelected
-                      ? "border-brass/65 bg-brass/10"
+                      ? "border-runway-signal/65 bg-runway-signal/10"
                       : "border-runway-line bg-runway-panel hover:border-white/25 hover:bg-white/[0.05]",
                   )}
                 >
@@ -481,7 +481,7 @@ export function InteractiveEvaluationPreview() {
                       loading="lazy"
                       className="h-full w-full object-cover grayscale-[0.25] transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
                     />
-                    <span className="absolute bottom-1 left-1 rounded-xs bg-black/60 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] text-runway-mute backdrop-blur-sm">
+                    <span className="absolute bottom-1 left-1 rounded-xs bg-white/60 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] text-runway-mute backdrop-blur-sm">
                       {task.embodiment === "Fixed arm" ? "Arm" : "Humanoid"}
                     </span>
                   </span>

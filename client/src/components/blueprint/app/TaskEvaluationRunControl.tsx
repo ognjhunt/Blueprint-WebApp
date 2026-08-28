@@ -110,7 +110,7 @@ export function TaskEvaluationRunControl({
       </div>
 
       {candidates.length ? (
-        <div className="divide-y divide-line rounded-md border border-line bg-white">
+        <div className="divide-y divide-line rounded-md border border-line bg-paper-0">
           {candidates.map((candidate) => (
             <label key={candidate.adapter_reference} className="flex cursor-pointer items-start gap-3 p-4">
               <input

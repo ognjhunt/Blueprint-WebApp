@@ -204,14 +204,14 @@ export default function AdminCompanyMetrics() {
   const captureLifecycle = screen?.captureToHostedReviewLifecycle;
 
   return (
-    <main className="min-h-screen bg-[#f5f1e9] px-4 py-8 text-stone-950">
+    <main className="min-h-screen bg-[#101312] px-4 py-8 text-stone-950">
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="grid gap-6 border-b border-stone-300 pb-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">
               CEO Operating Screen
             </p>
-            <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-[-0.04em] md:text-6xl">
+            <h1 className="mt-3 max-w-4xl font-display uppercase text-4xl font-semibold tracking-[0.005em] md:text-6xl">
               What is moving, what is blocked, and what needs one human answer.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600">
@@ -273,7 +273,7 @@ export default function AdminCompanyMetrics() {
             <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className="bg-stone-950 p-6 text-white md:p-8">
                 <p className="text-sm uppercase tracking-[0.24em] text-stone-400">Active city</p>
-                <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em]">
+                <h2 className="mt-4 font-display uppercase text-4xl font-semibold tracking-[0.005em]">
                   {screen.activeCity?.city || "No active city"}
                 </h2>
                 <p className="mt-5 max-w-xl text-lg leading-7 text-stone-300">

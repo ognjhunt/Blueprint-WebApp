@@ -131,7 +131,7 @@ export default function Capture() {
                 </a>
                 <a
                   href={cityStatusHref}
-                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-slate-500"
+                  className="inline-flex min-h-11 items-center justify-center border border-runway-line bg-runway-panel px-5 text-sm font-semibold text-runway-text transition hover:border-runway-faint"
                 >
                   Check city status
                 </a>
@@ -145,7 +145,7 @@ export default function Capture() {
                 className="absolute inset-0 h-full w-full object-cover grayscale"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-white/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
                   Assignment boundary

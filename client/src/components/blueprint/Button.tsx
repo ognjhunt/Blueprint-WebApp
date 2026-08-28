@@ -31,9 +31,9 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         action: "bg-action text-white hover:bg-action-hover",
-        brass: "bg-brass text-white hover:bg-brass-deep",
+        brass: "bg-runway-signal text-white hover:bg-brass-deep",
         secondary:
-          "bg-white text-ink border border-line-strong hover:bg-inset",
+          "bg-paper-0 text-ink border border-line-strong hover:bg-inset",
         ghost: "bg-transparent text-ink hover:bg-sunken",
         danger:
           "bg-block-bg text-block-fg border border-block-bd hover:bg-block-bd",

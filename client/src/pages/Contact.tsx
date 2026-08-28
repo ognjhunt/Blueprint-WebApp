@@ -177,7 +177,7 @@ export default function Contact() {
               <Eyebrow tone="brass" rule>
                 Months 0–2 intake
               </Eyebrow>
-              <h1 className="font-editorial mt-6 text-[clamp(2.4rem,4.6vw,3.8rem)] font-medium leading-[0.98] tracking-[-0.045em] text-ink">
+              <h1 className="font-editorial mt-6 font-display uppercase text-[clamp(2.4rem,4.6vw,3.8rem)] font-semibold leading-[0.98] tracking-[0.005em] text-ink">
                 {headline}
               </h1>
               <p className="mt-6 text-lg leading-[1.7] text-ink-600">{subhead}</p>
@@ -196,7 +196,7 @@ export default function Contact() {
           className="mx-auto grid max-w-[88rem] scroll-mt-8 gap-4 px-5 py-12 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-16"
         >
           {/* Inquiry form */}
-          <div className="rounded-md border border-line bg-white p-6 sm:p-8">
+          <div className="rounded-md border border-line bg-paper-0 p-6 sm:p-8">
             <div className="border-b border-line-soft pb-5">
               <Eyebrow tone="muted">
                 {isSiteOperator ? "Send the site" : "Send the request"}
@@ -269,7 +269,7 @@ export default function Contact() {
                         ? "What moves from where to where, object sizes and weights, cycle time, shifts, exceptions, systems, access windows, and restricted zones."
                         : "Robot geometry, payload, reach, sensors, required interfaces, deployment geography, candidate software, and the site-task you want to test."
                     }
-                    className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
+                    className="w-full rounded-xs border border-line-strong bg-paper-0 px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />
                 </div>
                 {submitError ? (
@@ -314,16 +314,16 @@ export default function Contact() {
               overlay="bg"
             >
               <div className="absolute inset-0 flex flex-col justify-between p-5">
-                <span className="inline-flex w-fit items-center gap-2 rounded-sm border border-white/15 bg-black/40 px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[color:var(--text-on-ink)]">
+                <span className="inline-flex w-fit items-center gap-2 rounded-sm border border-white/15 bg-white/40 px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[color:var(--text-on-ink)]">
                   Review support · not real-world proof
                 </span>
-                <p className="font-editorial max-w-[20rem] text-[1.4rem] leading-[1.06] tracking-[-0.03em] text-[color:var(--text-on-ink)]">
+                <p className="font-editorial max-w-[20rem] font-display uppercase text-[1.4rem] leading-[1.06] tracking-[0.005em] text-[color:var(--text-on-ink)]">
                   Bring the site or bring the robot.
                 </p>
               </div>
             </MonochromeMedia>
 
-            <div className="grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8]">
+            <div className="grid gap-px overflow-hidden rounded-md border border-line bg-[#1a1f1c]">
               {routeCards.map(({ href, eyebrow, title, body, Icon, persona: cardPersona }) => {
                 const active = cardPersona !== null && cardPersona === persona;
                 return (
@@ -331,7 +331,7 @@ export default function Contact() {
                     key={href}
                     href={href}
                     aria-current={active ? "page" : undefined}
-                    className="group flex items-start gap-4 bg-white p-5 transition-colors duration-200 ease-standard hover:bg-inset"
+                    className="group flex items-start gap-4 bg-paper-0 p-5 transition-colors duration-200 ease-standard hover:bg-inset"
                   >
                     <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line bg-inset text-ink-700 group-hover:border-brass-deep">
                       <Icon className="h-[1.1rem] w-[1.1rem]" strokeWidth={1.75} aria-hidden="true" />
@@ -366,7 +366,7 @@ export default function Contact() {
             <a
               href="/contact/site-operator#contact-intake"
               aria-current={isSiteOperator ? "page" : undefined}
-              className="flex items-center justify-between gap-3 rounded-md border border-line bg-white px-5 py-3 text-caption text-ink-500 transition-colors duration-200 ease-standard hover:bg-inset"
+              className="flex items-center justify-between gap-3 rounded-md border border-line bg-paper-0 px-5 py-3 text-caption text-ink-500 transition-colors duration-200 ease-standard hover:bg-inset"
             >
               <span className="inline-flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
@@ -376,7 +376,7 @@ export default function Contact() {
             </a>
 
             {!isSiteOperator ? (
-              <div className="rounded-md border border-line bg-white p-5">
+              <div className="rounded-md border border-line bg-paper-0 p-5">
                 <Eyebrow tone="muted">Run / receive path</Eyebrow>
                 <h2 className="mt-3 text-title-m font-semibold tracking-tight text-ink">
                   What happens after this request
@@ -411,7 +411,7 @@ export default function Contact() {
               </div>
             ) : null}
 
-            <div className="flex items-center gap-2 rounded-md border border-line bg-white px-5 py-4">
+            <div className="flex items-center gap-2 rounded-md border border-line bg-paper-0 px-5 py-4">
               <Mail className="h-4 w-4 shrink-0 text-ink-400" strokeWidth={1.75} aria-hidden="true" />
               <span className="font-mono text-[13px] text-ink-700">team@tryblueprint.io</span>
             </div>

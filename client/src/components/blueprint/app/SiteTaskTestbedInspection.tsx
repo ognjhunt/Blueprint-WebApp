@@ -137,9 +137,9 @@ export function SiteTaskTestbedInspection({
         </Card>
       ) : null}
 
-      <details className="rounded-md border border-line bg-white p-4">
+      <details className="rounded-md border border-line bg-paper-0 p-4">
         <summary className="cursor-pointer text-body-s font-semibold text-ink-800">Inspect exact Cards, layers, transforms, and provenance</summary>
-        <pre className="mt-4 max-h-[32rem] overflow-auto rounded-md bg-ink-950 p-4 text-[0.7rem] leading-relaxed text-white">
+        <pre className="mt-4 max-h-[32rem] overflow-auto rounded-md bg-runway-black p-4 text-[0.7rem] leading-relaxed text-white">
           {JSON.stringify(testbed, null, 2)}
         </pre>
       </details>

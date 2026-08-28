@@ -86,7 +86,7 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
         <div
           className={cn(
             "h-2 w-full overflow-hidden rounded-full",
-            onInk ? "bg-ink-700" : "bg-sunken",
+            onInk ? "bg-runway-raised" : "bg-sunken",
           )}
           role="progressbar"
           aria-valuenow={Math.round(ratio * 100)}
@@ -96,7 +96,7 @@ const PolicyRankBar = React.forwardRef<HTMLDivElement, PolicyRankBarProps>(
           <div
             className={cn(
               "h-full rounded-full transition-[width] duration-[350ms] ease-out-bp",
-              winner ? "bg-action" : "bg-ink-400",
+              winner ? "bg-action" : "bg-runway-line-strong",
             )}
             style={{ width: `${ratio * 100}%` }}
           />

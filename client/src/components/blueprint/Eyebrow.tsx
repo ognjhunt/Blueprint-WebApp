@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  *  - muted   secondary paper text (default)
  *  - brass   brass-deep accent
  *  - ink     strong ink
- *  - onInk   text on dark chrome (#f3efe6)
+ *  - onInk   text on dark chrome (#141816)
  *
  * `rule` adds a leading 1.5rem hairline tick in currentColor at .5 opacity.
  */
@@ -19,10 +19,10 @@ const eyebrowVariants = cva(
   {
     variants: {
       tone: {
-        muted: "text-[#5f5d54]",
+        muted: "text-runway-body",
         brass: "text-brass-deep",
         ink: "text-ink",
-        onInk: "text-[#f3efe6]",
+        onInk: "text-runway-text",
       },
     },
     defaultVariants: {

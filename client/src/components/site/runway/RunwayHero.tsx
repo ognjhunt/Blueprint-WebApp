@@ -115,7 +115,7 @@ export function RunwayHero({
               />
               {eyebrow}
             </p>
-            <h1 className="mt-8 max-w-[24ch] text-[clamp(2.7rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-runway-text">
+            <h1 className="mt-8 max-w-[24ch] font-display uppercase text-[clamp(2.7rem,6vw,6rem)] font-semibold leading-[0.94] tracking-[0.005em] text-runway-text">
               {titleLines && titleLines.length > 0
                 ? titleLines.map((line, index) => (
                     <span key={line} className="block">
@@ -152,7 +152,7 @@ export function RunwayHero({
             <div key={readout.label} className="bg-runway-black px-1 py-6 sm:px-5">
               <dd
                 className={cn(
-                  "runway-num text-[clamp(1.8rem,3vw,2.6rem)] font-medium leading-none tracking-[-0.03em]",
+                  "runway-num font-display uppercase text-[clamp(1.8rem,3vw,2.6rem)] font-semibold leading-none tracking-[0.005em]",
                   readoutTone[readout.tone ?? "text"],
                 )}
               >

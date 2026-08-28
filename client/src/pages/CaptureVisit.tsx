@@ -118,7 +118,7 @@ export default function CaptureVisit() {
 
           <Reveal delay={0.28} className="mt-10 border-t border-runway-line pt-8">
             <div className="grid gap-x-14 gap-y-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <h3 className="text-[clamp(1.3rem,2.2vw,1.75rem)] font-semibold leading-[1.15] tracking-[-0.035em] text-runway-text">
+              <h3 className="font-display uppercase text-[clamp(1.3rem,2.2vw,1.75rem)] font-semibold leading-[1.15] tracking-[0.005em] text-runway-text">
                 {visitGateNote.claim}
               </h3>
               <p className="max-w-[56ch] self-center text-[14px] leading-[1.75] text-runway-mute">
@@ -209,7 +209,7 @@ export default function CaptureVisit() {
             <div className="grid gap-x-14 gap-y-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               <div>
                 <span className="runway-meta text-runway-faint">Where we operate</span>
-                <h3 className="mt-4 text-[clamp(1.5rem,2.4vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-runway-text">
+                <h3 className="mt-4 font-display uppercase text-[clamp(1.5rem,2.4vw,2.1rem)] font-semibold leading-[1.1] tracking-[0.005em] text-runway-text">
                   {serviceArea.claim}
                 </h3>
               </div>

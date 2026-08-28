@@ -107,7 +107,7 @@ function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
             className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
               step <= currentStep
                 ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
-                : "border-[color:var(--line-strong)] bg-white text-[color:var(--ink-muted)]"
+                : "border-[color:var(--line-strong)] bg-paper-0 text-[color:var(--ink-muted)]"
             }`}
           >
             {step}
@@ -218,7 +218,7 @@ export default function CapturerSignUpFlow() {
           margin: 1,
           color: {
             dark: "#2f2a23",
-            light: "#fffdf8",
+            light: "#101312",
           },
         });
         if (active) {
@@ -468,7 +468,7 @@ export default function CapturerSignUpFlow() {
       <SurfacePage>
         <SurfaceTopBar eyebrow="Invite-Gated Capture" rightLabel="Field Ops Access" />
         <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="overflow-hidden border-black/10 bg-[#f8f4ec]">
+          <SurfaceBrowserFrame className="overflow-hidden border-white/10 bg-[#101312]">
             <main
               className="px-6 py-8 text-[color:var(--ink)] lg:px-8"
               style={
@@ -498,7 +498,7 @@ export default function CapturerSignUpFlow() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-md text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              <h1 className="max-w-md font-display uppercase text-4xl font-semibold tracking-[0.005em] sm:text-5xl">
                 Apply to get paid for approved field capture.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
@@ -525,7 +525,7 @@ export default function CapturerSignUpFlow() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-[1.75rem] border border-[color:var(--line)] bg-white">
+            <div className="overflow-hidden rounded-[1.75rem] border border-[color:var(--line)] bg-paper-0">
               <img
                 src={publicCaptureGeneratedAssets.captureAppHero}
                 alt="Blueprint public-facing capture walkthrough"
@@ -534,21 +534,21 @@ export default function CapturerSignUpFlow() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
+              <div className="rounded-none border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Field task
                 </p>
                 <p className="mt-3 text-2xl font-semibold">One route</p>
                 <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Walk, upload, review.</p>
               </div>
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
+              <div className="rounded-none border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Gear
                 </p>
                 <p className="mt-3 text-2xl font-semibold">Phone + 360</p>
                 <p className="mt-1 text-sm text-[color:var(--ink-soft)]">No other device class is approved.</p>
               </div>
-              <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
+              <div className="rounded-none border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Web role
                 </p>
@@ -592,7 +592,7 @@ export default function CapturerSignUpFlow() {
                 </ol>
               </div>
 
-            <div className="rounded-2xl border border-dashed border-[color:var(--line-strong)] px-4 py-3 text-sm text-[color:var(--ink-soft)]">
+            <div className="rounded-none border border-dashed border-[color:var(--line-strong)] px-4 py-3 text-sm text-[color:var(--ink-soft)]">
               For site operators or robot teams, use{" "}
               <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/signup/business">
                 business signup
@@ -615,7 +615,7 @@ export default function CapturerSignUpFlow() {
               <div className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-[color:var(--leaf-deep)]">Capturer application</p>
-              <h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">
+              <h2 className="mt-1 font-display uppercase text-3xl font-semibold tracking-[0.005em]">
                 {step === 1 ? "Create your account" : "Tell us where you can work"}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
@@ -642,7 +642,7 @@ export default function CapturerSignUpFlow() {
                             value={fullName}
                             onChange={(event) => setFullName(event.target.value)}
                             placeholder="Jordan Lee"
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 rounded-none border-[color:var(--line-strong)] pl-10"
                           />
                         </div>
                       </div>
@@ -659,7 +659,7 @@ export default function CapturerSignUpFlow() {
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
                             placeholder="you@example.com"
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 rounded-none border-[color:var(--line-strong)] pl-10"
                           />
                         </div>
                       </div>
@@ -674,7 +674,7 @@ export default function CapturerSignUpFlow() {
                           value={password}
                           onChange={(event) => setPassword(event.target.value)}
                           placeholder="At least 8 characters"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12 rounded-none border-[color:var(--line-strong)]"
                         />
                       </div>
 
@@ -688,7 +688,7 @@ export default function CapturerSignUpFlow() {
                           value={confirmPassword}
                           onChange={(event) => setConfirmPassword(event.target.value)}
                           placeholder="Repeat password"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12 rounded-none border-[color:var(--line-strong)]"
                         />
                       </div>
                     </div>
@@ -739,7 +739,7 @@ export default function CapturerSignUpFlow() {
                                   className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
                                     active
                                       ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
-                                      : "border-[color:var(--line-strong)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--paper)]"
+                                      : "border-[color:var(--line-strong)] bg-paper-0 text-[color:var(--ink)] hover:bg-[color:var(--paper)]"
                                   }`}
                                 >
                                   {city.displayName}
@@ -757,7 +757,7 @@ export default function CapturerSignUpFlow() {
                             placeholder={
                               supportedLaunchCities[0]?.displayName || "Austin, TX"
                             }
-                            className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                            className="h-12 rounded-none border-[color:var(--line-strong)] pl-10"
                           />
                         </div>
                         <p className="mt-2 text-xs leading-5 text-[color:var(--ink-muted)]">
@@ -778,7 +778,7 @@ export default function CapturerSignUpFlow() {
                           value={phoneNumber}
                           onChange={(event) => setPhoneNumber(event.target.value)}
                           placeholder="(555) 555-5555"
-                          className="mt-2 h-12 rounded-2xl border-[color:var(--line-strong)]"
+                          className="mt-2 h-12 rounded-none border-[color:var(--line-strong)]"
                         />
                       </div>
                     </div>
@@ -806,7 +806,7 @@ export default function CapturerSignUpFlow() {
                           value={accessCode}
                           onChange={(event) => setAccessCode(event.target.value)}
                           placeholder="Enter your access or invite code"
-                          className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                          className="h-12 rounded-none border-[color:var(--line-strong)] pl-10"
                         />
                       </div>
                       <p className="mt-1.5 text-xs text-[color:var(--ink-muted)]">
@@ -830,7 +830,7 @@ export default function CapturerSignUpFlow() {
                               className={`flex cursor-pointer items-start gap-4 rounded-[1.4rem] border p-4 transition ${
                                 checked
                                   ? "border-[color:var(--leaf)] bg-[color:var(--paper)]"
-                                  : "border-[color:var(--line)] bg-white"
+                                  : "border-[color:var(--line)] bg-paper-0"
                               }`}
                             >
                               <Checkbox
@@ -859,7 +859,7 @@ export default function CapturerSignUpFlow() {
                           {AVAILABILITY_OPTIONS.map((option) => (
                             <label
                               key={option.value}
-                              className="flex items-center gap-3 rounded-2xl border border-[color:var(--line)] px-4 py-3"
+                              className="flex items-center gap-3 rounded-none border border-[color:var(--line)] px-4 py-3"
                             >
                               <RadioGroupItem value={option.value} id={option.value} />
                               <span className="text-sm text-[color:var(--ink)]">{option.label}</span>
@@ -881,7 +881,7 @@ export default function CapturerSignUpFlow() {
                           {REFERRAL_OPTIONS.map((option) => (
                             <label
                               key={option.value}
-                              className="flex items-center gap-3 rounded-2xl border border-[color:var(--line)] px-4 py-3"
+                              className="flex items-center gap-3 rounded-none border border-[color:var(--line)] px-4 py-3"
                             >
                               <RadioGroupItem value={option.value} id={`ref-${option.value}`} />
                               <span className="text-sm text-[color:var(--ink)]">{option.label}</span>
@@ -921,7 +921,7 @@ export default function CapturerSignUpFlow() {
                 )}
 
                 {errorMessage ? (
-                  <div className="rounded-2xl border border-[color:var(--rose)]/30 bg-[color:var(--rose)]/8 px-4 py-3 text-sm text-[color:var(--rose)]">
+                  <div className="rounded-none border border-[color:var(--rose)]/30 bg-[color:var(--rose)]/8 px-4 py-3 text-sm text-[color:var(--rose)]">
                     {errorMessage}
                   </div>
                 ) : null}
@@ -974,10 +974,10 @@ export default function CapturerSignUpFlow() {
               className="relative flex h-full flex-col justify-between"
             >
               <div>
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--leaf)] text-white">
+                <div className="inline-flex h-14 w-14 items-center justify-center rounded-none bg-[color:var(--leaf)] text-white">
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
-                <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">
+                <h2 className="mt-6 font-display uppercase text-3xl font-semibold tracking-[0.005em]">
                   Application submitted.
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--ink-soft)]">
@@ -1007,7 +1007,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-paper-0 p-5">
                   <div className="flex items-start gap-4">
                     <QrCode className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
                     <div className="w-full">
@@ -1031,7 +1031,7 @@ export default function CapturerSignUpFlow() {
                         </div>
 
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3 text-sm text-[color:var(--ink)]">
+                          <div className="rounded-none border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3 text-sm text-[color:var(--ink)]">
                             <span className="break-all">{captureAppUrl}</span>
                           </div>
                           <div className="flex flex-col gap-3 sm:flex-row">
@@ -1066,7 +1066,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-paper-0 p-5">
                   <div className="flex items-start gap-4">
                     <Sparkles className="mt-1 h-5 w-5 text-[color:var(--amber)]" />
                     <div>
@@ -1080,7 +1080,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-5">
+                <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-paper-0 p-5">
                   <div className="flex items-start gap-4">
                     <Shield className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
                     <div>

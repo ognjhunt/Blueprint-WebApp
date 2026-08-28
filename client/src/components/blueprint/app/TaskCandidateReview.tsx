@@ -9,7 +9,7 @@ import type {
 } from "@/lib/captureUploads";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
+  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
 const labelClass = "text-body-s font-semibold text-ink-800";
 
 function displayRows(rows: Array<Record<string, unknown>>) {

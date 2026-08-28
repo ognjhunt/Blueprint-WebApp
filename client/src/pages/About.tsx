@@ -63,7 +63,7 @@ export default function About() {
               <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
                 The thesis
               </p>
-              <h2 className="mt-5 text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-runway-text">
+              <h2 className="mt-5 font-display uppercase text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[0.005em] text-runway-text">
                 Robot supply is scaling. The work of matching one to a job is not.
               </h2>
             </div>

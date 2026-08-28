@@ -33,12 +33,12 @@ export const Checkbox = React.forwardRef<
       ref={ref}
       id={boxId}
       className={cn(
-        "peer flex h-[1.1rem] w-[1.1rem] shrink-0 items-center justify-center rounded-xs border border-line-strong bg-white",
+        "peer flex h-[1.1rem] w-[1.1rem] shrink-0 items-center justify-center rounded-xs border border-line-strong bg-paper-0",
         "outline-none transition-colors duration-200 ease-standard",
         "focus-visible:ring-2 focus-visible:ring-brass-deep/60",
         "disabled:cursor-not-allowed disabled:opacity-45",
-        "data-[state=checked]:border-brass data-[state=checked]:bg-brass data-[state=checked]:text-ink-900",
-        "data-[state=indeterminate]:border-brass data-[state=indeterminate]:bg-brass data-[state=indeterminate]:text-ink-900",
+        "data-[state=checked]:border-runway-signal data-[state=checked]:bg-runway-signal data-[state=checked]:text-ink-900",
+        "data-[state=indeterminate]:border-runway-signal data-[state=indeterminate]:bg-runway-signal data-[state=indeterminate]:text-ink-900",
         className,
       )}
       {...props}

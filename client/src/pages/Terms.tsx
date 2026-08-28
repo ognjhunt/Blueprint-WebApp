@@ -92,17 +92,17 @@ export default function Terms() {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.4fr_0.6fr]">
-              <div className="border-b border-black/10 bg-[#f6f1e7] p-8 xl:border-b-0 xl:border-r lg:p-10">
+              <div className="border-b border-white/10 bg-[#101312] p-8 xl:border-b-0 xl:border-r lg:p-10">
                 <SurfaceMiniLabel>Agreement Card</SurfaceMiniLabel>
-                <h1 className="mt-5 text-[clamp(3.4rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[-0.09em]">
+                <h1 className="mt-5 font-display uppercase text-[clamp(3.4rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em]">
                   Terms of
                   <br />
                   Service
                 </h1>
-                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/50">
+                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-white/50">
                   Agreement to use Blueprint services and site products.
                 </p>
-                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white">
+                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-white/10 bg-paper-0">
                   <img
                     src={privateGeneratedAssets.termsContractBoard}
                     alt="Blueprint terms contract board"
@@ -115,29 +115,29 @@ export default function Terms() {
                 </div>
               </div>
 
-              <div className="bg-white p-8 lg:p-10">
+              <div className="bg-paper-0 p-8 lg:p-10">
                 <div className="grid gap-5 md:grid-cols-2">
                   {sections.map((section) => {
                     const Icon = section.icon;
                     return (
                       <SurfaceCard key={section.title} className="h-full">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf6ef]">
-                            <Icon className="h-4.5 w-4.5 text-black/65" />
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#101312]">
+                            <Icon className="h-4.5 w-4.5 text-white/65" />
                           </div>
                           <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
                         </div>
-                        <p className="mt-4 text-[1.5rem] font-semibold tracking-[-0.05em]">{section.title}</p>
-                        <p className="mt-4 text-sm leading-7 text-black/60">{section.body}</p>
+                        <p className="mt-4 font-display uppercase text-[1.5rem] font-semibold tracking-[0.005em]">{section.title}</p>
+                        <p className="mt-4 text-sm leading-7 text-white/60">{section.body}</p>
                       </SurfaceCard>
                     );
                   })}
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-                  <SurfaceCard className="bg-[#faf7f1]">
+                  <SurfaceCard className="bg-[#101312]">
                     <SurfaceMiniLabel>Disclaimer</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-black/60">
+                    <p className="mt-4 text-sm leading-7 text-white/60">
                       Blueprint does not promise that a site package or hosted session is a
                       deployment guarantee. The product helps teams evaluate a real site earlier and
                       make better decisions before travel or deployment work.
@@ -146,10 +146,10 @@ export default function Terms() {
 
                   <SurfaceCard>
                     <div className="flex items-center gap-3">
-                      <Landmark className="h-4.5 w-4.5 text-black/60" />
+                      <Landmark className="h-4.5 w-4.5 text-white/60" />
                       <SurfaceMiniLabel>Governing law and contact</SurfaceMiniLabel>
                     </div>
-                    <p className="mt-4 text-sm leading-7 text-black/60">
+                    <p className="mt-4 text-sm leading-7 text-white/60">
                       These terms are governed by the laws of the State of North Carolina, without
                       regard to conflict-of-law rules. Questions can be sent to Blueprint Legal.
                     </p>
@@ -162,9 +162,9 @@ export default function Terms() {
 
                 <div className="mt-6 grid gap-5 lg:grid-cols-3">
                   {roleTerms.map((role) => (
-                    <SurfaceCard key={role.title} className={role.title === "Operator schedule" ? "bg-[#faf7f1]" : undefined}>
+                    <SurfaceCard key={role.title} className={role.title === "Operator schedule" ? "bg-[#101312]" : undefined}>
                       <SurfaceMiniLabel>{role.title}</SurfaceMiniLabel>
-                      <ul className="mt-4 space-y-3 text-sm leading-7 text-black/60">
+                      <ul className="mt-4 space-y-3 text-sm leading-7 text-white/60">
                         {role.items.map((item) => (
                           <li key={item}>{item}</li>
                         ))}

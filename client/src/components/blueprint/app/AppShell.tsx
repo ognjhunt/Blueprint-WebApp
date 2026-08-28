@@ -67,11 +67,11 @@ function SidebarBrand() {
   return (
     <Link
       href="/app"
-      className="flex items-center gap-2.5 px-5 py-5 text-[#f3efe6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+      className="flex items-center gap-2.5 px-5 py-5 text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
       aria-label="Blueprint — buyer app home"
     >
       <BrandMark tone="paper" className="h-7 w-7" />
-      <span className="text-[1.15rem] font-semibold leading-none tracking-[-0.035em]">
+      <span className="font-display uppercase text-[1.15rem] font-semibold leading-none tracking-[0.005em]">
         Blueprint
       </span>
     </Link>
@@ -96,8 +96,8 @@ function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
               "flex items-center gap-3 rounded-none px-3 py-2.5 text-[0.85rem] font-semibold leading-none transition-colors duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60",
               isActive
-                ? "bg-brass text-ink"
-                : "text-[#cdc9bb] hover:bg-white/[0.06] hover:text-[#f3efe6]",
+                ? "bg-runway-signal text-ink"
+                : "text-[#cdc9bb] hover:bg-white/[0.06] hover:text-runway-text",
             )}
           >
             <Icon
@@ -119,7 +119,7 @@ function SidebarPlanCard() {
     return (
       <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">Operator record</div>
-        <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">Run-scoped</div>
+        <div className="mt-1 font-mono text-[0.78rem] text-runway-text">Run-scoped</div>
         <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">Testbed, authorization, evidence, and decision states stay linked to each request.</div>
       </div>
     );
@@ -129,7 +129,7 @@ function SidebarPlanCard() {
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">
         Scoped engagement
       </div>
-      <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">
+      <div className="mt-1 font-mono text-[0.78rem] text-runway-text">
         Quote required
       </div>
 
@@ -143,7 +143,7 @@ function SidebarPlanCard() {
 
 function SidebarBody({ active, onNavigate }: SidebarBodyProps) {
   return (
-    <div className="flex h-full flex-col bg-ink text-[#f3efe6]">
+    <div className="flex h-full flex-col bg-runway-deep text-runway-text">
       <SidebarBrand />
       <div className="pt-1">
         <SidebarNav active={active} onNavigate={onNavigate} />
@@ -198,7 +198,7 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
   const initials = initialsForName(displayName);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-white px-4 lg:px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-paper-0 px-4 lg:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
@@ -279,7 +279,7 @@ export function AppShell({
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
           side="left"
-          className="w-[15.5rem] border-0 bg-ink p-0 text-[#f3efe6] sm:max-w-[15.5rem]"
+          className="w-[15.5rem] border-0 bg-runway-deep p-0 text-runway-text sm:max-w-[15.5rem]"
         >
           <SheetTitle className="sr-only">Buyer app navigation</SheetTitle>
           <SidebarBody active={active} onNavigate={() => setDrawerOpen(false)} />

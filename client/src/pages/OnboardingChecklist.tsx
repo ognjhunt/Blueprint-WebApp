@@ -64,27 +64,27 @@ function ChecklistCard({
       className={`rounded-xl border p-4 ${
         item.completed
           ? "border-emerald-200 bg-emerald-50/60"
-          : "border-zinc-200 bg-white"
+          : "border-runway-line bg-paper-0"
       }`}
     >
       <div className="flex items-start gap-4">
         <div
           className={`flex h-9 w-9 items-center justify-center rounded-full ${
-            item.completed ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-500"
+            item.completed ? "bg-emerald-500 text-white" : "bg-runway-line-soft text-runway-faint"
           }`}
         >
           {item.completed ? <CheckCircle2 className="h-5 w-5" /> : <span>{index}</span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-zinc-900">{item.title}</h3>
+            <h3 className="font-medium text-runway-deep">{item.title}</h3>
             {item.optional ? (
-              <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+              <span className="rounded bg-runway-line-soft px-2 py-0.5 text-xs text-runway-faint">
                 Optional
               </span>
             ) : null}
           </div>
-          <p className="mt-1 text-sm text-zinc-600">{item.description}</p>
+          <p className="mt-1 text-sm text-runway-mute">{item.description}</p>
           {item.completed ? (
             <p className="mt-2 text-sm text-emerald-700">Completed</p>
           ) : item.action ? (
@@ -99,7 +99,7 @@ function ChecklistCard({
             </Button>
           ) : null}
         </div>
-        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-zinc-300"}`} />
+        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-runway-line-strong"}`} />
       </div>
     </motion.div>
   );
@@ -473,11 +473,11 @@ export default function OnboardingChecklist() {
   ];
 
   return (
-    <main className="min-h-screen bg-white px-4 py-12">
+    <main className="min-h-screen bg-paper-0 px-4 py-12">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-zinc-950">Intake review hub</h1>
-          <p className="mt-2 text-zinc-600">
+          <h1 className="text-3xl font-semibold text-runway-black">Intake review hub</h1>
+          <p className="mt-2 text-runway-mute">
             Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
           </p>
         </div>
@@ -495,54 +495,54 @@ export default function OnboardingChecklist() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+            <div className="rounded-none border border-runway-line bg-runway-line-soft p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-runway-faint">
                 Submission summary
               </p>
               <div className="mt-4 space-y-3">
                 {intakeSummary.map((item) => (
                   <div key={item.label}>
-                    <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                    <p className="text-xs uppercase tracking-[0.14em] text-runway-faint">
                       {item.label}
                     </p>
-                    <p className="text-sm text-zinc-900">{item.value}</p>
+                    <p className="text-sm text-runway-deep">{item.value}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
               {!isRobotTeam ? (
-                <div className="mb-6 border-b border-zinc-200 pb-6">
-                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                <div className="mb-6 border-b border-runway-line pb-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-runway-faint">
                     Operator control map
                   </p>
                   <div className="mt-4 grid gap-3">
                     {operatorControlRows.map((item) => (
-                      <div key={item.label} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <div key={item.label} className="rounded-lg border border-runway-line bg-runway-line-soft p-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
-                          <p className="text-xs font-medium text-zinc-500">{item.value}</p>
+                          <p className="text-sm font-semibold text-runway-black">{item.label}</p>
+                          <p className="text-xs font-medium text-runway-faint">{item.value}</p>
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-zinc-600">{item.detail}</p>
+                        <p className="mt-1 text-xs leading-5 text-runway-mute">{item.detail}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : null}
-              <div className="mb-4 flex items-center justify-between text-sm text-zinc-500">
+              <div className="mb-4 flex items-center justify-between text-sm text-runway-faint">
                 <span>Checklist progress</span>
                 <span>
                   {completedCount} / {checklistItems.length}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+              <div className="h-2 overflow-hidden rounded-full bg-runway-line-soft">
                 <div
                   className="h-full rounded-full bg-emerald-500"
                   style={{ width: `${(completedCount / checklistItems.length) * 100}%` }}
                 />
               </div>
-              <p className="mt-4 text-sm text-zinc-600">
+              <p className="mt-4 text-sm text-runway-mute">
                 Finish onboarding once the intake path is clear. You can still return here later.
               </p>
               <Button type="button" className="mt-4 w-full" onClick={handleFinish}>

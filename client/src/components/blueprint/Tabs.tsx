@@ -25,7 +25,7 @@ export interface TabsProps
 /**
  * Tabs — Blueprint underline tab bar.
  *
- * Flex gap 1.5rem, bottom border #ded7c8. Each tab: body-s 600, padding .75rem 0,
+ * Flex gap 1.5rem, bottom border #1a1f1c. Each tab: body-s 600, padding .75rem 0,
  * margin-bottom -1px; active = strong text + 2px brass bottom border (inactive
  * transparent + muted). Optional mono count badge (.7rem, xs radius, warn-050 bg
  * when active else sunken). Controlled via value + onChange.
@@ -104,7 +104,7 @@ export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
                   "focus-visible:ring-2 focus-visible:ring-brass-deep/60",
                   "disabled:cursor-not-allowed disabled:opacity-45",
                   isActive
-                    ? "border-brass text-ink-900"
+                    ? "border-runway-signal text-ink-900"
                     : "border-transparent text-ink-500 hover:text-ink-700",
                 )}
               >

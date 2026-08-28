@@ -129,7 +129,7 @@ export function SectionHead({
         </div>
         <h2
           className={cn(
-            "mt-5 max-w-[20ch] text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[-0.045em]",
+            "mt-5 max-w-[20ch] font-display uppercase text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[0.005em]",
             onLight ? "text-runway-black" : "text-runway-text",
           )}
         >
@@ -140,7 +140,7 @@ export function SectionHead({
         <p
           className={cn(
             "max-w-[40ch] self-end text-[15px] leading-[1.7]",
-            onLight ? "text-[#4a5462]" : "text-runway-mute",
+            onLight ? "text-runway-body" : "text-runway-mute",
           )}
         >
           {lede}
@@ -192,7 +192,7 @@ export function FigureFrame({
       className={cn(
         "overflow-hidden rounded-md border",
         onLight
-          ? "border-runway-paper-line bg-white"
+          ? "border-runway-paper-line bg-paper-0"
           : "border-runway-line bg-runway-panel",
         className,
       )}
@@ -238,7 +238,7 @@ export function FigureFrame({
           )}
         >
           {caveat ? (
-            <p className={cn("max-w-[52ch] text-[12.5px] leading-6", onLight ? "text-[#5a6472]" : "text-runway-mute")}>
+            <p className={cn("max-w-[52ch] text-[12.5px] leading-6", onLight ? "text-runway-mute" : "text-runway-mute")}>
               {caveat}
             </p>
           ) : (
@@ -272,7 +272,7 @@ export function SourceLink({
       className={cn(
         "inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.12em] underline-offset-4 transition-colors hover:underline",
         onLight
-          ? "text-[#5a6472] hover:text-runway-black"
+          ? "text-runway-mute hover:text-runway-black"
           : "text-runway-faint hover:text-runway-signal",
       )}
     >
@@ -327,7 +327,7 @@ export function MetricStrip({
           <div>
             <dd
               className={cn(
-                "runway-num text-[clamp(2rem,3.4vw,2.9rem)] font-medium leading-none tracking-[-0.03em]",
+                "runway-num font-display uppercase text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-none tracking-[0.005em]",
                 metricTone[metric.tone ?? "text"],
               )}
             >
@@ -367,7 +367,7 @@ export function Pullquote({
 }) {
   return (
     <Reveal className={cn("border-l-2 border-runway-signal pl-6 sm:pl-8", className)}>
-      <p className="max-w-[30ch] text-[clamp(1.5rem,2.8vw,2.4rem)] font-medium leading-[1.18] tracking-[-0.035em] text-runway-text">
+      <p className="max-w-[30ch] font-display uppercase text-[clamp(1.5rem,2.8vw,2.4rem)] font-semibold leading-[1.18] tracking-[0.005em] text-runway-text">
         {children}
       </p>
       {attribution ? (
@@ -412,7 +412,7 @@ export function RunwayCta({
             <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">
               {eyebrow}
             </p>
-            <h2 className="mt-5 max-w-[16ch] text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-runway-black">
+            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-black">
               {title}
             </h2>
           </div>

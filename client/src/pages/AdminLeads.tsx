@@ -75,13 +75,13 @@ const pilotOpportunityOutcomeLabels: Record<PilotOpportunityOutcome, string> = {
 };
 
 const priorityColors: Record<RequestPriority, string> = {
-  low: "bg-zinc-100 text-zinc-700",
+  low: "bg-runway-line-soft text-runway-line-strong",
   normal: "bg-blue-100 text-blue-700",
   high: "bg-amber-100 text-amber-800",
 };
 
 const qualificationColors: Record<QualificationState, string> = {
-  submitted: "bg-zinc-100 text-zinc-700",
+  submitted: "bg-runway-line-soft text-runway-line-strong",
   capture_requested: "bg-amber-100 text-amber-800",
   qa_passed: "bg-sky-100 text-sky-800",
   needs_more_evidence: "bg-orange-100 text-orange-800",
@@ -530,52 +530,52 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600">
+      <div className="rounded-none border border-runway-line bg-paper-0 p-5 text-sm text-runway-mute">
         Decisions update the applicant&apos;s status on their capture-app page.
         First assignments are coordinated by ops after approval — approving here
         does not create or promise an assignment.
       </div>
       {applicationsQuery.isLoading ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+        <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
           Loading capturer applications...
         </div>
       ) : applicationsQuery.isError ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+        <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
           Failed to load capturer applications. Refresh to retry.
         </div>
       ) : applications.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+        <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
           No capturer applications on record yet.
         </div>
       ) : (
         applications.map((application) => (
           <div
             key={application.uid}
-            className="rounded-2xl border border-zinc-200 bg-white p-5"
+            className="rounded-none border border-runway-line bg-paper-0 p-5"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-lg font-medium text-zinc-950">
+                <p className="text-lg font-medium text-runway-black">
                   {application.displayName || application.email || application.uid}
                 </p>
-                <p className="mt-1 text-sm text-zinc-600">{application.email}</p>
-                <div className="mt-3 grid gap-1 text-sm text-zinc-600">
+                <p className="mt-1 text-sm text-runway-mute">{application.email}</p>
+                <div className="mt-3 grid gap-1 text-sm text-runway-mute">
                   <p>
-                    <span className="text-zinc-400">Market:</span>{" "}
+                    <span className="text-runway-faint">Market:</span>{" "}
                     {application.market || "Not provided"}
                   </p>
                   <p>
-                    <span className="text-zinc-400">Equipment:</span>{" "}
+                    <span className="text-runway-faint">Equipment:</span>{" "}
                     {application.equipment.length > 0
                       ? application.equipment.join(", ")
                       : "Not provided"}
                   </p>
                   <p>
-                    <span className="text-zinc-400">Availability:</span>{" "}
+                    <span className="text-runway-faint">Availability:</span>{" "}
                     {application.availability || "Not provided"}
                   </p>
                   <p>
-                    <span className="text-zinc-400">Applied:</span>{" "}
+                    <span className="text-runway-faint">Applied:</span>{" "}
                     {application.appliedAt
                       ? new Date(application.appliedAt).toLocaleString()
                       : "Unknown"}
@@ -585,7 +585,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
               <span
                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                   capturerStatusColors[application.status] ||
-                  "bg-zinc-100 text-zinc-700"
+                  "bg-runway-line-soft text-runway-line-strong"
                 }`}
               >
                 {capturerStatusLabels[application.status] || application.status}
@@ -597,7 +597,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
                   type="button"
                   onClick={() => handleApprove(application)}
                   disabled={decisionMutation.isPending}
-                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white disabled:opacity-60"
+                  className="inline-flex items-center rounded-full bg-runway-black px-4 py-2 text-sm text-white disabled:opacity-60"
                 >
                   Approve
                 </button>
@@ -605,13 +605,13 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
                   type="button"
                   onClick={() => handleReject(application)}
                   disabled={decisionMutation.isPending}
-                  className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 disabled:opacity-60"
+                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong disabled:opacity-60"
                 >
                   Reject
                 </button>
               </div>
             ) : (
-              <div className="mt-4 text-sm text-zinc-600">
+              <div className="mt-4 text-sm text-runway-mute">
                 <p>
                   Reviewed{" "}
                   {application.reviewedAt
@@ -620,7 +620,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
                   {application.reviewedBy ? ` by ${application.reviewedBy}` : ""}
                 </p>
                 {application.reviewNote ? (
-                  <p className="mt-1 text-zinc-500">Note: {application.reviewNote}</p>
+                  <p className="mt-1 text-runway-faint">Note: {application.reviewNote}</p>
                 ) : null}
               </div>
             )}
@@ -1538,18 +1538,18 @@ export default function AdminLeads() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
-          <h1 className="mt-4 text-xl font-semibold text-zinc-900">Admin access required</h1>
+          <h1 className="mt-4 text-xl font-semibold text-runway-deep">Admin access required</h1>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8">
+    <div className="min-h-screen bg-runway-line-soft px-4 py-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
               {activeView === "submissions"
                 ? "Admin Review Queue"
                 : activeView === "hosted_review"
@@ -1564,7 +1564,7 @@ export default function AdminLeads() {
                       ? "Field Ops"
                   : "Ops Agent Console"}
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+            <h1 className="mt-2 text-3xl font-semibold text-runway-black">
               {activeView === "submissions"
                 ? "Qualification submissions"
                 : activeView === "hosted_review"
@@ -1579,7 +1579,7 @@ export default function AdminLeads() {
                       ? "Field ops control room"
                   : "Startup operations agent"}
             </h1>
-            <p className="mt-2 text-zinc-600">
+            <p className="mt-2 text-runway-mute">
               {activeView === "submissions"
                 ? "Move submissions through qualification state and only activate opportunity state once a site clears review."
                 : activeView === "hosted_review"
@@ -1612,7 +1612,7 @@ export default function AdminLeads() {
                   )
                 }
               >
-                <TabsList className="w-max rounded-full border border-zinc-200 bg-white p-1">
+                <TabsList className="w-max rounded-full border border-runway-line bg-paper-0 p-1">
                   <TabsTrigger value="submissions" className="rounded-full px-4">
                     Qualification
                   </TabsTrigger>
@@ -1664,14 +1664,14 @@ export default function AdminLeads() {
                           ])
                     : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
               }
-              className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </button>
             <a
               href="/admin/growth-ops-scorecard"
-              className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
             >
               <ClipboardList className="mr-2 h-4 w-4" />
               Growth scorecard
@@ -1680,7 +1680,7 @@ export default function AdminLeads() {
               <button
                 type="button"
                 onClick={() => runWaitlistAutomationMutation.mutate({ limit: 10 })}
-                className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                className="inline-flex items-center rounded-full bg-runway-black px-4 py-2 text-sm text-white"
                 disabled={runWaitlistAutomationMutation.isPending}
               >
                 <Sparkles className="mr-2 h-4 w-4" />
@@ -1691,7 +1691,7 @@ export default function AdminLeads() {
                 <button
                   type="button"
                   onClick={() => runOverdueReviewWatchdogMutation.mutate()}
-                  className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
                   disabled={runOverdueReviewWatchdogMutation.isPending}
                 >
                   <AlertCircle className="mr-2 h-4 w-4" />
@@ -1702,7 +1702,7 @@ export default function AdminLeads() {
                 <button
                   type="button"
                   onClick={() => runReminderLoopMutation.mutate()}
-                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                  className="inline-flex items-center rounded-full bg-runway-black px-4 py-2 text-sm text-white"
                   disabled={runReminderLoopMutation.isPending}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
@@ -1716,9 +1716,9 @@ export default function AdminLeads() {
         {statCards.length > 0 ? (
           <div className="mb-6 grid gap-4 md:grid-cols-4">
             {statCards.map((card) => (
-              <div key={card.label} className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">{card.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-950">{card.value}</p>
+              <div key={card.label} className="rounded-none border border-runway-line bg-paper-0 p-5">
+                <p className="text-sm text-runway-faint">{card.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-black">{card.value}</p>
               </div>
             ))}
           </div>
@@ -1732,23 +1732,23 @@ export default function AdminLeads() {
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
               {approvalQueueQuery.isLoading ? (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                   Loading action queue...
                 </div>
               ) : approvalQueueItems.length === 0 ? (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                   No pending approvals or failed actions right now.
                 </div>
               ) : (
                 approvalQueueItems.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <div key={item.id} className="rounded-none border border-runway-line bg-paper-0 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                        <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                           {item.lane}
                         </p>
-                        <p className="mt-1 text-lg font-medium text-zinc-950">{item.action_type}</p>
-                        <p className="mt-1 text-sm text-zinc-600">
+                        <p className="mt-1 text-lg font-medium text-runway-black">{item.action_type}</p>
+                        <p className="mt-1 text-sm text-runway-mute">
                           {item.source_collection} / {item.source_doc_id}
                         </p>
                       </div>
@@ -1762,14 +1762,14 @@ export default function AdminLeads() {
                         >
                           {item.status.replace(/_/g, " ")}
                         </span>
-                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
                           Tier {item.action_tier}
                         </span>
                       </div>
                     </div>
 
-                    <p className="mt-3 text-sm text-zinc-700">{formatActionPreview(item)}</p>
-                    <div className="mt-4 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                    <p className="mt-3 text-sm text-runway-line-strong">{formatActionPreview(item)}</p>
+                    <div className="mt-4 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
                       <p>Attempts: {item.execution_attempts}</p>
                       <p>Updated: {item.updated_at ? formatDate(item.updated_at) : "unknown"}</p>
                       <p>
@@ -1807,7 +1807,7 @@ export default function AdminLeads() {
                           <button
                             type="button"
                             onClick={() => approveActionMutation.mutate(item.id)}
-                            className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+                            className="rounded-full bg-runway-black px-4 py-2 text-sm font-medium text-white"
                             disabled={approveActionMutation.isPending}
                           >
                             Approve
@@ -1827,7 +1827,7 @@ export default function AdminLeads() {
                                 reason: reason.trim(),
                               });
                             }}
-                            className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+                            className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-line-strong"
                             disabled={rejectActionMutation.isPending}
                           >
                             Reject
@@ -1838,7 +1838,7 @@ export default function AdminLeads() {
                         <button
                           type="button"
                           onClick={() => retryActionMutation.mutate(item.id)}
-                          className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+                          className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-line-strong"
                           disabled={retryActionMutation.isPending}
                         >
                           Retry
@@ -1850,11 +1850,11 @@ export default function AdminLeads() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                 Control model
               </p>
-              <div className="mt-4 space-y-3 text-sm text-zinc-700">
+              <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
                 <p>Low-risk reversible actions can auto-send when the lane policy allows it.</p>
                 <p>Pending approval items stay parked until an operator approves or rejects them.</p>
                 <p>Failed actions can be retried if the executor marks them as safe to replay.</p>
@@ -1867,11 +1867,11 @@ export default function AdminLeads() {
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className="space-y-3">
                 {fieldOpsJobsQuery.isLoading ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     Loading capture jobs...
                   </div>
                 ) : fieldOpsJobs.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     No capture jobs are available right now.
                   </div>
                 ) : (
@@ -1880,25 +1880,25 @@ export default function AdminLeads() {
                       key={job.id}
                       type="button"
                       onClick={() => setSelectedCaptureJobId(job.id)}
-                      className={`w-full rounded-2xl border p-5 text-left ${
+                      className={`w-full rounded-none border p-5 text-left ${
                         selectedCaptureJob?.id === job.id
-                          ? "border-zinc-900 bg-white"
-                          : "border-zinc-200 bg-white"
+                          ? "border-runway-deep bg-paper-0"
+                          : "border-runway-line bg-paper-0"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                          <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                             {job.marketplace_state || "capture job"}
                           </p>
-                          <p className="mt-1 text-lg font-medium text-zinc-950">{job.title}</p>
-                          <p className="mt-1 text-sm text-zinc-600">{job.address}</p>
+                          <p className="mt-1 text-lg font-medium text-runway-black">{job.title}</p>
+                          <p className="mt-1 text-sm text-runway-mute">{job.address}</p>
                         </div>
-                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
                           {job.status || "untracked"}
                         </span>
                       </div>
-                      <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                      <div className="mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
                         <p>
                           Assigned:{" "}
                           {typeof job.field_ops?.capturer_assignment?.name === "string"
@@ -1928,16 +1928,16 @@ export default function AdminLeads() {
               <div className="space-y-6">
                 {selectedCaptureJob ? (
                   <>
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                    <div className="rounded-none border border-runway-line bg-paper-0 p-6">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                             Selected capture job
                           </p>
-                          <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                          <h2 className="mt-2 text-2xl font-semibold text-runway-black">
                             {selectedCaptureJob.title}
                           </h2>
-                          <p className="mt-2 text-sm text-zinc-600">
+                          <p className="mt-2 text-sm text-runway-mute">
                             {selectedCaptureJob.address}
                           </p>
                         </div>
@@ -1945,14 +1945,14 @@ export default function AdminLeads() {
                           href={selectedCaptureJob.buyer_request_id
                             ? `#request-${selectedCaptureJob.buyer_request_id}`
                             : "#"}
-                          className="inline-flex items-center text-sm text-zinc-600"
+                          className="inline-flex items-center text-sm text-runway-mute"
                         >
                           Request link
                           <ArrowUpRight className="ml-2 h-4 w-4" />
                         </a>
                       </div>
 
-                      <div className="mt-4 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                      <div className="mt-4 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
                         <p>Rights: {selectedCaptureJob.rights_status || "unknown"}</p>
                         <p>Policy: {selectedCaptureJob.capture_policy_tier || "review_required"}</p>
                         <p>
@@ -1966,8 +1966,8 @@ export default function AdminLeads() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                         Capturer assignment
                       </p>
                       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -1990,35 +1990,35 @@ export default function AdminLeads() {
                         {capturerCandidates.map((candidate) => (
                           <div
                             key={candidate.uid}
-                            className="rounded-xl border border-zinc-200 p-4"
+                            className="rounded-xl border border-runway-line p-4"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <p className="text-sm font-medium text-zinc-950">
+                                <p className="text-sm font-medium text-runway-black">
                                   {candidate.name || candidate.email || candidate.uid}
                                 </p>
-                                <p className="mt-1 text-xs text-zinc-500">
+                                <p className="mt-1 text-xs text-runway-faint">
                                   {candidate.market || "Unknown market"} · {candidate.availability || "Unknown availability"}
                                 </p>
-                                <p className="mt-1 text-xs text-zinc-500">
+                                <p className="mt-1 text-xs text-runway-faint">
                                   Equipment: {candidate.equipment.join(", ") || "unknown"}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm font-medium text-zinc-950">
+                                <p className="text-sm font-medium text-runway-black">
                                   Score {candidate.score}
                                 </p>
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-xs text-runway-faint">
                                   Travel {candidate.travel_estimate_minutes ?? "?"} min
                                 </p>
-                                <p className="mt-1 text-[11px] text-zinc-400">
+                                <p className="mt-1 text-[11px] text-runway-faint">
                                   {candidate.travel_estimate_source === "unknown"
                                     ? "No routing integration"
                                     : `Source: ${candidate.travel_estimate_source}`}
                                 </p>
                               </div>
                             </div>
-                            <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                            <div className="mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
                               <p>Market fit: {candidate.score_breakdown.market}</p>
                               <p>Availability fit: {candidate.score_breakdown.availability}</p>
                               <p>Equipment fit: {candidate.score_breakdown.equipment}</p>
@@ -2034,7 +2034,7 @@ export default function AdminLeads() {
                                     sendConfirmation: false,
                                   })
                                 }
-                                className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                                className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                               >
                                 Assign
                               </button>
@@ -2047,7 +2047,7 @@ export default function AdminLeads() {
                                     sendConfirmation: true,
                                   })
                                 }
-                                className="rounded-full bg-zinc-950 px-3 py-2 text-sm text-white"
+                                className="rounded-full bg-runway-black px-3 py-2 text-sm text-white"
                               >
                                 Assign + confirm
                               </button>
@@ -2057,8 +2057,8 @@ export default function AdminLeads() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                         Ops actions
                       </p>
                       <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
@@ -2076,7 +2076,7 @@ export default function AdminLeads() {
                               communicationType: "reminder_48h",
                             })
                           }
-                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                         >
                           Send 48h reminder
                         </button>
@@ -2088,7 +2088,7 @@ export default function AdminLeads() {
                               communicationType: "reminder_24h",
                             })
                           }
-                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                         >
                           Send 24h reminder
                         </button>
@@ -2109,7 +2109,7 @@ export default function AdminLeads() {
                                 || "Human operator confirmed that site access is granted.",
                             })
                           }
-                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                         >
                           Mark site access granted
                         </button>
@@ -2130,7 +2130,7 @@ export default function AdminLeads() {
                                 || "Conditional access requires human follow-up on terms or restrictions.",
                             })
                           }
-                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                         >
                           Mark conditional
                         </button>
@@ -2151,35 +2151,35 @@ export default function AdminLeads() {
                                 || "Operator review is still required before any capture is scheduled.",
                             })
                           }
-                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                         >
                           Keep in review
                         </button>
                       </div>
 
                       <div className="mt-6 grid gap-3 md:grid-cols-2">
-                        <label className="space-y-2 text-sm text-zinc-700">
-                          <span className="font-medium text-zinc-900">Operator notes</span>
+                        <label className="space-y-2 text-sm text-runway-line-strong">
+                          <span className="font-medium text-runway-deep">Operator notes</span>
                           <textarea
                             value={siteAccessReviewNotes}
                             onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
                             placeholder="Document access restrictions, unanswered questions, or what needs human follow-up."
-                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="min-h-[96px] w-full rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                         </label>
-                        <label className="space-y-2 text-sm text-zinc-700">
-                          <span className="font-medium text-zinc-900">Decision summary</span>
+                        <label className="space-y-2 text-sm text-runway-line-strong">
+                          <span className="font-medium text-runway-deep">Decision summary</span>
                           <textarea
                             value={siteAccessDecisionSummary}
                             onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
                             placeholder="Capture the current human judgment: granted, conditional, denied, or still unresolved."
-                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="min-h-[96px] w-full rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                         </label>
                       </div>
 
-                      <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-                        <p className="font-medium text-zinc-900">Current site-access review</p>
+                      <div className="mt-6 rounded-xl border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-line-strong">
+                        <p className="font-medium text-runway-deep">Current site-access review</p>
                         {selectedSiteAccessOverdueReview.active === true ? (
                           <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
                             Overdue review:{" "}
@@ -2212,44 +2212,44 @@ export default function AdminLeads() {
                           </p>
                         </div>
                         {typeof selectedSiteAccess.human_only_boundary === "string" ? (
-                          <p className="mt-3 text-xs text-zinc-500">
+                          <p className="mt-3 text-xs text-runway-faint">
                             {selectedSiteAccess.human_only_boundary}
                           </p>
                         ) : null}
                       </div>
 
                       <div className="mt-6">
-                        <p className="text-sm font-medium text-zinc-900">
+                        <p className="text-sm font-medium text-runway-deep">
                           Site-access contacts
                         </p>
                         <div className="mt-3 space-y-2">
                           {siteAccessContacts.length === 0 ? (
-                            <p className="text-sm text-zinc-500">
+                            <p className="text-sm text-runway-faint">
                               No discovered contacts yet.
                             </p>
                           ) : (
                             siteAccessContacts.map((contact) => (
                               <div
                                 key={`${contact.source}-${contact.email}`}
-                                className="flex items-center justify-between rounded-xl border border-zinc-200 p-3"
+                                className="flex items-center justify-between rounded-xl border border-runway-line p-3"
                               >
                                 <div>
-                                  <p className="text-sm font-medium text-zinc-950">
+                                  <p className="text-sm font-medium text-runway-black">
                                     {contact.name || contact.email}
                                   </p>
-                                  <p className="text-xs text-zinc-500">
+                                  <p className="text-xs text-runway-faint">
                                     {contact.email} · {contact.source}
                                     {contact.verification_status
                                       ? ` · ${contact.verification_status}`
                                       : ""}
                                   </p>
                                   {contact.company || contact.roleTitle ? (
-                                    <p className="text-xs text-zinc-500">
+                                    <p className="text-xs text-runway-faint">
                                       {[contact.company, contact.roleTitle].filter(Boolean).join(" · ")}
                                     </p>
                                   ) : null}
                                   {contact.notes ? (
-                                    <p className="mt-1 text-xs text-zinc-500">{contact.notes}</p>
+                                    <p className="mt-1 text-xs text-runway-faint">{contact.notes}</p>
                                   ) : null}
                                 </div>
                                 <button
@@ -2265,7 +2265,7 @@ export default function AdminLeads() {
                                       source: contact.source,
                                     })
                                   }
-                                  className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                                  className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                                 >
                                   Send outreach
                                 </button>
@@ -2275,9 +2275,9 @@ export default function AdminLeads() {
                         </div>
                       </div>
 
-                      <div className="mt-6 rounded-xl border border-zinc-200 p-4">
-                        <p className="text-sm font-medium text-zinc-900">Add operator contact</p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                      <div className="mt-6 rounded-xl border border-runway-line p-4">
+                        <p className="text-sm font-medium text-runway-deep">Add operator contact</p>
+                        <p className="mt-1 text-xs text-runway-faint">
                           Use this when the correct contact comes from a call, email thread, or site visit rather than an existing Blueprint record.
                         </p>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -2290,7 +2290,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="Contact name"
-                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                           <input
                             value={siteAccessContactForm.email}
@@ -2301,7 +2301,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="contact@site.com"
-                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                           <input
                             value={siteAccessContactForm.company}
@@ -2312,7 +2312,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="Operator company"
-                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                           <input
                             value={siteAccessContactForm.roleTitle}
@@ -2323,7 +2323,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="Role / title"
-                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                           <input
                             value={siteAccessContactForm.phoneNumber}
@@ -2334,7 +2334,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="Phone number"
-                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                           <textarea
                             value={siteAccessContactForm.notes}
@@ -2345,7 +2345,7 @@ export default function AdminLeads() {
                               }))
                             }
                             placeholder="How this contact was obtained or what they control"
-                            className="min-h-[84px] rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                            className="min-h-[84px] rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -2361,7 +2361,7 @@ export default function AdminLeads() {
                               saveSiteAccessContactMutation.isPending
                               || !siteAccessContactForm.email.trim()
                             }
-                            className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-full bg-runway-black px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Save contact
                           </button>
@@ -2370,7 +2370,7 @@ export default function AdminLeads() {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     Select a capture job to view field-ops details.
                   </div>
                 )}
@@ -2378,21 +2378,21 @@ export default function AdminLeads() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Reschedule queue
                 </p>
                 <div className="mt-4 space-y-3">
                   {rescheduleQueueItems.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No reschedule requests are queued.</p>
+                    <p className="text-sm text-runway-faint">No reschedule requests are queued.</p>
                   ) : (
                     rescheduleQueueItems.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
-                        <p className="text-sm font-medium text-zinc-950">{item.businessName}</p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                      <div key={item.id} className="rounded-xl border border-runway-line p-4">
+                        <p className="text-sm font-medium text-runway-black">{item.businessName}</p>
+                        <p className="mt-1 text-xs text-runway-faint">
                           {item.current_date} {item.current_time} → {item.requested_date} {item.requested_time}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                        <p className="mt-1 text-xs text-runway-faint">
                           {item.status} · {item.requested_by || "buyer"}
                         </p>
                       </div>
@@ -2401,8 +2401,8 @@ export default function AdminLeads() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Finance review
                 </p>
                 <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
@@ -2413,7 +2413,7 @@ export default function AdminLeads() {
                 </div>
                 <div className="mt-4 space-y-3">
                   {financeQueueItems.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No finance review items are queued.</p>
+                    <p className="text-sm text-runway-faint">No finance review items are queued.</p>
                   ) : (
                     financeQueueItems.map((item) => {
                       const overdueReview =
@@ -2421,17 +2421,17 @@ export default function AdminLeads() {
                         ?? {};
 
                       return (
-                        <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
-                        <p className="text-sm font-medium text-zinc-950">
+                        <div key={item.id} className="rounded-xl border border-runway-line p-4">
+                        <p className="text-sm font-medium text-runway-black">
                           {item.id} · {item.status}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                        <p className="mt-1 text-xs text-runway-faint">
                           {item.failure_reason
                             || (typeof item.ops_automation?.rationale === "string"
                               ? item.ops_automation.rationale
                               : "Needs manual review")}
                         </p>
-                        <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                        <div className="mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
                           <p>
                             Owner:{" "}
                             {typeof item.finance_review?.owner_email === "string"
@@ -2465,7 +2465,7 @@ export default function AdminLeads() {
                           </p>
                         ) : null}
                         {typeof item.finance_review?.human_only_boundary === "string" ? (
-                          <p className="mt-3 text-xs text-zinc-500">
+                          <p className="mt-3 text-xs text-runway-faint">
                             {item.finance_review.human_only_boundary}
                           </p>
                         ) : null}
@@ -2481,7 +2481,7 @@ export default function AdminLeads() {
                                 manualActionType: "investigation",
                               })
                             }
-                            className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                           >
                             Assign to me + investigate
                           </button>
@@ -2496,7 +2496,7 @@ export default function AdminLeads() {
                                 manualActionType: "manual_finance_execution",
                               })
                             }
-                            className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                           >
                             Ready for manual action
                           </button>
@@ -2511,13 +2511,13 @@ export default function AdminLeads() {
           </div>
         ) : activeView === "submissions" || activeView === "hosted_review" ? (
           <>
-            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+            <div className="mb-6 flex flex-col gap-3 rounded-none border border-runway-line bg-paper-0 p-4 md:flex-row">
+              <div className="flex items-center gap-2 text-sm font-medium text-runway-line-strong">
                 <Filter className="h-4 w-4" />
                 Filters
               </div>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={qualificationFilter}
                 onChange={(event) => setQualificationFilter(event.target.value as QualificationState | "")}
               >
@@ -2529,7 +2529,7 @@ export default function AdminLeads() {
                 ))}
               </select>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={priorityFilter}
                 onChange={(event) => setPriorityFilter(event.target.value as RequestPriority | "")}
               >
@@ -2545,11 +2545,11 @@ export default function AdminLeads() {
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className="space-y-3">
                 {leadsQuery.isLoading ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     Loading submissions...
                   </div>
                 ) : leads.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     No submissions match the current filters.
                   </div>
                 ) : (
@@ -2558,16 +2558,16 @@ export default function AdminLeads() {
                       key={lead.requestId}
                       type="button"
                       onClick={() => setSelectedRequestId(lead.requestId)}
-                      className={`w-full rounded-2xl border p-5 text-left ${
+                      className={`w-full rounded-none border p-5 text-left ${
                         selectedRequestId === lead.requestId
-                          ? "border-zinc-900 bg-white"
-                          : "border-zinc-200 bg-white"
+                          ? "border-runway-deep bg-paper-0"
+                          : "border-runway-line bg-paper-0"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
-                          <p className="text-sm text-zinc-600">
+                          <p className="font-medium text-runway-deep">{lead.request.siteName}</p>
+                          <p className="text-sm text-runway-mute">
                             {lead.contact.company} · {lead.request.siteLocation}
                           </p>
                         </div>
@@ -2577,7 +2577,7 @@ export default function AdminLeads() {
                           {statusLabels[lead.qualification_state]}
                         </span>
                       </div>
-                      <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
+                      <p className="mt-3 text-sm text-runway-mute">{lead.request.taskStatement}</p>
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
                         <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
                           {priorityLabels[lead.priority]}
@@ -2593,43 +2593,43 @@ export default function AdminLeads() {
                           </span>
                         ) : null}
                         {lead.request.commercialRequestPath ? (
-                          <span className="rounded-full bg-slate-900 px-3 py-1 text-white">
+                          <span className="rounded-full bg-runway-deep px-3 py-1 text-white">
                             {formatCommercialRequestPath(lead.request.commercialRequestPath)}
                           </span>
                         ) : null}
                         {lead.request.requestedLanes.map((lane) => (
-                          <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                          <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
                             {requestedLaneLabels[lane]}
                           </span>
                         ))}
                       </div>
-                      <p className="mt-3 text-xs text-zinc-400">{formatDate(lead.createdAt)}</p>
+                      <p className="mt-3 text-xs text-runway-faint">{formatDate(lead.createdAt)}</p>
                     </button>
                   ))
                 )}
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
                 {selectedLead ? (
               <div className="space-y-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                       Submission {selectedLead.site_submission_id}
                     </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                    <h2 className="mt-2 text-2xl font-semibold text-runway-black">
                       {selectedLead.request.siteName}
                     </h2>
-                    <p className="mt-1 text-zinc-600">{selectedLead.request.siteLocation}</p>
+                    <p className="mt-1 text-runway-mute">{selectedLead.request.siteLocation}</p>
                     {selectedLead.queue_key ? (
-                      <p className="mt-2 text-sm text-zinc-500">
+                      <p className="mt-2 text-sm text-runway-faint">
                         Queue: {selectedLead.queue_key.replace(/_/g, " ")}
                       </p>
                     ) : null}
                   </div>
                   <a
                     href={selectedLead.context.sourcePageUrl}
-                    className="inline-flex items-center text-sm text-zinc-600 hover:text-zinc-900"
+                    className="inline-flex items-center text-sm text-runway-mute hover:text-runway-deep"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2642,7 +2642,7 @@ export default function AdminLeads() {
                   {selectedLead.buyer_review_access?.buyer_review_url ? (
                     <a
                       href={selectedLead.buyer_review_access.buyer_review_url}
-                      className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                      className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -2653,14 +2653,14 @@ export default function AdminLeads() {
                   <button
                     type="button"
                     onClick={() => reviewLinkMutation.mutate(selectedLead.requestId)}
-                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
                   >
                     Issue review link
                   </button>
                   <button
                     type="button"
                     onClick={() => createCaptureJobMutation.mutate(selectedLead.requestId)}
-                    className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+                    className="rounded-full bg-runway-black px-4 py-2 text-sm font-medium text-white"
                   >
                     Create capture job
                   </button>
@@ -2668,7 +2668,7 @@ export default function AdminLeads() {
                     type="button"
                     onClick={() => captureHandoffMutation.mutate(selectedLead.requestId)}
                     disabled={captureHandoffMutation.isPending}
-                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     {captureHandoffMutation.isPending
@@ -2678,7 +2678,7 @@ export default function AdminLeads() {
                   <button
                     type="button"
                     onClick={() => triggerPreviewMutation.mutate(selectedLead.requestId)}
-                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
                     Trigger preview
@@ -2686,9 +2686,9 @@ export default function AdminLeads() {
                 </div>
 
                 {selectedLead.request.pilotOpportunity?.requested ? (
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Pilot opportunity dossier</p>
-                    <div className="mt-3 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Pilot opportunity dossier</p>
+                    <div className="mt-3 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
                       <p>Visibility: {selectedLead.request.pilotOpportunity.visibility.replace(/_/g, " ")}</p>
                       <p>
                         Gate gaps: {selectedLead.structured_intake?.missing_pilot_opportunity_fields?.length
@@ -2696,7 +2696,7 @@ export default function AdminLeads() {
                           : "None recorded"}
                       </p>
                     </div>
-                    <p className="mt-3 text-sm text-zinc-600">
+                    <p className="mt-3 text-sm text-runway-mute">
                       A simulation candidate remains below deployment readiness until robot-specific
                       and authoritative physical evidence is joined.
                     </p>
@@ -2704,24 +2704,24 @@ export default function AdminLeads() {
                 ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl bg-zinc-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
-                    <p className="mt-2 font-medium text-zinc-900">
+                  <div className="rounded-xl bg-runway-line-soft p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Contact</p>
+                    <p className="mt-2 font-medium text-runway-deep">
                       {selectedLead.contact.firstName} {selectedLead.contact.lastName}
                     </p>
-                    <p className="text-sm text-zinc-600">{selectedLead.contact.company}</p>
-                    <p className="text-sm text-zinc-600">{selectedLead.contact.roleTitle}</p>
+                    <p className="text-sm text-runway-mute">{selectedLead.contact.company}</p>
+                    <p className="text-sm text-runway-mute">{selectedLead.contact.roleTitle}</p>
                     <a
                       href={`mailto:${selectedLead.contact.email}`}
-                      className="mt-3 inline-flex items-center text-sm text-zinc-700 hover:text-zinc-900"
+                      className="mt-3 inline-flex items-center text-sm text-runway-line-strong hover:text-runway-deep"
                     >
                       <Mail className="mr-2 h-4 w-4" />
                       {selectedLead.contact.email}
                     </a>
                   </div>
-                  <div className="rounded-xl bg-zinc-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Submission facts</p>
-                    <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                  <div className="rounded-xl bg-runway-line-soft p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Submission facts</p>
+                    <div className="mt-2 space-y-2 text-sm text-runway-line-strong">
                       <p>Buyer type: {buyerTypeLabels[selectedLead.request.buyerType]}</p>
                       <p>Request path: {formatCommercialRequestPath(selectedLead.request.commercialRequestPath)}</p>
                       <p>Budget: {selectedLead.request.budgetBucket}</p>
@@ -2731,20 +2731,20 @@ export default function AdminLeads() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                     {selectedLead.request.buyerType === "robot_team"
                       ? "Immediate workflow question"
                       : "Task statement"}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-800">{selectedLead.request.taskStatement}</p>
+                  <p className="mt-2 text-sm text-runway-panel">{selectedLead.request.taskStatement}</p>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                     Intake routing
                   </p>
-                  <div className="mt-3 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                  <div className="mt-3 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
                     <p>
                       Owner lane:{" "}
                       {selectedLead.structured_intake?.owner_lane ||
@@ -2772,19 +2772,19 @@ export default function AdminLeads() {
                         : "not required by intake"}
                     </p>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-zinc-700">
+                  <p className="mt-3 text-sm leading-6 text-runway-line-strong">
                     {selectedLead.structured_intake?.routing_summary ||
                       selectedLead.structured_intake?.next_action ||
                       selectedLead.ops_automation?.next_action ||
                       "No intake next action recorded yet."}
                   </p>
                   {selectedLead.structured_intake?.proof_path_summary ? (
-                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    <p className="mt-2 text-sm leading-6 text-runway-mute">
                       {selectedLead.structured_intake.proof_path_summary}
                     </p>
                   ) : null}
                   {selectedLead.structured_intake?.missing_structured_fields?.length ? (
-                    <p className="mt-2 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-runway-faint">
                       Missing:{" "}
                       {(selectedLead.structured_intake.missing_structured_field_labels?.length
                         ? selectedLead.structured_intake.missing_structured_field_labels
@@ -2795,30 +2795,30 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Target site type
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.targetSiteType || "No site type supplied."}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Proof path
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.proofPathPreference
                         ? proofPathPreferenceLabels[selectedLead.request.proofPathPreference]
                         : "No proof-path preference supplied."}
                     </p>
                   </div>
                   {selectedLead.request.displayCaptureMetadata ? (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 md:col-span-2">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    <div className="rounded-xl border border-runway-line bg-runway-line-soft p-4 md:col-span-2">
+                      <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                         Display HUD pilot
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      <p className="mt-2 text-sm leading-6 text-runway-line-strong">
                         Target:{" "}
                         {selectedLead.request.displayCaptureMetadata.targetName ||
                           selectedLead.request.siteName}
@@ -2826,7 +2826,7 @@ export default function AdminLeads() {
                         {selectedLead.request.displayCaptureMetadata.addressLabel ||
                           selectedLead.request.siteLocation}
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      <p className="mt-2 text-sm leading-6 text-runway-line-strong">
                         {selectedLead.request.displayCaptureMetadata.captureBrief ||
                           "No display capture brief supplied."}
                       </p>
@@ -2835,91 +2835,91 @@ export default function AdminLeads() {
                           {selectedLead.request.displayCaptureMetadata.allowedAdvisoryHints.map((hint) => (
                             <span
                               key={hint}
-                              className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600"
+                              className="rounded-full border border-runway-line bg-paper-0 px-3 py-1 text-xs text-runway-mute"
                             >
                               {displayAdvisoryScanHintLabels[hint]}
                             </span>
                           ))}
                         </div>
                       ) : null}
-                      <p className="mt-3 text-xs leading-5 text-zinc-500">
+                      <p className="mt-3 text-xs leading-5 text-runway-faint">
                         Display coaching is advisory UX telemetry, not geometry, pose, depth,
                         coverage, rights, or qualification proof.
                       </p>
                     </div>
                   ) : null}
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Workflow context</p>
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.workflowContext || "No workflow context supplied."}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Operating constraints
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.operatingConstraints || "No operating constraints supplied."}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Privacy / security
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.privacySecurityConstraints ||
                         "No privacy or security constraints supplied."}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Known blockers</p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Known blockers</p>
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.knownBlockers || "No blockers supplied."}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Existing stack / review workflow
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.existingStackReviewWorkflow ||
                         "No stack or review workflow supplied."}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                  <div className="rounded-xl border border-runway-line p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Human-gated topics
                     </p>
-                    <p className="mt-2 text-sm text-zinc-700">
+                    <p className="mt-2 text-sm text-runway-line-strong">
                       {selectedLead.request.humanGateTopics ||
                         "No early escalation topics supplied."}
                     </p>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Requested lanes</p>
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Requested lanes</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedLead.request.requestedLanes.map((lane) => (
-                      <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700">
+                      <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-line-strong">
                         {requestedLaneLabels[lane]}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Ops controls</p>
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Ops controls</p>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Assigned region
                       </label>
                       <input
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         defaultValue={selectedLead.ops?.assigned_region_id || ""}
                         onBlur={(event) =>
                           updateOpsMutation.mutate({
@@ -2930,11 +2930,11 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Rights status
                       </label>
                       <select
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         value={selectedLead.ops?.rights_status || ""}
                         onChange={(event) => {
                           if (!event.target.value) return;
@@ -2953,11 +2953,11 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Capture policy
                       </label>
                       <select
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         value={selectedLead.ops?.capture_policy_tier || ""}
                         onChange={(event) => {
                           if (!event.target.value) return;
@@ -2977,11 +2977,11 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Capture status
                       </label>
                       <select
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         value={selectedLead.ops?.capture_status || ""}
                         onChange={(event) => {
                           if (!event.target.value) return;
@@ -3001,11 +3001,11 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Quote status
                       </label>
                       <select
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         value={selectedLead.ops?.quote_status || ""}
                         onChange={(event) => {
                           if (!event.target.value) return;
@@ -3025,11 +3025,11 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Next step
                       </label>
                       <input
-                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         defaultValue={selectedLead.ops?.next_step || ""}
                         onBlur={(event) =>
                           updateOpsMutation.mutate({
@@ -3040,11 +3040,11 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
                         Recapture guidance
                       </label>
                       <textarea
-                        className="min-h-20 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        className="min-h-20 w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                         defaultValue={selectedLead.ops?.recapture_reason || ""}
                         onBlur={(event) =>
                           updateOpsMutation.mutate({
@@ -3057,11 +3057,11 @@ export default function AdminLeads() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                     Proof-path milestones
                   </p>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-runway-mute">
                     These timestamps back the robot-team proof funnel. Auto-known stages fill from the request lifecycle; operator-only stages should be marked here when they actually happen.
                   </p>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -3072,11 +3072,11 @@ export default function AdminLeads() {
                         ] || null;
 
                       return (
-                        <div key={field} className="rounded-lg bg-zinc-50 p-3">
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                        <div key={field} className="rounded-lg bg-runway-line-soft p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-runway-faint">
                             {label}
                           </p>
-                          <p className="mt-1 text-sm text-zinc-800">
+                          <p className="mt-1 text-sm text-runway-panel">
                             {typeof value === "string" ? formatDate(value) : "Not recorded"}
                           </p>
                         </div>
@@ -3094,7 +3094,7 @@ export default function AdminLeads() {
                             proof_path_stage: button.stage,
                           })
                         }
-                        className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
                       >
                         {button.label}
                       </button>
@@ -3104,28 +3104,28 @@ export default function AdminLeads() {
 
                 {selectedLead.evaluation_readiness ? (
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl border border-zinc-200 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Buyer trust</p>
-                      <p className="mt-2 text-3xl font-semibold text-zinc-950">
+                    <div className="rounded-xl border border-runway-line p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Buyer trust</p>
+                      <p className="mt-2 text-3xl font-semibold text-runway-black">
                         {selectedLead.evaluation_readiness.buyer_trust_score?.score ?? "N/A"}
                       </p>
-                      <p className="mt-1 text-sm text-zinc-600">
+                      <p className="mt-1 text-sm text-runway-mute">
                         {selectedLead.evaluation_readiness.buyer_trust_score?.band ?? "Not recorded"} confidence
                       </p>
                       {selectedLead.evaluation_readiness.buyer_trust_score?.reasons?.length ? (
-                        <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-zinc-600">
+                        <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-runway-mute">
                           {selectedLead.evaluation_readiness.buyer_trust_score.reasons.map((reason) => (
                             <li key={reason}>{reason}</li>
                           ))}
                         </ul>
                       ) : null}
                     </div>
-                    <div className="rounded-xl border border-zinc-200 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Preview run</p>
-                      <p className="mt-2 text-sm text-zinc-700">
+                    <div className="rounded-xl border border-runway-line p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Preview run</p>
+                      <p className="mt-2 text-sm text-runway-line-strong">
                         Status: {selectedLead.evaluation_readiness.preview_status || "Not recorded"}
                       </p>
-                      <p className="mt-1 text-sm text-zinc-700">
+                      <p className="mt-1 text-sm text-runway-line-strong">
                         Provider: {selectedLead.evaluation_readiness.provider_run?.provider_name || "Not attached"}
                       </p>
                       {selectedLead.evaluation_readiness.provider_run?.failure_reason ? (
@@ -3139,12 +3139,12 @@ export default function AdminLeads() {
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-zinc-700">
+                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-runway-line-strong">
                       Qualification state
                     </label>
                     <select
                       id="admin-qualification-state"
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                       value={selectedLead.qualification_state}
                       onChange={(event) =>
                         updateStateMutation.mutate({
@@ -3163,12 +3163,12 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-zinc-700">
+                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-runway-line-strong">
                       Opportunity state
                     </label>
                     <select
                       id="admin-opportunity-state"
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                       value={selectedLead.opportunity_state || ""}
                       onChange={(event) =>
                         updateStateMutation.mutate({
@@ -3188,12 +3188,12 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-zinc-700">
+                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-runway-line-strong">
                       Pilot opportunity outcome
                     </label>
                     <select
                       id="admin-pilot-opportunity-outcome"
-                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                       value={selectedLead.structured_intake?.pilot_opportunity_outcome || "not_requested"}
                       disabled={!selectedLead.request.pilotOpportunity?.requested}
                       onChange={(event) =>
@@ -3218,10 +3218,10 @@ export default function AdminLeads() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">Add note</label>
+                <div className="rounded-xl border border-runway-line p-4">
+                  <label className="mb-1 block text-sm font-medium text-runway-line-strong">Add note</label>
                   <textarea
-                    className="min-h-24 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="min-h-24 w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="Capture why the state changed or what evidence is still missing."
@@ -3236,61 +3236,61 @@ export default function AdminLeads() {
                         })
                       }
                       disabled={!note.trim()}
-                      className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      className="rounded-full bg-runway-deep px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                     >
                       Save note
                     </button>
                     {updateStateMutation.isPending || addNoteMutation.isPending ? (
-                      <span className="text-sm text-zinc-500">Saving...</span>
+                      <span className="text-sm text-runway-faint">Saving...</span>
                     ) : null}
                   </div>
                 </div>
 
                 {selectedLead.pipeline ? (
-                  <div className="rounded-xl border border-zinc-200 p-4">
+                  <div className="rounded-xl border border-runway-line p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Scene readiness</p>
-                        <p className="mt-2 text-sm text-zinc-700">
+                        <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Scene readiness</p>
+                        <p className="mt-2 text-sm text-runway-line-strong">
                           Scene `{selectedLead.pipeline.scene_id}` · Capture `{selectedLead.pipeline.capture_id}`
                         </p>
                       </div>
                       {selectedLead.pipeline.synced_at ? (
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-runway-faint">
                           Synced {formatDate(selectedLead.pipeline.synced_at)}
                         </p>
                       ) : null}
                     </div>
 
                     {sceneDashboardQuery.isLoading ? (
-                      <p className="mt-4 text-sm text-zinc-500">Loading scene dashboard...</p>
+                      <p className="mt-4 text-sm text-runway-faint">Loading scene dashboard...</p>
                     ) : sceneDashboardQuery.data ? (
                       <div className="mt-4 space-y-4">
                         <div className="grid gap-3 md:grid-cols-4">
-                          <div className="rounded-xl bg-zinc-50 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
+                          <div className="rounded-xl bg-runway-line-soft p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">
                               {sceneDashboardQuery.data.site_type || "Site"} status
                             </p>
-                            <p className="mt-2 font-medium text-zinc-900">
+                            <p className="mt-2 font-medium text-runway-deep">
                               {(sceneDashboardQuery.data.overview ?? sceneDashboardQuery.data.whole_home)
                                 ?.status ?? "review required"}
                             </p>
                           </div>
-                          <div className="rounded-xl bg-zinc-50 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Ready now</p>
-                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                          <div className="rounded-xl bg-runway-line-soft p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Ready now</p>
+                            <p className="mt-2 text-2xl font-semibold text-runway-black">
                               {sceneDashboardQuery.data.deployment_summary.ready_now}
                             </p>
                           </div>
-                          <div className="rounded-xl bg-zinc-50 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Need redesign</p>
-                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                          <div className="rounded-xl bg-runway-line-soft p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Need redesign</p>
+                            <p className="mt-2 text-2xl font-semibold text-runway-black">
                               {sceneDashboardQuery.data.deployment_summary.needs_redesign}
                             </p>
                           </div>
-                          <div className="rounded-xl bg-zinc-50 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Outside envelope</p>
-                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                          <div className="rounded-xl bg-runway-line-soft p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Outside envelope</p>
+                            <p className="mt-2 text-2xl font-semibold text-runway-black">
                               {sceneDashboardQuery.data.deployment_summary.outside_robot_envelope}
                             </p>
                           </div>
@@ -3301,14 +3301,14 @@ export default function AdminLeads() {
                         ).map(([category, categorySummary]) => {
                           const tasks = categorySummary.tasks;
                           return (
-                            <div key={category} className="rounded-xl border border-zinc-200 p-4">
-                              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">{category}</p>
+                            <div key={category} className="rounded-xl border border-runway-line p-4">
+                              <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">{category}</p>
                               <div className="mt-3 space-y-3">
                                 {tasks.length ? (
                                   tasks.map((task) => (
                                     <div
                                       key={`${category}-${task.capture_id}`}
-                                      className="rounded-lg bg-zinc-50 p-3"
+                                      className="rounded-lg bg-runway-line-soft p-3"
                                     >
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span
@@ -3316,10 +3316,10 @@ export default function AdminLeads() {
                                         >
                                           {task.next_action}
                                         </span>
-                                        <span className="text-xs text-zinc-400">{task.capture_id}</span>
+                                        <span className="text-xs text-runway-faint">{task.capture_id}</span>
                                       </div>
-                                      <p className="mt-2 text-sm text-zinc-900">{task.task_text}</p>
-                                      <p className="mt-1 text-xs text-zinc-500">
+                                      <p className="mt-2 text-sm text-runway-deep">{task.task_text}</p>
+                                      <p className="mt-1 text-xs text-runway-faint">
                                         Themes: {task.themes.join(", ") || "none"}
                                       </p>
                                       {task.memo_uri ? (
@@ -3328,19 +3328,19 @@ export default function AdminLeads() {
                                             href={task.memo_uri}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="mt-2 inline-flex items-center text-xs text-zinc-700 hover:text-zinc-900"
+                                            className="mt-2 inline-flex items-center text-xs text-runway-line-strong hover:text-runway-deep"
                                           >
                                             Memo
                                             <ExternalLink className="ml-1 h-3 w-3" />
                                           </a>
                                         ) : (
-                                          <p className="mt-2 text-xs text-zinc-500">Memo URI: {task.memo_uri}</p>
+                                          <p className="mt-2 text-xs text-runway-faint">Memo URI: {task.memo_uri}</p>
                                         )
                                       ) : null}
                                     </div>
                                   ))
                                 ) : (
-                                  <p className="text-sm text-zinc-500">No tasks in this category.</p>
+                                  <p className="text-sm text-runway-faint">No tasks in this category.</p>
                                 )}
                               </div>
                             </div>
@@ -3348,35 +3348,35 @@ export default function AdminLeads() {
                         })}
                       </div>
                     ) : selectedLead.pipeline.artifacts.dashboard_summary_uri ? (
-                      <p className="mt-4 text-sm text-zinc-500">
+                      <p className="mt-4 text-sm text-runway-faint">
                         Scene dashboard could not be loaded.
                       </p>
                     ) : (
-                      <p className="mt-4 text-sm text-zinc-500">
+                      <p className="mt-4 text-sm text-runway-faint">
                         Pipeline attachment exists, but no scene dashboard has been emitted for this request yet.
                       </p>
                     )}
                   </div>
                 ) : null}
 
-                <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="mb-3 text-xs uppercase tracking-[0.18em] text-zinc-400">Notes</p>
+                <div className="rounded-xl border border-runway-line p-4">
+                  <p className="mb-3 text-xs uppercase tracking-[0.18em] text-runway-faint">Notes</p>
                   <div className="space-y-3">
                     {selectedLead.notes?.length ? (
                       selectedLead.notes.map((entry) => (
-                        <div key={entry.id} className="rounded-lg bg-zinc-50 p-3 text-sm">
-                          <p className="text-zinc-800">{entry.content}</p>
-                          <p className="mt-2 text-xs text-zinc-400">{formatDate(entry.createdAt)}</p>
+                        <div key={entry.id} className="rounded-lg bg-runway-line-soft p-3 text-sm">
+                          <p className="text-runway-panel">{entry.content}</p>
+                          <p className="mt-2 text-xs text-runway-faint">{formatDate(entry.createdAt)}</p>
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-zinc-500">No notes yet.</p>
+                      <p className="text-sm text-runway-faint">No notes yet.</p>
                     )}
                   </div>
                 </div>
                 </div>
               ) : (
-                <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
+                <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-runway-faint">
                   <ClipboardList className="mb-3 h-10 w-10" />
                   <p>Select a submission to review the intake and update its states.</p>
                 </div>
@@ -3386,13 +3386,13 @@ export default function AdminLeads() {
         </>
         ) : (
           <>
-            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row md:flex-wrap">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+            <div className="mb-6 flex flex-col gap-3 rounded-none border border-runway-line bg-paper-0 p-4 md:flex-row md:flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-medium text-runway-line-strong">
                 <Filter className="h-4 w-4" />
                 Filters
               </div>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={waitlistRoleFilter}
                 onChange={(event) => setWaitlistRoleFilter(event.target.value)}
               >
@@ -3400,7 +3400,7 @@ export default function AdminLeads() {
                 <option value="capturer">Capturer</option>
               </select>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={waitlistDeviceFilter}
                 onChange={(event) => setWaitlistDeviceFilter(event.target.value)}
               >
@@ -3411,7 +3411,7 @@ export default function AdminLeads() {
                 <option value="android">Android</option>
               </select>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={waitlistStatusFilter}
                 onChange={(event) => setWaitlistStatusFilter(event.target.value)}
               >
@@ -3419,7 +3419,7 @@ export default function AdminLeads() {
                 <option value="new">New</option>
               </select>
               <select
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={waitlistQueueFilter}
                 onChange={(event) => setWaitlistQueueFilter(event.target.value)}
               >
@@ -3428,7 +3428,7 @@ export default function AdminLeads() {
                 <option value="website_waitlist_review">Website waitlist review</option>
               </select>
               <input
-                className="min-w-[260px] flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="min-w-[260px] flex-1 rounded-lg border border-runway-line px-3 py-2 text-sm"
                 value={waitlistSearch}
                 onChange={(event) => setWaitlistSearch(event.target.value)}
                 placeholder="Search market, email, phone, source, or tags"
@@ -3438,11 +3438,11 @@ export default function AdminLeads() {
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className="space-y-3">
                 {waitlistQuery.isLoading ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     Loading waitlist submissions...
                   </div>
                 ) : filteredWaitlistSubmissions.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  <div className="rounded-none border border-runway-line bg-paper-0 p-6 text-runway-mute">
                     No waitlist requests match the current filters.
                   </div>
                 ) : (
@@ -3451,18 +3451,18 @@ export default function AdminLeads() {
                       key={submission.id}
                       type="button"
                       onClick={() => setSelectedWaitlistSubmissionId(submission.id)}
-                      className={`w-full rounded-2xl border p-5 text-left ${
+                      className={`w-full rounded-none border p-5 text-left ${
                         selectedWaitlistSubmission?.id === submission.id
-                          ? "border-zinc-900 bg-white"
-                          : "border-zinc-200 bg-white"
+                          ? "border-runway-deep bg-paper-0"
+                          : "border-runway-line bg-paper-0"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-zinc-900">
+                          <p className="font-medium text-runway-deep">
                             {submission.market || "Unknown market"}
                           </p>
-                          <p className="text-sm text-zinc-600">
+                          <p className="text-sm text-runway-mute">
                             {submission.email} {submission.phone ? `· ${submission.phone}` : ""}
                           </p>
                         </div>
@@ -3472,12 +3472,12 @@ export default function AdminLeads() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
                         {submission.role ? (
-                          <span className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
                             {submission.role}
                           </span>
                         ) : null}
                         {submission.device ? (
-                          <span className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
                             {submission.device}
                           </span>
                         ) : null}
@@ -3492,7 +3492,7 @@ export default function AdminLeads() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-3 text-xs text-zinc-400">
+                      <p className="mt-3 text-xs text-runway-faint">
                         {submission.created_at ? formatDate(submission.created_at) : "Unknown date"}
                       </p>
                     </button>
@@ -3500,50 +3500,50 @@ export default function AdminLeads() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <div className="rounded-none border border-runway-line bg-paper-0 p-6">
                 {selectedWaitlistSubmission ? (
                   <div className="space-y-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                           Waitlist submission
                         </p>
-                        <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                        <h2 className="mt-2 text-2xl font-semibold text-runway-black">
                           {selectedWaitlistSubmission.market || "Unknown market"}
                         </h2>
-                        <p className="mt-1 text-zinc-600">
+                        <p className="mt-1 text-runway-mute">
                           {selectedWaitlistSubmission.location_type || "No location type"}
                         </p>
                       </div>
-                      <span className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-600">
+                      <span className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-mute">
                         {selectedWaitlistSubmission.id}
                       </span>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-xl bg-zinc-50 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
+                      <div className="rounded-xl bg-runway-line-soft p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Contact</p>
                         <a
                           href={`mailto:${selectedWaitlistSubmission.email}`}
-                          className="mt-2 inline-flex items-center text-sm text-zinc-700 hover:text-zinc-900"
+                          className="mt-2 inline-flex items-center text-sm text-runway-line-strong hover:text-runway-deep"
                         >
                           <Mail className="mr-2 h-4 w-4" />
                           {selectedWaitlistSubmission.email}
                         </a>
                         {selectedWaitlistSubmission.phone ? (
-                          <p className="mt-2 text-sm text-zinc-600">
+                          <p className="mt-2 text-sm text-runway-mute">
                             {selectedWaitlistSubmission.phone}
                           </p>
                         ) : null}
                         {selectedWaitlistSubmission.email_domain ? (
-                          <p className="mt-2 text-xs text-zinc-400">
+                          <p className="mt-2 text-xs text-runway-faint">
                             Domain: {selectedWaitlistSubmission.email_domain}
                           </p>
                         ) : null}
                       </div>
-                      <div className="rounded-xl bg-zinc-50 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Request facts</p>
-                        <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                      <div className="rounded-xl bg-runway-line-soft p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Request facts</p>
+                        <div className="mt-2 space-y-2 text-sm text-runway-line-strong">
                           <p>Role: {selectedWaitlistSubmission.role || "unknown"}</p>
                           <p>Device: {selectedWaitlistSubmission.device || "unknown"}</p>
                           <p>Queue: {selectedWaitlistSubmission.queue || "unassigned"}</p>
@@ -3558,10 +3558,10 @@ export default function AdminLeads() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-zinc-200 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Automation state</p>
+                    <div className="rounded-xl border border-runway-line p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Automation state</p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
                           {selectedWaitlistSubmission.ops_automation.status}
                         </span>
                         {selectedWaitlistSubmission.ops_automation.recommendation ? (
@@ -3577,70 +3577,70 @@ export default function AdminLeads() {
                       </div>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
-                          <p className="text-sm text-zinc-500">Status</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Status</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.status}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Next action</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Next action</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.next_action || "None"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Recommended path</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Recommended path</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.recommended_path || "None"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">AI triage</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">AI triage</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.eligible_for_ai_triage
                               ? "Eligible"
                               : "No"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Invite readiness</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Invite readiness</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.invite_readiness_score ?? "N/A"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Confidence</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Confidence</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.confidence !== null
                               ? `${Math.round(selectedWaitlistSubmission.ops_automation.confidence * 100)}%`
                               : "N/A"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Market fit</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Market fit</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.market_fit_score ?? "N/A"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-500">Device fit</p>
-                          <p className="mt-1 font-medium text-zinc-900">
+                          <p className="text-sm text-runway-faint">Device fit</p>
+                          <p className="mt-1 font-medium text-runway-deep">
                             {selectedWaitlistSubmission.ops_automation.device_fit_score ?? "N/A"}
                           </p>
                         </div>
                       </div>
                       {selectedWaitlistSubmission.ops_automation.model ? (
-                        <p className="mt-4 text-xs text-zinc-500">
+                        <p className="mt-4 text-xs text-runway-faint">
                           Model: {selectedWaitlistSubmission.ops_automation.model}
                         </p>
                       ) : null}
                       {selectedWaitlistSubmission.ops_automation.market_summary ? (
-                        <p className="mt-4 text-sm text-zinc-700">
+                        <p className="mt-4 text-sm text-runway-line-strong">
                           {selectedWaitlistSubmission.ops_automation.market_summary}
                         </p>
                       ) : null}
                       {selectedWaitlistSubmission.ops_automation.rationale ? (
-                        <p className="mt-3 text-sm text-zinc-600">
+                        <p className="mt-3 text-sm text-runway-mute">
                           {selectedWaitlistSubmission.ops_automation.rationale}
                         </p>
                       ) : null}
@@ -3651,9 +3651,9 @@ export default function AdminLeads() {
                       ) : null}
                     </div>
 
-                    <div className="rounded-xl border border-zinc-200 p-4">
+                    <div className="rounded-xl border border-runway-line p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                        <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                           Draft response
                         </p>
                         <button
@@ -3663,7 +3663,7 @@ export default function AdminLeads() {
                               submissionId: selectedWaitlistSubmission.id,
                             })
                           }
-                          className="inline-flex items-center rounded-full border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                          className="inline-flex items-center rounded-full border border-runway-line px-3 py-1.5 text-xs text-runway-line-strong"
                           disabled={runWaitlistAutomationMutation.isPending}
                         >
                           <Sparkles className="mr-2 h-3.5 w-3.5" />
@@ -3672,43 +3672,43 @@ export default function AdminLeads() {
                       </div>
                       {selectedWaitlistSubmission.ops_automation.draft_email ? (
                         <div className="mt-3 space-y-3">
-                          <div className="rounded-lg bg-zinc-50 p-3">
-                            <p className="text-xs text-zinc-500">Subject</p>
-                            <p className="mt-1 text-sm font-medium text-zinc-900">
+                          <div className="rounded-lg bg-runway-line-soft p-3">
+                            <p className="text-xs text-runway-faint">Subject</p>
+                            <p className="mt-1 text-sm font-medium text-runway-deep">
                               {selectedWaitlistSubmission.ops_automation.draft_email.subject}
                             </p>
                           </div>
-                          <div className="rounded-lg bg-zinc-50 p-3">
-                            <p className="text-xs text-zinc-500">Body</p>
-                            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700">
+                          <div className="rounded-lg bg-runway-line-soft p-3">
+                            <p className="text-xs text-runway-faint">Body</p>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-runway-line-strong">
                               {selectedWaitlistSubmission.ops_automation.draft_email.body}
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-zinc-500">
+                        <p className="mt-3 text-sm text-runway-faint">
                           No AI draft yet. Run triage to generate one.
                         </p>
                       )}
                     </div>
 
-                    <div className="rounded-xl border border-zinc-200 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Filter tags</p>
+                    <div className="rounded-xl border border-runway-line p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Filter tags</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {selectedWaitlistSubmission.filter_tags.length ? (
                           selectedWaitlistSubmission.filter_tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700">
+                            <span key={tag} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-line-strong">
                               {tag}
                             </span>
                           ))
                         ) : (
-                          <p className="text-sm text-zinc-500">No tags assigned.</p>
+                          <p className="text-sm text-runway-faint">No tags assigned.</p>
                         )}
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
+                  <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-runway-faint">
                     <ClipboardList className="mb-3 h-10 w-10" />
                     <p>Select a waitlist request to inspect its automation fields.</p>
                   </div>

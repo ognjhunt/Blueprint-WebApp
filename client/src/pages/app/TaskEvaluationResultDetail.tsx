@@ -74,7 +74,7 @@ function ProtectedVideo({
         </div>
         {!url ? <Button type="button" size="sm" variant="secondary" iconLeft={<Film />} onClick={load} disabled={loading}>{loading ? "Loading…" : "Load video"}</Button> : null}
       </div>
-      {url ? <video className="mt-2 aspect-video w-full bg-ink-950" src={url} controls playsInline preload="metadata" /> : null}
+      {url ? <video className="mt-2 aspect-video w-full bg-runway-black" src={url} controls playsInline preload="metadata" /> : null}
       {error ? <p className="px-2 pb-2 text-body-s text-danger-fg">{error}</p> : null}
     </Card>
   );
@@ -91,7 +91,7 @@ function EpisodeCard({
 }) {
   const succeeded = episode.score.task_succeeded === true;
   return (
-    <section className="flex flex-col gap-4 rounded-md border border-line bg-white p-4" aria-labelledby={`episode-${episode.episode_id}`}>
+    <section className="flex flex-col gap-4 rounded-md border border-line bg-paper-0 p-4" aria-labelledby={`episode-${episode.episode_id}`}>
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
         <div>
           <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{episode.episode_kind.replace(/_/g, " ")}</p>
@@ -169,7 +169,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
             {delivery.episodes.map((episode) => <EpisodeCard key={episode.episode_id} episode={episode} user={user} recordId={result.record_id} />)}
           </section>
 
-          <section className="rounded-md border border-line bg-white p-5">
+          <section className="rounded-md border border-line bg-paper-0 p-5">
             <h2 className="text-title-m font-semibold text-ink-900">Evidence downloads</h2>
             <p className="mt-1 text-body-s text-ink-500">The review pack is convenient for people. The full package also includes exact lossless policy inputs and camera frames and may be large.</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -184,9 +184,9 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
         </>
       ) : null}
 
-      <details className="rounded-md border border-line bg-white p-4">
+      <details className="rounded-md border border-line bg-paper-0 p-4">
         <summary className="cursor-pointer text-body-s font-semibold text-ink-800">Inspect decision envelope and exact bindings</summary>
-        <pre className="mt-4 max-h-[32rem] overflow-auto bg-ink-950 p-4 text-[0.7rem] leading-relaxed text-white">{JSON.stringify(result.publication, null, 2)}</pre>
+        <pre className="mt-4 max-h-[32rem] overflow-auto bg-runway-black p-4 text-[0.7rem] leading-relaxed text-white">{JSON.stringify(result.publication, null, 2)}</pre>
       </details>
     </>
   );
