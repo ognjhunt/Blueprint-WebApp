@@ -228,10 +228,17 @@ export default {
         "title-xl": ["2rem", { lineHeight: "1.12", letterSpacing: "-0.03em" }],
         "title-l": ["1.5rem", { lineHeight: "1.12", letterSpacing: "-0.02em" }],
         "title-m": ["1.25rem", { lineHeight: "1.2", letterSpacing: "-0.02em" }],
+        // `title-s` and `body-xs` were in use across the product surfaces
+        // without ever being defined, so both silently rendered at whatever
+        // size they inherited. They complete the two scales rather than
+        // introducing a new step: title-s sits under title-m, body-xs under
+        // caption and above micro.
+        "title-s": ["1.0625rem", { lineHeight: "1.25", letterSpacing: "-0.01em" }],
         "body-l": ["1.125rem", { lineHeight: "1.6" }],
         body: ["1rem", { lineHeight: "1.5" }],
         "body-s": ["0.875rem", { lineHeight: "1.5" }],
         caption: ["0.8125rem", { lineHeight: "1.45" }],
+        "body-xs": ["0.75rem", { lineHeight: "1.5" }],
         micro: ["0.6875rem", { lineHeight: "1.1", letterSpacing: "0.2em" }],
       },
 
