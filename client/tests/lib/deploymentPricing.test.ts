@@ -1,82 +1,54 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  calculateDeploymentFee,
-  deploymentFee,
-  evaluationFee,
-} from "@/lib/deploymentPricing";
+import { calculateTeamCost, deploymentFee, evaluationFee } from "@/lib/deploymentPricing";
 
 describe("deployment pricing", () => {
-  it("charges the floor when the per-robot total is below it", () => {
-    // Five robots is exactly the crossover: 5 x $2,000 = the $10,000 floor.
-    const five = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: false });
-    expect(five.total).toBe(10_000);
-    expect(five.basis).toBe("floor");
-
-    const one = calculateDeploymentFee({ robots: 1, wonAfterEvaluating: false });
-    expect(one.total).toBe(10_000);
-    expect(one.basis).toBe("floor");
+  it("charges $1,000 to a team that evaluates and does not win", () => {
+    const cost = calculateTeamCost({ evaluated: 1, won: 0 });
+    expect(cost.total).toBe(1_000);
+    expect(cost.selectionTopUp).toBe(0);
   });
 
-  it("charges per robot once the fleet clears the floor", () => {
-    const twenty = calculateDeploymentFee({ robots: 20, wonAfterEvaluating: false });
-    expect(twenty.total).toBe(40_000);
-    expect(twenty.basis).toBe("per-robot");
+  it("charges $10,000 in total to a team that wins the task it evaluated", () => {
+    const cost = calculateTeamCost({ evaluated: 1, won: 1 });
+    expect(cost.total).toBe(deploymentFee.total);
+    // The evaluation fee is part of the $10,000, not on top of it.
+    expect(cost.evaluations).toBe(evaluationFee.amount);
+    expect(cost.selectionTopUp).toBe(9_000);
   });
 
-  it("credits the evaluation fee only for the task that deploys", () => {
-    const won = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: true });
-    expect(won.creditApplied).toBe(evaluationFee.amount);
-    expect(won.dueNow).toBe(9_000);
-
-    const lost = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: false });
-    expect(lost.creditApplied).toBe(0);
-    expect(lost.dueNow).toBe(10_000);
+  it("prices the worked example: three evaluations, one win", () => {
+    const cost = calculateTeamCost({ evaluated: 3, won: 1 });
+    expect(cost.evaluations).toBe(3_000);
+    expect(cost.selectionTopUp).toBe(9_000);
+    expect(cost.total).toBe(12_000);
   });
 
-  it("tops up on expansion, and never refunds the credit twice", () => {
-    // The worked example: five robots, then twenty on the same task.
-    const initial = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: true });
-    expect(initial.dueNow).toBe(9_000);
-
-    const expanded = calculateDeploymentFee({
-      robots: 20,
-      wonAfterEvaluating: true,
-      alreadyPaid: initial.dueNow,
-    });
-    expect(expanded.total).toBe(40_000);
-    expect(expanded.dueNow).toBe(30_000);
+  it("cannot bill more wins than evaluations", () => {
+    const cost = calculateTeamCost({ evaluated: 2, won: 5 });
+    expect(cost.total).toBe(calculateTeamCost({ evaluated: 2, won: 2 }).total);
   });
 
-  it("charges nothing until a robot is deployed", () => {
-    const none = calculateDeploymentFee({ robots: 0, wonAfterEvaluating: true });
-    expect(none.total).toBe(0);
-    expect(none.dueNow).toBe(0);
+  it("charges nothing for evaluating nothing", () => {
+    expect(calculateTeamCost({ evaluated: 0, won: 0 }).total).toBe(0);
+    expect(calculateTeamCost({ evaluated: 0, won: 3 }).total).toBe(0);
   });
 
   it("never produces a negative invoice from nonsense input", () => {
-    const bad = calculateDeploymentFee({
-      robots: Number.NaN,
-      wonAfterEvaluating: true,
-      alreadyPaid: -500,
-    });
-    expect(bad.dueNow).toBe(0);
-    const overpaid = calculateDeploymentFee({
-      robots: 5,
-      wonAfterEvaluating: true,
-      alreadyPaid: 999_999,
-    });
-    expect(overpaid.dueNow).toBe(0);
+    expect(calculateTeamCost({ evaluated: Number.NaN, won: -4 }).total).toBe(0);
+    expect(calculateTeamCost({ evaluated: -10, won: -1 }).total).toBe(0);
   });
 
-  it("keeps the fee independent of any contract value", () => {
-    // Nothing in the input describes what the robot team charged the site.
-    const inputKeys = Object.keys({ robots: 1, wonAfterEvaluating: true, alreadyPaid: 0 });
-    expect(inputKeys).not.toContain("contractValue");
-    expect(deploymentFee.verifiable).toMatch(/deployment and acceptance record/i);
+  it("takes no contract value and no robot count as an input", () => {
+    // The signature is the guard: nothing here can depend on a number only one
+    // party can see, and nothing scales after the deal is done.
+    const cost = calculateTeamCost({ evaluated: 1, won: 1 });
+    expect(Object.keys(cost).sort()).toEqual(["evaluations", "selectionTopUp", "total"]);
+    expect(deploymentFee.noExtras).toMatch(/no per-robot rate/i);
+    expect(deploymentFee.noExtras).toMatch(/costs nothing further/i);
   });
 
-  it("marks both posted rates as terms under test", () => {
+  it("marks both posted numbers as terms under test", () => {
     expect(evaluationFee.basis).toBe("under-test");
     expect(deploymentFee.basis).toBe("under-test");
   });

@@ -4,12 +4,17 @@ Two charges. Both paid by robot teams. The site pays nothing.
 
 | Charge | Amount | Who pays | When |
 | --- | --- | --- | --- |
-| Evaluation fee | **$1,000** per site-task | Every robot team that runs a real evaluation | Before the evaluation |
-| Deployment fee | **the greater of $10,000 or $2,000 per robot** deployed on that site-task | The winning robot team only | On activation, topped up on expansion |
+| Evaluation | **$1,000** per site-task | Every robot team that runs a real evaluation | Before the evaluation |
+| Selection | **$9,000** more, for a total of **$10,000** | The team selected for the pilot or deployment | On selection |
 
-The evaluation fee for the task a team actually wins is credited against that
-team's deployment fee. Evaluations on tasks it does not win are not credited
-and not refunded — they consumed a real captured asset and real site access.
+**A team that loses pays $1,000. A team that wins pays $10,000.** The
+evaluation fee is part of the $10,000, not on top of it. Evaluations on tasks a
+team does not win are not refunded — they consumed a real captured asset and
+real site access.
+
+There is nothing else: no percentage of the contract, no per-robot rate, no
+recurring charge, no renewal. Growing a deployment from five robots to fifty
+costs nothing further.
 
 Free: anonymous listings, the envelope screen, and everything on the site side.
 
@@ -21,9 +26,8 @@ software and services into separate agreements, or transact off-platform —
 and high-value, low-frequency deals are exactly where that pressure is
 strongest.
 
-Robot count is different. It is visible in the deployment and acceptance
-record, and both the site and Blueprint can verify it independently. Nothing in
-the fee calculation takes a contract value as an input.
+Two flat numbers need no visibility into anyone's contract at all. Nothing in
+the fee calculation takes a contract value — or a robot count — as an input.
 
 If a percentage is ever wanted it needs a payment rail first: robot-company
 invoices running through something like Stripe Connect, which can withhold an
@@ -72,12 +76,17 @@ A warehouse lists three site-tasks.
 | --- | --- | --- |
 | Listing | Three site-tasks go on the board | Warehouse pays $0 |
 | Evaluation | Four teams each evaluate all three — twelve evaluations | $12,000 to Blueprint |
-| Award | Team A wins one task, five-robot deployment. Five robots does not clear the floor, so $10,000, less the $1,000 it paid to evaluate that task | $9,000 more from Team A |
-| Expansion | Team A grows the same task to twenty robots. 20 × $2,000 = $40,000; the fee tops up rather than restarting | $30,000 more from Team A |
-| Side deal | Team A pays the warehouse $20,000 to host the pilot | Blueprint takes none of it |
+| Selection | Team A is selected for one task. That task's total is $10,000, and it already paid $1,000 to evaluate it | $9,000 more from Team A |
+| Team A's bill | Three evaluations, one win: $10,000 for the task it won, $1,000 each for the two it did not | $12,000 from Team A |
+| Afterwards | Team A grows the deployment, renews, and pays the warehouse $20,000 to host | Nothing further |
 
-Blueprint collects **$51,000** across that relationship. The warehouse pays
-**$0**. Nobody discloses a contract.
+Blueprint collects **$21,000** in total. The warehouse pays **$0**. Nobody
+discloses a contract.
+
+**The tradeoff, stated plainly:** flat numbers mean Blueprint captures nothing
+when a deployment scales from five robots to fifty. That is the price of a
+model both sides can verify in one sentence, and it is a deliberate choice
+rather than an oversight.
 
 ## On the numbers
 

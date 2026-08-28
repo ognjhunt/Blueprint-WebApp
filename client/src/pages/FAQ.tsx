@@ -76,7 +76,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Two charges, both paid by robot teams. $1,000 to evaluate a site-task, which buys a captured task, a standardised test and a scored result. Then, if that team wins the task, the greater of $10,000 or $2,000 per robot deployed on it, less the evaluation fee already paid on the task it won. Sites pay nothing — they contribute the floor, the access and the task data. Robot count is verifiable in the deployment record, so no fee depends on a contract Blueprint cannot see.",
+      "Two numbers, both paid by robot teams. $1,000 to evaluate a site-task, which buys a captured task, a standardised test and a scored result. If that team is then selected for the pilot or deployment, the total for that task is $10,000. A team that loses pays $1,000; a team that wins pays $10,000. Nothing else — no percentage, no per-robot rate, nothing recurring. Sites pay nothing, because they contribute the floor, the access and the task data.",
   },
 ];
 

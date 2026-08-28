@@ -231,18 +231,20 @@ describe("build output", () => {
     // /pricing prerenders free discovery and the observable-unit schedule.
     expect(pricingHtml).toContain("Two charges. The site pays nothing.");
     expect(pricingHtml).toContain("$0 for sites");
-    expect(pricingHtml).toContain("Evaluation fee");
-    expect(pricingHtml).toContain("Deployment fee");
+    expect(pricingHtml).toContain("The whole price list");
+    expect(pricingHtml).toContain("You evaluate and win the task");
     expect(pricingHtml).toContain("Submit a job");
     // The rates must never prerender as an industry benchmark.
     expect(pricingHtml).toContain("starting terms Blueprint intends to test");
     // The superseded revenue-share model must not survive anywhere in the build.
     expect(pricingHtml).not.toContain("5% deployment-network fee");
     expect(pricingHtml).not.toContain("robot-month");
+    expect(pricingHtml).not.toContain("per robot deployed");
     expect(pricingHtml).not.toContain("First $1 million in the customer account year");
+    // Retired products are asserted by name. A bare dollar amount is not a
+    // safe guard: $3,000 is now the arithmetic of three $1,000 evaluations.
     expect(pricingHtml).not.toContain("Policy Shortlist");
     expect(pricingHtml).not.toContain("Robot Match");
-    expect(pricingHtml).not.toContain("$3,000");
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("The first two months are real work");

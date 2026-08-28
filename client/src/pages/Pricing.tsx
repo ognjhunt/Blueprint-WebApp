@@ -36,22 +36,27 @@ const faqItems = [
   {
     question: "What does Blueprint charge, in one line?",
     answer:
-      "Two things, both paid by robot teams. $1,000 to evaluate a site-task. Then, if you win that task, the greater of $10,000 or $2,000 per robot deployed on it — less the $1,000 you already paid to evaluate the task you won. Sites pay nothing.",
+      "$1,000 to evaluate a site-task. If you are selected for the pilot or deployment on that task, $10,000 in total — so $9,000 more. A team that loses pays $1,000. A team that wins pays $10,000. The site pays nothing.",
+  },
+  {
+    question: "Is there anything else?",
+    answer:
+      "No. No percentage of the contract, no per-robot rate, no monthly charge, no renewal fee. Growing the deployment from five robots to fifty costs nothing further. Two numbers is the whole model.",
   },
   {
     question: "Why is there no percentage of the contract?",
     answer:
-      "Because it is not reliably collectible unless Blueprint controls invoicing. A contract can be understated, or split so hardware, software and services sit in separate agreements, or written off-platform entirely — and high-value, low-frequency deals are where that pressure is strongest. Robot count is different: it is visible in the deployment and acceptance record, and both the site and Blueprint can verify it. If a percentage ever makes sense it needs a payment rail that withholds the fee automatically; until that is mandatory, Blueprint is not priced on reported contract value.",
+      "Because it is not reliably collectible unless Blueprint controls invoicing. A contract can be understated, or split so hardware, software and services sit in separate agreements, or written off-platform entirely — and high-value, low-frequency deals are where that pressure is strongest. Two flat numbers need no visibility into anyone's contract. If a percentage ever makes sense it needs a payment rail that withholds the fee automatically; until that is mandatory, Blueprint is not priced on reported contract value.",
   },
   {
-    question: "Is the evaluation fee a compute markup?",
+    question: "Is the $1,000 a compute markup?",
     answer:
       "No. It buys a captured task, a standardised test, and a scored result: up to 500 episodes against the twin, the analysis, and the full capture package. The compute is a small part of it. What you are paying for is that somebody already found the customer, qualified the budget, captured the workflow and wrote the acceptance test.",
   },
   {
     question: "What if we evaluate three tasks and win one?",
     answer:
-      "You pay $3,000 to evaluate and only the winning task's $1,000 is credited against the deployment fee. Evaluations on tasks you do not win are not refunded — they consumed a real captured asset and real site access.",
+      "You pay $12,000: $10,000 for the task you won, and $1,000 each for the two you did not. Evaluations on tasks you do not win are not refunded — they consumed a real captured asset and real site access.",
   },
   {
     question: "Why does the site pay nothing?",
@@ -62,11 +67,6 @@ const faqItems = [
     question: "Can a robot team pay the site to host a pilot?",
     answer:
       "Yes, and it is common. That is a separate payment for access, disruption or data, it stays between the two parties, and Blueprint takes none of it. It does not replace Blueprint's fee either.",
-  },
-  {
-    question: "Who invoices whom?",
-    answer:
-      "The site and the robot team contract and pay each other directly. Blueprint invoices its two fees separately and stays out of the commercial agreement between them.",
   },
   {
     question: "Are these rates fixed?",
@@ -80,14 +80,14 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Two charges. The site pays nothing."
-        description="Robot teams pay $1,000 to evaluate a site-task and, if they win it, the greater of $10,000 or $2,000 per robot deployed. Sites pay nothing."
+        description="Robot teams pay $1,000 to evaluate a site-task. Win it and the total is $10,000. Lose and it stays $1,000. Sites pay nothing."
         canonical="/pricing"
         jsonLd={[
           webPageJsonLd({
             path: "/pricing",
             name: "Blueprint deployment network pricing",
             description:
-              "Two charges, both paid by robot teams: an evaluation fee and a deployment fee. Sites pay nothing.",
+              "$1,000 to evaluate a site-task, $10,000 in total if you win it. Sites pay nothing.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -101,7 +101,7 @@ export default function Pricing() {
         eyebrow={pricingHero.eyebrow}
         title={pricingHero.title}
         body={pricingHero.body}
-        chips={["$0 for sites", "$1,000 to evaluate", "Paid again only if you win"]}
+        chips={["$0 for sites", "$1,000 to evaluate", "$10,000 if you win"]}
         ctaHref={siteHref}
         ctaLabel="Submit a job"
         secondaryHref={robotHref}
@@ -173,24 +173,24 @@ export default function Pricing() {
                 money: "$12,000 to Blueprint",
               },
               {
-                when: "Award",
-                what: "Team A wins one task and starts a five-robot deployment. Five robots does not clear the floor, so the fee is $10,000, less the $1,000 it paid to evaluate that task.",
+                when: "Selection",
+                what: "Team A is selected for one task. That task's total is $10,000, and Team A already paid $1,000 to evaluate it.",
                 money: "$9,000 more from Team A",
               },
               {
-                when: "Expansion",
-                what: "Team A later grows the same task to twenty robots. At $2,000 each the total becomes $40,000, and the fee tops up rather than restarting.",
-                money: "$30,000 more from Team A",
+                when: "Team A's bill",
+                what: "Three evaluations, one win: $10,000 for the task it won, $1,000 each for the two it did not.",
+                money: "$12,000 from Team A",
               },
               {
-                when: "Side deal",
-                what: "Team A also pays the warehouse $20,000 to host the pilot — for access, disruption and data. Supported, and separate.",
-                money: "Blueprint takes none of it",
+                when: "Afterwards",
+                what: "Team A grows the deployment, renews, and pays the warehouse $20,000 to host. None of it changes what Blueprint is owed.",
+                money: "Nothing further",
               },
             ].map((row) => (
               <li
                 key={row.when}
-                className="grid gap-2 bg-runway-panel p-5 sm:grid-cols-[128px_minmax(0,1fr)_200px] sm:items-baseline sm:gap-6 lg:p-6"
+                className="grid gap-2 bg-runway-panel p-5 sm:grid-cols-[136px_minmax(0,1fr)_200px] sm:items-baseline sm:gap-6 lg:p-6"
               >
                 <span className="runway-meta">{row.when}</span>
                 <span className="text-[14px] leading-[1.65] text-runway-body">{row.what}</span>
@@ -201,9 +201,8 @@ export default function Pricing() {
             ))}
           </ol>
           <p className="mt-6 text-[14px] leading-[1.7] text-runway-mute">
-            Blueprint collects {formatUsd(12_000 + 9_000 + 30_000)} across the life of that
-            relationship. The warehouse pays {formatUsd(0)}, and no one has to show anyone a
-            contract.
+            Blueprint collects {formatUsd(21_000)} in total. The warehouse pays {formatUsd(0)}, and
+            no one has to show anyone a contract.
           </p>
         </Inner>
       </Band>
@@ -212,9 +211,9 @@ export default function Pricing() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="03"
-            eyebrow="The two charges"
-            title="Evaluate for $1,000. Pay again only if you win."
-            lede="Robot count is visible in the deployment record, so the fee never depends on a number only one party can see."
+            eyebrow="The two numbers"
+            title="Lose and it stays $1,000. Win and it is $10,000."
+            lede="Two flat numbers, so nothing depends on a contract Blueprint cannot see — and nothing keeps accruing after the deal is done."
           />
           <DeploymentPricingModel />
         </Inner>
@@ -224,7 +223,7 @@ export default function Pricing() {
         <Inner size="narrow" className="py-20 lg:py-28">
           <EditorialFaq
             title="Pricing questions"
-            description="Two charges, who pays them, and why neither depends on a contract Blueprint cannot see."
+            description="Two numbers, who pays them, and why neither depends on a contract Blueprint cannot see."
             items={faqItems}
           />
         </Inner>
@@ -233,7 +232,7 @@ export default function Pricing() {
       <ClosingCta
         eyebrow="Start free"
         title="Bring the job, or bring the robot."
-        body="The site submits the workflow and pays nothing. Robot teams pay to evaluate, and pay again only when they win the work."
+        body="The site submits the workflow and pays nothing. Robot teams pay $1,000 to evaluate, and $10,000 in total if they win the work."
         primaryHref={siteHref}
         primaryLabel="Submit a job"
         secondaryHref={robotHref}

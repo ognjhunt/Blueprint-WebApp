@@ -558,10 +558,10 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "Two charges · sites pay nothing",
+  eyebrow: "Two numbers · sites pay nothing",
   title: "Two charges. The site pays nothing.",
   body:
-    "Robot teams pay $1,000 to evaluate a site-task, and — only if they win it — the greater of $10,000 or $2,000 per robot deployed on that task, less what they already paid to evaluate it. Nothing depends on a contract Blueprint cannot see.",
+    "Robot teams pay $1,000 to evaluate a site-task. Win it and the total is $10,000. Lose and it stays $1,000. No percentage, no per-robot rate, nothing recurring.",
 } as const;
 
 export const pricingIncluded = [

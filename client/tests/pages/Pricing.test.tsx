@@ -12,7 +12,7 @@ describe("Pricing", () => {
       screen.getByRole("heading", { name: /Sites pay nothing\. Ever/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Evaluate for \$1,000\. Pay again only if you win/i }),
+      screen.getByRole("heading", { name: /Lose and it stays \$1,000\. Win and it is \$10,000/i }),
     ).toBeInTheDocument();
   });
 
@@ -20,23 +20,33 @@ describe("Pricing", () => {
     render(<Pricing />);
     expect(screen.getByText(/\$12,000 to Blueprint/i)).toBeInTheDocument();
     expect(screen.getByText(/\$9,000 more from Team A/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$30,000 more from Team A/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$12,000 from Team A/i)).toBeInTheDocument();
     // The side deal is supported and Blueprint takes none of it.
     // Appears in the example row and again in the FAQ; both are intended.
     expect(screen.getAllByText(/Blueprint takes none of it/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Warehouse pays \$0/i).length).toBeGreaterThan(0);
   });
 
-  it("shows the greater-of flipping from the floor to the per-robot rate", () => {
+  it("adds up to $10,000 for a win and $1,000 for a loss", () => {
     render(<Pricing />);
-    // Five robots sits exactly on the floor: $10,000 less the $1,000 credit.
-    expect(screen.getByText("$9,000")).toBeInTheDocument();
+    // Three evaluated, one won: $3,000 + $9,000.
+    expect(screen.getAllByText("$12,000").length).toBeGreaterThan(0);
 
-    fireEvent.change(screen.getByLabelText(/Robots deployed on this task/i), {
-      target: { value: "20" },
-    });
-    // Twenty robots clears the floor: 20 x $2,000 = $40,000 less the credit.
-    expect(screen.getByText("$39,000")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Of those, won/i), { target: { value: "0" } });
+    // Same three evaluations, no win: nothing more is owed.
+    expect(screen.getAllByText("$3,000").length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText(/Site-tasks evaluated/i), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText(/Of those, won/i), { target: { value: "1" } });
+    expect(screen.getAllByText("$10,000").length).toBeGreaterThan(0);
+  });
+
+  it("states that there is nothing else to pay", () => {
+    render(<Pricing />);
+    expect(screen.getByText(/Is there anything else\?/i)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Growing the deployment .* costs nothing further/i).length,
+    ).toBeGreaterThan(0);
   });
 
   it("explains why the model avoids a contract percentage", () => {
@@ -46,7 +56,7 @@ describe("Pricing", () => {
       .closest("div") as HTMLElement;
     expect(within(faq).getByText(/not reliably collectible unless Blueprint controls invoicing/i))
       .toBeInTheDocument();
-    expect(within(faq).getByText(/visible in the deployment and acceptance record/i))
+    expect(within(faq).getByText(/Two flat numbers need no visibility into anyone's contract/i))
       .toBeInTheDocument();
   });
 

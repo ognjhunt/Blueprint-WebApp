@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
 
 import {
-  calculateDeploymentFee,
+  calculateTeamCost,
+  chargeSummary,
   deploymentFee,
   evaluationFee,
   formatUsd,
@@ -10,7 +11,7 @@ import {
   vendorFundedPilots,
 } from "@/lib/deploymentPricing";
 
-const MAX_ROBOTS = 500;
+const MAX_TASKS = 99;
 
 function clampInt(value: string, max: number) {
   const parsed = Number(value.replace(/[^0-9]/g, ""));
@@ -18,35 +19,54 @@ function clampInt(value: string, max: number) {
   return Math.min(Math.max(0, Math.floor(parsed)), max);
 }
 
-/**
- * Two charges, and a calculator whose only job is to show where the greater-of
- * flips — because that is the part people have to see once to trust.
- */
+/** Two numbers, and a calculator that only has to add them up. */
 export function DeploymentPricingModel() {
-  const [robots, setRobots] = useState("5");
-  const robotCount = clampInt(robots, MAX_ROBOTS);
+  const [evaluated, setEvaluated] = useState("3");
+  const [won, setWon] = useState("1");
 
-  const fee = useMemo(
-    () => calculateDeploymentFee({ robots: robotCount, wonAfterEvaluating: true }),
-    [robotCount],
+  const evaluatedCount = clampInt(evaluated, MAX_TASKS);
+  const wonCount = Math.min(clampInt(won, MAX_TASKS), evaluatedCount);
+
+  const cost = useMemo(
+    () => calculateTeamCost({ evaluated: evaluatedCount, won: wonCount }),
+    [evaluatedCount, wonCount],
   );
 
   return (
     <div className="mt-14 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-12">
-      {/* ---- the two charges ---- */}
+      {/* ---- the whole price list ---- */}
       <div className="flex flex-col gap-6">
-        <div className="runway-panel p-6 lg:p-8">
-          <div className="flex items-baseline justify-between gap-4">
-            <p className="runway-eyebrow">1 · Evaluation fee</p>
-            <span className="runway-num text-[1.9rem] leading-none text-runway-text">
-              {formatUsd(evaluationFee.amount)}
-            </span>
+        <div className="runway-panel overflow-hidden">
+          <div className="border-b border-runway-line p-6 lg:p-8">
+            <p className="runway-eyebrow">The whole price list</p>
+            <p className="mt-3 text-[14px] leading-[1.65] text-runway-mute">{deploymentFee.rule}</p>
           </div>
-          <p className="mt-2 runway-meta">{evaluationFee.unit}</p>
-          <p className="mt-4 text-[14px] leading-[1.65] text-runway-mute">
-            Paid by every robot team that runs a real evaluation. Not a compute markup — it buys a
-            captured task, a standardised test, and a scored result.
+          <dl>
+            {chargeSummary.map((row, index) => (
+              <div
+                key={row.id}
+                className={`flex items-baseline justify-between gap-4 px-6 py-5 lg:px-8 ${
+                  index < chargeSummary.length - 1 ? "border-b border-runway-line-soft" : ""
+                }`}
+              >
+                <dt className="text-[14px] leading-[1.5] text-runway-body">{row.label}</dt>
+                <dd
+                  className={`runway-num shrink-0 text-[1.5rem] leading-none ${
+                    row.amount === 0 ? "text-runway-green" : "text-runway-text"
+                  }`}
+                >
+                  {formatUsd(row.amount)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="border-t border-runway-line bg-runway-black px-6 py-5 text-[13px] leading-[1.6] text-runway-faint lg:px-8">
+            {deploymentFee.noExtras}
           </p>
+        </div>
+
+        <div className="border border-runway-line p-6 lg:p-8">
+          <p className="runway-eyebrow">What the {formatUsd(evaluationFee.amount)} buys</p>
           <ul className="mt-4 grid gap-2">
             {evaluationFee.includes.map((item) => (
               <li key={item} className="flex gap-3 text-[13.5px] leading-6 text-runway-body">
@@ -56,90 +76,64 @@ export function DeploymentPricingModel() {
             ))}
           </ul>
           <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
-            {evaluationFee.creditRule}
-          </p>
-        </div>
-
-        <div className="runway-panel p-6 lg:p-8">
-          <div className="flex items-baseline justify-between gap-4">
-            <p className="runway-eyebrow">2 · Deployment fee</p>
-            <span className="runway-num text-right text-[1.35rem] leading-tight text-runway-text">
-              {formatUsd(deploymentFee.floor)}
-              <span className="text-runway-mute"> or </span>
-              {formatUsd(deploymentFee.perRobot)}
-              <span className="block text-[12px] text-runway-faint">whichever is greater</span>
-            </span>
-          </div>
-          <p className="mt-2 runway-meta">{deploymentFee.unit} · per robot deployed</p>
-          <p className="mt-4 text-[14px] leading-[1.65] text-runway-mute">{deploymentFee.whoPays}</p>
-          <p className="mt-4 text-[13.5px] leading-[1.6] text-runway-body">
-            {deploymentFee.verifiable}
-          </p>
-          <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
-            {deploymentFee.cumulative}
+            {evaluationFee.note}
           </p>
         </div>
       </div>
 
-      {/* ---- the calculator + the settlement note ---- */}
+      {/* ---- the calculator + the notes ---- */}
       <div className="flex flex-col gap-6">
         <div className="runway-panel p-6 lg:p-8">
-          <p className="runway-eyebrow">What the winning team owes</p>
+          <p className="runway-eyebrow">What a robot team owes</p>
 
-          <label className="mt-5 block">
-            <span className="runway-label">Robots deployed on this task</span>
-            <input
-              className="runway-input runway-num"
-              inputMode="numeric"
-              value={robots}
-              onChange={(event) => setRobots(event.target.value)}
-              aria-label="Robots deployed on this task"
-            />
-          </label>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="runway-label">Site-tasks evaluated</span>
+              <input
+                className="runway-input runway-num"
+                inputMode="numeric"
+                value={evaluated}
+                onChange={(event) => setEvaluated(event.target.value)}
+                aria-label="Site-tasks evaluated"
+              />
+            </label>
+            <label className="block">
+              <span className="runway-label">Of those, won</span>
+              <input
+                className="runway-input runway-num"
+                inputMode="numeric"
+                value={won}
+                onChange={(event) => setWon(event.target.value)}
+                aria-label="Of those, won"
+              />
+            </label>
+          </div>
 
           <dl className="mt-6 border-t border-runway-line pt-4">
             <div className="flex items-baseline justify-between gap-4 py-2">
               <dt className="text-[13px] text-runway-mute">
-                Floor{" "}
+                Evaluations{" "}
                 <span className="runway-num text-runway-faint">
-                  ({formatUsd(deploymentFee.floor)})
+                  ({evaluatedCount} × {formatUsd(evaluationFee.amount)})
                 </span>
               </dt>
-              <dd
-                className={`runway-num text-[13px] ${
-                  fee.basis === "floor" ? "text-runway-signal" : "text-runway-faint"
-                }`}
-              >
-                {formatUsd(deploymentFee.floor)}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4 py-2">
-              <dt className="text-[13px] text-runway-mute">
-                Per robot{" "}
-                <span className="runway-num text-runway-faint">
-                  ({robotCount} × {formatUsd(deploymentFee.perRobot)})
-                </span>
-              </dt>
-              <dd
-                className={`runway-num text-[13px] ${
-                  fee.basis === "per-robot" ? "text-runway-signal" : "text-runway-faint"
-                }`}
-              >
-                {formatUsd(robotCount * deploymentFee.perRobot)}
-              </dd>
+              <dd className="runway-num text-[13px]">{formatUsd(cost.evaluations)}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-4 border-t border-runway-line-soft py-2">
-              <dt className="text-[13px] text-runway-mute">Evaluation fee credited</dt>
-              <dd className="runway-num text-[13px] text-runway-green">
-                {fee.creditApplied > 0 ? `−${formatUsd(fee.creditApplied)}` : formatUsd(0)}
-              </dd>
+              <dt className="text-[13px] text-runway-mute">
+                On selection{" "}
+                <span className="runway-num text-runway-faint">
+                  ({wonCount} × {formatUsd(deploymentFee.total - evaluationFee.amount)})
+                </span>
+              </dt>
+              <dd className="runway-num text-[13px]">{formatUsd(cost.selectionTopUp)}</dd>
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-4 border-t-2 border-runway-line pt-4">
               <dt className="font-display text-[15px] font-semibold uppercase tracking-[0.005em] text-runway-text">
-                Owed to Blueprint
+                Total to Blueprint
               </dt>
               <dd className="runway-num text-[1.7rem] leading-none text-runway-signal">
-                {formatUsd(fee.dueNow)}
+                {formatUsd(cost.total)}
               </dd>
             </div>
           </dl>

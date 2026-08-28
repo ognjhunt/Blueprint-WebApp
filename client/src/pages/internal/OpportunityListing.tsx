@@ -331,15 +331,15 @@ function ListingView({ listing }: { listing: BoardListing }) {
               <Row label="Deployment · 12 mo" value="$8.5–11K / mo band" />
               <Row
                 label="Blueprint, if you win"
-                value={`${formatUsd(deploymentFee.floor)} or ${formatUsd(deploymentFee.perRobot)}/robot`}
+                value={`${formatUsd(deploymentFee.total)} total`}
                 accent="text-runway-signal"
                 last
               />
             </dl>
             <p className="mt-3 text-[12.5px] leading-[1.55] text-runway-faint">
-              Propose a rate inside the bands. Blueprint charges the winning team the greater of
-              its floor or its per-robot rate, less the evaluation fee on the task you won. The site
-              pays Blueprint nothing.
+              Propose a rate inside the bands. Blueprint charges {formatUsd(evaluationFee.amount)} to
+              evaluate and {formatUsd(deploymentFee.total)} in total if you win the task — nothing
+              else, ever. The site pays Blueprint nothing.
             </p>
           </div>
 
