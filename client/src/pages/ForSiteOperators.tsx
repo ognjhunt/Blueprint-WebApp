@@ -304,7 +304,7 @@ export default function ForSiteOperators() {
         primaryHref={submitHref}
         primaryLabel="Submit a job"
         secondaryHref="/pricing"
-        secondaryLabel="See the success fee"
+        secondaryLabel="See how pricing works"
       />
     </>
   );

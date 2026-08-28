@@ -10,6 +10,7 @@
 import { Link, useRoute } from "wouter";
 
 import { SEO } from "@/components/SEO";
+import { deploymentFees, evaluationCredit, formatUsd } from "@/lib/deploymentPricing";
 import {
   PREVIEW_NOTICE,
   boardListings,
@@ -159,7 +160,7 @@ function ListingView({ listing }: { listing: BoardListing }) {
           <div className="flex shrink-0 flex-col gap-3">
             <div className="flex flex-wrap gap-3">
               <button type="button" className="runway-cta">
-                Start eval — free
+                Start standard eval — free
               </button>
               <button type="button" className="runway-cta-ghost">
                 Listing spec
@@ -324,15 +325,21 @@ function ListingView({ listing }: { listing: BoardListing }) {
           <div className="runway-panel p-5">
             <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.16em]">The deal</p>
             <dl className="mt-3">
-              <Row label="Eval" value="Free" accent="text-runway-green" />
+              <Row label="Standard eval" value="Free" accent="text-runway-green" />
+              <Row label="Eval credit" value={`${formatUsd(evaluationCredit.low)} · returned on deploy`} />
               <Row label="Pilot · 4 weeks" value={`${formatBand(listing.pilotBand)} band`} />
               <Row label="Deployment · 12 mo" value="$8.5–11K / mo band" />
-              <Row label="Scope" value="1 cell · 2 shifts · no fixed infra" />
-              <Row label="Blueprint take" value="4% on close" accent="text-runway-signal" last />
+              <Row
+                label="Blueprint"
+                value={`${formatUsd(deploymentFees.activation.amount)} + ${formatUsd(deploymentFees.robotMonth.low)}/robot-mo`}
+                accent="text-runway-signal"
+                last
+              />
             </dl>
             <p className="mt-3 text-[12.5px] leading-[1.55] text-runway-faint">
-              Propose a rate inside the bands. Clear the pilot bar and conversion triggers at your rate.
-              Miss it and the site owes nothing further.
+              Propose a rate inside the bands. The eval credit comes off Blueprint&rsquo;s activation
+              fee if you deploy, so evaluating costs a winning team nothing. Miss the pilot bar and
+              the site owes nothing further.
             </p>
           </div>
 

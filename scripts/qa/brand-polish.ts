@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Free to evaluate. You pay when a robot is working.",
+    expectedHeading: "Free to discover. You pay when robots are working.",
     requiredCtas: [
       { label: "Submit a job", hrefStartsWith: "/signup/business" },
       { label: "Join as a robot team", hrefStartsWith: "/signup/business" },

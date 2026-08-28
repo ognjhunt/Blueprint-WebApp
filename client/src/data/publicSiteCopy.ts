@@ -558,10 +558,10 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "Free to start · site-paid when it works",
-  title: "Free to evaluate. You pay when a robot is working.",
+  eyebrow: "Free to discover · paid when robots work",
+  title: "Free to discover. You pay when robots are working.",
   body:
-    "Sites submit jobs free. Robot teams match and run standard evaluations free. The site pays Blueprint only after a deployment produces collected provider revenue — which is why we only take sites that intend to buy.",
+    "Anonymous listings, fit screening and one standard evaluation are free. An evaluation credit is due before a robot team gets named-site access, and it is returned in full if that team deploys. After that Blueprint bills an activation once and an active robot-month.",
 } as const;
 
 export const pricingIncluded = [

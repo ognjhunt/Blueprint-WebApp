@@ -76,7 +76,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Sites and robot teams start free. The contracting enterprise pays a success fee when the robot provider actually collects deployment revenue. Robot providers keep their full negotiated price; heavy compute and custom training are scoped separately.",
+      "Discovery, fit screening and one standard evaluation are free. An evaluation credit is due before a robot team receives named-site detail or a bespoke run, and it is returned in full against the deployment fee if that team deploys. Blueprint then bills a one-time activation and an active robot-month — units both parties can count — rather than a percentage of a contract neither can verify. Heavy compute and custom training are scoped separately.",
   },
 ];
 
