@@ -18,11 +18,6 @@ describe("ForSiteOperators", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Robot capacity is allocated, not just sold/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
         name: /Robot teams see more only as they earn it/i,
       }),
     ).toBeInTheDocument();

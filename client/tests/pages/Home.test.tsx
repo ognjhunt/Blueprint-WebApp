@@ -19,7 +19,7 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", { name: /Don.t send engineers to scope a deployment/i }),
     ).toBeInTheDocument();
-    expect(container).toHaveTextContent(/your deployment team starts when the robot arrives/i);
+    expect(container).toHaveTextContent(/Blueprint does everything before the robot arrives/i);
   });
 
   it("draws the boundary on the page: Blueprint owns the site, the OEM owns the robot", () => {
@@ -28,7 +28,7 @@ describe("Home", () => {
     // The half Blueprint does not touch has to be as explicit as the half it does,
     // and the reason has to be the physical one rather than a disclaimer.
     expect(container).toHaveTextContent(/Stays with the robot company/i);
-    expect(container).toHaveTextContent(/cannot be finished before the hardware is in the building/i);
+    expect(container).toHaveTextContent(/cannot be finished until the hardware is in the building/i);
     expect(container).toHaveTextContent(/Operator training, safety sign-off, and production integration/i);
   });
 
@@ -52,7 +52,7 @@ describe("Home", () => {
       expect(screen.getByText(criterion)).toBeInTheDocument();
     }
     expect(
-      screen.getByText(/Fifty of these are worth more than five thousand interested sites/i),
+      screen.getByText(/Fifty of these beat five thousand interested sites/i),
     ).toBeInTheDocument();
   });
 

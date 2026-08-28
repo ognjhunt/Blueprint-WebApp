@@ -59,8 +59,10 @@ test("pricing states the rates are terms under test rather than a market rate", 
   page,
 }) => {
   await page.goto("/pricing");
-  await expect(page.getByText(/starting terms Blueprint intends to test/i).first()).toBeVisible();
-  await expect(page.getByText(/vendors selling data services/i).first()).toBeVisible();
+  await expect(page.getByText(/starting terms/i).first()).toBeVisible();
+  await expect(
+    page.getByText(/No independent source establishes a market price/i).first(),
+  ).toBeVisible();
 });
 
 test("deployment pricing remains usable on mobile", async ({ page }) => {

@@ -245,7 +245,7 @@ export const oemDeploymentPhases: readonly DeploymentPhase[] = [
     name: "Proof of technology",
     owner: "Blueprint automates this",
     detail:
-      "Define the task and the win condition, recreate the site's conditions in simulation and on a physical mock-up, run the robot against them, and refine the workflow.",
+      "Define the task and the win condition, recreate the site, run the robot against it, refine the workflow.",
     blueprint: true,
   },
   {
@@ -256,7 +256,7 @@ export const oemDeploymentPhases: readonly DeploymentPhase[] = [
     name: "Onsite proof of concept",
     owner: "OEM deployment engineers",
     detail:
-      "Uncrate, connect network and security, map the work area, configure the workflow, adjust for site quirks, and train the site's team.",
+      "Uncrate, connect, map the work area, configure the workflow, adjust for quirks, train the team.",
     blueprint: false,
   },
   {
@@ -266,8 +266,7 @@ export const oemDeploymentPhases: readonly DeploymentPhase[] = [
     endMonth: 6,
     name: "Production pilot",
     owner: "OEM and site",
-    detail:
-      "Ninety days of operating data: uptime, throughput, reliability, and whether the economics hold on real hardware.",
+    detail: "Ninety days of uptime, throughput and reliability on real hardware.",
     blueprint: false,
   },
   {
@@ -277,8 +276,7 @@ export const oemDeploymentPhases: readonly DeploymentPhase[] = [
     endMonth: 8,
     name: "Scaled deployment",
     owner: "OEM and site",
-    detail:
-      "Expand robots, shifts, workflows, and facilities once the physical evidence supports it.",
+    detail: "Expand robots, shifts and facilities once the evidence supports it.",
     blueprint: false,
   },
 ];
@@ -585,7 +583,7 @@ export const observedDeployments: readonly ObservedDeployment[] = [
     timed: true,
     milestone: "Announced proof of concept to regular commercial operations",
     detail:
-      "Proof of concept announced 6 Dec 2023; regular commercial operations 5 Jun 2024; multi-year robots-as-a-service agreement announced 27 Jun 2024.",
+      "PoC announced 6 Dec 2023; commercial operations 5 Jun 2024; multi-year RaaS agreement 27 Jun 2024.",
     sources: [marketSources.gxoPilot, marketSources.gxoAgreement],
   },
   {
@@ -598,7 +596,7 @@ export const observedDeployments: readonly ObservedDeployment[] = [
     timed: true,
     milestone: "Robot bring-up to full deployment on an active assembly line",
     detail:
-      "One task — sheet-metal loading to a 5 mm tolerance. Robots were on site and testing within about six months and running the live line by about ten.",
+      "One task — sheet-metal loading to 5 mm. On site by about six months, on the live line by ten.",
     sources: [
       {
         label: "Figure: production at BMW",
@@ -616,7 +614,7 @@ export const observedDeployments: readonly ObservedDeployment[] = [
     timed: false,
     milestone: "Pilot completed before any commercial agreement was signed",
     detail:
-      "Announced 19 Feb 2026 after a successful pilot: an initial seven Digits for material handling at the Woodstock, Ontario RAV4 plant, with expansion contingent on results.",
+      "Announced 19 Feb 2026 after a successful pilot: seven Digits at the Woodstock RAV4 plant, expansion contingent on results.",
     sources: [
       {
         label: "Agility: Toyota Motor Manufacturing Canada agreement",
@@ -627,7 +625,7 @@ export const observedDeployments: readonly ObservedDeployment[] = [
 ];
 
 export const observedDeploymentsNote =
-  "Every publicly documented humanoid deployment so far ran a site-specific evaluation before commercial terms were signed. None of them skipped it.";
+  "Every documented humanoid deployment ran a site-specific evaluation before terms were signed.";
 
 /**
  * The strongest single piece of evidence that deployment preparation is
@@ -738,7 +736,7 @@ export const allocationThesis = {
   scarcest: "Deployment-engineer weeks",
   notScarcest: "Robot-months",
   consequence:
-    "A larger contract that consumes six engineers for four months can lose to a smaller one that needs almost no customisation. Qualification, not lead generation, is the binding constraint.",
+    "Qualification, not lead generation, is the binding constraint.",
 } as const;
 
 /* ------------------------------------------------- the deployment compiler */

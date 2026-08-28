@@ -85,15 +85,12 @@ export default function Home() {
             index="01"
             eyebrow="The boundary"
             title={promise.headline}
-            lede={`${promise.subhead} Everything before the robot ships is site work: robot-agnostic, repeated from scratch by every vendor at every site, and the reason a deployment takes months. That half is ours — your deployment team starts when the robot arrives.`}
+            lede={promise.subhead}
           />
 
           <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
             <div className="bg-runway-black p-7 lg:p-9">
               <p className="runway-eyebrow">Blueprint does this</p>
-              <p className="mt-3 text-[14px] leading-[1.7] text-runway-mute">
-                The questions a robot company answers by hand today, once per site, per vendor.
-              </p>
               <div className="mt-7 grid gap-7 sm:grid-cols-2">
                 {preShipmentWork.map((group, index) => (
                   <Reveal key={group.id} delay={index * 0.05}>
@@ -135,8 +132,9 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-7 border-t border-runway-line pt-6 text-[13px] leading-[1.65] text-runway-faint">
-                {robotCompanyWork.reason}
+              <p className="mt-7 border-t border-runway-line pt-6 text-[13px] leading-[1.6] text-runway-faint">
+                Some of it cannot be finished until the hardware is in the building. The rest is
+                their technology and their liability.
               </p>
             </div>
           </div>
@@ -154,7 +152,7 @@ export default function Home() {
             index="02"
             eyebrow="Why it takes months"
             title="Two of the six months happen before the robot is crated."
-            lede="The only humanoid deployment programme published in a public filing puts a third of the timeline before anything ships. That third is the work above."
+            lede="The only published programme puts a third of the timeline before anything ships."
           />
           <FigureFrame
             className="mt-14"
@@ -176,7 +174,7 @@ export default function Home() {
             index="03"
             eyebrow="The unit"
             title="A qualified deployable workcell."
-            lede={qualifiedDeployableWorkcell.lede}
+            lede="A workcell counts only when all eight are true."
           />
           <div className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
             {qualifiedDeployableWorkcell.criteria.map((criterion, index) => (
@@ -188,8 +186,8 @@ export default function Home() {
               </Reveal>
             ))}
           </div>
-          <p className="mt-8 max-w-[62ch] text-[15px] leading-[1.7] text-runway-mute">
-            {qualifiedDeployableWorkcell.counterpoint}
+          <p className="mt-8 text-[15px] leading-[1.7] text-runway-mute">
+            Fifty of these beat five thousand interested sites.
           </p>
         </Inner>
       </Band>
@@ -241,7 +239,7 @@ export default function Home() {
             index="05"
             eyebrow="How supply is built"
             title="Robot teams say what they can do. We go find it."
-            lede="Capability envelopes are the sourcing specification, not an afterthought — which is why Blueprint hunts a hundred good examples of ten task archetypes rather than signing up a thousand factories."
+            lede="Capability envelopes are the sourcing spec, not an afterthought."
           />
           <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
             {sourcingLoop.map((stage, index) => (
@@ -261,15 +259,10 @@ export default function Home() {
 
           <div className="mt-12 border border-runway-line p-7 lg:p-9">
             <p className="runway-eyebrow">{crossVendorRecord.title}</p>
-            {crossVendorRecord.lines.map((line) => (
-              <p key={line} className="mt-4 max-w-[74ch] text-[15px] leading-[1.7] text-runway-body">
-                {line}
-              </p>
-            ))}
-            <p className="mt-5 max-w-[74ch] text-[14px] leading-[1.65] text-runway-mute">
-              {crossVendorRecord.compounding}
+            <p className="mt-4 max-w-[74ch] text-[15px] leading-[1.7] text-runway-body">
+              {crossVendorRecord.lines[1]}
             </p>
-            <p className="mt-5 border-t border-runway-line-soft pt-5 text-[12.5px] leading-[1.6] text-runway-faint">
+            <p className="mt-4 text-[12.5px] leading-[1.6] text-runway-faint">
               {crossVendorRecord.honesty}
             </p>
           </div>
@@ -287,8 +280,7 @@ export default function Home() {
                   One capture. Every team sees the same job.
                 </h3>
                 <p className="mt-4 max-w-[42ch] text-[14px] leading-[1.7] text-runway-mute">
-                  You set the success bar once, and compare real results against it instead of demo
-                  reels. Free to submit and to qualify.
+                  Set the bar once. Compare real results, not demo reels. Free.
                 </p>
                 <a className="runway-cta mt-8" href={siteHref}>
                   Submit a job
@@ -302,8 +294,7 @@ export default function Home() {
                   Arrive with the robot. Not before it.
                 </h3>
                 <p className="mt-4 max-w-[42ch] text-[14px] leading-[1.7] text-runway-mute">
-                  Opportunities that arrive with the customer qualified, the task defined, the site
-                  modelled and the acceptance test already written.
+                  Customer qualified, task defined, site modelled, acceptance test written.
                 </p>
                 <a className="runway-cta-ghost mt-8" href={robotHref}>
                   Join as a robot team
@@ -317,7 +308,7 @@ export default function Home() {
       <RunwayCta
         eyebrow="The first onsite visit"
         title="Use it to commission. Not to discover."
-        body="Blueprint packages the task, the testbed, the known gaps and the acceptance criteria before your engineers ever get on a plane."
+        body="The task, the testbed, the gaps and the acceptance criteria — packaged before anyone flies."
         primaryHref={runHref}
         primaryLabel="Prepare a deployment"
         secondaryHref="/proof"

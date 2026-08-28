@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("homepage leads with real demand made deployment-ready, then the boundary", async ({
+test("homepage leads with what Blueprint is, then the boundary", async ({
   page,
 }) => {
   await page.goto("/");
@@ -34,7 +34,7 @@ test("homepage leads with real demand made deployment-ready, then the boundary",
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/your deployment team starts when the robot arrives/i),
+    page.getByText(/Blueprint does everything before the robot arrives/i).first(),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /A qualified deployable workcell/i }),
@@ -50,7 +50,7 @@ test("homepage leads with real demand made deployment-ready, then the boundary",
   await expect(page.getByText(/Blueprint owns the site\. You own the robot/i)).toBeVisible();
   await expect(page.getByText(/Stays with the robot company/i)).toBeVisible();
   await expect(
-    page.getByText(/cannot be finished before the hardware is in the building/i),
+    page.getByText(/cannot be finished until the hardware is in the building/i).first(),
   ).toBeVisible();
 
   // The promise is stated as a number the product can be held to.

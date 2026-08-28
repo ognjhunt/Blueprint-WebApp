@@ -10,7 +10,6 @@ import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
 import {
   CompilerFigure,
-  DeploymentPipelineChart,
   PreShipmentWork,
   QualifyingGatesFigure,
   StructuralCompareFigure,
@@ -18,7 +17,6 @@ import {
 import {
   Band,
   BoundaryPanel,
-  FigureFrame,
   Inner,
   RunwayCta,
   SectionHead,
@@ -26,7 +24,6 @@ import {
 import { PageHero } from "@/components/site/publicSections";
 import {
   deploymentBoundary,
-  deploymentPipelineMeta,
   monthsZeroToTwo,
   monthsZeroToTwoSource,
 } from "@/data/deploymentMarket";
@@ -174,27 +171,6 @@ export default function HowItWorks() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="05"
-            eyebrow="Where we sit"
-            title="We stop where the install begins."
-          />
-          <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 01"
-              title="Path to scaled deployment"
-              basis="illustrative"
-              sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
-              caveat={deploymentPipelineMeta.caveat}
-            >
-              <DeploymentPipelineChart />
-            </FigureFrame>
-          </Reveal>
-        </Inner>
-      </Band>
-
-      <Band tone="deep" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHead
-            index="06"
             eyebrow="Why it costs less"
             title="Once per site. Not once per vendor."
           />
@@ -204,12 +180,12 @@ export default function HowItWorks() {
         </Inner>
       </Band>
 
-      <Band tone="black" rule>
+      <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="07"
+            index="06"
             eyebrow="The honest boundary"
-            title="What Blueprint does — and what it does not."
+            title="We stop where the install begins."
           />
           <div className="mt-14">
             <BoundaryPanel items={deploymentBoundary} />
@@ -220,7 +196,7 @@ export default function HowItWorks() {
       <RunwayCta
         eyebrow="Before the truck rolls"
         title="Give the deployment team a real starting point."
-        body="Bring the site workflow or bring the robot. Blueprint builds the missing half into a testable, permissioned work package."
+        body="Bring the workflow or bring the robot. We build the missing half."
         primaryHref={runHref}
         primaryLabel="Prepare a deployment"
         secondaryHref="/proof"

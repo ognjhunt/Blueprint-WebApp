@@ -21,9 +21,8 @@ describe("Pricing", () => {
     expect(screen.getByText(/\$12,000 to Blueprint/i)).toBeInTheDocument();
     expect(screen.getByText(/\$9,000 more from Team A/i)).toBeInTheDocument();
     expect(screen.getByText(/\$12,000 from Team A/i)).toBeInTheDocument();
-    // The side deal is supported and Blueprint takes none of it.
     // Appears in the example row and again in the FAQ; both are intended.
-    expect(screen.getAllByText(/Blueprint takes none of it/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Nothing further/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Warehouse pays \$0/i).length).toBeGreaterThan(0);
   });
 
@@ -52,26 +51,23 @@ describe("Pricing", () => {
   it("explains why the model avoids a contract percentage", () => {
     render(<Pricing />);
     const faq = screen
-      .getByText(/Why is there no percentage of the contract\?/i)
+      .getByText(/Why no percentage of the contract\?/i)
       .closest("div") as HTMLElement;
-    expect(within(faq).getByText(/not reliably collectible unless Blueprint controls invoicing/i))
-      .toBeInTheDocument();
-    expect(within(faq).getByText(/Two flat numbers need no visibility into anyone's contract/i))
-      .toBeInTheDocument();
+    expect(within(faq).getByText(/not collectible unless we control invoicing/i)).toBeInTheDocument();
+    expect(within(faq).getByText(/Two flat numbers need no visibility into anyone's contract/i)).toBeInTheDocument();
   });
 
   it("states the rates are terms under test rather than a market rate", () => {
     render(<Pricing />);
     const faq = screen.getByText(/Are these rates fixed\?/i).closest("div") as HTMLElement;
-    expect(within(faq).getByText(/starting terms Blueprint intends to test/i)).toBeInTheDocument();
-    expect(within(faq).getByText(/vendors selling data services/i)).toBeInTheDocument();
+    expect(within(faq).getByText(/starting terms we intend to test/i)).toBeInTheDocument();
+    expect(within(faq).getByText(/No independent source establishes a market price/i)).toBeInTheDocument();
   });
 
   it("supports a robot team paying the site to host, separately", () => {
     render(<Pricing />);
     expect(screen.getByText(/Vendor-funded pilots are fine/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Can a robot team pay the site to host a pilot\?/i),
-    ).toBeInTheDocument();
+    // The vendor-funded arrangement is stated beside the calculator.
+    expect(screen.getByText(/access, disruption or data/i)).toBeInTheDocument();
   });
 });

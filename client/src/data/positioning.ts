@@ -38,7 +38,7 @@ export const identity = {
   headline: "Real jobs, fully specified.",
   subhead: "Robot teams prove who can do them.",
   body:
-    "We find automation demand that is actually real — a budget, an owner, a bounded task — capture it once, and turn it into an opportunity every robot team can evaluate against the same test.",
+    "Real demand — a budget, an owner, a bounded task — captured once and evaluated by every robot team against the same test.",
   /** The long form, for places with room for a full sentence. */
   full:
     "Blueprint finds and qualifies real automation demand, turns each job into a fully specified digital opportunity, and lets the robotics market prove who can solve it.",
@@ -48,7 +48,7 @@ export const promise = {
   headline: "Don’t send engineers to scope a deployment.",
   subhead: "Blueprint does everything before the robot arrives.",
   body:
-    "We qualify the customer, capture the workflow, recreate the environment, evaluate robot fit, define acceptance criteria, and package the deployment. Your team arrives with the robot and starts commissioning.",
+    "We qualify the customer, capture the workflow, recreate the environment, screen robot fit and write the acceptance test. Your team arrives with the robot.",
   /** The single number the product is accountable for. */
   metric: {
     label: "OEM engineering hours before the robot arrives",
@@ -124,7 +124,7 @@ export const preShipmentWork = [
 export const robotCompanyWork = {
   label: "Stays with the robot company",
   reason:
-    "Some of it cannot be finished before the hardware is in the building — localisation through the robot's own sensors, network authentication, calibration tolerances, a policy that behaves differently on real hardware, a conveyor handshake, a reflective surface. The rest is their technology and their liability.",
+    "Some of it cannot be finished until the hardware is in the building. The rest is their technology and their liability.",
   items: [
     "Uncrate, connect, and bring the robot online",
     "Map the facility through the robot's own sensors",
@@ -166,9 +166,9 @@ export const qualifiedDeployableWorkcell = {
 export const sharedGroundTruth = {
   title: "Do the work once. Not once per vendor.",
   today:
-    "One robot company sends people to scope the site. Six months later another repeats it. A third repeats it again. Each builds a partial model on its own assumptions, and the answers do not compare.",
+    "Every vendor scopes the same site from scratch, on its own assumptions. The answers do not compare.",
   instead:
-    "Blueprint captures the site once and gives every qualified team the same ground truth. Each returns a result scored on the same acceptance test, so the site can actually compare them.",
+    "Captured once. Every team scored on the same acceptance test.",
   keeps: {
     label: "Robot companies keep everything they care about",
     items: [
@@ -190,20 +190,17 @@ export const sourcingLoop = [
   {
     step: "01",
     label: "Capability envelopes in",
-    detail:
-      "Robot teams tell Blueprint what to send: task archetypes, payload, cycle-time floor, shift count, minimum fleet size. No proprietary detail required.",
+    detail: "Task archetypes, payload, cycle-time floor, shifts, minimum fleet size.",
   },
   {
     step: "02",
     label: "Hunt against the spec",
-    detail:
-      "Blueprint sources operators, 3PLs, factories and integrators that match those envelopes — rather than waiting for a robot company to hand over a lead.",
+    detail: "We source operators that match, rather than waiting for a lead.",
   },
   {
     step: "03",
     label: "Qualify before travelling",
-    detail:
-      "Intent, authority, budget and economics are established remotely. Nobody gets on a plane for a maybe.",
+    detail: "Intent, authority and budget, established remotely. No plane for a maybe.",
   },
   {
     step: "04",
@@ -218,20 +215,17 @@ export const sourcingLoop = [
   {
     step: "06",
     label: "The site chooses",
-    detail:
-      "Qualified options with technical results, timelines and commercial terms side by side. Not an auction — a standardised comparison.",
+    detail: "Results, timelines and terms side by side. A comparison, not an auction.",
   },
   {
     step: "07",
     label: "Results come back",
-    detail:
-      "What passed, what failed, how long installation actually took, whether predicted cycle time held, whether the site expanded.",
+    detail: "What passed, what failed, whether the predicted cycle time held.",
   },
   {
     step: "08",
     label: "The next one is easier",
-    detail:
-      "Each result sharpens the screen. The loop closes here: qualification gets better because deployment happened, not because more sites signed up.",
+    detail: "Each result sharpens the next screen. The loop closes here.",
   },
 ] as const;
 
@@ -247,8 +241,6 @@ export const crossVendorRecord = {
     "Agility knows Digit. Figure knows Figure. Apptronik knows Apollo.",
     "Blueprint sees the same job evaluated by several of them, and then sees which prediction survived contact with the floor.",
   ],
-  compounding:
-    "Every deployment result sharpens the next qualification. Eventually Blueprint knows whether a site is deployable before the robot company does.",
-  honesty:
-    "This record does not exist yet. It is what the model builds, not something Blueprint already holds.",
+  compounding: "Eventually we know whether a site is deployable before the robot company does.",
+  honesty: "This record does not exist yet. It is what the model builds.",
 } as const;

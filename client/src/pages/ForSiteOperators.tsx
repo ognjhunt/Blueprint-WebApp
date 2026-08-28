@@ -17,10 +17,8 @@ import { LockKeyhole, ScanSearch, ShieldCheck } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
 import {
-  AllocationFigure,
   DeploymentPipelineChart,
   QualifyingGatesFigure,
-  QualifyingMatrixFigure,
   StructuralCompareFigure,
 } from "@/components/site/runway/figures";
 import { PageHero } from "@/components/site/publicSections";
@@ -124,7 +122,7 @@ export default function ForSiteOperators() {
             index="01"
             eyebrow="What you do"
             title="Show the job. Set the rules. See who fits."
-            lede="You do not have to pick a robot, a simulator, or an evaluation stack to start. You just have to know the job you want done."
+            lede="You don't need to pick a robot to start. Just know the job."
           />
           <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
             {siteSteps.map(({ title, body, Icon }, index) => (
@@ -192,40 +190,6 @@ export default function ForSiteOperators() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="03"
-            eyebrow="Where it already holds"
-            title="The environments that pass, and the ones that nearly do."
-            lede="Each of these is somebody else's deployment, cited to show the pattern is real. The empty cells are the diagnosis: an emerging environment is one that misses a specific gate."
-          />
-          <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 01"
-              title="Documented environments against the four conditions"
-              caveat="The environments and their evidence are published third-party deployments, each linked below. The four columns are Blueprint's screening criteria, and the marks are Blueprint's assessment of each environment against them."
-            >
-              <QualifyingMatrixFigure />
-            </FigureFrame>
-          </Reveal>
-        </Inner>
-      </Band>
-
-      <Band tone="deep" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHead
-            index="04"
-            eyebrow="Why this decides your queue position"
-            title="Robot capacity is allocated, not just sold."
-            lede="A robot company weighs these four things before it commits deployment engineers. A captured, screened site answers all four before the first call."
-          />
-          <div className="mt-14">
-            <AllocationFigure />
-          </div>
-        </Inner>
-      </Band>
-
-      <Band tone="black" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHead
-            index="05"
             eyebrow="Progressive access"
             title="Robot teams see more only as they earn it."
             lede="Permission to test is not permission to train. The site model is never a download."
@@ -263,7 +227,7 @@ export default function ForSiteOperators() {
       <Band tone="deep" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="06"
+            index="04"
             eyebrow="Why not do it yourself"
             title="Stop explaining the same job to every vendor."
           />
@@ -276,7 +240,7 @@ export default function ForSiteOperators() {
       <Band tone="black" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHead
-            index="07"
+            index="05"
             eyebrow="Where Blueprint stops"
             title="The robot provider still owns onsite deployment."
           />

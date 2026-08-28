@@ -34,44 +34,34 @@ const robotHref = "/signup/business?buyerType=robot_team&source=pricing";
 
 const faqItems = [
   {
-    question: "What does Blueprint charge, in one line?",
+    question: "What does Blueprint charge?",
     answer:
-      "$1,000 to evaluate a site-task. If you are selected for the pilot or deployment on that task, $10,000 in total — so $9,000 more. A team that loses pays $1,000. A team that wins pays $10,000. The site pays nothing.",
+      "$1,000 to evaluate a site-task. $10,000 in total if you win it — the same $1,000 plus $9,000 on award. Sites pay nothing.",
   },
   {
     question: "Is there anything else?",
     answer:
-      "No. No percentage of the contract, no per-robot rate, no monthly charge, no renewal fee. Growing the deployment from five robots to fifty costs nothing further. Two numbers is the whole model.",
+      "No. No percentage, no per-robot rate, nothing recurring. Growing a deployment from five robots to fifty costs nothing further.",
   },
   {
-    question: "Why is there no percentage of the contract?",
+    question: "Why no percentage of the contract?",
     answer:
-      "Because it is not reliably collectible unless Blueprint controls invoicing. A contract can be understated, or split so hardware, software and services sit in separate agreements, or written off-platform entirely — and high-value, low-frequency deals are where that pressure is strongest. Two flat numbers need no visibility into anyone's contract. If a percentage ever makes sense it needs a payment rail that withholds the fee automatically; until that is mandatory, Blueprint is not priced on reported contract value.",
-  },
-  {
-    question: "Is the $1,000 a compute markup?",
-    answer:
-      "No. It buys a captured task, a standardised test, and a scored result: up to 500 episodes against the twin, the analysis, and the full capture package. The compute is a small part of it. What you are paying for is that somebody already found the customer, qualified the budget, captured the workflow and wrote the acceptance test.",
+      "It is not collectible unless we control invoicing — a contract can be understated, split across agreements, or written off-platform. Two flat numbers need no visibility into anyone's contract.",
   },
   {
     question: "What if we evaluate three tasks and win one?",
     answer:
-      "You pay $12,000: $10,000 for the task you won, and $1,000 each for the two you did not. Evaluations on tasks you do not win are not refunded — they consumed a real captured asset and real site access.",
+      "$12,000: $10,000 for the win, $1,000 each for the two you did not. Losing evaluations are not refunded.",
   },
   {
     question: "Why does the site pay nothing?",
     answer:
-      "The site contributes the floor, the operational access and the task data, which are the hardest things in this market to get. Charging the scarce side would suppress the supply everybody needs. The one exception is a site that separately hires Blueprint to run a private, exclusive procurement — a different engagement from the open board.",
-  },
-  {
-    question: "Can a robot team pay the site to host a pilot?",
-    answer:
-      "Yes, and it is common. That is a separate payment for access, disruption or data, it stays between the two parties, and Blueprint takes none of it. It does not replace Blueprint's fee either.",
+      "It contributes the floor, the access and the task data — the scarce side. The one exception is a private, exclusive procurement, priced separately.",
   },
   {
     question: "Are these rates fixed?",
     answer:
-      "They are starting terms Blueprint intends to test, not an industry rate. No independent source establishes a market price for this service: the robotics-data benchmarks that circulate publicly are published by vendors selling data services, and the one customer-paid deployment fee on the public record is an illustrative figure inside a single company's own investor model.",
+      "They are starting terms we intend to test, not an industry rate. No independent source establishes a market price for this yet.",
   },
 ];
 
@@ -117,7 +107,7 @@ export default function Pricing() {
             index="01"
             eyebrow="Free"
             title="Sites pay nothing. Ever."
-            lede="The site contributes the floor, the operational access and the task data — the hardest things in this market to get. Charging for them would suppress the supply everybody needs."
+            lede="The site contributes the floor, the access and the task data. Charging for that would suppress supply."
             onInk
           />
           <div className="mt-14 grid gap-px overflow-hidden border border-runway-line bg-runway-line sm:grid-cols-2">
@@ -158,7 +148,7 @@ export default function Pricing() {
             index="02"
             eyebrow="Worked example"
             title="One warehouse, three tasks, four teams."
-            lede="The whole model in one arithmetic. Nobody discloses a contract, and the warehouse never pays Blueprint."
+            lede="Nobody discloses a contract. The warehouse never pays."
           />
           <ol className="mt-12 grid gap-px border border-runway-line bg-runway-line">
             {[
@@ -169,22 +159,22 @@ export default function Pricing() {
               },
               {
                 when: "Evaluation",
-                what: "Four robot teams each evaluate all three tasks — twelve evaluations at $1,000.",
+                what: "Four teams each evaluate all three — twelve evaluations.",
                 money: "$12,000 to Blueprint",
               },
               {
                 when: "Selection",
-                what: "Team A is selected for one task. That task's total is $10,000, and Team A already paid $1,000 to evaluate it.",
+                what: "Team A is selected for one task. Its total is $10,000, less the $1,000 it already paid.",
                 money: "$9,000 more from Team A",
               },
               {
                 when: "Team A's bill",
-                what: "Three evaluations, one win: $10,000 for the task it won, $1,000 each for the two it did not.",
+                what: "One win at $10,000, two losses at $1,000 each.",
                 money: "$12,000 from Team A",
               },
               {
                 when: "Afterwards",
-                what: "Team A grows the deployment, renews, and pays the warehouse $20,000 to host. None of it changes what Blueprint is owed.",
+                what: "Team A grows the deployment, renews, and pays the warehouse $20,000 to host.",
                 money: "Nothing further",
               },
             ].map((row) => (
@@ -201,8 +191,7 @@ export default function Pricing() {
             ))}
           </ol>
           <p className="mt-6 text-[14px] leading-[1.7] text-runway-mute">
-            Blueprint collects {formatUsd(21_000)} in total. The warehouse pays {formatUsd(0)}, and
-            no one has to show anyone a contract.
+            Blueprint collects {formatUsd(21_000)}. The warehouse pays {formatUsd(0)}.
           </p>
         </Inner>
       </Band>
@@ -213,7 +202,7 @@ export default function Pricing() {
             index="03"
             eyebrow="The two numbers"
             title="Lose and it stays $1,000. Win and it is $10,000."
-            lede="Two flat numbers, so nothing depends on a contract Blueprint cannot see — and nothing keeps accruing after the deal is done."
+            lede="Nothing depends on a contract we cannot see. Nothing keeps accruing."
           />
           <DeploymentPricingModel />
         </Inner>
