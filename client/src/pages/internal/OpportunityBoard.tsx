@@ -152,8 +152,8 @@ export default function OpportunityBoard() {
               Open evals · Austin
             </h1>
             <p className="mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-runway-mute">
-              Every row is a qualified site with the task captured, the success bar already written, and
-              the pilot band already set. Evals are free — run the twin first, then the floor.
+              Sanitized teasers only: industry, region, task, economics and scale. Operator name,
+              address and contacts stay withheld until a team is awarded the work.
             </p>
           </div>
           <dl className="flex shrink-0 gap-px border border-runway-line bg-runway-line">
@@ -266,7 +266,9 @@ export default function OpportunityBoard() {
           ) : null}
 
           <div className="mt-5 flex flex-col gap-2 border-t border-runway-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="runway-meta">Site identity reveals at shortlist · evals are free</p>
+            <p className="runway-meta">
+              Identity withheld until award · $1,000 to evaluate · $10,000 total if you win
+            </p>
             <p className="runway-meta">
               <span className="inline-flex items-center gap-[6px]">
                 <span aria-hidden="true" className={`h-[5px] w-[5px] rounded-full ${provenanceMeta.measured.dot}`} />
@@ -314,7 +316,7 @@ function BoardRow({ listing }: { listing: BoardListing }) {
     <tr>
       <td className="whitespace-nowrap">
         <Link
-          href={`/internal/opportunity-board/${listing.id}`}
+          href={`/internal/opportunity-board/${listing.id}/anonymous`}
           className="runway-num text-[13px] font-semibold text-runway-signal transition-colors hover:text-runway-signal-lit"
         >
           {listing.id}

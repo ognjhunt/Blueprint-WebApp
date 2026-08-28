@@ -74,6 +74,10 @@ const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
 const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 const OpportunityBoard = lazyRoute(() => import("../pages/internal/OpportunityBoard"));
 const OpportunityListing = lazyRoute(() => import("../pages/internal/OpportunityListing"));
+const OpportunityAnonymous = lazyRoute(() => import("../pages/internal/OpportunityAnonymous"));
+const OpportunityPackage = lazyRoute(() => import("../pages/internal/OpportunityPackage"));
+const OpportunityOffer = lazyRoute(() => import("../pages/internal/OpportunityOffer"));
+const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityOffers"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
 const About = lazyRoute(() => import("../pages/About"));
@@ -352,6 +356,30 @@ export const appRoutes: AppRoute[] = [
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
   { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
   { path: "/internal/opportunity-board", layout: "public", shell: "bare", component: OpportunityBoard },
+  {
+    path: "/internal/opportunity-board/:id/anonymous",
+    layout: "public",
+    shell: "bare",
+    component: OpportunityAnonymous,
+  },
+  {
+    path: "/internal/opportunity-board/:id/package",
+    layout: "public",
+    shell: "bare",
+    component: OpportunityPackage,
+  },
+  {
+    path: "/internal/opportunity-board/:id/offer",
+    layout: "public",
+    shell: "bare",
+    component: OpportunityOffer,
+  },
+  {
+    path: "/internal/opportunity-board/:id/offers",
+    layout: "public",
+    shell: "bare",
+    component: OpportunityOffers,
+  },
   {
     path: "/internal/opportunity-board/:id",
     layout: "public",

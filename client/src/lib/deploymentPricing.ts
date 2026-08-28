@@ -69,18 +69,29 @@ export const evaluationFee = {
   note: "Not a compute markup. It buys a captured task, a standardised test and a scored result.",
 } as const;
 
-/** Charge two. Paid only by the team selected for the pilot or deployment. */
-export const deploymentFee = {
+/**
+ * Charge two: the award fee. Named for when it is actually charged — at the
+ * moment the site selects a team and the site's identity unlocks — not at some
+ * later "deployment". Waiting for a robot to physically arrive would be too
+ * late: by then the two parties have met and the fee is unenforceable.
+ */
+export const awardFee = {
   /** What a won site-task costs in total, evaluation fee included. */
   total: 10_000,
   unit: "total, per site-task won",
   basis: "under-test" as PricingBasis,
-  rule: "A team that loses pays $1,000. A team that wins pays $10,000 — the same $1,000 plus $9,000 on selection.",
+  rule: "A team that loses pays $1,000. A team that wins pays $10,000 — the same $1,000 plus $9,000 on award.",
   whoPays:
     "The selected robot team. Blueprint delivered a qualified revenue opportunity and replaced its presales and site-scoping work.",
   noExtras:
     "No percentage, no per-robot rate, no recurring charge. Growing the deployment later costs nothing further.",
+  charged: "On award, when the site selects a team and before the site's identity unlocks.",
+  refund:
+    "Refunded if the site withdraws before the introduction. Not refunded once a team has received the site's identity and then chooses not to proceed.",
 } as const;
+
+/** @deprecated Use `awardFee`. Kept so older call sites keep compiling. */
+export const deploymentFee = awardFee;
 
 /** Everything a robot team can owe, in one place. */
 export const chargeSummary = [
