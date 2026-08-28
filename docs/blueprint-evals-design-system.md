@@ -72,9 +72,13 @@ a filled signal control in the same view.
 
 ## Chrome
 
-Square. Every radius token resolves to `0`; `rounded-full` survives for status
-dots and avatars only. Separation comes from a 1px hairline, not a shadow and
-not a corner.
+Square. Every radius token resolves to `0`. Separation comes from a 1px
+hairline, not a shadow and not a corner.
+
+`rounded-full` survives only where the shape carries meaning rather than
+decoration: status dots, avatars, and the two shape-coded controls — a radio's
+circle and a switch's pill are how each is told apart from a checkbox at a
+glance.
 
 ## Components available
 
@@ -98,7 +102,9 @@ in place of the figure rather than filling the gap.
 
 ## Rules
 
-1. One filled amber control per view. Everything else is ghost or text.
+1. One filled amber control per view — counted within the page's own content.
+   The sticky header's CTA is persistent chrome and sits outside that count,
+   which is why a marketing page can show two filled controls at once.
 2. Status reads as an outlined chip; never colour a whole row or card fill.
 3. Figures are mono and tabular. Body copy is never mono.
 4. Display type is uppercase condensed. Body type is never uppercase past a

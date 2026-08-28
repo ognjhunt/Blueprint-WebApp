@@ -30,30 +30,21 @@ function toneClasses(tone: LaunchCityAvailabilityProps["tone"]) {
         primary: "bg-runway-panel text-runway-text hover:bg-runway-line-soft",
         secondary: "border-runway-line text-runway-text hover:bg-runway-deep",
       };
+    // `paper` addressed CSS variables that were scoped to a page-level light
+    // palette; that palette is gone, so the branch resolved to nothing. It
+    // falls through to the panel treatment, and the prop stays for callers.
     case "paper":
-      return {
-        shell: "border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--ink)]",
-        badge:
-          "border-[color:var(--line-strong)] bg-runway-panel text-[color:var(--leaf-deep)]",
-        body: "text-[color:var(--ink-soft)]",
-        chip:
-          "border-[color:var(--line)] bg-runway-panel text-[color:var(--ink)] hover:border-[color:var(--line-strong)]",
-        note:
-          "border-[color:var(--amber)]/30 bg-[color:var(--amber)]/8 text-[color:var(--ink-soft)]",
-        primary: "bg-[color:var(--ink)] text-runway-text hover:bg-[color:var(--leaf-deep)]",
-        secondary:
-          "border-[color:var(--line-strong)] text-[color:var(--ink)] hover:bg-[color:var(--paper)]",
-      };
     case "light":
     default:
       return {
         shell: "border-runway-line bg-runway-panel text-runway-text",
         badge: "border-runway-line bg-runway-deep text-runway-mute",
         body: "text-runway-mute",
-        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-runway-line-strong hover:bg-runway-line-soft",
-        note: "border-runway-line bg-runway-raised text-runway-mute",
-        primary: "bg-runway-panel text-runway-text hover:bg-runway-panel",
-        secondary: "border-runway-line text-runway-text hover:bg-runway-line-soft",
+        chip: "border-runway-line bg-runway-deep text-runway-text hover:border-runway-line-strong hover:bg-runway-raised",
+        note: "border-runway-signal-dim bg-runway-signal/[0.06] text-runway-mute",
+        primary:
+          "border border-runway-signal bg-runway-signal text-runway-signal-ink hover:border-runway-signal-lit hover:bg-runway-signal-lit",
+        secondary: "border-runway-line-strong text-runway-text hover:border-runway-signal hover:text-runway-signal",
       };
   }
 }

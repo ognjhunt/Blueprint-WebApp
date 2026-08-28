@@ -2158,8 +2158,8 @@ export default function AdminLeads() {
                       </div>
 
                       <div className="mt-6 grid gap-3 md:grid-cols-2">
-                        <label className="space-y-2 text-sm text-runway-body">
-                          <span className="font-medium text-runway-text">Operator notes</span>
+                        <label className="block">
+                          <span className="runway-label">Operator notes</span>
                           <textarea
                             value={siteAccessReviewNotes}
                             onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
@@ -2167,8 +2167,8 @@ export default function AdminLeads() {
                             className="runway-input min-h-[96px]"
                           />
                         </label>
-                        <label className="space-y-2 text-sm text-runway-body">
-                          <span className="font-medium text-runway-text">Decision summary</span>
+                        <label className="block">
+                          <span className="runway-label">Decision summary</span>
                           <textarea
                             value={siteAccessDecisionSummary}
                             onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
@@ -2915,7 +2915,7 @@ export default function AdminLeads() {
                   <p className="runway-meta">Ops controls</p>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Assigned region
                       </label>
                       <input
@@ -2930,7 +2930,7 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Rights status
                       </label>
                       <select
@@ -2953,7 +2953,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Capture policy
                       </label>
                       <select
@@ -2977,7 +2977,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Capture status
                       </label>
                       <select
@@ -3001,7 +3001,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Quote status
                       </label>
                       <select
@@ -3025,7 +3025,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Next step
                       </label>
                       <input
@@ -3040,7 +3040,7 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-runway-body">
+                      <label className="runway-label">
                         Recapture guidance
                       </label>
                       <textarea
@@ -3139,7 +3139,7 @@ export default function AdminLeads() {
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-runway-body">
+                    <label htmlFor="admin-qualification-state" className="runway-label">
                       Qualification state
                     </label>
                     <select
@@ -3163,7 +3163,7 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-runway-body">
+                    <label htmlFor="admin-opportunity-state" className="runway-label">
                       Opportunity state
                     </label>
                     <select
@@ -3188,7 +3188,7 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-runway-body">
+                    <label htmlFor="admin-pilot-opportunity-outcome" className="runway-label">
                       Pilot opportunity outcome
                     </label>
                     <select
@@ -3219,7 +3219,7 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="border border-runway-line p-4">
-                  <label className="mb-1 block text-sm font-medium text-runway-body">Add note</label>
+                  <label className="runway-label">Add note</label>
                   <textarea
                     className="runway-input min-h-24"
                     value={note}
