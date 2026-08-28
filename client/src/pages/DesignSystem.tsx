@@ -420,7 +420,9 @@ export default function DesignSystem() {
           <Lede>
             Every radius token resolves to <Mono>0</Mono>. The scale is kept so
             existing call sites stay valid and simply render square;{" "}
-            <Mono>rounded-full</Mono> survives for status dots and avatars only.
+            <Mono>rounded-full</Mono> survives only where the shape carries meaning: status dots,
+            avatars, and the two shape-coded controls — a radio&rsquo;s circle and a switch&rsquo;s
+            pill are how each is told apart from a checkbox at a glance.
             Separation comes from a 1px hairline — not a shadow, and not a
             corner.
           </Lede>
