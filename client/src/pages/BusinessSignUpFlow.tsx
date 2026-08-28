@@ -31,7 +31,6 @@ import {
   PlaceAutocompleteInput,
   resolvePlaceLocationMetadata,
 } from "@/components/site/PlaceAutocompleteInput";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,6 +146,9 @@ const COMMERCIALIZATION_BOUNDARY_OPTIONS = [
 
 type CommercializationBoundary = typeof COMMERCIALIZATION_BOUNDARY_OPTIONS[number];
 
+const RUNWAY_LABEL_CLASS =
+  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -218,38 +220,46 @@ function StepIndicator({
           return (
             <div
               key={stepNumber}
-              className={`rounded-[1.2rem] border px-4 py-3 ${
+              className={`border px-4 py-3 ${
                 isActive
-                  ? "border-white/20 bg-paper-0 text-runway-text"
+                  ? "border-runway-signal-dim bg-runway-panel"
                   : isComplete
-                    ? "border-white/10 bg-[#101312] text-runway-text"
-                    : "border-white/10 bg-[#101312] text-white/40"
+                    ? "border-runway-green-dim bg-runway-panel"
+                    : "border-runway-line bg-runway-deep"
               }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${
+                  className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold ${
                     isActive
-                      ? "border-black bg-black text-white"
+                      ? "border-runway-signal text-runway-signal"
                       : isComplete
-                        ? "border-white/20 bg-[#111110] text-white"
-                        : "border-white/10 bg-paper-0 text-white/50"
+                        ? "border-runway-green-dim text-runway-green"
+                        : "border-runway-line-strong text-runway-faint"
                   }`}
                 >
                   {isComplete ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">
+                  <p
+                    className={`runway-meta ${
+                      isActive
+                        ? "text-runway-signal"
+                        : isComplete
+                          ? "text-runway-green"
+                          : "text-runway-faint"
+                    }`}
+                  >
                     Step {stepNumber}
                   </p>
-                  <p className="mt-1 text-sm font-semibold">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
+                  <p className="mt-1 text-sm font-semibold text-runway-text">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
-      <p className="text-sm text-white/50">Step {currentStep} of {totalSteps}</p>
+      <p className="runway-meta">Step {currentStep} of {totalSteps}</p>
     </div>
   );
 }
@@ -988,19 +998,19 @@ export default function BusinessSignUpFlow() {
       <SurfacePage>
         <SurfaceTopBar eyebrow="Secure Intake" rightLabel={accessLabel} />
         <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
+          <SurfaceBrowserFrame className="rounded-none shadow-none">
             <div className="grid xl:grid-cols-[0.64fr_0.36fr]">
-              <div className="bg-[#101312] p-8 lg:p-10">
+              <div className="bg-runway-deep p-8 lg:p-10">
                 <div className="mx-auto max-w-[42rem]">
-                  <SurfaceMiniLabel>{accessLabel}</SurfaceMiniLabel>
+                  <SurfaceMiniLabel className="text-runway-faint">{accessLabel}</SurfaceMiniLabel>
                   <h1 className="mt-4 font-display uppercase text-[clamp(2.8rem,4vw,4.5rem)] font-semibold tracking-[0.005em] leading-[0.92] text-runway-text">
                     {stepTitle}
                   </h1>
-                  <p className="mt-3 max-w-[34rem] text-sm leading-7 text-white/60">
+                  <p className="mt-3 max-w-[34rem] text-sm leading-7 text-runway-mute">
                     {stepLead}
                   </p>
 
-                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-paper-0 px-5 py-4 text-sm leading-7 text-white/60">
+                  <div className="mt-6 border border-runway-line bg-runway-panel px-5 py-4 text-sm leading-7 text-runway-mute">
                     Existing portal users should use sign in instead of creating a second path. If
                     the exact facility and workflow are already known, you can also{" "}
                     <a
@@ -1028,7 +1038,7 @@ export default function BusinessSignUpFlow() {
                     <StepIndicator currentStep={step} totalSteps={3} />
                   </div>
 
-                  <div className="rounded-[1.9rem] border border-white/10 bg-paper-0 p-6 shadow-[0_20px_70px_rgba(17,17,16,0.06)] sm:p-7">
+                  <div className="runway-panel p-6 sm:p-7">
                     <AnimatePresence mode="wait">
                       {step === 1 ? (
                         <motion.div
@@ -1042,14 +1052,14 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div className="md:col-span-2">
-                              <Label htmlFor="organizationName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="organizationName" className={RUNWAY_LABEL_CLASS}>
                                 Organization name
                               </Label>
                               <div className="relative mt-2">
-                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="organizationName"
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder="Acme Operations"
                                   value={organizationName}
                                   onChange={(event) => setOrganizationName(event.target.value)}
@@ -1057,15 +1067,15 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
                                 Work email
                               </Label>
                               <div className="relative mt-2">
-                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="email"
                                   type="email"
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder="you@company.com"
                                   value={email}
                                   onChange={(event) => setEmail(event.target.value)}
@@ -1073,15 +1083,15 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
                                 Password
                               </Label>
                               <div className="relative mt-2">
-                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="password"
                                   type={showPassword ? "text" : "password"}
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder="At least 8 characters"
                                   value={password}
                                   onChange={(event) => setPassword(event.target.value)}
@@ -1089,20 +1099,20 @@ export default function BusinessSignUpFlow() {
                               </div>
                               <button
                                 type="button"
-                                className="mt-2 text-sm text-white/45 transition hover:text-runway-text"
+                                className="mt-2 text-sm text-runway-mute transition hover:text-runway-text"
                                 onClick={() => setShowPassword((current) => !current)}
                               >
                                 {showPassword ? "Hide password" : "Show password"}
                               </button>
                             </div>
                             <div>
-                              <Label htmlFor="confirmPassword" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
                                 Confirm password
                               </Label>
                               <Input
                                 id="confirmPassword"
                                 type={showPassword ? "text" : "password"}
-                                className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 h-12"
                                 placeholder="Repeat password"
                                 value={confirmPassword}
                                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -1110,20 +1120,19 @@ export default function BusinessSignUpFlow() {
                             </div>
                           </div>
 
-                          <div className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-5">
-                            <p className="text-sm leading-7 text-white/60">
+                          <div className="border border-runway-line bg-runway-deep p-5">
+                            <p className="text-sm leading-7 text-runway-mute">
                               Prefer Google? Authenticate now, then finish the intake details on
                               the next step.
                             </p>
-                            <Button
+                            <button
                               type="button"
-                              variant="outline"
-                              className="mt-4 h-11 rounded-full border-white/10 bg-paper-0 px-5 text-runway-text hover:bg-[#141816]"
+                              className="runway-cta-ghost mt-4 disabled:opacity-50"
                               onClick={handleGoogleSignUp}
                               disabled={isSubmitting}
                             >
                               Continue with Google
-                            </Button>
+                            </button>
                           </div>
                         </motion.div>
                       ) : null}
@@ -1140,14 +1149,14 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="contactName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="contactName" className={RUNWAY_LABEL_CLASS}>
                                 Your name
                               </Label>
                               <div className="relative mt-2">
-                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="contactName"
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder="Ada Lovelace"
                                   value={contactName}
                                   onChange={(event) => setContactName(event.target.value)}
@@ -1155,36 +1164,36 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="jobTitle" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="jobTitle" className={RUNWAY_LABEL_CLASS}>
                                 Title
                               </Label>
                               <Input
                                 id="jobTitle"
-                                className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 h-12"
                                 placeholder="Operations Lead"
                                 value={jobTitle}
                                 onChange={(event) => setJobTitle(event.target.value)}
                               />
                             </div>
                             <div>
-                              <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
                                 Phone number
                               </Label>
                               <Input
                                 id="phoneNumber"
-                                className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 h-12"
                                 placeholder="(555) 555-5555"
                                 value={phoneNumber}
                                 onChange={(event) => setPhoneNumber(event.target.value)}
                               />
                             </div>
                             <div>
-                              <Label htmlFor="companySize" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="companySize" className={RUNWAY_LABEL_CLASS}>
                                 Company size
                               </Label>
                               <select
                                 id="companySize"
-                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm text-runway-text"
+                                className="runway-input mt-2 h-12 px-4"
                                 value={companySize}
                                 onChange={(event) => setCompanySize(event.target.value as CompanySize)}
                               >
@@ -1199,19 +1208,19 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                            <Label className={RUNWAY_LABEL_CLASS}>
                               Account path
                             </Label>
                             <RadioGroup value={buyerType} onValueChange={handleBuyerTypeChange} className="grid gap-3">
                               {BUYER_TYPES.map((option) => (
                                 <label
                                   key={option.value}
-                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-white/10 bg-[#101312] p-4 transition hover:border-white/15"
+                                  className="flex cursor-pointer items-start gap-4 border border-runway-line bg-runway-deep p-4 transition hover:border-runway-signal"
                                 >
                                   <RadioGroupItem value={option.value} />
                                   <div>
                                     <div className="font-semibold text-runway-text">{option.label}</div>
-                                    <p className="mt-1 text-sm leading-6 text-white/55">{option.description}</p>
+                                    <p className="mt-1 text-sm leading-6 text-runway-mute">{option.description}</p>
                                   </div>
                                 </label>
                               ))}
@@ -1219,14 +1228,14 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                            <Label className={RUNWAY_LABEL_CLASS}>
                               {isSiteOperatorSignup ? "Site review lane" : "Requested lane"}
                             </Label>
                             <div className="grid gap-3">
                               {visibleRequestedLanes.map((lane) => (
                                 <label
                                   key={lane.value}
-                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-white/10 bg-paper-0 p-4 transition hover:border-white/15"
+                                  className="flex cursor-pointer items-start gap-4 border border-runway-line bg-runway-deep p-4 transition hover:border-runway-signal"
                                 >
                                   <Checkbox
                                     checked={requestedLanes.includes(lane.value)}
@@ -1234,7 +1243,7 @@ export default function BusinessSignUpFlow() {
                                   />
                                   <div>
                                     <div className="font-semibold text-runway-text">{lane.label}</div>
-                                    <p className="mt-1 text-sm leading-6 text-white/55">{lane.description}</p>
+                                    <p className="mt-1 text-sm leading-6 text-runway-mute">{lane.description}</p>
                                   </div>
                                 </label>
                               ))}
@@ -1255,14 +1264,14 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="siteName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="siteName" className={RUNWAY_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Facility name" : "Site name"}
                               </Label>
                               <div className="relative mt-2">
-                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="siteName"
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder={buyerType === "site_operator" ? "Brightleaf Books" : "Durham fulfillment center"}
                                   value={siteName}
                                   onChange={(event) => setSiteName(event.target.value)}
@@ -1272,10 +1281,10 @@ export default function BusinessSignUpFlow() {
                             <PlaceAutocompleteInput
                               id="siteLocation"
                               label="Site location"
-                              labelClassName="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45"
+                              labelClassName={RUNWAY_LABEL_CLASS}
                               inputWrapperClassName="relative mt-2"
-                              inputClassName="flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-3 py-2 pl-11 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              icon={<MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />}
+                              inputClassName="runway-input h-12 pl-11"
+                              icon={<MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />}
                               placeholder="Durham, NC"
                               value={siteLocation}
                               onChange={setSiteLocation}
@@ -1283,12 +1292,12 @@ export default function BusinessSignUpFlow() {
                             />
                             {buyerType === "robot_team" ? (
                               <div className="md:col-span-2">
-                                <Label htmlFor="targetSiteType" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                                <Label htmlFor="targetSiteType" className={RUNWAY_LABEL_CLASS}>
                                   Target site class
                                 </Label>
                                 <Input
                                   id="targetSiteType"
-                                  className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                                  className="mt-2 h-12"
                                   placeholder="Warehouse, hotel, grocery backroom, hospital corridor"
                                   value={targetSiteType}
                                   onChange={(event) => setTargetSiteType(event.target.value)}
@@ -1296,14 +1305,14 @@ export default function BusinessSignUpFlow() {
                               </div>
                             ) : null}
                             <div className="md:col-span-2">
-                              <Label htmlFor="taskStatement" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="taskStatement" className={RUNWAY_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Operator intent" : "Task statement"}
                               </Label>
                               <div className="relative mt-2">
-                                <Target className="absolute left-4 top-4 h-4 w-4 text-white/30" />
+                                <Target className="absolute left-4 top-4 h-4 w-4 text-runway-faint" />
                                 <Textarea
                                   id="taskStatement"
-                                  className="min-h-28 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="min-h-28 pl-11"
                                   placeholder={buyerType === "site_operator" ? "What moves from where to where, how often, and what must never go wrong?" : "Which robot and workflow should Blueprint test before an onsite visit?"}
                                   value={taskStatement}
                                   onChange={(event) => setTaskStatement(event.target.value)}
@@ -1311,14 +1320,14 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="workflowContext" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="workflowContext" className={RUNWAY_LABEL_CLASS}>
                                 Workflow context
                               </Label>
                               <div className="relative mt-2">
-                                <Route className="absolute left-4 top-4 h-4 w-4 text-white/30" />
+                                <Route className="absolute left-4 top-4 h-4 w-4 text-runway-faint" />
                                 <Textarea
                                   id="workflowContext"
-                                  className="min-h-24 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="min-h-24 pl-11"
                                   placeholder="Describe start and end points, handoffs, objects, timing, exceptions, traffic, and zone boundaries."
                                   value={workflowContext}
                                   onChange={(event) => setWorkflowContext(event.target.value)}
@@ -1326,50 +1335,50 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="operatingConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="operatingConstraints" className={RUNWAY_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Access rules" : "Operating constraints"}
                               </Label>
                               <Textarea
                                 id="operatingConstraints"
-                                className="mt-2 min-h-24 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 min-h-24"
                                 placeholder={buyerType === "site_operator" ? "Hours, access windows, escort needs, restricted areas." : "Hours, access windows, safety rules, bottlenecks."}
                                 value={operatingConstraints}
                                 onChange={(event) => setOperatingConstraints(event.target.value)}
                               />
                             </div>
                             <div>
-                              <Label htmlFor="privacySecurityConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="privacySecurityConstraints" className={RUNWAY_LABEL_CLASS}>
                                 Privacy and security constraints
                               </Label>
                               <Textarea
                                 id="privacySecurityConstraints"
-                                className="mt-2 min-h-24 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 min-h-24"
                                 placeholder="Restricted zones, camera restrictions, masked areas."
                                 value={privacySecurityConstraints}
                                 onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
                               />
                             </div>
                             <div>
-                              <Label htmlFor="knownBlockers" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="knownBlockers" className={RUNWAY_LABEL_CLASS}>
                                 Known blockers
                               </Label>
                               <Textarea
                                 id="knownBlockers"
-                                className="mt-2 min-h-24 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 min-h-24"
                                 placeholder="Call out obvious blockers or open questions."
                                 value={knownBlockers}
                                 onChange={(event) => setKnownBlockers(event.target.value)}
                               />
                             </div>
                             <div>
-                              <Label htmlFor="targetRobotTeam" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="targetRobotTeam" className={RUNWAY_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Relevant robot teams" : "Target robot team or embodiment"}
                               </Label>
                               <div className="relative mt-2">
-                                <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                                 <Input
                                   id="targetRobotTeam"
-                                  className="h-12 rounded-[1rem] border-white/10 bg-paper-0 pl-11"
+                                  className="h-12 pl-11"
                                   placeholder={buyerType === "site_operator" ? "Optional buyer category or robot use case" : "Optional"}
                                   value={targetRobotTeam}
                                   onChange={(event) => setTargetRobotTeam(event.target.value)}
@@ -1377,12 +1386,12 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="proofPathPreference" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="proofPathPreference" className={RUNWAY_LABEL_CLASS}>
                                 Proof path
                               </Label>
                               <select
                                 id="proofPathPreference"
-                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm text-runway-text"
+                                className="runway-input mt-2 h-12 px-4"
                                 value={proofPathPreference}
                                 onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
                               >
@@ -1394,12 +1403,12 @@ export default function BusinessSignUpFlow() {
                               </select>
                             </div>
                             <div>
-                              <Label htmlFor="timeline" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="timeline" className={RUNWAY_LABEL_CLASS}>
                                 Timing
                               </Label>
                               <Input
                                 id="timeline"
-                                className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                                className="mt-2 h-12"
                                 placeholder="This month, this quarter, exploring"
                                 value={timeline}
                                 onChange={(event) => setTimeline(event.target.value)}
@@ -1436,12 +1445,12 @@ export default function BusinessSignUpFlow() {
                             {isSiteOperatorSignup ? (
                               <>
                                 <div>
-                                  <Label htmlFor="commercializationPreference" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                                  <Label htmlFor="commercializationPreference" className={RUNWAY_LABEL_CLASS}>
                                     Commercialization boundary
                                   </Label>
                                   <select
                                     id="commercializationPreference"
-                                    className="mt-2 flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm text-runway-text"
+                                    className="runway-input mt-2 h-12 px-4"
                                     value={commercializationPreference}
                                     onChange={(event) =>
                                       setCommercializationPreference(event.target.value as CommercializationBoundary)
@@ -1455,7 +1464,7 @@ export default function BusinessSignUpFlow() {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="rounded-[1.25rem] border border-white/10 bg-[#101312] p-4 text-sm leading-6 text-white/60">
+                                <div className="border border-runway-line bg-runway-deep p-4 text-sm leading-6 text-runway-mute">
                                   <p className="font-semibold text-runway-text">Site submission is free.</p>
                                   <p className="mt-2">
                                     Blueprint reviews access, privacy, and commercialization boundaries
@@ -1465,12 +1474,12 @@ export default function BusinessSignUpFlow() {
                               </>
                             ) : (
                               <div>
-                                <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                                <Label htmlFor="budgetRange" className={RUNWAY_LABEL_CLASS}>
                                   Budget range
                                 </Label>
                                 <select
                                   id="budgetRange"
-                                  className="mt-2 flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm text-runway-text"
+                                  className="runway-input mt-2 h-12 px-4"
                                   value={budgetRange}
                                   onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
                                 >
@@ -1484,12 +1493,12 @@ export default function BusinessSignUpFlow() {
                               </div>
                             )}
                             <div className="md:col-span-2">
-                              <Label htmlFor="referralSource" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                              <Label htmlFor="referralSource" className={RUNWAY_LABEL_CLASS}>
                                 How did you hear about Blueprint?
                               </Label>
                               <select
                                 id="referralSource"
-                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm text-runway-text"
+                                className="runway-input mt-2 h-12 px-4"
                                 value={referralSource}
                                 onChange={(event) => setReferralSource(event.target.value as ReferralSource)}
                               >
@@ -1503,7 +1512,7 @@ export default function BusinessSignUpFlow() {
                             </div>
                           </div>
 
-                          <div className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-5 text-sm text-white/60">
+                          <div className="border border-runway-line bg-runway-deep p-5 text-sm text-runway-mute">
                             <div className="flex items-center gap-2 font-semibold text-runway-text">
                               <Shield className="h-4 w-4" />
                               What happens after signup
@@ -1515,7 +1524,7 @@ export default function BusinessSignUpFlow() {
                             </p>
                           </div>
 
-                          <div className="rounded-[1.35rem] border border-white/10 bg-paper-0 p-5">
+                          <div className="border border-runway-line bg-runway-deep p-5">
                             <label className="flex items-start gap-3">
                               <Checkbox
                                 checked={acceptedLegal}
@@ -1523,7 +1532,7 @@ export default function BusinessSignUpFlow() {
                                 className="mt-1"
                                 aria-label="Accept the Terms of Service and Privacy Policy"
                               />
-                              <span className="text-sm leading-6 text-white/60">
+                              <span className="text-sm leading-6 text-runway-mute">
                                 I agree to Blueprint&apos;s{" "}
                                 <a
                                   href={TERMS_URL}
@@ -1552,51 +1561,50 @@ export default function BusinessSignUpFlow() {
                     </AnimatePresence>
 
                     {errorMessage ? (
-                      <div className="mt-5 rounded-[1rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      <div className="mt-5 border border-runway-red-dim bg-runway-raised px-4 py-3 text-sm text-runway-red">
                         {errorMessage}
                       </div>
                     ) : null}
 
-                    <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                      <Button
+                    <div className="mt-6 flex flex-col gap-3 border-t border-runway-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+                      <button
                         type="button"
-                        variant="ghost"
                         onClick={handleBack}
                         disabled={step === 1 || isSubmitting}
-                        className="justify-start rounded-full px-0 text-white/55 hover:bg-transparent hover:text-runway-text"
+                        className="inline-flex items-center justify-start text-sm font-medium text-runway-mute transition hover:text-runway-text disabled:opacity-50"
                       >
                         <ChevronLeft className="mr-2 h-4 w-4" />
                         Back
-                      </Button>
+                      </button>
 
                       {step < 3 ? (
-                        <Button
+                        <button
                           type="button"
                           onClick={handleNext}
                           disabled={isSubmitting}
-                          className="h-12 rounded-full bg-[#111110] px-6 text-white hover:bg-black"
+                          className="runway-cta disabled:opacity-50"
                         >
                           Continue
                           <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
+                        </button>
                       ) : (
-                        <Button
+                        <button
                           type="button"
                           onClick={handleSubmit}
                           disabled={isSubmitting}
-                          className="h-12 rounded-full bg-[#111110] px-6 text-white hover:bg-black"
+                          className="runway-cta disabled:opacity-50"
                         >
                           {isSubmitting ? "Creating account..." : "Submit request"}
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <aside className="border-t border-white/10 bg-[#101312] p-8 lg:p-10 xl:border-l xl:border-t-0">
-                <SurfaceMiniLabel>Why Exact-Site Context Matters</SurfaceMiniLabel>
-                <div className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-paper-0">
+              <aside className="border-t border-runway-line bg-runway-deep p-8 lg:p-10 xl:border-l xl:border-t-0">
+                <SurfaceMiniLabel className="text-runway-faint">Why Exact-Site Context Matters</SurfaceMiniLabel>
+                <div className="mt-5 overflow-hidden border border-runway-line bg-runway-panel">
                   <img
                     src={privateGeneratedAssets.facilityPlanBoard}
                     alt="Blueprint site plan board"
@@ -1605,35 +1613,35 @@ export default function BusinessSignUpFlow() {
                 </div>
 
                 <div className="mt-6 space-y-5">
-                  <div className="rounded-[1.35rem] border border-white/10 bg-paper-0 p-5">
+                  <div className="runway-panel p-5">
                     <p className="text-sm font-semibold text-runway-text">Robots perform in the real world.</p>
-                    <p className="mt-2 text-sm leading-7 text-white/60">
+                    <p className="mt-2 text-sm leading-7 text-runway-mute">
                       Site-specific scans reveal the nuance that drives access, route design, and
                       buyer trust.
                     </p>
                   </div>
-                  <div className="rounded-[1.35rem] border border-white/10 bg-paper-0 p-5">
+                  <div className="runway-panel p-5">
                     <p className="text-sm font-semibold text-runway-text">Better data. Fewer unknowns.</p>
-                    <p className="mt-2 text-sm leading-7 text-white/60">
+                    <p className="mt-2 text-sm leading-7 text-runway-mute">
                       Exact-site packages reduce rework and de-risk evaluations before travel or
                       deployment.
                     </p>
                   </div>
-                  <div className="rounded-[1.35rem] border border-white/10 bg-paper-0 p-5">
+                  <div className="runway-panel p-5">
                     <p className="text-sm font-semibold text-runway-text">Private by default.</p>
-                    <p className="mt-2 text-sm leading-7 text-white/60">
+                    <p className="mt-2 text-sm leading-7 text-runway-mute">
                       Every access request is reviewed to maintain truthful product routing,
                       entitlement boundaries, and buyer-side privacy expectations.
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-[1.35rem] border border-white/10 bg-[#111110] p-5 text-white">
-                  <SurfaceMiniLabel className="text-white/50">Current Path</SurfaceMiniLabel>
-                  <p className="mt-4 text-2xl font-semibold tracking-[-0.05em]">
+                <div className="mt-6 border border-runway-line bg-runway-panel p-5">
+                  <SurfaceMiniLabel className="text-runway-faint">Current Path</SurfaceMiniLabel>
+                  <p className="mt-4 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">
                     {step === 1 ? "Organization" : step === 2 ? "Team" : "Site & workflow"}
                   </p>
-                  <p className="mt-3 text-sm leading-7 text-white/70">
+                  <p className="mt-3 text-sm leading-7 text-runway-mute">
                     {step === 1
                       ? "Open the request with company and account details."
                       : step === 2

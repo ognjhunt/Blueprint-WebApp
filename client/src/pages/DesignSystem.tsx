@@ -470,13 +470,13 @@ export default function DesignSystem() {
             uppercase, faint. Errors are <Mono>runway-red</Mono>.
           </Lede>
 
-          <div className="runway-panel mt-6 max-w-prose p-5">
+          <div className="mt-6 max-w-prose border border-runway-line bg-runway-black p-5">
             <label className="runway-label" htmlFor="design-system-site">
               Site identifier
             </label>
             <input
               id="design-system-site"
-              className="runway-input bg-runway-black"
+              className="runway-input"
               placeholder="SITE-04827"
               readOnly
             />

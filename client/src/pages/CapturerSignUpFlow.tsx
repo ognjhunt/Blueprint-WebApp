@@ -978,7 +978,7 @@ export default function CapturerSignUpFlow() {
               <div className="mt-8 grid gap-4">
                 <div className="border border-runway-line bg-runway-raised p-5">
                   <div className="flex items-start gap-4">
-                    <Smartphone className="mt-1 h-5 w-5 text-runway-signal" />
+                    <Smartphone className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
                       <p className="font-semibold text-runway-text">Application under review</p>
                       <p className="mt-1 text-sm leading-6 text-runway-body">
@@ -992,7 +992,7 @@ export default function CapturerSignUpFlow() {
 
                 <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <QrCode className="mt-1 h-5 w-5 text-runway-signal" />
+                    <QrCode className="mt-1 h-5 w-5 text-runway-mute" />
                     <div className="w-full">
                       <p className="font-semibold text-runway-text">Mobile access link and QR</p>
                       <p className="mt-1 text-sm leading-6 text-runway-body">
@@ -1014,7 +1014,7 @@ export default function CapturerSignUpFlow() {
                         </div>
 
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className="border border-runway-line bg-runway-raised px-4 py-3 runway-num text-xs text-runway-text">
+                          <div className="runway-num border border-runway-line bg-runway-raised px-4 py-3 text-xs text-runway-text">
                             <span className="break-all">{captureAppUrl}</span>
                           </div>
                           <div className="flex flex-col gap-3 sm:flex-row">
@@ -1048,7 +1048,7 @@ export default function CapturerSignUpFlow() {
 
                 <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <Sparkles className="mt-1 h-5 w-5 text-runway-signal" />
+                    <Sparkles className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
                       <p className="font-semibold text-runway-text">Recommended next steps</p>
                       <ul className="mt-2 space-y-2 text-sm leading-6 text-runway-body">
@@ -1062,7 +1062,7 @@ export default function CapturerSignUpFlow() {
 
                 <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
-                    <Shield className="mt-1 h-5 w-5 text-runway-signal" />
+                    <Shield className="mt-1 h-5 w-5 text-runway-mute" />
                     <div>
                       <p className="font-semibold text-runway-text">Need a business account instead?</p>
                       <p className="mt-1 text-sm leading-6 text-runway-body">

@@ -31,7 +31,7 @@ export const Switch = React.forwardRef<
       ref={ref}
       id={switchId}
       className={cn(
-        "peer relative inline-flex h-[1.25rem] w-[2.2rem] shrink-0 cursor-pointer items-center rounded-none border",
+        "peer relative inline-flex h-[1.25rem] w-[2.2rem] shrink-0 cursor-pointer items-center rounded-full border",
         "transition-colors duration-200 ease-out-bp outline-none",
         "focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep",
         "disabled:cursor-not-allowed disabled:opacity-45",
@@ -43,7 +43,7 @@ export const Switch = React.forwardRef<
     >
       <SwitchPrimitives.Thumb
         className={cn(
-          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-none bg-runway-mute ring-0",
+          "pointer-events-none block h-[0.95rem] w-[0.95rem] rounded-full bg-runway-mute ring-0",
           "translate-x-[0.15rem] transition-transform duration-200 ease-out-bp",
           "data-[state=checked]:translate-x-[1.1rem] data-[state=checked]:bg-runway-signal-ink",
         )}

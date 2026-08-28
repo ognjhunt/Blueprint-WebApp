@@ -116,7 +116,7 @@ export default function Login() {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid min-h-[46rem] xl:grid-cols-[0.54fr_0.46fr]">
-              <div className="relative overflow-hidden bg-black text-white">
+              <div className="relative overflow-hidden bg-runway-black text-runway-text">
                 <img
                   src={privateGeneratedAssets.signInReviewRoom}
                   alt="Blueprint review room"

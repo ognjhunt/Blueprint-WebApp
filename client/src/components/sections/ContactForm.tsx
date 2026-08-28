@@ -345,7 +345,7 @@ export default function ContactForm() {
             </div>
 
             {/* Form */}
-            <div className="lg:col-span-3 p-6 md:p-10 bg-runway-panel">
+            <div className="lg:col-span-3 p-6 md:p-10 bg-runway-deep">
               {isSuccess ? (
                 <motion.div
                   className="h-full flex flex-col items-center justify-center text-center p-6"
@@ -393,7 +393,7 @@ export default function ContactForm() {
                       value={formData.name}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, emailRef)}
-                      className="runway-input bg-runway-black"
+                      className="runway-input"
                     />
 
                     {errors.name && (
@@ -417,7 +417,7 @@ export default function ContactForm() {
                       value={formData.email}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, companyRef)}
-                      className="runway-input bg-runway-black"
+                      className="runway-input"
                     />
                     {errors.email && (
                       <p className="mt-2 text-[13px] text-runway-red">
@@ -445,7 +445,7 @@ export default function ContactForm() {
                         setTimeout(() => setCompanyPredictions([]), 150)
                       }
                       onKeyDown={(e) => handleKeyDown(e, messageRef)}
-                      className="runway-input bg-runway-black"
+                      className="runway-input"
                     />
                     {errors.company && (
                       <p className="mt-2 text-[13px] text-runway-red">
@@ -549,7 +549,7 @@ export default function ContactForm() {
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}
-                      className="runway-input bg-runway-black"
+                      className="runway-input"
                     />
                   </div>
 

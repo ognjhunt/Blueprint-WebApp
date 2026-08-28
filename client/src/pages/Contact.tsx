@@ -265,7 +265,7 @@ export default function Contact() {
                         ? "What moves from where to where, object sizes and weights, cycle time, shifts, exceptions, systems, access windows, and restricted zones."
                         : "Robot geometry, payload, reach, sensors, required interfaces, deployment geography, candidate software, and the site-task you want to test."
                     }
-                    className="runway-input bg-runway-black"
+                    className="runway-input"
                   />
                 </div>
                 {submitError ? (
