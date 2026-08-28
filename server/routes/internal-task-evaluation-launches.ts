@@ -1,15 +1,78 @@
 import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configuredSceneOfferingContract";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import {
   parseTaskEvaluationLaunchProgress,
+  taskEvaluationLaunchPublicationReadinessRequestSchema,
   parseTaskEvaluationLaunchReceipt,
   parseTaskEvaluationLaunchSupervision,
 } from "../utils/taskEvaluationLaunchContract";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
+
+router.post(
+  "/task-evaluation-launch-publication-readiness",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    if (!db) return res.status(503).json({
+      error: "Task Evaluation launch store is unavailable",
+      code: "task_evaluation_launch_store_unavailable",
+    });
+    const parsed = taskEvaluationLaunchPublicationReadinessRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({
+      error: "Task Evaluation launch publication readiness request is invalid",
+      code: "task_evaluation_launch_publication_readiness_request_invalid",
+    });
+    const request = parsed.data;
+    let snapshot;
+    try {
+      snapshot = await db.collection("taskEvaluationLaunches").doc(request.launch_id).get();
+    } catch {
+      return res.status(503).json({
+        error: "Task Evaluation launch store is unavailable",
+        code: "task_evaluation_launch_store_unavailable",
+      });
+    }
+    if (!snapshot.exists) return res.status(404).json({
+      error: "Task Evaluation launch not found",
+      code: "task_evaluation_launch_publication_record_missing",
+    });
+    const existing = snapshot.data() as Record<string, any>;
+    const storedTeamNamespace = String(
+      existing.team_namespace || existing.request?.team_namespace || "",
+    );
+    if (
+      existing.run_id !== request.run_id
+      || existing.request_digest !== request.request_digest
+      || storedTeamNamespace !== request.team_namespace
+      || existing.configured_scene_context?.run_mode !== "scene_configuration"
+      || existing.configured_scene_context?.team_namespace !== request.team_namespace
+    ) return res.status(409).json({
+      error: "Task Evaluation launch publication binding mismatch",
+      code: "task_evaluation_launch_publication_binding_mismatch",
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(200).json({
+      schema_version: "task_evaluation_launch_publication_readiness_receipt.v1",
+      status: "ready",
+      launch_id: request.launch_id,
+      run_id: request.run_id,
+      request_digest: request.request_digest,
+      team_namespace: request.team_namespace,
+      terminal_receipt_schema_version: "task_evaluation_launch_receipt.v1",
+      web_sync_receipt_schema_version: "task_evaluation_launch_web_sync_receipt.v1",
+      configured_scene_offering_schema_version:
+        "task_evaluation_configured_scene_offering.v1",
+      launch_record_read_succeeded: true,
+      team_namespace_binding_passed: true,
+      firestore_mutation_performed: false,
+    });
+  },
+);
 
 function requirePipelineSignature(req: Request, res: Response, next: () => void) {
   const result = verifyPipelineSyncRequest(req, {
@@ -34,8 +97,17 @@ router.post(
       blockers: parsed.blockers,
     });
     const receipt = parsed.receipt;
+    const configuredSceneOffering = parseConfiguredSceneOfferingFromLaunchReceipt(
+      receipt as unknown as Record<string, unknown>,
+    );
+    if (!configuredSceneOffering.ok) return res.status(400).json({
+      error: "Configured scene offering is invalid",
+      blockers: configuredSceneOffering.blockers,
+    });
+    const offering = configuredSceneOffering.offering;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
-    type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch" | "immutable_conflict";
+    type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch"
+      | "configured_scene_offering_missing" | "immutable_conflict";
     let outcome: Outcome;
     try {
       outcome = await db.runTransaction<Outcome>(async (transaction) => {
@@ -46,8 +118,32 @@ router.post(
           existing.request_digest !== receipt.request_digest
           || existing.run_id !== receipt.run_id
         ) return "binding_mismatch";
+        const expectedTeamNamespace = String(
+          existing.team_namespace || existing.request?.team_namespace || "",
+        );
+        const configuredSceneExpected =
+          existing.configured_scene_context?.run_mode === "scene_configuration";
+        const completedConfiguredSceneExpected = configuredSceneExpected
+          && receipt.status === "completed";
+        if (completedConfiguredSceneExpected && !offering) {
+          return "configured_scene_offering_missing";
+        }
+        if (!configuredSceneExpected && offering) return "binding_mismatch";
+        if (
+          offering
+          && (
+            offering.team_namespace !== expectedTeamNamespace
+            || offering.configuration_run_id
+              !== existing.configured_scene_context?.configuration_run_id
+          )
+        ) {
+          return "binding_mismatch";
+        }
         if (existing.terminal_receipt) {
-          return existing.terminal_receipt.receipt_digest === receipt.receipt_digest
+          const sameOffering = offering
+            ? existing.configured_scene_offering_digest === offering.offering_digest
+            : existing.configured_scene_offering_digest === undefined;
+          return existing.terminal_receipt.receipt_digest === receipt.receipt_digest && sameOffering
             ? "replayed"
             : "immutable_conflict";
         }
@@ -57,6 +153,12 @@ router.post(
           terminal_receipt_digest: receipt.receipt_digest,
           provider_mutation_observed: receipt.provider_mutation_attempted,
           terminal_updated_at_iso: new Date().toISOString(),
+          ...(offering ? {
+            configured_scene_offering: offering,
+            configured_scene_offering_digest: offering.offering_digest,
+            configured_scene_offering_state: "launch_ready",
+            configured_scene_offering_team_namespace: offering.team_namespace,
+          } : {}),
         }, { merge: true });
         return "updated";
       });
@@ -65,6 +167,10 @@ router.post(
     }
     if (outcome === "not_found") return res.status(404).json({ error: "Task Evaluation launch not found" });
     if (outcome === "binding_mismatch") return res.status(409).json({ error: "Task Evaluation launch binding mismatch" });
+    if (outcome === "configured_scene_offering_missing") return res.status(409).json({
+      error: "Configured scene offering is required",
+      code: "configured_scene_offering_missing",
+    });
     if (outcome === "immutable_conflict") return res.status(409).json({ error: "Immutable Task Evaluation launch receipt conflict" });
     res.set("Cache-Control", "no-store");
     return res.status(outcome === "replayed" ? 200 : 201).json({
@@ -75,6 +181,10 @@ router.post(
       run_id: receipt.run_id,
       request_digest: receipt.request_digest,
       receipt_digest: receipt.receipt_digest,
+      ...(offering ? {
+        configured_scene_offering_digest: offering.offering_digest,
+        configured_scene_offering_status: "launch_ready",
+      } : {}),
     });
   },
 );

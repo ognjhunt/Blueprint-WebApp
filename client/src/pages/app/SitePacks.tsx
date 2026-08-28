@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Helmet } from "@/lib/helmet";
 import { Link } from "wouter";
 import { ArrowRight, Plus, ShieldCheck } from "lucide-react";
 
 import { Button, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   BuyerAppEmptyState,
   BuyerAppErrorState,
@@ -17,9 +19,106 @@ import {
   formatEntitlementDate,
   useBuyerAppEntitlements,
 } from "@/lib/buyerAppData";
+import {
+  bindConfiguredSceneOfferingToPreparation,
+  fetchAuthenticatedConfiguredSceneThumbnail,
+  type ConfiguredSceneOfferingCard,
+} from "@/lib/configuredSceneOffering";
+import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+
+function OfferingThumbnail({
+  offering,
+  currentUser,
+}: {
+  offering: ConfiguredSceneOfferingCard;
+  currentUser: Parameters<typeof withFirebaseAuthHeaders>[0];
+}) {
+  const [source, setSource] = useState("");
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    let objectUrl = "";
+    let cancelled = false;
+    void withFirebaseAuthHeaders(currentUser)
+      .then((headers) => fetchAuthenticatedConfiguredSceneThumbnail(
+        offering.presentation.thumbnail_url,
+        headers,
+      ))
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSource(objectUrl);
+      })
+      .catch(() => setSource(""));
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentUser, offering.presentation.thumbnail_url]);
+  return source ? (
+    <img
+      src={source}
+      alt={`Selected configured-scene view for ${offering.scene_identity.id}`}
+      className="aspect-video w-full bg-ink-50 object-cover"
+    />
+  ) : (
+    <div className="flex aspect-video items-center justify-center bg-ink-50 text-caption text-ink-400">
+      Loading private thumbnail…
+    </div>
+  );
+}
 
 export default function SitePacks() {
   const { entitlements, isLoading, error } = useBuyerAppEntitlements();
+  const { currentUser } = useAuth();
+  const [offerings, setOfferings] = useState<ConfiguredSceneOfferingCard[]>([]);
+  const [offeringError, setOfferingError] = useState<string | null>(null);
+  const [startingOffering, setStartingOffering] = useState<string | null>(null);
+  const [offeringReceipt, setOfferingReceipt] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void withFirebaseAuthHeaders(currentUser)
+      .then((headers) => fetch("/api/configured-scene-offerings", {
+        headers,
+        credentials: "include",
+      }))
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Configured scene offerings are unavailable");
+        setOfferings(payload.offerings || []);
+      })
+      .catch((reason) => setOfferingError(reason instanceof Error ? reason.message : String(reason)));
+  }, [currentUser]);
+
+  async function startOffering(offering: ConfiguredSceneOfferingCard, file: File) {
+    if (!currentUser) return;
+    setStartingOffering(offering.source_launch_id);
+    setOfferingError(null);
+    setOfferingReceipt(null);
+    try {
+      if (file.size < 1 || file.size > 2 * 1024 * 1024) {
+        throw new Error("Episode preparation contract must be between 1 byte and 2 MiB");
+      }
+      const draft = JSON.parse(await file.text()) as Record<string, any>;
+      const request = bindConfiguredSceneOfferingToPreparation(draft, offering);
+      const headers = await withFirebaseAuthHeaders(
+        currentUser,
+        await withCsrfHeader({ "content-type": "application/json" }),
+      );
+      const response = await fetch(
+        `/api/configured-scene-offerings/${encodeURIComponent(offering.source_launch_id)}/preparations`,
+        { method: "POST", headers, credentials: "include", body: JSON.stringify(request) },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.code || payload.error || "Task Evaluation preparation was blocked");
+      setOfferingReceipt(payload);
+    } catch (reason) {
+      setOfferingError(reason instanceof Error ? reason.message : "Task Evaluation preparation was blocked");
+    } finally {
+      setStartingOffering(null);
+    }
+  }
 
   return (
     <AppShell active="packs" breadcrumb="packs">
@@ -49,6 +148,58 @@ export default function SitePacks() {
             <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
           </Button>
         </header>
+
+        {offerings.length ? (
+          <section aria-label="Launch-ready configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {offerings.map((offering) => (
+              <article key={offering.offering_digest} className="overflow-hidden rounded-md border border-line bg-white">
+                <OfferingThumbnail offering={offering} currentUser={currentUser} />
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-semibold text-ink-900">{offering.scene_identity.id}</h2>
+                      <p className="mt-1 text-caption text-ink-500">
+                        {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
+                      </p>
+                    </div>
+                    <StatusChip tone="proof" square>Launch ready</StatusChip>
+                  </div>
+                  <p className="mt-3 text-caption leading-5 text-ink-500">
+                    Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
+                    eight digest-bound renders; it is derived appearance evidence, not physical proof.
+                  </p>
+                  <label className="mt-4 block cursor-pointer rounded-sm bg-ink-900 px-4 py-2.5 text-center text-caption font-semibold text-white">
+                    {startingOffering === offering.source_launch_id
+                      ? "Starting…"
+                      : "Prepare Task Evaluation Run"}
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      className="sr-only"
+                      disabled={startingOffering !== null}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        if (file) void startOffering(offering, file);
+                      }}
+                    />
+                  </label>
+                  <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
+                    Choose your episode preparation contract. Blueprint replaces its scene/task fields with
+                    this immutable offering and preserves your robot, controller, sensors, and runtime inputs.
+                  </p>
+                </div>
+              </article>
+            ))}
+          </section>
+        ) : null}
+        {offeringReceipt ? (
+          <ProofBoundary level="proof" title="Task Evaluation preparation queued" icon={ShieldCheck}>
+            {String(offeringReceipt.preparation_id || "The bound preparation")} is queued against the exact
+            configured-scene offering. Preparation does not allocate a provider or spend money.
+          </ProofBoundary>
+        ) : null}
+        {offeringError ? <BuyerAppErrorState message={offeringError} /> : null}
 
         {isLoading ? <BuyerAppLoadingState /> : null}
         {error ? <BuyerAppErrorState message={error.message} /> : null}

@@ -57,6 +57,14 @@ export const publishedLaunchProfileSchema = z.object({
     max_spend_usd: z.number().positive().finite(),
     hard_ttl_seconds: z.number().int().positive(),
   }).strict().optional(),
+  task_evaluation_run: z.object({
+    run_mode: z.literal("scene_configuration"),
+    team_namespace: identifier,
+    scene_id: identifier,
+    task_id: identifier,
+    configuration_run_id: identifier,
+    evaluation_episode_executed: z.literal(false),
+  }).strict().optional(),
 }).strict();
 
 export const taskEvaluationLaunchInputSchema = z.object({
@@ -94,6 +102,23 @@ export const taskEvaluationLaunchWebPreflightReceiptSchema = z.object({
   provider_mutation_performed_inside_web_request: z.literal(false),
   preflight_is_not_execution: z.literal(true),
   receipt_digest: digest,
+}).strict();
+
+export const taskEvaluationLaunchPublicationReadinessRequestSchema = z.object({
+  schema_version: z.literal("task_evaluation_launch_publication_readiness_request.v1"),
+  launch_id: identifier,
+  run_id: identifier,
+  request_digest: digest,
+  team_namespace: identifier,
+  expected_terminal_receipt_schema_version: z.literal(
+    "task_evaluation_launch_receipt.v1",
+  ),
+  expected_web_sync_receipt_schema_version: z.literal(
+    "task_evaluation_launch_web_sync_receipt.v1",
+  ),
+  expected_configured_scene_offering_schema_version: z.literal(
+    "task_evaluation_configured_scene_offering.v1",
+  ),
 }).strict();
 
 export function parseTaskEvaluationLaunchWebPreflightReceipt(value: unknown) {

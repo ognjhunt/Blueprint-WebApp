@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHmac } from "node:crypto";
 
 import {
   configuredArtifactEndpoint,
@@ -35,6 +36,19 @@ describe("Task Evaluation Result artifact origin", () => {
     expect(headers?.["x-blueprint-pipeline-client-id"]).toBe("blueprint-webapp");
     expect(headers?.["x-blueprint-pipeline-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
     expect(JSON.stringify(headers)).not.toContain("canonical-forward-token");
+  });
+
+  it("prefers canonical credentials when deprecated credentials also exist", () => {
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-token";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID = "blueprint-webapp";
+    process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN = "deprecated-forward-token";
+    process.env.TASK_EVALUATION_RUN_FORWARD_CLIENT_ID = "deprecated-client";
+    const headers = signedPipelineHeaders("exact-body");
+    expect(headers?.["x-blueprint-pipeline-client-id"]).toBe("blueprint-webapp");
+    const expected = createHmac("sha256", "canonical-forward-token")
+      .update(`${headers?.["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers?.["x-blueprint-pipeline-nonce"]}.exact-body`)
+      .digest("hex");
+    expect(headers?.["x-blueprint-pipeline-signature"]).toBe(`sha256=${expected}`);
   });
 
   it("fails closed when no exact route or token is configured", () => {
