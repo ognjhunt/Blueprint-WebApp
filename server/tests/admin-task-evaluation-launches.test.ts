@@ -818,6 +818,43 @@ afterEach(() => {
 });
 
 describe("admin Task Evaluation launch route", () => {
+  it("accepts only an exact digest-bound configured-scene public display authorization", () => {
+    const input = preparationInput() as any;
+    const authority = {
+      schema_version: "task_evaluation_configured_scene_public_display_authorization.v1",
+      status: "authorized",
+      scope: "configured_scene_derived_listing",
+      scene_identity: input.scene.identity,
+      task_identity: input.task.identity,
+      subject_identity: input.task.subject.identity,
+      rights_admission_digest: input.scene.rights.admission.digest,
+      human_authority_record_digest: input.scene.rights.evidence[1].artifact.digest,
+      public_slug: "scene-001-planar-push",
+      title: "Planar Push Scene",
+      summary: "A robot-neutral configured scene for a planar push task.",
+      category: "Manipulation",
+      allowed_fields: [
+        "status", "scene_identity", "task_identity", "task_kind", "task_strategy",
+        "public_title", "public_summary", "public_category", "thumbnail", "proof_boundary",
+      ],
+      thumbnail_publication_authorized: true,
+      derived_metadata_publication_authorized: true,
+      private_artifact_uri_publication_authorized: false,
+      raw_media_publication_authorized: false,
+      authority_reference: "owner-public-display-authorization-20260828",
+      authorized_by: "blueprint-owner",
+      authorization_digest: "",
+    };
+    authority.authorization_digest = canonicalArtifactDigest(authority, "authorization_digest");
+    input.scene.rights.public_display_authorization = authority;
+
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(true);
+
+    authority.human_authority_record_digest = sha("e");
+    authority.authorization_digest = canonicalArtifactDigest(authority, "authorization_digest");
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(false);
+  });
+
   it("scopes the seven-hour authority to scene configuration", () => {
     expect(
       taskEvaluationLaunchPreparationInputSchema.safeParse(preparationInput()).success,
