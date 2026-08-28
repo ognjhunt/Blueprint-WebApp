@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Helmet } from "@/lib/helmet";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
-import { Button, Eyebrow, ProofBoundary } from "@/components/blueprint";
+import { Button, Card, Eyebrow, ProofBoundary } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -82,17 +82,23 @@ function Section({
   title,
   description,
   children,
+  divided = true,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  /** Hairline above the section. Off for the first section in the card. */
+  divided?: boolean;
 }) {
+  // section + h2 rather than fieldset + legend: a legend notches the border it
+  // sits on, and these dividers have to read as an unbroken hairline.
+  const headingId = `intake-${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <fieldset className="runway-panel p-5">
-      <legend className="px-1 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">{title}</legend>
-      <p className="mb-4 text-body-s text-ink-500">{description}</p>
+    <section aria-labelledby={headingId} className={divided ? "border-t border-line-soft pt-6" : undefined}>
+      <h2 id={headingId} className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">{title}</h2>
+      <p className="mb-4 mt-1 text-body-s text-ink-500">{description}</p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
-    </fieldset>
+    </section>
   );
 }
 
@@ -263,7 +269,9 @@ export default function RunIntake() {
           </p>
         </header>
 
-        <Section title="1. Site, task, and account" description="Identify the maintained testbed and the real task this decision concerns.">
+        <Card pad="lg">
+        <div className="flex flex-col gap-6">
+        <Section divided={false} title="1. Site, task, and account" description="Identify the maintained testbed and the real task this decision concerns.">
           <Field label="I am submitting for">
             <select className={fieldClass} value={form.persona} onChange={(e) => set("persona", e.target.value as IntakeState["persona"])}>
               <option value="robot_team">Robot team</option>
@@ -302,7 +310,7 @@ export default function RunIntake() {
           <label className="md:col-span-2 flex items-center gap-3 text-body-s font-semibold text-ink-800"><input type="checkbox" checked={form.physicalTestingPossible} onChange={(e) => set("physicalTestingPossible", e.target.checked)} />Authoritative physical testing is possible for this task</label>
         </Section>
 
-        <details className="runway-panel p-5">
+        <details className="border-t border-line-soft pt-6">
           <summary className="cursor-pointer font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Optional evidence and authorization details</summary>
           <p className="mt-2 text-body-s text-ink-500">Add exact references only. Do not paste credentials, private endpoints, or raw policy weights.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -316,8 +324,20 @@ export default function RunIntake() {
         <ProofBoundary level="info" title="What happens next">
           Pipeline selects and qualifies evidence methods. A submitted request without an existing authorization remains visible as awaiting authorization; provider availability is never presented as a scientific result.
         </ProofBoundary>
+        <ProofBoundary level="warn" title="Before you submit">
+          A Task Evaluation Run returns a bounded estimate or an explicit abstention. It never returns a deployment guarantee, a safety clearance, or a claim that transfers to another site.
+        </ProofBoundary>
+
         {error ? <p role="alert" className="border border-runway-red-dim bg-runway-red/[0.06] p-3 text-body-s text-runway-red">{error}</p> : null}
-        <Button type="submit" variant="action" disabled={submitting}>{submitting ? "Submitting…" : "Request a Task Evaluation Run"}</Button>
+
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" variant="action" disabled={submitting}>{submitting ? "Submitting…" : "Request a Task Evaluation Run"}</Button>
+          <Button asChild variant="ghost">
+            <Link href="/app/runs">Cancel</Link>
+          </Button>
+        </div>
+        </div>
+        </Card>
       </form>
     </AppShell>
   );

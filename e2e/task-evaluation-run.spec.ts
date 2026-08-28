@@ -122,6 +122,12 @@ test("authenticated intake progresses from planning to a partial decision", asyn
   api.makeDecisionAvailable();
   await page.reload();
   await expect(page.getByText("Partial decision")).toBeVisible();
+
+  // The decision envelope is split across Decision / Evidence / Limits tabs,
+  // with Decision first so the outcome leads. Everything asserted below is the
+  // envelope's bounding: what the result does not cover and what would settle
+  // it. That lives under Limits, so open it before asserting on it.
+  await page.getByRole("tab", { name: "Limits" }).click();
   await expect(page.getByRole("heading", { name: "Validation envelope and unsupported conditions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Next cheapest experiment" })).toBeVisible();
   await expect(page.getByText(/safe for autonomous production deployment/i)).toBeVisible();
@@ -131,7 +137,14 @@ test("authenticated intake can end in explicit abstention without a winner", asy
   installRunApi(page, "abstained");
   await page.goto("/app/runs/new");
   await fillIntake(page, "Which candidate should receive field time?");
-  await expect(page.getByText("Explicit abstention")).toBeVisible();
+
+  // Wait for the run record before asserting on the outcome. getByText is a
+  // substring match, and the intake itself describes abstention as a possible
+  // outcome, so an assertion evaluated before navigation can match the form
+  // instead of the result. Anchor on the URL, then match the outcome label
+  // exactly so only the envelope's own title can satisfy it.
+  await expect(page).toHaveURL(/\/app\/runs\/request-/);
+  await expect(page.getByText("Explicit abstention", { exact: true })).toBeVisible();
   await expect(page.getByText(/No candidate or winner is inferred/i)).toBeVisible();
   await expect(page.getByText(/Selected winner/i)).toHaveCount(0);
 });

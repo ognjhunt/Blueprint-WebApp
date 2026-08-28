@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { validDecisionEnvelope } from "../../../server/tests/helpers/decision-evidence-fixtures";
@@ -7,16 +7,26 @@ import { DecisionResult } from "@/pages/app/RunDetail";
 describe("Task Evaluation Run result hierarchy", () => {
   it("renders partial decision evidence, envelope, warnings, next experiment, and exact artifact", () => {
     render(<DecisionResult envelope={validDecisionEnvelope()} />);
+
+    // The envelope is split across Decision / Evidence / Limits. The outcome
+    // stays above the split; everything else is asserted in the tab that owns
+    // it, so the hierarchy is still checked end to end.
     expect(screen.getByText("Partial decision")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Claims answered, rejected, and unresolved/i })).toBeInTheDocument();
+    // The exact testbed digest is scoped to the decision, so it is asserted here.
+    expect(screen.getAllByText(`sha256:${"a".repeat(64)}`).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Evidence/i }));
+    expect(screen.getByText(/version 1.0.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/Post-training not eligible/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Limits/i }));
     expect(screen.getByRole("heading", { name: /Validation envelope and unsupported conditions/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Disagreements and correlated evidence/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Claim ceiling/i })).toBeInTheDocument();
+    // Claim ceiling is now a warn ProofBoundary rather than a section heading.
+    expect(screen.getByText(/Claim ceiling/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Next cheapest experiment/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Physical evidence still needed/i })).toBeInTheDocument();
-    expect(screen.getByText(/version 1.0.0/i)).toBeInTheDocument();
-    expect(screen.getAllByText(`sha256:${"a".repeat(64)}`).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Post-training not eligible/i)).toBeInTheDocument();
   });
 
   it("renders abstention explicitly and never infers a winner", () => {

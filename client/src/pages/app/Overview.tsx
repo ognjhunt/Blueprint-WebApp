@@ -17,6 +17,7 @@ import {
   useBuyerAppEntitlements,
   useBuyerAppRuns,
 } from "@/lib/buyerAppData";
+import { runSummaryMetrics } from "@/lib/runSummaryMetrics";
 import { useAuth } from "@/contexts/AuthContext";
 import OperatorOverview from "./OperatorOverview";
 
@@ -36,37 +37,7 @@ function BuyerOverview() {
   } = useBuyerAppEntitlements();
   const { runs, isLoading: runsLoading, error: runsError } = useBuyerAppRuns();
 
-  const activeRuns = runs.filter((run) =>
-    ["submitted", "accepted", "planning", "awaiting_authorization", "running", "aggregating"].includes(
-      String(run.status),
-    ),
-  );
-  const completedDecisions = runs.filter((run) => run.status === "decision_available");
-  const abstainedRuns = runs.filter((run) => run.status === "abstained");
-
-  const metrics = [
-    {
-      label: "Runs",
-      value: String(runs.length),
-      caption: "Owner-scoped decision records",
-    },
-    {
-      label: "Active",
-      value: String(activeRuns.length),
-      caption: "Authorization through aggregation",
-    },
-    {
-      label: "Decisions",
-      value: String(completedDecisions.length),
-      caption: "Pipeline decision envelopes available",
-    },
-    {
-      label: "Abstained",
-      value: String(abstainedRuns.length),
-      caption: "Evidence could not support the decision",
-      deltaTone: abstainedRuns.length ? ("warn" as const) : undefined,
-    },
-  ];
+  const metrics = runSummaryMetrics(runs);
 
   return (
     <AppShell active="overview" breadcrumb="overview">
@@ -87,13 +58,16 @@ function BuyerOverview() {
             <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Task Evaluation Runs
             </h1>
-            <p className="text-body-s text-ink-500">
+            <p className="max-w-[62ch] text-body-s text-ink-500">
               Start with a maintained testbed and decision request; inspect the
               Pipeline-owned result and evidence limits in the run record.
             </p>
           </div>
-          <Button asChild variant="action" iconLeft={<Plus />}>
-            <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
+          <Button asChild variant="action">
+            <Link href="/app/runs/new">
+              <Plus strokeWidth={1.75} aria-hidden="true" />
+              Request a Task Evaluation Run
+            </Link>
           </Button>
         </header>
 
@@ -103,7 +77,7 @@ function BuyerOverview() {
           <>
             <section
               aria-label="Task Evaluation Run summary"
-              className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
+              className="grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
             >
               {metrics.map((metric) => (
                 <div key={metric.label} className="bg-paper-0 p-5">
@@ -133,8 +107,15 @@ function BuyerOverview() {
                 </div>
                 <div className="runway-panel divide-y divide-line-soft">
                   {runs.slice(0, 5).map((run) => (
-                    <Link key={run.job_id} href={`/app/runs/${encodeURIComponent(run.job_id)}`} className="flex items-center justify-between gap-4 p-4 hover:bg-inset">
-                      <span className="text-body-s font-semibold text-ink-900">{runDisplayName(run)}</span>
+                    <Link
+                      key={run.job_id}
+                      href={`/app/runs/${encodeURIComponent(run.job_id)}`}
+                      className="flex items-center justify-between gap-4 p-4 transition-colors duration-150 hover:bg-inset"
+                    >
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-body-s font-semibold text-ink-900">{runDisplayName(run)}</span>
+                        <span className="runway-num text-[0.7rem] text-ink-400">{run.job_id}</span>
+                      </span>
                       <StatusChip tone={runStatusTone(run.status)} square>{runStatusLabel(run.status)}</StatusChip>
                     </Link>
                   ))}

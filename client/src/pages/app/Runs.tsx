@@ -1,8 +1,8 @@
 import { Helmet } from "@/lib/helmet";
 import { Link } from "wouter";
-import { ArrowRight, PackageCheck, Plus, ShieldCheck } from "lucide-react";
+import { ArrowRight, Plus, ShieldCheck } from "lucide-react";
 
-import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Button, Card, Eyebrow, MetricStat, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import {
   BuyerAppErrorState,
@@ -18,6 +18,7 @@ import {
   useBuyerAppRuns,
   type BuyerRunRecord,
 } from "@/lib/buyerAppData";
+import { runSummaryMetrics } from "@/lib/runSummaryMetrics";
 import {
   useTaskEvaluationResults,
   type TaskEvaluationResultSiteRecord,
@@ -42,13 +43,16 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
             </div>
             {delivery ? (
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.episode_count}</p><p className="runway-meta">Episodes</p></div>
-                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.learned_candidate_episode_count}</p><p className="runway-meta">Policy</p></div>
-                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.successful_episode_count}</p><p className="runway-meta">Complete</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.episode_count.toLocaleString()}</p><p className="runway-meta">Episodes</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.learned_candidate_episode_count.toLocaleString()}</p><p className="runway-meta">Policy</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.successful_episode_count.toLocaleString()}</p><p className="runway-meta">Complete</p></div>
               </div>
             ) : null}
-            <Button asChild variant="secondary" size="sm" iconRight={<ArrowRight />} className="w-fit">
-              <Link href={`/app/results/${encodeURIComponent(result.record_id)}`}>Review result and videos</Link>
+            <Button asChild variant="secondary" size="sm" className="w-fit">
+              <Link href={`/app/results/${encodeURIComponent(result.record_id)}`}>
+                Review result and videos
+                <ArrowRight strokeWidth={1.75} aria-hidden="true" />
+              </Link>
             </Button>
           </Card>
         );
@@ -62,20 +66,20 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
     <div className="runway-panel overflow-x-auto">
       <table className="w-full min-w-[56rem] border-collapse text-left">
         <thead>
-          <tr className="border-b border-line">
-            <th className="runway-meta px-4 py-3">
+          <tr className="border-b border-line bg-runway-black">
+            <th className="runway-meta px-3.5 py-3 font-semibold tracking-[0.12em]">
               Run
             </th>
-            <th className="runway-meta px-4 py-3">
+            <th className="runway-meta px-3.5 py-3 font-semibold tracking-[0.12em]">
               Status
             </th>
-            <th className="runway-meta px-4 py-3">
+            <th className="runway-meta px-3.5 py-3 font-semibold tracking-[0.12em]">
               Pipeline
             </th>
-            <th className="runway-meta px-4 py-3">
+            <th className="runway-meta px-3.5 py-3 font-semibold tracking-[0.12em]">
               Created
             </th>
-            <th className="runway-meta px-4 py-3 text-right">
+            <th className="runway-meta px-3.5 py-3 text-right font-semibold tracking-[0.12em]">
               <span className="sr-only">Action</span>
             </th>
           </tr>
@@ -84,9 +88,9 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
           {runs.map((run) => (
             <tr
               key={run.job_id}
-              className="border-b border-line-soft transition-colors last:border-b-0 hover:bg-inset"
+              className="border-b border-line-soft transition-colors duration-150 last:border-b-0 hover:bg-inset"
             >
-              <td className="px-4 py-3.5 align-middle">
+              <td className="px-3.5 py-3.5 align-middle">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-body-s font-semibold text-ink-900">
                     {runDisplayName(run)}
@@ -96,21 +100,22 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
                   </span>
                 </div>
               </td>
-              <td className="px-4 py-3.5 align-middle">
+              <td className="px-3.5 py-3.5 align-middle">
                 <StatusChip tone={runStatusTone(run.status)} square>
                   {runStatusLabel(run.status)}
                 </StatusChip>
               </td>
-              <td className="runway-num px-4 py-3.5 align-middle text-[0.72rem] text-ink-600">
+              <td className="runway-num px-3.5 py-3.5 align-middle text-[0.72rem] text-ink-600">
                 {run.pipeline_status || "—"}
               </td>
-              <td className="runway-num px-4 py-3.5 align-middle text-[0.72rem] text-ink-700">
+              <td className="runway-num px-3.5 py-3.5 align-middle text-[0.72rem] text-ink-700">
                 {formatEntitlementDate(run.created_at_iso)}
               </td>
-              <td className="px-4 py-3.5 text-right align-middle">
-                <Button asChild variant="secondary" size="sm" iconRight={<ArrowRight />}>
+              <td className="px-3.5 py-3.5 text-right align-middle">
+                <Button asChild variant="secondary" size="sm">
                   <Link href={`/app/runs/${encodeURIComponent(run.job_id)}`}>
                     View run
+                    <ArrowRight strokeWidth={1.75} aria-hidden="true" />
                   </Link>
                 </Button>
               </td>
@@ -129,6 +134,7 @@ export default function Runs() {
 
   const isLoading = runsLoading || entitlementsLoading || resultsLoading;
   const loadError = runsError || resultsError;
+  const metrics = runSummaryMetrics(runs);
 
   return (
     <AppShell active="runs" breadcrumb="runs">
@@ -149,12 +155,15 @@ export default function Runs() {
             <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Task Evaluation Runs
             </h1>
-            <p className="text-body-s text-ink-500">
+            <p className="max-w-[62ch] text-body-s text-ink-500">
               Decision requests and Pipeline-owned results for this authenticated account.
             </p>
           </div>
-          <Button asChild variant="action" iconLeft={<Plus />}>
-            <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
+          <Button asChild variant="action">
+            <Link href="/app/runs/new">
+              <Plus strokeWidth={1.75} aria-hidden="true" />
+              Request a Task Evaluation Run
+            </Link>
           </Button>
         </header>
 
@@ -162,10 +171,26 @@ export default function Runs() {
         {!isLoading && loadError ? <BuyerAppErrorState message={loadError.message} /> : null}
         {!isLoading && !loadError ? (
           <>
+            <section
+              aria-label="Task Evaluation Run summary"
+              className="grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {metrics.map((metric) => (
+                <div key={metric.label} className="bg-paper-0 p-5">
+                  <MetricStat
+                    label={metric.label}
+                    value={metric.value}
+                    caption={metric.caption}
+                    deltaTone={metric.deltaTone}
+                  />
+                </div>
+              ))}
+            </section>
+
             {results.length ? (
               <section className="flex flex-col gap-3" aria-label="Sealed evaluation results">
                 <div>
-                  <h2 className="flex items-center gap-2 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900"><PackageCheck className="size-5" />Results ready for review</h2>
+                  <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Results ready for review</h2>
                   <p className="mt-1 text-body-s text-ink-500">Private {scope === "blueprint_operations" ? "Blueprint operations" : scope === "organization" ? "verified-team" : "owner"} results. Teams are isolated; this is not a cross-team leaderboard.</p>
                 </div>
                 <SealedResults results={results} />
