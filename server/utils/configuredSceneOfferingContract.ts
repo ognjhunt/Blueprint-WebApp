@@ -17,10 +17,67 @@ const artifactReference = z.object({
 const taskThumbnailReference = artifactReference.extend({
   size_bytes: z.number().int().positive().max(16 * 1024 * 1024),
 });
+const publicText = (maximum: number) => z.string().trim().min(1).max(maximum).refine(
+  (value) => !/(?:\b(?:s3|gs|file|https?):\/\/|\/(?:var|etc|opt|private|tmp)\/|api[_ -]?key|credential|secret)/i.test(value),
+  "public display text contains a private locator or credential term",
+);
+const publicDisplayAllowedFields = [
+  "status",
+  "scene_identity",
+  "task_identity",
+  "task_kind",
+  "task_strategy",
+  "public_title",
+  "public_summary",
+  "public_category",
+  "thumbnail",
+  "proof_boundary",
+] as const;
+const evaluationAdmission = z.object({
+  zero_action_required: z.literal(true),
+  scripted_positive_required: z.literal(true),
+  learned_policy_evaluation_admitted: z.boolean(),
+}).strict();
+const publicDisplay = z.object({
+  schema_version: z.literal("task_evaluation_configured_scene_public_display.v1"),
+  status: z.literal("authorized"),
+  source_authorization_digest: digest,
+  source_offering_digest: digest,
+  public_slug: z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9-]*$/),
+  title: publicText(120),
+  summary: publicText(500),
+  category: publicText(80),
+  allowed_fields: z.tuple(publicDisplayAllowedFields.map((field) => z.literal(field)) as [
+    z.ZodLiteral<"status">,
+    z.ZodLiteral<"scene_identity">,
+    z.ZodLiteral<"task_identity">,
+    z.ZodLiteral<"task_kind">,
+    z.ZodLiteral<"task_strategy">,
+    z.ZodLiteral<"public_title">,
+    z.ZodLiteral<"public_summary">,
+    z.ZodLiteral<"public_category">,
+    z.ZodLiteral<"thumbnail">,
+    z.ZodLiteral<"proof_boundary">,
+  ]),
+  scene_identity_digest: digest,
+  configured_scene_revision_digest: digest,
+  task_thumbnail_digest: digest,
+  projection_digest: digest,
+}).strict().superRefine((projection, context) => {
+  if (
+    canonicalArtifactDigest(
+      projection as unknown as Record<string, unknown>,
+      "projection_digest",
+    ) !== projection.projection_digest
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "configured scene public projection digest mismatch",
+  });
+});
 
 export const configuredSceneOfferingSchema = z.object({
   schema_version: z.literal("task_evaluation_configured_scene_offering.v1"),
-  status: z.literal("launch_ready"),
+  status: z.enum(["launch_ready", "configured_controls_pending", "evaluation_ready"]),
   configuration_run_id: identifier,
   team_namespace: identifier,
   catalog_visibility: z.literal("team_only"),
@@ -65,6 +122,8 @@ export const configuredSceneOfferingSchema = z.object({
     configuration_is_policy_evaluation: z.literal(false),
     configuration_is_deployment_or_safety_approval: z.literal(false),
   }).strict(),
+  evaluation_admission: evaluationAdmission.optional(),
+  public_display: publicDisplay.optional(),
   offering_digest: digest,
 }).strict().superRefine((offering, context) => {
   if (offering.presentation.selection.frame_digest !== offering.presentation.task_thumbnail.digest) {
@@ -81,6 +140,43 @@ export const configuredSceneOfferingSchema = z.object({
     code: z.ZodIssueCode.custom,
     message: "configured scene offering digest mismatch",
   });
+  if (
+    offering.status === "configured_controls_pending"
+    && offering.evaluation_admission?.learned_policy_evaluation_admitted !== false
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "controls-pending offering must keep learned policy evaluation locked",
+  });
+  if (
+    offering.status === "evaluation_ready"
+    && offering.evaluation_admission?.learned_policy_evaluation_admitted !== true
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "evaluation-ready offering must admit learned policy evaluation",
+  });
+  if (offering.public_display) {
+    const projection = offering.public_display;
+    const sourceOffering = structuredClone(
+      offering as unknown as Record<string, unknown>,
+    );
+    delete sourceOffering.public_display;
+    const expectedSceneIdentityDigest = canonicalArtifactDigest(
+      offering.scene_identity as unknown as Record<string, unknown>,
+      "scene_identity_digest",
+    );
+    if (
+      projection.source_offering_digest
+        !== canonicalArtifactDigest(sourceOffering, "offering_digest")
+      || projection.scene_identity_digest !== expectedSceneIdentityDigest
+      || projection.configured_scene_revision_digest
+        !== offering.evaluation_preparation_binding.configured_scene_revision_digest
+      || projection.task_thumbnail_digest !== offering.presentation.task_thumbnail.digest
+      || !["configured_controls_pending", "evaluation_ready"].includes(offering.status)
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "configured scene public projection binding mismatch",
+    });
+  }
 });
 
 export type ConfiguredSceneOffering = z.infer<typeof configuredSceneOfferingSchema>;

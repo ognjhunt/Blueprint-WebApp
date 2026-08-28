@@ -1,5 +1,6 @@
 export type ConfiguredSceneOfferingCard = {
   source_launch_id: string;
+  status: "launch_ready" | "configured_controls_pending" | "evaluation_ready";
   offering_digest: string;
   configuration_run_id: string;
   team_namespace: string;
@@ -30,6 +31,11 @@ export type ConfiguredSceneOfferingCard = {
     configuration_is_policy_evaluation: false;
     configuration_is_deployment_or_safety_approval: false;
   };
+  evaluation_admission?: {
+    zero_action_required: true;
+    scripted_positive_required: true;
+    learned_policy_evaluation_admitted: boolean;
+  };
 };
 
 export function bindConfiguredSceneOfferingToPreparation(
@@ -37,7 +43,8 @@ export function bindConfiguredSceneOfferingToPreparation(
   offering: ConfiguredSceneOfferingCard,
 ) {
   if (
-    !/^sha256:[0-9a-f]{64}$/.test(offering.offering_digest)
+    offering.status === "configured_controls_pending"
+    || !/^sha256:[0-9a-f]{64}$/.test(offering.offering_digest)
     || !/^sha256:[0-9a-f]{64}$/.test(
       offering.evaluation_preparation_binding.configured_scene_revision_digest,
     )

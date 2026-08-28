@@ -88,6 +88,7 @@ router.get("/configured-scene-offerings", async (_req, res) => {
       const offering = parsed.data;
       return {
         source_launch_id: document.id,
+        status: offering.status,
         offering_digest: offering.offering_digest,
         configuration_run_id: offering.configuration_run_id,
         team_namespace: offering.team_namespace,

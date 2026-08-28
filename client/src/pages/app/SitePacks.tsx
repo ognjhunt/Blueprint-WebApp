@@ -150,9 +150,10 @@ export default function SitePacks() {
         </header>
 
         {offerings.length ? (
-          <section aria-label="Launch-ready configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {offerings.map((offering) => (
-              <article key={offering.offering_digest} className="runway-panel overflow-hidden">
+          <section aria-label="Configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {offerings.map((offering) => {
+              const controlsPending = offering.status === "configured_controls_pending";
+              return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
                 <OfferingThumbnail offering={offering} currentUser={currentUser} />
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -162,35 +163,47 @@ export default function SitePacks() {
                         {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
                       </p>
                     </div>
-                    <StatusChip tone="proof" square>Launch ready</StatusChip>
+                    <StatusChip tone={controlsPending ? "warn" : "proof"} square>
+                      {controlsPending ? "Controls pending" : "Evaluation ready"}
+                    </StatusChip>
                   </div>
                   <p className="mt-3 text-caption leading-5 text-ink-500">
                     Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
                     eight digest-bound renders; it is derived appearance evidence, not physical proof.
                   </p>
-                  <label className="mt-4 block cursor-pointer border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:border-runway-signal hover:text-runway-signal">
-                    {startingOffering === offering.source_launch_id
-                      ? "Starting…"
-                      : "Prepare Task Evaluation Run"}
-                    <input
-                      type="file"
-                      accept="application/json,.json"
-                      className="sr-only"
-                      disabled={startingOffering !== null}
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0];
-                        event.currentTarget.value = "";
-                        if (file) void startOffering(offering, file);
-                      }}
-                    />
-                  </label>
+                  {controlsPending ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 block w-full cursor-not-allowed border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-ink-400"
+                    >
+                      Evaluation locked until controls pass
+                    </button>
+                  ) : (
+                    <label className="mt-4 block cursor-pointer border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:border-runway-signal hover:text-runway-signal">
+                      {startingOffering === offering.source_launch_id
+                        ? "Starting…"
+                        : "Prepare Task Evaluation Run"}
+                      <input
+                        type="file"
+                        accept="application/json,.json"
+                        className="sr-only"
+                        disabled={startingOffering !== null}
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          event.currentTarget.value = "";
+                          if (file) void startOffering(offering, file);
+                        }}
+                      />
+                    </label>
+                  )}
                   <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
                     Choose your episode preparation contract. Blueprint replaces its scene/task fields with
                     this immutable offering and preserves your robot, controller, sensors, and runtime inputs.
                   </p>
                 </div>
-              </article>
-            ))}
+              </article>;
+            })}
           </section>
         ) : null}
         {offeringReceipt ? (

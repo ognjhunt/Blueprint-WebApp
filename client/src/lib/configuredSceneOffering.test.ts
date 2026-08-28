@@ -11,6 +11,7 @@ const sha = (character: string) => `sha256:${character.repeat(64)}`;
 function offering(): ConfiguredSceneOfferingCard {
   return {
     source_launch_id: "scene-launch-1",
+    status: "launch_ready",
     offering_digest: sha("a"),
     configuration_run_id: "scene-run-1",
     team_namespace: "team-1",
@@ -49,6 +50,15 @@ function offering(): ConfiguredSceneOfferingCard {
 }
 
 describe("configured scene offering preparation binding", () => {
+  it("keeps a controls-pending configured scene out of evaluation preparation", () => {
+    const pending = offering();
+    pending.status = "configured_controls_pending";
+
+    expect(() => bindConfiguredSceneOfferingToPreparation({}, pending)).toThrow(
+      "Configured scene offering is not launch-ready",
+    );
+  });
+
   it("preserves team runtime inputs while replacing every configured-scene identity", () => {
     const result = bindConfiguredSceneOfferingToPreparation({
       preparation_id: "prep-1",
