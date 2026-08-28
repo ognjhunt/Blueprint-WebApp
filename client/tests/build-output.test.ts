@@ -33,7 +33,9 @@ function ensureBuildOutput() {
   execFileSync("npm", ["run", "build"], {
     cwd: process.cwd(),
     stdio: "inherit",
-    env: process.env,
+    // Compile-only: this build is read off disk to assert on prerendered
+    // output and is never served, so it needs no Firebase client config.
+    env: { ...process.env, BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1" },
   });
 }
 

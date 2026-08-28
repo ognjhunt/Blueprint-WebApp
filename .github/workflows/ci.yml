@@ -214,6 +214,11 @@ jobs:
         run: npm ci
 
       - name: Build
+        # Compile-only: this build verifies the app compiles and is never
+        # served, so it has no Firebase client config and does not need any.
+        # A deploy build without it fails, which is the point of the guard.
+        env:
+          BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1"
         run: npm run build
 
       - name: Run build-output tests

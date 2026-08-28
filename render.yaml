@@ -28,5 +28,12 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start:worker
     envVars:
+      # This service shares the web build command but starts dist/worker.js and
+      # never serves the client bundle, so it carries only the Firebase Admin
+      # credentials, not the VITE_FIREBASE_* client config. Without this the
+      # client-env build guard would fail a worker deploy for config the worker
+      # is deliberately not given. The web service has no such exemption.
+      - key: BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD
+        value: "1"
       - key: BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER
         value: "true"
