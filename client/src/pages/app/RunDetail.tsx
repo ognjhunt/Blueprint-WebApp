@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Helmet } from "@/lib/helmet";
 import { Link, useParams } from "wouter";
-import { ArrowLeft, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Download, ShieldAlert, ShieldCheck } from "lucide-react";
 
-import { Button, DataField, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Button, DataField, ProofBoundary, StatusChip, Tabs } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BenchmarkReportPanel } from "@/components/blueprint/app/BenchmarkReportPanel";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
@@ -24,6 +25,16 @@ const outcomeLabels: Record<DecisionEnvelope["overall"]["outcome"], string> = {
   failed: "Failed",
 };
 
+function downloadEnvelope(envelope: DecisionEnvelope) {
+  const blob = new Blob([`${JSON.stringify(envelope, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${envelope.request_id}-decision-envelope.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
@@ -33,10 +44,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Tags({ values, empty = "None reported" }: { values: string[]; empty?: string }) {
+function Tags({
+  values,
+  tone = "neutral",
+  empty = "None reported",
+}: {
+  values: string[];
+  tone?: "neutral" | "block";
+  empty?: string;
+}) {
   return values.length ? (
     <ul className="flex flex-wrap gap-2">
-      {values.map((value) => <li key={value} className="border border-line bg-inset px-2 py-1 text-body-s text-ink-700">{value}</li>)}
+      {values.map((value) => (
+        <li
+          key={value}
+          className={
+            tone === "block"
+              ? "border border-block-bd bg-block-bg px-2 py-1 text-body-s text-block-fg"
+              : "border border-line bg-inset px-2 py-1 text-body-s text-ink-700"
+          }
+        >
+          {value}
+        </li>
+      ))}
     </ul>
   ) : <p className="text-body-s text-ink-500">{empty}</p>;
 }
@@ -59,7 +89,10 @@ function ArtifactList({ artifacts }: { artifacts: EvidenceArtifact[] }) {
 }
 
 export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
+  const [tab, setTab] = useState("decision");
   const isAbstention = envelope.overall.outcome === "abstained";
+  const selectedCandidates = envelope.overall.selected_candidate_ids;
+
   return (
     <div className="flex flex-col gap-6" data-testid="decision-result">
       <ProofBoundary
@@ -71,93 +104,135 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
         {isAbstention ? <p className="mt-2">No candidate or winner is inferred from this result.</p> : null}
       </ProofBoundary>
 
-      <Section title="Scope and requested decision">
-        <DataField label="Question" value={envelope.requested_decision} mono={false} />
-        <DataField label="Testbed" value={`${envelope.testbed.testbed_id} · ${envelope.testbed.version}`} />
-        <DataField label="Testbed digest" value={envelope.testbed.digest_sha256} border={false} />
-      </Section>
+      <Tabs
+        aria-label="Decision envelope"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { value: "decision", label: "Decision" },
+          { value: "evidence", label: "Evidence", count: envelope.artifacts.length },
+          { value: "limits", label: "Limits" },
+        ]}
+      />
 
-      <Section title="Claims answered, rejected, and unresolved">
-        <div className="space-y-4">
-          {envelope.claim_outcomes.map((claim) => (
-            <article key={claim.claim_id} className="border-l-2 border-runway-signal pl-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-semibold text-ink-900">{claim.statement}</h3>
-                <StatusChip tone={claim.outcome === "supported" ? "proof" : claim.outcome === "not_supported" ? "block" : "warn"} square>{claim.outcome.replace(/_/g, " ")}</StatusChip>
-              </div>
-              <p className="mt-1 text-body-s text-ink-700">{claim.conclusion}</p>
-              <p className="mt-1 text-body-s text-ink-500">Uncertainty: {claim.uncertainty}</p>
-              {claim.physical_evidence_required ? <p className="mt-1 text-body-s font-semibold text-runway-signal">Physical evidence remains necessary.</p> : null}
-            </article>
-          ))}
+      {tab === "decision" ? (
+        <div className="flex flex-col gap-6">
+          <Section title="Scope and requested decision">
+            <DataField label="Question" value={envelope.requested_decision} mono={false} />
+            <DataField label="Testbed" value={`${envelope.testbed.testbed_id} · ${envelope.testbed.version}`} />
+            <DataField label="Testbed digest" value={envelope.testbed.digest_sha256} border={false} />
+          </Section>
+
+          {selectedCandidates.length ? (
+            <Section title="Candidates the evidence selected">
+              <Tags values={selectedCandidates} />
+              <p className="mt-3 text-body-s text-ink-500">
+                The envelope records which candidates were selected. It carries no
+                per-candidate score, so no ranking is shown here.
+              </p>
+            </Section>
+          ) : null}
+
+          <Section title="Claims answered, rejected, and unresolved">
+            <div className="space-y-4">
+              {envelope.claim_outcomes.map((claim) => (
+                <article key={claim.claim_id} className="border-l-2 border-runway-signal pl-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[15px] font-semibold text-ink-900">{claim.statement}</h3>
+                    <StatusChip tone={claim.outcome === "supported" ? "proof" : claim.outcome === "not_supported" ? "block" : "warn"} square>{claim.outcome.replace(/_/g, " ")}</StatusChip>
+                  </div>
+                  <p className="mt-1 text-body-s text-ink-700">{claim.conclusion}</p>
+                  <p className="mt-1 text-body-s text-ink-500">Uncertainty: {claim.uncertainty}</p>
+                  {claim.physical_evidence_required ? <p className="mt-1 text-body-s font-semibold text-runway-signal">Physical evidence remains necessary.</p> : null}
+                </article>
+              ))}
+            </div>
+          </Section>
         </div>
-      </Section>
+      ) : null}
 
-      <Section title="Evidence methods selected and why">
-        <div className="space-y-4">
-          {envelope.evidence_methods.map((method) => (
-            <article key={method.method_id}>
-              <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-ink-900">{method.name}</h3><span className="runway-num text-[0.7rem] text-ink-500">{method.evidence_class}</span></div>
-              <p className="mt-1 text-body-s text-ink-700">{method.selection_reason}</p>
-              <p className="mt-1 text-body-s text-ink-500">Measured: {method.measured.join(", ") || "Nothing reported"}</p>
-              <p className="runway-num mt-1 text-[0.68rem] text-ink-400">Qualification {method.qualification_profile_ref.version} · {method.qualification_profile_ref.digest_sha256}</p>
-            </article>
-          ))}
+      {tab === "evidence" ? (
+        <div className="flex flex-col gap-6">
+          <Section title="Evidence methods selected and why">
+            <div className="space-y-4">
+              {envelope.evidence_methods.map((method) => (
+                <article key={method.method_id}>
+                  <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-ink-900">{method.name}</h3><span className="runway-num text-[0.7rem] text-ink-500">{method.evidence_class}</span></div>
+                  <p className="mt-1 text-body-s text-ink-700">{method.selection_reason}</p>
+                  <p className="mt-1 text-body-s text-ink-500">Measured: {method.measured.join(", ") || "Nothing reported"}</p>
+                  <p className="runway-num mt-1 text-[0.68rem] text-ink-400">Qualification {method.qualification_profile_ref.version} · {method.qualification_profile_ref.digest_sha256}</p>
+                </article>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Evidence provenance and exact artifacts">
+            <ArtifactList artifacts={envelope.artifacts} />
+            <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Pipeline run {envelope.provenance.pipeline_run_id} · {envelope.provenance.generated_at_iso}</p>
+          </Section>
+
+          <Section title="Permitted evidence uses">
+            <p className="text-body-s text-ink-700">{envelope.permitted_evidence_uses.reason}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatusChip tone={envelope.permitted_evidence_uses.evaluation ? "proof" : "block"} square>Evaluation {envelope.permitted_evidence_uses.evaluation ? "eligible" : "not eligible"}</StatusChip>
+              <StatusChip tone={envelope.permitted_evidence_uses.post_training ? "proof" : "neutral"} square>Post-training {envelope.permitted_evidence_uses.post_training ? "eligible" : "not eligible"}</StatusChip>
+            </div>
+            <p className="mt-3 text-body-s font-semibold text-ink-700">This export does not prove that training happened or that a policy improved.</p>
+          </Section>
         </div>
-      </Section>
+      ) : null}
 
-      <Section title="Validation envelope and unsupported conditions">
-        <h3 className="mb-2 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Supported conditions</h3>
-        <Tags values={envelope.validation_envelope.supported_conditions} />
-        <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Unsupported conditions</h3>
-        <Tags values={envelope.validation_envelope.unsupported_conditions} />
-        <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Profiles: {envelope.validation_envelope.method_profile_versions.join(", ")}</p>
-      </Section>
+      {tab === "limits" ? (
+        <div className="flex flex-col gap-6">
+          <Section title="Validation envelope and unsupported conditions">
+            <h3 className="mb-2 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Supported conditions</h3>
+            <Tags values={envelope.validation_envelope.supported_conditions} />
+            <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Unsupported conditions</h3>
+            <Tags values={envelope.validation_envelope.unsupported_conditions} tone="block" />
+            <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Profiles: {envelope.validation_envelope.method_profile_versions.join(", ")}</p>
+          </Section>
 
-      <Section title="Coverage and uncertainty">
-        <p className="text-body-s text-ink-700">{envelope.coverage.summary}</p>
-        <p className="mt-3 text-body-s text-ink-700">{envelope.uncertainty.summary}</p>
-        <div className="mt-3"><Tags values={envelope.uncertainty.sources} /></div>
-      </Section>
+          <Section title="Coverage and uncertainty">
+            <p className="text-body-s text-ink-700">{envelope.coverage.summary}</p>
+            <p className="mt-3 text-body-s text-ink-700">{envelope.uncertainty.summary}</p>
+            <div className="mt-3"><Tags values={envelope.uncertainty.sources} /></div>
+          </Section>
 
-      <Section title="Disagreements and correlated evidence">
-        <p className="text-body-s text-ink-700">{envelope.disagreements.summary}</p>
-        {envelope.disagreements.items.map((item) => <p key={`${item.claim_id}-${item.description}`} className="mt-2 border-l-2 border-runway-signal-dim pl-3 text-body-s text-ink-700">{item.description}</p>)}
-        {envelope.disagreements.correlated_evidence_warning ? <p className="mt-3 border border-runway-signal-dim bg-runway-signal/[0.06] p-3 text-body-s font-semibold text-runway-mute">{envelope.disagreements.correlated_evidence_warning}</p> : null}
-      </Section>
+          <Section title="Disagreements and correlated evidence">
+            <p className="text-body-s text-ink-700">{envelope.disagreements.summary}</p>
+            {envelope.disagreements.items.map((item) => <p key={`${item.claim_id}-${item.description}`} className="mt-2 border-l-2 border-runway-signal-dim pl-3 text-body-s text-ink-700">{item.description}</p>)}
+            {envelope.disagreements.correlated_evidence_warning ? <p className="mt-3 border border-runway-signal-dim bg-runway-signal/[0.06] p-3 text-body-s font-semibold text-runway-mute">{envelope.disagreements.correlated_evidence_warning}</p> : null}
+          </Section>
 
-      <Section title="Claim ceiling">
-        <p className="font-semibold text-ink-900">{envelope.claim_ceiling.level.replace(/_/g, " ")}</p>
-        <p className="mt-2 text-body-s text-ink-700">{envelope.claim_ceiling.summary}</p>
-        <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">This result does not support</h3>
-        <Tags values={envelope.claim_ceiling.prohibited_claims} />
-      </Section>
+          <Section title="Physical evidence still needed">
+            <p className="font-semibold text-ink-900">{envelope.physical_evidence.required ? "Required" : "Not required for the supported claims"}</p>
+            <div className="mt-3"><Tags values={envelope.physical_evidence.reasons} empty="No remaining reason reported." /></div>
+            {envelope.physical_evidence.authoritative_join_ids.length ? <p className="runway-num mt-3 text-[0.7rem] text-ink-500">Joined outcomes: {envelope.physical_evidence.authoritative_join_ids.join(", ")}</p> : null}
+          </Section>
 
-      <Section title="Next cheapest experiment">
-        <p className="font-semibold text-ink-900">{envelope.next_cheapest_experiment.description}</p>
-        <p className="mt-2 text-body-s text-ink-700">{envelope.next_cheapest_experiment.rationale}</p>
-        <p className="mt-2 text-body-s text-ink-500">{[envelope.next_cheapest_experiment.estimated_cost, envelope.next_cheapest_experiment.estimated_time].filter(Boolean).join(" · ") || "Cost and timing not reported"}</p>
-      </Section>
+          <Section title="Next cheapest experiment">
+            <p className="text-[15px] font-semibold text-ink-900">{envelope.next_cheapest_experiment.description}</p>
+            <p className="mt-2 text-body-s text-ink-700">{envelope.next_cheapest_experiment.rationale}</p>
+            <p className="runway-num mt-2 text-body-s text-ink-500">{[envelope.next_cheapest_experiment.estimated_cost, envelope.next_cheapest_experiment.estimated_time].filter(Boolean).join(" · ") || "Cost and timing not reported"}</p>
+          </Section>
 
-      <Section title="Physical evidence still needed">
-        <p className="font-semibold text-ink-900">{envelope.physical_evidence.required ? "Required" : "Not required for the supported claims"}</p>
-        <div className="mt-3"><Tags values={envelope.physical_evidence.reasons} empty="No remaining reason reported." /></div>
-        {envelope.physical_evidence.authoritative_join_ids.length ? <p className="runway-num mt-3 text-[0.7rem] text-ink-500">Joined outcomes: {envelope.physical_evidence.authoritative_join_ids.join(", ")}</p> : null}
-      </Section>
-
-      <Section title="Evidence provenance and exact artifacts">
-        <ArtifactList artifacts={envelope.artifacts} />
-        <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Pipeline run {envelope.provenance.pipeline_run_id} · {envelope.provenance.generated_at_iso}</p>
-      </Section>
-
-      <Section title="Permitted evidence uses">
-        <p className="text-body-s text-ink-700">{envelope.permitted_evidence_uses.reason}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <StatusChip tone={envelope.permitted_evidence_uses.evaluation ? "proof" : "block"} square>Evaluation {envelope.permitted_evidence_uses.evaluation ? "eligible" : "not eligible"}</StatusChip>
-          <StatusChip tone={envelope.permitted_evidence_uses.post_training ? "proof" : "neutral"} square>Post-training {envelope.permitted_evidence_uses.post_training ? "eligible" : "not eligible"}</StatusChip>
+          <ProofBoundary level="warn" title="Claim ceiling">
+            <p className="font-semibold text-ink-900">{envelope.claim_ceiling.level.replace(/_/g, " ")}</p>
+            <p className="mt-2">{envelope.claim_ceiling.summary}</p>
+            <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">This result does not support</h3>
+            <Tags values={envelope.claim_ceiling.prohibited_claims} tone="block" />
+          </ProofBoundary>
         </div>
-        <p className="mt-3 text-body-s font-semibold text-ink-700">This export does not prove that training happened or that a policy improved.</p>
-      </Section>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" variant="action" iconLeft={<Download />} onClick={() => downloadEnvelope(envelope)}>
+          Export decision envelope
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/app/runs">Back to runs</Link>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -122,6 +122,12 @@ test("authenticated intake progresses from planning to a partial decision", asyn
   api.makeDecisionAvailable();
   await page.reload();
   await expect(page.getByText("Partial decision")).toBeVisible();
+
+  // The decision envelope is split across Decision / Evidence / Limits tabs,
+  // with Decision first so the outcome leads. Everything asserted below is the
+  // envelope's bounding: what the result does not cover and what would settle
+  // it. That lives under Limits, so open it before asserting on it.
+  await page.getByRole("tab", { name: "Limits" }).click();
   await expect(page.getByRole("heading", { name: "Validation envelope and unsupported conditions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Next cheapest experiment" })).toBeVisible();
   await expect(page.getByText(/safe for autonomous production deployment/i)).toBeVisible();
