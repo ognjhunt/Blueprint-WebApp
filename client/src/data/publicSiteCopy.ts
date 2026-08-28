@@ -558,10 +558,10 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 export const pricingHero = {
-  eyebrow: "Free to discover · paid when robots work",
-  title: "Free to discover. You pay when robots are working.",
+  eyebrow: "Two charges · sites pay nothing",
+  title: "Two charges. The site pays nothing.",
   body:
-    "Anonymous listings, fit screening and one standard evaluation are free. An evaluation credit is due before a robot team gets named-site access, and it is returned in full if that team deploys. After that Blueprint bills an activation once and an active robot-month.",
+    "Robot teams pay $1,000 to evaluate a site-task, and — only if they win it — the greater of $10,000 or $2,000 per robot deployed on that task, less what they already paid to evaluate it. Nothing depends on a contract Blueprint cannot see.",
 } as const;
 
 export const pricingIncluded = [

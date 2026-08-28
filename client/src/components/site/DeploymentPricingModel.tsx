@@ -1,19 +1,16 @@
 import { useMemo, useState } from "react";
-import { Check, Gauge, Lock } from "lucide-react";
+import { Check } from "lucide-react";
 
 import {
-  attributionTerms,
-  calculateDeploymentCost,
-  deploymentFees,
-  evaluationCredit,
-  formatBand,
+  calculateDeploymentFee,
+  deploymentFee,
+  evaluationFee,
   formatUsd,
-  recurringValue,
-  revenueShareAlternative,
+  settlement,
+  vendorFundedPilots,
 } from "@/lib/deploymentPricing";
 
 const MAX_ROBOTS = 500;
-const MAX_MONTHS = 60;
 
 function clampInt(value: string, max: number) {
   const parsed = Number(value.replace(/[^0-9]/g, ""));
@@ -22,192 +19,144 @@ function clampInt(value: string, max: number) {
 }
 
 /**
- * The model, priced on the two units either party can count: an activated
- * site-task and an active robot-month. The calculator exists to show that the
- * evaluation credit makes a team that deploys pay nothing extra for it.
+ * Two charges, and a calculator whose only job is to show where the greater-of
+ * flips — because that is the part people have to see once to trust.
  */
 export function DeploymentPricingModel() {
-  const [robots, setRobots] = useState("3");
-  const [months, setMonths] = useState("12");
-  const [creditPaid, setCreditPaid] = useState(true);
-
+  const [robots, setRobots] = useState("5");
   const robotCount = clampInt(robots, MAX_ROBOTS);
-  const monthCount = clampInt(months, MAX_MONTHS);
 
-  const cost = useMemo(
-    () =>
-      calculateDeploymentCost({
-        robots: robotCount,
-        months: monthCount,
-        evaluationCreditPaid: creditPaid,
-        bound: "low",
-      }),
-    [robotCount, monthCount, creditPaid],
+  const fee = useMemo(
+    () => calculateDeploymentFee({ robots: robotCount, wonAfterEvaluating: true }),
+    [robotCount],
   );
 
   return (
     <div className="mt-14 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-12">
-      {/* ---- the schedule ---- */}
-      <div className="runway-panel overflow-hidden">
-        <div className="border-b border-runway-line p-6 lg:p-8">
-          <p className="runway-eyebrow">Observable units · not a contract percentage</p>
-          <h3 className="mt-4 font-display text-[clamp(1.9rem,3.2vw,2.7rem)] font-semibold uppercase leading-none tracking-[0.005em]">
-            Pay when robots work
-          </h3>
-          <p className="mt-4 max-w-[42rem] text-body-s leading-7 text-runway-mute">
-            Blueprint bills an activated site-task and an active robot-month. Both are countable
-            by either party from the deployment record, which is what keeps the fee out of a
-            dispute about somebody else&rsquo;s confidential contract value.
+      {/* ---- the two charges ---- */}
+      <div className="flex flex-col gap-6">
+        <div className="runway-panel p-6 lg:p-8">
+          <div className="flex items-baseline justify-between gap-4">
+            <p className="runway-eyebrow">1 · Evaluation fee</p>
+            <span className="runway-num text-[1.9rem] leading-none text-runway-text">
+              {formatUsd(evaluationFee.amount)}
+            </span>
+          </div>
+          <p className="mt-2 runway-meta">{evaluationFee.unit}</p>
+          <p className="mt-4 text-[14px] leading-[1.65] text-runway-mute">
+            Paid by every robot team that runs a real evaluation. Not a compute markup — it buys a
+            captured task, a standardised test, and a scored result.
+          </p>
+          <ul className="mt-4 grid gap-2">
+            {evaluationFee.includes.map((item) => (
+              <li key={item} className="flex gap-3 text-[13.5px] leading-6 text-runway-body">
+                <Check className="mt-[4px] h-4 w-4 shrink-0 text-runway-green" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
+            {evaluationFee.creditRule}
           </p>
         </div>
 
-        <dl>
-          <div className="flex items-baseline justify-between gap-4 border-b border-runway-line-soft px-6 py-4 lg:px-8">
-            <div>
-              <dt className="text-[14px] font-semibold text-runway-text">Evaluation credit</dt>
-              <dd className="mt-1 text-[13px] leading-6 text-runway-mute">
-                {evaluationCredit.unit}. Returned in full against deployment.
-              </dd>
-            </div>
-            <span className="runway-num shrink-0 text-[15px] text-runway-text">
-              {formatBand(evaluationCredit.low, evaluationCredit.high)}
+        <div className="runway-panel p-6 lg:p-8">
+          <div className="flex items-baseline justify-between gap-4">
+            <p className="runway-eyebrow">2 · Deployment fee</p>
+            <span className="runway-num text-right text-[1.35rem] leading-tight text-runway-text">
+              {formatUsd(deploymentFee.floor)}
+              <span className="text-runway-mute"> or </span>
+              {formatUsd(deploymentFee.perRobot)}
+              <span className="block text-[12px] text-runway-faint">whichever is greater</span>
             </span>
           </div>
-          <div className="flex items-baseline justify-between gap-4 border-b border-runway-line-soft px-6 py-4 lg:px-8">
-            <div>
-              <dt className="text-[14px] font-semibold text-runway-text">Deployment activation</dt>
-              <dd className="mt-1 text-[13px] leading-6 text-runway-mute">
-                {deploymentFees.activation.detail}
-              </dd>
-            </div>
-            <span className="runway-num shrink-0 text-[15px] text-runway-text">
-              {formatUsd(deploymentFees.activation.amount)}
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 px-6 py-4 lg:px-8">
-            <div>
-              <dt className="text-[14px] font-semibold text-runway-text">Active robot-month</dt>
-              <dd className="mt-1 text-[13px] leading-6 text-runway-mute">
-                {deploymentFees.robotMonth.detail}
-              </dd>
-            </div>
-            <span className="runway-num shrink-0 text-[15px] text-runway-text">
-              {formatBand(deploymentFees.robotMonth.low, deploymentFees.robotMonth.high)}
-            </span>
-          </div>
-        </dl>
-
-        <div className="border-t border-runway-line bg-runway-black px-6 py-5 lg:px-8">
-          <p className="runway-meta">Where a percentage applies instead</p>
-          <p className="mt-2 text-[13px] leading-6 text-runway-mute">
-            {Math.round(revenueShareAlternative.firstYearLow * 100)}&ndash;
-            {Math.round(revenueShareAlternative.firstYearHigh * 100)}% of first-year revenue,
-            offered only where Blueprint controls invoicing or receives audited reporting.{" "}
-            {revenueShareAlternative.renewalNote}
+          <p className="mt-2 runway-meta">{deploymentFee.unit} · per robot deployed</p>
+          <p className="mt-4 text-[14px] leading-[1.65] text-runway-mute">{deploymentFee.whoPays}</p>
+          <p className="mt-4 text-[13.5px] leading-[1.6] text-runway-body">
+            {deploymentFee.verifiable}
+          </p>
+          <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
+            {deploymentFee.cumulative}
           </p>
         </div>
       </div>
 
-      {/* ---- the calculator ---- */}
+      {/* ---- the calculator + the settlement note ---- */}
       <div className="flex flex-col gap-6">
         <div className="runway-panel p-6 lg:p-8">
-          <div className="flex items-center gap-2">
-            <Gauge className="h-4 w-4 text-runway-signal" aria-hidden="true" />
-            <p className="runway-eyebrow">What a deployment costs</p>
-          </div>
+          <p className="runway-eyebrow">What the winning team owes</p>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="runway-label">Active robots</span>
-              <input
-                className="runway-input runway-num"
-                inputMode="numeric"
-                value={robots}
-                onChange={(event) => setRobots(event.target.value)}
-                aria-label="Active robots"
-              />
-            </label>
-            <label className="block">
-              <span className="runway-label">Months</span>
-              <input
-                className="runway-input runway-num"
-                inputMode="numeric"
-                value={months}
-                onChange={(event) => setMonths(event.target.value)}
-                aria-label="Months"
-              />
-            </label>
-          </div>
-
-          <label className="mt-4 flex items-start gap-3">
+          <label className="mt-5 block">
+            <span className="runway-label">Robots deployed on this task</span>
             <input
-              type="checkbox"
-              checked={creditPaid}
-              onChange={(event) => setCreditPaid(event.target.checked)}
-              className="mt-[3px] h-4 w-4 shrink-0 rounded-none border-runway-line-strong bg-runway-panel accent-runway-signal"
+              className="runway-input runway-num"
+              inputMode="numeric"
+              value={robots}
+              onChange={(event) => setRobots(event.target.value)}
+              aria-label="Robots deployed on this task"
             />
-            <span className="text-[13px] leading-6 text-runway-mute">
-              This team already paid an evaluation credit on this site-task
-            </span>
           </label>
 
           <dl className="mt-6 border-t border-runway-line pt-4">
             <div className="flex items-baseline justify-between gap-4 py-2">
-              <dt className="text-[13px] text-runway-mute">Activation</dt>
-              <dd className="runway-num text-[13px]">{formatUsd(cost.activation)}</dd>
+              <dt className="text-[13px] text-runway-mute">
+                Floor{" "}
+                <span className="runway-num text-runway-faint">
+                  ({formatUsd(deploymentFee.floor)})
+                </span>
+              </dt>
+              <dd
+                className={`runway-num text-[13px] ${
+                  fee.basis === "floor" ? "text-runway-signal" : "text-runway-faint"
+                }`}
+              >
+                {formatUsd(deploymentFee.floor)}
+              </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4 py-2">
               <dt className="text-[13px] text-runway-mute">
-                Robot-months{" "}
+                Per robot{" "}
                 <span className="runway-num text-runway-faint">
-                  ({robotCount} &times; {monthCount})
+                  ({robotCount} × {formatUsd(deploymentFee.perRobot)})
                 </span>
               </dt>
-              <dd className="runway-num text-[13px]">{formatUsd(cost.robotMonths)}</dd>
+              <dd
+                className={`runway-num text-[13px] ${
+                  fee.basis === "per-robot" ? "text-runway-signal" : "text-runway-faint"
+                }`}
+              >
+                {formatUsd(robotCount * deploymentFee.perRobot)}
+              </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4 border-t border-runway-line-soft py-2">
-              <dt className="text-[13px] text-runway-mute">Evaluation credit returned</dt>
+              <dt className="text-[13px] text-runway-mute">Evaluation fee credited</dt>
               <dd className="runway-num text-[13px] text-runway-green">
-                {cost.creditApplied > 0 ? `−${formatUsd(cost.creditApplied)}` : formatUsd(0)}
+                {fee.creditApplied > 0 ? `−${formatUsd(fee.creditApplied)}` : formatUsd(0)}
               </dd>
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-4 border-t-2 border-runway-line pt-4">
               <dt className="font-display text-[15px] font-semibold uppercase tracking-[0.005em] text-runway-text">
-                Total to Blueprint
+                Owed to Blueprint
               </dt>
-              <dd className="runway-num text-[1.6rem] leading-none text-runway-signal">
-                {formatUsd(cost.total)}
+              <dd className="runway-num text-[1.7rem] leading-none text-runway-signal">
+                {formatUsd(fee.dueNow)}
               </dd>
             </div>
           </dl>
 
           <p className="mt-4 text-[12px] leading-5 text-runway-faint">
-            Modelled at the low end of each posted band. These are Blueprint&rsquo;s starting
-            terms under test, not an industry rate — no independent source establishes a market
-            price for this service yet.
+            The site pays {formatUsd(0)}. Posted starting terms Blueprint intends to test, not an
+            industry rate — no independent source establishes a market price for this service yet.
           </p>
         </div>
 
         <div className="border border-runway-line p-6 lg:p-8">
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-runway-signal" aria-hidden="true" />
-            <p className="runway-eyebrow">What the recurring fee buys</p>
-          </div>
-          <ul className="mt-4 grid gap-3">
-            {recurringValue.map((item) => (
-              <li key={item.id} className="flex gap-3">
-                <Check className="mt-[3px] h-4 w-4 shrink-0 text-runway-green" aria-hidden="true" />
-                <span className="text-[13.5px] leading-6 text-runway-mute">
-                  <strong className="font-semibold text-runway-text">{item.label}.</strong>{" "}
-                  {item.detail}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
-            Before identifiable detail is released both parties sign an opportunity-specific
-            acknowledgment covering {attributionTerms.length} points: attribution, reporting and
-            audit. That is the backstop. The maintained product above is the reason to stay.
+          <p className="runway-eyebrow">{vendorFundedPilots.label}</p>
+          <p className="mt-3 text-[13.5px] leading-[1.65] text-runway-mute">
+            {vendorFundedPilots.detail}
+          </p>
+          <p className="mt-5 border-t border-runway-line-soft pt-4 text-[13.5px] leading-[1.65] text-runway-mute">
+            {settlement.today}
           </p>
         </div>
       </div>

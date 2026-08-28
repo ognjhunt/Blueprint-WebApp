@@ -76,7 +76,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Discovery, fit screening and one standard evaluation are free. An evaluation credit is due before a robot team receives named-site detail or a bespoke run, and it is returned in full against the deployment fee if that team deploys. Blueprint then bills a one-time activation and an active robot-month — units both parties can count — rather than a percentage of a contract neither can verify. Heavy compute and custom training are scoped separately.",
+      "Two charges, both paid by robot teams. $1,000 to evaluate a site-task, which buys a captured task, a standardised test and a scored result. Then, if that team wins the task, the greater of $10,000 or $2,000 per robot deployed on it, less the evaluation fee already paid on the task it won. Sites pay nothing — they contribute the floor, the access and the task data. Robot count is verifiable in the deployment record, so no fee depends on a contract Blueprint cannot see.",
   },
 ];
 

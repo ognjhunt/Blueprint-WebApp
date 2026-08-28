@@ -1,81 +1,83 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  calculateDeploymentCost,
-  deploymentFees,
-  evaluationCredit,
-  revenueShareAlternative,
+  calculateDeploymentFee,
+  deploymentFee,
+  evaluationFee,
 } from "@/lib/deploymentPricing";
 
 describe("deployment pricing", () => {
-  it("bills activation once plus an active robot-month", () => {
-    const cost = calculateDeploymentCost({
-      robots: 3,
-      months: 12,
-      evaluationCreditPaid: false,
+  it("charges the floor when the per-robot total is below it", () => {
+    // Five robots is exactly the crossover: 5 x $2,000 = the $10,000 floor.
+    const five = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: false });
+    expect(five.total).toBe(10_000);
+    expect(five.basis).toBe("floor");
+
+    const one = calculateDeploymentFee({ robots: 1, wonAfterEvaluating: false });
+    expect(one.total).toBe(10_000);
+    expect(one.basis).toBe("floor");
+  });
+
+  it("charges per robot once the fleet clears the floor", () => {
+    const twenty = calculateDeploymentFee({ robots: 20, wonAfterEvaluating: false });
+    expect(twenty.total).toBe(40_000);
+    expect(twenty.basis).toBe("per-robot");
+  });
+
+  it("credits the evaluation fee only for the task that deploys", () => {
+    const won = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: true });
+    expect(won.creditApplied).toBe(evaluationFee.amount);
+    expect(won.dueNow).toBe(9_000);
+
+    const lost = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: false });
+    expect(lost.creditApplied).toBe(0);
+    expect(lost.dueNow).toBe(10_000);
+  });
+
+  it("tops up on expansion, and never refunds the credit twice", () => {
+    // The worked example: five robots, then twenty on the same task.
+    const initial = calculateDeploymentFee({ robots: 5, wonAfterEvaluating: true });
+    expect(initial.dueNow).toBe(9_000);
+
+    const expanded = calculateDeploymentFee({
+      robots: 20,
+      wonAfterEvaluating: true,
+      alreadyPaid: initial.dueNow,
     });
-    expect(cost.activation).toBe(5_000);
-    expect(cost.robotMonths).toBe(3 * 12 * deploymentFees.robotMonth.low);
-    expect(cost.total).toBe(8_600);
+    expect(expanded.total).toBe(40_000);
+    expect(expanded.dueNow).toBe(30_000);
   });
 
-  it("returns the evaluation credit in full, so evaluating costs a winner nothing", () => {
-    const paid = calculateDeploymentCost({ robots: 3, months: 12, evaluationCreditPaid: true });
-    const unpaid = calculateDeploymentCost({ robots: 3, months: 12, evaluationCreditPaid: false });
-    expect(unpaid.total - paid.total).toBe(evaluationCredit.low);
-    expect(paid.creditApplied).toBe(evaluationCredit.low);
+  it("charges nothing until a robot is deployed", () => {
+    const none = calculateDeploymentFee({ robots: 0, wonAfterEvaluating: true });
+    expect(none.total).toBe(0);
+    expect(none.dueNow).toBe(0);
   });
 
-  it("never refunds credit beyond what is owed", () => {
-    // One robot for one month owes less than the credit is worth.
-    const cost = calculateDeploymentCost({ robots: 0, months: 0, evaluationCreditPaid: true });
-    expect(cost.total).toBe(0);
-    expect(cost.creditApplied).toBe(0);
-  });
-
-  it("charges nothing until a robot is actually working", () => {
-    expect(calculateDeploymentCost({ robots: 0, months: 12, evaluationCreditPaid: false }).total).toBe(0);
-    expect(calculateDeploymentCost({ robots: 5, months: 0, evaluationCreditPaid: false }).total).toBe(0);
-  });
-
-  it("scales linearly with robot-months, the unit both parties can count", () => {
-    const one = calculateDeploymentCost({ robots: 1, months: 12, evaluationCreditPaid: false });
-    const ten = calculateDeploymentCost({ robots: 10, months: 12, evaluationCreditPaid: false });
-    expect(ten.robotMonths).toBe(one.robotMonths * 10);
-    // Activation does not scale: it is per activated site-task, not per robot.
-    expect(ten.activation).toBe(one.activation);
-  });
-
-  it("models the high end of each posted band", () => {
-    const high = calculateDeploymentCost({
-      robots: 3,
-      months: 12,
-      evaluationCreditPaid: true,
-      bound: "high",
-    });
-    expect(high.robotMonths).toBe(3 * 12 * deploymentFees.robotMonth.high);
-    expect(high.creditApplied).toBe(evaluationCredit.high);
-  });
-
-  it("ignores nonsense input rather than producing a negative invoice", () => {
-    const cost = calculateDeploymentCost({
+  it("never produces a negative invoice from nonsense input", () => {
+    const bad = calculateDeploymentFee({
       robots: Number.NaN,
-      months: -12,
-      evaluationCreditPaid: true,
+      wonAfterEvaluating: true,
+      alreadyPaid: -500,
     });
-    expect(cost.total).toBe(0);
-    expect(cost.grossTotal).toBe(0);
+    expect(bad.dueNow).toBe(0);
+    const overpaid = calculateDeploymentFee({
+      robots: 5,
+      wonAfterEvaluating: true,
+      alreadyPaid: 999_999,
+    });
+    expect(overpaid.dueNow).toBe(0);
   });
 
-  it("keeps the revenue-share alternative narrow and conditional", () => {
-    expect(revenueShareAlternative.firstYearHigh).toBeLessThanOrEqual(0.02);
-    expect(revenueShareAlternative.condition).toMatch(/controls invoicing|audited/i);
-    expect(revenueShareAlternative.basis).toBe("under-test");
+  it("keeps the fee independent of any contract value", () => {
+    // Nothing in the input describes what the robot team charged the site.
+    const inputKeys = Object.keys({ robots: 1, wonAfterEvaluating: true, alreadyPaid: 0 });
+    expect(inputKeys).not.toContain("contractValue");
+    expect(deploymentFee.verifiable).toMatch(/deployment and acceptance record/i);
   });
 
-  it("marks every posted rate as a term under test, not a market rate", () => {
-    expect(evaluationCredit.basis).toBe("under-test");
-    expect(deploymentFees.activation.basis).toBe("under-test");
-    expect(deploymentFees.robotMonth.basis).toBe("under-test");
+  it("marks both posted rates as terms under test", () => {
+    expect(evaluationFee.basis).toBe("under-test");
+    expect(deploymentFee.basis).toBe("under-test");
   });
 });

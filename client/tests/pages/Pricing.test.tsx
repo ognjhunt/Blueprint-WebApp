@@ -3,82 +3,65 @@ import { describe, expect, it } from "vitest";
 import Pricing from "@/pages/Pricing";
 
 describe("Pricing", () => {
-  it("presents the four stages: free discovery, the paid line, and observable units", () => {
+  it("leads with the two charges and that the site pays nothing", () => {
     render(<Pricing />);
     expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: /Free to discover\. You pay when robots are working/i,
-      }),
+      screen.getByRole("heading", { level: 1, name: /Two charges\. The site pays nothing/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /Discovery costs nothing, because it costs us nothing/i,
-      }),
+      screen.getByRole("heading", { name: /Sites pay nothing\. Ever/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Payment starts where scarce work does/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Billed on units both sides can count/i }),
+      screen.getByRole("heading", { name: /Evaluate for \$1,000\. Pay again only if you win/i }),
     ).toBeInTheDocument();
   });
 
-  it("gates a capture visit behind a commitment rather than expressed interest", () => {
+  it("walks the worked example without anyone disclosing a contract", () => {
     render(<Pricing />);
-    // Scoped to the gate panel: the FAQ restates these three in prose.
-    const panel = screen
-      .getByText(/Before Blueprint funds a capture visit/i)
+    expect(screen.getByText(/\$12,000 to Blueprint/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$9,000 more from Team A/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$30,000 more from Team A/i)).toBeInTheDocument();
+    // The side deal is supported and Blueprint takes none of it.
+    // Appears in the example row and again in the FAQ; both are intended.
+    expect(screen.getAllByText(/Blueprint takes none of it/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Warehouse pays \$0/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows the greater-of flipping from the floor to the per-robot rate", () => {
+    render(<Pricing />);
+    // Five robots sits exactly on the floor: $10,000 less the $1,000 credit.
+    expect(screen.getByText("$9,000")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Robots deployed on this task/i), {
+      target: { value: "20" },
+    });
+    // Twenty robots clears the floor: 20 x $2,000 = $40,000 less the credit.
+    expect(screen.getByText("$39,000")).toBeInTheDocument();
+  });
+
+  it("explains why the model avoids a contract percentage", () => {
+    render(<Pricing />);
+    const faq = screen
+      .getByText(/Why is there no percentage of the contract\?/i)
       .closest("div") as HTMLElement;
-    expect(within(panel).getByText(/Verified project budget/i)).toBeInTheDocument();
-    expect(within(panel).getByText(/Signed pilot-intent document/i)).toBeInTheDocument();
-    expect(within(panel).getByText(/Refundable commitment/i)).toBeInTheDocument();
-    expect(within(panel).getByText(/Expressed interest does not buy one/i)).toBeInTheDocument();
+    expect(within(faq).getByText(/not reliably collectible unless Blueprint controls invoicing/i))
+      .toBeInTheDocument();
+    expect(within(faq).getByText(/visible in the deployment and acceptance record/i))
+      .toBeInTheDocument();
   });
 
-  it("returns the evaluation credit against the deployment fee", () => {
+  it("states the rates are terms under test rather than a market rate", () => {
     render(<Pricing />);
-    // 3 robots x 12 months at the $100 floor, plus $5,000 activation, less the
-    // $2,500 credit a team that evaluated has already paid.
-    expect(screen.getByText("$6,100")).toBeInTheDocument();
-    expect(screen.getByText("−$2,500")).toBeInTheDocument();
-
-    // Unchecking the credit is what shows the credit is worth exactly its face value.
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /already paid an evaluation credit/i }),
-    );
-    expect(screen.getByText("$8,600")).toBeInTheDocument();
+    const faq = screen.getByText(/Are these rates fixed\?/i).closest("div") as HTMLElement;
+    expect(within(faq).getByText(/starting terms Blueprint intends to test/i)).toBeInTheDocument();
+    expect(within(faq).getByText(/vendors selling data services/i)).toBeInTheDocument();
   });
 
-  it("scales with active robot-months, so an idle robot stops billing", () => {
+  it("supports a robot team paying the site to host, separately", () => {
     render(<Pricing />);
-    fireEvent.change(screen.getByLabelText(/^Active robots$/i), { target: { value: "0" } });
-    // No activation and no robot-months: an unstarted deployment owes nothing.
-    expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
-
-    fireEvent.change(screen.getByLabelText(/^Active robots$/i), { target: { value: "10" } });
-    fireEvent.change(screen.getByLabelText(/^Months$/i), { target: { value: "12" } });
-    // 10 x 12 x $100 = $12,000 + $5,000 - $2,500 credit
-    expect(screen.getByText("$14,500")).toBeInTheDocument();
-  });
-
-  it("states that the posted rates are terms under test, not a market rate", () => {
-    render(<Pricing />);
-    const faq = screen.getByText(/Are these rates fixed\?/i).closest("div");
-    expect(faq).not.toBeNull();
+    expect(screen.getByText(/Vendor-funded pilots are fine/i)).toBeInTheDocument();
     expect(
-      within(faq as HTMLElement).getByText(/starting terms Blueprint intends to test/i),
-    ).toBeInTheDocument();
-    expect(
-      within(faq as HTMLElement).getByText(/vendors selling data services/i),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps deployment and the data loop with the robot team", () => {
-    render(<Pricing />);
-    expect(screen.getByText(/Does Blueprint take over our deployment\?/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Robot teams keep the deployment and the data loop/i),
+      screen.getByText(/Can a robot team pay the site to host a pilot\?/i),
     ).toBeInTheDocument();
   });
 });

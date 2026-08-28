@@ -12,7 +12,14 @@ import {
   SectionHeader,
 } from "@/components/site/publicSections";
 import { pricingHero } from "@/data/publicSiteCopy";
-import { commitmentGate, evaluationCredit, freeTier } from "@/lib/deploymentPricing";
+import {
+  deploymentFee,
+  evaluationFee,
+  formatUsd,
+  freeTier,
+  privateProcurement,
+  settlement,
+} from "@/lib/deploymentPricing";
 import {
   breadcrumbJsonLd,
   faqJsonLd,
@@ -27,39 +34,44 @@ const robotHref = "/signup/business?buyerType=robot_team&source=pricing";
 
 const faqItems = [
   {
-    question: "What does Blueprint charge for, in one line?",
+    question: "What does Blueprint charge, in one line?",
     answer:
-      "Discovery is free. An evaluation credit is due before a robot team receives named-site detail or a bespoke run, and it is returned in full against the deployment fee if that team deploys. After that Blueprint bills an activation fee once and an active robot-month while robots are working.",
+      "Two things, both paid by robot teams. $1,000 to evaluate a site-task. Then, if you win that task, the greater of $10,000 or $2,000 per robot deployed on it — less the $1,000 you already paid to evaluate the task you won. Sites pay nothing.",
   },
   {
-    question: "Why not simply take a percentage of the robot contract?",
+    question: "Why is there no percentage of the contract?",
     answer:
-      "Because neither party can verify it. A percentage of a confidential contract is disputable, needs audit rights to collect, and gives both sides a shared reason to route around Blueprint. An activated site-task and an active robot-month are countable from the deployment record by either party. Where Blueprint does control invoicing or receives audited reporting, a 1–2% first-year rate is available instead.",
+      "Because it is not reliably collectible unless Blueprint controls invoicing. A contract can be understated, or split so hardware, software and services sit in separate agreements, or written off-platform entirely — and high-value, low-frequency deals are where that pressure is strongest. Robot count is different: it is visible in the deployment and acceptance record, and both the site and Blueprint can verify it. If a percentage ever makes sense it needs a payment rail that withholds the fee automatically; until that is mandatory, Blueprint is not priced on reported contract value.",
   },
   {
-    question: "Is the evaluation credit an extra cost if we win the work?",
+    question: "Is the evaluation fee a compute markup?",
     answer:
-      "No. The credit is returned in full against activation and the first year of robot-months, so a team that deploys pays nothing additional for having evaluated. It is only retained when a team consumes named-site access and does not deploy.",
+      "No. It buys a captured task, a standardised test, and a scored result: up to 500 episodes against the twin, the analysis, and the full capture package. The compute is a small part of it. What you are paying for is that somebody already found the customer, qualified the budget, captured the workflow and wrote the acceptance test.",
   },
   {
-    question: "Does Blueprint take over our deployment?",
+    question: "What if we evaluate three tasks and win one?",
     answer:
-      "No. Robot teams keep the deployment and the data loop — recreating the workcell, generating task data, installing, configuring and tuning on site is where their advantage compounds, and several of them say so publicly. Blueprint removes the work in front of that: finding the site, qualifying it, capturing the evidence, and packaging the handoff.",
+      "You pay $3,000 to evaluate and only the winning task's $1,000 is credited against the deployment fee. Evaluations on tasks you do not win are not refunded — they consumed a real captured asset and real site access.",
   },
   {
-    question: "Is a capture visit free for every submission?",
+    question: "Why does the site pay nothing?",
     answer:
-      "No submission is charged for capture, and not every submission gets one. A capture visit consumes an operator relationship and a slot on a working floor, so it follows a verified project budget, a signed pilot-intent document, or a refundable commitment — never expressed interest alone.",
+      "The site contributes the floor, the operational access and the task data, which are the hardest things in this market to get. Charging the scarce side would suppress the supply everybody needs. The one exception is a site that separately hires Blueprint to run a private, exclusive procurement — a different engagement from the open board.",
+  },
+  {
+    question: "Can a robot team pay the site to host a pilot?",
+    answer:
+      "Yes, and it is common. That is a separate payment for access, disruption or data, it stays between the two parties, and Blueprint takes none of it. It does not replace Blueprint's fee either.",
+  },
+  {
+    question: "Who invoices whom?",
+    answer:
+      "The site and the robot team contract and pay each other directly. Blueprint invoices its two fees separately and stays out of the commercial agreement between them.",
   },
   {
     question: "Are these rates fixed?",
     answer:
-      "They are starting terms Blueprint intends to test, not an industry rate. No independent source establishes a market price for this service: the robotics-data benchmarks that circulate publicly are published by vendors selling data services, and the one customer-paid deployment fee on the public record is an illustrative figure from a single company's own investor model.",
-  },
-  {
-    question: "What stops a site and a robot team going around Blueprint?",
-    answer:
-      "Mostly that it stops being worth it. The recurring fee buys a maintained testbed, a versioned acceptance test, re-evaluation when the robot or the workcell changes, an independent deployment record, expansion screening and incident evidence. Both parties also sign an opportunity-specific acknowledgment covering attribution, reporting and audit before identifiable detail is released — but that is the backstop, not the defence.",
+      "They are starting terms Blueprint intends to test, not an industry rate. No independent source establishes a market price for this service: the robotics-data benchmarks that circulate publicly are published by vendors selling data services, and the one customer-paid deployment fee on the public record is an illustrative figure inside a single company's own investor model.",
   },
 ];
 
@@ -67,15 +79,15 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Pricing | Free to discover, paid when robots work"
-        description="Discovery and one standard evaluation are free. An evaluation credit is due before named-site access and returned in full against deployment. Blueprint then bills activation and active robot-months."
+        title="Pricing | Two charges. The site pays nothing."
+        description="Robot teams pay $1,000 to evaluate a site-task and, if they win it, the greater of $10,000 or $2,000 per robot deployed. Sites pay nothing."
         canonical="/pricing"
         jsonLd={[
           webPageJsonLd({
             path: "/pricing",
             name: "Blueprint deployment network pricing",
             description:
-              "Free discovery, a refundable evaluation credit, then activation and active robot-months.",
+              "Two charges, both paid by robot teams: an evaluation fee and a deployment fee. Sites pay nothing.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -89,14 +101,14 @@ export default function Pricing() {
         eyebrow={pricingHero.eyebrow}
         title={pricingHero.title}
         body={pricingHero.body}
-        chips={["$0 discovery", "Credit returned on deploy", "Billed per robot-month"]}
+        chips={["$0 for sites", "$1,000 to evaluate", "Paid again only if you win"]}
         ctaHref={siteHref}
         ctaLabel="Submit a job"
         secondaryHref={robotHref}
         secondaryLabel="Join as a robot team"
         imageSrc="/redesign/pov/factory-conveyor.jpg"
         imageAlt="Factory workflow prepared for robot deployment"
-        imageCaption="Observable units · not a contract percentage"
+        imageCaption="Two charges · no contract percentage"
       />
 
       <Band tone="ink">
@@ -104,8 +116,8 @@ export default function Pricing() {
           <SectionHeader
             index="01"
             eyebrow="Free"
-            title="Discovery costs nothing, because it costs us nothing."
-            lede="Anonymous listings, automated fit screening, one standardised evaluation and site qualification are free. They run on a record Blueprint already holds, and rationing them would slow the market more than it would earn."
+            title="Sites pay nothing. Ever."
+            lede="The site contributes the floor, the operational access and the task data — the hardest things in this market to get. Charging for them would suppress the supply everybody needs."
             onInk
           />
           <div className="mt-14 grid gap-px overflow-hidden border border-runway-line bg-runway-line sm:grid-cols-2">
@@ -126,6 +138,17 @@ export default function Pricing() {
               </Reveal>
             ))}
           </div>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            <p className="text-[13.5px] leading-[1.7] text-runway-mute">
+              <strong className="font-semibold text-runway-text">{privateProcurement.label}.</strong>{" "}
+              {privateProcurement.detail}
+            </p>
+            <p className="text-[13.5px] leading-[1.7] text-runway-mute">
+              <strong className="font-semibold text-runway-text">Later, if a percentage ever fits.</strong>{" "}
+              {settlement.later}
+            </p>
+          </div>
+        
         </Inner>
       </Band>
 
@@ -133,45 +156,55 @@ export default function Pricing() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="02"
-            eyebrow="The line"
-            title="Payment starts where scarce work does."
-            lede="Named-site detail, the full capture artefacts and a bespoke run are where Blueprint starts spending something it cannot get back: operator goodwill, floor time and identifiable opportunity information. The evaluation credit is charged at that line — and returned in full if that team deploys."
+            eyebrow="Worked example"
+            title="One warehouse, three tasks, four teams."
+            lede="The whole model in one arithmetic. Nobody discloses a contract, and the warehouse never pays Blueprint."
           />
-          <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="runway-panel p-6 lg:p-8">
-              <p className="runway-eyebrow">Evaluation credit · {evaluationCredit.unit}</p>
-              <p className="mt-4 font-display text-[clamp(1.9rem,3.2vw,2.6rem)] font-semibold uppercase leading-none tracking-[0.005em] text-runway-text">
-                Charged here, returned on deploy
-              </p>
-              <p className="mt-4 text-body-s leading-7 text-runway-mute">Due before any of:</p>
-              <ul className="mt-3 grid gap-2">
-                {evaluationCredit.triggers.map((trigger) => (
-                  <li key={trigger} className="flex gap-3 text-[13.5px] leading-6 text-runway-mute">
-                    <Check className="mt-[3px] h-4 w-4 shrink-0 text-runway-signal" aria-hidden="true" />
-                    {trigger}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-5 border-t border-runway-line-soft pt-4 text-[12.5px] leading-6 text-runway-faint">
-                Billed separately: {evaluationCredit.billedSeparately.join(", ").toLowerCase()}.
-              </p>
-            </div>
-            <div className="border border-runway-line p-6 lg:p-8">
-              <p className="runway-eyebrow">Before Blueprint funds a capture visit</p>
-              <p className="mt-4 text-body-s leading-7 text-runway-mute">
-                A capture visit spends an operator relationship and a slot on a working floor.
-                Expressed interest does not buy one. At least one of these has to be true:
-              </p>
-              <ul className="mt-4 grid gap-4">
-                {commitmentGate.map((gate) => (
-                  <li key={gate.id} className="border-t border-runway-line-soft pt-4">
-                    <p className="text-[14px] font-semibold text-runway-text">{gate.label}</p>
-                    <p className="mt-1 text-[13px] leading-6 text-runway-mute">{gate.detail}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <ol className="mt-12 grid gap-px border border-runway-line bg-runway-line">
+            {[
+              {
+                when: "Listing",
+                what: "A warehouse lists three site-tasks.",
+                money: "Warehouse pays $0",
+              },
+              {
+                when: "Evaluation",
+                what: "Four robot teams each evaluate all three tasks — twelve evaluations at $1,000.",
+                money: "$12,000 to Blueprint",
+              },
+              {
+                when: "Award",
+                what: "Team A wins one task and starts a five-robot deployment. Five robots does not clear the floor, so the fee is $10,000, less the $1,000 it paid to evaluate that task.",
+                money: "$9,000 more from Team A",
+              },
+              {
+                when: "Expansion",
+                what: "Team A later grows the same task to twenty robots. At $2,000 each the total becomes $40,000, and the fee tops up rather than restarting.",
+                money: "$30,000 more from Team A",
+              },
+              {
+                when: "Side deal",
+                what: "Team A also pays the warehouse $20,000 to host the pilot — for access, disruption and data. Supported, and separate.",
+                money: "Blueprint takes none of it",
+              },
+            ].map((row) => (
+              <li
+                key={row.when}
+                className="grid gap-2 bg-runway-panel p-5 sm:grid-cols-[128px_minmax(0,1fr)_200px] sm:items-baseline sm:gap-6 lg:p-6"
+              >
+                <span className="runway-meta">{row.when}</span>
+                <span className="text-[14px] leading-[1.65] text-runway-body">{row.what}</span>
+                <span className="runway-num text-[13px] text-runway-signal sm:text-right">
+                  {row.money}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 text-[14px] leading-[1.7] text-runway-mute">
+            Blueprint collects {formatUsd(12_000 + 9_000 + 30_000)} across the life of that
+            relationship. The warehouse pays {formatUsd(0)}, and no one has to show anyone a
+            contract.
+          </p>
         </Inner>
       </Band>
 
@@ -179,9 +212,9 @@ export default function Pricing() {
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="03"
-            eyebrow="When robots are working"
-            title="Billed on units both sides can count."
-            lede="An activated site-task, then an active robot-month. A robot that stops working stops billing, and the evaluation credit comes off the total."
+            eyebrow="The two charges"
+            title="Evaluate for $1,000. Pay again only if you win."
+            lede="Robot count is visible in the deployment record, so the fee never depends on a number only one party can see."
           />
           <DeploymentPricingModel />
         </Inner>
@@ -191,7 +224,7 @@ export default function Pricing() {
         <Inner size="narrow" className="py-20 lg:py-28">
           <EditorialFaq
             title="Pricing questions"
-            description="What is free, where payment starts, and why the fee is a robot-month rather than a percentage."
+            description="Two charges, who pays them, and why neither depends on a contract Blueprint cannot see."
             items={faqItems}
           />
         </Inner>
@@ -200,7 +233,7 @@ export default function Pricing() {
       <ClosingCta
         eyebrow="Start free"
         title="Bring the job, or bring the robot."
-        body="The site submits the workflow. The robot team tests fit. Blueprint earns when robots are actually deployed and stay working."
+        body="The site submits the workflow and pays nothing. Robot teams pay to evaluate, and pay again only when they win the work."
         primaryHref={siteHref}
         primaryLabel="Submit a job"
         secondaryHref={robotHref}

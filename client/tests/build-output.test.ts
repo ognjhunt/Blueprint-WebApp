@@ -229,15 +229,16 @@ describe("build output", () => {
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders free discovery and the observable-unit schedule.
-    expect(pricingHtml).toContain("Free to discover. You pay when robots are working.");
-    expect(pricingHtml).toContain("$0 discovery");
-    expect(pricingHtml).toContain("Pay when robots work");
-    expect(pricingHtml).toContain("Active robot-month");
+    expect(pricingHtml).toContain("Two charges. The site pays nothing.");
+    expect(pricingHtml).toContain("$0 for sites");
+    expect(pricingHtml).toContain("Evaluation fee");
+    expect(pricingHtml).toContain("Deployment fee");
     expect(pricingHtml).toContain("Submit a job");
     // The rates must never prerender as an industry benchmark.
     expect(pricingHtml).toContain("starting terms Blueprint intends to test");
     // The superseded revenue-share model must not survive anywhere in the build.
     expect(pricingHtml).not.toContain("5% deployment-network fee");
+    expect(pricingHtml).not.toContain("robot-month");
     expect(pricingHtml).not.toContain("First $1 million in the customer account year");
     expect(pricingHtml).not.toContain("Policy Shortlist");
     expect(pricingHtml).not.toContain("Robot Match");
