@@ -24,6 +24,58 @@ const immutableReference = z.object({
   size_bytes: z.number().int().positive(),
 }).strict();
 const versionedIdentity = z.object({ id: identifier, version: identifier }).strict();
+const publicDisplayAllowedFields = [
+  "status",
+  "scene_identity",
+  "task_identity",
+  "task_kind",
+  "task_strategy",
+  "public_title",
+  "public_summary",
+  "public_category",
+  "thumbnail",
+  "proof_boundary",
+] as const;
+const forbiddenPublicText = [
+  "s3://", "gs://", "http://", "https://", "file://", "/var/", "/private/",
+  "/tmp/", "\\", "api_key", "password", "secret", "bearer ",
+];
+const safePublicText = (maximum: number) => z.string().trim().min(1).max(maximum)
+  .refine((value) => !Array.from(value).some((character) => character.charCodeAt(0) < 32)
+    && !forbiddenPublicText.some((marker) => value.toLowerCase().includes(marker)));
+const publicDisplayAuthorizationSchema = z.object({
+  schema_version: z.literal("task_evaluation_configured_scene_public_display_authorization.v1"),
+  status: z.literal("authorized"),
+  scope: z.literal("configured_scene_derived_listing"),
+  scene_identity: versionedIdentity,
+  task_identity: versionedIdentity,
+  subject_identity: versionedIdentity,
+  rights_admission_digest: digest,
+  human_authority_record_digest: digest,
+  public_slug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,95}$/),
+  title: safePublicText(120),
+  summary: safePublicText(500),
+  category: safePublicText(80),
+  allowed_fields: z.tuple(publicDisplayAllowedFields.map((field) => z.literal(field)) as [
+    z.ZodLiteral<"status">,
+    z.ZodLiteral<"scene_identity">,
+    z.ZodLiteral<"task_identity">,
+    z.ZodLiteral<"task_kind">,
+    z.ZodLiteral<"task_strategy">,
+    z.ZodLiteral<"public_title">,
+    z.ZodLiteral<"public_summary">,
+    z.ZodLiteral<"public_category">,
+    z.ZodLiteral<"thumbnail">,
+    z.ZodLiteral<"proof_boundary">,
+  ]),
+  thumbnail_publication_authorized: z.literal(true),
+  derived_metadata_publication_authorized: z.literal(true),
+  private_artifact_uri_publication_authorized: z.literal(false),
+  raw_media_publication_authorized: z.literal(false),
+  authority_reference: safePublicText(256),
+  authorized_by: safePublicText(192),
+  authorization_digest: digest,
+}).strict();
 
 const sceneSchema = z.discriminatedUnion("mode", [
   z.object({
@@ -55,6 +107,7 @@ const sceneSchema = z.discriminatedUnion("mode", [
       }).strict()).min(2).max(16),
       source_bytes_redistributable: z.boolean(),
       provider_disclosure_scope: z.enum(["none", "derived_only", "source_and_derived"]),
+      public_display_authorization: publicDisplayAuthorizationSchema.optional(),
     }).strict(),
   }).strict(),
   z.object({
@@ -350,6 +403,28 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "scene rights require publisher terms and human authority bytes",
+    });
+  }
+  if (value.scene.mode === "configure_source_scene" && value.scene.rights.public_display_authorization) {
+    const authority = value.scene.rights.public_display_authorization;
+    const humanAuthorities = value.scene.rights.evidence.filter(
+      (row) => row.role === "human_authority_record",
+    );
+    const identityMatches = (left: { id: string; version: string }, right: { id: string; version: string }) => (
+      left.id === right.id && left.version === right.version
+    );
+    if (
+      !identityMatches(authority.scene_identity, value.scene.identity)
+      || !identityMatches(authority.task_identity, value.task.identity)
+      || !identityMatches(authority.subject_identity, value.task.subject.identity)
+      || authority.rights_admission_digest !== value.scene.rights.admission.digest
+      || humanAuthorities.length !== 1
+      || authority.human_authority_record_digest !== humanAuthorities[0]?.artifact.digest
+      || authority.authorization_digest
+        !== canonicalArtifactDigest(authority, "authorization_digest")
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "public display authorization must bind exact scene, task, subject, rights, and human authority bytes",
     });
   }
   if (value.runtime.requirements.gpu_count < 1) context.addIssue({
