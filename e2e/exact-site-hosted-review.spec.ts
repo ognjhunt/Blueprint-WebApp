@@ -8,7 +8,7 @@ test("exact-site hosted review route redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Evaluate robots\. Deploy the one that works/i,
+      name: /Real jobs, made deployment-ready/i,
     }),
   ).toBeVisible();
 });

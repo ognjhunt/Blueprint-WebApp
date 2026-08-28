@@ -209,21 +209,23 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Evaluate robots.");
-    expect(homeHtml).toContain("Deploy the one that works.");
-    // The demand rule and the admission bar that limits it both prerender.
-    expect(homeHtml).toContain("Every evaluation has a paying site behind it.");
-    expect(homeHtml).toContain("They are the bar to get in.");
+    expect(homeHtml).toContain("Real jobs, made deployment-ready.");
+    expect(homeHtml).toContain("Robot teams prove who can do them.");
+    expect(homeHtml).toContain("Don’t send engineers to scope a deployment.");
+    // Both halves of the boundary prerender, and so does the unit of supply.
+    expect(homeHtml).toContain("Blueprint owns the site. You own the robot.");
+    expect(homeHtml).toContain("Stays with the robot company");
+    expect(homeHtml).toContain("A qualified deployable workcell.");
     expect(homeHtml).toContain("Capture");
     expect(homeHtml).toContain("Recreate");
     expect(homeHtml).toContain("Evaluate");
-    expect(homeHtml).toContain("Use it to validate. Not to discover.");
+    expect(homeHtml).toContain("Use it to commission. Not to discover.");
     // Modelled figure values must be graded in the prerendered HTML too, and the
     // charts themselves must prerender rather than shipping an empty axis.
+    // The one figure the compact page keeps still prerenders with its grade
+    // and its primary source attached.
     expect(homeHtml).toContain("Illustrative model");
-    expect(homeHtml).toContain("Published figure");
-    expect(homeHtml).toContain("295,000");
-    expect(homeHtml).toContain("IFR World Robotics 2025");
+    expect(homeHtml).toContain("Agility Robotics");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     // /pricing prerenders free discovery and the observable-unit schedule.
@@ -270,7 +272,7 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
-    expect(browserJavaScript).toContain("Evaluate robots. Deploy the one that works.");
-    expect(browserJavaScript).toContain("Every evaluation has a paying site behind it.");
+    expect(browserJavaScript).toContain("Real jobs, made deployment-ready.");
+    expect(browserJavaScript).toContain("A qualified deployable workcell.");
   });
 });

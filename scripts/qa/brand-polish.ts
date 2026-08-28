@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Evaluate robots. Deploy the one that works.",
+    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Evaluate robots. Deploy the one that works.",
+    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -274,7 +274,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "For robot teams",
     path: "/for-robot-teams",
     canonicalPath: "/for-robot-teams",
-    expectedHeading: "Every job here has a buyer behind it.",
+    expectedHeading: "Arrive with the robot. Not before it.",
     requiredCtas: [{ label: "Join the robot network", hrefStartsWith: "/signup/business" }],
   },
   {
@@ -319,7 +319,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Evaluate robots. Deploy the one that works.",
+    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },

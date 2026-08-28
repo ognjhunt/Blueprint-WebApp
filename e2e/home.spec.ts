@@ -1,36 +1,27 @@
 import { test, expect } from "@playwright/test";
 
-test("homepage makes the months 0–2 deployment-preparation story obvious", async ({
+test("homepage leads with real demand made deployment-ready, then the boundary", async ({
   page,
 }) => {
   await page.goto("/");
 
-  // The runway rebuild renamed the hero headline and the section findings.
-  // Those are presentation. Every assertion below about what the page may
-  // claim is unchanged, and still holds.
   await expect(
     page.getByRole("heading", {
-      name: /Evaluate robots\. Deploy the one that works/i,
+      name: /Real jobs, made deployment-ready/i,
     }),
   ).toBeVisible();
+
   const nav = page.getByRole("banner").getByRole("navigation");
   await expect(nav.getByRole("link", { name: /^For sites$/i })).toBeVisible();
-  await expect(
-    nav.getByRole("link", { name: /^For robot teams$/i }),
-  ).toBeVisible();
-  await expect(
-    nav.getByRole("link", { name: /^How it works$/i }),
-  ).toBeVisible();
+  await expect(nav.getByRole("link", { name: /^For robot teams$/i })).toBeVisible();
+  await expect(nav.getByRole("link", { name: /^How it works$/i })).toBeVisible();
   await expect(nav.getByRole("link", { name: /^Pricing$/i })).toBeVisible();
   await expect(
-    page
-      .getByRole("contentinfo")
-      .getByRole("link", { name: /^For Site Operators$/i }),
+    page.getByRole("contentinfo").getByRole("link", { name: /^For Site Operators$/i }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /^Prepare a deployment$/i }).first(),
   ).toBeVisible();
-  // The run intake stays reachable under its full name from the footer.
   await expect(
     page
       .getByRole("contentinfo")
@@ -39,50 +30,39 @@ test("homepage makes the months 0–2 deployment-preparation story obvious", asy
 
   await expect(
     page.getByRole("heading", {
-      name: /China ships 97 of every 100 humanoids/i,
+      name: /Don.t send engineers to scope a deployment/i,
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", {
-      name: /Two of the six months happen before the robot is crated/i,
-    }),
+    page.getByText(/your deployment team starts when the robot arrives/i),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", {
-      name: /Do the work once\. Not once per vendor/i,
-    }),
+    page.getByRole("heading", { name: /A qualified deployable workcell/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", {
-      name: /One workflow in\. One qualified deployment out/i,
-    }),
+    page.getByRole("heading", { name: /Do the work once\. Not once per vendor/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", {
-      name: /Every evaluation has a paying site behind it/i,
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByText(/They are the bar to get in/i),
+    page.getByRole("heading", { name: /Robot teams say what they can do/i }),
   ).toBeVisible();
 
-  // The physical boundary stays on the page, not in the terms.
+  // The half Blueprint does not touch is on the page, with the physical reason.
+  await expect(page.getByText(/Blueprint owns the site\. You own the robot/i)).toBeVisible();
+  await expect(page.getByText(/Stays with the robot company/i)).toBeVisible();
   await expect(
-    page.getByText(
-      /Onsite integration, commissioning, and the physical pilot stay with the robot company/i,
-    ),
+    page.getByText(/cannot be finished before the hardware is in the building/i),
   ).toBeVisible();
 
-  // Every charted figure carries a primary source and an evidence grade.
+  // The promise is stated as a number the product can be held to.
   await expect(
-    page.getByRole("link", { name: /IFR World Robotics 2025/i }).first(),
+    page.getByText(/OEM engineering hours before the robot arrives/i).first(),
   ).toBeVisible();
+
+  // The cross-vendor record is described as an outcome, never as an asset held today.
+  await expect(
+    page.getByText(/This record does not exist yet/i),
+  ).toBeVisible();
+
+  // The one charted figure still carries its source and evidence grade.
   await expect(page.getByText(/Illustrative model/i).first()).toBeVisible();
-
-  // The leading-edge share never travels without its caveat, and the volume
-  // figure the site refuses to chart is named as excluded rather than dropped.
-  await expect(page.getByText(/A shipped humanoid is not a working one/i)).toBeVisible();
-  await expect(page.getByText(/deliberately not charted here/i)).toBeVisible();
-
-  await expect(page.getByText(/12–24h/i)).toHaveCount(0);
 });

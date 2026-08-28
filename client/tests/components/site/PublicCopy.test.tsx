@@ -35,7 +35,7 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Evaluate robots\. Deploy the one that works/i,
+        name: /Real jobs, made deployment-ready/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Prepare a deployment/i }).length).toBeGreaterThan(0);
@@ -46,11 +46,11 @@ describe("public real-site evaluation copy", () => {
     expect(container).toHaveTextContent(/Evaluate/i);
 
     // The result stays decision-oriented and preserves the evidence boundary.
-    expect(container).toHaveTextContent(/Use it to validate\. Not to discover/i);
+    expect(container).toHaveTextContent(/Use it to commission\. Not to discover/i);
+    expect(container).toHaveTextContent(/Blueprint owns the site\. You own the robot/i);
     expect(container).toHaveTextContent(
-      /Onsite integration, commissioning, and the physical pilot stay with the robot company/i,
+      /acceptance criteria before your engineers ever get on a plane/i,
     );
-    expect(container).toHaveTextContent(/acceptance criteria before the robot company begins/i);
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

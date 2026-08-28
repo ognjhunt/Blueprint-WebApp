@@ -7,7 +7,7 @@ test("legacy robot-team evaluation URL reaches the current product", async ({
   await expect(page).toHaveURL(/\/for-robot-teams/);
   await expect(
     page.getByRole("heading", {
-      name: "Every job here has a buyer behind it.",
+      name: "Arrive with the robot. Not before it.",
     }),
   ).toBeVisible();
   await expect(

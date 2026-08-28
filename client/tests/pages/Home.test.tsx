@@ -1,121 +1,76 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Home", () => {
-  it("says plainly that it evaluates robots and deploys the winner, over the months 0–2 scope", () => {
-    render(<Home />);
+  it("leads with what Blueprint is: real demand, made deployment-ready", () => {
+    const { container } = render(<Home />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Evaluate robots\. Deploy the one that works/i,
+        name: /Real jobs, made deployment-ready/i,
       }),
     ).toBeInTheDocument();
+    expect(container).toHaveTextContent(/Robot teams prove who can do them/i);
+  });
+
+  it("keeps the pitch to robot teams one level below the identity", () => {
+    const { container } = render(<Home />);
     expect(
-      screen.getByRole("heading", {
-        name: /China ships 97 of every 100 humanoids/i,
-      }),
+      screen.getByRole("heading", { name: /Don.t send engineers to scope a deployment/i }),
     ).toBeInTheDocument();
+    expect(container).toHaveTextContent(/your deployment team starts when the robot arrives/i);
+  });
+
+  it("draws the boundary on the page: Blueprint owns the site, the OEM owns the robot", () => {
+    const { container } = render(<Home />);
+    expect(container).toHaveTextContent(/Blueprint owns the site\. You own the robot/i);
+    // The half Blueprint does not touch has to be as explicit as the half it does,
+    // and the reason has to be the physical one rather than a disclaimer.
+    expect(container).toHaveTextContent(/Stays with the robot company/i);
+    expect(container).toHaveTextContent(/cannot be finished before the hardware is in the building/i);
+    expect(container).toHaveTextContent(/Operator training, safety sign-off, and production integration/i);
+  });
+
+  it("commits to the measurable version of the promise", () => {
+    const { container } = render(<Home />);
+    expect(container).toHaveTextContent(/OEM engineering hours before the robot arrives/i);
+    expect(container).toHaveTextContent(/~0/);
+  });
+
+  it("defines the unit of supply as a qualified deployable workcell", () => {
+    render(<Home />);
     expect(
-      screen.getByRole("heading", {
-        name: /Two of the six months happen before the robot is crated/i,
-      }),
+      screen.getByRole("heading", { name: /A qualified deployable workcell/i }),
     ).toBeInTheDocument();
+    // The eight criteria are what stop "interested sites" being counted as supply.
+    for (const criterion of [
+      /A real operator, named and reachable/i,
+      /Someone with authority and budget/i,
+      /Agreement to deploy if the acceptance criteria are met/i,
+    ]) {
+      expect(screen.getByText(criterion)).toBeInTheDocument();
+    }
+    expect(
+      screen.getByText(/Fifty of these are worth more than five thousand interested sites/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the robot team's proprietary work with the robot team", () => {
+    render(<Home />);
     expect(
       screen.getByRole("heading", { name: /Do the work once\. Not once per vendor/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /One workflow in\. One qualified deployment out/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Proprietary policies and model weights/i)).toBeInTheDocument();
+    expect(screen.getByText(/Final safety validation and commissioning/i)).toBeInTheDocument();
   });
 
-  it("keeps the physical boundary on the page rather than in the terms", () => {
+  it("does not claim the cross-vendor record already exists", () => {
     const { container } = render(<Home />);
+    expect(container).toHaveTextContent(/Blueprint learns what nobody else can see/i);
+    // The honesty line is the guard: this is what the model builds, not an asset held today.
     expect(container).toHaveTextContent(
-      /Onsite integration, commissioning, and the physical pilot stay with the robot company/i,
+      /This record does not exist yet\. It is what the model builds/i,
     );
-    expect(
-      screen.getByRole("heading", {
-        name: /Prepare the deployment\. Don't pretend you deployed the robot/i,
-      }),
-    ).toBeInTheDocument();
-    expect(container).toHaveTextContent(/Simulation filters, it does not certify/i);
-  });
-
-  it("states that every evaluation sits behind a paying site, without overclaiming it", () => {
-    render(<Home />);
-    expect(
-      screen.getByRole("heading", {
-        name: /Every evaluation has a paying site behind it/i,
-      }),
-    ).toBeInTheDocument();
-    for (const bar of [/A real job/i, /^A budget$/i, /Someone who owns it/i]) {
-      expect(screen.getByRole("heading", { name: bar })).toBeInTheDocument();
-    }
-    // The admission bar is a bar, not a signed order. If this line ever goes
-    // missing, the claim above has quietly become a funding guarantee.
-    expect(
-      screen.getByText(
-        /A budget and an owner are not a signed order\. They are the bar to get in/i,
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("routes both sides of the market", () => {
-    render(<Home />);
-    expect(
-      screen.getAllByRole("link", { name: /Prepare a deployment/i }).length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Submit a job/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("buyerType=site_operator"),
-    );
-    expect(screen.getByRole("link", { name: /Join as a robot team/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("buyerType=robot_team"),
-    );
-  });
-
-  it("layers the leading edge on top of the capacity figure without conflating them", () => {
-    const { container } = render(<Home />);
-    // Industrial installations stay as the capacity measure.
-    expect(container).toHaveTextContent(/295,000/);
-    // The humanoid share is the leading edge, and it never travels alone.
-    expect(container).toHaveTextContent(/97 of 100/);
-    expect(container).toHaveTextContent(/A shipped humanoid is not a working one/i);
-    expect(container).toHaveTextContent(/not in usage in our factories in a material way/i);
-    // The unpublished volume is named as excluded rather than silently dropped.
-    expect(container).toHaveTextContent(/deliberately not charted here/i);
-  });
-
-  it("carries a primary source and an evidence grade on every figure", () => {
-    render(<Home />);
-    // The installation gap and the OEM timeline are the two load-bearing figures.
-    expect(
-      screen.getAllByRole("link", { name: /IFR World Robotics 2025/i }).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("link", {
-        name: /Agility Robotics investor presentation, June 2026/i,
-      })[0],
-    ).toHaveAttribute("href", expect.stringContaining("sec.gov"));
-    expect(
-      screen.getAllByRole("link", { name: /Agility Robotics deployment process/i })[0],
-    ).toHaveAttribute("href", expect.stringContaining("agilityrobotics.com"));
-
-    // Modelled numbers are never presented as transactions.
-    const economics = screen
-      .getByText(/Modelled per-robot deployment economics/i)
-      .closest("figure");
-    expect(economics).not.toBeNull();
-    expect(within(economics as HTMLElement).getByText(/Illustrative model/i)).toBeInTheDocument();
-  });
-
-  it("keeps withdrawn offers and unmeasured service levels off the page", () => {
-    const { container } = render(<Home />);
-    expect(container).not.toHaveTextContent(/12–24h/i);
-    expect(container).not.toHaveTextContent(/From \$2,500/i);
-    expect(container).not.toHaveTextContent(/Policy Shortlist/i);
-    expect(container).not.toHaveTextContent(/guaranteed winner/i);
   });
 });

@@ -446,13 +446,13 @@ export const homeLimits = [
 
 export const robotTeamHero = {
   eyebrow: "For robot teams",
-  title: "Every job here has a buyer behind it.",
+  title: "Arrive with the robot. Not before it.",
   body:
-    "We only take sites that name a real job, a budget, and someone inside who owns it. That job reaches you with the task defined, the site modelled, the envelope screened, and the acceptance test already written.",
+    "Tell us your capability envelope and we go find matching work. Every opportunity reaches you with the customer qualified, the task defined, the site modelled, the envelope screened, and the acceptance test already written — so your engineers commission rather than discover.",
   chips: [
-    "Real sites, real budgets",
-    "No listing or lead fee",
-    "Standard evaluations included",
+    "Zero engineering hours before arrival",
+    "Free to browse and screen",
+    "One standard evaluation included",
   ],
 } as const;
 
@@ -504,8 +504,8 @@ export const siteOperatorHero = {
   eyebrow: "For site operators",
   title: "Show us the job. We find the robot that can do it.",
   body:
-    "Tell us one real job you want a robot to do. We record it, rebuild it as a test, and run robot teams against it — without you handing over the building.",
-  chips: ["Free to submit", "No robot picked yet", "Your site data stays controlled"],
+    "Tell us one real job you want a robot to do. We capture it once, set the success bar with you, and run every qualified robot team against the same test — so you compare measured results instead of demo reels.",
+  chips: ["Free to submit", "Captured once, read by many", "Your site data stays controlled"],
 } as const;
 
 export const siteOperatorNeeds = [

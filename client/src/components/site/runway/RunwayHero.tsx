@@ -146,8 +146,19 @@ export function RunwayHero({
           </div>
         </div>
 
-        {/* Readout strip — the four numbers the rest of the page proves. */}
-        <dl className="mt-14 grid gap-px border-y border-runway-line bg-runway-line sm:grid-cols-2 lg:mt-20 lg:grid-cols-4">
+        {/* Readout strip — the numbers the rest of the page proves. The column
+            count follows the content: a hardcoded four left an empty cell
+            whenever a page had fewer things worth asserting. */}
+        <dl
+          className={cn(
+            "mt-14 grid gap-px border-y border-runway-line bg-runway-line sm:grid-cols-2 lg:mt-20",
+            readouts.length >= 4
+              ? "lg:grid-cols-4"
+              : readouts.length === 3
+                ? "lg:grid-cols-3"
+                : "lg:grid-cols-2",
+          )}
+        >
           {readouts.map((readout) => (
             <div key={readout.label} className="bg-runway-black px-1 py-6 sm:px-5">
               <dd

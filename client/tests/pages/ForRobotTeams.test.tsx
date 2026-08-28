@@ -8,7 +8,7 @@ describe("ForRobotTeams", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Every job here has a buyer behind it/i,
+        name: /Arrive with the robot\. Not before it/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -17,7 +17,7 @@ describe("ForRobotTeams", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Deployment-engineer weeks/i)).toBeInTheDocument();
-    expect(screen.getByText(/Real sites, real budgets/i)).toBeInTheDocument();
+    expect(screen.getByText(/Zero engineering hours before arrival/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /We prepare it\. You install it and prove it/i }),
     ).toBeInTheDocument();
