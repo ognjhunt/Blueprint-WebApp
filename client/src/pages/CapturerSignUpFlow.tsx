@@ -20,7 +20,6 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
 import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
@@ -81,6 +80,9 @@ type EquipmentValue = (typeof EQUIPMENT_OPTIONS)[number]["value"];
 type AvailabilityValue = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 type ReferralValue = (typeof REFERRAL_OPTIONS)[number]["value"];
 
+const RUNWAY_LABEL_CLASS =
+  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -100,14 +102,16 @@ function normalizeCityToken(value: string) {
 
 function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
   return (
-    <div className="flex items-center gap-3 text-sm text-runway-body">
+    <div className="flex items-center gap-3">
       {[1, 2].map((step) => (
         <React.Fragment key={step}>
           <div
-            className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
-              step <= currentStep
-                ? "border-runway-signal bg-[color:var(--leaf)] text-white"
-                : "border-runway-line-strong bg-paper-0 text-runway-mute"
+            className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold transition ${
+              step < currentStep
+                ? "border-runway-green-dim text-runway-green"
+                : step === currentStep
+                  ? "border-runway-signal text-runway-signal"
+                  : "border-runway-line-strong text-runway-faint"
             }`}
           >
             {step}
@@ -115,13 +119,13 @@ function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
           {step < 2 ? (
             <div
               className={`h-px w-12 ${
-                step < currentStep ? "bg-[color:var(--leaf)]" : "bg-[color:var(--line)]"
+                step < currentStep ? "bg-runway-green" : "bg-runway-line"
               }`}
             />
           ) : null}
         </React.Fragment>
       ))}
-      <span>Step {currentStep} of 2</span>
+      <span className="runway-meta">Step {currentStep} of 2</span>
     </div>
   );
 }
@@ -217,8 +221,8 @@ export default function CapturerSignUpFlow() {
           width: 320,
           margin: 1,
           color: {
-            dark: "#2f2a23",
-            light: "#101312",
+            dark: "#0c0f0e",
+            light: "#e8e6dd",
           },
         });
         if (active) {
@@ -468,37 +472,18 @@ export default function CapturerSignUpFlow() {
       <SurfacePage>
         <SurfaceTopBar eyebrow="Invite-Gated Capture" rightLabel="Field Ops Access" />
         <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="overflow-hidden border-white/10 bg-[#101312]">
-            <main
-              className="px-6 py-8 text-runway-text lg:px-8"
-              style={
-                {
-                  "--paper": "oklch(0.985 0.008 95)",
-                  "--paper-strong": "oklch(0.965 0.012 95)",
-                  "--panel": "oklch(0.994 0.004 95)",
-                  "--ink": "oklch(0.18 0.01 95)",
-                  "--ink-soft": "oklch(0.38 0.01 95)",
-                  "--ink-muted": "oklch(0.56 0.008 95)",
-                  "--line": "oklch(0.9 0.01 95)",
-                  "--line-strong": "oklch(0.82 0.01 95)",
-                  "--leaf": "oklch(0.2 0.01 95)",
-                  "--leaf-deep": "oklch(0.16 0.006 95)",
-                  "--amber": "oklch(0.7 0.03 80)",
-                  "--rose": "oklch(0.62 0.14 28)",
-                } as React.CSSProperties
-              }
-            >
+          <SurfaceBrowserFrame className="overflow-hidden rounded-none border-runway-line bg-runway-deep shadow-none">
+            <main className="bg-runway-deep px-6 py-8 text-runway-text lg:px-8">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-        <section className="relative overflow-hidden rounded-[2rem] border border-runway-line bg-runway-panel p-7 sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(17,17,16,0.08),_transparent_62%)]" />
+        <section className="runway-panel relative overflow-hidden p-7 sm:p-8">
           <div className="relative space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-runway-signal">
+            <div className="runway-chip runway-chip-open">
               <Compass className="h-3.5 w-3.5" />
               Capturer access application
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-md font-display uppercase text-4xl font-semibold tracking-[0.005em] sm:text-5xl">
+              <h1 className="max-w-md font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text sm:text-5xl">
                 Apply to get paid for approved field capture.
               </h1>
               <p className="max-w-lg text-base leading-7 text-runway-body">
@@ -525,7 +510,7 @@ export default function CapturerSignUpFlow() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-[1.75rem] border border-runway-line bg-paper-0">
+            <div className="overflow-hidden border border-runway-line bg-runway-deep">
               <img
                 src={publicCaptureGeneratedAssets.captureAppHero}
                 alt="Blueprint public-facing capture walkthrough"
@@ -534,56 +519,56 @@ export default function CapturerSignUpFlow() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-none border border-runway-line bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-mute">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Field task
                 </p>
-                <p className="mt-3 text-2xl font-semibold">One route</p>
-                <p className="mt-1 text-sm text-runway-body">Walk, upload, review.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">One route</p>
+                <p className="mt-1 text-sm text-runway-mute">Walk, upload, review.</p>
               </div>
-              <div className="rounded-none border border-runway-line bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-mute">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Gear
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Phone + 360</p>
-                <p className="mt-1 text-sm text-runway-body">No other device class is approved.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Phone + 360</p>
+                <p className="mt-1 text-sm text-runway-mute">No other device class is approved.</p>
               </div>
-              <div className="rounded-none border border-runway-line bg-white/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-mute">
+              <div className="border border-runway-line bg-runway-deep p-4">
+                <p className="runway-meta">
                   Web role
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Apply + review</p>
-                <p className="mt-1 text-sm text-runway-body">No guaranteed assignments.</p>
+                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Apply + review</p>
+                <p className="mt-1 text-sm text-runway-mute">No guaranteed assignments.</p>
               </div>
             </div>
 
             <LaunchCityAvailability
-              tone="paper"
+              tone="dark"
               className="p-5"
               title="Current capture rollout is city-limited."
               description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until Blueprint opens them."
               primaryCta={{ href: "/capture", label: "Capture overview" }}
             />
 
-              <div className="rounded-[1.6rem] border border-runway-line-strong bg-runway-panel p-5">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-runway-mute">
+              <div className="border border-runway-line-strong bg-runway-deep p-5">
+                <p className="runway-meta">
                   What happens next
                 </p>
                 <ol className="mt-4 space-y-4 text-sm leading-6 text-runway-body">
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
                       1
                     </span>
                     Create your account and tell us where you can capture. If you have an access or invite code, include it so your application routes correctly.
                   </li>
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--amber)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-signal-dim text-xs font-semibold text-runway-signal">
                       2
                     </span>
                     Your application enters review. We confirm market fit, device availability, and cohort capacity before approval.
                   </li>
                   <li className="flex gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
                       3
                     </span>
                     Approved capturers receive mobile access instructions, see assignment payout
@@ -592,7 +577,7 @@ export default function CapturerSignUpFlow() {
                 </ol>
               </div>
 
-            <div className="rounded-none border border-dashed border-runway-line-strong px-4 py-3 text-sm text-runway-body">
+            <div className="border border-dashed border-runway-line-strong px-4 py-3 text-sm text-runway-body">
               For site operators or robot teams, use{" "}
               <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/signup/business">
                 business signup
@@ -602,7 +587,7 @@ export default function CapturerSignUpFlow() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-runway-line bg-runway-panel p-6 shadow-[0_24px_80px_rgba(76,68,46,0.08)] sm:p-8">
+        <section className="runway-panel relative overflow-hidden p-6 sm:p-8">
           <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(232,171,58,0.28),_transparent_70%)]" />
           {!isComplete ? (
             <motion.div
@@ -614,8 +599,8 @@ export default function CapturerSignUpFlow() {
             >
               <div className="flex flex-col gap-4 border-b border-runway-line pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-runway-signal">Capturer application</p>
-              <h2 className="mt-1 font-display uppercase text-3xl font-semibold tracking-[0.005em]">
+                  <p className="runway-eyebrow">Capturer application</p>
+              <h2 className="mt-1 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
                 {step === 1 ? "Create your account" : "Tell us where you can work"}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-runway-body">
@@ -632,7 +617,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="fullName" className="text-runway-text">
+                        <Label htmlFor="fullName" className={RUNWAY_LABEL_CLASS}>
                           Full name
                         </Label>
                         <div className="relative mt-2">
@@ -642,13 +627,13 @@ export default function CapturerSignUpFlow() {
                             value={fullName}
                             onChange={(event) => setFullName(event.target.value)}
                             placeholder="Jordan Lee"
-                            className="h-12 rounded-none border-runway-line-strong pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="email" className="text-runway-text">
+                        <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
                           Email
                         </Label>
                         <div className="relative mt-2">
@@ -659,13 +644,13 @@ export default function CapturerSignUpFlow() {
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
                             placeholder="you@example.com"
-                            className="h-12 rounded-none border-runway-line-strong pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <Label htmlFor="password" className="text-runway-text">
+                        <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
                           Password
                         </Label>
                         <Input
@@ -674,12 +659,12 @@ export default function CapturerSignUpFlow() {
                           value={password}
                           onChange={(event) => setPassword(event.target.value)}
                           placeholder="At least 8 characters"
-                          className="mt-2 h-12 rounded-none border-runway-line-strong"
+                          className="mt-2 h-12"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="confirmPassword" className="text-runway-text">
+                        <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
                           Confirm password
                         </Label>
                         <Input
@@ -688,12 +673,12 @@ export default function CapturerSignUpFlow() {
                           value={confirmPassword}
                           onChange={(event) => setConfirmPassword(event.target.value)}
                           placeholder="Repeat password"
-                          className="mt-2 h-12 rounded-none border-runway-line-strong"
+                          className="mt-2 h-12"
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-runway-line bg-runway-raised p-5">
+                    <div className="border border-runway-line bg-runway-raised p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-sm font-semibold text-runway-text">
@@ -703,15 +688,14 @@ export default function CapturerSignUpFlow() {
                             Use Google to skip retyping your name and email, then finish your market details here.
                           </p>
                         </div>
-                        <Button
+                        <button
                           type="button"
-                          variant="outline"
                           onClick={handleGoogleSignUp}
                           disabled={isSubmitting}
-                          className="rounded-full border-runway-line-strong"
+                          className="runway-cta-ghost disabled:opacity-50"
                         >
                           Continue with Google
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   </>
@@ -719,7 +703,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="market" className="text-runway-text">
+                        <Label htmlFor="market" className={RUNWAY_LABEL_CLASS}>
                           Capture city
                         </Label>
                         <p className="mt-2 text-sm leading-6 text-runway-body">
@@ -736,10 +720,10 @@ export default function CapturerSignUpFlow() {
                                   key={city.citySlug}
                                   type="button"
                                   onClick={() => setMarket(city.displayName)}
-                                  className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                                  className={`runway-chip transition ${
                                     active
-                                      ? "border-runway-signal bg-[color:var(--leaf)] text-white"
-                                      : "border-runway-line-strong bg-paper-0 text-runway-text hover:bg-runway-raised"
+                                      ? "runway-chip-open"
+                                      : "runway-chip-quiet hover:border-runway-signal hover:text-runway-signal"
                                   }`}
                                 >
                                   {city.displayName}
@@ -757,7 +741,7 @@ export default function CapturerSignUpFlow() {
                             placeholder={
                               supportedLaunchCities[0]?.displayName || "Austin, TX"
                             }
-                            className="h-12 rounded-none border-runway-line-strong pl-10"
+                            className="h-12 pl-10"
                           />
                         </div>
                         <p className="mt-2 text-xs leading-5 text-runway-mute">
@@ -770,7 +754,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="phoneNumber" className="text-runway-text">
+                        <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
                           Phone number
                         </Label>
                         <Input
@@ -778,12 +762,12 @@ export default function CapturerSignUpFlow() {
                           value={phoneNumber}
                           onChange={(event) => setPhoneNumber(event.target.value)}
                           placeholder="(555) 555-5555"
-                          className="mt-2 h-12 rounded-none border-runway-line-strong"
+                          className="mt-2 h-12"
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-runway-signal-dim bg-runway-panel p-5">
+                    <div className="border border-runway-signal-dim bg-runway-raised p-5">
                       <div className="flex items-start gap-3">
                         <Shield className="mt-0.5 h-5 w-5 text-runway-signal" />
                         <div>
@@ -796,7 +780,7 @@ export default function CapturerSignUpFlow() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <Label htmlFor="accessCode" className="text-runway-text">
+                      <Label htmlFor="accessCode" className={RUNWAY_LABEL_CLASS}>
                         Access or invite code <span className="text-runway-mute">(if you have one)</span>
                       </Label>
                       <div className="relative mt-2">
@@ -806,7 +790,7 @@ export default function CapturerSignUpFlow() {
                           value={accessCode}
                           onChange={(event) => setAccessCode(event.target.value)}
                           placeholder="Enter your access or invite code"
-                          className="h-12 rounded-none border-runway-line-strong pl-10"
+                          className="h-12 pl-10"
                         />
                       </div>
                       <p className="mt-1.5 text-xs text-runway-mute">
@@ -827,10 +811,10 @@ export default function CapturerSignUpFlow() {
                           return (
                             <label
                               key={option.value}
-                              className={`flex cursor-pointer items-start gap-4 rounded-[1.4rem] border p-4 transition ${
+                              className={`flex cursor-pointer items-start gap-4 border p-4 transition ${
                                 checked
                                   ? "border-runway-signal bg-runway-raised"
-                                  : "border-runway-line bg-paper-0"
+                                  : "border-runway-line bg-runway-deep"
                               }`}
                             >
                               <Checkbox
@@ -891,7 +875,7 @@ export default function CapturerSignUpFlow() {
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-runway-line bg-runway-raised p-5">
+                    <div className="border border-runway-line bg-runway-raised p-5">
                       <label className="flex items-start gap-3">
                         <Checkbox
                           checked={agreedToTerms}
@@ -928,15 +912,14 @@ export default function CapturerSignUpFlow() {
 
                 <div className="flex flex-col gap-3 border-t border-runway-line pt-6 sm:flex-row sm:items-center sm:justify-between">
                   {step === 2 ? (
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
                       onClick={() => setStep(1)}
-                      className="justify-start rounded-full px-0 text-runway-body hover:bg-transparent hover:text-runway-text"
+                      className="inline-flex items-center text-sm font-medium text-runway-mute transition hover:text-runway-text"
                     >
                       <ChevronLeft className="mr-2 h-4 w-4" />
                       Back
-                    </Button>
+                    </button>
                   ) : (
                     <a
                       href="/capture"
@@ -947,11 +930,11 @@ export default function CapturerSignUpFlow() {
                     </a>
                   )}
 
-                  <Button
+                  <button
                     type="button"
                     onClick={step === 1 ? handleContinue : handleSubmit}
                     disabled={isSubmitting}
-                    className="rounded-full bg-[color:var(--ink)] px-6 text-white hover:bg-[color:var(--leaf-deep)]"
+                    className="runway-cta disabled:opacity-50"
                   >
                     {isSubmitting
                       ? "Submitting..."
@@ -961,7 +944,7 @@ export default function CapturerSignUpFlow() {
                           ? "Join future-city waitlist"
                           : "Create capturer account"}
                     {!isSubmitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -974,10 +957,10 @@ export default function CapturerSignUpFlow() {
               className="relative flex h-full flex-col justify-between"
             >
               <div>
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-none bg-[color:var(--leaf)] text-white">
+                <div className="inline-flex h-14 w-14 items-center justify-center border border-runway-green-dim text-runway-green">
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
-                <h2 className="mt-6 font-display uppercase text-3xl font-semibold tracking-[0.005em]">
+                <h2 className="mt-6 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
                   Application submitted.
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-runway-body">
@@ -993,7 +976,7 @@ export default function CapturerSignUpFlow() {
               </div>
 
               <div className="mt-8 grid gap-4">
-                <div className="rounded-[1.6rem] border border-runway-line bg-runway-raised p-5">
+                <div className="border border-runway-line bg-runway-raised p-5">
                   <div className="flex items-start gap-4">
                     <Smartphone className="mt-1 h-5 w-5 text-runway-signal" />
                     <div>
@@ -1007,7 +990,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-runway-line bg-paper-0 p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
                     <QrCode className="mt-1 h-5 w-5 text-runway-signal" />
                     <div className="w-full">
@@ -1018,12 +1001,12 @@ export default function CapturerSignUpFlow() {
                       </p>
 
                       <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-center">
-                        <div className="flex h-40 w-40 items-center justify-center rounded-[1.5rem] border border-runway-line bg-runway-raised p-3">
+                        <div className="flex h-40 w-40 items-center justify-center border border-runway-line bg-runway-raised p-3">
                           {captureAppQrCode ? (
                             <img
                               src={captureAppQrCode}
                               alt="QR code for the Blueprint Capture access link"
-                              className="h-full w-full rounded-xl"
+                              className="h-full w-full"
                             />
                           ) : (
                             <div className="text-xs text-runway-mute">Generating QR...</div>
@@ -1031,15 +1014,14 @@ export default function CapturerSignUpFlow() {
                         </div>
 
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className="rounded-none border border-runway-line bg-runway-raised px-4 py-3 text-sm text-runway-text">
+                          <div className="border border-runway-line bg-runway-raised px-4 py-3 runway-num text-xs text-runway-text">
                             <span className="break-all">{captureAppUrl}</span>
                           </div>
                           <div className="flex flex-col gap-3 sm:flex-row">
-                            <Button
+                            <button
                               type="button"
-                              variant="outline"
                               onClick={handleCopyUrl}
-                              className="rounded-full border-runway-line-strong"
+                              className="runway-cta-ghost"
                             >
                               <Copy className="mr-2 h-4 w-4" />
                               {copyState === "copied"
@@ -1047,18 +1029,16 @@ export default function CapturerSignUpFlow() {
                                 : copyState === "failed"
                                   ? "Copy failed"
                                   : "Copy link"}
-                            </Button>
-                            <Button
-                              asChild
-                              type="button"
-                              variant="outline"
-                              className="rounded-full border-runway-line-strong"
+                            </button>
+                            <a
+                              href={captureAppUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="runway-cta-ghost"
                             >
-                              <a href={captureAppUrl} target="_blank" rel="noreferrer">
-                                Open access link
-                                <ExternalLink className="ml-2 h-4 w-4" />
-                              </a>
-                            </Button>
+                              Open access link
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                            </a>
                           </div>
                         </div>
                       </div>
@@ -1066,7 +1046,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-runway-line bg-paper-0 p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
                     <Sparkles className="mt-1 h-5 w-5 text-runway-signal" />
                     <div>
@@ -1080,7 +1060,7 @@ export default function CapturerSignUpFlow() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-runway-line bg-paper-0 p-5">
+                <div className="border border-runway-line bg-runway-deep p-5">
                   <div className="flex items-start gap-4">
                     <Shield className="mt-1 h-5 w-5 text-runway-signal" />
                     <div>
@@ -1094,21 +1074,20 @@ export default function CapturerSignUpFlow() {
               </div>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button
+                <button
                   type="button"
                   onClick={() => setLocation("/capture")}
-                  className="rounded-full bg-[color:var(--ink)] text-white hover:bg-[color:var(--leaf-deep)]"
+                  className="runway-cta"
                 >
                   Back to capture overview
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setLocation("/signup/business")}
-                  className="rounded-full border-runway-line-strong"
+                  className="runway-cta-ghost"
                 >
                   Business signup
-                </Button>
+                </button>
               </div>
             </motion.div>
           )}

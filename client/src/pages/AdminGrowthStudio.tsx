@@ -868,11 +868,11 @@ export default function AdminGrowthStudio() {
 
             {runwayTask ? (
               <div className="mt-4 border border-runway-line bg-runway-black p-4 text-xs text-runway-body">
-                <p>OpenRouter task id: {runwayTask.id}</p>
+                <p className="runway-num">OpenRouter task id: {runwayTask.id}</p>
                 <p>Status: {runwayTask.status}</p>
-                <p>Model: {runwayTask.model || "bytedance/seedance-2.0-fast"}</p>
+                <p className="runway-num">Model: {runwayTask.model || "bytedance/seedance-2.0-fast"}</p>
                 {typeof runwayTask.progress === "number" ? (
-                  <p>Progress: {Math.round(runwayTask.progress * 100)}%</p>
+                  <p className="runway-num">Progress: {Math.round(runwayTask.progress * 100)}%</p>
                 ) : null}
                 {runwayTask.failure ? (
                   <p className="mt-2 text-runway-red">{runwayTask.failure}</p>
@@ -930,7 +930,7 @@ export default function AdminGrowthStudio() {
                   {lifecycleResult.results.slice(0, 5).map((item) => (
                     <div key={item.ledgerDocId} className="border border-runway-line bg-runway-panel p-3">
                       <p>{item.buyerEmail}</p>
-                      <p className="text-runway-faint">
+                      <p className="runway-num text-runway-faint">
                         {item.lifecycleStage} • {item.state} • {item.ledgerDocId}
                       </p>
                     </div>
@@ -974,7 +974,7 @@ export default function AdminGrowthStudio() {
                             {run.status} {run.rolloutVariant ? `• ${run.rolloutVariant}` : ""}
                           </p>
                         </div>
-                        <p className="text-xs text-runway-faint">{run.createdAt || "Unknown time"}</p>
+                        <p className="runway-num text-xs text-runway-faint">{run.createdAt || "Unknown time"}</p>
                       </div>
                       {run.researchTopic ? (
                         <p className="mt-2 text-xs text-runway-mute">Research topic: {run.researchTopic}</p>
@@ -984,7 +984,7 @@ export default function AdminGrowthStudio() {
                           Buyer objections: {run.buyerObjections.join(", ")}
                         </p>
                       ) : null}
-                      <div className="mt-3 grid gap-2 text-xs text-runway-mute md:grid-cols-2">
+                      <div className="runway-num mt-3 grid gap-2 text-xs text-runway-mute md:grid-cols-2">
                         <p>Generated images: {run.generatedImages}</p>
                         <p>Reel status: {run.remotionReel.status || "none"}</p>
                       </div>
@@ -1156,14 +1156,14 @@ export default function AdminGrowthStudio() {
                         </div>
                       </div>
 
-                      <div className="mt-3 grid gap-2 text-xs text-runway-mute sm:grid-cols-4">
+                      <div className="runway-num mt-3 grid gap-2 text-xs text-runway-mute sm:grid-cols-4">
                         <p>Sent: {metricValue(campaign, "sent")}</p>
                         <p>Opened: {metricValue(campaign, "opened")}</p>
                         <p>Clicked: {metricValue(campaign, "clicked")}</p>
                         <p>Replied: {metricValue(campaign, "replied")}</p>
                       </div>
 
-                      <div className="mt-3 text-xs text-runway-faint">
+                      <div className="runway-num mt-3 text-xs text-runway-faint">
                         <p>Last ledger: {campaign.last_ledger_doc_id || "none"}</p>
                         <p>Last event: {campaign.response_tracking?.last_event_type || "none"} • {formatEventTime(campaign.response_tracking?.last_event_at)}</p>
                         {campaign.response_tracking?.last_recipient ? (

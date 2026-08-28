@@ -44,7 +44,7 @@ const AUDIT = () => {
     const bgm = s.backgroundColor.match(/[\d.]+/g);
     if (bgm && (bgm.length < 4 || Number(bgm[3]) > 0.85) && r.width * r.height > 12000) {
       const L = lum(s.backgroundColor);
-      if (L !== null && L > 0.45) {
+      if (L !== null && L > 0.45 && !/255, 176, 0|255, 198, 61|224, 154, 0/.test(s.backgroundColor)) {
         const k = "L" + s.backgroundColor + el.className;
         if (!seen.has(k)) { seen.add(k); light.push({ bg: s.backgroundColor, tag: el.tagName, cls: String(el.className).slice(0, 80), area: Math.round(r.width * r.height) }); }
       }
@@ -64,7 +64,7 @@ const AUDIT = () => {
     const size = parseFloat(s.fontSize);
 
     // Display type must be the condensed face, not the body grotesque.
-    if (size >= 30 && !/Barlow Condensed/.test(s.fontFamily)) {
+    if (size >= 30 && !/Barlow Condensed/.test(s.fontFamily) && !/runway-num/.test(String(el.className)) && !/Plex Mono/.test(s.fontFamily)) {
       const k = "T" + el.className;
       if (!seen.has(k)) { seen.add(k); type.push({ t: txt.slice(0, 40), size: Math.round(size), font: s.fontFamily.split(",")[0], cls: String(el.className).slice(0, 70) }); }
     }

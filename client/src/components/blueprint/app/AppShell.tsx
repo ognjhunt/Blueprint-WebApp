@@ -256,9 +256,9 @@ export interface AppShellProps {
 }
 
 /**
- * AppShell — buyer-app chrome: dark fixed sidebar (15.5rem) + white topbar
- * (3.5rem) + scrolling content. Under ~900px the sidebar collapses into a
- * left drawer (shadcn Sheet) opened from the topbar hamburger.
+ * AppShell — buyer-app chrome: fixed sidebar (15.5rem) on the deep ground +
+ * panel topbar (3.5rem) + scrolling content. Under ~900px the sidebar collapses
+ * into a left drawer (shadcn Sheet) opened from the topbar hamburger.
  */
 export function AppShell({
   active,

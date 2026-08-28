@@ -1099,7 +1099,12 @@ export function ProgramAdoptionFigure() {
                 >
                   {name}
                 </span>
-                <span className="runway-meta ml-auto shrink-0">
+                <span
+                  className={cn(
+                    "runway-meta ml-auto shrink-0",
+                    viaProgram ? "text-runway-signal/80" : "text-runway-mute",
+                  )}
+                >
                   {viaProgram ? "via program" : "bespoke"}
                 </span>
               </Reveal>

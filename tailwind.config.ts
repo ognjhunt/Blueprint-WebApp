@@ -89,7 +89,7 @@ export default {
           600: "#b3b8ae",
           500: "#9ba19a", // muted
           400: "#818880",
-          300: "#7d847d", // faint / meta
+          300: "#828981", // faint / meta
           200: "#4a524d",
           100: "#3a423e",
           50: "#2a302d",
@@ -140,7 +140,7 @@ export default {
           text: "#e8e6dd", // primary bone
           body: "#c9cdc4", // secondary body copy
           mute: "#9ba19a", // supporting copy
-          faint: "#7d847d", // meta, labels, disabled
+          faint: "#828981", // meta, labels, disabled
           signal: "#ffb000", // brand + primary action
           "signal-deep": "#e09a00", // pressed, and amber on light ground
           "signal-lit": "#ffc63d", // hover on dark
