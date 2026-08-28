@@ -137,7 +137,14 @@ test("authenticated intake can end in explicit abstention without a winner", asy
   installRunApi(page, "abstained");
   await page.goto("/app/runs/new");
   await fillIntake(page, "Which candidate should receive field time?");
-  await expect(page.getByText("Explicit abstention")).toBeVisible();
+
+  // Wait for the run record before asserting on the outcome. getByText is a
+  // substring match, and the intake itself describes abstention as a possible
+  // outcome, so an assertion evaluated before navigation can match the form
+  // instead of the result. Anchor on the URL, then match the outcome label
+  // exactly so only the envelope's own title can satisfy it.
+  await expect(page).toHaveURL(/\/app\/runs\/request-/);
+  await expect(page.getByText("Explicit abstention", { exact: true })).toBeVisible();
   await expect(page.getByText(/No candidate or winner is inferred/i)).toBeVisible();
   await expect(page.getByText(/Selected winner/i)).toHaveCount(0);
 });
