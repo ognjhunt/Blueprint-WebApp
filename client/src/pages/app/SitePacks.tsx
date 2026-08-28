@@ -136,7 +136,7 @@ export default function SitePacks() {
             <Eyebrow tone="brass" rule>
               Maintained site-task substrate
             </Eyebrow>
-            <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+            <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Testbeds
             </h1>
             <p className="max-w-[44rem] text-body-s text-ink-500">
@@ -152,13 +152,13 @@ export default function SitePacks() {
         {offerings.length ? (
           <section aria-label="Launch-ready configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {offerings.map((offering) => (
-              <article key={offering.offering_digest} className="overflow-hidden rounded-md border border-line bg-white">
+              <article key={offering.offering_digest} className="runway-panel overflow-hidden">
                 <OfferingThumbnail offering={offering} currentUser={currentUser} />
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="font-semibold text-ink-900">{offering.scene_identity.id}</h2>
-                      <p className="mt-1 text-caption text-ink-500">
+                      <h2 className="runway-num font-semibold text-ink-900">{offering.scene_identity.id}</h2>
+                      <p className="runway-num mt-1 text-caption text-ink-500">
                         {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
                       </p>
                     </div>
@@ -168,7 +168,7 @@ export default function SitePacks() {
                     Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
                     eight digest-bound renders; it is derived appearance evidence, not physical proof.
                   </p>
-                  <label className="mt-4 block cursor-pointer rounded-sm bg-ink-900 px-4 py-2.5 text-center text-caption font-semibold text-white">
+                  <label className="mt-4 block cursor-pointer border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:border-runway-signal hover:text-runway-signal">
                     {startingOffering === offering.source_launch_id
                       ? "Starting…"
                       : "Prepare Task Evaluation Run"}
@@ -212,7 +212,7 @@ export default function SitePacks() {
               {entitlements.map((entitlement) => (
                 <article
                   key={entitlement.id}
-                  className="flex flex-col rounded-md border border-line bg-paper-0 p-5 transition-colors hover:border-line-strong"
+                  className="runway-panel flex flex-col p-5 transition-colors hover:border-runway-line-strong"
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-3">
@@ -223,7 +223,7 @@ export default function SitePacks() {
                         {entitlementStateLabel(entitlement.access_state)}
                       </StatusChip>
                     </div>
-                    <div className="flex flex-col gap-1 font-mono text-[0.72rem] text-ink-500">
+                    <div className="runway-num flex flex-col gap-1 text-[0.72rem] text-ink-500">
                       <span>{entitlement.id}</span>
                       <span>{entitlement.sku || "sku pending"}</span>
                     </div>
@@ -231,19 +231,19 @@ export default function SitePacks() {
 
                   <dl className="my-4 flex flex-col gap-2 border-y border-line-soft py-3 text-caption">
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-ink-400">Delivery</dt>
-                      <dd className="font-mono text-ink-700">
+                      <dt className="runway-meta">Delivery</dt>
+                      <dd className="runway-num text-ink-700">
                         {entitlement.delivery_mode || "manual review"}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-ink-400">Granted</dt>
-                      <dd className="font-mono text-ink-700">
+                      <dt className="runway-meta">Granted</dt>
+                      <dd className="runway-num text-ink-700">
                         {formatEntitlementDate(entitlement.granted_at)}
                       </dd>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <dt className="text-ink-400">Scope</dt>
+                      <dt className="runway-meta">Scope</dt>
                       <dd className="max-w-[12rem] text-right text-ink-700">
                         {entitlementScope(entitlement)}
                       </dd>

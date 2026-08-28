@@ -27,8 +27,8 @@ const outcomeLabels: Record<DecisionEnvelope["overall"]["outcome"], string> = {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-title-m font-semibold tracking-tight text-ink-900">{title}</h2>
-      <div className="rounded-md border border-line bg-paper-0 p-5">{children}</div>
+      <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">{title}</h2>
+      <div className="runway-panel p-5">{children}</div>
     </section>
   );
 }
@@ -48,10 +48,10 @@ function ArtifactList({ artifacts }: { artifacts: EvidenceArtifact[] }) {
         <div key={artifact.artifact_id} className="border border-line-soft p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <strong className="text-body-s text-ink-900">{artifact.kind}</strong>
-            <span className="font-mono text-[0.7rem] text-ink-500">{artifact.evidence_class}</span>
+            <span className="runway-num text-[0.7rem] text-ink-500">{artifact.evidence_class}</span>
           </div>
-          <p className="mt-2 break-all font-mono text-[0.72rem] text-ink-600">{artifact.uri}</p>
-          <p className="mt-1 font-mono text-[0.68rem] text-ink-400">version {artifact.version} · {artifact.digest_sha256}</p>
+          <p className="runway-num mt-2 break-all text-[0.72rem] text-ink-600">{artifact.uri}</p>
+          <p className="runway-num mt-1 text-[0.68rem] text-ink-400">version {artifact.version} · {artifact.digest_sha256}</p>
         </div>
       ))}
     </div>
@@ -87,7 +87,7 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
               </div>
               <p className="mt-1 text-body-s text-ink-700">{claim.conclusion}</p>
               <p className="mt-1 text-body-s text-ink-500">Uncertainty: {claim.uncertainty}</p>
-              {claim.physical_evidence_required ? <p className="mt-1 text-body-s font-semibold text-amber-800">Physical evidence remains necessary.</p> : null}
+              {claim.physical_evidence_required ? <p className="mt-1 text-body-s font-semibold text-runway-signal">Physical evidence remains necessary.</p> : null}
             </article>
           ))}
         </div>
@@ -97,21 +97,21 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
         <div className="space-y-4">
           {envelope.evidence_methods.map((method) => (
             <article key={method.method_id}>
-              <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-ink-900">{method.name}</h3><span className="font-mono text-[0.7rem] text-ink-500">{method.evidence_class}</span></div>
+              <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-ink-900">{method.name}</h3><span className="runway-num text-[0.7rem] text-ink-500">{method.evidence_class}</span></div>
               <p className="mt-1 text-body-s text-ink-700">{method.selection_reason}</p>
               <p className="mt-1 text-body-s text-ink-500">Measured: {method.measured.join(", ") || "Nothing reported"}</p>
-              <p className="mt-1 font-mono text-[0.68rem] text-ink-400">Qualification {method.qualification_profile_ref.version} · {method.qualification_profile_ref.digest_sha256}</p>
+              <p className="runway-num mt-1 text-[0.68rem] text-ink-400">Qualification {method.qualification_profile_ref.version} · {method.qualification_profile_ref.digest_sha256}</p>
             </article>
           ))}
         </div>
       </Section>
 
       <Section title="Validation envelope and unsupported conditions">
-        <h3 className="mb-2 text-body-s font-semibold text-ink-800">Supported conditions</h3>
+        <h3 className="mb-2 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Supported conditions</h3>
         <Tags values={envelope.validation_envelope.supported_conditions} />
-        <h3 className="mb-2 mt-4 text-body-s font-semibold text-ink-800">Unsupported conditions</h3>
+        <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Unsupported conditions</h3>
         <Tags values={envelope.validation_envelope.unsupported_conditions} />
-        <p className="mt-4 font-mono text-[0.7rem] text-ink-500">Profiles: {envelope.validation_envelope.method_profile_versions.join(", ")}</p>
+        <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Profiles: {envelope.validation_envelope.method_profile_versions.join(", ")}</p>
       </Section>
 
       <Section title="Coverage and uncertainty">
@@ -122,14 +122,14 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
 
       <Section title="Disagreements and correlated evidence">
         <p className="text-body-s text-ink-700">{envelope.disagreements.summary}</p>
-        {envelope.disagreements.items.map((item) => <p key={`${item.claim_id}-${item.description}`} className="mt-2 border-l-2 border-amber-400 pl-3 text-body-s text-ink-700">{item.description}</p>)}
-        {envelope.disagreements.correlated_evidence_warning ? <p className="mt-3 bg-amber-50 p-3 text-body-s font-semibold text-amber-900">{envelope.disagreements.correlated_evidence_warning}</p> : null}
+        {envelope.disagreements.items.map((item) => <p key={`${item.claim_id}-${item.description}`} className="mt-2 border-l-2 border-runway-signal-dim pl-3 text-body-s text-ink-700">{item.description}</p>)}
+        {envelope.disagreements.correlated_evidence_warning ? <p className="mt-3 border border-runway-signal-dim bg-runway-signal/[0.06] p-3 text-body-s font-semibold text-runway-mute">{envelope.disagreements.correlated_evidence_warning}</p> : null}
       </Section>
 
       <Section title="Claim ceiling">
         <p className="font-semibold text-ink-900">{envelope.claim_ceiling.level.replace(/_/g, " ")}</p>
         <p className="mt-2 text-body-s text-ink-700">{envelope.claim_ceiling.summary}</p>
-        <h3 className="mb-2 mt-4 text-body-s font-semibold text-ink-800">This result does not support</h3>
+        <h3 className="mb-2 mt-4 font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">This result does not support</h3>
         <Tags values={envelope.claim_ceiling.prohibited_claims} />
       </Section>
 
@@ -142,12 +142,12 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
       <Section title="Physical evidence still needed">
         <p className="font-semibold text-ink-900">{envelope.physical_evidence.required ? "Required" : "Not required for the supported claims"}</p>
         <div className="mt-3"><Tags values={envelope.physical_evidence.reasons} empty="No remaining reason reported." /></div>
-        {envelope.physical_evidence.authoritative_join_ids.length ? <p className="mt-3 font-mono text-[0.7rem] text-ink-500">Joined outcomes: {envelope.physical_evidence.authoritative_join_ids.join(", ")}</p> : null}
+        {envelope.physical_evidence.authoritative_join_ids.length ? <p className="runway-num mt-3 text-[0.7rem] text-ink-500">Joined outcomes: {envelope.physical_evidence.authoritative_join_ids.join(", ")}</p> : null}
       </Section>
 
       <Section title="Evidence provenance and exact artifacts">
         <ArtifactList artifacts={envelope.artifacts} />
-        <p className="mt-4 font-mono text-[0.7rem] text-ink-500">Pipeline run {envelope.provenance.pipeline_run_id} · {envelope.provenance.generated_at_iso}</p>
+        <p className="runway-num mt-4 text-[0.7rem] text-ink-500">Pipeline run {envelope.provenance.pipeline_run_id} · {envelope.provenance.generated_at_iso}</p>
       </Section>
 
       <Section title="Permitted evidence uses">
@@ -166,7 +166,7 @@ function RunRecord({ run }: { run: BuyerRunDetail }) {
   const projection = run.decision_projection;
   return (
     <>
-      <section className="rounded-md border border-line bg-paper-0 px-4">
+      <section className="runway-panel px-4">
         <DataField label="Request ID" value={run.request_id || run.job_id} />
         {run.decision_id ? <DataField label="Decision ID" value={run.decision_id} /> : null}
         <DataField label="Status" value={runStatusLabel(run.status)} mono={false} trailing={<StatusChip tone={runStatusTone(run.status)} square>{runStatusLabel(run.status)}</StatusChip>} />
@@ -212,7 +212,7 @@ export default function RunDetail() {
       <Helmet><title>{`${runId || "unknown"} · Task Evaluation Run · Blueprint`}</title><meta name="description" content="Protected Task Evaluation Run decision and evidence detail." /></Helmet>
       <div className="mx-auto flex max-w-[72rem] flex-col gap-6 px-4 py-8 lg:px-8">
         <Link href="/app/runs" className="inline-flex w-fit items-center gap-1.5 text-body-s font-semibold text-ink-500 hover:text-ink-800"><ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />All Task Evaluation Runs</Link>
-        <header className="border-b border-line pb-6"><h1 className="text-[1.55rem] font-semibold text-ink-900">{run ? runDisplayName(run) : "Run record not available"}</h1><p className="mt-2 text-body-s text-ink-500">Decision, evidence envelope, unknowns, and provenance from the stored owner-scoped record.</p></header>
+        <header className="border-b border-line pb-6"><h1 className="font-display text-[1.55rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{run ? runDisplayName(run) : "Run record not available"}</h1><p className="mt-2 text-body-s text-ink-500">Decision, evidence envelope, unknowns, and provenance from the stored owner-scoped record.</p></header>
         {isLoading ? <BuyerAppLoadingState /> : null}
         {!isLoading && error ? <BuyerAppErrorState message={error.message} /> : null}
         {!isLoading && !error && run ? <RunRecord run={run} /> : null}

@@ -86,14 +86,14 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
     <>
       <header className="flex flex-col gap-3 border-b border-line pb-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+          <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
             {entitlementDisplayName(entitlement)}
           </h1>
           <StatusChip tone={entitlementStateTone(entitlement.access_state)} square>
             {entitlementStateLabel(entitlement.access_state)}
           </StatusChip>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[0.78rem] text-ink-500">
+        <div className="runway-num flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.78rem] text-ink-500">
           <span>{entitlement.id}</span>
           <span className="text-ink-300">·</span>
           <span>{entitlement.sku || "sku pending"}</span>
@@ -102,7 +102,7 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
         </div>
       </header>
 
-      <section aria-label="Access record" className="rounded-md border border-line bg-paper-0">
+      <section aria-label="Access record" className="runway-panel">
         <DataField label="Entitlement id" value={entitlement.id} />
         <DataField label="Order id" value={entitlement.order_id || "Pending"} />
         <DataField label="Buyer" value={entitlement.buyer_email || "Account user"} mono={false} />
@@ -129,7 +129,7 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
           Access
         </Eyebrow>
         {entitlement.access?.url || entitlement.access_state === "provisioned" ? (
-          <div className="flex flex-col gap-4 rounded-md border border-line bg-paper-0 p-5">
+          <div className="runway-panel flex flex-col gap-4 p-5">
             <ProofBoundary
               level="proof"
               title="Provisioned access"

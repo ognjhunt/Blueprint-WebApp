@@ -42,8 +42,7 @@ import {
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
+const fieldClass = "runway-input mt-1.5";
 const labelClass = "text-body-s font-semibold text-ink-800";
 const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
@@ -128,19 +127,19 @@ function SessionHistory({
 }) {
   return (
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
-      <h2 className="text-title-m font-semibold tracking-tight text-ink-900">History</h2>
+      <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">History</h2>
       {sessions.length ? (
-        <div className="overflow-x-auto rounded-md border border-line bg-paper-0">
+        <div className="runway-panel overflow-x-auto">
           <table className="w-full min-w-[48rem] border-collapse text-left">
             <thead><tr className="border-b border-line">
-              <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Capture</th>
-              <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Profile</th>
-              <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Status</th>
-              <th className="px-4 py-3 text-right text-micro font-semibold uppercase tracking-eyebrow text-ink-400"><span className="sr-only">Action</span></th>
+              <th className="runway-meta px-4 py-3">Capture</th>
+              <th className="runway-meta px-4 py-3">Profile</th>
+              <th className="runway-meta px-4 py-3">Status</th>
+              <th className="runway-meta px-4 py-3 text-right"><span className="sr-only">Action</span></th>
             </tr></thead>
             <tbody>{sessions.map((session) => (
               <tr key={session.session_id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-3"><span className="block text-body-s font-semibold text-ink-900">{session.original_filename}</span><span className="font-mono text-[0.68rem] text-ink-400">{session.intake_id}</span></td>
+                <td className="px-4 py-3"><span className="block text-body-s font-semibold text-ink-900">{session.original_filename}</span><span className="runway-num text-[0.68rem] text-ink-400">{session.intake_id}</span></td>
                 <td className="px-4 py-3 text-body-s text-ink-600">{profileCopy[session.capture_authority_profile].label}</td>
                 <td className="px-4 py-3">
                   <StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip>
@@ -653,7 +652,7 @@ export default function Captures() {
       <div className="mx-auto flex max-w-[72rem] flex-col gap-7 px-4 py-8 lg:px-8">
         <header className="flex flex-col gap-1.5">
           <Eyebrow tone="brass" rule>Capture intake</Eyebrow>
-          <h1 className="text-[1.65rem] font-semibold tracking-tight text-ink-900">New Capture</h1>
+          <h1 className="font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">New Capture</h1>
           <p className="max-w-3xl text-body-s text-ink-500">Upload one capture and attach its rights, consent, and allowed-use posture. Blueprint keeps the original file, validates it, and returns either a precise recapture request or a testbed-ready result.</p>
         </header>
 
@@ -694,12 +693,12 @@ export default function Captures() {
             </div> : null}
 
             {error ? <BuyerAppErrorState message={error} /> : null}
-            {progress ? <div aria-live="polite"><div className="mb-2 flex justify-between text-body-s text-ink-600"><span>Upload progress</span><span>{progress.complete}/{progress.total} parts · {progressPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-line-soft"><div className="h-full bg-action transition-all" style={{ width: `${progressPercent}%` }} /></div></div> : null}
+            {progress ? <div aria-live="polite"><div className="mb-2 flex justify-between text-body-s text-ink-600"><span>Upload progress</span><span className="runway-num">{progress.complete}/{progress.total} parts · {progressPercent}%</span></div><div className="h-2 overflow-hidden bg-line-soft"><div className="h-full bg-action transition-all" style={{ width: `${progressPercent}%` }} /></div></div> : null}
             <Button type="submit" variant="action" iconLeft={<UploadCloud />} disabled={submitting || !file}>{submitting ? "Uploading…" : activeSession ? "Resume upload" : "Start secure upload"}</Button>
           </Card>
 
           <aside className="flex flex-col gap-4">
-            <Card pad="md"><h2 className="font-semibold text-ink-900">Capture guidance</h2><ul className="mt-3 list-disc space-y-2 pl-5 text-body-s text-ink-600"><li>Move slowly and use overlapping passes.</li><li>Show the robot placement area and access path.</li><li>Capture close orbits around task objects, including rear and underside views.</li><li>Keep people, screens, documents, and moving objects out when possible.</li><li>Include a measured calibration board when metric scale matters.</li></ul><p className="mt-3 text-body-s font-semibold text-ink-700">These are advisory hints, not reconstruction or task-success claims.</p></Card>
+            <Card pad="md"><h2 className="font-display font-semibold uppercase tracking-[0.005em] text-ink-900">Capture guidance</h2><ul className="mt-3 list-disc space-y-2 pl-5 text-body-s text-ink-600"><li>Move slowly and use overlapping passes.</li><li>Show the robot placement area and access path.</li><li>Capture close orbits around task objects, including rear and underside views.</li><li>Keep people, screens, documents, and moving objects out when possible.</li><li>Include a measured calibration board when metric scale matters.</li></ul><p className="mt-3 text-body-s font-semibold text-ink-700">These are advisory hints, not reconstruction or task-success claims.</p></Card>
             {activeSession?.upload_status === "uploaded_verification_pending" && activeSession.pipeline_handoff?.status !== "forwarded" ? <>
               <ProofBoundary level="warn" title="Upload retained · Pipeline intake pending" icon={CheckCircle2}>The provider-listed parts are complete, but server SHA-256, malware/content validation, and immutable intake have not all completed. Capture QA and any recapture decision remain pending.</ProofBoundary>
               <Button type="button" variant="secondary" onClick={retryProcessing} disabled={submitting}>Retry secure processing</Button>

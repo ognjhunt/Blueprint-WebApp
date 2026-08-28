@@ -13,13 +13,13 @@ import { usePilotOpportunities, type PilotOpportunityRecord } from "@/lib/pilotO
 function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord }) {
   const approvedFull = opportunity.access_level === "shortlisted_confidential";
   return (
-    <article className="overflow-hidden rounded-md border border-line bg-paper-0">
+    <article className="runway-panel overflow-hidden">
       <header className="flex flex-col gap-4 border-b border-line-soft p-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-400">
+          <p className="runway-num text-[0.7rem] uppercase tracking-[0.16em] text-ink-400">
             {opportunity.opportunity_id}
           </p>
-          <h2 className="mt-2 text-title-m font-semibold tracking-tight text-ink-900">
+          <h2 className="mt-2 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
             {approvedFull ? opportunity.site_name || "Approved site opportunity" : opportunity.site_type || "Anonymized site opportunity"}
           </h2>
           <p className="mt-2 max-w-[48rem] text-body-s leading-7 text-ink-600">
@@ -59,7 +59,7 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
       </div>
 
       <div className="border-t border-line-soft p-5">
-        <h3 className="text-caption font-semibold uppercase tracking-eyebrow text-brass-deep">
+        <h3 className="font-display text-caption font-semibold uppercase tracking-[0.005em] text-runway-signal">
           Controlled evaluation and data use
         </h3>
         <div className="mt-4 grid gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
@@ -70,7 +70,7 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
             ["General model training", opportunity.data_use_permissions.generalModelTraining.replace(/_/g, " ")],
           ].map(([label, value]) => (
             <div key={label} className="bg-paper-0 p-4">
-              <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{label}</p>
+              <p className="runway-meta">{label}</p>
               <p className="mt-2 text-body-s font-semibold capitalize text-ink-800">{value}</p>
             </div>
           ))}
@@ -117,7 +117,7 @@ export default function PilotOpportunities() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Eyebrow tone="brass" rule>Permissioned network</Eyebrow>
-            <h1 className="mt-3 text-[1.65rem] font-semibold tracking-tight text-ink-900">
+            <h1 className="mt-3 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">
               Pilot opportunities
             </h1>
             <p className="mt-2 max-w-[46rem] text-body-s leading-7 text-ink-500">
@@ -140,7 +140,7 @@ export default function PilotOpportunities() {
             ["05", "Separate training rights"],
           ].map(([index, label]) => (
             <div key={index} className="bg-paper-0 p-4">
-              <p className="font-mono text-micro text-ink-400">{index}</p>
+              <p className="runway-num text-micro text-ink-400">{index}</p>
               <p className="mt-2 text-caption font-semibold text-ink-800">{label}</p>
             </div>
           ))}

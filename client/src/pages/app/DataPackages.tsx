@@ -33,7 +33,7 @@ export default function DataPackages() {
           <Eyebrow tone="brass" rule>
             Compatibility view
           </Eyebrow>
-          <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+          <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
             Evidence exports
           </h1>
           <p className="text-body-s text-ink-500">
@@ -57,7 +57,7 @@ export default function DataPackages() {
         {!isLoading && !error ? (
           packageEntitlements.length ? (
             <section aria-label="Historical evidence export entitlements" className="flex flex-col gap-3">
-              <h2 className="flex items-center gap-2 text-title-m font-semibold tracking-tight text-ink-900">
+              <h2 className="flex items-center gap-2 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
                 <Download className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                 Historical export access
               </h2>

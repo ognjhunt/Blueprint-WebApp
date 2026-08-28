@@ -84,7 +84,7 @@ function BuyerOverview() {
             <Eyebrow tone="brass" rule>
               Decision workspace
             </Eyebrow>
-            <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+            <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Task Evaluation Runs
             </h1>
             <p className="text-body-s text-ink-500">
@@ -120,7 +120,7 @@ function BuyerOverview() {
             {runs.length ? (
               <section aria-label="Recent Task Evaluation Runs" className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+                  <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
                     Recent Task Evaluation Runs
                   </h2>
                   <Link
@@ -131,7 +131,7 @@ function BuyerOverview() {
                     <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
                   </Link>
                 </div>
-                <div className="divide-y divide-line-soft rounded-md border border-line bg-paper-0">
+                <div className="runway-panel divide-y divide-line-soft">
                   {runs.slice(0, 5).map((run) => (
                     <Link key={run.job_id} href={`/app/runs/${encodeURIComponent(run.job_id)}`} className="flex items-center justify-between gap-4 p-4 hover:bg-inset">
                       <span className="text-body-s font-semibold text-ink-900">{runDisplayName(run)}</span>
@@ -146,7 +146,7 @@ function BuyerOverview() {
 
             {entitlements.length ? (
               <section aria-label="Historical compatibility access" className="flex flex-col gap-3">
-                <h2 className="text-title-m font-semibold tracking-tight text-ink-900">Historical compatibility access</h2>
+                <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Historical compatibility access</h2>
                 <EntitlementAccessTable entitlements={entitlements.slice(0, 5)} />
               </section>
             ) : null}

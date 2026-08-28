@@ -70,12 +70,12 @@ function ProtectedVideo({
       <div className="flex items-center justify-between gap-2 px-2 py-1">
         <div>
           <p className="text-body-s font-semibold text-ink-900">{label}</p>
-          <p className="font-mono text-[0.68rem] text-ink-400">{humanBytes(artifact.size_bytes)}{reviewOnly ? " · review-only" : ""}</p>
+          <p className="runway-num text-[0.68rem] text-ink-400">{humanBytes(artifact.size_bytes)}{reviewOnly ? " · review-only" : ""}</p>
         </div>
         {!url ? <Button type="button" size="sm" variant="secondary" iconLeft={<Film />} onClick={load} disabled={loading}>{loading ? "Loading…" : "Load video"}</Button> : null}
       </div>
       {url ? <video className="mt-2 aspect-video w-full bg-runway-black" src={url} controls playsInline preload="metadata" /> : null}
-      {error ? <p className="px-2 pb-2 text-body-s text-danger-fg">{error}</p> : null}
+      {error ? <p className="px-2 pb-2 text-body-s text-runway-red">{error}</p> : null}
     </Card>
   );
 }
@@ -91,12 +91,12 @@ function EpisodeCard({
 }) {
   const succeeded = episode.score.task_succeeded === true;
   return (
-    <section className="flex flex-col gap-4 rounded-md border border-line bg-paper-0 p-4" aria-labelledby={`episode-${episode.episode_id}`}>
+    <section className="runway-panel flex flex-col gap-4 p-4" aria-labelledby={`episode-${episode.episode_id}`}>
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
         <div>
-          <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{episode.episode_kind.replace(/_/g, " ")}</p>
-          <h3 id={`episode-${episode.episode_id}`} className="mt-1 text-title-m font-semibold text-ink-900">{episode.subject_id}</h3>
-          <p className="font-mono text-[0.68rem] text-ink-400">{episode.episode_id}</p>
+          <p className="runway-meta">{episode.episode_kind.replace(/_/g, " ")}</p>
+          <h3 id={`episode-${episode.episode_id}`} className="runway-num mt-1 text-title-m font-semibold text-ink-900">{episode.subject_id}</h3>
+          <p className="runway-num text-[0.68rem] text-ink-400">{episode.episode_id}</p>
         </div>
         <StatusChip tone={succeeded ? "proof" : episode.score.task_succeeded === false ? "block" : "warn"} square>
           {succeeded ? "Task complete" : episode.score.task_succeeded === false ? "Not complete" : episode.score.status}
@@ -125,8 +125,8 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
       <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
         <div>
           <Eyebrow tone="brass" rule>Sealed Task Evaluation Result</Eyebrow>
-          <h1 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-ink-900">{envelope.decision_question || result.publication.run_id}</h1>
-          <p className="mt-2 font-mono text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
+          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{envelope.decision_question || result.publication.run_id}</h1>
+          <p className="runway-num mt-2 text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
         </div>
         <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadJson(result)}>Exact result JSON</Button>
       </header>
@@ -146,7 +146,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Result delivery stages">
           {delivery.stages.map((stage, index) => (
             <Card key={stage.stage} pad="sm">
-              <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{index + 1}. {stage.stage}</p>
+              <p className="runway-meta">{index + 1}. {stage.stage}</p>
               <StatusChip className="mt-2" tone={stage.status === "complete" || stage.status === "ready" ? "proof" : stage.status === "blocked" ? "block" : "neutral"} square>{stage.status}</StatusChip>
             </Card>
           ))}
@@ -161,16 +161,16 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
               ["Policy episodes", delivery.summary.learned_candidate_episode_count],
               ["Controls", delivery.summary.control_episode_count],
               ["Task complete", delivery.summary.successful_episode_count],
-            ].map(([label, value]) => <Card key={String(label)} pad="md"><p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">{label}</p><p className="mt-2 font-mono text-title-l font-semibold text-ink-900">{value}</p></Card>)}
+            ].map(([label, value]) => <Card key={String(label)} pad="md"><p className="runway-meta">{label}</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{value}</p></Card>)}
           </section>
 
           <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-2"><Eye className="size-4 text-ink-500" /><h2 className="text-title-m font-semibold text-ink-900">Episode review</h2></div>
+            <div className="flex items-center gap-2"><Eye className="size-4 text-ink-500" /><h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Episode review</h2></div>
             {delivery.episodes.map((episode) => <EpisodeCard key={episode.episode_id} episode={episode} user={user} recordId={result.record_id} />)}
           </section>
 
-          <section className="rounded-md border border-line bg-paper-0 p-5">
-            <h2 className="text-title-m font-semibold text-ink-900">Evidence downloads</h2>
+          <section className="runway-panel p-5">
+            <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Evidence downloads</h2>
             <p className="mt-1 text-body-s text-ink-500">The review pack is convenient for people. The full package also includes exact lossless policy inputs and camera frames and may be large.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {packages.map((artifact) => (
@@ -179,14 +179,14 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
                 </Button>
               ))}
             </div>
-            <p className="mt-3 font-mono text-[0.68rem] text-ink-400">Delivery {delivery.delivery_digest}</p>
+            <p className="runway-num mt-3 text-[0.68rem] text-ink-400">Delivery {delivery.delivery_digest}</p>
           </section>
         </>
       ) : null}
 
-      <details className="rounded-md border border-line bg-paper-0 p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-ink-800">Inspect decision envelope and exact bindings</summary>
-        <pre className="mt-4 max-h-[32rem] overflow-auto bg-runway-black p-4 text-[0.7rem] leading-relaxed text-white">{JSON.stringify(result.publication, null, 2)}</pre>
+      <details className="runway-panel p-4">
+        <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Inspect decision envelope and exact bindings</summary>
+        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">{JSON.stringify(result.publication, null, 2)}</pre>
       </details>
     </>
   );

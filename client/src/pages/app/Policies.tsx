@@ -31,7 +31,7 @@ export default function Policies() {
             <Eyebrow tone="brass" rule>
               Compatibility view
             </Eyebrow>
-            <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+            <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Policy and candidate references
             </h1>
             <p className="text-body-s text-ink-500">
@@ -62,7 +62,7 @@ export default function Policies() {
 
             {entitlements.length ? (
               <section aria-label="Entitlement context for policy submissions" className="flex flex-col gap-3">
-                <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+                <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
                   Existing access records
                 </h2>
                 <EntitlementAccessTable entitlements={entitlements} />

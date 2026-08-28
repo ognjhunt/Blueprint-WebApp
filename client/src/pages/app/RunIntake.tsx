@@ -13,8 +13,7 @@ import {
 } from "@/lib/decisionEvidence";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
-const fieldClass =
-  "mt-1.5 w-full rounded-md border border-line bg-paper-0 px-3 py-2.5 text-body-s text-ink-900 shadow-sm outline-none focus:border-action focus:ring-2 focus:ring-action/20";
+const fieldClass = "runway-input mt-1.5";
 const labelClass = "text-body-s font-semibold text-ink-800";
 
 type IntakeState = {
@@ -89,8 +88,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="rounded-md border border-line bg-paper-0 p-5">
-      <legend className="px-1 text-title-m font-semibold text-ink-900">{title}</legend>
+    <fieldset className="runway-panel p-5">
+      <legend className="px-1 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">{title}</legend>
       <p className="mb-4 text-body-s text-ink-500">{description}</p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </fieldset>
@@ -258,7 +257,7 @@ export default function RunIntake() {
       <form onSubmit={submit} className="mx-auto flex max-w-[68rem] flex-col gap-6 px-4 py-8 lg:px-8">
         <header>
           <Eyebrow tone="brass" rule>Task Evaluation Run</Eyebrow>
-          <h1 className="mt-2 text-[1.8rem] font-semibold text-ink-900">Describe the decision—not the evaluation stack</h1>
+          <h1 className="mt-2 font-display text-[1.8rem] font-semibold uppercase tracking-[0.005em] text-ink-900">Describe the decision—not the evaluation stack</h1>
           <p className="mt-2 max-w-3xl text-body-s text-ink-500">
             Blueprint routes each claim to the least expensive evidence that is trustworthy enough, and asks for stronger evidence only when needed.
           </p>
@@ -303,8 +302,8 @@ export default function RunIntake() {
           <label className="md:col-span-2 flex items-center gap-3 text-body-s font-semibold text-ink-800"><input type="checkbox" checked={form.physicalTestingPossible} onChange={(e) => set("physicalTestingPossible", e.target.checked)} />Authoritative physical testing is possible for this task</label>
         </Section>
 
-        <details className="rounded-md border border-line bg-paper-0 p-5">
-          <summary className="cursor-pointer text-title-m font-semibold text-ink-900">Optional evidence and authorization details</summary>
+        <details className="runway-panel p-5">
+          <summary className="cursor-pointer font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Optional evidence and authorization details</summary>
           <p className="mt-2 text-body-s text-ink-500">Add exact references only. Do not paste credentials, private endpoints, or raw policy weights.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Physical evidence artifact URI" wide><input className={fieldClass} value={form.physicalEvidenceUri} onChange={(e) => set("physicalEvidenceUri", e.target.value)} /></Field>
@@ -317,7 +316,7 @@ export default function RunIntake() {
         <ProofBoundary level="info" title="What happens next">
           Pipeline selects and qualifies evidence methods. A submitted request without an existing authorization remains visible as awaiting authorization; provider availability is never presented as a scientific result.
         </ProofBoundary>
-        {error ? <p role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-body-s text-red-800">{error}</p> : null}
+        {error ? <p role="alert" className="border border-runway-red-dim bg-runway-red/[0.06] p-3 text-body-s text-runway-red">{error}</p> : null}
         <Button type="submit" variant="action" disabled={submitting}>{submitting ? "Submitting…" : "Request a Task Evaluation Run"}</Button>
       </form>
     </AppShell>

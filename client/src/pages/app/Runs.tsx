@@ -32,9 +32,9 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
           <Card key={result.record_id} pad="md" className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">Sealed result</p>
+                <p className="runway-meta">Sealed result</p>
                 <h3 className="mt-1 text-body-l font-semibold text-ink-900">{result.publication.decision_envelope.decision_question || result.publication.run_id}</h3>
-                <p className="mt-1 font-mono text-[0.68rem] text-ink-400">{result.publication.run_id}</p>
+                <p className="runway-num mt-1 text-[0.68rem] text-ink-400">{result.publication.run_id}</p>
               </div>
               <StatusChip tone={delivery?.status === "ready" ? "proof" : delivery?.status === "blocked" ? "block" : "neutral"} square>
                 {delivery?.status === "ready" ? "Media ready" : delivery?.status === "blocked" ? "Evidence blocked" : "Legacy result"}
@@ -42,9 +42,9 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
             </div>
             {delivery ? (
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Episodes</p></div>
-                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.learned_candidate_episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Policy</p></div>
-                <div className="bg-inset p-2"><p className="font-mono text-body-l font-semibold text-ink-900">{delivery.summary.successful_episode_count}</p><p className="text-micro uppercase tracking-eyebrow text-ink-400">Complete</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.episode_count}</p><p className="runway-meta">Episodes</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.learned_candidate_episode_count}</p><p className="runway-meta">Policy</p></div>
+                <div className="bg-inset p-2"><p className="runway-num text-body-l font-semibold text-ink-900">{delivery.summary.successful_episode_count}</p><p className="runway-meta">Complete</p></div>
               </div>
             ) : null}
             <Button asChild variant="secondary" size="sm" iconRight={<ArrowRight />} className="w-fit">
@@ -59,23 +59,23 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
 
 function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-paper-0">
+    <div className="runway-panel overflow-x-auto">
       <table className="w-full min-w-[56rem] border-collapse text-left">
         <thead>
           <tr className="border-b border-line">
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            <th className="runway-meta px-4 py-3">
               Run
             </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            <th className="runway-meta px-4 py-3">
               Status
             </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            <th className="runway-meta px-4 py-3">
               Pipeline
             </th>
-            <th className="px-4 py-3 text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            <th className="runway-meta px-4 py-3">
               Created
             </th>
-            <th className="px-4 py-3 text-right text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+            <th className="runway-meta px-4 py-3 text-right">
               <span className="sr-only">Action</span>
             </th>
           </tr>
@@ -91,7 +91,7 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
                   <span className="text-body-s font-semibold text-ink-900">
                     {runDisplayName(run)}
                   </span>
-                  <span className="font-mono text-[0.7rem] text-ink-400">
+                  <span className="runway-num text-[0.7rem] text-ink-400">
                     {run.job_id}
                   </span>
                 </div>
@@ -101,10 +101,10 @@ function RunsTable({ runs }: { runs: BuyerRunRecord[] }) {
                   {runStatusLabel(run.status)}
                 </StatusChip>
               </td>
-              <td className="px-4 py-3.5 align-middle font-mono text-[0.72rem] text-ink-600">
+              <td className="runway-num px-4 py-3.5 align-middle text-[0.72rem] text-ink-600">
                 {run.pipeline_status || "—"}
               </td>
-              <td className="px-4 py-3.5 align-middle font-mono text-[0.72rem] text-ink-700">
+              <td className="runway-num px-4 py-3.5 align-middle text-[0.72rem] text-ink-700">
                 {formatEntitlementDate(run.created_at_iso)}
               </td>
               <td className="px-4 py-3.5 text-right align-middle">
@@ -146,7 +146,7 @@ export default function Runs() {
             <Eyebrow tone="brass" rule>
               Task Evaluation Runs
             </Eyebrow>
-            <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-ink-900">
+            <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
               Task Evaluation Runs
             </h1>
             <p className="text-body-s text-ink-500">
@@ -165,7 +165,7 @@ export default function Runs() {
             {results.length ? (
               <section className="flex flex-col gap-3" aria-label="Sealed evaluation results">
                 <div>
-                  <h2 className="flex items-center gap-2 text-title-m font-semibold tracking-tight text-ink-900"><PackageCheck className="size-5" />Results ready for review</h2>
+                  <h2 className="flex items-center gap-2 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900"><PackageCheck className="size-5" />Results ready for review</h2>
                   <p className="mt-1 text-body-s text-ink-500">Private {scope === "blueprint_operations" ? "Blueprint operations" : scope === "organization" ? "verified-team" : "owner"} results. Teams are isolated; this is not a cross-team leaderboard.</p>
                 </div>
                 <SealedResults results={results} />
@@ -173,7 +173,7 @@ export default function Runs() {
             ) : null}
             {runs.length ? (
               <section className="flex flex-col gap-3" aria-label="Evaluation runs">
-                <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+                <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
                   Run records
                 </h2>
                 <RunsTable runs={runs} />
@@ -185,7 +185,7 @@ export default function Runs() {
                   Authorization, planning, evidence collection, decisions, and
                   abstentions remain distinct states.
                 </ProofBoundary>
-                <Button asChild variant="action" className="w-fit">
+                <Button asChild variant="secondary" className="w-fit">
                   <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
                 </Button>
               </Card>
@@ -196,7 +196,7 @@ export default function Runs() {
                 className="flex flex-col gap-3"
                 aria-label="Entitlements available for runs"
               >
-                <h2 className="text-title-m font-semibold tracking-tight text-ink-900">
+                <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
                   Entitlements available for run requests
                 </h2>
                 <EntitlementAccessTable
