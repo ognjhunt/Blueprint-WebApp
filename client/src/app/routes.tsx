@@ -72,6 +72,8 @@ const AdminTaskEvaluationLaunches = lazyRoute(
 const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
 const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
+const OpportunityBoard = lazyRoute(() => import("../pages/internal/OpportunityBoard"));
+const OpportunityListing = lazyRoute(() => import("../pages/internal/OpportunityListing"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
 const About = lazyRoute(() => import("../pages/About"));
@@ -349,6 +351,13 @@ export const appRoutes: AppRoute[] = [
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
   { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
+  { path: "/internal/opportunity-board", layout: "public", shell: "bare", component: OpportunityBoard },
+  {
+    path: "/internal/opportunity-board/:id",
+    layout: "public",
+    shell: "bare",
+    component: OpportunityListing,
+  },
   {
     path: "/off-waitlist-signup",
     layout: "public",
