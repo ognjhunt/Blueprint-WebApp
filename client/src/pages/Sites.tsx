@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Database, Loader2, Search } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import type { SiteWorldCard } from "@/data/siteWorlds";
+import {
+  isConfiguredScenePublicOffering,
+  type ConfiguredScenePublicOfferingCard,
+  type PublicSiteCatalogItem,
+  type SiteWorldCard,
+} from "@/data/siteWorlds";
 import {
   robotPolicyBeachheadShort,
   robotPolicyScreeningValue,
@@ -10,7 +15,7 @@ import {
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-type SiteWorldsResponse = { items: SiteWorldCard[]; count: number };
+type SiteWorldsResponse = { items: PublicSiteCatalogItem[]; count: number };
 
 function requestHref(site?: SiteWorldCard) {
   const query = new URLSearchParams({
@@ -92,8 +97,68 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
   );
 }
 
+function ConfiguredSceneCard({ offering }: { offering: ConfiguredScenePublicOfferingCard }) {
+  const controlsPending = offering.status === "configured_controls_pending";
+  return (
+    <article className="flex flex-col overflow-hidden rounded-lg border border-runway-line bg-runway-panel">
+      <img
+        src={offering.presentation.thumbnailUrl}
+        alt={`Derived configured-scene view for ${offering.title}`}
+        className="aspect-[16/10] w-full border-b border-runway-line object-cover"
+      />
+      <div className="flex flex-1 flex-col p-6">
+        <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider">
+          <span className="rounded-md border border-runway-green/30 bg-runway-green/[0.1] px-2.5 py-1 text-runway-green">
+            Configured scene
+          </span>
+          <span className={`rounded-md border px-2.5 py-1 ${controlsPending
+            ? "border-runway-amber/30 bg-runway-amber/[0.1] text-runway-amber"
+            : "border-runway-green/30 bg-runway-green/[0.1] text-runway-green"}`}>
+            {controlsPending ? "Controls pending" : "Evaluation ready"}
+          </span>
+        </div>
+        <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold leading-tight">
+          {offering.title}
+        </h2>
+        <p className="mt-2 text-sm font-semibold text-runway-faint">
+          {offering.category} · {offering.task.kind.replaceAll("_", " ")}
+        </p>
+        <p className="mt-4 flex-1 text-sm leading-6 text-runway-mute">{offering.summary}</p>
+        <p className="mt-3 text-xs leading-5 text-runway-faint">
+          The thumbnail is derived appearance evidence from the configuration run. It is not capture,
+          physical-outcome, policy-performance, deployment, or safety evidence.
+        </p>
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+          <a
+            href={`/sites/${encodeURIComponent(offering.id)}`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text hover:bg-runway-panel"
+          >
+            Inspect offering <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+          {offering.evaluationAction.enabled && offering.evaluationAction.href ? (
+            <a
+              href={offering.evaluationAction.href}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-runway-line px-4 text-sm font-semibold text-runway-text hover:bg-runway-line-soft"
+            >
+              {offering.evaluationAction.label}
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="min-h-11 cursor-not-allowed rounded-lg border border-runway-line px-4 text-sm font-semibold text-runway-faint opacity-70"
+            >
+              {offering.evaluationAction.label}
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Sites() {
-  const [sites, setSites] = useState<SiteWorldCard[]>([]);
+  const [sites, setSites] = useState<PublicSiteCatalogItem[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,19 +187,22 @@ export default function Sites() {
   const filteredSites = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return sites;
-    return sites.filter((site) =>
-      [
-        site.siteName,
-        site.category,
-        site.industry,
-        site.taskLane,
-        site.summary,
-        ...site.taskCatalog.map((task) => task.taskText || task.taskId || task.id),
-      ]
+    return sites.filter((site) => {
+      const searchable = isConfiguredScenePublicOffering(site)
+        ? [site.title, site.category, site.summary, site.sceneIdentity.id, site.task.identity.id, site.task.kind, site.task.strategy]
+        : [
+          site.siteName,
+          site.category,
+          site.industry,
+          site.taskLane,
+          site.summary,
+          ...site.taskCatalog.map((task) => task.taskText || task.taskId || task.id),
+        ];
+      return searchable
         .join(" ")
         .toLowerCase()
-        .includes(normalized),
-    );
+        .includes(normalized);
+    });
   }, [query, sites]);
 
   return (
@@ -173,8 +241,8 @@ export default function Sites() {
               <p className="mt-4 max-w-lg text-base leading-7 text-runway-mute">
                 These records are the starting point for the work before a robot arrives: define the task, build the testbed, screen fit, and prepare the onsite handoff. The evidence is strongest first for warehouse and logistics work —
                 mobile-base navigation and rigid pick-and-place ({robotPolicyBeachheadShort}).
-                Other site types stay browsable below. Public cards come from current
-                Pipeline-backed capture records; if the exact place is not open, Blueprint can
+                Other site types stay browsable below. Public cards come from explicitly authorized,
+                Pipeline-backed configured tasks and capture records; if the exact place is not open, Blueprint can
                 scope a new capture with its operator.
               </p>
               <p className="mt-4 max-w-lg text-sm leading-6 text-runway-faint">
@@ -235,7 +303,9 @@ export default function Sites() {
             </div>
           ) : filteredSites.length ? (
             <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
-              {filteredSites.map((site) => <SiteCard key={site.id} site={site} />)}
+              {filteredSites.map((site) => isConfiguredScenePublicOffering(site)
+                ? <ConfiguredSceneCard key={site.id} offering={site} />
+                : <SiteCard key={site.id} site={site} />)}
             </div>
           ) : (
             <div className="rounded-lg border border-runway-line bg-runway-panel px-6 py-12">

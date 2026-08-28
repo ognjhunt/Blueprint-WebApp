@@ -156,8 +156,13 @@ router.post(
           ...(offering ? {
             configured_scene_offering: offering,
             configured_scene_offering_digest: offering.offering_digest,
-            configured_scene_offering_state: "launch_ready",
+            configured_scene_offering_state: offering.status,
             configured_scene_offering_team_namespace: offering.team_namespace,
+            configured_scene_offering_public_visibility:
+              offering.public_display?.status === "authorized" ? "public" : "private",
+            ...(offering.public_display ? {
+              configured_scene_offering_public_slug: offering.public_display.public_slug,
+            } : {}),
           } : {}),
         }, { merge: true });
         return "updated";
@@ -183,7 +188,7 @@ router.post(
       receipt_digest: receipt.receipt_digest,
       ...(offering ? {
         configured_scene_offering_digest: offering.offering_digest,
-        configured_scene_offering_status: "launch_ready",
+        configured_scene_offering_status: offering.status,
       } : {}),
     });
   },

@@ -41,11 +41,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     dbAdmin: {
       collection: () => ({
         doc: reference,
-        where: (field: string, _operator: string, value: unknown) => ({
+        where: (field: string, operator: string, value: unknown) => ({
           limit: () => ({
             get: async () => ({
               docs: Array.from(state.records.entries())
-                .filter(([, record]) => record[field] === value)
+                .filter(([, record]) => operator === "in" && Array.isArray(value)
+                  ? value.includes(record[field])
+                  : record[field] === value)
                 .map(([id, record]) => ({
                   id,
                   data: () => structuredClone(record),
@@ -874,6 +876,14 @@ describe("admin Task Evaluation launch route", () => {
     state.isOps = false;
     const own = configuredSceneOffering();
     const other = configuredSceneOffering();
+    const pending = configuredSceneOffering();
+    pending.status = "configured_controls_pending";
+    pending.evaluation_admission = {
+      zero_action_required: true,
+      scripted_positive_required: true,
+      learned_policy_evaluation_admitted: false,
+    };
+    pending.offering_digest = canonicalArtifactDigest(pending, "offering_digest");
     other.team_namespace = "other-team";
     other.offering_digest = canonicalArtifactDigest(other, "offering_digest");
     state.records.set("own-launch", {
@@ -888,6 +898,12 @@ describe("admin Task Evaluation launch route", () => {
       configured_scene_offering_digest: other.offering_digest,
       configured_scene_offering: other,
     });
+    state.records.set("pending-launch", {
+      configured_scene_offering_state: "configured_controls_pending",
+      configured_scene_offering_team_namespace: pending.team_namespace,
+      configured_scene_offering_digest: pending.offering_digest,
+      configured_scene_offering: pending,
+    });
     state.blobs.set("blueprint-inputs/configured/task-thumbnail.png", Buffer.from("exact-selected-frame"));
     const { server, url } = await startTeamOfferingServer();
     try {
@@ -895,7 +911,14 @@ describe("admin Task Evaluation launch route", () => {
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
         scope: "verified_team",
-        offerings: [{ source_launch_id: "own-launch", team_namespace: "robot-team-001" }],
+        offerings: [
+          { source_launch_id: "own-launch", team_namespace: "robot-team-001" },
+          {
+            source_launch_id: "pending-launch",
+            team_namespace: "robot-team-001",
+            status: "configured_controls_pending",
+          },
+        ],
       });
       const denied = await fetch(`${url}/other-launch/thumbnail`);
       expect(denied.status).toBe(404);
@@ -932,6 +955,16 @@ describe("admin Task Evaluation launch route", () => {
             own.evaluation_preparation_binding.configured_scene_bundle.digest,
           task_thumbnail_digest: own.presentation.task_thumbnail.digest,
         },
+      });
+      const refusedPending = await fetch(`${url}/pending-launch/preparations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      expect(refusedPending.status).toBe(409);
+      await expect(refusedPending.json()).resolves.toMatchObject({
+        code: "configured_scene_offering_controls_pending",
+        paid_execution_requested: false,
       });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -2079,6 +2112,7 @@ describe("admin Task Evaluation launch route", () => {
       expect(state.records.get("launch-001")).toMatchObject({
         state: "completed",
         configured_scene_offering_state: "launch_ready",
+        configured_scene_offering_public_visibility: "private",
         configured_scene_offering_digest: offering.offering_digest,
         configured_scene_offering: {
           presentation: {

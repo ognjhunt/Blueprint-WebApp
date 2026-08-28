@@ -14,6 +14,15 @@ import { withTaskEvaluationLaunchStoreTimeout } from "../utils/taskEvaluationLau
 
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
+const STORED_OFFERING_STATES = [
+  "launch_ready",
+  "configured_controls_pending",
+  "evaluation_ready",
+] as const;
+
+function isStoredOfferingState(value: unknown): value is ConfiguredSceneOffering["status"] {
+  return STORED_OFFERING_STATES.includes(value as ConfiguredSceneOffering["status"]);
+}
 
 function firebaseTenantId(res: Response) {
   const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
@@ -31,8 +40,9 @@ async function accessibleOffering(launchId: string, res: Response) {
   const record = snapshot.data() as Record<string, unknown>;
   const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
   if (
-    record.configured_scene_offering_state !== "launch_ready"
+    !isStoredOfferingState(record.configured_scene_offering_state)
     || !parsed.success
+    || parsed.data.status !== record.configured_scene_offering_state
     || parsed.data.offering_digest !== record.configured_scene_offering_digest
   ) return null;
   const tenantId = firebaseTenantId(res);
@@ -43,6 +53,7 @@ async function accessibleOffering(launchId: string, res: Response) {
 function card(offering: ConfiguredSceneOffering, sourceLaunchId: string) {
   return {
     source_launch_id: sourceLaunchId,
+    status: offering.status,
     offering_digest: offering.offering_digest,
     configuration_run_id: offering.configuration_run_id,
     team_namespace: offering.team_namespace,
@@ -56,6 +67,7 @@ function card(offering: ConfiguredSceneOffering, sourceLaunchId: string) {
     },
     evaluation_preparation_binding: offering.evaluation_preparation_binding,
     proof_boundary: offering.proof_boundary,
+    evaluation_admission: offering.evaluation_admission,
   };
 }
 
@@ -71,15 +83,19 @@ router.get("/", async (_req, res) => {
   });
   try {
     const query = access.isOps
-      ? db.collection(COLLECTION).where("configured_scene_offering_state", "==", "launch_ready")
+      ? db.collection(COLLECTION).where("configured_scene_offering_state", "in", STORED_OFFERING_STATES)
       : db.collection(COLLECTION).where("configured_scene_offering_team_namespace", "==", tenantId);
     const snapshot = await withTaskEvaluationLaunchStoreTimeout(query.limit(100).get());
     const offerings: ReturnType<typeof card>[] = [];
     for (const document of snapshot.docs) {
       const record = document.data() as Record<string, unknown>;
-      if (record.configured_scene_offering_state !== "launch_ready") continue;
+      if (!isStoredOfferingState(record.configured_scene_offering_state)) continue;
       const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
-      if (!parsed.success || parsed.data.offering_digest !== record.configured_scene_offering_digest) {
+      if (
+        !parsed.success
+        || parsed.data.status !== record.configured_scene_offering_state
+        || parsed.data.offering_digest !== record.configured_scene_offering_digest
+      ) {
         throw new Error("configured_scene_offering_store_invalid");
       }
       if (!access.isOps && parsed.data.team_namespace !== tenantId) continue;
@@ -125,6 +141,11 @@ router.post("/:launchId/preparations", async (req, res) => {
     return res.status(503).json({ error: "Configured scene offering store is unavailable" });
   }
   if (!resolved) return res.status(404).json({ error: "Configured scene offering not found" });
+  if (resolved.offering.status === "configured_controls_pending") return res.status(409).json({
+    error: "Configured scene controls have not passed",
+    code: "configured_scene_offering_controls_pending",
+    paid_execution_requested: false,
+  });
   if (!preparationMatchesConfiguredSceneOffering(req.body, resolved.offering)) return res.status(409).json({
     error: "Task Evaluation preparation does not match the configured scene offering",
     code: "configured_scene_offering_preparation_binding_mismatch",

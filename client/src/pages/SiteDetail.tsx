@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Database, Loader2, ShieldCheck } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import type { SiteWorldCard } from "@/data/siteWorlds";
+import {
+  isConfiguredScenePublicOffering,
+  type ConfiguredScenePublicOfferingCard,
+  type PublicSiteCatalogItem,
+  type SiteWorldCard,
+} from "@/data/siteWorlds";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -23,8 +28,64 @@ function requestHref(site: SiteWorldCard) {
   return `/contact/robot-team?${query.toString()}`;
 }
 
+function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScenePublicOfferingCard }) {
+  const controlsPending = offering.status === "configured_controls_pending";
+  return (
+    <>
+      <section className="mt-8 grid gap-10 border-b border-runway-line pb-12 md:grid-cols-[0.9fr_1.1fr] md:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="runway-prov"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-runway-green" />Configured scene</span>
+            <span className={`runway-chip ${controlsPending ? "runway-chip-neutral" : "border-runway-green/30 bg-runway-green/[0.1] text-runway-green"}`}>
+              {controlsPending ? "Configured — controls pending" : "Evaluation ready"}
+            </span>
+          </div>
+          <h1 className="mt-5 font-display uppercase text-5xl font-bold leading-[0.95] tracking-[0.005em] text-runway-text sm:text-6xl">{offering.title}</h1>
+          <p className="mt-5 max-w-xl text-lg leading-[1.6] text-runway-body">{offering.summary}</p>
+          {offering.evaluationAction.enabled && offering.evaluationAction.href ? (
+            <a href={offering.evaluationAction.href} className="runway-cta mt-8">
+              {offering.evaluationAction.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+          ) : (
+            <button type="button" disabled className="runway-cta mt-8 cursor-not-allowed opacity-60">
+              {offering.evaluationAction.label}
+            </button>
+          )}
+        </div>
+        <div>
+          <img
+            src={offering.presentation.thumbnailUrl}
+            alt={`Derived configured-scene view for ${offering.title}`}
+            className="aspect-[16/10] w-full border border-runway-line object-cover"
+          />
+          <p className="runway-meta mt-2">Derived appearance evidence selected from the configuration run; not a captured or physical-outcome image.</p>
+        </div>
+      </section>
+
+      <section className="grid gap-8 py-12 md:grid-cols-[0.34fr_0.66fr]">
+        <div>
+          <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Configured task</h2>
+          <p className="mt-4 text-sm leading-[1.6] text-runway-mute">This identity is bound to the immutable configured-scene revision. Controls and policy results remain separate evidence.</p>
+        </div>
+        <article className="runway-panel p-5">
+          <p className="text-lg font-semibold text-runway-text">{offering.task.identity.id}</p>
+          <p className="mt-2 text-sm text-runway-mute">{offering.task.kind.replaceAll("_", " ")} · {offering.task.strategy.replaceAll("_", " ")}</p>
+          <p className="mt-3 text-xs text-runway-faint">Scene {offering.sceneIdentity.id} · revision {offering.sceneIdentity.version}</p>
+        </article>
+      </section>
+
+      <section className="flex gap-4 border-t border-runway-line pt-8">
+        <ShieldCheck className="h-7 w-7 shrink-0 text-runway-signal" aria-hidden="true" />
+        <p className="max-w-4xl text-sm font-semibold leading-[1.6] text-runway-mute">
+          This public projection proves only that an authorized configured-scene offering was published by Pipeline. It does not prove policy execution, ranking performance, physical success, deployment safety, or safety approval.
+        </p>
+      </section>
+    </>
+  );
+}
+
 export default function SiteDetail({ params }: SiteDetailProps) {
-  const [site, setSite] = useState<SiteWorldCard | null>(null);
+  const [site, setSite] = useState<PublicSiteCatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +97,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     fetch(`/api/site-worlds/${encodeURIComponent(params.slug)}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(response.status === 404 ? "Site record not found" : `Site record unavailable (${response.status})`);
-        return response.json() as Promise<SiteWorldCard>;
+        return response.json() as Promise<PublicSiteCatalogItem>;
       })
       .then((record) => {
         if (record.dataSource !== "pipeline") throw new Error("Site record is not backed by Pipeline");
@@ -52,7 +113,9 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     return () => controller.abort();
   }, [params.slug]);
 
-  const siteName = site?.siteName || "Captured site record";
+  const siteName = site
+    ? isConfiguredScenePublicOffering(site) ? site.title : site.siteName
+    : "Pipeline record";
   return (
     <>
       <SEO
@@ -93,6 +156,8 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                 Request the exact site
               </a>
             </section>
+          ) : isConfiguredScenePublicOffering(site) ? (
+            <ConfiguredSceneOfferingDetail offering={site} />
           ) : (
             <>
               <section className="mt-8 grid gap-10 border-b border-runway-line pb-12 md:grid-cols-[0.9fr_1.1fr] md:items-center">

@@ -61,6 +61,44 @@ export type SiteWorldAgentCommerce = {
   truthLabels: Array<"dry_run_order" | "request_gated" | "protected_robot_team">;
 };
 
+export type ConfiguredScenePublicOfferingCard = {
+  id: string;
+  dataSource: "pipeline";
+  recordKind: "configured_scene_offering";
+  status: "configured_controls_pending" | "evaluation_ready";
+  title: string;
+  summary: string;
+  category: string;
+  sceneIdentity: { id: string; version: string };
+  task: {
+    identity: { id: string; version: string };
+    kind: string;
+    strategy: string;
+  };
+  presentation: {
+    thumbnailUrl: string;
+    derivedAppearanceEvidence: true;
+    captureOrPhysicalEvidence: false;
+  };
+  evaluationAction: {
+    enabled: boolean;
+    label: string;
+    href: string | null;
+  };
+  proofBoundary: {
+    configurationIsPolicyEvaluation: false;
+    configurationIsDeploymentOrSafetyApproval: false;
+  };
+};
+
+export type PublicSiteCatalogItem = SiteWorldCard | ConfiguredScenePublicOfferingCard;
+
+export function isConfiguredScenePublicOffering(
+  item: PublicSiteCatalogItem,
+): item is ConfiguredScenePublicOfferingCard {
+  return "recordKind" in item && item.recordKind === "configured_scene_offering";
+}
+
 export type SiteWorldCard = {
   id: string;
   siteCode: string;
