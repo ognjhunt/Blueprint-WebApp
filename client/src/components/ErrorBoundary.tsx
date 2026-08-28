@@ -105,7 +105,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     <AlertTriangle className="w-5 h-5 text-red-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-runway-deep">
+                    <h2 className="text-lg font-semibold text-runway-text">
                       Something went wrong
                     </h2>
                     <p className="text-sm text-runway-mute">
@@ -119,7 +119,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="px-6 py-4 space-y-4">
                 {/* Error message */}
                 <div className="bg-runway-line-soft rounded-lg p-3">
-                  <p className="text-sm font-mono text-runway-line-strong break-words">
+                  <p className="text-sm font-mono text-runway-body break-words">
                     {this.state.error?.message || 'An unexpected error occurred'}
                   </p>
                 </div>
@@ -128,7 +128,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.eventId && (
                   <p className="text-xs text-runway-faint">
                     Reference ID:{' '}
-                    <code className="bg-runway-line-soft px-1.5 py-0.5 rounded text-runway-line-strong">
+                    <code className="bg-runway-line-soft px-1.5 py-0.5 rounded text-runway-body">
                       {this.state.eventId}
                     </code>
                   </p>
@@ -145,7 +145,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   </button>
                   <button
                     onClick={this.handleGoHome}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-runway-line-soft text-runway-line-strong text-sm font-medium rounded-lg hover:bg-runway-line transition-colors"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-runway-line-soft text-runway-body text-sm font-medium rounded-lg hover:bg-runway-line transition-colors"
                   >
                     <Home className="w-4 h-4" />
                     Go Home
@@ -155,7 +155,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 {/* Report bug link */}
                 <button
                   onClick={this.handleReportBug}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-runway-mute hover:text-runway-deep transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-runway-mute hover:text-runway-text transition-colors"
                 >
                   <Bug className="w-4 h-4" />
                   Report this issue

@@ -74,9 +74,9 @@ export default function SiteDetail({ params }: SiteDetailProps) {
         ]}
       />
 
-      <div className="bg-paper-0 px-5 py-12 text-runway-black md:px-8 md:py-16">
+      <div className="bg-paper-0 px-5 py-12 text-runway-text md:px-8 md:py-16">
         <main className="mx-auto max-w-[88rem]">
-          <a href="/sites" className="inline-flex items-center gap-2 text-sm font-semibold text-runway-mute hover:text-runway-black">
+          <a href="/sites" className="inline-flex items-center gap-2 text-sm font-semibold text-runway-mute hover:text-runway-text">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to sites
           </a>
 
@@ -100,7 +100,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-900">Pipeline record</span>
                     {site.evaluationReadiness?.qualification_state ? (
-                      <span className="rounded-md border border-runway-line bg-runway-line-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-runway-line-strong">
+                      <span className="rounded-md border border-runway-line bg-runway-line-soft px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-runway-body">
                         {site.evaluationReadiness.qualification_state.replace(/_/g, " ")}
                       </span>
                     ) : null}

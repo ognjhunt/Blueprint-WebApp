@@ -201,7 +201,7 @@ export default function AdminGrowthOpsScorecard() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-runway-faint">
               Growth Ops
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-runway-black">
+            <h1 className="mt-2 text-3xl font-semibold text-runway-text">
               Exact-site hosted-review scorecard
             </h1>
             <p className="mt-2 text-runway-mute">
@@ -211,13 +211,13 @@ export default function AdminGrowthOpsScorecard() {
           <div className="flex gap-3">
             <Link
               href="/admin/city-launch/austin"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               Austin launch
             </Link>
             <Link
               href="/admin/leads"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               Back to admin queue
             </Link>
@@ -237,13 +237,13 @@ export default function AdminGrowthOpsScorecard() {
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-none border border-runway-line bg-paper-0 p-5">
                 <p className="text-sm text-runway-faint">Home landing views</p>
-                <p className="mt-2 text-3xl font-semibold text-runway-black">
+                <p className="mt-2 text-3xl font-semibold text-runway-text">
                   {scorecard.funnel.homeRobotTeamViews}
                 </p>
               </div>
               <div className="rounded-none border border-runway-line bg-paper-0 p-5">
                 <p className="text-sm text-runway-faint">Home CTA clicks</p>
-                <p className="mt-2 text-3xl font-semibold text-runway-black">
+                <p className="mt-2 text-3xl font-semibold text-runway-text">
                   {scorecard.funnel.homeRobotTeamCtaClicks}
                 </p>
                 <p className="mt-2 text-xs text-runway-faint">
@@ -255,13 +255,13 @@ export default function AdminGrowthOpsScorecard() {
               </div>
               <div className="rounded-none border border-runway-line bg-paper-0 p-5">
                 <p className="text-sm text-runway-faint">Current queue</p>
-                <p className="mt-2 text-3xl font-semibold text-runway-black">
+                <p className="mt-2 text-3xl font-semibold text-runway-text">
                   {scorecard.queue.currentHostedReviewItems}
                 </p>
               </div>
               <div className="rounded-none border border-runway-line bg-paper-0 p-5">
                 <p className="text-sm text-runway-faint">High priority queue</p>
-                <p className="mt-2 text-3xl font-semibold text-runway-black">
+                <p className="mt-2 text-3xl font-semibold text-runway-text">
                   {scorecard.queue.highPriorityHostedReview}
                 </p>
               </div>
@@ -295,7 +295,7 @@ export default function AdminGrowthOpsScorecard() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Homepage robot-team experiment
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-runway-black">
+                  <h2 className="mt-2 text-xl font-semibold text-runway-text">
                     {homeRobotTeamLanding.experimentKey}
                   </h2>
                   <p className="mt-1 text-sm text-runway-faint">
@@ -324,9 +324,9 @@ export default function AdminGrowthOpsScorecard() {
                   homeRobotTeamLanding.variants.map((variant) => (
                     <div
                       key={variant.variant}
-                      className="grid grid-cols-6 border-t border-runway-line px-4 py-3 text-sm text-runway-line-strong"
+                      className="grid grid-cols-6 border-t border-runway-line px-4 py-3 text-sm text-runway-body"
                     >
-                      <strong className="text-runway-black">{humanizeKey(variant.variant)}</strong>
+                      <strong className="text-runway-text">{humanizeKey(variant.variant)}</strong>
                       <span>{variant.views}</span>
                       <span>
                         {variant.ctaClicks}{" "}
@@ -378,7 +378,7 @@ export default function AdminGrowthOpsScorecard() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Funnel
                   </p>
-                  <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
+                  <div className="mt-4 space-y-3 text-sm text-runway-body">
                     <div className="flex items-center justify-between">
                       <span>Views</span>
                       <strong>{scorecard.funnel.exactSiteViews}</strong>
@@ -410,7 +410,7 @@ export default function AdminGrowthOpsScorecard() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Queue quality
                   </p>
-                  <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
+                  <div className="mt-4 space-y-3 text-sm text-runway-body">
                     <div className="flex items-center justify-between">
                       <span>New last 7d</span>
                       <strong>{scorecard.queue.newHostedReviewLast7d}</strong>
@@ -439,26 +439,26 @@ export default function AdminGrowthOpsScorecard() {
                   Provider health
                 </p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
-                    <p className="font-medium text-runway-black">Analytics</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
+                    <p className="font-medium text-runway-text">Analytics</p>
                     <p className="mt-2">First-party ingest: {String(Boolean(scorecard.operatorStatus.providers.analytics?.firstPartyIngest?.enabled))}</p>
                     <p>GA4 live access: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.liveAccessConfigured))}</p>
                     <p>GA4 measurement: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.configured))}</p>
                     <p>PostHog: {String(Boolean(scorecard.operatorStatus.providers.analytics?.posthog?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
-                    <p className="font-medium text-runway-black">Email and outbound</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
+                    <p className="font-medium text-runway-text">Email and outbound</p>
                     <p>SendGrid: {String(Boolean(scorecard.operatorStatus.providers.sendgrid?.configured))}</p>
                     <p>SendGrid webhook: {String(Boolean(scorecard.operatorStatus.providers.sendgridWebhook?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
-                    <p className="font-medium text-runway-black">Creative</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
+                    <p className="font-medium text-runway-text">Creative</p>
                     <p>Google image: {String(Boolean(scorecard.operatorStatus.providers.googleImage?.configured))}</p>
                     <p>Google image state: {scorecard.operatorStatus.providers.googleImage?.executionState || "unknown"}</p>
                     <p>OpenRouter video: {String(Boolean(scorecard.operatorStatus.providers.runway?.configured))}</p>
                   </div>
-                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
-                    <p className="font-medium text-runway-black">Voice and agent runtime</p>
+                  <div className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
+                    <p className="font-medium text-runway-text">Voice and agent runtime</p>
                     <p>ElevenLabs: {String(Boolean(scorecard.operatorStatus.providers.elevenlabs?.configured))}</p>
                     <p>Telephony: {String(Boolean(scorecard.operatorStatus.providers.telephony?.configured))}</p>
                     <p>Agent runtime: {scorecard.operatorStatus.agentRuntime?.provider || "unconfigured"}</p>
@@ -475,9 +475,9 @@ export default function AdminGrowthOpsScorecard() {
                 </p>
                 <div className="mt-4 space-y-3">
                   {scorecard.operatorStatus.workers.map((worker) => (
-                    <div key={worker.workerKey} className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                    <div key={worker.workerKey} className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
                       <div className="flex items-center justify-between gap-3">
-                        <strong className="text-runway-black">{humanizeKey(worker.workerKey)}</strong>
+                        <strong className="text-runway-text">{humanizeKey(worker.workerKey)}</strong>
                         <span className={statusTone(worker.status, worker.enabled)}>
                           {worker.enabled ? worker.status : "disabled"}
                         </span>
@@ -507,9 +507,9 @@ export default function AdminGrowthOpsScorecard() {
                     <p className="text-sm text-runway-faint">No durable creative runs yet.</p>
                   ) : (
                     (scorecard.operatorStatus.recentCreativeRuns || []).map((run) => (
-                      <div key={run.id} className="rounded-xl border border-runway-line p-4 text-sm text-runway-line-strong">
+                      <div key={run.id} className="rounded-xl border border-runway-line p-4 text-sm text-runway-body">
                         <div className="flex items-center justify-between gap-3">
-                          <strong className="text-runway-black">{run.skuName}</strong>
+                          <strong className="text-runway-text">{run.skuName}</strong>
                           <span className="text-runway-faint">{run.status}</span>
                         </div>
                         <p className="mt-2 text-xs text-runway-faint">{formatDateTime(run.createdAt)}</p>
@@ -535,7 +535,7 @@ export default function AdminGrowthOpsScorecard() {
                     scorecard.campaigns.map((campaign) => (
                       <div key={campaign.campaignName} className="rounded-xl border border-runway-line p-4 text-sm">
                         <div className="flex items-center justify-between">
-                          <strong className="text-runway-black">{campaign.campaignName}</strong>
+                          <strong className="text-runway-text">{campaign.campaignName}</strong>
                           <span className="text-runway-faint">
                             {conversionRate(campaign.contactSubmissions, campaign.views)} submit rate
                           </span>
@@ -563,14 +563,14 @@ export default function AdminGrowthOpsScorecard() {
                     scorecard.experiments.map((experiment) => (
                       <div key={experiment.experimentKey} className="rounded-xl border border-runway-line p-4 text-sm">
                         <div className="flex items-center justify-between">
-                          <strong className="text-runway-black">{experiment.experimentKey}</strong>
+                          <strong className="text-runway-text">{experiment.experimentKey}</strong>
                           <span className="text-runway-faint">{experiment.exposures} exposures</span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {Object.entries(experiment.variants).map(([variant, count]) => (
                             <span
                               key={variant}
-                              className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong"
+                              className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body"
                             >
                               {variant}: {count}
                             </span>

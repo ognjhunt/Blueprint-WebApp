@@ -86,7 +86,7 @@ export function PilotOpportunityFields({
 }: PilotOpportunityFieldsProps) {
   return (
     <section className="md:col-span-2" aria-labelledby="pilot-opportunity-heading">
-      <div className="rounded-[1.35rem] border border-white/10 bg-[#101312] p-5">
+      <div className="rounded-none border border-white/10 bg-[#101312] p-5">
         <label className="flex cursor-pointer items-start gap-3">
           <Checkbox
             checked={requested}
@@ -173,7 +173,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Input
                   id="approvedRobotTeamEmails"
-                  className="mt-2 h-12 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 h-12 rounded-none border-white/10 bg-paper-0"
                   placeholder="deployment@robotco.com, autonomy@anotherteam.ai"
                   value={approvedRobotTeamEmails}
                   onChange={(event) => onApprovedRobotTeamEmailsChange(event.target.value)}
@@ -189,7 +189,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Textarea
                   id="anonymizedSummary"
-                  className="mt-2 min-h-24 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 min-h-24 rounded-none border-white/10 bg-paper-0"
                   placeholder="Describe the workflow without company names, addresses, people, or restricted details."
                   value={anonymizedSummary}
                   onChange={(event) => onAnonymizedSummaryChange(event.target.value)}
@@ -203,7 +203,7 @@ export function PilotOpportunityFields({
               </Label>
               <Textarea
                 id="pilotBenchmarkProfile"
-                className="mt-2 min-h-24 rounded-[1rem] border-white/10 bg-paper-0"
+                className="mt-2 min-h-24 rounded-none border-white/10 bg-paper-0"
                 placeholder="Object ranges, environment classes, success metrics, expected throughput, and permitted exception classes—without confidential facility details."
                 value={benchmarkProfile}
                 onChange={(event) => onBenchmarkProfileChange(event.target.value)}
@@ -217,7 +217,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Textarea
                   id="pilotObjectProfile"
-                  className="mt-2 min-h-28 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 min-h-28 rounded-none border-white/10 bg-paper-0"
                   placeholder="Objects, weights, dimensions, materials, packaging, and normal variation."
                   value={objectProfile}
                   onChange={(event) => onObjectProfileChange(event.target.value)}
@@ -229,7 +229,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Textarea
                   id="pilotOperationalProfile"
-                  className="mt-2 min-h-28 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 min-h-28 rounded-none border-white/10 bg-paper-0"
                   placeholder="Cycle time, volume, shifts, seasonality, exception rate, accuracy, and downtime tolerance."
                   value={operationalProfile}
                   onChange={(event) => onOperationalProfileChange(event.target.value)}
@@ -241,7 +241,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Textarea
                   id="pilotIntegrationEnvironment"
-                  className="mt-2 min-h-28 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 min-h-28 rounded-none border-white/10 bg-paper-0"
                   placeholder="WMS, MES, PLC, Wi-Fi, cybersecurity, data, and fleet-system constraints."
                   value={integrationEnvironment}
                   onChange={(event) => onIntegrationEnvironmentChange(event.target.value)}
@@ -253,7 +253,7 @@ export function PilotOpportunityFields({
                 </Label>
                 <Textarea
                   id="pilotRolloutReadiness"
-                  className="mt-2 min-h-28 rounded-[1rem] border-white/10 bg-paper-0"
+                  className="mt-2 min-h-28 rounded-none border-white/10 bg-paper-0"
                   placeholder="Named internal owner, pilot area, timing, procurement path, and number of similar workflows or sites."
                   value={rolloutReadiness}
                   onChange={(event) => onRolloutReadinessChange(event.target.value)}
@@ -296,7 +296,7 @@ export function PilotOpportunityFields({
                     </Label>
                     <select
                       id={permission.id}
-                      className="mt-2 flex h-11 w-full rounded-[1rem] border border-white/10 bg-paper-0 px-3 text-sm text-runway-text"
+                      className="mt-2 flex h-11 w-full rounded-none border border-white/10 bg-paper-0 px-3 text-sm text-runway-text"
                       value={permission.value}
                       onChange={(event) =>
                         permission.onChange(event.target.value as PilotPermissionDisposition)

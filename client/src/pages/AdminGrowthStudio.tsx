@@ -555,13 +555,13 @@ export default function AdminGrowthStudio() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-10 flex items-center gap-3">
           <div className="rounded-none bg-paper-0 p-3 shadow-sm">
-            <Sparkles className="h-6 w-6 text-runway-black" />
+            <Sparkles className="h-6 w-6 text-runway-text" />
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-runway-faint">
               Growth Studio
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-runway-black">
+            <h1 className="text-3xl font-semibold tracking-tight text-runway-text">
               Build proof-led campaign kits from real Blueprint surfaces
             </h1>
           </div>
@@ -580,7 +580,7 @@ export default function AdminGrowthStudio() {
                 ["Call To Action", "callToAction"],
               ].map(([label, key]) => (
                 <label key={key} className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">{label}</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">{label}</span>
                   <input
                     className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form[key as keyof typeof form]}
@@ -592,7 +592,7 @@ export default function AdminGrowthStudio() {
               ))}
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Asset Goal</span>
+                <span className="mb-1 block text-sm font-medium text-runway-body">Asset Goal</span>
                 <select
                   className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                   value={form.assetGoal}
@@ -607,7 +607,7 @@ export default function AdminGrowthStudio() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Proof Points</span>
+                <span className="mb-1 block text-sm font-medium text-runway-body">Proof Points</span>
                 <textarea
                   className="min-h-28 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={form.proofPoints}
@@ -616,7 +616,7 @@ export default function AdminGrowthStudio() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-runway-line-strong">Differentiators</span>
+                <span className="mb-1 block text-sm font-medium text-runway-body">Differentiators</span>
                 <textarea
                   className="min-h-24 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                   value={form.differentiators}
@@ -625,7 +625,7 @@ export default function AdminGrowthStudio() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-runway-line-strong">
+                <span className="mb-1 block text-sm font-medium text-runway-body">
                   Recipients for early testing
                 </span>
                 <textarea
@@ -638,7 +638,7 @@ export default function AdminGrowthStudio() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Image aspect ratio</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">Image aspect ratio</span>
                   <input
                     className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form.imageAspectRatio}
@@ -646,7 +646,7 @@ export default function AdminGrowthStudio() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Image size</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">Image size</span>
                   <select
                     className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                     value={form.imageSize}
@@ -657,7 +657,7 @@ export default function AdminGrowthStudio() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Thinking level</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">Thinking level</span>
                   <select
                     className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
                     value={form.thinkingLevel}
@@ -672,7 +672,7 @@ export default function AdminGrowthStudio() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Video ratio</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">Video ratio</span>
                   <input
                     className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
                     value={form.videoRatio}
@@ -680,7 +680,7 @@ export default function AdminGrowthStudio() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-runway-line-strong">Video duration (sec)</span>
+                  <span className="mb-1 block text-sm font-medium text-runway-body">Video duration (sec)</span>
                   <input
                     type="number"
                     min={5}
@@ -693,7 +693,7 @@ export default function AdminGrowthStudio() {
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-runway-line-strong">
+                <span className="mb-1 block text-sm font-medium text-runway-body">
                   Lifecycle follow-up threshold (days)
                 </span>
                 <input
@@ -719,7 +719,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={createCampaign}
                 disabled={!kit}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 Create campaign draft
               </button>
@@ -727,7 +727,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={queueCampaignSend}
                 disabled={!campaignId}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 Queue send for approval
               </button>
@@ -735,7 +735,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={renderProofReel}
                 disabled={renderingProofReel}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {renderingProofReel ? "Rendering reel…" : "Render proof reel"}
               </button>
@@ -743,14 +743,14 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runLifecycle}
                 disabled={runningLifecycle}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningLifecycle ? "Running lifecycle…" : "Queue lifecycle emails"}
               </button>
               <button
                 type="button"
                 onClick={verifyIntegrations}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint"
               >
                 Verify integrations
               </button>
@@ -758,7 +758,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={syncNotionMirror}
                 disabled={runningNotionSync}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningNotionSync ? "Syncing Notion…" : "Sync Notion mirror"}
               </button>
@@ -766,7 +766,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runExperimentRollout}
                 disabled={runningExperimentRollout}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningExperimentRollout ? "Running rollout…" : "Run experiment rollout"}
               </button>
@@ -774,7 +774,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runAutonomousOutbound}
                 disabled={runningAutonomousOutbound}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningAutonomousOutbound ? "Running outbound…" : "Run autonomous outbound"}
               </button>
@@ -782,7 +782,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={runCreativeFactory}
                 disabled={runningCreativeFactory}
-                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 {runningCreativeFactory ? "Running creative factory…" : "Run creative factory"}
               </button>
@@ -790,7 +790,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={generateVideo}
                 disabled={!kit || loadingVideo || !images?.[0]?.dataUrl}
-                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
                 {loadingVideo ? "Starting video…" : "Start OpenRouter video"}
@@ -799,7 +799,7 @@ export default function AdminGrowthStudio() {
                 type="button"
                 onClick={generateImage}
                 disabled={!kit}
-                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-deep transition hover:border-runway-faint disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-runway-line-strong bg-paper-0 px-5 py-3 text-sm font-medium text-runway-text transition hover:border-runway-faint disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
                 Use Codex Image Lane
@@ -815,7 +815,7 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {verifyResult ? (
-              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-body">
                 <p>First-party ingest enabled: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.enabled))}</p>
                 <p>First-party verification persisted: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.persisted))}</p>
                 <p>GA4 live access: {String(Boolean(verifyResult.analytics?.ga4?.liveAccessConfigured))}</p>
@@ -867,7 +867,7 @@ export default function AdminGrowthStudio() {
             />
 
             {runwayTask ? (
-              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-body">
                 <p>OpenRouter task id: {runwayTask.id}</p>
                 <p>Status: {runwayTask.status}</p>
                 <p>Model: {runwayTask.model || "bytedance/seedance-2.0-fast"}</p>
@@ -900,7 +900,7 @@ export default function AdminGrowthStudio() {
                   <button
                     type="button"
                     onClick={() => void refreshRunwayTask(runwayTask.id)}
-                    className="mt-3 rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-deep"
+                    className="mt-3 rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-text"
                   >
                     Refresh video status
                   </button>
@@ -909,7 +909,7 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {imageProviderStatus ? (
-              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-body">
                 <p>Google creative model: {imageProviderStatus.model || "unknown"}</p>
                 <p>Execution state: {imageProviderStatus.executionState || "unknown"}</p>
                 <p>Requested image size: {form.imageSize}</p>
@@ -922,8 +922,8 @@ export default function AdminGrowthStudio() {
             ) : null}
 
             {lifecycleResult?.results?.length ? (
-              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-line-strong">
-                <p className="font-semibold text-runway-black">
+              <div className="mt-4 rounded-none border border-runway-line bg-runway-line-soft p-4 text-xs text-runway-body">
+                <p className="font-semibold text-runway-text">
                   Lifecycle queue results ({lifecycleResult.count || lifecycleResult.results.length})
                 </p>
                 <div className="mt-3 space-y-2">
@@ -952,7 +952,7 @@ export default function AdminGrowthStudio() {
                 <button
                   type="button"
                   onClick={() => void refreshCreativeRuns()}
-                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-deep transition hover:border-runway-faint"
+                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-text transition hover:border-runway-faint"
                 >
                   Refresh runs
                 </button>
@@ -966,10 +966,10 @@ export default function AdminGrowthStudio() {
                   <p className="text-sm text-runway-faint">No creative runs yet.</p>
                 ) : (
                   creativeRuns.map((run) => (
-                    <div key={run.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-panel">
+                    <div key={run.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-text">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-runway-black">{run.skuName}</p>
+                          <p className="font-semibold text-runway-text">{run.skuName}</p>
                           <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">
                             {run.status} {run.rolloutVariant ? `• ${run.rolloutVariant}` : ""}
                           </p>
@@ -990,7 +990,7 @@ export default function AdminGrowthStudio() {
                       </div>
                       {run.executionHandoff ? (
                         <div className="mt-3 rounded-xl border border-runway-line bg-paper-0 p-3 text-xs text-runway-mute">
-                          <p className="font-medium text-runway-black">Codex execution handoff</p>
+                          <p className="font-medium text-runway-text">Codex execution handoff</p>
                           <p className="mt-2">Issue: {run.executionHandoff.issueId || "none"}</p>
                           <p>Status: {run.executionHandoff.status || "unknown"}</p>
                           <p>Assignee: {run.executionHandoff.assignee || "unknown"}</p>
@@ -1001,7 +1001,7 @@ export default function AdminGrowthStudio() {
                       ) : null}
                       {run.remotionReel.storageUri ? (
                         <div className="mt-3 rounded-xl border border-runway-line bg-paper-0 p-3">
-                          <p className="text-xs font-medium text-runway-black">Durable reel asset</p>
+                          <p className="text-xs font-medium text-runway-text">Durable reel asset</p>
                           <p className="mt-2 break-all font-mono text-[11px] text-runway-mute">
                             {run.remotionReel.storageUri}
                           </p>
@@ -1040,7 +1040,7 @@ export default function AdminGrowthStudio() {
                   </p>
                   <ul className="mt-4 space-y-3">
                     {kit.landingPage.heroHeadlineOptions.map((option) => (
-                      <li key={option} className="rounded-none border border-runway-line bg-runway-line-soft px-4 py-4 text-sm text-runway-panel">
+                      <li key={option} className="rounded-none border border-runway-line bg-runway-line-soft px-4 py-4 text-sm text-runway-text">
                         {option}
                       </li>
                     ))}
@@ -1051,15 +1051,15 @@ export default function AdminGrowthStudio() {
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
                     Prompt Pack
                   </p>
-                  <div className="mt-4 space-y-5 text-sm text-runway-panel">
+                  <div className="mt-4 space-y-5 text-sm text-runway-text">
                     <div>
-                      <h2 className="font-semibold text-runway-black">Google image prompt</h2>
+                      <h2 className="font-semibold text-runway-text">Google image prompt</h2>
                       <pre className="mt-2 whitespace-pre-wrap rounded-none bg-runway-line-soft p-4 text-xs leading-6">
                         {kit.prompts.googleImagePrompt}
                       </pre>
                     </div>
                     <div>
-                      <h2 className="font-semibold text-runway-black">Nano Banana variants</h2>
+                      <h2 className="font-semibold text-runway-text">Nano Banana variants</h2>
                       <ul className="mt-2 space-y-3">
                         {kit.prompts.nanoBananaVariants.map((prompt) => (
                           <li key={prompt} className="rounded-none bg-runway-line-soft p-4 text-xs leading-6">
@@ -1069,7 +1069,7 @@ export default function AdminGrowthStudio() {
                       </ul>
                     </div>
                     <div>
-                      <h2 className="font-semibold text-runway-black">Video prompt</h2>
+                      <h2 className="font-semibold text-runway-text">Video prompt</h2>
                       <pre className="mt-2 whitespace-pre-wrap rounded-none bg-runway-line-soft p-4 text-xs leading-6">
                         {kit.prompts.runwayPrompt}
                       </pre>
@@ -1086,8 +1086,8 @@ export default function AdminGrowthStudio() {
                   </p>
                   <div className="mt-4 space-y-3">
                     {kit.remotionStoryboard.map((scene) => (
-                      <div key={`${scene.startFrame}-${scene.title}`} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-panel">
-                        <p className="font-semibold text-runway-black">{scene.title}</p>
+                      <div key={`${scene.startFrame}-${scene.title}`} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-text">
+                        <p className="font-semibold text-runway-text">{scene.title}</p>
                         <p className="mt-1">{scene.copy}</p>
                         <p className="mt-2 text-xs uppercase tracking-[0.16em] text-runway-faint">
                           Frames {scene.startFrame}-{scene.startFrame + scene.durationFrames}
@@ -1130,7 +1130,7 @@ export default function AdminGrowthStudio() {
                 <button
                   type="button"
                   onClick={() => void refreshCampaigns()}
-                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-sm text-runway-deep"
+                  className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-sm text-runway-text"
                 >
                   Refresh
                 </button>
@@ -1148,10 +1148,10 @@ export default function AdminGrowthStudio() {
                     <div key={campaign.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-runway-black">{campaign.name || campaign.id}</p>
+                          <p className="font-semibold text-runway-text">{campaign.name || campaign.id}</p>
                           <p className="text-xs text-runway-faint">{campaign.subject || "No subject"}</p>
                         </div>
-                        <div className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs uppercase tracking-[0.14em] text-runway-line-strong">
+                        <div className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs uppercase tracking-[0.14em] text-runway-body">
                           {campaign.send_status || "draft"}
                         </div>
                       </div>

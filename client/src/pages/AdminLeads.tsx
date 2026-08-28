@@ -75,13 +75,13 @@ const pilotOpportunityOutcomeLabels: Record<PilotOpportunityOutcome, string> = {
 };
 
 const priorityColors: Record<RequestPriority, string> = {
-  low: "bg-runway-line-soft text-runway-line-strong",
+  low: "bg-runway-line-soft text-runway-body",
   normal: "bg-blue-100 text-blue-700",
   high: "bg-amber-100 text-amber-800",
 };
 
 const qualificationColors: Record<QualificationState, string> = {
-  submitted: "bg-runway-line-soft text-runway-line-strong",
+  submitted: "bg-runway-line-soft text-runway-body",
   capture_requested: "bg-amber-100 text-amber-800",
   qa_passed: "bg-sky-100 text-sky-800",
   needs_more_evidence: "bg-orange-100 text-orange-800",
@@ -555,7 +555,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-lg font-medium text-runway-black">
+                <p className="text-lg font-medium text-runway-text">
                   {application.displayName || application.email || application.uid}
                 </p>
                 <p className="mt-1 text-sm text-runway-mute">{application.email}</p>
@@ -585,7 +585,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
               <span
                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                   capturerStatusColors[application.status] ||
-                  "bg-runway-line-soft text-runway-line-strong"
+                  "bg-runway-line-soft text-runway-body"
                 }`}
               >
                 {capturerStatusLabels[application.status] || application.status}
@@ -605,7 +605,7 @@ function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
                   type="button"
                   onClick={() => handleReject(application)}
                   disabled={decisionMutation.isPending}
-                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong disabled:opacity-60"
+                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body disabled:opacity-60"
                 >
                   Reject
                 </button>
@@ -1538,7 +1538,7 @@ export default function AdminLeads() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
-          <h1 className="mt-4 text-xl font-semibold text-runway-deep">Admin access required</h1>
+          <h1 className="mt-4 text-xl font-semibold text-runway-text">Admin access required</h1>
         </div>
       </div>
     );
@@ -1564,7 +1564,7 @@ export default function AdminLeads() {
                       ? "Field Ops"
                   : "Ops Agent Console"}
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-runway-black">
+            <h1 className="mt-2 text-3xl font-semibold text-runway-text">
               {activeView === "submissions"
                 ? "Qualification submissions"
                 : activeView === "hosted_review"
@@ -1664,14 +1664,14 @@ export default function AdminLeads() {
                           ])
                     : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
               }
-              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </button>
             <a
               href="/admin/growth-ops-scorecard"
-              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               <ClipboardList className="mr-2 h-4 w-4" />
               Growth scorecard
@@ -1691,7 +1691,7 @@ export default function AdminLeads() {
                 <button
                   type="button"
                   onClick={() => runOverdueReviewWatchdogMutation.mutate()}
-                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+                  className="inline-flex items-center rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
                   disabled={runOverdueReviewWatchdogMutation.isPending}
                 >
                   <AlertCircle className="mr-2 h-4 w-4" />
@@ -1718,7 +1718,7 @@ export default function AdminLeads() {
             {statCards.map((card) => (
               <div key={card.label} className="rounded-none border border-runway-line bg-paper-0 p-5">
                 <p className="text-sm text-runway-faint">{card.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-runway-black">{card.value}</p>
+                <p className="mt-2 text-3xl font-semibold text-runway-text">{card.value}</p>
               </div>
             ))}
           </div>
@@ -1747,7 +1747,7 @@ export default function AdminLeads() {
                         <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                           {item.lane}
                         </p>
-                        <p className="mt-1 text-lg font-medium text-runway-black">{item.action_type}</p>
+                        <p className="mt-1 text-lg font-medium text-runway-text">{item.action_type}</p>
                         <p className="mt-1 text-sm text-runway-mute">
                           {item.source_collection} / {item.source_doc_id}
                         </p>
@@ -1762,13 +1762,13 @@ export default function AdminLeads() {
                         >
                           {item.status.replace(/_/g, " ")}
                         </span>
-                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body">
                           Tier {item.action_tier}
                         </span>
                       </div>
                     </div>
 
-                    <p className="mt-3 text-sm text-runway-line-strong">{formatActionPreview(item)}</p>
+                    <p className="mt-3 text-sm text-runway-body">{formatActionPreview(item)}</p>
                     <div className="mt-4 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
                       <p>Attempts: {item.execution_attempts}</p>
                       <p>Updated: {item.updated_at ? formatDate(item.updated_at) : "unknown"}</p>
@@ -1827,7 +1827,7 @@ export default function AdminLeads() {
                                 reason: reason.trim(),
                               });
                             }}
-                            className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-line-strong"
+                            className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-body"
                             disabled={rejectActionMutation.isPending}
                           >
                             Reject
@@ -1838,7 +1838,7 @@ export default function AdminLeads() {
                         <button
                           type="button"
                           onClick={() => retryActionMutation.mutate(item.id)}
-                          className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-4 py-2 text-sm font-medium text-runway-body"
                           disabled={retryActionMutation.isPending}
                         >
                           Retry
@@ -1854,7 +1854,7 @@ export default function AdminLeads() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                 Control model
               </p>
-              <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
+              <div className="mt-4 space-y-3 text-sm text-runway-body">
                 <p>Low-risk reversible actions can auto-send when the lane policy allows it.</p>
                 <p>Pending approval items stay parked until an operator approves or rejects them.</p>
                 <p>Failed actions can be retried if the executor marks them as safe to replay.</p>
@@ -1891,10 +1891,10 @@ export default function AdminLeads() {
                           <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                             {job.marketplace_state || "capture job"}
                           </p>
-                          <p className="mt-1 text-lg font-medium text-runway-black">{job.title}</p>
+                          <p className="mt-1 text-lg font-medium text-runway-text">{job.title}</p>
                           <p className="mt-1 text-sm text-runway-mute">{job.address}</p>
                         </div>
-                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body">
                           {job.status || "untracked"}
                         </span>
                       </div>
@@ -1934,7 +1934,7 @@ export default function AdminLeads() {
                           <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                             Selected capture job
                           </p>
-                          <h2 className="mt-2 text-2xl font-semibold text-runway-black">
+                          <h2 className="mt-2 text-2xl font-semibold text-runway-text">
                             {selectedCaptureJob.title}
                           </h2>
                           <p className="mt-2 text-sm text-runway-mute">
@@ -1952,7 +1952,7 @@ export default function AdminLeads() {
                         </a>
                       </div>
 
-                      <div className="mt-4 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
+                      <div className="mt-4 grid gap-3 text-sm text-runway-body md:grid-cols-2">
                         <p>Rights: {selectedCaptureJob.rights_status || "unknown"}</p>
                         <p>Policy: {selectedCaptureJob.capture_policy_tier || "review_required"}</p>
                         <p>
@@ -1994,7 +1994,7 @@ export default function AdminLeads() {
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <p className="text-sm font-medium text-runway-black">
+                                <p className="text-sm font-medium text-runway-text">
                                   {candidate.name || candidate.email || candidate.uid}
                                 </p>
                                 <p className="mt-1 text-xs text-runway-faint">
@@ -2005,7 +2005,7 @@ export default function AdminLeads() {
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm font-medium text-runway-black">
+                                <p className="text-sm font-medium text-runway-text">
                                   Score {candidate.score}
                                 </p>
                                 <p className="text-xs text-runway-faint">
@@ -2034,7 +2034,7 @@ export default function AdminLeads() {
                                     sendConfirmation: false,
                                   })
                                 }
-                                className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                                className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                               >
                                 Assign
                               </button>
@@ -2076,7 +2076,7 @@ export default function AdminLeads() {
                               communicationType: "reminder_48h",
                             })
                           }
-                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                         >
                           Send 48h reminder
                         </button>
@@ -2088,7 +2088,7 @@ export default function AdminLeads() {
                               communicationType: "reminder_24h",
                             })
                           }
-                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                         >
                           Send 24h reminder
                         </button>
@@ -2109,7 +2109,7 @@ export default function AdminLeads() {
                                 || "Human operator confirmed that site access is granted.",
                             })
                           }
-                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                         >
                           Mark site access granted
                         </button>
@@ -2130,7 +2130,7 @@ export default function AdminLeads() {
                                 || "Conditional access requires human follow-up on terms or restrictions.",
                             })
                           }
-                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                         >
                           Mark conditional
                         </button>
@@ -2151,15 +2151,15 @@ export default function AdminLeads() {
                                 || "Operator review is still required before any capture is scheduled.",
                             })
                           }
-                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                          className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                         >
                           Keep in review
                         </button>
                       </div>
 
                       <div className="mt-6 grid gap-3 md:grid-cols-2">
-                        <label className="space-y-2 text-sm text-runway-line-strong">
-                          <span className="font-medium text-runway-deep">Operator notes</span>
+                        <label className="space-y-2 text-sm text-runway-body">
+                          <span className="font-medium text-runway-text">Operator notes</span>
                           <textarea
                             value={siteAccessReviewNotes}
                             onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
@@ -2167,8 +2167,8 @@ export default function AdminLeads() {
                             className="min-h-[96px] w-full rounded-xl border border-runway-line px-3 py-2 text-sm"
                           />
                         </label>
-                        <label className="space-y-2 text-sm text-runway-line-strong">
-                          <span className="font-medium text-runway-deep">Decision summary</span>
+                        <label className="space-y-2 text-sm text-runway-body">
+                          <span className="font-medium text-runway-text">Decision summary</span>
                           <textarea
                             value={siteAccessDecisionSummary}
                             onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
@@ -2178,8 +2178,8 @@ export default function AdminLeads() {
                         </label>
                       </div>
 
-                      <div className="mt-6 rounded-xl border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-line-strong">
-                        <p className="font-medium text-runway-deep">Current site-access review</p>
+                      <div className="mt-6 rounded-xl border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-body">
+                        <p className="font-medium text-runway-text">Current site-access review</p>
                         {selectedSiteAccessOverdueReview.active === true ? (
                           <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
                             Overdue review:{" "}
@@ -2219,7 +2219,7 @@ export default function AdminLeads() {
                       </div>
 
                       <div className="mt-6">
-                        <p className="text-sm font-medium text-runway-deep">
+                        <p className="text-sm font-medium text-runway-text">
                           Site-access contacts
                         </p>
                         <div className="mt-3 space-y-2">
@@ -2234,7 +2234,7 @@ export default function AdminLeads() {
                                 className="flex items-center justify-between rounded-xl border border-runway-line p-3"
                               >
                                 <div>
-                                  <p className="text-sm font-medium text-runway-black">
+                                  <p className="text-sm font-medium text-runway-text">
                                     {contact.name || contact.email}
                                   </p>
                                   <p className="text-xs text-runway-faint">
@@ -2265,7 +2265,7 @@ export default function AdminLeads() {
                                       source: contact.source,
                                     })
                                   }
-                                  className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                                  className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                                 >
                                   Send outreach
                                 </button>
@@ -2276,7 +2276,7 @@ export default function AdminLeads() {
                       </div>
 
                       <div className="mt-6 rounded-xl border border-runway-line p-4">
-                        <p className="text-sm font-medium text-runway-deep">Add operator contact</p>
+                        <p className="text-sm font-medium text-runway-text">Add operator contact</p>
                         <p className="mt-1 text-xs text-runway-faint">
                           Use this when the correct contact comes from a call, email thread, or site visit rather than an existing Blueprint record.
                         </p>
@@ -2388,7 +2388,7 @@ export default function AdminLeads() {
                   ) : (
                     rescheduleQueueItems.map((item) => (
                       <div key={item.id} className="rounded-xl border border-runway-line p-4">
-                        <p className="text-sm font-medium text-runway-black">{item.businessName}</p>
+                        <p className="text-sm font-medium text-runway-text">{item.businessName}</p>
                         <p className="mt-1 text-xs text-runway-faint">
                           {item.current_date} {item.current_time} → {item.requested_date} {item.requested_time}
                         </p>
@@ -2422,7 +2422,7 @@ export default function AdminLeads() {
 
                       return (
                         <div key={item.id} className="rounded-xl border border-runway-line p-4">
-                        <p className="text-sm font-medium text-runway-black">
+                        <p className="text-sm font-medium text-runway-text">
                           {item.id} · {item.status}
                         </p>
                         <p className="mt-1 text-xs text-runway-faint">
@@ -2481,7 +2481,7 @@ export default function AdminLeads() {
                                 manualActionType: "investigation",
                               })
                             }
-                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                           >
                             Assign to me + investigate
                           </button>
@@ -2496,7 +2496,7 @@ export default function AdminLeads() {
                                 manualActionType: "manual_finance_execution",
                               })
                             }
-                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                            className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                           >
                             Ready for manual action
                           </button>
@@ -2512,7 +2512,7 @@ export default function AdminLeads() {
         ) : activeView === "submissions" || activeView === "hosted_review" ? (
           <>
             <div className="mb-6 flex flex-col gap-3 rounded-none border border-runway-line bg-paper-0 p-4 md:flex-row">
-              <div className="flex items-center gap-2 text-sm font-medium text-runway-line-strong">
+              <div className="flex items-center gap-2 text-sm font-medium text-runway-body">
                 <Filter className="h-4 w-4" />
                 Filters
               </div>
@@ -2566,7 +2566,7 @@ export default function AdminLeads() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-runway-deep">{lead.request.siteName}</p>
+                          <p className="font-medium text-runway-text">{lead.request.siteName}</p>
                           <p className="text-sm text-runway-mute">
                             {lead.contact.company} · {lead.request.siteLocation}
                           </p>
@@ -2598,7 +2598,7 @@ export default function AdminLeads() {
                           </span>
                         ) : null}
                         {lead.request.requestedLanes.map((lane) => (
-                          <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
+                          <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-body">
                             {requestedLaneLabels[lane]}
                           </span>
                         ))}
@@ -2617,7 +2617,7 @@ export default function AdminLeads() {
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                       Submission {selectedLead.site_submission_id}
                     </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-runway-black">
+                    <h2 className="mt-2 text-2xl font-semibold text-runway-text">
                       {selectedLead.request.siteName}
                     </h2>
                     <p className="mt-1 text-runway-mute">{selectedLead.request.siteLocation}</p>
@@ -2629,7 +2629,7 @@ export default function AdminLeads() {
                   </div>
                   <a
                     href={selectedLead.context.sourcePageUrl}
-                    className="inline-flex items-center text-sm text-runway-mute hover:text-runway-deep"
+                    className="inline-flex items-center text-sm text-runway-mute hover:text-runway-text"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2642,7 +2642,7 @@ export default function AdminLeads() {
                   {selectedLead.buyer_review_access?.buyer_review_url ? (
                     <a
                       href={selectedLead.buyer_review_access.buyer_review_url}
-                      className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
+                      className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-body"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -2653,7 +2653,7 @@ export default function AdminLeads() {
                   <button
                     type="button"
                     onClick={() => reviewLinkMutation.mutate(selectedLead.requestId)}
-                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-body"
                   >
                     Issue review link
                   </button>
@@ -2668,7 +2668,7 @@ export default function AdminLeads() {
                     type="button"
                     onClick={() => captureHandoffMutation.mutate(selectedLead.requestId)}
                     disabled={captureHandoffMutation.isPending}
-                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-body disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     {captureHandoffMutation.isPending
@@ -2678,7 +2678,7 @@ export default function AdminLeads() {
                   <button
                     type="button"
                     onClick={() => triggerPreviewMutation.mutate(selectedLead.requestId)}
-                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-line-strong"
+                    className="inline-flex items-center rounded-full border border-runway-line px-4 py-2 text-sm text-runway-body"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
                     Trigger preview
@@ -2688,7 +2688,7 @@ export default function AdminLeads() {
                 {selectedLead.request.pilotOpportunity?.requested ? (
                   <div className="rounded-xl border border-runway-line p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Pilot opportunity dossier</p>
-                    <div className="mt-3 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
+                    <div className="mt-3 grid gap-3 text-sm text-runway-body md:grid-cols-2">
                       <p>Visibility: {selectedLead.request.pilotOpportunity.visibility.replace(/_/g, " ")}</p>
                       <p>
                         Gate gaps: {selectedLead.structured_intake?.missing_pilot_opportunity_fields?.length
@@ -2706,14 +2706,14 @@ export default function AdminLeads() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl bg-runway-line-soft p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Contact</p>
-                    <p className="mt-2 font-medium text-runway-deep">
+                    <p className="mt-2 font-medium text-runway-text">
                       {selectedLead.contact.firstName} {selectedLead.contact.lastName}
                     </p>
                     <p className="text-sm text-runway-mute">{selectedLead.contact.company}</p>
                     <p className="text-sm text-runway-mute">{selectedLead.contact.roleTitle}</p>
                     <a
                       href={`mailto:${selectedLead.contact.email}`}
-                      className="mt-3 inline-flex items-center text-sm text-runway-line-strong hover:text-runway-deep"
+                      className="mt-3 inline-flex items-center text-sm text-runway-body hover:text-runway-text"
                     >
                       <Mail className="mr-2 h-4 w-4" />
                       {selectedLead.contact.email}
@@ -2721,7 +2721,7 @@ export default function AdminLeads() {
                   </div>
                   <div className="rounded-xl bg-runway-line-soft p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Submission facts</p>
-                    <div className="mt-2 space-y-2 text-sm text-runway-line-strong">
+                    <div className="mt-2 space-y-2 text-sm text-runway-body">
                       <p>Buyer type: {buyerTypeLabels[selectedLead.request.buyerType]}</p>
                       <p>Request path: {formatCommercialRequestPath(selectedLead.request.commercialRequestPath)}</p>
                       <p>Budget: {selectedLead.request.budgetBucket}</p>
@@ -2737,14 +2737,14 @@ export default function AdminLeads() {
                       ? "Immediate workflow question"
                       : "Task statement"}
                   </p>
-                  <p className="mt-2 text-sm text-runway-panel">{selectedLead.request.taskStatement}</p>
+                  <p className="mt-2 text-sm text-runway-text">{selectedLead.request.taskStatement}</p>
                 </div>
 
                 <div className="rounded-xl border border-runway-line p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                     Intake routing
                   </p>
-                  <div className="mt-3 grid gap-3 text-sm text-runway-line-strong md:grid-cols-2">
+                  <div className="mt-3 grid gap-3 text-sm text-runway-body md:grid-cols-2">
                     <p>
                       Owner lane:{" "}
                       {selectedLead.structured_intake?.owner_lane ||
@@ -2772,7 +2772,7 @@ export default function AdminLeads() {
                         : "not required by intake"}
                     </p>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-runway-line-strong">
+                  <p className="mt-3 text-sm leading-6 text-runway-body">
                     {selectedLead.structured_intake?.routing_summary ||
                       selectedLead.structured_intake?.next_action ||
                       selectedLead.ops_automation?.next_action ||
@@ -2799,7 +2799,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Target site type
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.targetSiteType || "No site type supplied."}
                     </p>
                   </div>
@@ -2807,7 +2807,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Proof path
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.proofPathPreference
                         ? proofPathPreferenceLabels[selectedLead.request.proofPathPreference]
                         : "No proof-path preference supplied."}
@@ -2818,7 +2818,7 @@ export default function AdminLeads() {
                       <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                         Display HUD pilot
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-runway-line-strong">
+                      <p className="mt-2 text-sm leading-6 text-runway-body">
                         Target:{" "}
                         {selectedLead.request.displayCaptureMetadata.targetName ||
                           selectedLead.request.siteName}
@@ -2826,7 +2826,7 @@ export default function AdminLeads() {
                         {selectedLead.request.displayCaptureMetadata.addressLabel ||
                           selectedLead.request.siteLocation}
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-runway-line-strong">
+                      <p className="mt-2 text-sm leading-6 text-runway-body">
                         {selectedLead.request.displayCaptureMetadata.captureBrief ||
                           "No display capture brief supplied."}
                       </p>
@@ -2850,7 +2850,7 @@ export default function AdminLeads() {
                   ) : null}
                   <div className="rounded-xl border border-runway-line p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Workflow context</p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.workflowContext || "No workflow context supplied."}
                     </p>
                   </div>
@@ -2858,7 +2858,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Operating constraints
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.operatingConstraints || "No operating constraints supplied."}
                     </p>
                   </div>
@@ -2866,14 +2866,14 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Privacy / security
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.privacySecurityConstraints ||
                         "No privacy or security constraints supplied."}
                     </p>
                   </div>
                   <div className="rounded-xl border border-runway-line p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Known blockers</p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.knownBlockers || "No blockers supplied."}
                     </p>
                   </div>
@@ -2884,7 +2884,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Existing stack / review workflow
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.existingStackReviewWorkflow ||
                         "No stack or review workflow supplied."}
                     </p>
@@ -2893,7 +2893,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">
                       Human-gated topics
                     </p>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedLead.request.humanGateTopics ||
                         "No early escalation topics supplied."}
                     </p>
@@ -2904,7 +2904,7 @@ export default function AdminLeads() {
                   <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Requested lanes</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedLead.request.requestedLanes.map((lane) => (
-                      <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-line-strong">
+                      <span key={lane} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-body">
                         {requestedLaneLabels[lane]}
                       </span>
                     ))}
@@ -2915,7 +2915,7 @@ export default function AdminLeads() {
                   <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Ops controls</p>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Assigned region
                       </label>
                       <input
@@ -2930,7 +2930,7 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Rights status
                       </label>
                       <select
@@ -2953,7 +2953,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Capture policy
                       </label>
                       <select
@@ -2977,7 +2977,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Capture status
                       </label>
                       <select
@@ -3001,7 +3001,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Quote status
                       </label>
                       <select
@@ -3025,7 +3025,7 @@ export default function AdminLeads() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Next step
                       </label>
                       <input
@@ -3040,7 +3040,7 @@ export default function AdminLeads() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-runway-line-strong">
+                      <label className="mb-1 block text-sm font-medium text-runway-body">
                         Recapture guidance
                       </label>
                       <textarea
@@ -3076,7 +3076,7 @@ export default function AdminLeads() {
                           <p className="text-xs uppercase tracking-[0.14em] text-runway-faint">
                             {label}
                           </p>
-                          <p className="mt-1 text-sm text-runway-panel">
+                          <p className="mt-1 text-sm text-runway-text">
                             {typeof value === "string" ? formatDate(value) : "Not recorded"}
                           </p>
                         </div>
@@ -3094,7 +3094,7 @@ export default function AdminLeads() {
                             proof_path_stage: button.stage,
                           })
                         }
-                        className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-line-strong"
+                        className="rounded-full border border-runway-line px-3 py-2 text-sm text-runway-body"
                       >
                         {button.label}
                       </button>
@@ -3106,7 +3106,7 @@ export default function AdminLeads() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-xl border border-runway-line p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Buyer trust</p>
-                      <p className="mt-2 text-3xl font-semibold text-runway-black">
+                      <p className="mt-2 text-3xl font-semibold text-runway-text">
                         {selectedLead.evaluation_readiness.buyer_trust_score?.score ?? "N/A"}
                       </p>
                       <p className="mt-1 text-sm text-runway-mute">
@@ -3122,10 +3122,10 @@ export default function AdminLeads() {
                     </div>
                     <div className="rounded-xl border border-runway-line p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Preview run</p>
-                      <p className="mt-2 text-sm text-runway-line-strong">
+                      <p className="mt-2 text-sm text-runway-body">
                         Status: {selectedLead.evaluation_readiness.preview_status || "Not recorded"}
                       </p>
-                      <p className="mt-1 text-sm text-runway-line-strong">
+                      <p className="mt-1 text-sm text-runway-body">
                         Provider: {selectedLead.evaluation_readiness.provider_run?.provider_name || "Not attached"}
                       </p>
                       {selectedLead.evaluation_readiness.provider_run?.failure_reason ? (
@@ -3139,7 +3139,7 @@ export default function AdminLeads() {
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-runway-line-strong">
+                    <label htmlFor="admin-qualification-state" className="mb-1 block text-sm font-medium text-runway-body">
                       Qualification state
                     </label>
                     <select
@@ -3163,7 +3163,7 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-runway-line-strong">
+                    <label htmlFor="admin-opportunity-state" className="mb-1 block text-sm font-medium text-runway-body">
                       Opportunity state
                     </label>
                     <select
@@ -3188,7 +3188,7 @@ export default function AdminLeads() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-runway-line-strong">
+                    <label htmlFor="admin-pilot-opportunity-outcome" className="mb-1 block text-sm font-medium text-runway-body">
                       Pilot opportunity outcome
                     </label>
                     <select
@@ -3219,7 +3219,7 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="rounded-xl border border-runway-line p-4">
-                  <label className="mb-1 block text-sm font-medium text-runway-line-strong">Add note</label>
+                  <label className="mb-1 block text-sm font-medium text-runway-body">Add note</label>
                   <textarea
                     className="min-h-24 w-full rounded-lg border border-runway-line px-3 py-2 text-sm"
                     value={note}
@@ -3251,7 +3251,7 @@ export default function AdminLeads() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Scene readiness</p>
-                        <p className="mt-2 text-sm text-runway-line-strong">
+                        <p className="mt-2 text-sm text-runway-body">
                           Scene `{selectedLead.pipeline.scene_id}` · Capture `{selectedLead.pipeline.capture_id}`
                         </p>
                       </div>
@@ -3271,26 +3271,26 @@ export default function AdminLeads() {
                             <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">
                               {sceneDashboardQuery.data.site_type || "Site"} status
                             </p>
-                            <p className="mt-2 font-medium text-runway-deep">
+                            <p className="mt-2 font-medium text-runway-text">
                               {(sceneDashboardQuery.data.overview ?? sceneDashboardQuery.data.whole_home)
                                 ?.status ?? "review required"}
                             </p>
                           </div>
                           <div className="rounded-xl bg-runway-line-soft p-3">
                             <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Ready now</p>
-                            <p className="mt-2 text-2xl font-semibold text-runway-black">
+                            <p className="mt-2 text-2xl font-semibold text-runway-text">
                               {sceneDashboardQuery.data.deployment_summary.ready_now}
                             </p>
                           </div>
                           <div className="rounded-xl bg-runway-line-soft p-3">
                             <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Need redesign</p>
-                            <p className="mt-2 text-2xl font-semibold text-runway-black">
+                            <p className="mt-2 text-2xl font-semibold text-runway-text">
                               {sceneDashboardQuery.data.deployment_summary.needs_redesign}
                             </p>
                           </div>
                           <div className="rounded-xl bg-runway-line-soft p-3">
                             <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">Outside envelope</p>
-                            <p className="mt-2 text-2xl font-semibold text-runway-black">
+                            <p className="mt-2 text-2xl font-semibold text-runway-text">
                               {sceneDashboardQuery.data.deployment_summary.outside_robot_envelope}
                             </p>
                           </div>
@@ -3318,7 +3318,7 @@ export default function AdminLeads() {
                                         </span>
                                         <span className="text-xs text-runway-faint">{task.capture_id}</span>
                                       </div>
-                                      <p className="mt-2 text-sm text-runway-deep">{task.task_text}</p>
+                                      <p className="mt-2 text-sm text-runway-text">{task.task_text}</p>
                                       <p className="mt-1 text-xs text-runway-faint">
                                         Themes: {task.themes.join(", ") || "none"}
                                       </p>
@@ -3328,7 +3328,7 @@ export default function AdminLeads() {
                                             href={task.memo_uri}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="mt-2 inline-flex items-center text-xs text-runway-line-strong hover:text-runway-deep"
+                                            className="mt-2 inline-flex items-center text-xs text-runway-body hover:text-runway-text"
                                           >
                                             Memo
                                             <ExternalLink className="ml-1 h-3 w-3" />
@@ -3365,7 +3365,7 @@ export default function AdminLeads() {
                     {selectedLead.notes?.length ? (
                       selectedLead.notes.map((entry) => (
                         <div key={entry.id} className="rounded-lg bg-runway-line-soft p-3 text-sm">
-                          <p className="text-runway-panel">{entry.content}</p>
+                          <p className="text-runway-text">{entry.content}</p>
                           <p className="mt-2 text-xs text-runway-faint">{formatDate(entry.createdAt)}</p>
                         </div>
                       ))
@@ -3387,7 +3387,7 @@ export default function AdminLeads() {
         ) : (
           <>
             <div className="mb-6 flex flex-col gap-3 rounded-none border border-runway-line bg-paper-0 p-4 md:flex-row md:flex-wrap">
-              <div className="flex items-center gap-2 text-sm font-medium text-runway-line-strong">
+              <div className="flex items-center gap-2 text-sm font-medium text-runway-body">
                 <Filter className="h-4 w-4" />
                 Filters
               </div>
@@ -3459,7 +3459,7 @@ export default function AdminLeads() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-runway-deep">
+                          <p className="font-medium text-runway-text">
                             {submission.market || "Unknown market"}
                           </p>
                           <p className="text-sm text-runway-mute">
@@ -3472,12 +3472,12 @@ export default function AdminLeads() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
                         {submission.role ? (
-                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
+                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-body">
                             {submission.role}
                           </span>
                         ) : null}
                         {submission.device ? (
-                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-line-strong">
+                          <span className="rounded-full bg-runway-line-soft px-3 py-1 text-runway-body">
                             {submission.device}
                           </span>
                         ) : null}
@@ -3508,7 +3508,7 @@ export default function AdminLeads() {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                           Waitlist submission
                         </p>
-                        <h2 className="mt-2 text-2xl font-semibold text-runway-black">
+                        <h2 className="mt-2 text-2xl font-semibold text-runway-text">
                           {selectedWaitlistSubmission.market || "Unknown market"}
                         </h2>
                         <p className="mt-1 text-runway-mute">
@@ -3525,7 +3525,7 @@ export default function AdminLeads() {
                         <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Contact</p>
                         <a
                           href={`mailto:${selectedWaitlistSubmission.email}`}
-                          className="mt-2 inline-flex items-center text-sm text-runway-line-strong hover:text-runway-deep"
+                          className="mt-2 inline-flex items-center text-sm text-runway-body hover:text-runway-text"
                         >
                           <Mail className="mr-2 h-4 w-4" />
                           {selectedWaitlistSubmission.email}
@@ -3543,7 +3543,7 @@ export default function AdminLeads() {
                       </div>
                       <div className="rounded-xl bg-runway-line-soft p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Request facts</p>
-                        <div className="mt-2 space-y-2 text-sm text-runway-line-strong">
+                        <div className="mt-2 space-y-2 text-sm text-runway-body">
                           <p>Role: {selectedWaitlistSubmission.role || "unknown"}</p>
                           <p>Device: {selectedWaitlistSubmission.device || "unknown"}</p>
                           <p>Queue: {selectedWaitlistSubmission.queue || "unassigned"}</p>
@@ -3561,7 +3561,7 @@ export default function AdminLeads() {
                     <div className="rounded-xl border border-runway-line p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-runway-faint">Automation state</p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
+                        <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body">
                           {selectedWaitlistSubmission.ops_automation.status}
                         </span>
                         {selectedWaitlistSubmission.ops_automation.recommendation ? (
@@ -3578,25 +3578,25 @@ export default function AdminLeads() {
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
                           <p className="text-sm text-runway-faint">Status</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.status}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Next action</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.next_action || "None"}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Recommended path</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.recommended_path || "None"}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">AI triage</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.eligible_for_ai_triage
                               ? "Eligible"
                               : "No"}
@@ -3604,13 +3604,13 @@ export default function AdminLeads() {
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Invite readiness</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.invite_readiness_score ?? "N/A"}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Confidence</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.confidence !== null
                               ? `${Math.round(selectedWaitlistSubmission.ops_automation.confidence * 100)}%`
                               : "N/A"}
@@ -3618,13 +3618,13 @@ export default function AdminLeads() {
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Market fit</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.market_fit_score ?? "N/A"}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-runway-faint">Device fit</p>
-                          <p className="mt-1 font-medium text-runway-deep">
+                          <p className="mt-1 font-medium text-runway-text">
                             {selectedWaitlistSubmission.ops_automation.device_fit_score ?? "N/A"}
                           </p>
                         </div>
@@ -3635,7 +3635,7 @@ export default function AdminLeads() {
                         </p>
                       ) : null}
                       {selectedWaitlistSubmission.ops_automation.market_summary ? (
-                        <p className="mt-4 text-sm text-runway-line-strong">
+                        <p className="mt-4 text-sm text-runway-body">
                           {selectedWaitlistSubmission.ops_automation.market_summary}
                         </p>
                       ) : null}
@@ -3663,7 +3663,7 @@ export default function AdminLeads() {
                               submissionId: selectedWaitlistSubmission.id,
                             })
                           }
-                          className="inline-flex items-center rounded-full border border-runway-line px-3 py-1.5 text-xs text-runway-line-strong"
+                          className="inline-flex items-center rounded-full border border-runway-line px-3 py-1.5 text-xs text-runway-body"
                           disabled={runWaitlistAutomationMutation.isPending}
                         >
                           <Sparkles className="mr-2 h-3.5 w-3.5" />
@@ -3674,13 +3674,13 @@ export default function AdminLeads() {
                         <div className="mt-3 space-y-3">
                           <div className="rounded-lg bg-runway-line-soft p-3">
                             <p className="text-xs text-runway-faint">Subject</p>
-                            <p className="mt-1 text-sm font-medium text-runway-deep">
+                            <p className="mt-1 text-sm font-medium text-runway-text">
                               {selectedWaitlistSubmission.ops_automation.draft_email.subject}
                             </p>
                           </div>
                           <div className="rounded-lg bg-runway-line-soft p-3">
                             <p className="text-xs text-runway-faint">Body</p>
-                            <p className="mt-1 whitespace-pre-wrap text-sm text-runway-line-strong">
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-runway-body">
                               {selectedWaitlistSubmission.ops_automation.draft_email.body}
                             </p>
                           </div>
@@ -3697,7 +3697,7 @@ export default function AdminLeads() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {selectedWaitlistSubmission.filter_tags.length ? (
                           selectedWaitlistSubmission.filter_tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-line-strong">
+                            <span key={tag} className="rounded-full bg-runway-line-soft px-3 py-1 text-sm text-runway-body">
                               {tag}
                             </span>
                           ))

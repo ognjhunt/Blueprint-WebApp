@@ -75,23 +75,23 @@ function statusTone(
 function toneClasses(tone: ReturnType<typeof statusTone>) {
   switch (tone) {
     case "emerald":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "runway-chip-live";
     case "amber":
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "runway-chip-open";
     case "rose":
-      return "bg-rose-50 text-rose-700 border-rose-200";
+      return "runway-chip-fail";
     case "sky":
-      return "bg-sky-50 text-sky-700 border-sky-200";
+      return "runway-chip-neutral";
     default:
-      return "bg-runway-line-soft text-runway-line-strong border-runway-line";
+      return "runway-chip-quiet";
   }
 }
 
 function ValueChip({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="rounded-none border border-runway-line bg-paper-0 p-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">{label}</p>
-      <p className="mt-2 text-sm font-medium text-runway-deep">{value || "Not recorded"}</p>
+    <div className="runway-panel p-4">
+      <p className="runway-meta">{label}</p>
+      <p className="mt-2 text-sm font-medium text-runway-text">{value || "Not recorded"}</p>
     </div>
   );
 }
@@ -181,13 +181,13 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
         <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
         <SurfaceSection className="py-12">
           <SurfaceBrowserFrame>
-            <div className="grid min-h-[36rem] place-items-center bg-[#101312] p-8">
+            <div className="grid min-h-[36rem] place-items-center bg-runway-deep p-8">
               <div className="max-w-xl text-center">
                 <SurfaceMiniLabel>Private Review Link</SurfaceMiniLabel>
                 <h1 className="mt-4 font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">
                   Validating review link
                 </h1>
-                <p className="mt-4 text-sm leading-7 text-white/60">
+                <p className="mt-4 text-sm leading-[1.6] text-runway-body">
                   Blueprint is checking whether this private review URL still maps to an active
                   buyer workspace.
                 </p>
@@ -207,26 +207,26 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.4fr_0.6fr]">
-              <div className="bg-[#141816] p-8 lg:p-10">
+              <div className="bg-runway-panel p-8 lg:p-10">
                 <SurfaceMiniLabel>Private Access</SurfaceMiniLabel>
-                <h1 className="mt-5 font-display uppercase text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[0.005em] leading-[0.92]">
+                <h1 className="mt-5 font-display uppercase text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[0.005em] leading-[0.92] text-runway-text">
                   Review link required
                 </h1>
-                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-white/60">
+                <p className="mt-4 max-w-[24rem] text-sm leading-[1.6] text-runway-body">
                   This request is private to the buyer review flow. Ask Blueprint to resend the
                   current review link so the exact-site evidence room opens with the correct access
                   token attached.
                 </p>
               </div>
-              <div className="bg-paper-0 p-8 lg:p-10">
-                <div className="overflow-hidden rounded-[1.7rem] border border-white/10">
+              <div className="bg-runway-deep p-8 lg:p-10">
+                <div className="overflow-hidden border border-runway-line">
                   <img
                     src={privateGeneratedAssets.privateFacilityAerial}
                     alt="Blueprint private facility review"
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="mt-6 rounded-[1.35rem] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+                <div className="mt-6 border border-runway-red-dim bg-runway-panel p-5 text-sm text-runway-red">
                   Review links are request-scoped and expire when the protected workspace changes.
                 </div>
               </div>
@@ -244,13 +244,13 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
         <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
         <SurfaceSection className="py-12">
           <SurfaceBrowserFrame>
-            <div className="grid min-h-[36rem] place-items-center bg-[#101312] p-8">
+            <div className="grid min-h-[36rem] place-items-center bg-runway-deep p-8">
               <div className="max-w-xl text-center">
                 <SurfaceMiniLabel>Protected Request</SurfaceMiniLabel>
                 <h1 className="mt-4 font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">
                   Loading request
                 </h1>
-                <p className="mt-4 text-sm leading-7 text-white/60">
+                <p className="mt-4 text-sm leading-[1.6] text-runway-body">
                   Blueprint is pulling the current review, evidence, and provenance state for
                   this exact-site request.
                 </p>
@@ -270,25 +270,25 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.42fr_0.58fr]">
-              <div className="bg-[#141816] p-8 lg:p-10">
+              <div className="bg-runway-panel p-8 lg:p-10">
                 <SurfaceMiniLabel>Protected Request</SurfaceMiniLabel>
-                <h1 className="mt-5 font-display uppercase text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[0.005em] leading-[0.92]">
+                <h1 className="mt-5 font-display uppercase text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[0.005em] leading-[0.92] text-runway-text">
                   Request unavailable
                 </h1>
-                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-white/60">
+                <p className="mt-4 max-w-[24rem] text-sm leading-[1.6] text-runway-body">
                   Blueprint could not load this request. The review link may be missing, expired,
                   or the record may still be processing into the buyer-facing workspace.
                 </p>
               </div>
-              <div className="bg-paper-0 p-8 lg:p-10">
-                <div className="overflow-hidden rounded-[1.7rem] border border-white/10">
+              <div className="bg-runway-deep p-8 lg:p-10">
+                <div className="overflow-hidden border border-runway-line">
                   <img
                     src={privateGeneratedAssets.facilityPlanBoard}
                     alt="Blueprint request provenance board"
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="mt-6 rounded-[1.35rem] border border-white/10 bg-[#101312] p-5 text-sm leading-7 text-white/60">
+                <div className="mt-6 border border-runway-line bg-runway-panel p-5 text-sm leading-[1.6] text-runway-body">
                   Buyer review links only open once the protected request room has a valid record
                   behind it.
                 </div>
@@ -330,10 +330,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
       <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
       <SurfaceSection className="py-8">
         <SurfaceBrowserFrame>
-          <div className="bg-[#101312] p-6 lg:p-7">
+          <div className="bg-runway-deep p-6 lg:p-7">
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.22fr] xl:items-start">
               <div className="flex gap-5">
-                <div className="hidden h-28 w-40 shrink-0 overflow-hidden rounded-[1.3rem] border border-white/10 bg-paper-0 md:block">
+                <div className="hidden h-28 w-40 shrink-0 overflow-hidden border border-runway-line bg-runway-panel md:block">
                   <img
                     src={privateGeneratedAssets.privateFacilityAerial}
                     alt={request.request.siteName}
@@ -345,32 +345,32 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <h1 className="mt-3 font-display uppercase text-[clamp(2.2rem,4vw,3.5rem)] font-semibold tracking-[0.005em] leading-[0.94] text-runway-text">
                     {request.request.siteName}
                   </h1>
-                  <p className="mt-2 text-sm text-white/55">{request.request.siteLocation}</p>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-white/60">
+                  <p className="mt-2 text-sm text-runway-mute">{request.request.siteLocation}</p>
+                  <p className="mt-4 max-w-3xl text-sm leading-[1.6] text-runway-body">
                     {request.request.taskStatement}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${toneClasses(statusTone(request.qualification_state))}`}>
+                    <span className={`runway-chip ${toneClasses(statusTone(request.qualification_state))}`}>
                       {REQUEST_STATUS_LABELS[request.qualification_state]}
                     </span>
-                    <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${toneClasses(statusTone(ops?.capture_status))}`}>
+                    <span className={`runway-chip ${toneClasses(statusTone(ops?.capture_status))}`}>
                       {ops?.capture_status
                         ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
                         : "Capture state not recorded"}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-paper-0 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                    <span className="runway-chip runway-chip-quiet">
                       Protected
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[1.6rem] border border-white/10 bg-paper-0 px-5 py-4 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Trust score</p>
-                <p className="mt-3 font-display uppercase text-[3rem] font-semibold tracking-[0.005em] text-runway-text">
+              <div className="runway-panel px-5 py-4 text-right">
+                <p className="runway-meta">Trust score</p>
+                <p className="runway-num mt-3 text-[3rem] font-semibold leading-none text-runway-text">
                   {trustScore?.score ?? "N/A"}
                 </p>
-                  <p className="text-sm text-white/50">{trustScore?.band || "Not attached"}</p>
+                  <p className="mt-2 text-sm text-runway-mute">{trustScore?.band || "Not attached"}</p>
               </div>
             </div>
 
@@ -379,10 +379,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <a
                   key={tab.id}
                   href={`${tab.href}${accessToken ? `?access=${encodeURIComponent(accessToken)}` : ""}`}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  className={`border px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors ${
                     section === tab.id
-                      ? "bg-[#111110] text-white"
-                      : "border border-white/10 bg-paper-0 text-white/60 hover:bg-[#101312]"
+                      ? "border-runway-signal text-runway-signal"
+                      : "border-runway-line text-runway-mute hover:border-runway-line-strong hover:text-runway-text"
                   }`}
                 >
                   {tab.label}
@@ -390,41 +390,41 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               ))}
             </div>
 
-            <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-paper-0 p-5">
+            <div className="runway-panel mt-6 p-5">
               <div className="grid gap-4 lg:grid-cols-[0.72fr_1.28fr]">
                 <div>
                   <SurfaceMiniLabel>Private review truth map</SurfaceMiniLabel>
-                  <p className="mt-2 text-sm leading-7 text-white/60">
+                  <p className="mt-2 text-sm leading-[1.6] text-runway-body">
                     This room reads the protected request record and attached review state. It does
                     not turn tests, previews, or queued records into operational launch proof.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[1.15rem] border border-white/10 bg-[#101312] p-4">
+                  <div className="border border-runway-line bg-runway-black p-4">
                     <p className="text-sm font-semibold text-runway-text">Firestore request record</p>
-                    <p className="mt-1 text-sm leading-6 text-white/60">
+                    <p className="mt-1 text-sm leading-[1.6] text-runway-body">
                       {REQUEST_STATUS_LABELS[request.qualification_state]} / {ops?.capture_status
                         ? REQUEST_CAPTURE_STATUS_LABELS[ops.capture_status]
                         : "capture state not recorded"}
                     </p>
                   </div>
-                  <div className="rounded-[1.15rem] border border-white/10 bg-[#101312] p-4">
+                  <div className="border border-runway-line bg-runway-black p-4">
                     <p className="text-sm font-semibold text-runway-text">Next action</p>
-                    <p className="mt-1 text-sm leading-6 text-white/60">
+                    <p className="mt-1 text-sm leading-[1.6] text-runway-body">
                       {structuredIntake?.owner_lane || "Owner pending"}: {structuredIntake?.next_action || ops?.next_step || "No next action projected"}
                     </p>
                   </div>
-                  <div className="rounded-[1.15rem] border border-white/10 bg-[#101312] p-4">
+                  <div className="border border-runway-line bg-runway-black p-4">
                     <p className="text-sm font-semibold text-runway-text">Provider preview state</p>
-                    <p className="mt-1 text-sm leading-6 text-white/60">
+                    <p className="mt-1 text-sm leading-[1.6] text-runway-body">
                       {previewRun?.provider_name || "No provider attached"} / {readiness?.preview_status
                         ? String(readiness.preview_status).replaceAll("_", " ")
                         : "no preview state attached"}
                     </p>
                   </div>
-                  <div className="rounded-[1.15rem] border border-white/10 bg-[#101312] p-4">
+                  <div className="border border-runway-line bg-runway-black p-4">
                     <p className="text-sm font-semibold text-runway-text">Stripe, Render, fulfillment</p>
-                    <p className="mt-1 text-sm leading-6 text-white/60">
+                    <p className="mt-1 text-sm leading-[1.6] text-runway-body">
                       Historical package or hosted-session access stays blocked until entitlement, payment, and backing runtime records support it. Current run evidence follows the run's authorization and permitted-use record.
                     </p>
                   </div>
@@ -434,12 +434,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
             <div className="mt-6 grid gap-5 xl:grid-cols-[1.02fr_0.98fr]">
               <div className="space-y-5">
-                <SurfaceCard className="bg-paper-0">
+                <SurfaceCard>
                   <div className="flex items-center gap-3">
-                    <FileSearch className="h-5 w-5 text-white/45" />
+                    <FileSearch className="h-5 w-5 text-runway-faint" />
                     <div>
                       <SurfaceMiniLabel>{sectionTitle}</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/55">
+                      <p className="mt-1 text-sm text-runway-mute">
                         Exact-site request status, evidence, readiness, and preview provenance.
                       </p>
                     </div>
@@ -476,9 +476,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                             : null
                         }
                       />
-                      <div className="rounded-none border border-runway-line bg-[#101312] p-4 md:col-span-2">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Workflow context</p>
-                        <p className="mt-2 text-sm leading-7 text-runway-panel">
+                      <div className="border border-runway-line bg-runway-black p-4 md:col-span-2">
+                        <p className="runway-meta">Workflow context</p>
+                        <p className="mt-2 text-sm leading-[1.6] text-runway-body">
                           {request.request.workflowContext || "Not supplied"}
                         </p>
                       </div>
@@ -511,9 +511,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                         <ValueChip label="Missing evidence" value={missingEvidence.length ? `${missingEvidence.length} item(s)` : "None attached"} />
                       </div>
                       {trustScore?.reasons?.length ? (
-                        <div className="rounded-none border border-runway-line bg-[#101312] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Why this score exists</p>
-                          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-runway-line-strong">
+                        <div className="border border-runway-line bg-runway-black p-4">
+                          <p className="runway-meta">Why this score exists</p>
+                          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-runway-body">
                             {trustScore.reasons.map((reason) => (
                               <li key={reason}>{reason}</li>
                             ))}
@@ -521,7 +521,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                         </div>
                       ) : null}
                       {ops?.recapture_reason ? (
-                        <div className="rounded-none border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <div className="border border-runway-signal-dim bg-runway-black p-4 text-sm text-runway-signal">
                           Recapture guidance: {ops.recapture_reason}
                         </div>
                       ) : null}
@@ -530,7 +530,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                   {section === "preview" ? (
                     <div className="mt-5 grid gap-4 md:grid-cols-[0.56fr_0.44fr]">
-                      <div className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-paper-0">
+                      <div className="overflow-hidden border border-runway-line bg-runway-panel">
                         <img
                           src={privateGeneratedAssets.facilityPlanBoard}
                           alt="Blueprint provenance board"
@@ -552,7 +552,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                           }
                         />
                         {previewRun?.failure_reason ? (
-                          <div className="rounded-none border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                          <div className="border border-runway-red-dim bg-runway-black p-4 text-sm text-runway-red">
                             {previewRun.failure_reason}
                           </div>
                         ) : null}
@@ -563,12 +563,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               </div>
 
               <div className="space-y-5">
-                <SurfaceCard className="bg-paper-0">
+                <SurfaceCard>
                   <div className="flex items-center gap-3">
-                    <Clock3 className="h-5 w-5 text-white/45" />
+                    <Clock3 className="h-5 w-5 text-runway-faint" />
                     <div>
                       <SurfaceMiniLabel>Current State</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/55">Live request status across review, rights, and capture.</p>
+                      <p className="mt-1 text-sm text-runway-mute">Live request status across review, rights, and capture.</p>
                     </div>
                   </div>
                   <SurfaceStatusList
@@ -591,12 +591,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   />
                 </SurfaceCard>
 
-                <SurfaceCard className="bg-paper-0">
+                <SurfaceCard>
                   <div className="flex items-center gap-3">
-                    <MapPinned className="h-5 w-5 text-white/45" />
+                    <MapPinned className="h-5 w-5 text-runway-faint" />
                     <div>
                       <SurfaceMiniLabel>Request Details</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/55">Protected metadata tied to this buyer review.</p>
+                      <p className="mt-1 text-sm text-runway-mute">Protected metadata tied to this buyer review.</p>
                     </div>
                   </div>
                   <SurfaceStatusList
@@ -621,12 +621,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </SurfaceCard>
 
                 {displayMetadata ? (
-                  <SurfaceCard className="bg-paper-0">
+                  <SurfaceCard>
                     <div className="flex items-center gap-3">
-                      <Radar className="h-5 w-5 text-white/45" />
+                      <Radar className="h-5 w-5 text-runway-faint" />
                       <div>
                         <SurfaceMiniLabel>Display HUD Pilot</SurfaceMiniLabel>
-                        <p className="mt-1 text-sm text-white/55">
+                        <p className="mt-1 text-sm text-runway-mute">
                           Target labels and advisory scan prompts for the capture display.
                         </p>
                       </div>
@@ -684,12 +684,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   ) : null}
                 </SurfaceCard>
 
-                <SurfaceCard className="bg-paper-0">
+                <SurfaceCard>
                   <div className="flex items-center gap-3">
-                    <ShieldCheck className="h-5 w-5 text-white/45" />
+                    <ShieldCheck className="h-5 w-5 text-runway-faint" />
                     <div>
                       <SurfaceMiniLabel>Access Boundary</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/55">
+                      <p className="mt-1 text-sm text-runway-mute">
                         What this protected room shows today.
                       </p>
                     </div>
@@ -701,12 +701,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   </p>
                 </SurfaceCard>
 
-                <SurfaceCard className="bg-paper-0">
+                <SurfaceCard>
                   <div className="flex items-center gap-3">
-                    <Radar className="h-5 w-5 text-white/45" />
+                    <Radar className="h-5 w-5 text-runway-faint" />
                     <div>
                       <SurfaceMiniLabel>Preview Status</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-white/55">Provider-backed preview state when attached.</p>
+                      <p className="mt-1 text-sm text-runway-mute">Provider-backed preview state when attached.</p>
                     </div>
                   </div>
                   <p className="mt-5 text-sm leading-7 text-white/60">

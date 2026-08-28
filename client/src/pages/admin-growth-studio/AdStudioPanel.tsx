@@ -38,7 +38,7 @@ export function AdStudioPanel({
   onCreateMetaDraft,
 }: AdStudioPanelProps) {
   return (
-    <div className="mt-4 rounded-[28px] border border-runway-line bg-paper-0 p-6 shadow-sm">
+    <div className="mt-4 rounded-none border border-runway-line bg-paper-0 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-runway-faint">
@@ -51,7 +51,7 @@ export function AdStudioPanel({
         <button
           type="button"
           onClick={() => onRefresh()}
-          className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-deep transition hover:border-runway-faint"
+          className="rounded-full border border-runway-line-strong bg-paper-0 px-4 py-2 text-xs font-medium text-runway-text transition hover:border-runway-faint"
         >
           Refresh runs
         </button>
@@ -59,7 +59,7 @@ export function AdStudioPanel({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Lane</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Lane</span>
           <select
             className="w-full rounded-none border border-runway-line bg-paper-0 px-4 py-3 text-sm"
             value={form.lane}
@@ -70,7 +70,7 @@ export function AdStudioPanel({
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Audience</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Audience</span>
           <input
             className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.audience}
@@ -78,7 +78,7 @@ export function AdStudioPanel({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">City</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">City</span>
           <input
             className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.city}
@@ -86,7 +86,7 @@ export function AdStudioPanel({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">CTA</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">CTA</span>
           <input
             className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.cta}
@@ -94,7 +94,7 @@ export function AdStudioPanel({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Budget cap (USD)</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Budget cap (USD)</span>
           <input
             className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.budgetCapUsd}
@@ -102,7 +102,7 @@ export function AdStudioPanel({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Aspect ratio</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Aspect ratio</span>
           <input
             className="w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.aspectRatio}
@@ -113,7 +113,7 @@ export function AdStudioPanel({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Allowed claims</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Allowed claims</span>
           <textarea
             className="min-h-24 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.allowedClaims}
@@ -121,7 +121,7 @@ export function AdStudioPanel({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-runway-line-strong">Blocked claims</span>
+          <span className="mb-1 block text-sm font-medium text-runway-body">Blocked claims</span>
           <textarea
             className="min-h-24 w-full rounded-none border border-runway-line px-4 py-3 text-sm"
             value={form.blockedClaims}
@@ -192,10 +192,10 @@ function AdStudioRunCard({
   const metaDraft = draftState.getMetaDraft(run.id);
 
   return (
-    <div className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-panel">
+    <div className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-text">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-semibold text-runway-black">{run.lane} - {run.audience}</p>
+          <p className="font-semibold text-runway-text">{run.lane} - {run.audience}</p>
           <p className="text-xs uppercase tracking-[0.16em] text-runway-faint">
             {run.status} {run.city ? `- ${run.city}` : ""}
           </p>
@@ -209,28 +209,28 @@ function AdStudioRunCard({
         <button
           type="button"
           onClick={() => onBuildBrief(run.id)}
-          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-deep"
+          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-text"
         >
           Build brief
         </button>
         <button
           type="button"
           onClick={() => onRouteImageHandoff(run.id)}
-          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-deep"
+          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-text"
         >
           Route image handoff
         </button>
         <button
           type="button"
           onClick={() => onQueueVideo(run.id)}
-          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-deep"
+          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-text"
         >
           Queue video
         </button>
         <button
           type="button"
           onClick={() => onReview(run)}
-          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-deep"
+          className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-1 text-xs font-medium text-runway-text"
         >
           Run review
         </button>
@@ -245,7 +245,7 @@ function AdStudioRunCard({
 
       {run.promptPack ? (
         <div className="mt-3 rounded-xl border border-runway-line bg-paper-0 p-3 text-xs text-runway-mute">
-          <p className="font-medium text-runway-black">Prompt pack</p>
+          <p className="font-medium text-runway-text">Prompt pack</p>
           <p className="mt-2">{run.promptPack.imagePromptVariants[0]}</p>
         </div>
       ) : null}
@@ -264,7 +264,7 @@ function AdStudioRunCard({
           <button
             type="button"
             onClick={() => onAttachFirstFrame(run.id)}
-            className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-2 text-xs font-medium text-runway-deep"
+            className="rounded-full border border-runway-line-strong bg-paper-0 px-3 py-2 text-xs font-medium text-runway-text"
           >
             Attach
           </button>

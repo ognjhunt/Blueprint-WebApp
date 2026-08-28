@@ -109,7 +109,7 @@ function tone(metric: ScoreMetric) {
     case "blocked":
       return "border-rose-200 bg-rose-50 text-rose-900";
     default:
-      return "border-runway-line bg-runway-line-soft text-runway-line-strong";
+      return "border-runway-line bg-runway-line-soft text-runway-body";
   }
 }
 
@@ -223,7 +223,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-runway-faint">
               City Launch
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-runway-black">
+            <h1 className="mt-2 text-3xl font-semibold text-runway-text">
               Generic city launcher scorecard
             </h1>
             <p className="mt-2 max-w-3xl text-runway-mute">
@@ -233,13 +233,13 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
           <div className="flex gap-3">
             <Link
               href="/admin/growth-ops-scorecard"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               Growth scorecard
             </Link>
             <Link
               href="/admin/leads"
-              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-line-strong"
+              className="inline-flex rounded-full border border-runway-line bg-paper-0 px-4 py-2 text-sm text-runway-body"
             >
               Admin queue
             </Link>
@@ -248,7 +248,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
 
         <div className="rounded-none border border-runway-line bg-paper-0 p-6">
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_auto]">
-            <label className="space-y-2 text-sm text-runway-line-strong">
+            <label className="space-y-2 text-sm text-runway-body">
               <span className="font-medium">City</span>
               <input
                 value={cityInput}
@@ -257,7 +257,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 placeholder="Chicago, IL"
               />
             </label>
-            <label className="space-y-2 text-sm text-runway-line-strong">
+            <label className="space-y-2 text-sm text-runway-body">
               <span className="font-medium">Budget Tier</span>
               <select
                 value={budgetTier}
@@ -269,7 +269,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 <option value="aggressive">Aggressive</option>
               </select>
             </label>
-            <label className="flex items-center gap-3 rounded-xl border border-runway-line px-4 py-2 text-sm text-runway-line-strong">
+            <label className="flex items-center gap-3 rounded-xl border border-runway-line px-4 py-2 text-sm text-runway-body">
               <input
                 type="checkbox"
                 checked={founderApproved}
@@ -313,7 +313,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     City
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-runway-black">
+                  <h2 className="mt-2 text-2xl font-semibold text-runway-text">
                     {scorecard.city.label}
                   </h2>
                 </div>
@@ -338,7 +338,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Activation
                 </p>
-                <div className="mt-4 space-y-2 text-sm text-runway-line-strong">
+                <div className="mt-4 space-y-2 text-sm text-runway-body">
                   <div>Founder approved: {scorecard.activation.founderApproved ? "Yes" : "No"}</div>
                   <div>Status: {scorecard.activation.status || "Not activated yet"}</div>
                   <div>Widening allowed: {scorecard.activation.wideningAllowed ? "Yes" : "No"}</div>
@@ -350,7 +350,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Budget
                 </p>
-                <div className="mt-4 space-y-2 text-sm text-runway-line-strong">
+                <div className="mt-4 space-y-2 text-sm text-runway-body">
                   <div>Tier: {scorecard.budget.tier || "Unknown"}</div>
                   <div>Total recorded: ${scorecard.budget.totalRecordedSpendUsd.toLocaleString()}</div>
                   <div>Within policy: ${scorecard.budget.withinPolicySpendUsd.toLocaleString()}</div>
@@ -362,7 +362,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Expansion Guard
                 </p>
-                <div className="mt-4 space-y-2 text-sm text-runway-line-strong">
+                <div className="mt-4 space-y-2 text-sm text-runway-body">
                   {scorecard.activation.wideningReasons.length > 0 ? (
                     scorecard.activation.wideningReasons.map((reason) => (
                       <div key={reason} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
@@ -383,31 +383,31 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   Activation Payload
                 </p>
-                <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
+                <div className="mt-4 space-y-3 text-sm text-runway-body">
                   <div>
-                    <span className="font-medium text-runway-deep">City thesis:</span>{" "}
+                    <span className="font-medium text-runway-text">City thesis:</span>{" "}
                     {scorecard.activation.cityThesis || "Missing"}
                   </div>
                   <div>
-                    <span className="font-medium text-runway-deep">Primary site lane:</span>{" "}
+                    <span className="font-medium text-runway-text">Primary site lane:</span>{" "}
                     {scorecard.activation.primarySiteLane || "Missing"}
                   </div>
                   <div>
-                    <span className="font-medium text-runway-deep">Primary workflow lane:</span>{" "}
+                    <span className="font-medium text-runway-text">Primary workflow lane:</span>{" "}
                     {scorecard.activation.primaryWorkflowLane || "Missing"}
                   </div>
                   <div>
-                    <span className="font-medium text-runway-deep">Primary proof path:</span>{" "}
+                    <span className="font-medium text-runway-text">Primary proof path:</span>{" "}
                     {scorecard.activation.primaryBuyerProofPath || "Missing"}
                   </div>
                   <div>
-                    <span className="font-medium text-runway-deep">Lawful access modes:</span>{" "}
+                    <span className="font-medium text-runway-text">Lawful access modes:</span>{" "}
                     {scorecard.activation.lawfulAccessModes.length > 0
                       ? scorecard.activation.lawfulAccessModes.join(", ")
                       : "Missing"}
                   </div>
                   <div>
-                    <span className="font-medium text-runway-deep">Activation payload source:</span>{" "}
+                    <span className="font-medium text-runway-text">Activation payload source:</span>{" "}
                     {scorecard.activation.sourceActivationPayloadPath || "Unavailable"}
                   </div>
                 </div>
@@ -447,7 +447,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Supply loop
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-runway-black">
+                  <h2 className="mt-2 text-xl font-semibold text-runway-text">
                     Capturer activation
                   </h2>
                 </div>
@@ -463,7 +463,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Demand loop
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-runway-black">
+                  <h2 className="mt-2 text-xl font-semibold text-runway-text">
                     Proof-led buyer motion
                   </h2>
                 </div>
@@ -526,7 +526,7 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {[...scorecard.supply, ...scorecard.demand].map((metric) => (
                   <div key={`summary-${metric.key}`} className="flex items-center justify-between rounded-xl border border-runway-line px-4 py-3 text-sm">
-                    <span className="text-runway-line-strong">{metric.label}</span>
+                    <span className="text-runway-body">{metric.label}</span>
                     <span className={sectionTone(metric)}>
                       {metric.actual === null ? "N/A" : metric.actual} / {formatTarget(metric)}
                     </span>

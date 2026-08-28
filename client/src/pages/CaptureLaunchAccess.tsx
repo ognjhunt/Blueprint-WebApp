@@ -127,15 +127,15 @@ export default function CaptureLaunchAccess() {
         ]}
       />
 
-      <div className="bg-[#101312] text-runway-black">
+      <div className="bg-[#101312] text-runway-text">
         <section className="border-b border-white/10 bg-paper-0">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.58fr_0.42fr]">
             <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture rollout request</EditorialSectionLabel>
-              <h1 className="font-editorial mt-6 max-w-[12ch] font-display uppercase text-[4.2rem] leading-[0.88] tracking-[0.005em] text-runway-black sm:text-[5.6rem]">
+              <h1 className="font-editorial mt-6 max-w-[12ch] font-display uppercase text-[4.2rem] leading-[0.88] tracking-[0.005em] text-runway-text sm:text-[5.6rem]">
                 Signal demand for paid capture in your city.
               </h1>
-              <p className="mt-6 max-w-[31rem] text-base leading-8 text-runway-line-strong">
+              <p className="mt-6 max-w-[31rem] text-base leading-8 text-runway-body">
                 Leave a local capturer or operator signal if Blueprint is not live where you are
                 yet. We use this list to prioritize rollout, identify people who can complete
                 public-area-only capture candidates, and find site operators who can help a market
@@ -153,15 +153,15 @@ export default function CaptureLaunchAccess() {
               <div className="mt-8 grid max-w-[34rem] gap-4 border-t border-white/10 pt-5 sm:grid-cols-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Purpose</p>
-                  <p className="mt-2 text-sm text-runway-deep">Paid capture demand</p>
+                  <p className="mt-2 text-sm text-runway-text">Paid capture demand</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">Who it finds</p>
-                  <p className="mt-2 text-sm text-runway-deep">Capturers, operators, city leads</p>
+                  <p className="mt-2 text-sm text-runway-text">Capturers, operators, city leads</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-runway-faint">What happens next</p>
-                  <p className="mt-2 text-sm text-runway-deep">Launch review + follow-up</p>
+                  <p className="mt-2 text-sm text-runway-text">Launch review + follow-up</p>
                 </div>
               </div>
             </div>
@@ -195,14 +195,14 @@ export default function CaptureLaunchAccess() {
                 return (
                   <article key={reason.title} className="border border-white/10 bg-paper-0 p-6">
                     <div className="flex items-start gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#101312] text-runway-deep">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#101312] text-runway-text">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h2 className="font-editorial font-display uppercase text-[2rem] leading-[0.95] tracking-[0.005em] text-runway-black">
+                        <h2 className="font-editorial font-display uppercase text-[2rem] leading-[0.95] tracking-[0.005em] text-runway-text">
                           {reason.title}
                         </h2>
-                        <p className="mt-4 text-sm leading-7 text-runway-line-strong">{reason.body}</p>
+                        <p className="mt-4 text-sm leading-7 text-runway-body">{reason.body}</p>
                       </div>
                     </div>
                   </article>
@@ -228,7 +228,7 @@ export default function CaptureLaunchAccess() {
                     supportedCities.map((launchCity) => (
                       <span
                         key={launchCity.citySlug}
-                        className="inline-flex rounded-full border border-white/10 bg-[#101312] px-3 py-2 text-sm text-runway-panel"
+                        className="inline-flex rounded-full border border-white/10 bg-[#101312] px-3 py-2 text-sm text-runway-text"
                       >
                         {launchCity.displayName}
                       </span>
@@ -245,10 +245,10 @@ export default function CaptureLaunchAccess() {
 
             <div className="border border-white/10 bg-paper-0 p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)] lg:p-7">
               <EditorialSectionLabel>Leave a city signal</EditorialSectionLabel>
-              <h2 className="font-editorial mt-4 font-display uppercase text-[2.6rem] leading-[0.92] tracking-[0.005em] text-runway-black">
+              <h2 className="font-editorial mt-4 font-display uppercase text-[2.6rem] leading-[0.92] tracking-[0.005em] text-runway-text">
                 Tell us where you are and what you can capture.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-runway-line-strong">
+              <p className="mt-4 text-sm leading-7 text-runway-body">
                 We will use this to keep you updated, notify you when launch planning reaches your
                 city, and potentially pull you in early as a local capturer or operator reviewer.
               </p>
@@ -264,7 +264,7 @@ export default function CaptureLaunchAccess() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@company.com"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
@@ -277,7 +277,7 @@ export default function CaptureLaunchAccess() {
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
                     placeholder="Durham, NC"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
@@ -288,7 +288,7 @@ export default function CaptureLaunchAccess() {
                   <select
                     value={role}
                     onChange={(event) => setRole(event.target.value as LaunchAccessRole)}
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
                   >
                     {roleOptions.map((option) => (
                       <option key={option} value={option}>
@@ -306,7 +306,7 @@ export default function CaptureLaunchAccess() {
                     value={company}
                     onChange={(event) => setCompany(event.target.value)}
                     placeholder="Triangle Robotics or Durham Warehouse District"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
@@ -319,7 +319,7 @@ export default function CaptureLaunchAccess() {
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
                     placeholder="Best number if we need local follow-up"
-                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full border border-white/10 bg-[#101312] px-4 py-3 text-sm text-runway-text outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
@@ -332,7 +332,7 @@ export default function CaptureLaunchAccess() {
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
                     placeholder="Tell us what public-facing routes, public-area-only capture candidates, or operator access you could help with in your city."
-                    className="w-full resize-none border border-white/10 bg-[#101312] px-4 py-3 text-sm leading-7 text-runway-black outline-none transition focus:border-runway-faint"
+                    className="w-full resize-none border border-white/10 bg-[#101312] px-4 py-3 text-sm leading-7 text-runway-text outline-none transition focus:border-runway-faint"
                   />
                 </label>
 
@@ -359,7 +359,7 @@ export default function CaptureLaunchAccess() {
               </div>
               <a
                 href="mailto:hello@tryblueprint.io?subject=Blueprint%20future%20city%20launch"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-deep transition hover:text-runway-line-strong hover:underline"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-runway-text transition hover:text-runway-body hover:underline"
               >
                 <Mail className="h-4 w-4" />
                 Prefer email? Write to hello@tryblueprint.io
@@ -379,10 +379,10 @@ export default function CaptureLaunchAccess() {
             />
             <div className="bg-[#101312] px-8 py-10 lg:px-12 lg:py-12">
               <EditorialSectionLabel>What this queue does</EditorialSectionLabel>
-              <h2 className="font-editorial mt-5 max-w-[12ch] font-display uppercase text-[3.2rem] leading-[0.92] tracking-[0.005em] text-runway-black">
+              <h2 className="font-editorial mt-5 max-w-[12ch] font-display uppercase text-[3.2rem] leading-[0.92] tracking-[0.005em] text-runway-text">
                 Buyer demand, local capturers, and site access in one place.
               </h2>
-              <p className="mt-5 max-w-[34rem] text-base leading-8 text-runway-line-strong">
+              <p className="mt-5 max-w-[34rem] text-base leading-8 text-runway-body">
                 We use this future-city intake to see where buyer demand is building, where we have
                 people who can actually capture, and where local site operators can help us move
                 from research into a real launch plan with public-area-only, privacy-safe capture rules.

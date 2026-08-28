@@ -89,7 +89,7 @@ export default {
           600: "#b3b8ae",
           500: "#9ba19a", // muted
           400: "#818880",
-          300: "#6a716b", // faint / meta
+          300: "#7d847d", // faint / meta
           200: "#4a524d",
           100: "#3a423e",
           50: "#2a302d",
@@ -106,20 +106,6 @@ export default {
         bone: "#e8e6dd",
         brass: { DEFAULT: "#ffb000", deep: "#e09a00", lit: "#ffc63d" },
 
-        // Kinetic public-site palette. Names are explicit so product surfaces can
-        // keep their existing semantic status colors while marketing uses this
-        // cooler optical system.
-        kinetic: {
-          white: "#f8f9fa",
-          graphite: "#101318",
-          dark: "#07111d",
-          muted: "#535c68",
-          faint: "#858d96",
-          line: "#d9dde2",
-          blue: "#1554ff",
-          "blue-deep": "#003bd8",
-          cyan: "#8fe8ff",
-        },
 
         // ---- Runway: the deployment-operations palette for the whole product.
         //
@@ -154,7 +140,7 @@ export default {
           text: "#e8e6dd", // primary bone
           body: "#c9cdc4", // secondary body copy
           mute: "#9ba19a", // supporting copy
-          faint: "#6a716b", // meta, labels, disabled
+          faint: "#7d847d", // meta, labels, disabled
           signal: "#ffb000", // brand + primary action
           "signal-deep": "#e09a00", // pressed, and amber on light ground
           "signal-lit": "#ffc63d", // hover on dark

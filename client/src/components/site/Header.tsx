@@ -213,7 +213,7 @@ export function Header() {
             <>
               <a
                 href={visibleHeaderCta.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-signal-ink transition hover:bg-runway-signal-deep"
               >
                 {visibleHeaderCta.label}
               </a>
@@ -319,7 +319,7 @@ export function Header() {
               </DropdownMenu>
               <a
                 href={headerRequestEvaluation.href}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-black transition hover:bg-runway-signal-deep"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm bg-runway-signal px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-runway-signal-ink transition hover:bg-runway-signal-deep"
               >
                 {headerRequestEvaluation.label}
               </a>
@@ -359,7 +359,7 @@ export function Header() {
 
             <a
               href={visibleHeaderCta.href}
-              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-runway-signal px-4 py-2.5 text-center font-semibold text-runway-black"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-runway-signal px-4 py-2.5 text-center font-semibold text-runway-signal-ink"
               onClick={() => setOpen(false)}
             >
               {visibleHeaderCta.label}

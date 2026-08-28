@@ -183,7 +183,7 @@ export function RegionalShareBar() {
             className={cn("flex items-center justify-center", tones[index])}
             style={{ width: `${row.share}%` }}
           >
-            <span className="runway-num text-[11px] text-runway-black/80">{row.share}%</span>
+            <span className="runway-num text-[11px] text-runway-text/80">{row.share}%</span>
           </div>
         ))}
         <div className="flex-1 bg-runway-raised" />
@@ -1376,7 +1376,7 @@ export function HumanoidShareFigure() {
             className="flex items-center justify-center bg-runway-red"
             style={{ width: `${humanoidShare.chineseVendorSharePct}%` }}
           >
-            <span className="runway-num text-[12px] text-runway-black/85">
+            <span className="runway-num text-[12px] text-runway-text/85">
               Chinese makers · {humanoidShare.chineseVendorSharePct}%
             </span>
           </div>

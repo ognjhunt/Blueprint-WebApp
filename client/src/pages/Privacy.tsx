@@ -132,6 +132,19 @@ export const betaResidencyTransferRows = [
   },
 ] as const;
 
+const panelCard = "rounded-none border-runway-line bg-runway-panel";
+const bandCard = "rounded-none border-runway-line bg-runway-black";
+const sectionHeading =
+  "font-display text-[1.35rem] font-semibold uppercase leading-[1.05] tracking-[0.005em] text-runway-text";
+const subHeading =
+  "font-display text-[1.05rem] font-semibold uppercase leading-[1.1] tracking-[0.005em] text-runway-text";
+const prose = "text-[16px] leading-[1.7] text-runway-body";
+const rowGrid = "grid gap-2 p-4 text-[15px] leading-[1.7]";
+const rowLabel = "font-semibold text-runway-text";
+const rowDetail = "text-runway-mute";
+const metaPill =
+  "rounded-none border-runway-line bg-runway-panel font-mono text-[10px] tracking-[0.16em] text-runway-mute";
+
 export default function Privacy() {
   return (
     <>
@@ -158,17 +171,17 @@ export default function Privacy() {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.38fr_0.62fr]">
-              <div className="border-b border-white/10 bg-[#101312] p-8 xl:border-b-0 xl:border-r lg:p-10">
-                <SurfaceMiniLabel>Policy Card</SurfaceMiniLabel>
-                <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em]">
+              <div className="border-b border-runway-line bg-runway-black p-8 xl:border-b-0 xl:border-r lg:p-10">
+                <SurfaceMiniLabel className="font-mono text-runway-faint">Policy Card</SurfaceMiniLabel>
+                <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-runway-text">
                   Privacy
                   <br />
                   Policy
                 </h1>
-                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-white/50">
+                <p className="mt-5 max-w-[26ch] text-[16px] leading-[1.7] text-runway-body">
                   How we handle information with respect and transparency.
                 </p>
-                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-white/10 bg-paper-0">
+                <div className="mt-8 overflow-hidden border border-runway-line bg-runway-panel">
                   <img
                     src={privateGeneratedAssets.privacyArchiveBoard}
                     alt="Blueprint privacy archive board"
@@ -176,61 +189,60 @@ export default function Privacy() {
                   />
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill>Effective March 23, 2026</SurfacePill>
-                  <SurfacePill>Archive reference</SurfacePill>
+                  <SurfacePill className={metaPill}>Effective March 23, 2026</SurfacePill>
+                  <SurfacePill className={metaPill}>Archive reference</SurfacePill>
                 </div>
               </div>
 
-              <div className="bg-paper-0 p-8 lg:p-10">
+              <div className="bg-runway-deep p-8 lg:p-10">
                 <div className="grid gap-5 md:grid-cols-2">
                   {privacyPolicySections.map((section) => {
                     const Icon = section.icon;
                     return (
-                      <SurfaceCard key={section.title} className="h-full">
+                      <SurfaceCard key={section.title} className={`${panelCard} h-full`}>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#101312]">
-                            <Icon className="h-4.5 w-4.5 text-white/65" />
+                          <div className="flex h-10 w-10 items-center justify-center border border-runway-line bg-runway-black">
+                            <Icon className="h-4.5 w-4.5 text-runway-mute" />
                           </div>
-                          <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
+                          <h2 className={sectionHeading}>{section.title}</h2>
                         </div>
-                        <p className="mt-4 font-display uppercase text-[1.5rem] font-semibold tracking-[0.005em]">{section.title}</p>
-                        <p className="mt-4 text-sm leading-7 text-white/60">{section.body}</p>
+                        <p className={`mt-4 max-w-[68ch] ${prose}`}>{section.body}</p>
                       </SurfaceCard>
                     );
                   })}
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <SurfaceCard className="bg-[#101312]">
-                    <SurfaceMiniLabel>Retention</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-white/60">
+                  <SurfaceCard className={bandCard}>
+                    <h2 className={sectionHeading}>Retention</h2>
+                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
                       We keep each category only as long as it serves the purpose it was collected
                       for, then delete or anonymize it. Rights and privacy limits stay attached to
                       the relevant product record while it exists. A signed agreement, legal hold,
                       security incident, or active privacy request may require stricter handling.
                     </p>
-                    <div className="mt-4 divide-y divide-white/10 border border-white/10">
+                    <div className="mt-4 divide-y divide-runway-line-soft border border-runway-line">
                       {[
                         ["Raw capture & PII in it", "Kept while a capture is being processed into a product record and while rights/consent are in force; deleted or redacted when the linked product record is deleted or on a verified deletion request."],
                         ["Product records & packages", "Retained for the life of the buyer entitlement or hosted-session license, then removed after the license term ends."],
                         ["Account & contact data", "Retained while your account is active and deleted or anonymized after account closure or a verified deletion request."],
                         ["Payment & tax records", "Retained as required by law (US tax records are typically retained for up to 7 years)."],
                       ].map(([label, detail]) => (
-                        <div key={label} className="grid gap-1 p-4 text-sm leading-6 md:grid-cols-[0.4fr_0.6fr]">
-                          <span className="font-semibold text-white/80">{label}</span>
-                          <span className="text-white/55">{detail}</span>
+                        <div key={label} className={rowGrid + " md:grid-cols-[0.4fr_0.6fr]"}>
+                          <span className={rowLabel}>{label}</span>
+                          <span className={rowDetail}>{detail}</span>
                         </div>
                       ))}
                     </div>
                   </SurfaceCard>
 
-                  <SurfaceCard>
-                    <SurfaceMiniLabel>Your rights &amp; how to exercise them</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-white/60">
+                  <SurfaceCard className={panelCard}>
+                    <h2 className={sectionHeading}>Your rights &amp; how to exercise them</h2>
+                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
                       Depending on where you live, you can request access to, correction of, a copy of,
                       or deletion of your personal information, and you can withdraw capture consent.
                       Email{" "}
-                      <a href="mailto:privacy@tryblueprint.io" className="font-semibold underline">
+                      <a href="mailto:privacy@tryblueprint.io" className="font-medium text-runway-signal underline underline-offset-2">
                         privacy@tryblueprint.io
                       </a>{" "}
                       from the address on your account (or include enough detail to verify you). We
@@ -241,13 +253,13 @@ export default function Privacy() {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <SurfaceCard className="bg-[#101312]">
-                    <SurfaceMiniLabel>Subprocessors</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-white/60">
+                  <SurfaceCard className={bandCard}>
+                    <h2 className={sectionHeading}>Subprocessors</h2>
+                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
                       We share personal information only with the service providers that run Blueprint,
                       each under a data-processing agreement and only for the function listed:
                     </p>
-                    <div className="mt-4 divide-y divide-white/10 border border-white/10">
+                    <div className="mt-4 divide-y divide-runway-line-soft border border-runway-line">
                       {[
                         ["Google (Firebase / Google Cloud)", "Authentication, database, capture storage, and hosting."],
                         ["Stripe", "Buyer payments and capturer payouts."],
@@ -255,18 +267,18 @@ export default function Privacy() {
                         ["Managed Redis", "Caching and background job queues."],
                         ["Notion", "Internal operations and support records."],
                       ].map(([label, detail]) => (
-                        <div key={label} className="grid gap-1 p-4 text-sm leading-6 md:grid-cols-[0.4fr_0.6fr]">
-                          <span className="font-semibold text-white/80">{label}</span>
-                          <span className="text-white/55">{detail}</span>
+                        <div key={label} className={rowGrid + " md:grid-cols-[0.4fr_0.6fr]"}>
+                          <span className={rowLabel}>{label}</span>
+                          <span className={rowDetail}>{detail}</span>
                         </div>
                       ))}
                     </div>
                   </SurfaceCard>
 
-                  <SurfaceCard>
-                    <SurfaceMiniLabel>Contact</SurfaceMiniLabel>
-                    <p className="mt-4 font-display uppercase text-[1.5rem] font-semibold tracking-[0.005em]">Questions or privacy requests?</p>
-                    <a href="mailto:privacy@tryblueprint.io" className="mt-5 inline-flex items-center gap-3 text-sm font-semibold">
+                  <SurfaceCard className={panelCard}>
+                    <h2 className={sectionHeading}>Contact</h2>
+                    <p className={`mt-4 max-w-[68ch] ${prose}`}>Questions or privacy requests?</p>
+                    <a href="mailto:privacy@tryblueprint.io" className="mt-5 inline-flex items-center gap-3 font-mono text-[13px] text-runway-signal">
                       <Mail className="h-4 w-4" />
                       privacy@tryblueprint.io
                     </a>
@@ -274,24 +286,24 @@ export default function Privacy() {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.6fr_0.4fr]">
-                  <SurfaceCard>
-                    <SurfaceMiniLabel>Beta retention schedule</SurfaceMiniLabel>
-                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                  <SurfaceCard className={panelCard}>
+                    <h2 className={sectionHeading}>Beta retention schedule</h2>
+                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
                       {betaRetentionSchedule.map((item) => (
-                        <div key={item.record} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.28fr_0.28fr_0.44fr]">
-                          <span className="font-semibold text-runway-text">{item.record}</span>
-                          <span className="text-white/70">{item.defaultWindow}</span>
-                          <span className="text-white/55">{item.notes}</span>
+                        <div key={item.record} className={rowGrid + " md:grid-cols-[0.28fr_0.28fr_0.44fr]"}>
+                          <span className={rowLabel}>{item.record}</span>
+                          <span className="runway-num text-[13px] text-runway-body">{item.defaultWindow}</span>
+                          <span className={rowDetail}>{item.notes}</span>
                         </div>
                       ))}
                     </div>
                   </SurfaceCard>
 
-                  <SurfaceCard className="bg-[#101312]">
-                    <SurfaceMiniLabel>Privacy rights requests</SurfaceMiniLabel>
+                  <SurfaceCard className={bandCard}>
+                    <h2 className={sectionHeading}>Privacy rights requests</h2>
                     <div className="mt-5 space-y-4">
                       {privacyRightsRequestSteps.map((step) => (
-                        <p key={step} className="text-sm leading-7 text-white/60">
+                        <p key={step} className={`max-w-[68ch] ${prose}`}>
                           {step}
                         </p>
                       ))}
@@ -300,25 +312,25 @@ export default function Privacy() {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-2">
-                  <SurfaceCard>
-                    <SurfaceMiniLabel>Subprocessors</SurfaceMiniLabel>
-                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                  <SurfaceCard className={panelCard}>
+                    <h2 className={sectionHeading}>Subprocessors</h2>
+                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
                       {privacySubprocessorCategories.map((item) => (
-                        <div key={item.category} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.34fr_0.66fr]">
-                          <span className="font-semibold text-runway-text">{item.category}</span>
-                          <span className="text-white/60">{item.examples}</span>
+                        <div key={item.category} className={rowGrid + " md:grid-cols-[0.34fr_0.66fr]"}>
+                          <span className={rowLabel}>{item.category}</span>
+                          <span className={rowDetail}>{item.examples}</span>
                         </div>
                       ))}
                     </div>
                   </SurfaceCard>
 
-                  <SurfaceCard className="bg-[#111110] text-white">
-                    <SurfaceMiniLabel className="text-white/50">Data residency and transfers</SurfaceMiniLabel>
-                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                  <SurfaceCard className={bandCard}>
+                    <h2 className={sectionHeading}>Data residency and transfers</h2>
+                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
                       {betaResidencyTransferRows.map((item) => (
-                        <div key={item.label} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.32fr_0.68fr]">
-                          <span className="font-semibold text-white">{item.label}</span>
-                          <span className="text-white/65">{item.detail}</span>
+                        <div key={item.label} className={rowGrid + " md:grid-cols-[0.32fr_0.68fr]"}>
+                          <span className={rowLabel}>{item.label}</span>
+                          <span className={rowDetail}>{item.detail}</span>
                         </div>
                       ))}
                     </div>
@@ -326,13 +338,13 @@ export default function Privacy() {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.58fr_0.42fr]">
-                  <SurfaceCard className="bg-[#111110] text-white">
-                    <SurfaceMiniLabel className="text-white/50">Capture privacy annex</SurfaceMiniLabel>
-                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                  <SurfaceCard className={bandCard}>
+                    <h2 className={sectionHeading}>Capture privacy annex</h2>
+                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
                       {capturePrivacyAnnex.map(([label, detail]) => (
-                        <div key={label} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.34fr_0.66fr]">
-                          <span className="font-semibold text-white">{label}</span>
-                          <span className="text-white/65">{detail}</span>
+                        <div key={label} className={rowGrid + " md:grid-cols-[0.34fr_0.66fr]"}>
+                          <span className={rowLabel}>{label}</span>
+                          <span className={rowDetail}>{detail}</span>
                         </div>
                       ))}
                     </div>
@@ -340,9 +352,9 @@ export default function Privacy() {
 
                   <div className="grid gap-4">
                     {rolePrivacyAnnex.map((item) => (
-                      <SurfaceCard key={item.title}>
-                        <SurfaceMiniLabel>{item.title}</SurfaceMiniLabel>
-                        <p className="mt-3 text-sm leading-7 text-white/60">{item.body}</p>
+                      <SurfaceCard key={item.title} className={panelCard}>
+                        <h3 className={subHeading}>{item.title}</h3>
+                        <p className={`mt-3 max-w-[68ch] ${prose}`}>{item.body}</p>
                       </SurfaceCard>
                     ))}
                   </div>

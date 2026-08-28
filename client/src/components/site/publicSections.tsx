@@ -480,11 +480,11 @@ export function ClosingCta({
       </div>
       <Inner className="relative py-20 lg:py-28">
         <Reveal className="max-w-[38rem]">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">{eyebrow}</p>
-          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-black">
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-text/65">{eyebrow}</p>
+          <h2 className="mt-5 font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text">
             {title}
           </h2>
-          <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-black/75">
+          <p className="mt-5 max-w-[44ch] text-[15px] leading-[1.72] text-runway-text/75">
             {body}
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -497,7 +497,7 @@ export function ClosingCta({
             {secondaryHref && secondaryLabel ? (
               <a
                 href={secondaryHref}
-                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-5 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors hover:border-runway-black"
+                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-5 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:border-runway-black"
               >
                 {secondaryLabel}
               </a>

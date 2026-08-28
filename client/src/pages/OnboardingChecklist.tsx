@@ -77,7 +77,7 @@ function ChecklistCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-runway-deep">{item.title}</h3>
+            <h3 className="font-medium text-runway-text">{item.title}</h3>
             {item.optional ? (
               <span className="rounded bg-runway-line-soft px-2 py-0.5 text-xs text-runway-faint">
                 Optional
@@ -99,7 +99,7 @@ function ChecklistCard({
             </Button>
           ) : null}
         </div>
-        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-runway-line-strong"}`} />
+        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-runway-body"}`} />
       </div>
     </motion.div>
   );
@@ -476,7 +476,7 @@ export default function OnboardingChecklist() {
     <main className="min-h-screen bg-paper-0 px-4 py-12">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-runway-black">Intake review hub</h1>
+          <h1 className="text-3xl font-semibold text-runway-text">Intake review hub</h1>
           <p className="mt-2 text-runway-mute">
             Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
           </p>
@@ -505,7 +505,7 @@ export default function OnboardingChecklist() {
                     <p className="text-xs uppercase tracking-[0.14em] text-runway-faint">
                       {item.label}
                     </p>
-                    <p className="text-sm text-runway-deep">{item.value}</p>
+                    <p className="text-sm text-runway-text">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -521,7 +521,7 @@ export default function OnboardingChecklist() {
                     {operatorControlRows.map((item) => (
                       <div key={item.label} className="rounded-lg border border-runway-line bg-runway-line-soft p-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-runway-black">{item.label}</p>
+                          <p className="text-sm font-semibold text-runway-text">{item.label}</p>
                           <p className="text-xs font-medium text-runway-faint">{item.value}</p>
                         </div>
                         <p className="mt-1 text-xs leading-5 text-runway-mute">{item.detail}</p>

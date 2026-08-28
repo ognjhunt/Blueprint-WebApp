@@ -418,7 +418,7 @@ export function EvidenceLadderChart({
                     style={{ width: `${Math.round(rung.cost * 100)}%` }}
                   >
                     <div
-                      className="h-full rounded-r-[4px] transition-opacity duration-200"
+                      className="h-full rounded-r-none transition-opacity duration-200"
                       style={{
                         background: isStopped ? accent : muted,
                         opacity: isStopped || isHovered ? 1 : 0.72,
@@ -981,7 +981,7 @@ export function ClearanceMarginChart({
                   />
                   {/* Margin bar, drawn from zero. */}
                   <div
-                    className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px] transition-colors duration-200"
+                    className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-none transition-colors duration-200"
                     style={{
                       left: `${barLeft}%`,
                       width: `${barWidth}%`,
@@ -1456,7 +1456,7 @@ export function CoverageMeter({
         aria-label={label}
       >
         <GrowIn origin="left" className="h-full" style={{ width: `${percent}%` }}>
-          <div className="h-full rounded-r-[4px]" style={{ background: accentFor(onInk) }} />
+          <div className="h-full rounded-r-none" style={{ background: accentFor(onInk) }} />
         </GrowIn>
       </div>
       {caption ? (

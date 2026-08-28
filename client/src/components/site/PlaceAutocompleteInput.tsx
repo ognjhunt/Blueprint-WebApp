@@ -121,7 +121,7 @@ export function PlaceAutocompleteInput({
   label,
   placeholder,
   wrapperClassName = "",
-  labelClassName = "mb-1 block text-sm font-medium text-runway-line-strong",
+  labelClassName = "mb-1 block text-sm font-medium text-runway-body",
   inputWrapperClassName = "relative",
   inputClassName = "w-full rounded-xl border border-runway-line px-4 py-3 text-sm",
   icon,
@@ -302,7 +302,7 @@ export function PlaceAutocompleteInput({
                 type="button"
                 role="option"
                 aria-selected={prediction.description === value}
-                className="block w-full px-4 py-3 text-left text-sm text-runway-panel transition hover:bg-runway-line-soft focus:bg-runway-line-soft focus:outline-none"
+                className="block w-full px-4 py-3 text-left text-sm text-runway-text transition hover:bg-runway-line-soft focus:bg-runway-line-soft focus:outline-none"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handlePredictionSelect(prediction)}
               >

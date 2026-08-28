@@ -98,9 +98,9 @@ function statusColor(status: AgentRunRecord["status"]) {
     case "failed":
       return "bg-rose-100 text-rose-700";
     case "cancelled":
-      return "bg-runway-line text-runway-line-strong";
+      return "bg-runway-line text-runway-body";
     default:
-      return "bg-runway-line-soft text-runway-line-strong";
+      return "bg-runway-line-soft text-runway-body";
   }
 }
 
@@ -115,11 +115,11 @@ function actionLogStatusColor(status: OpsActionLogRecord["status"]) {
     case "failed":
       return "bg-rose-100 text-rose-700";
     case "cancelled":
-      return "bg-runway-line text-runway-line-strong";
+      return "bg-runway-line text-runway-body";
     case "queued":
       return "bg-violet-100 text-violet-700";
     default:
-      return "bg-runway-line-soft text-runway-line-strong";
+      return "bg-runway-line-soft text-runway-body";
   }
 }
 
@@ -151,7 +151,7 @@ function runtimeEventStatusColor(status: RuntimeEventRecord["status"]) {
     case "error":
       return "bg-rose-100 text-rose-700";
     default:
-      return "bg-runway-line-soft text-runway-line-strong";
+      return "bg-runway-line-soft text-runway-body";
   }
 }
 
@@ -1097,7 +1097,7 @@ export default function AdminAgentConsole() {
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-none border border-runway-line bg-paper-0 p-5">
           <p className="text-sm text-runway-faint">Sessions</p>
-          <p className="mt-2 text-3xl font-semibold text-runway-black">{sessionStats.totalSessions}</p>
+          <p className="mt-2 text-3xl font-semibold text-runway-text">{sessionStats.totalSessions}</p>
         </div>
         <div className="rounded-none border border-runway-line bg-paper-0 p-5">
           <p className="text-sm text-runway-faint">Pending approval</p>
@@ -1118,7 +1118,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Bot className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Create agent session</h2>
+              <h2 className="font-semibold text-runway-text">Create agent session</h2>
             </div>
             <div className="mt-4 space-y-3">
               <input
@@ -1168,8 +1168,8 @@ export default function AdminAgentConsole() {
                 Execution backend: {selectedProfile?.default_provider || "openai_responses"}
               </div>
               {selectedProfile ? (
-                <div className="rounded-xl border border-runway-line bg-runway-line-soft p-3 text-sm text-runway-line-strong">
-                  <p className="font-medium text-runway-deep">{selectedProfile.name}</p>
+                <div className="rounded-xl border border-runway-line bg-runway-line-soft p-3 text-sm text-runway-body">
+                  <p className="font-medium text-runway-text">{selectedProfile.name}</p>
                   {selectedProfile.description ? (
                     <p className="mt-1 text-runway-mute">{selectedProfile.description}</p>
                   ) : null}
@@ -1182,8 +1182,8 @@ export default function AdminAgentConsole() {
                 </div>
               ) : null}
               {selectedEnvironment ? (
-                <div className="rounded-xl border border-runway-line bg-runway-line-soft p-3 text-sm text-runway-line-strong">
-                  <p className="font-medium text-runway-deep">{selectedEnvironment.name}</p>
+                <div className="rounded-xl border border-runway-line bg-runway-line-soft p-3 text-sm text-runway-body">
+                  <p className="font-medium text-runway-text">{selectedEnvironment.name}</p>
                   {selectedEnvironment.description ? (
                     <p className="mt-1 text-runway-mute">{selectedEnvironment.description}</p>
                   ) : null}
@@ -1210,7 +1210,7 @@ export default function AdminAgentConsole() {
                     availableStartupPacks.map((pack) => (
                       <div
                         key={pack.id}
-                        className="flex items-start justify-between gap-3 text-sm text-runway-line-strong"
+                        className="flex items-start justify-between gap-3 text-sm text-runway-body"
                       >
                         <label className="flex items-start gap-2">
                           <input
@@ -1275,7 +1275,7 @@ export default function AdminAgentConsole() {
                 </p>
                 <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
                   {availableRepoDocs.slice(0, 20).map((docPath) => (
-                    <label key={docPath} className="flex items-start gap-2 text-sm text-runway-line-strong">
+                    <label key={docPath} className="flex items-start gap-2 text-sm text-runway-body">
                       <input
                         type="checkbox"
                         checked={selectedRepoDocs.includes(docPath)}
@@ -1322,10 +1322,10 @@ export default function AdminAgentConsole() {
                       {recommendedKnowledgePages.map((page) => (
                         <div
                           key={page.path}
-                          className="flex items-start justify-between gap-3 text-sm text-runway-line-strong"
+                          className="flex items-start justify-between gap-3 text-sm text-runway-body"
                         >
                           <div>
-                            <p className="font-medium text-runway-deep">{page.title}</p>
+                            <p className="font-medium text-runway-text">{page.title}</p>
                             <p className="text-xs text-runway-faint">{page.reason}</p>
                           </div>
                           <button
@@ -1349,7 +1349,7 @@ export default function AdminAgentConsole() {
                     <p className="text-sm text-runway-faint">No KB pages available yet.</p>
                   ) : (
                     availableKnowledgePages.map((page) => (
-                      <label key={page.path} className="flex items-start gap-2 text-sm text-runway-line-strong">
+                      <label key={page.path} className="flex items-start gap-2 text-sm text-runway-body">
                         <input
                           type="checkbox"
                           checked={selectedKnowledgePagePaths.includes(page.path)}
@@ -1385,7 +1385,7 @@ export default function AdminAgentConsole() {
                     availableOpsDocuments.map((document) => (
                       <label
                         key={document.id}
-                        className="flex items-start gap-2 text-sm text-runway-line-strong"
+                        className="flex items-start gap-2 text-sm text-runway-body"
                       >
                         <input
                           type="checkbox"
@@ -1419,7 +1419,7 @@ export default function AdminAgentConsole() {
                     <p className="text-sm text-runway-faint">No durable creative runs yet.</p>
                   ) : (
                     availableCreativeRuns.map((run) => (
-                      <label key={run.id} className="flex items-start gap-2 text-sm text-runway-line-strong">
+                      <label key={run.id} className="flex items-start gap-2 text-sm text-runway-body">
                         <input
                           type="checkbox"
                           checked={selectedCreativeRunIds.includes(run.id)}
@@ -1452,7 +1452,7 @@ export default function AdminAgentConsole() {
                 </p>
                 <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
                   {availableBlueprints.map((blueprint) => (
-                    <label key={blueprint.id} className="flex items-start gap-2 text-sm text-runway-line-strong">
+                    <label key={blueprint.id} className="flex items-start gap-2 text-sm text-runway-body">
                       <input
                         type="checkbox"
                         checked={selectedBlueprintIds.includes(blueprint.id)}
@@ -1503,7 +1503,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => createStartupPackMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-panel"
+                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-text"
                     disabled={
                       createStartupPackMutation.isPending || !startupPackName.trim()
                     }
@@ -1518,7 +1518,7 @@ export default function AdminAgentConsole() {
                   {editingStartupPackId ? (
                     <button
                       type="button"
-                      className="ml-2 inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-line-strong"
+                      className="ml-2 inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-body"
                       onClick={() => {
                         setEditingStartupPackId(null);
                         setStartupPackName("");
@@ -1552,7 +1552,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => createOpsDocumentMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-panel"
+                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-text"
                     disabled={
                       createOpsDocumentMutation.isPending ||
                       !opsDocumentTitle.trim() ||
@@ -1578,7 +1578,7 @@ export default function AdminAgentConsole() {
                     {availableProfiles.map((profile) => (
                       <div key={profile.id} className="flex items-start justify-between gap-3 rounded-lg border border-runway-line p-2 text-sm">
                         <div>
-                          <p className="font-medium text-runway-deep">{profile.name}</p>
+                          <p className="font-medium text-runway-text">{profile.name}</p>
                           <p className="text-xs text-runway-faint">{profile.task_kind}</p>
                         </div>
                         <button
@@ -1643,7 +1643,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => saveProfileMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-panel"
+                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-text"
                     disabled={!profileEditorName.trim() || !profileEditorKey.trim() || saveProfileMutation.isPending}
                   >
                     {saveProfileMutation.isPending ? (
@@ -1665,7 +1665,7 @@ export default function AdminAgentConsole() {
                     {availableEnvironments.map((environment) => (
                       <div key={environment.id} className="flex items-start justify-between gap-3 rounded-lg border border-runway-line p-2 text-sm">
                         <div>
-                          <p className="font-medium text-runway-deep">{environment.name}</p>
+                          <p className="font-medium text-runway-text">{environment.name}</p>
                           <p className="text-xs text-runway-faint">{environment.lane}</p>
                         </div>
                         <button
@@ -1732,7 +1732,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => saveEnvironmentMutation.mutate()}
-                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-panel"
+                    className="inline-flex items-center rounded-full border border-runway-line-strong px-4 py-2 text-sm text-runway-text"
                     disabled={!environmentEditorName.trim() || !environmentEditorKey.trim() || saveEnvironmentMutation.isPending}
                   >
                     {saveEnvironmentMutation.isPending ? (
@@ -1764,7 +1764,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Sessions</h2>
+              <h2 className="font-semibold text-runway-text">Sessions</h2>
             </div>
             <div className="mt-4 space-y-2">
               {sessionsQuery.isLoading ? (
@@ -1785,7 +1785,7 @@ export default function AdminAgentConsole() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-runway-deep">{session.title}</p>
+                        <p className="font-medium text-runway-text">{session.title}</p>
                         <p className="text-xs text-runway-faint">
                           {session.task_kind} · {session.provider}
                         </p>
@@ -1798,7 +1798,7 @@ export default function AdminAgentConsole() {
                           </p>
                         ) : null}
                       </div>
-                      <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
+                      <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body">
                         {session.status}
                       </span>
                     </div>
@@ -1817,7 +1817,7 @@ export default function AdminAgentConsole() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Bot className="h-4 w-4 text-runway-faint" />
-                <h2 className="font-semibold text-runway-black">Agent runtime</h2>
+                <h2 className="font-semibold text-runway-text">Agent runtime</h2>
               </div>
               <button
                 type="button"
@@ -1826,14 +1826,14 @@ export default function AdminAgentConsole() {
                     throwOnError: false,
                   })
                 }
-                className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
+                className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-body"
                 disabled={openClawConnectivityQuery.isFetching}
               >
                 {openClawConnectivityQuery.isFetching ? "Checking..." : "Check runtime connectivity"}
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-sm text-runway-line-strong">
+            <div className="mt-4 space-y-3 text-sm text-runway-body">
               {openClawConnectivityQuery.isLoading ? (
                 <p className="text-runway-faint">Loading runtime connectivity...</p>
               ) : openClawConnectivity ? (
@@ -1853,7 +1853,7 @@ export default function AdminAgentConsole() {
                         className={`rounded-full px-3 py-1 text-xs font-medium ${
                           openClawConnectivity.auth_configured
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-runway-line-soft text-runway-line-strong"
+                            : "bg-runway-line-soft text-runway-body"
                         }`}
                       >
                         {openClawConnectivity.auth_configured ? "configured" : "not configured"}
@@ -1894,7 +1894,7 @@ export default function AdminAgentConsole() {
                       <p className="mt-3 text-sm text-rose-700">{openClawSmokeError}</p>
                     ) : null}
                     {openClawSmokeResult ? (
-                      <div className="mt-3 rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                      <div className="mt-3 rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                         <p>Status: {openClawSmokeResult.ok ? "passed" : "failed"}</p>
                         <p>Duration: {formatLatency(openClawSmokeResult.duration_ms) || `${openClawSmokeResult.duration_ms} ms`}</p>
                         <p>Provider: {("provider" in (openClawSmokeResult.final || {}) ? (openClawSmokeResult.final as { provider?: string }).provider : "openai_responses") || "openai_responses"}</p>
@@ -1910,11 +1910,11 @@ export default function AdminAgentConsole() {
           </div>
 
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
-            <h2 className="font-semibold text-runway-black">Selected session</h2>
+            <h2 className="font-semibold text-runway-text">Selected session</h2>
             {selectedSession ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-xl bg-runway-line-soft p-4">
-                  <p className="font-medium text-runway-deep">{selectedSession.title}</p>
+                  <p className="font-medium text-runway-text">{selectedSession.title}</p>
                   <p className="mt-1 text-sm text-runway-mute">
                     {selectedSession.task_kind} · {selectedSession.provider}
                   </p>
@@ -1945,7 +1945,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => startSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-panel"
+                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-text"
                       disabled={startSessionMutation.isPending}
                     >
                       {startSessionMutation.isPending ? (
@@ -2008,7 +2008,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => compactSessionMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-panel"
+                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-text"
                       disabled={compactSessionMutation.isPending}
                     >
                       {compactSessionMutation.isPending ? (
@@ -2028,7 +2028,7 @@ export default function AdminAgentConsole() {
                   <button
                     type="button"
                     onClick={() => steerSessionMutation.mutate()}
-                    className="mt-3 inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-panel"
+                    className="mt-3 inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-text"
                     disabled={steerSessionMutation.isPending || !steerMessage.trim()}
                   >
                     {steerSessionMutation.isPending ? (
@@ -2092,7 +2092,7 @@ export default function AdminAgentConsole() {
                     <button
                       type="button"
                       onClick={() => delegationMutation.mutate()}
-                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-panel"
+                      className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-text"
                       disabled={
                         delegationMutation.isPending ||
                         !delegationTitle.trim() ||
@@ -2131,7 +2131,7 @@ export default function AdminAgentConsole() {
                         {scorePercent(selectedSession.metadata.latest_outcome_evaluation.score)}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-runway-line-strong">
+                    <p className="mt-2 text-sm text-runway-body">
                       {selectedSession.metadata.latest_outcome_evaluation.summary}
                     </p>
                   </div>
@@ -2150,7 +2150,7 @@ export default function AdminAgentConsole() {
                         key={phase}
                         type="button"
                         onClick={() => forkSessionMutation.mutate(phase)}
-                        className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-panel"
+                        className="inline-flex items-center rounded-full border border-runway-line-strong px-3 py-1 text-xs text-runway-text"
                         disabled={forkSessionMutation.isPending}
                       >
                         {forkSessionMutation.isPending ? (
@@ -2180,7 +2180,7 @@ export default function AdminAgentConsole() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                     Attached startup context
                   </p>
-                  <div className="mt-3 space-y-2 text-sm text-runway-line-strong">
+                  <div className="mt-3 space-y-2 text-sm text-runway-body">
                     <p>
                       Startup packs:{" "}
                       {(selectedSession.metadata?.startupContext?.startupPackIds || [])
@@ -2245,7 +2245,7 @@ export default function AdminAgentConsole() {
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                       Generated handoff
                     </p>
-                    <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                       {workflowHandoffPrompt}
                     </pre>
                   </div>
@@ -2279,7 +2279,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Run history</h2>
+              <h2 className="font-semibold text-runway-text">Run history</h2>
             </div>
             <div className="mt-4 space-y-3">
               {runsQuery.isLoading ? (
@@ -2312,7 +2312,7 @@ export default function AdminAgentConsole() {
                       <p className="mt-3 text-sm text-rose-700">{run.error}</p>
                     ) : null}
                     {run.outcome_evaluation ? (
-                      <div className="mt-3 rounded-lg bg-runway-line-soft p-3 text-sm text-runway-line-strong">
+                      <div className="mt-3 rounded-lg bg-runway-line-soft p-3 text-sm text-runway-body">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-medium ${
@@ -2333,7 +2333,7 @@ export default function AdminAgentConsole() {
                       </div>
                     ) : null}
                     {run.outcome_contract ? (
-                      <div className="mt-3 rounded-lg border border-runway-line p-3 text-sm text-runway-line-strong">
+                      <div className="mt-3 rounded-lg border border-runway-line p-3 text-sm text-runway-body">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-faint">
                           Outcome contract
                         </p>
@@ -2341,12 +2341,12 @@ export default function AdminAgentConsole() {
                       </div>
                     ) : null}
                     {run.output ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                         {JSON.stringify(run.output, null, 2)}
                       </pre>
                     ) : null}
                     {run.metadata && Object.keys(run.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-line-soft p-3 text-xs text-runway-panel">
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-line-soft p-3 text-xs text-runway-text">
                         {JSON.stringify(run.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2374,7 +2374,7 @@ export default function AdminAgentConsole() {
                       ) : null}
                       {run.raw_output_text ? (
                         <a
-                          className="inline-flex items-center rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
+                          className="inline-flex items-center rounded-full border border-runway-line px-3 py-1 text-xs text-runway-body"
                           href={`data:text/plain;charset=utf-8,${encodeURIComponent(run.raw_output_text)}`}
                           target="_blank"
                           rel="noreferrer"
@@ -2393,7 +2393,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Layers3 className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Action trail</h2>
+              <h2 className="font-semibold text-runway-text">Action trail</h2>
             </div>
             <div className="mt-4 space-y-3">
               {actionLogsQuery.isLoading ? (
@@ -2409,7 +2409,7 @@ export default function AdminAgentConsole() {
                       >
                         {log.status}
                       </span>
-                      <span className="text-xs font-medium text-runway-line-strong">
+                      <span className="text-xs font-medium text-runway-body">
                         {log.actionKey}
                       </span>
                       <span className={`text-xs ${riskColor(log.riskLevel)}`}>
@@ -2420,7 +2420,7 @@ export default function AdminAgentConsole() {
                       </span>
                     </div>
                     {log.summary ? (
-                      <p className="mt-3 text-sm text-runway-line-strong">{log.summary}</p>
+                      <p className="mt-3 text-sm text-runway-body">{log.summary}</p>
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-runway-faint">
                       {log.provider ? <span>{log.provider}</span> : null}
@@ -2432,7 +2432,7 @@ export default function AdminAgentConsole() {
                       {!log.reversible ? <span>non-reversible</span> : null}
                     </div>
                     {log.metadata && Object.keys(log.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                         {JSON.stringify(log.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2445,7 +2445,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Managed runtime timeline</h2>
+              <h2 className="font-semibold text-runway-text">Managed runtime timeline</h2>
             </div>
             <div className="mt-4 space-y-3">
               {eventsQuery.isLoading ? (
@@ -2459,13 +2459,13 @@ export default function AdminAgentConsole() {
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${runtimeEventStatusColor(item.status as RuntimeEventRecord["status"])}`}>
                         {item.status}
                       </span>
-                      <span className="text-xs font-medium text-runway-line-strong">{item.kind}</span>
+                      <span className="text-xs font-medium text-runway-body">{item.kind}</span>
                       <span className="text-xs text-runway-faint">{formatTimestamp(item.created_at)}</span>
                     </div>
-                    <p className="mt-3 text-sm text-runway-line-strong">{item.summary}</p>
+                    <p className="mt-3 text-sm text-runway-body">{item.summary}</p>
                     {item.detail ? <p className="mt-2 text-xs text-runway-faint">{item.detail}</p> : null}
                     {item.metadata && Object.keys(item.metadata).length > 0 ? (
-                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                         {JSON.stringify(item.metadata, null, 2)}
                       </pre>
                     ) : null}
@@ -2478,7 +2478,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Layers3 className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Checkpoints</h2>
+              <h2 className="font-semibold text-runway-text">Checkpoints</h2>
             </div>
             <div className="mt-4 space-y-3">
               {checkpointsQuery.isLoading ? (
@@ -2489,14 +2489,14 @@ export default function AdminAgentConsole() {
                 checkpoints.map((checkpoint) => (
                   <div key={checkpoint.id} className="rounded-xl border border-runway-line p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-line-strong">
+                      <span className="rounded-full bg-runway-line-soft px-3 py-1 text-xs text-runway-body">
                         {checkpoint.trigger}
                       </span>
                       <span className="text-xs text-runway-faint">
                         {formatTimestamp(checkpoint.created_at)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-runway-line-strong">{checkpoint.label}</p>
+                    <p className="mt-3 text-sm text-runway-body">{checkpoint.label}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {checkpoint.replayable ? (
                         <button
@@ -2523,7 +2523,7 @@ export default function AdminAgentConsole() {
           <div className="rounded-none border border-runway-line bg-paper-0 p-5">
             <div className="flex items-center gap-2">
               <Layers3 className="h-4 w-4 text-runway-faint" />
-              <h2 className="font-semibold text-runway-black">Compactions</h2>
+              <h2 className="font-semibold text-runway-text">Compactions</h2>
             </div>
             <div className="mt-4 space-y-3">
               {compactionsQuery.isLoading ? (
@@ -2539,7 +2539,7 @@ export default function AdminAgentConsole() {
                           ? "bg-emerald-100 text-emerald-700"
                           : compaction.status === "failed"
                             ? "bg-rose-100 text-rose-700"
-                            : "bg-runway-line-soft text-runway-line-strong"
+                            : "bg-runway-line-soft text-runway-body"
                       }`}>
                         {compaction.status}
                       </span>
@@ -2548,13 +2548,13 @@ export default function AdminAgentConsole() {
                         {formatTimestamp(compaction.created_at)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-runway-line-strong">{compaction.summary}</p>
+                    <p className="mt-3 text-sm text-runway-body">{compaction.summary}</p>
                     {compaction.phase ? (
                       <p className="mt-2 text-xs text-runway-faint">
                         Phase: {phaseLabel(compaction.phase)}
                       </p>
                     ) : null}
-                    <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-line-soft">
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-runway-black p-3 text-xs text-runway-faint">
                       {compaction.handoff_prompt}
                     </pre>
                   </div>

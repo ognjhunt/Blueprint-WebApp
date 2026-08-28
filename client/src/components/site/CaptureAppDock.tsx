@@ -35,7 +35,7 @@ export function CaptureAppDock() {
       href={captureAppHref}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer noopener" : undefined}
-      className="fixed bottom-4 right-4 z-40 inline-flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-[1.4rem] border border-runway-line/90 bg-runway-panel/95 px-4 py-3 text-left shadow-[0_22px_54px_-30px_rgba(15,23,42,0.45)] backdrop-blur-md transition hover:border-runway-line-strong hover:bg-paper-0"
+      className="fixed bottom-4 right-4 z-40 inline-flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-none border border-runway-line/90 bg-runway-panel/95 px-4 py-3 text-left shadow-[0_22px_54px_-30px_rgba(15,23,42,0.45)] backdrop-blur-md transition hover:border-runway-line-strong hover:bg-paper-0"
       aria-label="Download the Blueprint app"
     >
       <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-runway-panel text-white shadow-[0_12px_28px_-18px_rgba(15,23,42,0.9)]">

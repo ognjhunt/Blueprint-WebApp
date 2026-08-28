@@ -51,7 +51,7 @@ export function ShipBroadcastApprovalQueuePanel({
         <button
           type="button"
           onClick={() => query.refetch()}
-          className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
+          className="rounded-full border border-runway-line px-3 py-1 text-xs text-runway-body"
         >
           Refresh
         </button>
@@ -64,10 +64,10 @@ export function ShipBroadcastApprovalQueuePanel({
       ) : query.data?.items?.length ? (
         <div className="mt-4 space-y-3">
           {query.data.items.map((item) => (
-            <div key={item.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-line-strong">
+            <div key={item.id} className="rounded-none border border-runway-line bg-runway-line-soft p-4 text-sm text-runway-body">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-runway-black">{item.name}</p>
+                  <p className="font-medium text-runway-text">{item.name}</p>
                   <p className="mt-1 text-xs text-runway-faint">{item.subject}</p>
                 </div>
                 <div className="text-right text-xs text-runway-faint">
@@ -97,7 +97,7 @@ export function ShipBroadcastApprovalQueuePanel({
                       value={rejectReasons[item.lastLedgerDocId] || ""}
                       onChange={(event) => onRejectReasonChange(item.lastLedgerDocId!, event.target.value)}
                       placeholder="Required reject reason"
-                      className="min-w-[220px] rounded-full border border-runway-line px-3 py-1 text-xs text-runway-line-strong"
+                      className="min-w-[220px] rounded-full border border-runway-line px-3 py-1 text-xs text-runway-body"
                       aria-label={`Reject reason for ${item.id}`}
                     />
                     <button
@@ -121,7 +121,7 @@ export function ShipBroadcastApprovalQueuePanel({
               ) : null}
               {item.proofLinks.length ? (
                 <div className="mt-3 text-xs text-runway-mute">
-                  <p className="font-medium text-runway-panel">Proof links</p>
+                  <p className="font-medium text-runway-text">Proof links</p>
                   {item.proofLinks.slice(0, 2).map((link) => (
                     <p key={link} className="truncate">{link}</p>
                   ))}

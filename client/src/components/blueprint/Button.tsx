@@ -11,32 +11,34 @@ import { cn } from "@/lib/utils";
  * exact size spec from COMPONENTS.md. Keeps `asChild` support.
  *
  * Variants:
- *  - action     blue #2563a6 fill, white text — primary CTA
- *  - brass      brass #c7a775 fill, ink text — high-emphasis marketing
- *  - secondary  white fill, #c8bfac (line-strong) border, ink text
+ *  - action     signal amber fill, signal-ink text — primary CTA
+ *  - brass      signal-deep amber fill, signal-ink text — high-emphasis marketing
+ *  - secondary  ghost: transparent, line-strong border, signal on hover
  *  - ghost      transparent
- *  - danger     blocker bg/fg/border
+ *  - danger     runway-red outline on a red-tinted wash
  *
  * Sizes (exact):
  *  - sm  h 2rem,     pad 0 .75rem,   13px
  *  - md  h 2.625rem, pad 0 1.125rem, 14px
  *  - lg  h 3.25rem,  pad 0 1.5rem,   15px
  *
- * Radius sm (4px), weight 600, letter-spacing -0.01em, gap .5rem.
+ * Square, weight 600, uppercase 0.04em on the CTA variants, gap .5rem.
  * Transition: background 200ms + transform 120ms (ease-standard).
  */
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-semibold tracking-[-0.01em] select-none cursor-pointer transition-[background-color,transform] duration-200 ease-standard active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none font-semibold tracking-[-0.01em] select-none cursor-pointer transition-[background-color,transform] duration-200 ease-standard active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        action: "bg-action text-white hover:bg-action-hover",
-        brass: "bg-runway-signal text-white hover:bg-brass-deep",
+        action:
+          "border border-runway-signal bg-runway-signal uppercase tracking-[0.04em] text-runway-signal-ink hover:border-runway-signal-lit hover:bg-runway-signal-lit",
+        brass:
+          "border border-runway-signal-deep bg-runway-signal-deep uppercase tracking-[0.04em] text-runway-signal-ink hover:border-runway-signal hover:bg-runway-signal",
         secondary:
-          "bg-paper-0 text-ink border border-line-strong hover:bg-inset",
-        ghost: "bg-transparent text-ink hover:bg-sunken",
+          "border border-runway-line-strong bg-transparent uppercase tracking-[0.04em] text-runway-text hover:border-runway-signal hover:text-runway-signal",
+        ghost: "bg-transparent text-runway-body hover:bg-runway-raised hover:text-runway-text",
         danger:
-          "bg-block-bg text-block-fg border border-block-bd hover:bg-block-bd",
+          "border border-runway-red-dim bg-block-bg uppercase tracking-[0.04em] text-runway-red hover:border-runway-red",
       },
       size: {
         sm: "h-8 px-3 text-[13px] [&_svg]:size-4",

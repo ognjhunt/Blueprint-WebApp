@@ -189,7 +189,7 @@ export function MarketSignalsSection({
             <BarChart3 className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-runway-black sm:text-4xl">
+          <h2 className="mt-4 font-display uppercase tracking-[0.005em] text-3xl font-bold tracking-[0.005em] text-runway-text sm:text-4xl">
             {title}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-runway-mute sm:text-lg">
@@ -202,7 +202,7 @@ export function MarketSignalsSection({
             <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
               Why Blueprint exists
             </p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-black">
+            <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-text">
               The demo is not the problem.
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-runway-mute">
@@ -215,7 +215,7 @@ export function MarketSignalsSection({
                   key={item.title}
                   className="rounded-none border border-runway-line bg-runway-line-soft p-4"
                 >
-                  <p className="text-sm font-semibold text-runway-deep">{item.title}</p>
+                  <p className="text-sm font-semibold text-runway-text">{item.title}</p>
                   <p className="mt-1 text-sm leading-relaxed text-runway-mute">{item.description}</p>
                 </div>
               ))}
@@ -228,7 +228,7 @@ export function MarketSignalsSection({
                 <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
                   Market trajectory
                 </p>
-                <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-black">
+                <h3 className="mt-3 text-2xl font-bold tracking-tight text-runway-text">
                   Volume is going up fast. Deployment work does not disappear with it.
                 </h3>
               </div>
@@ -264,7 +264,7 @@ export function MarketSignalsSection({
                   <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-runway-faint">
                     {signal.year}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-runway-black">{signal.metric}</p>
+                  <p className="mt-1 text-sm font-bold text-runway-text">{signal.metric}</p>
                   <p className="mt-1 text-xs leading-relaxed text-runway-mute">{signal.label}</p>
                 </div>
               ))}
@@ -279,7 +279,7 @@ export function MarketSignalsSection({
                   <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">
                     {signal.year}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-runway-deep">{signal.metric}</p>
+                  <p className="mt-1 text-sm font-semibold text-runway-text">{signal.metric}</p>
                   <p className="mt-2 text-sm leading-relaxed text-runway-mute">{signal.detail}</p>
                 </div>
               ))}
@@ -305,16 +305,16 @@ export function MarketSignalsSection({
                 <span className="inline-flex rounded-full border border-runway-line bg-runway-line-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-runway-faint">
                   {card.tag}
                 </span>
-                <h3 className="mt-4 text-xl font-bold tracking-tight text-runway-black">
+                <h3 className="mt-4 text-xl font-bold tracking-tight text-runway-text">
                   {card.title}
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed text-runway-mute">{card.summary}</p>
-                <p className="mt-3 text-sm leading-relaxed text-runway-panel">{card.insight}</p>
+                <p className="mt-3 text-sm leading-relaxed text-runway-text">{card.insight}</p>
                 <a
                   href={card.ctaHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-runway-line-strong hover:text-runway-black"
+                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-runway-body hover:text-runway-text"
                 >
                   {card.ctaLabel}
                   <ArrowUpRight className="h-3 w-3" />
@@ -326,7 +326,7 @@ export function MarketSignalsSection({
 
         <div className="mt-8 rounded-none border border-runway-line bg-runway-black p-6 text-runway-text shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-runway-faint">The takeaway</p>
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-runway-line">
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-runway-mute">
             Humanoid supply is starting to move. Deployment infrastructure is not. Blueprint exists
             to qualify the site, define the task, and make the pass bar explicit before a robot
             team burns time on a weak pilot.
@@ -341,7 +341,7 @@ export function MarketSignalsSection({
               href={source.href}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-runway-panel"
+              className="inline-flex items-center gap-1 hover:text-runway-text"
             >
               {source.label}
               <ArrowUpRight className="h-3 w-3" />

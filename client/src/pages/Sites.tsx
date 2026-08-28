@@ -51,7 +51,7 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
           </span>
         ) : null}
       </div>
-      <h2 className="mt-5 text-3xl font-semibold leading-tight tracking-normal">
+      <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold leading-tight tracking-[0.005em]">
         {site.siteName}
       </h2>
       <p className="mt-2 text-sm font-semibold text-runway-faint">
@@ -164,7 +164,7 @@ export default function Sites() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-signal">
                 Deployment opportunity inputs
               </p>
-              <h1 className="mt-4 max-w-[14ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
+              <h1 className="mt-4 max-w-[14ch] font-display uppercase tracking-[0.005em] text-5xl font-semibold leading-[0.95] tracking-[0.005em] sm:text-6xl">
                 Start with the real workflow.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-runway-mute">
@@ -184,7 +184,7 @@ export default function Sites() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref()}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm bg-runway-signal px-5 text-sm font-semibold text-runway-black hover:bg-runway-signal-deep"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm bg-runway-signal px-5 text-sm font-semibold text-runway-signal-ink hover:bg-runway-signal-deep"
                 >
                   Prepare a deployment <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
@@ -240,7 +240,7 @@ export default function Sites() {
           ) : (
             <div className="rounded-lg border border-runway-line bg-runway-panel px-6 py-12">
               <Database className="h-7 w-7 text-runway-signal" aria-hidden="true" />
-              <h2 className="mt-5 text-3xl font-semibold tracking-normal">
+              <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold tracking-[0.005em]">
                 {sites.length ? "No live record matches that search." : "Site access starts with a real capture record."}
               </h2>
               <p className="mt-3 max-w-2xl text-base leading-7 text-runway-mute">

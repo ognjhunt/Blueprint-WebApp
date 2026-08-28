@@ -171,7 +171,7 @@ export default function DesignSystem() {
   return (
     <div className="min-h-screen bg-paper-1 font-sans text-ink-800">
       {/* Header — square ink chrome */}
-      <header className="border-b border-line bg-runway-deep text-paper-1">
+      <header className="border-b border-line bg-runway-deep text-runway-text">
         <div className="mx-auto max-w-container px-6 py-10">
           <Eyebrow>
             <span className="text-runway-signal">Blueprint</span>
@@ -329,7 +329,7 @@ export default function DesignSystem() {
                 <div
                   className={`flex h-24 w-full items-end rounded-md border p-3 ${s.cls} ${
                     s.dark
-                      ? "border-ink-700 bg-runway-deep text-paper-1"
+                      ? "border-ink-700 bg-runway-deep text-runway-text"
                       : "border-line bg-paper-0 text-ink-900"
                   }`}
                 >
@@ -342,7 +342,7 @@ export default function DesignSystem() {
         </section>
       </main>
 
-      <footer className="border-t border-line bg-runway-deep px-6 py-8 text-center text-paper-1">
+      <footer className="border-t border-line bg-runway-deep px-6 py-8 text-center text-runway-text">
         <Mono>blueprint · design tokens · proof sheet</Mono>
       </footer>
     </div>
@@ -372,7 +372,7 @@ function PaletteRow({
             <div className="flex h-14 flex-col justify-end">
               <span
                 className={`font-mono text-caption ${
-                  sw.dark ? "text-paper-1" : "text-ink-800"
+                  sw.dark ? "text-runway-text" : "text-ink-800"
                 }`}
               >
                 {sw.name}

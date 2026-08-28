@@ -74,16 +74,16 @@ export function CookieConsent() {
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center border border-white/10 bg-paper-0">
-              <Cookie className="h-5 w-5 text-runway-deep" />
+              <Cookie className="h-5 w-5 text-runway-text" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-runway-deep">Cookie Preferences</h3>
+              <h3 className="text-lg font-semibold text-runway-text">Cookie Preferences</h3>
               <p className="text-sm text-runway-faint">Manage your privacy settings</p>
             </div>
           </div>
           <button
             onClick={handleRejectAll}
-            className="flex h-11 w-11 items-center justify-center text-runway-faint hover:bg-paper-0 hover:text-runway-deep"
+            className="flex h-11 w-11 items-center justify-center text-runway-faint hover:bg-paper-0 hover:text-runway-text"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -94,7 +94,7 @@ export function CookieConsent() {
         <p className="mb-4 text-sm text-runway-mute">
           We use cookies to enhance your experience, analyze site traffic, and for marketing purposes.
           Review our{" "}
-          <a href="/privacy" className="font-medium text-runway-deep underline-offset-4 hover:underline">
+          <a href="/privacy" className="font-medium text-runway-text underline-offset-4 hover:underline">
             Privacy &amp; Cookies
           </a>{" "}
           details, customize your preferences, or accept all cookies.
@@ -106,42 +106,42 @@ export function CookieConsent() {
             {/* Necessary */}
             <label className="flex min-h-[44px] items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-runway-deep">Necessary</span>
+                <span className="text-sm font-medium text-runway-text">Necessary</span>
                 <p className="text-xs text-runway-faint">Required for basic site functionality</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.necessary}
                 disabled
-                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-text"
               />
             </label>
 
             {/* Analytics */}
             <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-runway-deep">Analytics</span>
+                <span className="text-sm font-medium text-runway-text">Analytics</span>
                 <p className="text-xs text-runway-faint">Help us understand how you use our site</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.analytics}
                 onChange={(e) => setPreferences(p => ({ ...p, analytics: e.target.checked }))}
-                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black focus:ring-runway-black"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-text focus:ring-runway-black"
               />
             </label>
 
             {/* Marketing */}
             <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-runway-deep">Marketing</span>
+                <span className="text-sm font-medium text-runway-text">Marketing</span>
                 <p className="text-xs text-runway-faint">Personalized ads and content</p>
               </div>
               <input
                 type="checkbox"
                 checked={preferences.marketing}
                 onChange={(e) => setPreferences(p => ({ ...p, marketing: e.target.checked }))}
-                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-black focus:ring-runway-black"
+                className="h-4 w-4 rounded-none border-runway-line-strong text-runway-text focus:ring-runway-black"
               />
             </label>
           </div>
@@ -151,7 +151,7 @@ export function CookieConsent() {
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="min-h-[44px] py-2 text-left text-sm font-medium text-runway-mute hover:text-runway-deep"
+            className="min-h-[44px] py-2 text-left text-sm font-medium text-runway-mute hover:text-runway-text"
           >
             {showDetails ? "Hide details" : "Customize"}
           </button>
@@ -159,7 +159,7 @@ export function CookieConsent() {
           <div className="flex gap-3">
             <button
               onClick={handleRejectAll}
-              className="min-h-[44px] flex-1 border border-white/10 bg-paper-0 px-4 py-2.5 text-sm font-semibold text-runway-line-strong transition hover:bg-runway-line-soft sm:flex-none"
+              className="min-h-[44px] flex-1 border border-white/10 bg-paper-0 px-4 py-2.5 text-sm font-semibold text-runway-body transition hover:bg-runway-line-soft sm:flex-none"
             >
               Reject all
             </button>

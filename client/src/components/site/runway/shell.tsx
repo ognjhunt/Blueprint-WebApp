@@ -29,7 +29,7 @@ const bandToneClass: Record<BandTone, string> = {
   black: "bg-runway-black text-runway-text",
   deep: "bg-runway-deep text-runway-text",
   panel: "bg-runway-panel text-runway-text",
-  paper: "bg-runway-paper text-runway-black",
+  paper: "bg-runway-paper text-runway-text",
 };
 
 export function Band({
@@ -130,7 +130,7 @@ export function SectionHead({
         <h2
           className={cn(
             "mt-5 max-w-[20ch] font-display uppercase text-[clamp(2.2rem,4.4vw,4.1rem)] font-semibold leading-[1.0] tracking-[0.005em]",
-            onLight ? "text-runway-black" : "text-runway-text",
+            onLight ? "text-runway-text" : "text-runway-text",
           )}
         >
           {title}
@@ -208,7 +208,7 @@ export function FigureFrame({
           <h3
             className={cn(
               "text-[15px] font-semibold tracking-[-0.015em]",
-              onLight ? "text-runway-black" : "text-runway-text",
+              onLight ? "text-runway-text" : "text-runway-text",
             )}
           >
             {title}
@@ -272,7 +272,7 @@ export function SourceLink({
       className={cn(
         "inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.12em] underline-offset-4 transition-colors hover:underline",
         onLight
-          ? "text-runway-mute hover:text-runway-black"
+          ? "text-runway-mute hover:text-runway-text"
           : "text-runway-faint hover:text-runway-signal",
       )}
     >
@@ -409,16 +409,16 @@ export function RunwayCta({
       <Inner className="relative py-16 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end">
           <div>
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-black/65">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-runway-text/65">
               {eyebrow}
             </p>
-            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-black">
+            <h2 className="mt-5 max-w-[16ch] font-display uppercase text-[clamp(2.3rem,4.8vw,4.4rem)] font-semibold leading-[0.98] tracking-[0.005em] text-runway-text">
               {title}
             </h2>
           </div>
           <div>
             {body ? (
-              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-black/75">{body}</p>
+              <p className="max-w-[42ch] text-[15px] leading-[1.7] text-runway-text/75">{body}</p>
             ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
@@ -431,7 +431,7 @@ export function RunwayCta({
               {secondaryHref && secondaryLabel ? (
                 <a
                   href={secondaryHref}
-                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-black transition-colors hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
+                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-sm border border-runway-black/35 px-6 text-[15px] font-semibold tracking-[-0.01em] text-runway-text transition-colors hover:border-runway-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-black focus-visible:ring-offset-2 focus-visible:ring-offset-runway-signal"
                 >
                   {secondaryLabel}
                 </a>

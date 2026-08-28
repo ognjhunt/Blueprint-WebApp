@@ -196,34 +196,34 @@ export default function Contact() {
           className="mx-auto grid max-w-[88rem] scroll-mt-8 gap-4 px-5 py-12 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-16"
         >
           {/* Inquiry form */}
-          <div className="rounded-md border border-line bg-paper-0 p-6 sm:p-8">
-            <div className="border-b border-line-soft pb-5">
+          <div className="runway-panel p-6 sm:p-8">
+            <div className="border-b border-runway-line-soft pb-5">
               <Eyebrow tone="muted">
                 {isSiteOperator ? "Send the site" : "Send the request"}
               </Eyebrow>
-              <h2 className="mt-3 text-title-m font-semibold tracking-tight text-ink">
+              <h2 className="mt-3 font-display text-[1.5rem] font-semibold uppercase leading-[1.05] tracking-[0.005em] text-runway-text">
                 Start with what you know. Blueprint will name what is missing.
               </h2>
             </div>
 
             {submitted ? (
-              <div className="mt-6 flex flex-col items-start gap-4 rounded-sm border border-proof-bd bg-proof-bg p-6">
+              <div className="runway-panel mt-6 flex flex-col items-start gap-4 bg-runway-black p-6">
                 <StatusChip tone="proof" square>
                   Received
                 </StatusChip>
                 <div>
-                  <h3 className="text-title-m font-semibold tracking-tight text-ink">
+                  <h3 className="font-display text-[1.25rem] font-semibold uppercase leading-[1.1] tracking-[0.005em] text-runway-text">
                     Message received.
                   </h3>
-                  <p className="mt-2 text-[15px] leading-[1.7] text-ink-600">
+                  <p className="mt-2 max-w-[68ch] text-[16px] leading-[1.7] text-runway-body">
                     {isSiteOperator
                       ? "We will review the workflow, decision, evidence gaps, access, rights, and scope, then return a scoped run plan and quote. No capture happens until you approve it."
                       : "We will check the task, decision, thresholds, evidence, and constraints, then return a scoped run plan and quote. If approved, the run record appears in the authenticated app after authorization."}
                   </p>
                 </div>
-                <Button variant="secondary" size="md" onClick={() => setSubmitted(false)}>
+                <button type="button" className="runway-cta-ghost" onClick={() => setSubmitted(false)}>
                   Send another
-                </Button>
+                </button>
               </div>
             ) : (
               <form className="mt-6 flex flex-col gap-5" onSubmit={handleSubmit}>
@@ -253,11 +253,8 @@ export default function Contact() {
                     onValueChange={setSelectedIntent}
                   />
                 </div>
-                <div className="flex w-full flex-col gap-1.5">
-                  <label
-                    htmlFor="contact-message"
-                    className="text-caption font-semibold text-ink-800"
-                  >
+                <div className="flex w-full flex-col">
+                  <label htmlFor="contact-message" className="runway-label">
                       About the workflow
                   </label>
                   <textarea
@@ -269,28 +266,26 @@ export default function Contact() {
                         ? "What moves from where to where, object sizes and weights, cycle time, shifts, exceptions, systems, access windows, and restricted zones."
                         : "Robot geometry, payload, reach, sensors, required interfaces, deployment geography, candidate software, and the site-task you want to test."
                     }
-                    className="w-full rounded-xs border border-line-strong bg-paper-0 px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
+                    className="runway-input bg-runway-black"
                   />
                 </div>
                 {submitError ? (
-                  <p role="alert" className="text-body-s font-medium text-block-fg">
+                  <p role="alert" className="text-[15px] font-medium leading-[1.7] text-runway-red">
                     {submitError} You can retry, or email{" "}
-                    <a className="underline" href="mailto:team@tryblueprint.io">
+                    <a className="underline underline-offset-2" href="mailto:team@tryblueprint.io">
                       team@tryblueprint.io
                     </a>
                     .
                   </p>
                 ) : null}
-                <p className="text-caption text-ink-500">A valid result may be positive, negative, partial, or an explicit abstention. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.</p>
-                <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-caption text-ink-500">
+                <p className="max-w-[68ch] text-[15px] leading-[1.7] text-runway-mute">A valid result may be positive, negative, partial, or an explicit abstention. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.</p>
+                <div className="flex flex-col gap-4 border-t border-runway-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="max-w-[52ch] text-[15px] leading-[1.7] text-runway-mute">
                     Request only. Capture, access, evaluation, pricing, and physical work are confirmed per scope.
                   </p>
-                  <Button
+                  <button
                     type="submit"
-                    variant="brass"
-                    size="md"
-                    iconRight={<ArrowRight />}
+                    className="runway-cta shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={submitting}
                   >
                     {selectedIntent === "pilot-opportunity"
@@ -298,7 +293,8 @@ export default function Contact() {
                       : submitting
                         ? "Sending…"
                         : "Request evaluation"}
-                  </Button>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
                 </div>
               </form>
             )}

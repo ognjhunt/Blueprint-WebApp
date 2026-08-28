@@ -181,7 +181,7 @@ export default function Nav({
 
         {/* Mobile menu button */}
         <button
-          className="md:hidden flex items-center justify-center w-11 h-11 rounded-none bg-white/5 text-runway-line-soft border border-white/15"
+          className="md:hidden flex items-center justify-center w-11 h-11 rounded-none bg-white/5 text-runway-faint border border-white/15"
           onClick={() => setIsMobileMenuOpen((v) => !v)}
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileMenuOpen}
@@ -224,7 +224,7 @@ export default function Nav({
                   className="w-full"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <div className="flex items-center justify-between text-runway-line hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 transition">
+                  <div className="flex items-center justify-between text-runway-mute hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 transition">
                     <span>{link.label}</span>
                     {link.badge && (
                       <span className="text-[10px] bg-[#c7a775] text-runway-text px-2 py-1">
@@ -244,7 +244,7 @@ export default function Nav({
                   >
                     <Button
                       variant="outline"
-                      className="w-full rounded-none border border-white/20 text-runway-line-soft hover:bg-white/8"
+                      className="w-full rounded-none border border-white/20 text-runway-faint hover:bg-white/8"
                     >
                       Log in
                     </Button>
@@ -258,7 +258,7 @@ export default function Nav({
                       className="w-full"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <div className="text-runway-line-strong hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 text-center">
+                      <div className="text-runway-body hover:text-white text-sm font-semibold py-4 px-4 hover:bg-white/8 text-center">
                         Settings
                       </div>
                     </Link>
@@ -308,7 +308,7 @@ const MemoizedDropdownMenuContent = memo(
     return (
       <DropdownMenuContent
         align="end"
-        className="w-60 p-3 rounded-none shadow-xl border border-white/10 bg-[#0d0d0b]/95 backdrop-blur-xl text-runway-line"
+        className="w-60 p-3 rounded-none shadow-xl border border-white/10 bg-[#0d0d0b]/95 backdrop-blur-xl text-runway-mute"
       >
         <DropdownMenuLabel className="font-normal p-3 bg-white/5">
           <div className="flex flex-col space-y-1">
@@ -324,7 +324,7 @@ const MemoizedDropdownMenuContent = memo(
         {!hideAuthenticatedFeatures && (
           <>
             <Link href="/settings">
-              <DropdownMenuItem className="cursor-pointer hover:bg-white/8 rounded-none p-3 font-medium text-runway-line">
+              <DropdownMenuItem className="cursor-pointer hover:bg-white/8 rounded-none p-3 font-medium text-runway-mute">
                 Settings
               </DropdownMenuItem>
             </Link>

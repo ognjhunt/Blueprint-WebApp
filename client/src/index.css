@@ -351,27 +351,6 @@
   }
 }
 
-@layer components {
-  .kinetic-eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.22em] text-kinetic-blue;
-  }
-
-  .kinetic-button-primary {
-    @apply inline-flex min-h-[3.35rem] items-center justify-center gap-5 rounded-lg bg-kinetic-blue px-6 text-[15px] font-semibold text-white shadow-[0_12px_30px_-16px_rgba(21,84,255,0.78)] transition duration-300 ease-out hover:-translate-y-0.5 hover:bg-kinetic-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinetic-blue focus-visible:ring-offset-2;
-  }
-
-  .kinetic-text-link {
-    @apply inline-flex min-h-[3.35rem] items-center justify-center gap-4 border-b border-kinetic-blue px-1 text-[15px] font-semibold text-kinetic-graphite transition-colors hover:text-kinetic-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinetic-blue focus-visible:ring-offset-2;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kinetic-button-primary,
-  .kinetic-text-link {
-    transition: none;
-  }
-}
-
 /* ============================================================
    Runway — the public deployment surface.
 

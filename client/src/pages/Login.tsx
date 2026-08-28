@@ -5,7 +5,6 @@ import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Loader2, Mail } from "lucid
 import { SEO } from "@/components/SEO";
 import {
   SurfaceBrowserFrame,
-  SurfaceButton,
   SurfaceDivider,
   SurfaceMiniLabel,
   SurfacePage,
@@ -33,10 +32,10 @@ function validatePassword(password: string): string | undefined {
 function GoogleMark() {
   return (
     <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
-      <path d="M21.8 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.5c-.2 1.2-.9 2.2-2 3l3.2 2.5c1.9-1.7 3.1-4.2 3.1-7.2Z" fill="#fff" />
-      <path d="M12 22c2.7 0 5-.9 6.7-2.5l-3.2-2.5c-.9.6-2.1 1-3.5 1-2.6 0-4.8-1.8-5.6-4.2l-3.4 2.6C4.6 19.6 8 22 12 22Z" fill="#1a1f1c" />
-      <path d="M6.4 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8L3 7.6C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.4l3.4-2.6Z" fill="#8f8f8f" />
-      <path d="M12 6c1.4 0 2.7.5 3.7 1.5l2.8-2.8C16.9 3.2 14.7 2 12 2 8 2 4.6 4.4 3 7.6l3.4 2.6C7.2 7.8 9.4 6 12 6Z" fill="#b8b8b8" />
+      <path d="M21.8 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.5c-.2 1.2-.9 2.2-2 3l3.2 2.5c1.9-1.7 3.1-4.2 3.1-7.2Z" fill="currentColor" />
+      <path d="M12 22c2.7 0 5-.9 6.7-2.5l-3.2-2.5c-.9.6-2.1 1-3.5 1-2.6 0-4.8-1.8-5.6-4.2l-3.4 2.6C4.6 19.6 8 22 12 22Z" fill="currentColor" />
+      <path d="M6.4 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8L3 7.6C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.4l3.4-2.6Z" fill="currentColor" />
+      <path d="M12 6c1.4 0 2.7.5 3.7 1.5l2.8-2.8C16.9 3.2 14.7 2 12 2 8 2 4.6 4.4 3 7.6l3.4 2.6C7.2 7.8 9.4 6 12 6Z" fill="currentColor" />
     </svg>
   );
 }
@@ -125,51 +124,51 @@ export default function Login() {
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.18),rgba(0,0,0,0.5)_64%,rgba(0,0,0,0.3))]" />
                 <div className="relative flex h-full items-end p-8 lg:p-10">
-                  <div className="max-w-[14rem] border border-white/15 bg-white/30 p-5 backdrop-blur">
-                    <SurfaceMiniLabel className="text-white/50">Exact-site context</SurfaceMiniLabel>
-                    <p className="mt-3 text-xl font-semibold tracking-[-0.04em] text-white">The evaluation, done before the robot arrives.</p>
-                    <p className="mt-3 text-sm leading-7 text-white/70">
+                  <div className="max-w-[14rem] border border-runway-line bg-runway-black/70 p-5 backdrop-blur">
+                    <SurfaceMiniLabel className="text-runway-faint">Exact-site context</SurfaceMiniLabel>
+                    <p className="mt-3 text-xl font-semibold text-runway-text">The evaluation, done before the robot arrives.</p>
+                    <p className="mt-3 text-sm leading-7 text-runway-mute">
                       Review captured workflows, controlled evaluations, access rights, and onsite handoffs.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-[#101312] p-8 lg:p-10">
+              <div className="bg-runway-deep p-8 lg:p-10">
                 <div className="mx-auto flex h-full max-w-[26rem] flex-col justify-center">
                   <div>
-                    <h1 className="font-display uppercase text-[3rem] font-semibold tracking-[0.005em]">Sign In</h1>
-                    <p className="mt-3 max-w-[18rem] text-sm leading-7 text-white/60">Access the Blueprint portal.</p>
+                    <h1 className="font-display uppercase text-[3rem] font-semibold tracking-[0.005em] text-runway-text">Sign In</h1>
+                    <p className="mt-3 max-w-[18rem] text-sm leading-7 text-runway-mute">Access the Blueprint portal.</p>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="mt-8 inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-[1rem] border border-white/10 bg-paper-0 px-4 text-sm font-semibold text-runway-text transition hover:bg-[#141816] disabled:opacity-70"
+                    className="runway-cta-ghost mt-8 w-full disabled:opacity-70"
                   >
                     <GoogleMark />
                     Continue with Google
                   </button>
 
-                  <div className="my-6 flex items-center gap-4 text-[11px] uppercase tracking-[0.22em] text-white/30">
-                    <div className="h-px flex-1 bg-white/10" />
+                  <div className="my-6 flex items-center gap-4 runway-meta">
+                    <div className="h-px flex-1 bg-runway-line" />
                     <span>or</span>
-                    <div className="h-px flex-1 bg-white/10" />
+                    <div className="h-px flex-1 bg-runway-line" />
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {authError ? (
-                      <div className="flex items-start gap-3 rounded-[1.2rem] border border-white/10 bg-paper-0 px-4 py-3 text-sm text-white/70">
-                        <AlertCircle className="mt-0.5 h-4 w-4 text-white/55" />
+                      <div className="flex items-start gap-3 border border-runway-red-dim bg-runway-panel px-4 py-3 text-sm text-runway-red">
+                        <AlertCircle className="mt-0.5 h-4 w-4 text-runway-red" />
                         <span>{authError}</span>
                       </div>
                     ) : null}
 
-                    <label className="block space-y-2">
-                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/50">Email</span>
+                    <label className="block">
+                      <span className="runway-label">Email</span>
                       <div className="relative">
-                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                         <input
                           id="email"
                           name="email"
@@ -181,16 +180,16 @@ export default function Login() {
                           onChange={handleInputChange}
                           onBlur={handleBlur}
                           placeholder="you@company.com"
-                          className="h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 pl-11 pr-4 text-[15px] text-runway-text outline-none transition placeholder:text-white/30 focus:border-white/30"
+                          className="runway-input h-12 pl-11 pr-4"
                         />
                       </div>
-                      {errors.email && touched.email ? <p className="text-sm text-white/55">{errors.email}</p> : null}
+                      {errors.email && touched.email ? <p className="mt-2 text-sm text-runway-red">{errors.email}</p> : null}
                     </label>
 
-                    <label className="block space-y-2">
-                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/50">Password</span>
+                    <label className="block">
+                      <span className="runway-label">Password</span>
                       <div className="relative">
-                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
                         <input
                           id="password"
                           name="password"
@@ -200,27 +199,27 @@ export default function Login() {
                           onChange={handleInputChange}
                           onBlur={handleBlur}
                           placeholder="Enter your password"
-                          className="h-12 w-full rounded-[1rem] border border-white/10 bg-paper-0 pl-11 pr-12 text-[15px] text-runway-text outline-none transition placeholder:text-white/30 focus:border-white/30"
+                          className="runway-input h-12 pl-11 pr-12"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword((current) => !current)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-runway-mute transition hover:text-runway-text"
                           aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      {errors.password && touched.password ? <p className="text-sm text-white/55">{errors.password}</p> : null}
+                      {errors.password && touched.password ? <p className="mt-2 text-sm text-runway-red">{errors.password}</p> : null}
                     </label>
 
                     <div className="flex justify-end">
-                      <a href="/forgot-password" className="text-sm text-white/50 transition hover:text-runway-text">
+                      <a href="/forgot-password" className="text-sm text-runway-mute transition hover:text-runway-text">
                         Forgot password?
                       </a>
                     </div>
 
-                    <SurfaceButton type="submit" className="w-full gap-2">
+                    <button type="submit" className="runway-cta w-full gap-2">
                       {isLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -232,27 +231,27 @@ export default function Login() {
                           <ArrowRight className="h-4 w-4" />
                         </>
                       )}
-                    </SurfaceButton>
+                    </button>
                   </form>
 
-                  <SurfaceDivider className="my-8" />
+                  <SurfaceDivider className="my-8 bg-runway-line" />
 
                   <div className="space-y-4">
-                    <SurfaceMiniLabel>New to Blueprint?</SurfaceMiniLabel>
+                    <SurfaceMiniLabel className="text-runway-faint">New to Blueprint?</SurfaceMiniLabel>
                     <div className="space-y-3 text-sm">
-                      <a href="/signup/business?buyerType=robot_team&source=login" className="flex items-center justify-between text-white/70 transition hover:text-runway-text">
+                      <a href="/signup/business?buyerType=robot_team&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
                         <span>Robot team: Create evaluation account</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
-                      <a href="/signup/business?buyerType=site_operator&source=login" className="flex items-center justify-between text-white/70 transition hover:text-runway-text">
+                      <a href="/signup/business?buyerType=site_operator&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
                         <span>Site operator: Start site review</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
-                      <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login" className="flex items-center justify-between text-white/70 transition hover:text-runway-text">
+                      <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
                         <span>Robot team: Scope before signup</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
-                      <a href="/capture-app" className="flex items-center justify-between text-white/70 transition hover:text-runway-text">
+                      <a href="/capture-app" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
                         <span>Capturer: Access the capture app</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
