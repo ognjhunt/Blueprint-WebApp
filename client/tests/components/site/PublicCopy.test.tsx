@@ -35,7 +35,7 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Real jobs, made deployment-ready/i,
+        name: /Real jobs, fully specified/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Prepare a deployment/i }).length).toBeGreaterThan(0);

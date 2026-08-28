@@ -8,7 +8,7 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Real jobs, made deployment-ready/i,
+        name: /Real jobs, fully specified/i,
       }),
     ).toBeInTheDocument();
     expect(container).toHaveTextContent(/Robot teams prove who can do them/i);

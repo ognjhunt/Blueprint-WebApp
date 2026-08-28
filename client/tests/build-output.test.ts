@@ -209,7 +209,7 @@ describe("build output", () => {
     const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Real jobs, made deployment-ready.");
+    expect(homeHtml).toContain("Real jobs, fully specified.");
     expect(homeHtml).toContain("Robot teams prove who can do them.");
     expect(homeHtml).toContain("Don’t send engineers to scope a deployment.");
     // Both halves of the boundary prerender, and so does the unit of supply.
@@ -272,7 +272,7 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
-    expect(browserJavaScript).toContain("Real jobs, made deployment-ready.");
+    expect(browserJavaScript).toContain("Real jobs, fully specified.");
     expect(browserJavaScript).toContain("A qualified deployable workcell.");
   });
 });

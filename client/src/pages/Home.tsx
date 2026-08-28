@@ -41,8 +41,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Real jobs, made deployment-ready."
-        description="Blueprint finds and qualifies real automation demand, turns each job into a deployment-ready digital opportunity, and lets the robotics market prove who can solve it."
+        title="Blueprint | Real jobs, fully specified."
+        description="Blueprint finds and qualifies real automation demand, turns each job into a fully specified digital opportunity, and lets the robotics market prove who can solve it."
         canonical="/"
         jsonLd={[
           webPageJsonLd({
@@ -54,7 +54,7 @@ export default function Home() {
       />
 
       <RunwayHero
-        eyebrow="Deployment-ready automation demand"
+        eyebrow="Qualified automation demand"
         title={`${identity.headline} ${identity.subhead}`}
         titleLines={[identity.headline, identity.subhead]}
         body={identity.body}

@@ -25,18 +25,23 @@
  * What Blueprint is, in one sentence, before anything about how it works.
  *
  * The long form: Blueprint finds and qualifies real automation demand, turns
- * each job into a deployment-ready digital opportunity, and lets the robotics
- * market prove who can solve it. Three beats — find, prepare, prove — and the
+ * each job into a fully specified digital opportunity, and lets the robotics
+ * market prove who can solve it. Three beats — find, specify, prove — and the
  * headline keeps two of them because the third is implied by "prove".
+ *
+ * Deliberately not "deployment-ready": that asserts a readiness state only
+ * per-request owner-system proof can support, and it front-runs the very
+ * evaluation this company exists to run. Blueprint specifies the job. The
+ * market proves whether a robot can do it.
  */
 export const identity = {
-  headline: "Real jobs, made deployment-ready.",
+  headline: "Real jobs, fully specified.",
   subhead: "Robot teams prove who can do them.",
   body:
     "We find automation demand that is actually real — a budget, an owner, a bounded task — capture it once, and turn it into an opportunity every robot team can evaluate against the same test.",
   /** The long form, for places with room for a full sentence. */
   full:
-    "Blueprint finds and qualifies real automation demand, turns each job into a deployment-ready digital opportunity, and lets the robotics market prove who can solve it.",
+    "Blueprint finds and qualifies real automation demand, turns each job into a fully specified digital opportunity, and lets the robotics market prove who can solve it.",
 } as const;
 
 export const promise = {

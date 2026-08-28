@@ -152,7 +152,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
+    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Product (legacy, redirects to Home)",
     path: "/product",
     canonicalPath: "/",
-    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
+    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
@@ -319,7 +319,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Updates (legacy, redirects to Home)",
     path: "/updates",
     canonicalPath: "/",
-    expectedHeading: "Real jobs, made deployment-ready. Robot teams prove who can do them.",
+    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
     requiredCtas: [
       { label: "Prepare a deployment", hrefStartsWith: "/contact" },
       { label: "See the method", hrefStartsWith: "/how-it-works" },
