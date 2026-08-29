@@ -6,13 +6,13 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
 
 const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 25_200;
-const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = 2.4;
-const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = 0.3;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = 4.8;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = 0.64;
 const SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD = 0.2;
-const SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD = 2.9;
-const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 3;
+const SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD = 5.64;
+const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 6;
 const SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD = 6;
-const SCENE_CONFIGURATION_ATTEMPT_SPEND_USD = 10;
+const SCENE_CONFIGURATION_ATTEMPT_SPEND_USD = 12;
 const EPISODE_EVALUATION_MAX_ATTEMPT_SPEND_USD = 5;
 const EPISODE_EVALUATION_MAX_TTL_SECONDS = 9_000;
 
@@ -212,7 +212,7 @@ const runtimeMountSchema = z.object({
 
 const externalServiceCapsSchema = z.object({
   openai: z.object({
-    maximum_cost_usd: z.number().nonnegative().max(5),
+    maximum_cost_usd: z.number().nonnegative().max(6),
     maximum_requests: z.number().int().nonnegative().max(100),
     stage_max_cost_usd: z.object({
       artifixer_semantic_teacher: z.number().nonnegative().max(5),
@@ -282,7 +282,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   }).strict(),
   spend: z.object({
     maximum_hourly_rate_usd: z.number().positive().max(0.8),
-    hard_cap_usd: z.number().positive().max(10),
+    hard_cap_usd: z.number().positive().max(12),
     hard_ttl_seconds: z.number().int().min(1).max(25_200),
     provider_compute_spend_cap_usd: z.number().positive().max(6).optional(),
     external_service_caps: externalServiceCapsSchema.optional(),
