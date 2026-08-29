@@ -35,6 +35,7 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   activation_id: identifier,
   team_namespace: identifier,
   lane: z.enum([
+    "task_evaluation_scene_configuration",
     "native_task_arena_construction",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
@@ -60,7 +61,9 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   }).strict(),
 }).strict().superRefine((value, context) => {
   if (
-    value.lane === "native_task_arena_construction"
+    ["task_evaluation_scene_configuration", "native_task_arena_construction"].includes(
+      value.lane,
+    )
       ? value.lineage.kind !== "initial_project"
       : value.lineage.kind !== "predecessor"
   ) context.addIssue({ code: z.ZodIssueCode.custom, message: "activation lineage does not match lane" });
@@ -96,6 +99,7 @@ const intakeReceiptSchema = z.object({
   preparation_id: identifier,
   team_namespace: identifier,
   lane: z.enum([
+    "task_evaluation_scene_configuration",
     "native_task_arena_construction",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
@@ -116,6 +120,7 @@ export const taskEvaluationLaunchActivationStatusSchema = z.object({
   preparation_id: identifier.optional(),
   team_namespace: identifier.optional(),
   lane: z.enum([
+    "task_evaluation_scene_configuration",
     "native_task_arena_construction",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
