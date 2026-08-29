@@ -319,15 +319,15 @@ function preparationInput() {
       service_account_readback_required: true,
     },
     spend: {
-      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 10, hard_ttl_seconds: 25_200,
+      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 12, hard_ttl_seconds: 25_200,
       provider_compute_spend_cap_usd: 6,
       external_service_caps: {
         openai: {
-          maximum_cost_usd: 2.9,
+          maximum_cost_usd: 6,
           maximum_requests: 32,
           stage_max_cost_usd: {
-            artifixer_semantic_teacher: 2.4,
-            artifixer_visual_review: 0.3,
+            artifixer_semantic_teacher: 4.8,
+            artifixer_visual_review: 0.64,
             content_agents: 0.2,
           },
         },
@@ -872,6 +872,23 @@ describe("admin Task Evaluation launch route", () => {
     expect(
       taskEvaluationLaunchPreparationInputSchema.safeParse(widenedEpisode).success,
     ).toBe(false);
+  });
+
+  it("reserves one selective Artifixer repair and second independent review", () => {
+    const repairReady = preparationInput();
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(repairReady).success)
+      .toBe(true);
+
+    const firstPassOnly = preparationInput();
+    firstPassOnly.spend.hard_cap_usd = 10;
+    firstPassOnly.spend.external_service_caps.openai.maximum_cost_usd = 3;
+    firstPassOnly.spend.external_service_caps.openai.stage_max_cost_usd = {
+      artifixer_semantic_teacher: 2.4,
+      artifixer_visual_review: 0.32,
+      content_agents: 0.2,
+    };
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(firstPassOnly).success)
+      .toBe(false);
   });
 
   it("requires scene configuration authority to fund every admitted OpenAI stage", () => {
