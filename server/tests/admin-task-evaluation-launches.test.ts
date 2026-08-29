@@ -1478,6 +1478,54 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
+  it("activates a verified scene configuration preparation through the Website", async () => {
+    const { server, url } = await startServer();
+    const preparation = preparationInput();
+    const input = {
+      ...activationInput(),
+      activation_id: "activate-scene-001-configuration",
+      lane: "task_evaluation_scene_configuration",
+    };
+    state.records.set(preparation.preparation_id, {
+      schema_version: "task_evaluation_launch_preparation_web_record.v1",
+      preparation_id: preparation.preparation_id,
+      run_id: preparation.run_id,
+      team_namespace: preparation.team_namespace,
+      expected_production_commit: preparation.expected_production_commit,
+      request_digest: input.preparation.request_digest,
+      state: "materialized",
+      pipeline_status: {
+        result_digest: input.preparation.result_digest,
+        full_byte_service_account_readback_passed: true,
+      },
+    });
+    try {
+      const response = await fetch(`${url}/activations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(202);
+      await expect(response.json()).resolves.toMatchObject({
+        schema_version: "task_evaluation_launch_activation_web_receipt.v1",
+        status: "queued_for_authority_gated_activation",
+        activation_id: input.activation_id,
+        preparation_id: input.preparation.preparation_id,
+        provider_mutation_performed_inside_web_request: false,
+        paid_execution_requested: false,
+        activation_is_not_execution: true,
+      });
+      expect(state.records.get(input.activation_id)).toMatchObject({
+        lane: "task_evaluation_scene_configuration",
+        state: "queued_for_authority_gated_activation",
+        provider_mutation_observed: false,
+        paid_execution_requested: false,
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("rejects activation when preparation verification or immutable identity differs", async () => {
     const { server, url } = await startServer();
     const preparation = preparationInput();
