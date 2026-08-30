@@ -51,6 +51,11 @@ function publicCard(
       thumbnailUrl: `/api/site-worlds/${encodeURIComponent(display.public_slug)}/thumbnail`,
       derivedAppearanceEvidence: true,
       captureOrPhysicalEvidence: false,
+      appearanceReviewStatus:
+        offering.presentation.appearance_review_status ?? "accepted",
+      ...(offering.presentation.warning_label ? {
+        warningLabel: offering.presentation.warning_label,
+      } : {}),
     },
     evaluationAction: {
       enabled: evaluationReady,

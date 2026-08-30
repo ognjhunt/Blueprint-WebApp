@@ -62,8 +62,13 @@ function card(offering: ConfiguredSceneOffering, sourceLaunchId: string) {
     presentation: {
       thumbnail_url: `/api/configured-scene-offerings/${encodeURIComponent(sourceLaunchId)}/thumbnail`,
       selection: offering.presentation.selection,
+      appearance_review_status:
+        offering.presentation.appearance_review_status ?? "accepted",
       selected_from_exact_reviewed_frame_count:
         offering.presentation.selected_from_exact_reviewed_frame_count,
+      ...(offering.presentation.warning_label ? {
+        warning_label: offering.presentation.warning_label,
+      } : {}),
     },
     evaluation_preparation_binding: offering.evaluation_preparation_binding,
     proof_boundary: offering.proof_boundary,

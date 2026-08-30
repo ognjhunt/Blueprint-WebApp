@@ -95,14 +95,17 @@ export const configuredSceneOfferingSchema = z.object({
       camera_id: z.string().trim().min(1).max(192),
       frame_digest: digest,
       rationale: z.string().trim().min(1).max(1_000),
+      appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
       reviewer: z.object({
-        kind: z.literal("ai"),
+        kind: z.enum(["ai", "system"]),
         identity: z.string().trim().min(1).max(200),
         runtime: z.string().trim().min(1).max(200),
         model: z.string().trim().min(1).max(200),
       }).strict(),
     }).strict(),
-    selected_from_exact_reviewed_frame_count: z.literal(8),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
+    selected_from_exact_reviewed_frame_count: z.union([z.literal(0), z.literal(8)]),
+    warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
     derived_appearance_evidence: z.literal(true),
     capture_or_physical_evidence: z.literal(false),
     image_bytes_modified_after_selection: z.literal(false),
@@ -119,6 +122,10 @@ export const configuredSceneOfferingSchema = z.object({
   proof_boundary: z.object({
     thumbnail_is_derived_appearance_evidence: z.literal(true),
     thumbnail_is_capture_or_physical_evidence: z.literal(false),
+    appearance_visual_review_completed: z.boolean().optional(),
+    appearance_quality_graded: z.boolean().optional(),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
+    appearance_warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
     configuration_is_policy_evaluation: z.literal(false),
     configuration_is_deployment_or_safety_approval: z.literal(false),
   }).strict(),
@@ -132,6 +139,34 @@ export const configuredSceneOfferingSchema = z.object({
       message: "selected frame digest must match task thumbnail digest",
     });
   }
+  const reviewStatus = offering.presentation.appearance_review_status ?? "accepted";
+  if (
+    (offering.presentation.selection.appearance_review_status ?? reviewStatus) !== reviewStatus
+    || (offering.proof_boundary.appearance_review_status ?? reviewStatus) !== reviewStatus
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "appearance review status bindings must match",
+  });
+  if (reviewStatus === "paused_ungraded") {
+    if (
+      offering.presentation.selected_from_exact_reviewed_frame_count !== 0
+      || offering.presentation.selection.reviewer.kind !== "system"
+      || offering.presentation.warning_label !== "Visual review paused - appearance ungraded"
+      || offering.proof_boundary.appearance_visual_review_completed !== false
+      || offering.proof_boundary.appearance_quality_graded !== false
+      || offering.proof_boundary.appearance_warning_label
+        !== "Visual review paused - appearance ungraded"
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "ungraded appearance offering must preserve its warning boundary",
+    });
+  } else if (
+    offering.presentation.selected_from_exact_reviewed_frame_count !== 8
+    || offering.presentation.selection.reviewer.kind !== "ai"
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "accepted appearance offering must bind an AI-reviewed frame",
+  });
   const actualDigest = canonicalArtifactDigest(
     offering as unknown as Record<string, unknown>,
     "offering_digest",

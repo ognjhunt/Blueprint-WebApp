@@ -232,6 +232,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   preparation_id: identifier,
   team_namespace: identifier,
   run_id: identifier,
+  appearance_review_override: z.object({
+    mode: z.literal("paused_ungraded"),
+    scope: z.literal("artifixer_appearance_only"),
+    ungraded_publication_acknowledged: z.literal(true),
+    review_provider_call_permitted: z.literal(false),
+    warning_label: z.literal("Visual review paused - appearance ungraded"),
+  }).strict().optional(),
   scene: sceneSchema,
   construction: constructionSchema,
   robot: z.object({
@@ -356,6 +363,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       });
     }
   } else {
+    if (value.appearance_review_override) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation cannot override appearance review",
+    });
     if (value.construction.mode !== "reuse_configured_scene") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation must reuse the configured scene revision",
