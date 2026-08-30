@@ -104,6 +104,7 @@ function profile() {
   return {
     profile_id: "interiorgs-sage-franka-001",
     profile_digest: sha("a"),
+    source_commit: "b".repeat(40),
     source_bundle: {
       bundle_id: "scene-001", source_kind: "interiorgs_sage",
       uri: "gs://blueprint-runs/scene-001.json", digest: sha("b"),
@@ -126,6 +127,15 @@ function profile() {
       readiness_receipt: { uri: "gs://blueprint-runs/readiness.json", digest: sha("e") },
       blockers: [],
     },
+    task_evaluation_run: {
+      run_mode: "scene_configuration",
+      team_namespace: "robot-team-001",
+      scene_id: "public-scene-001",
+      task_id: "rigid-relocation",
+      configuration_run_id: "scene-run-001",
+      evaluation_episode_executed: false,
+    },
+    policy_run_setup: policyRunSetup(),
     claim_ceiling: "development_only",
   };
 }
@@ -246,6 +256,18 @@ function pausedUngradedConfiguredSceneOffering() {
   offering.proof_boundary.appearance_review_status = "paused_ungraded";
   offering.proof_boundary.appearance_warning_label =
     "Visual review paused - appearance ungraded";
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return offering;
+}
+
+function evaluationReadyConfiguredSceneOffering() {
+  const offering = configuredSceneOffering();
+  offering.status = "evaluation_ready";
+  offering.evaluation_admission = {
+    zero_action_required: true,
+    scripted_positive_required: true,
+    learned_policy_evaluation_admitted: true,
+  };
   offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
   return offering;
 }
@@ -459,6 +481,98 @@ function evaluationPreparationInput() {
   delete input.spend.provider_compute_spend_cap_usd;
   delete input.spend.external_service_caps;
   return input;
+}
+
+function policyRunSetup() {
+  const template: Record<string, any> = evaluationPreparationInput();
+  delete template.expected_production_commit;
+  delete template.run_mode;
+  delete template.preparation_id;
+  delete template.team_namespace;
+  delete template.run_id;
+  delete template.policy_run_configuration;
+  delete template.policy_run_setup;
+  delete template.policy_run_selection;
+  delete template.publication.input_namespace;
+  template.schema_version = "task_evaluation_policy_run_preparation_template.v1";
+  template.template_digest = "";
+  template.template_digest = canonicalArtifactDigest(template, "template_digest");
+  const families = [
+    "canonical_anchor",
+    "placement_approach", "placement_approach",
+    "illumination", "camera_sensor", "bounded_physics",
+    "pairwise", "pairwise", "held_out", "held_out",
+  ];
+  const setup: Record<string, any> = {
+    schema_version: "task_evaluation_policy_run_setup.v1",
+    source_launch_id: "evaluation-launch-001",
+    offering_digest: evaluationReadyConfiguredSceneOffering().offering_digest,
+    embodiment_id: "franka_panda_robotiq_2f85_v1",
+    candidate_ids: ["pi05_droid", "groot_n17_droid"],
+    matrix_profile_id: "franka_rigid_relocation_nested_v1",
+    preregistration: immutableRef("policy-matrix-preregistration", "7"),
+    scenario_compiler: {
+      compiler_id: "franka_rigid_relocation_nested_prefix",
+      compiler_version: "v1",
+      selection_rule: "published_ordered_prefix",
+      outcome_independent: true,
+      agent_may_select_cells: false,
+    },
+    presets: [
+      {
+        preset_id: "quick_10", label: "Quick", scenario_count_per_policy: 10,
+        availability: "enabled", default: true,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 2, illumination: 1,
+          camera_sensor: 1, bounded_physics: 1, pairwise: 2, held_out: 2,
+        },
+        scenario_set_digest: sha("1"), parent_preset_id: null, parent_prefix_count: 0,
+        nesting_proof_digest: sha("2"), estimate: { status: "unavailable" },
+        cells: families.map((family, index) => ({
+          cell_id: `quick-${index + 1}`,
+          family,
+          partition: family === "held_out" ? "held_out" : "qualification",
+          scored: true,
+          cell_spec_digest: sha(String((index + 1) % 10)),
+        })),
+      },
+      {
+        preset_id: "standard_100", label: "Standard", scenario_count_per_policy: 100,
+        availability: "coming_later", default: false,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 24, illumination: 12,
+          camera_sensor: 12, bounded_physics: 12, pairwise: 19, held_out: 20,
+        },
+        scenario_set_digest: sha("3"), parent_preset_id: "quick_10", parent_prefix_count: 10,
+        nesting_proof_digest: sha("4"), estimate: { status: "unavailable" },
+      },
+      {
+        preset_id: "deep_500", label: "Deep", scenario_count_per_policy: 500,
+        availability: "coming_later", default: false,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 124, illumination: 62,
+          camera_sensor: 62, bounded_physics: 62, pairwise: 94, held_out: 95,
+        },
+        scenario_set_digest: sha("5"), parent_preset_id: "standard_100", parent_prefix_count: 100,
+        nesting_proof_digest: sha("6"), estimate: { status: "unavailable" },
+      },
+    ],
+    preparation_template: template,
+    setup_digest: "",
+  };
+  setup.presets[0].scenario_set_digest = canonicalArtifactDigest(
+    { ordered_cells: setup.presets[0].cells },
+    "scenario_set_digest",
+  );
+  for (const preset of setup.presets) preset.nesting_proof_digest = canonicalArtifactDigest({
+    preset_id: preset.preset_id,
+    scenario_set_digest: preset.scenario_set_digest,
+    parent_preset_id: preset.parent_preset_id,
+    parent_prefix_count: preset.parent_prefix_count,
+    selection_rule: "published_ordered_prefix",
+  }, "nesting_proof_digest");
+  setup.setup_digest = canonicalArtifactDigest(setup, "setup_digest");
+  return setup;
 }
 
 function activationInput() {
@@ -1089,6 +1203,185 @@ describe("admin Task Evaluation launch route", () => {
         code: "configured_scene_offering_controls_pending",
         paid_execution_requested: false,
       });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("projects a locked team setup and idempotently queues its exact policy matrix", async () => {
+    state.isOps = false;
+    const offering = evaluationReadyConfiguredSceneOffering();
+    state.records.set("evaluation-launch-001", {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const otherOffering = evaluationReadyConfiguredSceneOffering();
+    otherOffering.team_namespace = "other-team";
+    otherOffering.offering_digest = canonicalArtifactDigest(
+      otherOffering,
+      "offering_digest",
+    );
+    state.records.set("other-evaluation-launch", {
+      configured_scene_offering_state: otherOffering.status,
+      configured_scene_offering_team_namespace: otherOffering.team_namespace,
+      configured_scene_offering_digest: otherOffering.offering_digest,
+      configured_scene_offering: otherOffering,
+    });
+    const { server, url } = await startTeamOfferingServer();
+    const runId = "evaluation-run-001";
+    const body = {
+      schema_version: "task_evaluation_policy_run_selection.v1",
+      run_id: runId,
+      offering_digest: offering.offering_digest,
+      preset_id: "quick_10",
+    };
+    try {
+      const deniedSetup = await fetch(`${url}/other-evaluation-launch/evaluation-setup`);
+      expect(deniedSetup.status).toBe(404);
+      const setup = await fetch(`${url}/evaluation-launch-001/evaluation-setup`);
+      expect(setup.status).toBe(200);
+      const setupJson = await setup.json() as any;
+      expect(setupJson).toMatchObject({
+        schema_version: "task_evaluation_policy_run_setup_projection.v1",
+        source_launch_id: "evaluation-launch-001",
+        offering_digest: offering.offering_digest,
+        offering: {
+          scene_id: "public-scene-001",
+          task_id: "rigid-relocation",
+          task_kind: "rigid_relocation",
+          task_strategy: "planar_push",
+        },
+        robot: { embodiment_id: "franka_panda_robotiq_2f85_v1", locked: true },
+        policy_candidates: [
+          { candidate_id: "pi05_droid", locked: true },
+          { candidate_id: "groot_n17_droid", locked: true },
+        ],
+        matrix: {
+          profile_id: "franka_rigid_relocation_nested_v1",
+          presets: [
+            {
+              preset_id: "quick_10",
+              availability: "enabled",
+              default: true,
+              episode_counts: {
+                learned_episode_count: 20,
+                control_episode_count: 20,
+                total_episode_count: 40,
+              },
+            },
+            { preset_id: "standard_100", availability: "coming_later" },
+            { preset_id: "deep_500", availability: "coming_later" },
+          ],
+        },
+        notification: {
+          recipient: "authenticated_account",
+          recipient_email: "founder@example.com",
+        },
+      });
+      expect(setupJson.matrix).not.toHaveProperty("cells");
+      expect(JSON.stringify(setupJson)).not.toContain("s3://");
+      expect(setupJson).not.toHaveProperty("preparation_template");
+
+      const mismatch = await fetch(`${url}/evaluation-launch-001/evaluation-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": "wrong-id" },
+        body: JSON.stringify(body),
+      });
+      expect(mismatch.status).toBe(400);
+      expect(state.records.has(runId)).toBe(false);
+
+      const unavailableBody = {
+        ...body,
+        run_id: "evaluation-run-standard-001",
+        preset_id: "standard_100",
+      };
+      const unavailable = await fetch(`${url}/evaluation-launch-001/evaluation-runs`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": unavailableBody.run_id,
+        },
+        body: JSON.stringify(unavailableBody),
+      });
+      expect(unavailable.status).toBe(409);
+      await expect(unavailable.json()).resolves.toMatchObject({
+        code: "task_evaluation_policy_run_preset_unavailable",
+        available_preset_ids: ["quick_10"],
+        paid_execution_requested: false,
+      });
+      expect(state.records.has(unavailableBody.run_id)).toBe(false);
+
+      const created = await fetch(`${url}/evaluation-launch-001/evaluation-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(body),
+      });
+      expect(created.status).toBe(202);
+      const createdJson = await created.json() as any;
+      expect(createdJson).toMatchObject({
+        schema_version: "task_evaluation_policy_run_web_receipt.v1",
+        status: "queued_for_preparation",
+        already_exists: false,
+        run: {
+          run_id: runId,
+          source_launch_id: "evaluation-launch-001",
+          result: null,
+          episode_counts: {
+            learned_episode_count: 20,
+            control_episode_count: 20,
+            total_episode_count: 40,
+          },
+        },
+        configuration: {
+          embodiment_id: "franka_panda_robotiq_2f85_v1",
+          candidate_ids: ["pi05_droid", "groot_n17_droid"],
+          preset_id: "quick_10",
+          scenario_count_per_policy: 10,
+          counts: {
+            learned_episode_count: 20,
+            control_episode_count: 20,
+            total_episode_count: 40,
+          },
+        },
+        proof_boundary: {
+          preparation_is_execution: false,
+          paid_execution_requested: false,
+          payment_required: false,
+        },
+      });
+      expect(JSON.stringify(createdJson)).not.toContain("s3://");
+      const storedRun = state.records.get(runId);
+      expect(storedRun).toMatchObject({
+        owner_user_id: "founder-001",
+        team_namespace: "robot-team-001",
+        notification_recipient_user_id: "founder-001",
+        progress: { completed_episodes: 0, total_episodes: 40 },
+      });
+      expect(storedRun?.configuration.matrix.cells).toHaveLength(10);
+      expect(new Set(storedRun?.configuration.matrix.cells.map(
+        (cell: any) => cell.seed,
+      )).size).toBe(10);
+
+      const replay = await fetch(`${url}/evaluation-launch-001/evaluation-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(body),
+      });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({
+        already_exists: true,
+        proof_boundary: {
+          provider_mutation_performed_inside_http_request: false,
+          paid_execution_requested: false,
+        },
+      });
+      const pipelineCalls = (globalThis.fetch as any).mock.calls.filter(
+        ([target]: [string]) => target
+          === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations",
+      );
+      expect(pipelineCalls).toHaveLength(1);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

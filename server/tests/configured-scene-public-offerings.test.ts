@@ -310,14 +310,13 @@ describe("public configured-scene offerings", () => {
 
     expect(payload.items).toEqual([expect.objectContaining({
       status: "evaluation_ready",
+      sourceLaunchId: "launch-evaluation-ready",
       evaluationAction: expect.objectContaining({
         enabled: true,
-        label: "Request this evaluation",
+        label: "Configure evaluation",
+        href: "/app/packs/launch-evaluation-ready/evaluate",
       }),
     })]);
-    expect(payload.items[0].evaluationAction.href).toContain(
-      "source=public-configured-scene-offering",
-    );
   });
 
   it("serves the exact authorized thumbnail without credentials", async () => {

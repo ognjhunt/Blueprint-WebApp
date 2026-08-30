@@ -14,8 +14,22 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  type Reference = { collectionName: string; id: string };
-  const reference = (collectionName: string, id: string): Reference => ({ collectionName, id });
+  type Reference = {
+    collectionName: string;
+    id: string;
+    get: () => Promise<ReturnType<typeof read>>;
+    set: (payload: Record<string, unknown>, options?: { merge?: boolean }) => Promise<void>;
+  };
+  const reference = (collectionName: string, id: string): Reference => ({
+    collectionName,
+    id,
+    get: async () => read({ collectionName, id } as Reference),
+    set: async (payload, options) => write(
+      { collectionName, id } as Reference,
+      payload,
+      options?.merge,
+    ),
+  });
   const read = (ref: Reference) => {
     const record = state.collections.get(ref.collectionName)?.get(ref.id);
     return { exists: Boolean(record), data: () => record && structuredClone(record) };
@@ -182,6 +196,72 @@ function publicationV2(status: "blocked" | "ready") {
   return { ...value, schema_version: "task_evaluation_run_publication.v2", result_delivery: delivery };
 }
 
+function publicationV3() {
+  const value = publicationV2("ready") as Record<string, any>;
+  const familyMetrics = Object.fromEntries([
+    "canonical_anchor", "placement_approach", "illumination", "camera_sensor",
+    "bounded_physics", "pairwise", "held_out",
+  ].map((family) => [family, {
+    attempted: family === "placement_approach" || family === "pairwise" || family === "held_out" ? 2 : 1,
+    succeeded: family === "placement_approach" || family === "pairwise" || family === "held_out" ? 2 : 1,
+    success_rate: 1,
+    degradation_from_canonical: 0,
+  }]));
+  const candidateResult = (candidateId: string) => ({
+    candidate_id: candidateId,
+    episodes_completed: 10,
+    family_metrics: familyMetrics,
+    failures: [],
+    contacts: { contact_count: 10, violation_count: 0 },
+    evidence: {
+      lossless_frame_manifest_count: 10,
+      review_video_count: 10,
+      typed_media_gap_count: 0,
+    },
+  });
+  const policyResult: Record<string, any> = {
+    schema_version: "task_evaluation_policy_run_result_projection.v1",
+    run_id: value.run_id,
+    source_launch_id: "evaluation-launch-001",
+    offering_digest: sha("8"),
+    configuration_digest: sha("9"),
+    plan_digest: value.plan_digest,
+    embodiment_id: "franka_panda_robotiq_2f85_v1",
+    candidate_ids: ["pi05_droid", "groot_n17_droid"],
+    state: value.state,
+    matrix: {
+      scored_cell_count: 10,
+      candidate_episode_count: 20,
+      control_episode_count: 20,
+      expected_episode_count: 40,
+      completed_episode_count: 40,
+      identical_candidate_cells_and_seeds: true,
+      controls_complete: true,
+    },
+    candidate_results: [candidateResult("pi05_droid"), candidateResult("groot_n17_droid")],
+    paired_comparison: {
+      matched_episode_pairs: 10,
+      decision: "tie",
+      deterministic_non_policy_scoring: true,
+    },
+    result_delivery_digest: value.result_delivery.delivery_digest,
+    blockers: [],
+    proof_boundary: {
+      simulation_is_physical_success: false,
+      review_video_is_authoritative_evidence: false,
+      policy_can_grade_itself: false,
+      cross_team_leaderboard_authorized: false,
+    },
+    projection_digest: "",
+  };
+  policyResult.projection_digest = canonicalArtifactDigest(policyResult, "projection_digest");
+  return {
+    ...value,
+    schema_version: "task_evaluation_run_publication.v3",
+    policy_run_result: policyResult,
+  };
+}
+
 function signedBody(body: Record<string, unknown>) {
   const rawBody = JSON.stringify(body);
   const timestamp = new Date().toISOString();
@@ -319,6 +399,58 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       changed.result_delivery.artifacts[0].sha256 = sha("f");
       changed.result_delivery.delivery_digest = canonicalArtifactDigest(changed.result_delivery, "delivery_digest");
       expect((await postSigned(socketPath, changed)).status).toBe(409);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("binds a v3 policy result to its team run and emits an idempotent safe portal receipt", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    state.collections.set("captureUploadSessions", new Map([["capture-run-1", {
+      owner_user_id: "buyer-1",
+      organization_id: "team-1",
+      organization_binding_status: "firebase_tenant_verified",
+      request: { intake_id: "intake-1" },
+      pipeline_site_task_testbed: { testbed_digest: sha("b") },
+    }]]));
+    state.collections.set("taskEvaluationPolicyRuns", new Map([["run-1", {
+      schema_version: "task_evaluation_policy_run_web_record.v1",
+      run_id: "run-1",
+      source_launch_id: "evaluation-launch-001",
+      offering_digest: sha("8"),
+      configuration_digest: sha("9"),
+      notification_source_event_id: sha("9"),
+      team_namespace: "team-1",
+      notification_recipient_user_id: "buyer-1",
+      state: "aggregating",
+    }]]));
+    const body = publicationV3();
+    const { server, socketPath } = await startServer();
+    try {
+      const first = await postSigned(socketPath, body);
+      expect(first.status).toBe(201);
+      expect(first.body).toMatchObject({
+        status: "decided",
+        result_delivery_digest: body.result_delivery.delivery_digest,
+        policy_run_projection_digest: body.policy_run_result.projection_digest,
+      });
+      const stored = state.collections.get("taskEvaluationPolicyRuns")?.get("run-1");
+      expect(stored).toMatchObject({
+        state: "results_ready",
+        result_record_id: expect.stringMatching(/^capture-run-/),
+        policy_run_result: {
+          paired_comparison: { decision: "tie" },
+          projection_digest: body.policy_run_result.projection_digest,
+        },
+      });
+      expect(JSON.stringify(stored)).not.toContain("s3://");
+
+      const replay = await postSigned(socketPath, body);
+      expect(replay.status).toBe(200);
+      expect(replay.body.already_exists).toBe(true);
+      const notifications = state.collections.get("transactionalNotifications");
+      expect(notifications?.size).toBe(3);
+      expect(JSON.stringify([...(notifications?.values() || [])])).toContain("/app/results/capture-run-");
     } finally {
       await stopServer(server, socketPath);
     }

@@ -1,0 +1,184 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
+
+import {
+  buildResolvedPolicyRunConfiguration,
+  evaluationReadyPolicyRunSetupSchema,
+  evaluationReadyRunInputSchema,
+  projectEvaluationReadyRun,
+} from "../utils/evaluationReadyRunContract";
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+
+const sha = (character: string) => `sha256:${character.repeat(64)}`;
+
+function setup() {
+  const families = [
+    "canonical_anchor",
+    "placement_approach", "placement_approach",
+    "illumination", "camera_sensor", "bounded_physics",
+    "pairwise", "pairwise", "held_out", "held_out",
+  ] as const;
+  const template: Record<string, unknown> = {
+    schema_version: "task_evaluation_policy_run_preparation_template.v1",
+    template_digest: "",
+  };
+  template.template_digest = canonicalArtifactDigest(template, "template_digest");
+  const value: Record<string, any> = {
+    schema_version: "task_evaluation_policy_run_setup.v1",
+    source_launch_id: "scene-839873-launch",
+    offering_digest: sha("a"),
+    embodiment_id: "franka_panda_robotiq_2f85_v1",
+    candidate_ids: ["pi05_droid", "groot_n17_droid"],
+    matrix_profile_id: "franka_rigid_relocation_nested_v1",
+    preregistration: {
+      uri: "s3://blueprint-evidence/policy-run-preregistration.json",
+      digest: sha("b"), size_bytes: 2048,
+    },
+    scenario_compiler: {
+      compiler_id: "franka_rigid_relocation_nested_prefix",
+      compiler_version: "v1",
+      selection_rule: "published_ordered_prefix",
+      outcome_independent: true,
+      agent_may_select_cells: false,
+    },
+    presets: [
+      {
+        preset_id: "quick_10", label: "Quick", scenario_count_per_policy: 10,
+        availability: "enabled", default: true,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 2, illumination: 1,
+          camera_sensor: 1, bounded_physics: 1, pairwise: 2, held_out: 2,
+        },
+        scenario_set_digest: sha("c"), parent_preset_id: null, parent_prefix_count: 0,
+        nesting_proof_digest: sha("d"), estimate: { status: "unavailable" },
+        cells: families.map((family, index) => ({
+          cell_id: `quick-cell-${index + 1}`,
+          family,
+          partition: family === "held_out" ? "held_out" : "qualification",
+          scored: true,
+          cell_spec_digest: sha(String((index + 1) % 10)),
+        })),
+      },
+      {
+        preset_id: "standard_100", label: "Standard", scenario_count_per_policy: 100,
+        availability: "coming_later", default: false,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 24, illumination: 12,
+          camera_sensor: 12, bounded_physics: 12, pairwise: 19, held_out: 20,
+        },
+        scenario_set_digest: sha("e"), parent_preset_id: "quick_10", parent_prefix_count: 10,
+        nesting_proof_digest: sha("f"), estimate: { status: "unavailable" },
+      },
+      {
+        preset_id: "deep_500", label: "Deep", scenario_count_per_policy: 500,
+        availability: "coming_later", default: false,
+        family_counts: {
+          canonical_anchor: 1, placement_approach: 124, illumination: 62,
+          camera_sensor: 62, bounded_physics: 62, pairwise: 94, held_out: 95,
+        },
+        scenario_set_digest: sha("6"), parent_preset_id: "standard_100", parent_prefix_count: 100,
+        nesting_proof_digest: sha("7"), estimate: { status: "unavailable" },
+      },
+    ],
+    preparation_template: template,
+    setup_digest: "",
+  };
+  value.presets[0].scenario_set_digest = canonicalArtifactDigest(
+    { ordered_cells: value.presets[0].cells },
+    "scenario_set_digest",
+  );
+  for (const preset of value.presets) preset.nesting_proof_digest = canonicalArtifactDigest({
+    preset_id: preset.preset_id,
+    scenario_set_digest: preset.scenario_set_digest,
+    parent_preset_id: preset.parent_preset_id,
+    parent_prefix_count: preset.parent_prefix_count,
+    selection_rule: "published_ordered_prefix",
+  }, "nesting_proof_digest");
+  value.setup_digest = canonicalArtifactDigest(value, "setup_digest");
+  return evaluationReadyPolicyRunSetupSchema.parse(value);
+}
+
+describe("evaluation-ready policy-run contract", () => {
+  it("accepts only server-owned preset selection and rejects client cells or providers", () => {
+    const valid = {
+      schema_version: "task_evaluation_policy_run_selection.v1",
+      run_id: "scene-839873-policy-run-001",
+      offering_digest: sha("a"),
+      preset_id: "quick_10",
+    };
+    expect(evaluationReadyRunInputSchema.safeParse(valid).success).toBe(true);
+    expect(evaluationReadyRunInputSchema.safeParse({ ...valid, cells: [], seed: 839873 }).success)
+      .toBe(false);
+    expect(evaluationReadyRunInputSchema.safeParse({ ...valid, provider: "vast" }).success)
+      .toBe(false);
+  });
+
+  it("compiles Quick deterministically to one seed and four episodes per scenario", () => {
+    const policySetup = setup();
+    const params = {
+      sourceLaunchId: policySetup.source_launch_id,
+      offeringDigest: policySetup.offering_digest,
+      runId: "scene-839873-policy-run-001",
+      setup: policySetup,
+      presetId: "quick_10" as const,
+    };
+    const resolved = buildResolvedPolicyRunConfiguration(params);
+    const replay = buildResolvedPolicyRunConfiguration(params);
+
+    expect(resolved.candidate_ids).toEqual(["pi05_droid", "groot_n17_droid"]);
+    expect(resolved.matrix.cells).toHaveLength(10);
+    expect(resolved.matrix.cells.map((cell) => cell.seed)).toEqual(
+      replay.matrix.cells.map((cell) => cell.seed),
+    );
+    expect(new Set(resolved.matrix.cells.map((cell) => cell.seed)).size).toBe(10);
+    expect(resolved.counts).toEqual({
+      learned_episode_count: 20,
+      control_episode_count: 20,
+      total_episode_count: 40,
+    });
+    expect(resolved.execution_guards).toMatchObject({
+      candidate_cells_and_seeds_must_match: true,
+      zero_action_negative_every_scored_cell: true,
+      deterministic_scripted_positive_every_scored_cell: true,
+      retry_cap: 0,
+    });
+  });
+
+  it("projects bounded status and safe Website links without raw artifact locations", () => {
+    const projected = projectEvaluationReadyRun({
+      schema_version: "task_evaluation_policy_run_web_record.v1",
+      run_id: "scene-839873-policy-run-001",
+      source_launch_id: "scene-839873-launch",
+      offering_digest: sha("a"),
+      owner_user_id: "owner-001",
+      team_namespace: "team-001",
+      state: "results_ready",
+      configuration_digest: sha("c"),
+      episode_counts: {
+        learned_episode_count: 20,
+        control_episode_count: 20,
+        total_episode_count: 40,
+      },
+      created_at_iso: "2026-08-30T12:00:00.000Z",
+      updated_at_iso: "2026-08-30T13:00:00.000Z",
+      result_record_id: "capture-run-safe-001",
+      private_pipeline: {
+        artifact_uri: "s3://private-bucket/results.json",
+        secret_ref: "secret-file:pipeline-token",
+      },
+    });
+
+    expect(projected.result).toEqual({
+      record_id: "capture-run-safe-001",
+      href: "/app/results/capture-run-safe-001",
+      api_href: "/api/task-evaluation-results/capture-run-safe-001",
+    });
+    expect(projected.episode_counts).toEqual({
+      learned_episode_count: 20,
+      control_episode_count: 20,
+      total_episode_count: 40,
+    });
+    expect(JSON.stringify(projected)).not.toContain("s3://");
+    expect(JSON.stringify(projected)).not.toContain("secret-file:");
+  });
+});

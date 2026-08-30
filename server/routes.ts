@@ -74,6 +74,7 @@ import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationL
 import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
+import evaluationReadyRunsRouter from "./routes/evaluation-ready-runs";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -105,6 +106,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/slack", slackEventsRouter);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
+  app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
   app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);

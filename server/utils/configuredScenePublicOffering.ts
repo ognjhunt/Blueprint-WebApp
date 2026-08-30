@@ -10,6 +10,7 @@ const COLLECTION = "taskEvaluationLaunches";
 
 function publicCard(
   offering: ConfiguredSceneOffering,
+  sourceLaunchId: string,
 ): ConfiguredScenePublicOfferingCard | null {
   const display = offering.public_display;
   if (
@@ -23,18 +24,11 @@ function publicCard(
   const evaluationReady = offering.status === "evaluation_ready"
     && offering.evaluation_admission?.learned_policy_evaluation_admitted === true;
   const evaluationHref = evaluationReady
-    ? `/contact/robot-team?${new URLSearchParams({
-      persona: "robot-team",
-      buyerType: "robot_team",
-      interest: "task-evaluation-run",
-      path: "task-evaluation-run",
-      requestedOutputs: "Task Evaluation Run",
-      source: "public-configured-scene-offering",
-      scene: display.public_slug,
-    }).toString()}`
+    ? `/app/packs/${encodeURIComponent(sourceLaunchId)}/evaluate`
     : null;
   return {
     id: display.public_slug,
+    sourceLaunchId,
     dataSource: "pipeline",
     recordKind: "configured_scene_offering",
     status: offering.status,
@@ -59,7 +53,7 @@ function publicCard(
     },
     evaluationAction: {
       enabled: evaluationReady,
-      label: evaluationReady ? "Request this evaluation" : "Evaluation locked until controls pass",
+      label: evaluationReady ? "Configure evaluation" : "Evaluation locked until controls pass",
       href: evaluationHref,
     },
     proofBoundary: {
@@ -71,6 +65,7 @@ function publicCard(
 
 export function parsePublicConfiguredSceneOfferingRecord(
   record: Record<string, unknown>,
+  sourceLaunchId: string,
 ) {
   if (record.configured_scene_offering_public_visibility !== "public") return null;
   const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
@@ -81,7 +76,9 @@ export function parsePublicConfiguredSceneOfferingRecord(
     || record.configured_scene_offering_digest !== offering.offering_digest
     || record.configured_scene_offering_public_slug !== offering.public_display?.public_slug
   ) return null;
-  return offering.public_display ? { offering, card: publicCard(offering) } : null;
+  return offering.public_display
+    ? { offering, card: publicCard(offering, sourceLaunchId) }
+    : null;
 }
 
 async function publicOfferingDocuments(limit: number) {
@@ -104,6 +101,7 @@ export async function listPublicConfiguredSceneOfferings(limit = 100) {
   return docs.flatMap((document) => {
     const resolved = parsePublicConfiguredSceneOfferingRecord(
       document.data() as Record<string, unknown>,
+      document.id,
     );
     return resolved?.card ? [resolved.card] : [];
   });
@@ -114,6 +112,7 @@ export async function getPublicConfiguredSceneOffering(publicSlug: string) {
   for (const document of docs) {
     const resolved = parsePublicConfiguredSceneOfferingRecord(
       document.data() as Record<string, unknown>,
+      document.id,
     );
     if (resolved?.card?.id === publicSlug) return resolved;
   }

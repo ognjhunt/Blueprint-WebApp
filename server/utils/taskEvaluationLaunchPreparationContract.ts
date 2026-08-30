@@ -1,8 +1,14 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import {
+  evaluationReadyPolicyRunSetupSchema,
+  evaluationReadyRunInputSchema,
+  resolvedPolicyRunSelectionSchema,
+  resolvedPolicyRunConfigurationSchema,
+} from "./evaluationReadyRunContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
 
 // One first ArtiFixer pass plus one bounded selective repair pass. The
@@ -232,6 +238,9 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   preparation_id: identifier,
   team_namespace: identifier,
   run_id: identifier,
+  policy_run_configuration: resolvedPolicyRunConfigurationSchema.optional(),
+  policy_run_setup: evaluationReadyPolicyRunSetupSchema.optional(),
+  policy_run_selection: resolvedPolicyRunSelectionSchema.optional(),
   appearance_review_override: z.object({
     mode: z.literal("paused_ungraded"),
     scope: z.literal("artifixer_appearance_only"),
@@ -302,6 +311,33 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       .min(1).max(16),
   }).strict(),
 }).strict().superRefine((value, context) => {
+  const policyFields = [
+    value.policy_run_setup,
+    value.policy_run_selection,
+    value.policy_run_configuration,
+  ].filter(Boolean).length;
+  if (policyFields !== 0 && policyFields !== 3) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "policy-run setup, selection, and configuration must be forwarded together",
+    });
+  }
+  if (value.policy_run_setup && value.policy_run_selection && (
+    value.policy_run_setup.offering_digest !== value.policy_run_selection.offering_digest
+    || value.policy_run_setup.source_launch_id !== value.policy_run_selection.source_launch_id
+    || value.policy_run_setup.setup_digest !== value.policy_run_selection.setup_digest
+    || Boolean(value.policy_run_configuration && (
+      value.policy_run_setup.source_launch_id
+        !== value.policy_run_configuration.source_launch_id
+      || value.policy_run_setup.setup_digest
+        !== value.policy_run_configuration.setup_digest
+      || value.policy_run_setup.offering_digest
+        !== value.policy_run_configuration.offering_digest
+    ))
+  )) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "policy-run setup, selection, and compiled configuration must share identity",
+  });
   if (value.run_mode === "scene_configuration") {
     if (value.construction.mode !== "production_recipe") context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -484,6 +520,55 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
 export type TaskEvaluationLaunchPreparationInput = z.infer<
   typeof taskEvaluationLaunchPreparationInputSchema
 >;
+
+export function buildPolicyRunLaunchPreparation(params: {
+  template: Record<string, unknown>;
+  expectedProductionCommit: string;
+  teamNamespace: string;
+  runId: string;
+  policyRunSetup: z.infer<typeof evaluationReadyPolicyRunSetupSchema>;
+  policyRunSelection: z.infer<typeof evaluationReadyRunInputSchema>;
+  policyRunConfiguration: z.infer<typeof resolvedPolicyRunConfigurationSchema>;
+}) {
+  const {
+    schema_version: _templateSchemaVersion,
+    template_digest: _templateDigest,
+    ...staticTemplate
+  } = params.template;
+  const preparationId = `policy-prep-${createHash("sha256")
+    .update([
+      params.runId,
+      params.teamNamespace,
+      params.policyRunSetup.offering_digest,
+      params.policyRunSetup.setup_digest,
+    ].join("\0"))
+    .digest("hex")
+    .slice(0, 32)}`;
+  const namespaceSuffix = createHash("sha256")
+    .update(`${params.teamNamespace}\0${params.runId}`)
+    .digest("hex")
+    .slice(0, 16);
+  return taskEvaluationLaunchPreparationInputSchema.safeParse({
+    ...staticTemplate,
+    publication: {
+      ...staticTemplate.publication as Record<string, unknown>,
+      input_namespace: `${params.teamNamespace.slice(0, 64)}-${params.runId.slice(0, 96)}-${namespaceSuffix}`,
+    },
+    schema_version: "task_evaluation_launch_preparation_request.v1",
+    run_mode: "episode_evaluation",
+    expected_production_commit: params.expectedProductionCommit,
+    preparation_id: preparationId,
+    team_namespace: params.teamNamespace,
+    run_id: params.runId,
+    policy_run_setup: params.policyRunSetup,
+    policy_run_selection: {
+      ...params.policyRunSelection,
+      source_launch_id: params.policyRunSetup.source_launch_id,
+      setup_digest: params.policyRunSetup.setup_digest,
+    },
+    policy_run_configuration: params.policyRunConfiguration,
+  });
+}
 
 const preparationIntakeReceiptSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_intake_receipt.v1"),
