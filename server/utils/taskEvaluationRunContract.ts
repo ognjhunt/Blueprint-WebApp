@@ -138,6 +138,78 @@ export const taskEvaluationResultDeliverySchema = z.object({
   delivery_digest: digest,
 }).strict();
 
+const policyVariationFamilies = [
+  "canonical_anchor",
+  "placement_approach",
+  "illumination",
+  "camera_sensor",
+  "bounded_physics",
+  "pairwise",
+  "held_out",
+] as const;
+const policyFamilyMetric = z.object({
+  attempted: z.number().int().nonnegative(),
+  succeeded: z.number().int().nonnegative(),
+  success_rate: z.number().min(0).max(1),
+  degradation_from_canonical: z.number().min(-1).max(1),
+}).strict();
+const policyCandidateResultBase = z.object({
+  episodes_completed: z.number().int().min(0).max(500),
+  family_metrics: z.record(z.enum(policyVariationFamilies), policyFamilyMetric),
+  failures: z.array(z.object({
+    code: identifier,
+    count: z.number().int().positive(),
+  }).strict()).max(500),
+  contacts: z.object({
+    contact_count: z.number().int().nonnegative(),
+    violation_count: z.number().int().nonnegative(),
+  }).strict(),
+  evidence: z.object({
+    lossless_frame_manifest_count: z.number().int().nonnegative(),
+    review_video_count: z.number().int().nonnegative(),
+    typed_media_gap_count: z.number().int().nonnegative(),
+  }).strict(),
+});
+
+export const taskEvaluationPolicyRunResultProjectionSchema = z.object({
+  schema_version: z.literal("task_evaluation_policy_run_result_projection.v1"),
+  run_id: identifier,
+  source_launch_id: identifier,
+  offering_digest: digest,
+  configuration_digest: digest,
+  plan_digest: digest,
+  embodiment_id: z.literal("franka_panda_robotiq_2f85_v1"),
+  candidate_ids: z.tuple([z.literal("pi05_droid"), z.literal("groot_n17_droid")]),
+  state: z.enum(["decided", "partially_decided", "abstained"]),
+  matrix: z.object({
+    scored_cell_count: z.union([z.literal(10), z.literal(100), z.literal(500)]),
+    candidate_episode_count: z.number().int().min(20).max(1_000),
+    control_episode_count: z.number().int().min(20).max(1_000),
+    expected_episode_count: z.number().int().min(40).max(2_000),
+    completed_episode_count: z.number().int().min(0).max(2_000),
+    identical_candidate_cells_and_seeds: z.literal(true),
+    controls_complete: z.boolean(),
+  }).strict(),
+  candidate_results: z.tuple([
+    policyCandidateResultBase.extend({ candidate_id: z.literal("pi05_droid") }).strict(),
+    policyCandidateResultBase.extend({ candidate_id: z.literal("groot_n17_droid") }).strict(),
+  ]),
+  paired_comparison: z.object({
+    matched_episode_pairs: z.number().int().min(0).max(500),
+    decision: z.enum(["pi05_droid", "groot_n17_droid", "tie", "abstain"]),
+    deterministic_non_policy_scoring: z.literal(true),
+  }).strict(),
+  result_delivery_digest: digest,
+  blockers: z.array(z.string().trim().min(1).max(512)).max(128),
+  proof_boundary: z.object({
+    simulation_is_physical_success: z.literal(false),
+    review_video_is_authoritative_evidence: z.literal(false),
+    policy_can_grade_itself: z.literal(false),
+    cross_team_leaderboard_authorized: z.literal(false),
+  }).strict(),
+  projection_digest: digest,
+}).strict();
+
 const taskEvaluationRunPublicationBaseSchema = z.object({
   capture_session_id: identifier,
   intake_id: identifier,
@@ -162,6 +234,11 @@ export const taskEvaluationRunPublicationSchema = z.discriminatedUnion("schema_v
   taskEvaluationRunPublicationBaseSchema.extend({
     schema_version: z.literal("task_evaluation_run_publication.v2"),
     result_delivery: taskEvaluationResultDeliverySchema,
+  }).strict(),
+  taskEvaluationRunPublicationBaseSchema.extend({
+    schema_version: z.literal("task_evaluation_run_publication.v3"),
+    result_delivery: taskEvaluationResultDeliverySchema,
+    policy_run_result: taskEvaluationPolicyRunResultProjectionSchema,
   }).strict(),
 ]);
 
@@ -266,7 +343,10 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown) {
       ? "partially_decided"
       : "abstained";
   if (publication.state !== expectedState) blockers.push("run_publication_state_mismatch");
-  if (publication.schema_version === "task_evaluation_run_publication.v2") {
+  if (
+    publication.schema_version === "task_evaluation_run_publication.v2"
+    || publication.schema_version === "task_evaluation_run_publication.v3"
+  ) {
     const delivery = publication.result_delivery;
     if (canonicalArtifactDigest(delivery, "delivery_digest") !== delivery.delivery_digest) {
       blockers.push("result_delivery_digest_mismatch");
@@ -291,6 +371,63 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown) {
       if (referenced.some((artifact) => !admittedIds.has(artifact.artifact_id))) {
         blockers.push("result_delivery_episode_artifact_not_admitted");
       }
+    }
+  }
+  if (publication.schema_version === "task_evaluation_run_publication.v3") {
+    const policyResult = publication.policy_run_result;
+    if (
+      canonicalArtifactDigest(policyResult, "projection_digest")
+        !== policyResult.projection_digest
+    ) blockers.push("policy_run_projection_digest_mismatch");
+    if (
+      policyResult.run_id !== publication.run_id
+      || policyResult.state !== publication.state
+      || policyResult.plan_digest !== publication.plan_digest
+      || policyResult.result_delivery_digest !== publication.result_delivery.delivery_digest
+      || policyResult.matrix.candidate_episode_count
+        !== policyResult.matrix.scored_cell_count * 2
+      || policyResult.matrix.control_episode_count
+        !== policyResult.matrix.scored_cell_count * 2
+      || policyResult.matrix.expected_episode_count
+        !== policyResult.matrix.scored_cell_count * 4
+    ) blockers.push("policy_run_result_binding_mismatch");
+    for (const result of policyResult.candidate_results) {
+      const families = Object.keys(result.family_metrics);
+      if (
+        families.length !== policyVariationFamilies.length
+        || policyVariationFamilies.some((family) => !families.includes(family))
+      ) blockers.push("policy_run_result_family_coverage_invalid");
+      const perCandidate = policyResult.matrix.candidate_episode_count / 2;
+      const metrics = Object.values(result.family_metrics);
+      if (
+        metrics.some((metric) => (
+          metric.succeeded > metric.attempted
+          || metric.attempted > 0
+            && Math.abs(metric.success_rate - metric.succeeded / metric.attempted) > 1e-9
+        ))
+        || metrics.reduce((sum, metric) => sum + metric.attempted, 0) !== perCandidate
+        || result.episodes_completed > perCandidate
+        || result.evidence.lossless_frame_manifest_count > result.episodes_completed
+        || result.evidence.review_video_count > result.episodes_completed
+      ) blockers.push("policy_run_result_metric_or_evidence_invalid");
+    }
+    const perCandidate = policyResult.matrix.candidate_episode_count / 2;
+    if (policyResult.state === "decided") {
+      if (
+        policyResult.blockers.length > 0
+        || policyResult.matrix.completed_episode_count
+          !== policyResult.matrix.expected_episode_count
+        || !policyResult.matrix.controls_complete
+        || policyResult.candidate_results.some((result) => (
+          result.episodes_completed !== perCandidate
+          || result.evidence.lossless_frame_manifest_count !== perCandidate
+          || result.evidence.review_video_count !== perCandidate
+          || result.evidence.typed_media_gap_count !== 0
+        ))
+        || policyResult.paired_comparison.matched_episode_pairs !== perCandidate
+      ) blockers.push("policy_run_result_decision_evidence_incomplete");
+    } else if (policyResult.blockers.length === 0) {
+      blockers.push("policy_run_result_nondecision_blocker_missing");
     }
   }
   if (sensitivePaths(publication).length) blockers.push("run_publication_secret_value_forbidden");

@@ -63,6 +63,7 @@ export type SiteWorldAgentCommerce = {
 
 export type ConfiguredScenePublicOfferingCard = {
   id: string;
+  sourceLaunchId: string;
   dataSource: "pipeline";
   recordKind: "configured_scene_offering";
   status: "configured_controls_pending" | "evaluation_ready";

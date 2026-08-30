@@ -13,6 +13,7 @@ export type TransactionalNotificationEventType =
   | "capture_rejected"
   | "capturer_application_approved"
   | "capturer_application_rejected"
+  | "evaluation_results_ready"
   | "consent_revocation";
 
 export type TransactionalNotificationRecipientType = "buyer" | "creator";
@@ -175,6 +176,13 @@ function notificationCopy(input: TransactionalNotificationInput) {
         body: "Your Blueprint package is ready to access from your buyer account.",
         emailSubject: "Your Blueprint delivery is ready",
         emailText: "Your Blueprint package is ready to access from your buyer account.",
+      };
+    case "evaluation_results_ready":
+      return {
+        title: "Blueprint evaluation results are ready",
+        body: "Your Task Evaluation Run results are ready in Blueprint.",
+        emailSubject: "Your Blueprint evaluation results are ready",
+        emailText: "Your Task Evaluation Run results are ready in Blueprint.",
       };
     case "payout_sent":
       return {

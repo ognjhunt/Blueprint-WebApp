@@ -28,7 +28,13 @@ router.get("/:recordId/:artifactId", async (req, res) => {
   }
   if (!snapshot.exists) return res.status(404).json({ error: "Result download is unavailable" });
   const verified = parseVerifiedTaskEvaluationRunPublication(snapshot.data()?.publication);
-  if (!verified.ok || verified.publication.schema_version !== "task_evaluation_run_publication.v2") {
+  if (
+    !verified.ok
+    || (
+      verified.publication.schema_version !== "task_evaluation_run_publication.v2"
+      && verified.publication.schema_version !== "task_evaluation_run_publication.v3"
+    )
+  ) {
     return res.status(404).json({ error: "Result download is unavailable" });
   }
   const delivery = verified.publication.result_delivery;

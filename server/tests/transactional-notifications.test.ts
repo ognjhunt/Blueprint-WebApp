@@ -75,6 +75,46 @@ afterEach(() => {
 });
 
 describe("transactional notifications", () => {
+  it("deduplicates the results-ready event and keeps the Website result link bounded", async () => {
+    const { dispatchTransactionalNotification } = await import(
+      "../utils/transactional-notifications"
+    );
+    const event = {
+      eventType: "evaluation_results_ready" as const,
+      recipientType: "buyer" as const,
+      recipientUserId: "member-1",
+      recipientEmail: "member@example.com",
+      subjectId: "evaluation-run-1",
+      sourceEventId: "sha256:delivery-1",
+      sourceCollection: "taskEvaluationPolicyRuns",
+      sourceDocId: "evaluation-run-1",
+      title: "Blueprint evaluation results are ready",
+      body: "Your Task Evaluation Run results are ready in Blueprint.",
+      emailSubject: "Your Blueprint evaluation results are ready",
+      emailText: "Your Task Evaluation Run results are ready: /app/results/result-record-1",
+      data: {
+        run_id: "evaluation-run-1",
+        result_record_id: "result-record-1",
+        result_url: "/app/results/result-record-1",
+      },
+    };
+
+    const first = await dispatchTransactionalNotification(event);
+    const replay = await dispatchTransactionalNotification(event);
+
+    expect(replay).toEqual(first);
+    expect(collectionDocs("transactionalNotifications")).toHaveLength(3);
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(collectionDocs("transactionalNotifications"))).not.toContain("s3://");
+    expect(collectionDocs("transactionalNotifications")).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event_type: "evaluation_results_ready",
+        subject_id: "evaluation-run-1",
+        data: expect.objectContaining({ result_url: "/app/results/result-record-1" }),
+      }),
+    ]));
+  });
+
   it("sends email, queues in-app, and audits the order confirmation event", async () => {
     const { dispatchTransactionalNotification } = await import(
       "../utils/transactional-notifications"
