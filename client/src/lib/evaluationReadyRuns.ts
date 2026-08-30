@@ -6,7 +6,7 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
 export const FRANKA_DROID_EMBODIMENT_ID = "franka_panda_robotiq_2f85_v1" as const;
 export const POLICY_RUN_CANDIDATE_IDS = ["pi05_droid", "groot_n17_droid"] as const;
-export const POLICY_RUN_MATRIX_PROFILE_ID = "franka_rigid_relocation_standard_v1" as const;
+export const POLICY_RUN_MATRIX_PROFILE_ID = "franka_rigid_relocation_nested_v1" as const;
 export const POLICY_RUN_PRESET_IDS = ["quick_10", "standard_100", "deep_500"] as const;
 export const POLICY_RUN_VARIATION_FAMILIES = [
   "canonical_anchor",

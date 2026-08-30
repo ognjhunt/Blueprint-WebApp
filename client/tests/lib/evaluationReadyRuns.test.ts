@@ -60,7 +60,7 @@ describe("evaluation-ready run client contract", () => {
         { candidate_id: "groot_n17_droid", label: "GR00T N1.7 DROID", locked: true },
       ],
       matrix: {
-        profile_id: "franka_rigid_relocation_standard_v1",
+        profile_id: "franka_rigid_relocation_nested_v1",
         preregistration_digest: digest("d"),
         compiler: { compiler_id: "franka_rigid_relocation_nested_prefix", compiler_version: "v1", selection_rule: "published_ordered_prefix", outcome_independent: true, agent_may_select_cells: false },
         presets: [

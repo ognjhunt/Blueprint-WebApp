@@ -12,7 +12,7 @@ const setup: EvaluationReadySetupView = {
   taskLabel: "Mug relocation",
   embodimentId: "franka_panda_robotiq_2f85_v1",
   candidateIds: ["pi05_droid", "groot_n17_droid"],
-  matrixProfileId: "franka_rigid_relocation_standard_v1",
+  matrixProfileId: "franka_rigid_relocation_nested_v1",
   defaultPresetId: "quick_10",
   presets: [
     {

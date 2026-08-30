@@ -37,7 +37,7 @@ const setup = {
   taskLabel: "rigid-relocation · simple relocation",
   embodimentId: "franka_panda_robotiq_2f85_v1" as const,
   candidateIds: ["pi05_droid", "groot_n17_droid"] as const,
-  matrixProfileId: "franka_rigid_relocation_standard_v1" as const,
+  matrixProfileId: "franka_rigid_relocation_nested_v1" as const,
   defaultPresetId: "quick_10" as const,
   presets: [{
     presetId: "quick_10" as const, label: "Quick test", scenarioCountPerPolicy: 10 as const,
