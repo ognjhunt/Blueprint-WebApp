@@ -7,6 +7,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
+import { EvaluationResultOverview } from "@/components/blueprint/app/EvaluationResultOverview";
 import {
   createTaskEvaluationResultArtifactTicket,
   humanBytes,
@@ -163,6 +164,8 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
               ["Task complete", delivery.summary.successful_episode_count],
             ].map(([label, value]) => <Card key={String(label)} pad="md"><p className="runway-meta">{label}</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{value}</p></Card>)}
           </section>
+
+          <EvaluationResultOverview episodes={delivery.episodes} />
 
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2"><Eye className="size-4 text-ink-500" /><h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Episode review</h2></div>

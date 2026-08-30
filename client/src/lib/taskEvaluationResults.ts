@@ -25,6 +25,30 @@ export type TaskEvaluationResultEpisode = {
     task_succeeded?: boolean | null;
     grader_authority: string;
   };
+  variation?: {
+    cell_id: string;
+    family_id: string;
+    label?: string;
+    partition?: "qualification" | "held_out" | string;
+    seed?: number;
+  };
+  metrics?: {
+    contact_count?: number | null;
+    duration_seconds?: number | null;
+    intervention_count?: number | null;
+  };
+  failure?: {
+    code: string;
+    phase?: string;
+    summary?: string;
+  } | null;
+  evidence?: {
+    complete?: boolean;
+    lossless_policy_inputs_complete?: boolean;
+    frame_manifest_digest?: string;
+    review_video_digest?: string;
+    deterministic_non_policy_grader?: boolean;
+  };
   artifacts: {
     receipt: TaskEvaluationResultArtifact;
     frame_manifest: TaskEvaluationResultArtifact;

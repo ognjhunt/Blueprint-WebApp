@@ -20,11 +20,9 @@ import {
   useBuyerAppEntitlements,
 } from "@/lib/buyerAppData";
 import {
-  bindConfiguredSceneOfferingToPreparation,
   fetchAuthenticatedConfiguredSceneThumbnail,
   type ConfiguredSceneOfferingCard,
 } from "@/lib/configuredSceneOffering";
-import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
 function OfferingThumbnail({
@@ -73,8 +71,6 @@ export default function SitePacks() {
   const { currentUser } = useAuth();
   const [offerings, setOfferings] = useState<ConfiguredSceneOfferingCard[]>([]);
   const [offeringError, setOfferingError] = useState<string | null>(null);
-  const [startingOffering, setStartingOffering] = useState<string | null>(null);
-  const [offeringReceipt, setOfferingReceipt] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -90,35 +86,6 @@ export default function SitePacks() {
       })
       .catch((reason) => setOfferingError(reason instanceof Error ? reason.message : String(reason)));
   }, [currentUser]);
-
-  async function startOffering(offering: ConfiguredSceneOfferingCard, file: File) {
-    if (!currentUser) return;
-    setStartingOffering(offering.source_launch_id);
-    setOfferingError(null);
-    setOfferingReceipt(null);
-    try {
-      if (file.size < 1 || file.size > 2 * 1024 * 1024) {
-        throw new Error("Episode preparation contract must be between 1 byte and 2 MiB");
-      }
-      const draft = JSON.parse(await file.text()) as Record<string, any>;
-      const request = bindConfiguredSceneOfferingToPreparation(draft, offering);
-      const headers = await withFirebaseAuthHeaders(
-        currentUser,
-        await withCsrfHeader({ "content-type": "application/json" }),
-      );
-      const response = await fetch(
-        `/api/configured-scene-offerings/${encodeURIComponent(offering.source_launch_id)}/preparations`,
-        { method: "POST", headers, credentials: "include", body: JSON.stringify(request) },
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.code || payload.error || "Task Evaluation preparation was blocked");
-      setOfferingReceipt(payload);
-    } catch (reason) {
-      setOfferingError(reason instanceof Error ? reason.message : "Task Evaluation preparation was blocked");
-    } finally {
-      setStartingOffering(null);
-    }
-  }
 
   return (
     <AppShell active="packs" breadcrumb="packs">
@@ -187,37 +154,20 @@ export default function SitePacks() {
                       Evaluation locked until controls pass
                     </button>
                   ) : (
-                    <label className="mt-4 block cursor-pointer border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-runway-text transition-colors hover:border-runway-signal hover:text-runway-signal">
-                      {startingOffering === offering.source_launch_id
-                        ? "Starting…"
-                        : "Prepare Task Evaluation Run"}
-                      <input
-                        type="file"
-                        accept="application/json,.json"
-                        className="sr-only"
-                        disabled={startingOffering !== null}
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0];
-                          event.currentTarget.value = "";
-                          if (file) void startOffering(offering, file);
-                        }}
-                      />
-                    </label>
+                    <Button asChild variant="action" className="mt-4 w-full">
+                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate`}>
+                        Configure evaluation <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </Button>
                   )}
                   <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
-                    Choose your episode preparation contract. Blueprint replaces its scene/task fields with
-                    this immutable offering and preserves your robot, controller, sensors, and runtime inputs.
+                    Choose episode depth, review the exact two-policy matrix, and start. No JSON upload,
+                    provider choice, payment, team field, or notification-address field is required.
                   </p>
                 </div>
               </article>;
             })}
           </section>
-        ) : null}
-        {offeringReceipt ? (
-          <ProofBoundary level="proof" title="Task Evaluation preparation queued" icon={ShieldCheck}>
-            {String(offeringReceipt.preparation_id || "The bound preparation")} is queued against the exact
-            configured-scene offering. Preparation does not allocate a provider or spend money.
-          </ProofBoundary>
         ) : null}
         {offeringError ? <BuyerAppErrorState message={offeringError} /> : null}
 
