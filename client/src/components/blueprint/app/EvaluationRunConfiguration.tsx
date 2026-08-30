@@ -124,7 +124,9 @@ export function EvaluationRunConfiguration({
               <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {preset?.familyCoverage.map((coverage) => <div key={coverage.family} className="border border-line-soft bg-inset px-3 py-2.5"><p className="text-caption font-semibold text-ink-700">{familyLabels[coverage.family]}</p><p className="runway-num mt-1 text-[0.66rem] text-ink-400">{coverage.scenarioCount} scenario{coverage.scenarioCount === 1 ? "" : "s"}</p></div>)}
               </div>
+              <p className="mt-4 text-caption leading-5 text-ink-500">Quick 10 is a preregistered nested subset of Standard 100, which is nested inside Deep 500. The published, outcome-independent compiler chooses the cells; an LLM never selects them.</p>
               <div className="mt-5 grid gap-2 border-t border-line-soft pt-4 sm:grid-cols-2"><p className="flex items-center gap-2 text-caption font-semibold text-ink-600"><Check className="size-3.5 text-proof-fg" aria-hidden="true" />Same cells + seeds for both policies</p><p className="flex items-center gap-2 text-caption font-semibold text-ink-600"><Check className="size-3.5 text-proof-fg" aria-hidden="true" />Zero-action + scripted-positive per cell</p></div>
+              <p className="mt-3 text-caption font-semibold text-ink-700">{preset?.scenarioCountPerPolicy ?? 0} cells means {learnedEpisodes} learned-policy episodes + {controlEpisodes} control episodes = {totalEpisodes} total.</p>
             </section>
 
             <div className="flex justify-end"><Button type="button" onClick={() => setStep("review")} disabled={!canStart}>Review run <ArrowRight aria-hidden="true" /></Button></div>
