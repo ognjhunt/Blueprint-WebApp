@@ -11,6 +11,16 @@ import { fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/li
 
 const stateOrder = ["queued_for_preparation", "preparing", "ready_to_activate", "queued", "running", "aggregating", "results_ready"];
 const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed"]);
+const candidateLabels = { pi05_droid: "π0.5 DROID", groot_n17_droid: "GR00T N1.7 DROID" } as const;
+const familyLabels = {
+  canonical_anchor: "Canonical anchor",
+  placement_approach: "Placement + approach",
+  illumination: "Illumination",
+  camera_sensor: "Camera + sensor",
+  bounded_physics: "Bounded physics",
+  pairwise: "Pairwise",
+  held_out: "Held-out",
+} as const;
 
 function friendlyState(state: string) {
   return state.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
@@ -39,6 +49,26 @@ function RunTimeline({ state }: { state: string }) {
 }
 
 function TerminalSummary({ run }: { run: EvaluationReadyRunProjection }) {
+  const policyResult = run.policy_run_result;
+  if (policyResult) return (
+    <section className="runway-panel p-5" aria-labelledby="terminal-summary-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><p className="runway-meta">Deterministic paired comparison</p><h2 id="terminal-summary-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Policy results</h2></div>
+        <StatusChip tone={policyResult.paired_comparison.decision === "abstain" ? "warn" : "proof"} square>{policyResult.paired_comparison.decision === "abstain" ? "Abstained" : policyResult.paired_comparison.decision === "tie" ? "Tie" : `${candidateLabels[policyResult.paired_comparison.decision]} selected`}</StatusChip>
+      </div>
+      <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2">
+        {policyResult.candidate_results.map((candidate) => {
+          const canonical = candidate.family_metrics.canonical_anchor;
+          const failureCount = candidate.failures.reduce((total, failure) => total + failure.count, 0);
+          return <div key={candidate.candidate_id} className="bg-paper-0 p-4"><p className="text-body-s font-semibold text-ink-900">{candidateLabels[candidate.candidate_id]}</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{canonical ? `${Math.round(canonical.success_rate * 100)}%` : "—"}</p><p className="text-caption text-ink-500">{candidate.episodes_completed} episodes · {failureCount} failures · {candidate.contacts.contact_count} contacts · {candidate.contacts.violation_count} violations</p><p className="mt-1 text-caption text-ink-400">{candidate.evidence.lossless_frame_manifest_count} frame manifests · {candidate.evidence.review_video_count} review videos · {candidate.evidence.typed_media_gap_count} media gaps</p></div>;
+        })}
+      </div>
+      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[38rem] border-collapse text-left" aria-label="Per-family policy results"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Family</th>{policyResult.candidate_results.map((candidate) => <th key={candidate.candidate_id} className="runway-meta px-3 py-2">{candidateLabels[candidate.candidate_id]}</th>)}</tr></thead><tbody>{Object.entries(familyLabels).map(([family, label]) => <tr key={family} className="border-b border-line-soft last:border-0"><td className="px-3 py-2 text-caption font-semibold text-ink-700">{label}</td>{policyResult.candidate_results.map((candidate) => { const metric = candidate.family_metrics[family as keyof typeof familyLabels]; return <td key={candidate.candidate_id} className="runway-num px-3 py-2 text-caption text-ink-700">{metric ? `${Math.round(metric.success_rate * 100)}% · Δ ${metric.degradation_from_canonical >= 0 ? "+" : ""}${Math.round(metric.degradation_from_canonical * 100)} pp` : "Not reported"}</td>; })}</tr>)}</tbody></table></div>
+      <p className="mt-4 text-caption text-ink-500">{policyResult.paired_comparison.matched_episode_pairs} matched scenario pairs · deterministic non-policy scoring · {policyResult.matrix.completed_episode_count}/{policyResult.matrix.expected_episode_count} episodes complete</p>
+      {policyResult.blockers.length ? <p className="mt-2 text-caption text-runway-red">{policyResult.blockers.join(" · ")}</p> : null}
+      <p className="runway-num mt-2 break-all text-[0.64rem] text-ink-400">Projection {policyResult.projection_digest} · delivery {policyResult.result_delivery_digest}</p>
+    </section>
+  );
   const summary = run.result_summary;
   if (!summary) return null;
   return (

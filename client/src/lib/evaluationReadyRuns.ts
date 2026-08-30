@@ -62,6 +62,70 @@ export const evaluationReadyResultSummarySchema = z.object({
   }).strict(),
 }).strict();
 
+const policyFamilyMetric = z.object({
+  attempted: z.number().int().nonnegative(),
+  succeeded: z.number().int().nonnegative(),
+  success_rate: z.number().min(0).max(1),
+  degradation_from_canonical: z.number().min(-1).max(1),
+}).strict();
+
+const policyCandidateResultBase = z.object({
+  episodes_completed: z.number().int().min(0).max(500),
+  family_metrics: z.record(variationFamily, policyFamilyMetric),
+  failures: z.array(z.object({ code: identifier, count: z.number().int().positive() }).strict()).max(500),
+  contacts: z.object({
+    contact_count: z.number().int().nonnegative(),
+    violation_count: z.number().int().nonnegative(),
+  }).strict(),
+  evidence: z.object({
+    lossless_frame_manifest_count: z.number().int().nonnegative(),
+    review_video_count: z.number().int().nonnegative(),
+    typed_media_gap_count: z.number().int().nonnegative(),
+  }).strict(),
+});
+
+export const policyRunResultProjectionSchema = z.object({
+  schema_version: z.literal("task_evaluation_policy_run_result_projection.v1"),
+  run_id: identifier,
+  source_launch_id: identifier,
+  offering_digest: digest,
+  configuration_digest: digest,
+  plan_digest: digest,
+  embodiment_id: z.literal(FRANKA_DROID_EMBODIMENT_ID),
+  candidate_ids: z.tuple([
+    z.literal(POLICY_RUN_CANDIDATE_IDS[0]),
+    z.literal(POLICY_RUN_CANDIDATE_IDS[1]),
+  ]),
+  state: z.enum(["decided", "partially_decided", "abstained"]),
+  matrix: z.object({
+    scored_cell_count: z.union([z.literal(10), z.literal(100), z.literal(500)]),
+    candidate_episode_count: z.number().int().min(20).max(1_000),
+    control_episode_count: z.number().int().min(20).max(1_000),
+    expected_episode_count: z.number().int().min(40).max(2_000),
+    completed_episode_count: z.number().int().min(0).max(2_000),
+    identical_candidate_cells_and_seeds: z.literal(true),
+    controls_complete: z.boolean(),
+  }).strict(),
+  candidate_results: z.tuple([
+    policyCandidateResultBase.extend({ candidate_id: z.literal(POLICY_RUN_CANDIDATE_IDS[0]) }).strict(),
+    policyCandidateResultBase.extend({ candidate_id: z.literal(POLICY_RUN_CANDIDATE_IDS[1]) }).strict(),
+  ]),
+  paired_comparison: z.object({
+    matched_episode_pairs: z.number().int().min(0).max(500),
+    decision: z.enum(["pi05_droid", "groot_n17_droid", "tie", "abstain"]),
+    deterministic_non_policy_scoring: z.literal(true),
+  }).strict(),
+  result_delivery_digest: digest,
+  blockers: z.array(z.string().trim().min(1).max(512)).max(128),
+  proof_boundary: z.object({
+    simulation_is_physical_success: z.literal(false),
+    review_video_is_authoritative_evidence: z.literal(false),
+    policy_can_grade_itself: z.literal(false),
+    cross_team_leaderboard_authorized: z.literal(false),
+  }).strict(),
+  projection_digest: digest,
+}).strict();
+
 const runState = z.enum([
   "queued_for_preparation",
   "preparing",
@@ -99,6 +163,7 @@ export const evaluationReadyRunProjectionSchema = z.object({
     api_href: z.string().regex(/^\/api\/task-evaluation-results\/[A-Za-z0-9%._:-]+$/),
   }).strict().nullable(),
   result_summary: evaluationReadyResultSummarySchema.nullable(),
+  policy_run_result: policyRunResultProjectionSchema.nullable().optional(),
   error: z.object({ code: z.string(), message: z.string() }).strict().nullable(),
   created_at_iso: z.string(),
   updated_at_iso: z.string(),
