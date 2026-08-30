@@ -503,6 +503,33 @@ function policyRunSetup() {
     "illumination", "camera_sensor", "bounded_physics",
     "pairwise", "pairwise", "held_out", "held_out",
   ];
+  const remainingFamilies = [
+    "placement_approach", "illumination", "camera_sensor", "bounded_physics",
+    "pairwise", "held_out", "canonical_anchor",
+  ];
+  const inventory = Array.from({ length: 500 }, (_, index) => {
+    const family = index < families.length
+      ? families[index]
+      : remainingFamilies[(index - families.length) % remainingFamilies.length];
+    return {
+      cell_id: `nested-${String(index + 1).padStart(3, "0")}`,
+      family,
+      partition: family === "held_out" ? "held_out" : "qualification",
+      scored: true,
+      cell_spec_digest: canonicalArtifactDigest({ index, family }, "cell_spec_digest"),
+    };
+  });
+  const familyCounts = (cells: typeof inventory) => ({
+    canonical_anchor: cells.filter((cell) => cell.family === "canonical_anchor").length,
+    placement_approach: cells.filter((cell) => cell.family === "placement_approach").length,
+    illumination: cells.filter((cell) => cell.family === "illumination").length,
+    camera_sensor: cells.filter((cell) => cell.family === "camera_sensor").length,
+    bounded_physics: cells.filter((cell) => cell.family === "bounded_physics").length,
+    pairwise: cells.filter((cell) => cell.family === "pairwise").length,
+    held_out: cells.filter((cell) => cell.family === "held_out").length,
+  });
+  const inventorySeedDigest = sha("8");
+  const coverageRecipeDigest = sha("9");
   const setup: Record<string, any> = {
     schema_version: "task_evaluation_policy_run_setup.v1",
     source_launch_id: "evaluation-launch-001",
@@ -517,59 +544,76 @@ function policyRunSetup() {
       selection_rule: "published_ordered_prefix",
       outcome_independent: true,
       agent_may_select_cells: false,
+      inventory_seed_digest: inventorySeedDigest,
+      coverage_recipe_digest: coverageRecipeDigest,
+      cell_seed_rule: "sha256_inventory_seed_digest_nul_cell_id",
+    },
+    scenario_inventory: {
+      inventory_count: 500,
+      inventory_digest: "",
+      compilation_proof_digest: "",
+      cells: inventory,
     },
     presets: [
       {
         preset_id: "quick_10", label: "Quick", scenario_count_per_policy: 10,
         availability: "enabled", default: true,
-        family_counts: {
-          canonical_anchor: 1, placement_approach: 2, illumination: 1,
-          camera_sensor: 1, bounded_physics: 1, pairwise: 2, held_out: 2,
-        },
+        family_counts: familyCounts(inventory.slice(0, 10)),
         scenario_set_digest: sha("1"), parent_preset_id: null, parent_prefix_count: 0,
+        parent_scenario_set_digest: null,
         nesting_proof_digest: sha("2"), estimate: { status: "unavailable" },
-        cells: families.map((family, index) => ({
-          cell_id: `quick-${index + 1}`,
-          family,
-          partition: family === "held_out" ? "held_out" : "qualification",
-          scored: true,
-          cell_spec_digest: sha(String((index + 1) % 10)),
-        })),
+        cells: inventory.slice(0, 10),
       },
       {
         preset_id: "standard_100", label: "Standard", scenario_count_per_policy: 100,
         availability: "coming_later", default: false,
-        family_counts: {
-          canonical_anchor: 1, placement_approach: 24, illumination: 12,
-          camera_sensor: 12, bounded_physics: 12, pairwise: 19, held_out: 20,
-        },
+        family_counts: familyCounts(inventory.slice(0, 100)),
         scenario_set_digest: sha("3"), parent_preset_id: "quick_10", parent_prefix_count: 10,
+        parent_scenario_set_digest: sha("1"),
         nesting_proof_digest: sha("4"), estimate: { status: "unavailable" },
       },
       {
         preset_id: "deep_500", label: "Deep", scenario_count_per_policy: 500,
         availability: "coming_later", default: false,
-        family_counts: {
-          canonical_anchor: 1, placement_approach: 124, illumination: 62,
-          camera_sensor: 62, bounded_physics: 62, pairwise: 94, held_out: 95,
-        },
+        family_counts: familyCounts(inventory),
         scenario_set_digest: sha("5"), parent_preset_id: "standard_100", parent_prefix_count: 100,
+        parent_scenario_set_digest: sha("3"),
         nesting_proof_digest: sha("6"), estimate: { status: "unavailable" },
       },
     ],
     preparation_template: template,
     setup_digest: "",
   };
-  setup.presets[0].scenario_set_digest = canonicalArtifactDigest(
-    { ordered_cells: setup.presets[0].cells },
+  setup.scenario_inventory.inventory_digest = canonicalArtifactDigest(
+    { ordered_cells: inventory }, "inventory_digest",
+  );
+  setup.scenario_inventory.compilation_proof_digest = canonicalArtifactDigest({
+    inventory_count: 500,
+    inventory_digest: setup.scenario_inventory.inventory_digest,
+    compiler_id: setup.scenario_compiler.compiler_id,
+    compiler_version: setup.scenario_compiler.compiler_version,
+    selection_rule: setup.scenario_compiler.selection_rule,
+    inventory_seed_digest: inventorySeedDigest,
+    coverage_recipe_digest: coverageRecipeDigest,
+    cell_seed_rule: setup.scenario_compiler.cell_seed_rule,
+  }, "compilation_proof_digest");
+  for (const preset of setup.presets) preset.scenario_set_digest = canonicalArtifactDigest(
+    { ordered_cells: inventory.slice(0, preset.scenario_count_per_policy) },
     "scenario_set_digest",
   );
+  setup.presets[1].parent_scenario_set_digest = setup.presets[0].scenario_set_digest;
+  setup.presets[2].parent_scenario_set_digest = setup.presets[1].scenario_set_digest;
   for (const preset of setup.presets) preset.nesting_proof_digest = canonicalArtifactDigest({
     preset_id: preset.preset_id,
     scenario_set_digest: preset.scenario_set_digest,
     parent_preset_id: preset.parent_preset_id,
     parent_prefix_count: preset.parent_prefix_count,
+    parent_scenario_set_digest: preset.parent_scenario_set_digest,
     selection_rule: "published_ordered_prefix",
+    inventory_digest: setup.scenario_inventory.inventory_digest,
+    inventory_seed_digest: inventorySeedDigest,
+    coverage_recipe_digest: coverageRecipeDigest,
+    cell_seed_rule: setup.scenario_compiler.cell_seed_rule,
   }, "nesting_proof_digest");
   setup.setup_digest = canonicalArtifactDigest(setup, "setup_digest");
   return setup;
@@ -1260,11 +1304,19 @@ describe("admin Task Evaluation launch route", () => {
         ],
         matrix: {
           profile_id: "franka_rigid_relocation_nested_v1",
+          compiler: {
+            inventory_seed_digest: sha("8"),
+            coverage_recipe_digest: sha("9"),
+            cell_seed_rule: "sha256_inventory_seed_digest_nul_cell_id",
+            outcome_independent: true,
+            agent_may_select_cells: false,
+          },
           presets: [
             {
               preset_id: "quick_10",
               availability: "enabled",
               default: true,
+              parent_scenario_set_digest: null,
               episode_counts: {
                 learned_episode_count: 20,
                 control_episode_count: 20,
@@ -1280,7 +1332,13 @@ describe("admin Task Evaluation launch route", () => {
           recipient_email: "founder@example.com",
         },
       });
+      expect(setupJson.matrix.presets[1].parent_scenario_set_digest)
+        .toBe(setupJson.matrix.presets[0].scenario_set_digest);
+      expect(setupJson.matrix.presets[2].parent_scenario_set_digest)
+        .toBe(setupJson.matrix.presets[1].scenario_set_digest);
       expect(setupJson.matrix).not.toHaveProperty("cells");
+      expect(setupJson).not.toHaveProperty("scenario_inventory");
+      expect(JSON.stringify(setupJson)).not.toContain("nested-011");
       expect(JSON.stringify(setupJson)).not.toContain("s3://");
       expect(setupJson).not.toHaveProperty("preparation_template");
 
@@ -1339,10 +1397,27 @@ describe("admin Task Evaluation launch route", () => {
           candidate_ids: ["pi05_droid", "groot_n17_droid"],
           preset_id: "quick_10",
           scenario_count_per_policy: 10,
+          compiler: {
+            selection_rule: "published_ordered_prefix",
+            inventory_seed_digest: sha("8"),
+            coverage_recipe_digest: sha("9"),
+            cell_seed_rule: "sha256_inventory_seed_digest_nul_cell_id",
+            outcome_independent: true,
+            agent_may_select_cells: false,
+          },
+          matrix: {
+            inventory_digest: policyRunSetup().scenario_inventory.inventory_digest,
+            scenario_set_digest: policyRunSetup().presets[0].scenario_set_digest,
+          },
           counts: {
             learned_episode_count: 20,
             control_episode_count: 20,
             total_episode_count: 40,
+          },
+          execution_guards: {
+            candidate_cells_and_seeds_must_match: true,
+            retained_prefix_cells_and_seeds_must_match: true,
+            policy_specific_scenario_changes_prohibited: true,
           },
         },
         proof_boundary: {
@@ -1351,6 +1426,13 @@ describe("admin Task Evaluation launch route", () => {
           payment_required: false,
         },
       });
+      expect(createdJson.configuration.matrix.cells.map((cell: any) => cell.family))
+        .toEqual([
+          "canonical_anchor",
+          "placement_approach", "placement_approach",
+          "illumination", "camera_sensor", "bounded_physics",
+          "pairwise", "pairwise", "held_out", "held_out",
+        ]);
       expect(JSON.stringify(createdJson)).not.toContain("s3://");
       const storedRun = state.records.get(runId);
       expect(storedRun).toMatchObject({

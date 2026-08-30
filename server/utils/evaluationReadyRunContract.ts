@@ -45,6 +45,17 @@ const setupCellSchema = z.object({
   cell_spec_digest: digest,
 }).strict();
 
+const scenarioCompilerSchema = z.object({
+  compiler_id: z.literal("franka_rigid_relocation_nested_prefix"),
+  compiler_version: z.literal("v1"),
+  selection_rule: z.literal("published_ordered_prefix"),
+  outcome_independent: z.literal(true),
+  agent_may_select_cells: z.literal(false),
+  inventory_seed_digest: digest,
+  coverage_recipe_digest: digest,
+  cell_seed_rule: z.literal("sha256_inventory_seed_digest_nul_cell_id"),
+}).strict();
+
 const familyCountsSchema = z.object({
   canonical_anchor: z.number().int().positive(),
   placement_approach: z.number().int().positive(),
@@ -82,6 +93,7 @@ const presetSchema = z.object({
   scenario_set_digest: digest,
   parent_preset_id: z.enum(POLICY_RUN_PRESET_IDS).nullable(),
   parent_prefix_count: z.number().int().nonnegative(),
+  parent_scenario_set_digest: digest.nullable(),
   nesting_proof_digest: digest,
   estimate: estimateSchema,
   cells: z.array(setupCellSchema).min(1).max(500).optional(),
@@ -137,48 +149,61 @@ export const evaluationReadyPolicyRunSetupSchema = z.object({
   ]),
   matrix_profile_id: z.literal(POLICY_RUN_MATRIX_PROFILE_ID),
   preregistration: immutableReference,
-  scenario_compiler: z.object({
-    compiler_id: z.literal("franka_rigid_relocation_nested_prefix"),
-    compiler_version: z.literal("v1"),
-    selection_rule: z.literal("published_ordered_prefix"),
-    outcome_independent: z.literal(true),
-    agent_may_select_cells: z.literal(false),
+  scenario_compiler: scenarioCompilerSchema,
+  scenario_inventory: z.object({
+    inventory_count: z.literal(500),
+    inventory_digest: digest,
+    compilation_proof_digest: digest,
+    cells: z.array(setupCellSchema).length(500),
   }).strict(),
   presets: z.tuple([presetSchema, presetSchema, presetSchema]),
   preparation_template: preparationTemplateSchema,
   setup_digest: digest,
 }).strict().superRefine((setup, context) => {
   const [quick, standard, deep] = setup.presets;
+  const inventory = setup.scenario_inventory.cells;
   const exactPresetFields = [
-    [quick, "quick_10", "Quick", 10, "enabled", true, null, 0],
-    [standard, "standard_100", "Standard", 100, "coming_later", false, "quick_10", 10],
-    [deep, "deep_500", "Deep", 500, "coming_later", false, "standard_100", 100],
+    [quick, "quick_10", "Quick", 10, "enabled", true, null, 0, null],
+    [standard, "standard_100", "Standard", 100, "coming_later", false, "quick_10", 10, quick.scenario_set_digest],
+    [deep, "deep_500", "Deep", 500, "coming_later", false, "standard_100", 100, standard.scenario_set_digest],
   ] as const;
-  for (const [preset, id, label, count, availability, defaultValue, parent, prefix] of exactPresetFields) {
+  for (const [preset, id, label, count, availability, defaultValue, parent, prefix, parentDigest] of exactPresetFields) {
     if (
       preset.preset_id !== id || preset.label !== label
       || preset.scenario_count_per_policy !== count
       || preset.availability !== availability || preset.default !== defaultValue
       || preset.parent_preset_id !== parent || preset.parent_prefix_count !== prefix
+      || preset.parent_scenario_set_digest !== parentDigest
     ) context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["presets"],
       message: "policy-run preset identity or nesting metadata is invalid",
     });
+    const prefixCells = inventory.slice(0, count);
+    const familyCountsMatch = POLICY_RUN_VARIATION_FAMILIES.every((family) => (
+      preset.family_counts[family]
+        === prefixCells.filter((cell) => cell.family === family).length
+    ));
     if (
-      Object.values(preset.family_counts).reduce((sum, value) => sum + value, 0)
-        !== preset.scenario_count_per_policy
+      !familyCountsMatch
+      || preset.scenario_set_digest
+        !== canonicalArtifactDigest({ ordered_cells: prefixCells }, "scenario_set_digest")
       || preset.nesting_proof_digest !== canonicalArtifactDigest({
         preset_id: preset.preset_id,
         scenario_set_digest: preset.scenario_set_digest,
         parent_preset_id: preset.parent_preset_id,
         parent_prefix_count: preset.parent_prefix_count,
+        parent_scenario_set_digest: preset.parent_scenario_set_digest,
         selection_rule: "published_ordered_prefix",
+        inventory_digest: setup.scenario_inventory.inventory_digest,
+        inventory_seed_digest: setup.scenario_compiler.inventory_seed_digest,
+        coverage_recipe_digest: setup.scenario_compiler.coverage_recipe_digest,
+        cell_seed_rule: setup.scenario_compiler.cell_seed_rule,
       }, "nesting_proof_digest")
     ) context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["presets"],
-      message: "policy-run preset family total or nesting proof is invalid",
+      message: "policy-run preset prefix, family coverage, or nesting proof is invalid",
     });
     if (preset.estimate.status === "estimated" && (
       preset.estimate.duration_minutes.minimum > preset.estimate.duration_minutes.maximum
@@ -195,23 +220,18 @@ export const evaluationReadyPolicyRunSetupSchema = z.object({
     message: "only the enabled Quick preset may publish compiled cells",
   });
   const cells = quick.cells || [];
-  const ids = cells.map((cell) => cell.cell_id);
+  const ids = inventory.map((cell) => cell.cell_id);
   if (new Set(ids).size !== ids.length) context.addIssue({
     code: z.ZodIssueCode.custom,
-    path: ["presets", 0, "cells"],
-    message: "policy-run setup cell IDs must be unique",
+    path: ["scenario_inventory", "cells"],
+    message: "policy-run scenario inventory cell IDs must be unique",
   });
-  for (const family of POLICY_RUN_VARIATION_FAMILIES) {
-    const count = cells.filter((cell) => cell.family === family).length;
-    if (count !== quick.family_counts[family]) context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["presets", 0, "family_counts", family],
-      message: "Quick preset family counts must match its compiled cells",
-    });
-  }
   const expectedQuickCounts = [1, 2, 1, 1, 1, 2, 2];
   if (
     cells.length !== 10
+    || cells.some((cell, index) => (
+      JSON.stringify(cell) !== JSON.stringify(inventory[index])
+    ))
     || POLICY_RUN_VARIATION_FAMILIES.some(
       (family, index) => quick.family_counts[family] !== expectedQuickCounts[index],
     )
@@ -220,19 +240,33 @@ export const evaluationReadyPolicyRunSetupSchema = z.object({
     path: ["presets", 0],
     message: "Quick preset must publish the exact balanced ten-scenario coverage",
   });
-  if (
-    quick.scenario_set_digest
-      !== canonicalArtifactDigest({ ordered_cells: cells }, "scenario_set_digest")
-  ) context.addIssue({
+  if (setup.scenario_inventory.inventory_digest !== canonicalArtifactDigest(
+    { ordered_cells: inventory },
+    "inventory_digest",
+  )) context.addIssue({
     code: z.ZodIssueCode.custom,
-    path: ["presets", 0, "scenario_set_digest"],
-    message: "Quick scenario-set digest must bind the exact ordered cells",
+    path: ["scenario_inventory", "inventory_digest"],
+    message: "policy-run scenario inventory digest mismatch",
   });
-  for (const [index, cell] of cells.entries()) {
+  if (setup.scenario_inventory.compilation_proof_digest !== canonicalArtifactDigest({
+    inventory_count: setup.scenario_inventory.inventory_count,
+    inventory_digest: setup.scenario_inventory.inventory_digest,
+    compiler_id: setup.scenario_compiler.compiler_id,
+    compiler_version: setup.scenario_compiler.compiler_version,
+    selection_rule: setup.scenario_compiler.selection_rule,
+    inventory_seed_digest: setup.scenario_compiler.inventory_seed_digest,
+    coverage_recipe_digest: setup.scenario_compiler.coverage_recipe_digest,
+    cell_seed_rule: setup.scenario_compiler.cell_seed_rule,
+  }, "compilation_proof_digest")) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["scenario_inventory", "compilation_proof_digest"],
+    message: "policy-run scenario inventory compilation proof mismatch",
+  });
+  for (const [index, cell] of inventory.entries()) {
     const expected = cell.family === "held_out" ? "held_out" : "qualification";
     if (cell.partition !== expected) context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["presets", 0, "cells", index, "partition"],
+      path: ["scenario_inventory", "cells", index, "partition"],
       message: "policy-run setup family and partition do not match",
     });
   }
@@ -283,16 +317,11 @@ export const resolvedPolicyRunConfigurationSchema = z.object({
   ]),
   preset_id: z.enum(POLICY_RUN_PRESET_IDS),
   scenario_count_per_policy: z.union([z.literal(10), z.literal(100), z.literal(500)]),
-  compiler: z.object({
-    compiler_id: z.literal("franka_rigid_relocation_nested_prefix"),
-    compiler_version: z.literal("v1"),
-    selection_rule: z.literal("published_ordered_prefix"),
-    outcome_independent: z.literal(true),
-    agent_may_select_cells: z.literal(false),
-  }).strict(),
+  compiler: scenarioCompilerSchema,
   matrix: z.object({
     profile_id: z.literal(POLICY_RUN_MATRIX_PROFILE_ID),
     preregistration_digest: digest,
+    inventory_digest: digest,
     scenario_set_digest: digest,
     cells: z.array(resolvedCellSchema).min(10).max(500),
   }).strict(),
@@ -303,6 +332,7 @@ export const resolvedPolicyRunConfigurationSchema = z.object({
   }).strict(),
   execution_guards: z.object({
     candidate_cells_and_seeds_must_match: z.literal(true),
+    retained_prefix_cells_and_seeds_must_match: z.literal(true),
     policy_specific_scenario_changes_prohibited: z.literal(true),
     zero_action_negative_every_scored_cell: z.literal(true),
     deterministic_scripted_positive_every_scored_cell: z.literal(true),
@@ -324,6 +354,16 @@ export const resolvedPolicyRunConfigurationSchema = z.object({
     path: ["matrix", "cells"],
     message: "resolved policy-run seeds must be globally unique",
   });
+  for (const [index, cell] of configuration.matrix.cells.entries()) {
+    if (cell.seed !== deterministicSeed([
+      configuration.compiler.inventory_seed_digest,
+      cell.cell_id,
+    ].join("\0"))) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["matrix", "cells", index, "seed"],
+      message: "resolved policy-run cell seed does not match the stable inventory seed rule",
+    });
+  }
   const count = configuration.scenario_count_per_policy;
   if (
     configuration.matrix.cells.length !== count
@@ -376,9 +416,7 @@ export function buildResolvedPolicyRunConfiguration(params: {
   const cells = preset.cells.map((cell) => ({
     ...cell,
     seed: deterministicSeed([
-      params.setup.setup_digest,
-      params.runId,
-      params.presetId,
+      params.setup.scenario_compiler.inventory_seed_digest,
       cell.cell_id,
     ].join("\0")),
   }));
@@ -400,6 +438,7 @@ export function buildResolvedPolicyRunConfiguration(params: {
     matrix: {
       profile_id: POLICY_RUN_MATRIX_PROFILE_ID,
       preregistration_digest: params.setup.preregistration.digest,
+      inventory_digest: params.setup.scenario_inventory.inventory_digest,
       scenario_set_digest: preset.scenario_set_digest,
       cells,
     },
@@ -410,6 +449,7 @@ export function buildResolvedPolicyRunConfiguration(params: {
     },
     execution_guards: {
       candidate_cells_and_seeds_must_match: true,
+      retained_prefix_cells_and_seeds_must_match: true,
       policy_specific_scenario_changes_prohibited: true,
       zero_action_negative_every_scored_cell: true,
       deterministic_scripted_positive_every_scored_cell: true,
@@ -450,6 +490,7 @@ export function projectPolicyRunConfiguration(
     matrix: {
       profile_id: configuration.matrix.profile_id,
       preregistration_digest: configuration.matrix.preregistration_digest,
+      inventory_digest: configuration.matrix.inventory_digest,
       scenario_set_digest: configuration.matrix.scenario_set_digest,
       cells: configuration.matrix.cells,
     },
