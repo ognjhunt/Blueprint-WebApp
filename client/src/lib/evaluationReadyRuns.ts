@@ -213,6 +213,7 @@ function presetSchema<PresetId extends typeof POLICY_RUN_PRESET_IDS[number], Sce
     family_counts: familyCountsSchema,
     scenario_set_digest: digest,
     parent_preset_id: parentPresetId === null ? z.null() : z.literal(parentPresetId),
+    parent_scenario_set_digest: parentPresetId === null ? z.null() : digest,
     parent_prefix_count: z.literal(parentPrefixCount),
     nesting_proof_digest: digest,
     estimate: estimateSchema,
@@ -264,6 +265,9 @@ const evaluationReadySetupProjectionSchema = z.object({
       selection_rule: z.literal("published_ordered_prefix"),
       outcome_independent: z.literal(true),
       agent_may_select_cells: z.literal(false),
+      inventory_seed_digest: digest,
+      coverage_recipe_digest: digest,
+      cell_seed_rule: z.literal("sha256_inventory_seed_digest_nul_cell_id"),
     }).strict(),
     presets: z.tuple([
       presetSchema("quick_10", "Quick", 10, "enabled", true, null, 0),
@@ -282,7 +286,17 @@ const evaluationReadySetupProjectionSchema = z.object({
     paid_execution_requested: z.literal(false),
     simulation_is_physical_success: z.literal(false),
   }).strict(),
-}).strict();
+}).strict().superRefine((setup, context) => {
+  const [quick, standard, deep] = setup.matrix.presets;
+  if (
+    standard.parent_scenario_set_digest !== quick.scenario_set_digest
+    || deep.parent_scenario_set_digest !== standard.scenario_set_digest
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["matrix", "presets"],
+    message: "parent scenario-set digests must bind the nested preset chain",
+  });
+});
 
 export type EvaluationReadyRunProjection = z.infer<typeof evaluationReadyRunProjectionSchema>;
 
