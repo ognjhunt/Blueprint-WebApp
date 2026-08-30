@@ -5,7 +5,10 @@ import { z } from "zod";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
 
-const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 25_200;
+// One first ArtiFixer pass plus one bounded selective repair pass. The
+// pipeline sizes this from GPU_STAGE_TIMEOUT_SECONDS; a run whose repair
+// round was funded but not timed was killed mid-retrain at the old value.
+const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 27_000;
 const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = 4.8;
 const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = 0.64;
 const SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD = 0.2;
@@ -283,7 +286,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   spend: z.object({
     maximum_hourly_rate_usd: z.number().positive().max(0.8),
     hard_cap_usd: z.number().positive().max(12),
-    hard_ttl_seconds: z.number().int().min(1).max(25_200),
+    hard_ttl_seconds: z.number().int().min(1).max(27_000),
     provider_compute_spend_cap_usd: z.number().positive().max(6).optional(),
     external_service_caps: externalServiceCapsSchema.optional(),
     retry_cap: z.literal(0),

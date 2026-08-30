@@ -319,7 +319,7 @@ function preparationInput() {
       service_account_readback_required: true,
     },
     spend: {
-      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 12, hard_ttl_seconds: 25_200,
+      maximum_hourly_rate_usd: 0.8, hard_cap_usd: 12, hard_ttl_seconds: 27_000,
       provider_compute_spend_cap_usd: 6,
       external_service_caps: {
         openai: {
