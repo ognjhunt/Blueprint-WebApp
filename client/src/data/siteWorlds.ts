@@ -79,6 +79,8 @@ export type ConfiguredScenePublicOfferingCard = {
     thumbnailUrl: string;
     derivedAppearanceEvidence: true;
     captureOrPhysicalEvidence: false;
+    appearanceReviewStatus: "accepted" | "paused_ungraded";
+    warningLabel?: "Visual review paused - appearance ungraded";
   };
   evaluationAction: {
     enabled: boolean;

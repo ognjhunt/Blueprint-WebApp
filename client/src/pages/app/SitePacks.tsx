@@ -153,6 +153,8 @@ export default function SitePacks() {
           <section aria-label="Configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {offerings.map((offering) => {
               const controlsPending = offering.status === "configured_controls_pending";
+              const appearanceUngraded = offering.presentation.appearance_review_status
+                === "paused_ungraded";
               return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
                 <OfferingThumbnail offering={offering} currentUser={currentUser} />
                 <div className="p-5">
@@ -169,8 +171,13 @@ export default function SitePacks() {
                   </div>
                   <p className="mt-3 text-caption leading-5 text-ink-500">
                     Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
-                    eight digest-bound renders; it is derived appearance evidence, not physical proof.
+                    digest-bound renders; it is derived appearance evidence, not physical proof.
                   </p>
+                  {appearanceUngraded ? (
+                    <p className="mt-3 border border-runway-signal/40 bg-runway-signal/[0.08] px-3 py-2 text-caption font-semibold text-runway-signal">
+                      Visual review paused — appearance ungraded
+                    </p>
+                  ) : null}
                   {controlsPending ? (
                     <button
                       type="button"

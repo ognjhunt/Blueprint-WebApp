@@ -14,7 +14,9 @@ export type ConfiguredSceneOfferingCard = {
   presentation: {
     thumbnail_url: string;
     selection: { camera_id: string; rationale: string };
-    selected_from_exact_reviewed_frame_count: 8;
+    appearance_review_status?: "accepted" | "paused_ungraded";
+    selected_from_exact_reviewed_frame_count: 0 | 8;
+    warning_label?: "Visual review paused - appearance ungraded";
   };
   evaluation_preparation_binding: {
     configuration_source_commit: string;
@@ -30,6 +32,10 @@ export type ConfiguredSceneOfferingCard = {
     thumbnail_is_capture_or_physical_evidence: false;
     configuration_is_policy_evaluation: false;
     configuration_is_deployment_or_safety_approval: false;
+    appearance_visual_review_completed?: boolean;
+    appearance_quality_graded?: boolean;
+    appearance_review_status?: "accepted" | "paused_ungraded";
+    appearance_warning_label?: "Visual review paused - appearance ungraded";
   };
   evaluation_admission?: {
     zero_action_required: true;

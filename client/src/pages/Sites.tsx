@@ -99,6 +99,7 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
 
 function ConfiguredSceneCard({ offering }: { offering: ConfiguredScenePublicOfferingCard }) {
   const controlsPending = offering.status === "configured_controls_pending";
+  const appearanceUngraded = offering.presentation.appearanceReviewStatus === "paused_ungraded";
   return (
     <article className="flex flex-col overflow-hidden rounded-lg border border-runway-line bg-runway-panel">
       <img
@@ -128,6 +129,11 @@ function ConfiguredSceneCard({ offering }: { offering: ConfiguredScenePublicOffe
           The thumbnail is derived appearance evidence from the configuration run. It is not capture,
           physical-outcome, policy-performance, deployment, or safety evidence.
         </p>
+        {appearanceUngraded ? (
+          <p className="mt-3 rounded-md border border-runway-amber/30 bg-runway-amber/[0.1] px-3 py-2 text-xs font-semibold text-runway-amber">
+            Visual review paused — appearance ungraded
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <a
             href={`/sites/${encodeURIComponent(offering.id)}`}

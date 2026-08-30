@@ -185,6 +185,36 @@ function evaluationReadyOffering() {
   return offering;
 }
 
+function ungradedOffering() {
+  const offering = publicOffering();
+  offering.presentation.appearance_review_status = "paused_ungraded";
+  offering.presentation.selection.appearance_review_status = "paused_ungraded";
+  offering.presentation.selection.reviewer = {
+    kind: "system",
+    identity: "deterministic_ungraded_thumbnail_selector",
+    runtime: "blueprint_pipeline",
+    model: "none",
+  };
+  offering.presentation.selected_from_exact_reviewed_frame_count = 0;
+  offering.presentation.warning_label = "Visual review paused - appearance ungraded";
+  offering.proof_boundary.appearance_visual_review_completed = false;
+  offering.proof_boundary.appearance_quality_graded = false;
+  offering.proof_boundary.appearance_review_status = "paused_ungraded";
+  offering.proof_boundary.appearance_warning_label = "Visual review paused - appearance ungraded";
+  const sourceOffering = structuredClone(offering);
+  delete sourceOffering.public_display;
+  offering.public_display.source_offering_digest = canonicalArtifactDigest(
+    sourceOffering,
+    "offering_digest",
+  );
+  offering.public_display.projection_digest = canonicalArtifactDigest(
+    offering.public_display,
+    "projection_digest",
+  );
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return offering;
+}
+
 describe("public configured-scene offerings", () => {
   let server: Server;
   let baseUrl: string;
@@ -240,6 +270,22 @@ describe("public configured-scene offerings", () => {
     expect(publicBytes).not.toContain("s3://");
     expect(publicBytes).not.toContain("configuration_run_id");
     expect(publicBytes).not.toContain("source_authorization_digest");
+  });
+
+  it("projects the explicit ungraded warning when appearance review is paused", async () => {
+    const offering = ungradedOffering();
+    state.records.set("launch-ungraded", storedRecord(offering));
+
+    const response = await fetch(`${baseUrl}/api/site-worlds?limit=100`);
+    const payload = await response.json();
+
+    expect(payload.items).toEqual([expect.objectContaining({
+      status: "configured_controls_pending",
+      presentation: expect.objectContaining({
+        appearanceReviewStatus: "paused_ungraded",
+        warningLabel: "Visual review paused - appearance ungraded",
+      }),
+    })]);
   });
 
   it("fails closed when any public projection digest or record binding changes", async () => {

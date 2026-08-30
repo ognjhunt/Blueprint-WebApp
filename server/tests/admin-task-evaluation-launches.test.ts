@@ -223,6 +223,33 @@ function configuredSceneOffering() {
   return offering;
 }
 
+function pausedUngradedConfiguredSceneOffering() {
+  const offering = configuredSceneOffering();
+  offering.status = "configured_controls_pending";
+  offering.evaluation_admission = {
+    zero_action_required: true,
+    scripted_positive_required: true,
+    learned_policy_evaluation_admitted: false,
+  };
+  offering.presentation.appearance_review_status = "paused_ungraded";
+  offering.presentation.selection.appearance_review_status = "paused_ungraded";
+  offering.presentation.selection.reviewer = {
+    kind: "system",
+    identity: "deterministic_ungraded_thumbnail_selector",
+    runtime: "blueprint_pipeline",
+    model: "none",
+  };
+  offering.presentation.selected_from_exact_reviewed_frame_count = 0;
+  offering.presentation.warning_label = "Visual review paused - appearance ungraded";
+  offering.proof_boundary.appearance_visual_review_completed = false;
+  offering.proof_boundary.appearance_quality_graded = false;
+  offering.proof_boundary.appearance_review_status = "paused_ungraded";
+  offering.proof_boundary.appearance_warning_label =
+    "Visual review paused - appearance ungraded";
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return offering;
+}
+
 it("refuses an offering whose thumbnail cannot cross the private proxy ceiling", () => {
   const oversized = configuredSceneOffering();
   oversized.presentation.task_thumbnail.size_bytes = 16 * 1024 * 1024 + 1;
@@ -239,6 +266,15 @@ it("refuses launch-ready offerings with unreachable artifact schemes", () => {
 
 it("accepts the exact configured-scene offering shape emitted by Pipeline", () => {
   expect(configuredSceneOfferingSchema.safeParse(pipelineConfiguredSceneOffering).success).toBe(true);
+});
+
+it("accepts only a visibly ungraded configured-scene offering when review is paused", () => {
+  const offering = pausedUngradedConfiguredSceneOffering();
+  expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
+
+  delete offering.presentation.warning_label;
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(false);
 });
 
 function preparationInput() {
@@ -874,6 +910,35 @@ describe("admin Task Evaluation launch route", () => {
     ).toBe(false);
   });
 
+  it("accepts only the exact acknowledged appearance-review pause override", () => {
+    const paused = preparationInput();
+    (paused as Record<string, any>).appearance_review_override = {
+      mode: "paused_ungraded",
+      scope: "artifixer_appearance_only",
+      ungraded_publication_acknowledged: true,
+      review_provider_call_permitted: false,
+      warning_label: "Visual review paused - appearance ungraded",
+    };
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(paused).success)
+      .toBe(true);
+
+    (paused as Record<string, any>).appearance_review_override
+      .ungraded_publication_acknowledged = false;
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(paused).success)
+      .toBe(false);
+
+    const episode = evaluationPreparationInput();
+    (episode as Record<string, any>).appearance_review_override = {
+      mode: "paused_ungraded",
+      scope: "artifixer_appearance_only",
+      ungraded_publication_acknowledged: true,
+      review_provider_call_permitted: false,
+      warning_label: "Visual review paused - appearance ungraded",
+    };
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(episode).success)
+      .toBe(false);
+  });
+
   it("reserves one selective Artifixer repair and second independent review", () => {
     const repairReady = preparationInput();
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(repairReady).success)
@@ -930,14 +995,7 @@ describe("admin Task Evaluation launch route", () => {
     state.isOps = false;
     const own = configuredSceneOffering();
     const other = configuredSceneOffering();
-    const pending = configuredSceneOffering();
-    pending.status = "configured_controls_pending";
-    pending.evaluation_admission = {
-      zero_action_required: true,
-      scripted_positive_required: true,
-      learned_policy_evaluation_admitted: false,
-    };
-    pending.offering_digest = canonicalArtifactDigest(pending, "offering_digest");
+    const pending = pausedUngradedConfiguredSceneOffering();
     other.team_namespace = "other-team";
     other.offering_digest = canonicalArtifactDigest(other, "offering_digest");
     state.records.set("own-launch", {
@@ -971,6 +1029,17 @@ describe("admin Task Evaluation launch route", () => {
             source_launch_id: "pending-launch",
             team_namespace: "robot-team-001",
             status: "configured_controls_pending",
+            presentation: {
+              appearance_review_status: "paused_ungraded",
+              selected_from_exact_reviewed_frame_count: 0,
+              warning_label: "Visual review paused - appearance ungraded",
+            },
+            proof_boundary: {
+              appearance_visual_review_completed: false,
+              appearance_quality_graded: false,
+              appearance_review_status: "paused_ungraded",
+              appearance_warning_label: "Visual review paused - appearance ungraded",
+            },
           },
         ],
       });

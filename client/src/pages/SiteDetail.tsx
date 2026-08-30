@@ -30,6 +30,7 @@ function requestHref(site: SiteWorldCard) {
 
 function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScenePublicOfferingCard }) {
   const controlsPending = offering.status === "configured_controls_pending";
+  const appearanceUngraded = offering.presentation.appearanceReviewStatus === "paused_ungraded";
   return (
     <>
       <section className="mt-8 grid gap-10 border-b border-runway-line pb-12 md:grid-cols-[0.9fr_1.1fr] md:items-center">
@@ -42,6 +43,11 @@ function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScene
           </div>
           <h1 className="mt-5 font-display uppercase text-5xl font-bold leading-[0.95] tracking-[0.005em] text-runway-text sm:text-6xl">{offering.title}</h1>
           <p className="mt-5 max-w-xl text-lg leading-[1.6] text-runway-body">{offering.summary}</p>
+          {appearanceUngraded ? (
+            <p className="mt-4 border border-runway-amber/30 bg-runway-amber/[0.1] px-3 py-2 text-sm font-semibold text-runway-amber">
+              Visual review paused — appearance ungraded
+            </p>
+          ) : null}
           {offering.evaluationAction.enabled && offering.evaluationAction.href ? (
             <a href={offering.evaluationAction.href} className="runway-cta mt-8">
               {offering.evaluationAction.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
