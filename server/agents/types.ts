@@ -206,6 +206,7 @@ export interface AgentResult<TOutput = unknown> {
   openclaw_run_id?: string | null;
   artifacts?: Record<string, unknown> | null;
   logs?: Array<Record<string, unknown>> | null;
+  continuation_state?: Record<string, unknown> | null;
 }
 
 export interface PersistedAgentSession {

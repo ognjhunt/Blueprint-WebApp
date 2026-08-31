@@ -14,14 +14,22 @@ const DEFAULT_FALLBACK_JSON = path.resolve(
 
 type ReportSource =
   | { kind: "json"; path: string }
-  | { kind: "firestore"; limit: number }
+  | {
+      kind: "firestore";
+      limit: number;
+      since_iso: string;
+      collection: "agentRuns";
+      project_id: string;
+      credential_mode: string;
+    }
   | { kind: "local_fixture_fallback"; path: string; warning: string };
 
 type ResolveReportRunsOptions = {
   fromJson?: string | null;
   limit: number;
+  sinceHours?: number;
   fallbackJson?: string | null;
-  firestoreReader?: (limit: number) => Promise<AgentTelemetryRun[]>;
+  firestoreReader?: (limit: number, sinceIso: string) => Promise<AgentTelemetryRun[]>;
 };
 
 function readArg(name: string) {
@@ -32,7 +40,7 @@ function readArg(name: string) {
 function usage() {
   return `Usage:
   npm run agent:cost-cache-report -- [--limit 500]
-  npm run agent:cost-cache-report -- --strict-live
+  npm run agent:cost-cache-report -- --strict-live --since-hours 24
   tsx scripts/agent-cache-cost-report.ts --from-json ./runs.json
 
 Reports cache hit ratio and cost by task kind, model, provider, and route.
@@ -43,13 +51,17 @@ server/tests/fixtures/agent-cost-cache-runs.json with an explicit source warning
 when live reads are unavailable. Pass --strict-live to fail instead.`;
 }
 
-async function readRunsFromFirestore(limit: number): Promise<AgentTelemetryRun[]> {
+async function readRunsFromFirestore(
+  limit: number,
+  sinceIso: string,
+): Promise<AgentTelemetryRun[]> {
   const { dbAdmin: db } = await import("../client/src/lib/firebaseAdmin.js");
   if (!db) {
     throw new Error("Firestore is not configured; pass --from-json to report on exported runs.");
   }
   const snapshot = await db
     .collection("agentRuns")
+    .where("created_at", ">=", new Date(sinceIso))
     .orderBy("created_at", "desc")
     .limit(Math.max(1, Math.min(limit, 5000)))
     .get();
@@ -80,10 +92,26 @@ export async function resolveReportRuns(
   }
 
   const readFirestore = options.firestoreReader ?? readRunsFromFirestore;
+  const sinceHours = Math.max(1, Math.min(options.sinceHours ?? 24, 24 * 31));
+  const sinceIso = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
   try {
     return {
-      runs: await readFirestore(options.limit),
-      source: { kind: "firestore", limit: options.limit },
+      runs: await readFirestore(options.limit, sinceIso),
+      source: {
+        kind: "firestore",
+        limit: options.limit,
+        since_iso: sinceIso,
+        collection: "agentRuns",
+        project_id:
+          process.env.GOOGLE_CLOUD_PROJECT?.trim()
+          || process.env.GCLOUD_PROJECT?.trim()
+          || "runtime-attached-project",
+        credential_mode: process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+          ? "service-account-json-env"
+          : process.env.GOOGLE_APPLICATION_CREDENTIALS
+            ? "service-account-file"
+            : "application-default-credentials",
+      },
     };
   } catch (error) {
     const fallbackJson = options.fallbackJson === undefined
@@ -106,24 +134,26 @@ export async function resolveReportRuns(
 
 function renderMarkdownTable(rows: ReturnType<typeof summarizeAgentCostTelemetry>["rows"]) {
   const lines = [
-    "| task_kind | provider | route | model | provider_route | calls | prompt_tokens | cached_tokens | cache_write_tokens | reasoning_tokens | cache_hit_ratio | cost_usd |",
-    "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    "| task_kind | model | cache_family | contract | decision | calls | input | writes | reads | uncached | hit_ratio | write_cost | read_cost | savings |",
+    "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const row of rows) {
     lines.push(
       [
         row.task_kind,
-        row.provider,
-        row.route,
         row.model,
-        row.provider_route,
+        row.cache_family,
+        row.prompt_contract_version,
+        row.cache_decision,
         String(row.calls),
         String(row.prompt_tokens),
-        String(row.cached_tokens),
         String(row.cache_write_tokens),
-        String(row.reasoning_tokens),
+        String(row.cached_tokens),
+        String(row.uncached_input_tokens),
         row.cache_hit_ratio.toFixed(4),
-        row.cost_usd.toFixed(6),
+        row.cache_write_cost_usd.toFixed(6),
+        row.cached_read_cost_usd.toFixed(6),
+        row.estimated_savings_usd.toFixed(6),
       ].join(" | ").replace(/^/, "| ").replace(/$/, " |"),
     );
   }
@@ -134,8 +164,14 @@ function renderWasteSignals(summary: ReturnType<typeof summarizeAgentCostWaste>)
   const lines = [
     `Total prompt tokens: ${summary.totals.prompt_tokens}`,
     `Total cached tokens: ${summary.totals.cached_tokens}`,
+    `Total cache-write tokens: ${summary.totals.cache_write_tokens}`,
     `Overall cache hit ratio: ${summary.totals.cache_hit_ratio.toFixed(4)}`,
+    `Write-to-read ratio: ${Number.isFinite(summary.totals.write_to_read_ratio) ? summary.totals.write_to_read_ratio.toFixed(4) : "infinite"}`,
+    `Cache families: ${summary.totals.cache_families}`,
+    `Families with writes and no reads: ${summary.totals.cache_families_with_writes_without_reads}`,
     `Estimated/reportable cost: $${summary.totals.cost_estimate_usd.toFixed(6)}`,
+    `Estimated no-cache cost: $${summary.totals.estimated_cost_without_caching_usd.toFixed(6)}`,
+    `Estimated savings/loss: $${summary.totals.estimated_savings_usd.toFixed(6)}`,
     "",
     "## Waste Signals",
   ];
@@ -144,8 +180,8 @@ function renderWasteSignals(summary: ReturnType<typeof summarizeAgentCostWaste>)
     lines.push("No local waste signals crossed the report thresholds.");
   } else {
     lines.push(
-      "| signal | runs | prompt_tokens | cached_tokens | cost_estimate_usd | sample_run_ids | recommendation |",
-      "|---|---:|---:|---:|---:|---|---|",
+      "| signal | runs | prompt_tokens | writes | reads | cost_estimate_usd | sample_run_ids | recommendation |",
+      "|---|---:|---:|---:|---:|---:|---|---|",
     );
     for (const signal of summary.signals) {
       lines.push(
@@ -153,6 +189,7 @@ function renderWasteSignals(summary: ReturnType<typeof summarizeAgentCostWaste>)
           signal.signal,
           String(signal.runs),
           String(signal.prompt_tokens),
+          String(signal.cache_write_tokens),
           String(signal.cached_tokens),
           signal.cost_estimate_usd.toFixed(6),
           signal.run_ids.join(", ") || "none",
@@ -178,10 +215,12 @@ async function main() {
 
   const fromJson = readArg("--from-json");
   const limit = Number(readArg("--limit") || 500);
+  const sinceHours = Number(readArg("--since-hours") || 24);
   const strictLive = process.argv.includes("--strict-live");
   const { runs, source } = await resolveReportRuns({
     fromJson,
     limit,
+    sinceHours,
     fallbackJson: strictLive ? null : DEFAULT_FALLBACK_JSON,
   });
   const summary = summarizeAgentCostTelemetry(runs);
@@ -190,7 +229,10 @@ async function main() {
   console.log(`# Agent Cache And Cost Report`);
   console.log(`Runs scanned: ${runs.length}`);
   if (source.kind === "firestore") {
-    console.log(`Data source: Firestore agentRuns (limit ${source.limit})`);
+    console.log(
+      `Data source: Firestore ${source.collection} project=${source.project_id} `
+      + `since=${source.since_iso} limit=${source.limit} credentials=${source.credential_mode}`,
+    );
   } else if (source.kind === "json") {
     console.log(`Data source: ${source.path}`);
   } else {

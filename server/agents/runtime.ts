@@ -2367,7 +2367,31 @@ export async function sendAgentSessionMessage(params: {
             resolved_startup_context: resolvedStartupContextSummary,
           }
         : taskMetadata),
+        ...(Array.isArray(
+          (session.metadata as Record<string, unknown> | undefined)?.openai_replay_input,
+        )
+          ? {
+              openai_replay_input: (
+                session.metadata as Record<string, unknown>
+              ).openai_replay_input,
+            }
+          : typeof (
+              session.metadata as Record<string, unknown> | undefined
+            )?.previous_response_id === "string"
+            ? {
+                previous_response_id: (
+                  session.metadata as Record<string, unknown>
+                ).previous_response_id,
+              }
+            : {}),
         managedRuntime: managedRuntimeMetadata,
+        ...(params.task.kind === "operator_thread"
+          ? {
+              expected_prompt_cache_reuse_count: 1,
+              expected_prompt_cache_reuse_probability: 0.5,
+              prompt_cache_reuse_basis: "managed_operator_session_followup_probability_v1",
+            }
+          : {}),
       },
     input:
       startupContext && params.task.input && typeof params.task.input === "object"
@@ -2460,16 +2484,33 @@ export async function sendAgentSessionMessage(params: {
     sessionId: params.sessionId,
   });
 
+  const currentSessionMetadata = session.metadata && typeof session.metadata === "object"
+    ? session.metadata as Record<string, unknown>
+    : {};
+  const {
+    previous_response_id: _previousResponseId,
+    openai_replay_input: _previousReplayInput,
+    ...sessionMetadataWithoutOpenAIContinuation
+  } = currentSessionMetadata;
+  const resultArtifacts = result.artifacts && typeof result.artifacts === "object"
+    ? result.artifacts as Record<string, unknown>
+    : {};
+  const continuationState = result.continuation_state
+    && typeof result.continuation_state === "object"
+    ? result.continuation_state
+    : {};
+  const replayInput = Array.isArray(continuationState.openai_replay_input)
+    ? continuationState.openai_replay_input
+    : null;
   const nextSessionMetadata = {
-    ...(session.metadata || {}),
-    ...(result.artifacts && typeof result.artifacts === "object"
-      ? {
-          previous_response_id:
-            typeof (result.artifacts as Record<string, unknown>).openai_response_id === "string"
-              ? (result.artifacts as Record<string, unknown>).openai_response_id
-              : (session.metadata as Record<string, unknown> | undefined)?.previous_response_id,
-        }
-      : {}),
+    ...sessionMetadataWithoutOpenAIContinuation,
+    ...(replayInput
+      ? { openai_replay_input: replayInput }
+      : typeof resultArtifacts.openai_response_id === "string"
+        ? { previous_response_id: resultArtifacts.openai_response_id }
+        : typeof _previousResponseId === "string"
+          ? { previous_response_id: _previousResponseId }
+          : {}),
   };
 
   await saveSession({

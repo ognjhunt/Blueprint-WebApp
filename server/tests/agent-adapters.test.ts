@@ -91,6 +91,10 @@ describe("agent adapters", () => {
         max_concurrent: 1,
       },
       definition: operatorThreadTask,
+      metadata: {
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 1,
+      },
     });
 
     expect(result.status).toBe("completed");
@@ -98,6 +102,231 @@ describe("agent adapters", () => {
       reply: "Done.",
       requires_human_review: false,
     });
+  });
+
+  it("sends stable explicit GPT-5.6 cache controls and retains read/write usage", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    openAiCreate.mockResolvedValue({
+      id: "resp-cache-1",
+      output_text:
+        '{"reply":"Done.","summary":"Handled.","suggested_actions":[],"requires_human_review":false}',
+      output: [],
+      usage: {
+        input_tokens: 2_000,
+        output_tokens: 20,
+        input_tokens_details: { cached_tokens: 1_200, cache_write_tokens: 0 },
+        output_tokens_details: { reasoning_tokens: 5 },
+      },
+    });
+
+    const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+    const base = {
+      kind: "operator_thread" as const,
+      provider: "openai_responses" as const,
+      runtime: "openai_responses" as const,
+      model: "gpt-5.6-sol",
+      tool_policy: {
+        mode: "mixed" as const,
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: {
+        dispatch_mode: "collect" as const,
+        lane: "session",
+        max_concurrent: 1,
+      },
+      outcome_contract: {
+        objective: "Return status",
+        success_criteria: [],
+        self_checks: [],
+        proof_requirements: [],
+        pass_threshold: 1,
+      },
+      definition: operatorThreadTask,
+      metadata: {
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 1,
+      },
+    };
+    const first = await runOpenAIResponsesTask({
+      ...base,
+      input: { message: "Status for run unique-a?" },
+    });
+    await runOpenAIResponsesTask({
+      ...base,
+      input: { message: "Status for run unique-b?" },
+    });
+
+    const firstRequest = openAiCreate.mock.calls[0][0] as any;
+    const secondRequest = openAiCreate.mock.calls[1][0] as any;
+    expect(firstRequest).toMatchObject({
+      store: false,
+      prompt_cache_options: { mode: "explicit", ttl: "30m" },
+    });
+    expect(firstRequest.prompt_cache_key).toBe(secondRequest.prompt_cache_key);
+    expect(firstRequest.input.map((item: any) => item.role)).toEqual(["developer", "user"]);
+    expect(firstRequest.input[0].content[0].prompt_cache_breakpoint).toEqual({ mode: "explicit" });
+    expect(firstRequest.input[1].content).toContain("unique-a");
+    expect(secondRequest.input[1].content).toContain("unique-b");
+    expect(first.artifacts).toMatchObject({
+      cache_family: "operator_thread",
+      cache_decision: "reusable",
+      usage: {
+        input_tokens: 2_000,
+        cached_tokens: 1_200,
+        cache_write_tokens: 0,
+      },
+    });
+    expect(JSON.stringify(first.artifacts)).not.toContain("Status for run unique-a");
+    expect(JSON.stringify(first.artifacts)).not.toContain("blueprint:cache:v1:");
+  });
+
+  it("continues a legacy GPT-5.6 response without adding a late breakpoint", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    openAiCreate.mockResolvedValue({
+      id: "resp_legacy_continuation",
+      output: [],
+      output_text:
+        '{"reply":"Continued.","summary":"Safe legacy continuation.","suggested_actions":[],"requires_human_review":false}',
+      usage: {
+        input_tokens: 100,
+        output_tokens: 20,
+        input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      },
+    });
+    const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+    const result = await runOpenAIResponsesTask({
+      kind: "operator_thread",
+      input: { message: "Continue" },
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.6-sol",
+      metadata: {
+        previous_response_id: "resp_prior_dynamic_history",
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 1,
+      },
+      tool_policy: {
+        mode: "none",
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: {
+        dispatch_mode: "collect",
+        lane: "session",
+        max_concurrent: 1,
+      },
+      outcome_contract: {
+        objective: "Continue safely",
+        success_criteria: [],
+        self_checks: [],
+        proof_requirements: [],
+        pass_threshold: 1,
+      },
+      definition: operatorThreadTask,
+    });
+
+    expect(result.status).toBe("completed");
+    const request = openAiCreate.mock.calls[0][0] as any;
+    expect(request.previous_response_id).toBe("resp_prior_dynamic_history");
+    expect(request.prompt_cache_options).toEqual({ mode: "explicit", ttl: "30m" });
+    expect(request).not.toHaveProperty("prompt_cache_key");
+    expect(JSON.stringify(request.input)).not.toContain("prompt_cache_breakpoint");
+  });
+
+  it("replays store-false GPT-5.6 history with the original breakpoint first", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    openAiCreate.mockResolvedValue({
+      id: "resp_replayed",
+      output: [],
+      output_text:
+        '{"reply":"Replayed.","summary":"History preserved.","suggested_actions":[],"requires_human_review":false}',
+      usage: {
+        input_tokens: 2_100,
+        output_tokens: 20,
+        input_tokens_details: { cached_tokens: 1_200, cache_write_tokens: 0 },
+      },
+    });
+    const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+    const replay = [
+      {
+        role: "developer",
+        content: [{
+          type: "input_text",
+          text: "stable developer contract",
+          prompt_cache_breakpoint: { mode: "explicit" },
+        }],
+      },
+      { role: "user", content: "Prior dynamic message" },
+      { type: "message", role: "assistant", content: [] },
+    ];
+    const result = await runOpenAIResponsesTask({
+      kind: "operator_thread",
+      input: { message: "New dynamic message" },
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.6-sol",
+      metadata: {
+        previous_response_id: "resp_should_not_be_used",
+        openai_replay_input: replay,
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 0.5,
+      },
+      tool_policy: {
+        mode: "none",
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: { dispatch_mode: "collect", lane: "session", max_concurrent: 1 },
+      outcome_contract: {
+        objective: "Continue safely",
+        success_criteria: [],
+        self_checks: [],
+        proof_requirements: [],
+        pass_threshold: 1,
+      },
+      definition: operatorThreadTask,
+    });
+
+    expect(result.status).toBe("completed");
+    const request = openAiCreate.mock.calls[0][0] as any;
+    expect(request.previous_response_id).toBeUndefined();
+    expect(request.input.slice(0, replay.length)).toEqual(replay);
+    expect(request.input.at(-1).content).toContain("New dynamic message");
+    expect(JSON.stringify(request.input).match(/prompt_cache_breakpoint/g)).toHaveLength(1);
+    expect(result.continuation_state?.openai_replay_input).toEqual([
+      ...request.input,
+    ]);
   });
 
   it("normalizes DeepSeek chat output and records cache usage", async () => {

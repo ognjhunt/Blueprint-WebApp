@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configuredSceneOfferingContract";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
+import { parseOpenAIInferenceUsagePacket } from "../utils/openaiInferenceUsageContract";
 import {
   parseTaskEvaluationLaunchProgress,
   parseTaskEvaluationDirectExecutionAdoptionReceipt,
@@ -85,6 +86,154 @@ function requirePipelineSignature(req: Request, res: Response, next: () => void)
   });
   next();
 }
+
+router.post(
+  "/openai-inference-usage",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    if (!db) return res.status(503).json({
+      error: "OpenAI inference usage store is unavailable",
+      code: "openai_inference_usage_store_unavailable",
+    });
+    const store = db;
+    const parsed = parseOpenAIInferenceUsagePacket(req.body);
+    if (!parsed.ok) return res.status(400).json({
+      error: "OpenAI inference usage packet is invalid",
+      blockers: parsed.blockers,
+    });
+    const { packet } = parsed;
+    const callRefs = packet.calls.map((call) => store.collection("agentRuns").doc(
+      `pipeline-openai-${call.call_id.replace(/^sha256:/, "")}`,
+    ));
+    type Outcome = "created" | "replayed" | "launch_missing" | "binding_mismatch" | "conflict";
+    let outcome: Outcome;
+    try {
+      outcome = await store.runTransaction<Outcome>(async (transaction) => {
+        if (packet.launch_id) {
+          const launch = await transaction.get(
+            store.collection("taskEvaluationLaunches").doc(packet.launch_id),
+          );
+          if (!launch.exists) return "launch_missing";
+          if (String(launch.data()?.run_id || "") !== packet.run_id) {
+            return "binding_mismatch";
+          }
+        }
+        const existing = await transaction.getAll(...callRefs);
+        if (existing.some((snapshot) =>
+          snapshot.exists
+          && snapshot.data()?.metadata?.source_packet_digest !== packet.packet_digest)) {
+          return "conflict";
+        }
+        const allExisting = existing.every((snapshot) => snapshot.exists);
+        if (allExisting) return "replayed";
+        const now = new Date();
+        for (const [index, call] of packet.calls.entries()) {
+          if (existing[index].exists) continue;
+          transaction.create(callRefs[index], {
+            session_id: packet.run_id,
+            task_kind: call.capability,
+            provider: "openai",
+            model: call.model,
+            status: "completed",
+            artifacts: {
+              route: "pipeline_openai_responses",
+              calls: 1,
+              usage: {
+                input_tokens: call.input_tokens,
+                output_tokens: call.output_tokens,
+                total_tokens: call.input_tokens + call.output_tokens,
+                input_tokens_details: {
+                  cached_tokens: call.cached_tokens,
+                  cache_write_tokens: call.cache_write_tokens,
+                },
+                output_tokens_details: { reasoning_tokens: call.reasoning_tokens },
+                uncached_input_tokens: call.uncached_input_tokens,
+                uncached_input_cost_usd: call.uncached_input_cost_usd,
+                cache_write_cost_usd: call.cache_write_cost_usd,
+                cached_read_cost_usd: call.cached_read_cost_usd,
+                output_cost_usd: call.output_cost_usd,
+                estimated_total_cost_usd: call.estimated_total_cost_usd,
+                estimated_cost_without_caching_usd:
+                  call.estimated_cost_without_caching_usd,
+                estimated_savings_usd: call.estimated_savings_usd,
+                cost_status: call.cost_status,
+                provider_response_id: call.provider_response_id,
+              },
+              cache_family: call.cache_family,
+              cache_key_digest: call.cache_key_digest,
+              cache_policy: {
+                status: call.cache_policy_status,
+                family: call.cache_family,
+                contract_version: call.prompt_contract_version,
+                stable_prefix_digest: call.stable_prefix_digest,
+                breakpoint_digests: call.breakpoint_digests,
+                policy_digest: call.policy_digest,
+                privacy_scope: call.privacy_scope,
+                processing_region: call.processing_region,
+                decision_reason: call.cache_decision_reason,
+                economics: { stable_prefix_tokens: call.reusable_prefix_tokens },
+              },
+              prompt_contract_version: call.prompt_contract_version,
+              stable_prefix_digest: call.stable_prefix_digest,
+              privacy_scope: call.privacy_scope,
+              processing_region: call.processing_region,
+              cache_decision:
+                call.cache_policy_status === "enabled" ? "reusable" : "one_off",
+              cache_decision_reason: call.cache_decision_reason,
+              reusable_prefix_tokens: call.reusable_prefix_tokens,
+              dynamic_suffix_tokens: call.dynamic_suffix_tokens,
+              usage_detail_status: call.usage_detail_status,
+              cost_status: call.cost_status,
+              openai_response_id: call.provider_response_id,
+              dynamic_content_before_breakpoint: false,
+              raw_prompt_recorded: false,
+              raw_secret_values_recorded: false,
+            },
+            metadata: {
+              source: "signed_pipeline_openai_inference_usage",
+              source_commit: packet.source_commit,
+              source_receipt_digest: packet.source_receipt_digest,
+              source_packet_digest: packet.packet_digest,
+              launch_id: packet.launch_id,
+              run_id: packet.run_id,
+            },
+            created_at: now,
+            updated_at: now,
+          });
+        }
+        return "created";
+      });
+    } catch {
+      return res.status(503).json({
+        error: "OpenAI inference usage store is unavailable",
+        code: "openai_inference_usage_store_unavailable",
+      });
+    }
+    if (outcome === "launch_missing") return res.status(404).json({
+      error: "Task Evaluation launch not found",
+      code: "openai_inference_usage_launch_missing",
+    });
+    if (outcome === "binding_mismatch" || outcome === "conflict") {
+      return res.status(409).json({
+        error: "OpenAI inference usage binding conflict",
+        code: `openai_inference_usage_${outcome}`,
+      });
+    }
+    res.set("Cache-Control", "private, no-store");
+    return res.status(outcome === "created" ? 201 : 200).json({
+      schema_version: "blueprint_openai_inference_usage_ingest_receipt.v1",
+      status: outcome,
+      run_id: packet.run_id,
+      launch_id: packet.launch_id,
+      source_commit: packet.source_commit,
+      packet_digest: packet.packet_digest,
+      call_count: packet.calls.length,
+      raw_prompts_recorded: false,
+      raw_secret_values_recorded: false,
+    });
+  },
+);
 
 router.post(
   "/task-evaluation-launches",

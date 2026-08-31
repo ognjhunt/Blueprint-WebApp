@@ -53,8 +53,124 @@ import {
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 import { dispatchHumanBlocker } from "../utils/human-blocker-dispatch";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import {
+  summarizeAgentCostTelemetry,
+  summarizeAgentCostWaste,
+  type AgentTelemetryRun,
+} from "../utils/agentCostTelemetry";
 
 const router = Router();
+
+router.get("/cache-efficiency", requireAdminRole, async (req: Request, res: Response) => {
+  if (!db) return res.status(503).json({
+    ok: false,
+    error: "Agent cache telemetry store is unavailable",
+  });
+  const hoursValue = typeof req.query.hours === "string" ? Number(req.query.hours) : 24;
+  const limitValue = typeof req.query.limit === "string" ? Number(req.query.limit) : 500;
+  const hours = Math.max(1, Math.min(Number.isFinite(hoursValue) ? hoursValue : 24, 24 * 31));
+  const limit = Math.max(1, Math.min(Number.isFinite(limitValue) ? limitValue : 500, 2_000));
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const rawCutoff = typeof req.query.cutoff_iso === "string"
+    ? req.query.cutoff_iso
+    : process.env.BLUEPRINT_OPENAI_CACHE_POLICY_DEPLOYED_AT;
+  const cutoffMs = rawCutoff ? Date.parse(rawCutoff) : Number.NaN;
+  try {
+    const snapshot = await db.collection("agentRuns")
+      .where("created_at", ">=", since)
+      .orderBy("created_at", "desc")
+      .limit(limit)
+      .get();
+    const runs = snapshot.docs.map((document) => ({
+      id: document.id,
+      ...document.data(),
+    })) as AgentTelemetryRun[];
+    const summary = summarizeAgentCostTelemetry(runs);
+    const waste = summarizeAgentCostWaste(runs);
+    const safeRows = summary.rows.map((row) => ({
+      task_kind: row.task_kind,
+      provider: row.provider,
+      route: row.route,
+      model: row.model,
+      calls: row.calls,
+      input_tokens: row.prompt_tokens,
+      cached_tokens: row.cached_tokens,
+      cache_write_tokens: row.cache_write_tokens,
+      uncached_input_tokens: row.uncached_input_tokens,
+      cache_hit_ratio: row.cache_hit_ratio,
+      cache_family: row.cache_family,
+      prompt_contract_version: row.prompt_contract_version,
+      processing_region: row.processing_region,
+      cache_decision: row.cache_decision,
+      cache_write_cost_usd: row.cache_write_cost_usd,
+      cached_read_cost_usd: row.cached_read_cost_usd,
+      uncached_input_cost_usd: row.uncached_input_cost_usd,
+      output_cost_usd: row.output_cost_usd,
+      estimated_cost_without_caching_usd: row.estimated_cost_without_caching_usd,
+      estimated_savings_usd: row.estimated_savings_usd,
+    }));
+    const comparison = Number.isFinite(cutoffMs)
+      ? {
+          cutoff_iso: new Date(cutoffMs).toISOString(),
+          before: summarizeAgentCostWaste(runs.filter((run) => {
+            const value = run.created_at as any;
+            const millis = typeof value?.toMillis === "function"
+              ? value.toMillis()
+              : Date.parse(String(value || ""));
+            return Number.isFinite(millis) && millis < cutoffMs;
+          })).totals,
+          after: summarizeAgentCostWaste(runs.filter((run) => {
+            const value = run.created_at as any;
+            const millis = typeof value?.toMillis === "function"
+              ? value.toMillis()
+              : Date.parse(String(value || ""));
+            return Number.isFinite(millis) && millis >= cutoffMs;
+          })).totals,
+        }
+      : null;
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      ok: true,
+      schema_version: "agent_cache_efficiency_dashboard.v1",
+      generated_at_iso: new Date().toISOString(),
+      source: {
+        kind: "firestore",
+        collection: "agentRuns",
+        project_id: process.env.GOOGLE_CLOUD_PROJECT || "runtime-attached-project",
+        since_iso: since.toISOString(),
+        limit,
+        records_scanned: runs.length,
+        official_openai_billing: false,
+      },
+      totals: {
+        ...waste.totals,
+        write_to_read_ratio: Number.isFinite(waste.totals.write_to_read_ratio)
+          ? waste.totals.write_to_read_ratio
+          : null,
+      },
+      rows: safeRows,
+      signals: waste.signals.map((signal) => ({
+        signal: signal.signal,
+        runs: signal.runs,
+        prompt_tokens: signal.prompt_tokens,
+        cached_tokens: signal.cached_tokens,
+        cache_write_tokens: signal.cache_write_tokens,
+        cost_estimate_usd: signal.cost_estimate_usd,
+        recommendation: signal.recommendation,
+      })),
+      comparison,
+      raw_prompts_included: false,
+      raw_user_content_included: false,
+      secrets_included: false,
+    });
+  } catch {
+    return res.status(503).json({
+      ok: false,
+      error: "Agent cache telemetry query failed",
+    });
+  }
+});
 
 function normalizeTimestamp(value: unknown) {
   const timestamp = value as { toDate?: () => Date } | string | null | undefined;
