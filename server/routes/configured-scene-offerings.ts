@@ -249,6 +249,22 @@ function card(offering: ConfiguredSceneOffering, sourceLaunchId: string) {
   };
 }
 
+function catalogIdentity(offering: ConfiguredSceneOffering) {
+  return [
+    offering.team_namespace,
+    offering.scene_identity.id,
+    offering.scene_identity.version,
+    offering.task.identity.id,
+    offering.task.identity.version,
+    offering.status,
+  ].join("\u0000");
+}
+
+function catalogRevisionOrder(record: Record<string, unknown>, sourceLaunchId: string) {
+  const terminalUpdatedAt = String(record.terminal_updated_at_iso || "");
+  return `${terminalUpdatedAt}\u0000${sourceLaunchId}`;
+}
+
 router.get("/", async (_req, res) => {
   if (!db) return res.status(503).json({ error: "Configured scene offering store is unavailable" });
   const access = await resolveAccessContext(res);
@@ -264,7 +280,10 @@ router.get("/", async (_req, res) => {
       ? db.collection(COLLECTION).where("configured_scene_offering_state", "in", STORED_OFFERING_STATES)
       : db.collection(COLLECTION).where("configured_scene_offering_team_namespace", "==", tenantId);
     const snapshot = await withTaskEvaluationLaunchStoreTimeout(query.limit(100).get());
-    const offerings: ReturnType<typeof card>[] = [];
+    const offeringsByIdentity = new Map<string, {
+      offering: ReturnType<typeof card>;
+      revisionOrder: string;
+    }>();
     for (const document of snapshot.docs) {
       const record = document.data() as Record<string, unknown>;
       if (!isStoredOfferingState(record.configured_scene_offering_state)) continue;
@@ -277,8 +296,17 @@ router.get("/", async (_req, res) => {
         throw new Error("configured_scene_offering_store_invalid");
       }
       if (!access.isOps && parsed.data.team_namespace !== tenantId) continue;
-      offerings.push(card(parsed.data, document.id));
+      const identity = catalogIdentity(parsed.data);
+      const revisionOrder = catalogRevisionOrder(record, document.id);
+      const retained = offeringsByIdentity.get(identity);
+      if (!retained || retained.revisionOrder < revisionOrder) {
+        offeringsByIdentity.set(identity, {
+          offering: card(parsed.data, document.id),
+          revisionOrder,
+        });
+      }
     }
+    const offerings = [...offeringsByIdentity.values()].map(({ offering }) => offering);
     res.set("Cache-Control", "private, no-store");
     return res.json({
       schema_version: "task_evaluation_configured_scene_offering_catalog.v1",
