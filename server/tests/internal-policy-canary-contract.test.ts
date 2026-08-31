@@ -48,7 +48,7 @@ function setup() {
     availability: "enabled",
     recommended: true,
     matrix: {
-      matrix_digest: sha("a"),
+      matrix_digest: "",
       resolver_id: "policy-canary-quick-matrix",
       resolver_version: "v1",
       deterministic: true,
@@ -73,6 +73,10 @@ function setup() {
       as_of: "2026-08-31T12:00:00.000Z",
     },
   };
+  quick.matrix.matrix_digest = canonicalArtifactDigest(
+    { ordered_cells: cells },
+    "__no_digest_field__",
+  );
   const draft: Record<string, any> = {
     schema_version: "task_evaluation_policy_canary_setup.v1",
     source_launch_id: "scene-839873-launch",
@@ -105,6 +109,12 @@ function setup() {
     diagnostics: { zero_action: "nonblocking", deterministic_scripted_positive: "nonblocking" },
     setup_digest: "",
   };
+  for (const preset of draft.episode_presets) {
+    preset.matrix.matrix_digest = canonicalArtifactDigest(
+      { ordered_cells: preset.matrix.cells },
+      "__no_digest_field__",
+    );
+  }
   draft.setup_digest = canonicalArtifactDigest(draft, "setup_digest");
   return internalPolicyCanarySetupSchema.parse(draft);
 }

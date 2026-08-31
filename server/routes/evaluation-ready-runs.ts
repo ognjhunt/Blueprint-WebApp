@@ -278,12 +278,19 @@ router.post(
       });
       if (record.run_kind === "internal_policy_canary") {
         const email = notificationRecords.find((item) => item.channel === "email");
-        const notificationDelivery = email ? {
-          status: email.status === "sent" ? "delivered" : email.status === "failed" ? "failed" : "pending",
-          provider: email.provider_message_id ? "configured_email_provider" : null,
+        const providerDelivered = record.notification_delivery
+          && typeof record.notification_delivery === "object"
+          && "status" in record.notification_delivery
+          && record.notification_delivery.status === "delivered"
+          ? record.notification_delivery
+          : null;
+        const notificationDelivery = providerDelivered || (email ? {
+          status: email.status === "sent" ? "accepted" : email.status === "failed" ? "failed" : "pending",
+          provider: email.delivery_provider || null,
           message_id: email.provider_message_id,
           attempts: 1,
-          delivered_at_iso: email.sent_at,
+          accepted_at_iso: email.sent_at,
+          delivered_at_iso: null,
           failure_reason: email.failure_reason,
           run_result_digest: String(record.delivery_digest || record.request_digest || ""),
         } : {
@@ -291,10 +298,11 @@ router.post(
           provider: null,
           message_id: null,
           attempts: 1,
+          accepted_at_iso: null,
           delivered_at_iso: null,
           failure_reason: "notification_dispatch_record_missing",
           run_result_digest: String(record.delivery_digest || record.request_digest || ""),
-        };
+        });
         await withTaskEvaluationLaunchStoreTimeout(
           db.collection(COLLECTION).doc(record.run_id).set({
             notification_delivery: notificationDelivery,

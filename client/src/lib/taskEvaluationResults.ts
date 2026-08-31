@@ -13,6 +13,10 @@ export type TaskEvaluationResultArtifact = {
   sha256: string;
   size_bytes: number;
   content_type: string;
+  media_type?: string;
+  retention_status?: "retained" | "expires" | "expired" | "not_reported";
+  retention_expires_at_iso?: string | null;
+  access_mode?: "authenticated_ticket" | "inline" | "restricted" | "not_reported";
 };
 
 export type TaskEvaluationResultEpisode = {
@@ -61,6 +65,8 @@ export type TaskEvaluationResultEpisode = {
     frame_manifest?: TaskEvaluationResultArtifact | null;
     videos?: Record<string, TaskEvaluationResultArtifact>;
     typed_media_gap?: { code: string; explanation: string } | null;
+    episode_json?: TaskEvaluationResultArtifact | null;
+    indexed_mcap_rosbag?: TaskEvaluationResultArtifact | null;
   };
   action_delivery?: {
     actions_reached_robot: boolean;
@@ -74,6 +80,33 @@ export type TaskEvaluationResultEpisode = {
     contact_force?: TaskEvaluationResultArtifact | null;
     task_object_trajectory?: TaskEvaluationResultArtifact | null;
   };
+  timing?: {
+    started_at_iso: string;
+    completed_at_iso: string;
+    duration_seconds: number;
+  };
+  timeline?: Array<{
+    time_seconds: number;
+    action: string | null;
+    joint_pose: string | null;
+    task_object_pose: string | null;
+    contact_state: string | null;
+    force_newtons: number | null;
+    scoring_state: string | null;
+  }>;
+  telemetry?: {
+    policy_query_count: number | null;
+    policy_latency_ms: { p50: number | null; p95: number | null; maximum: number | null };
+    gpu_utilization_percent: number | null;
+    gpu_memory_bytes: number | null;
+    cpu_utilization_percent: number | null;
+    memory_bytes: number | null;
+    network_received_bytes: number | null;
+    network_transmitted_bytes: number | null;
+    disk_read_bytes: number | null;
+    disk_written_bytes: number | null;
+  };
+  video_timebase_offsets_seconds?: Record<string, number>;
   artifacts?: {
     receipt: TaskEvaluationResultArtifact;
     frame_manifest: TaskEvaluationResultArtifact;
@@ -138,6 +171,22 @@ export type TaskEvaluationResultSiteRecord = {
     task?: { id: string; label: string };
     robot?: { preset_id: string; display_name: string };
     policy_candidates?: Array<{ candidate_id: string; display_name: string; checkpoint_digest: string }>;
+    submitted_by?: { actor_id: string; actor_role: string };
+    team_namespace?: string;
+    access_visibility?: "owner_only" | "organization_members";
+    started_at_iso?: string;
+    completed_at_iso?: string;
+    duration_seconds?: number;
+    notification_delivery?: {
+      status: "pending" | "accepted" | "delivered" | "failed";
+      provider: string | null;
+      message_id: string | null;
+      attempts: number;
+      accepted_at_iso?: string | null;
+      delivered_at_iso: string | null;
+      failure_reason: string | null;
+      receipt?: TaskEvaluationResultArtifact | null;
+    };
     decision_envelope?: Record<string, any> & {
       decision_question: string;
       decision_envelope_digest: string;
@@ -187,7 +236,7 @@ export async function createTaskEvaluationResultArtifactTicket(
   artifactId: string,
 ) {
   const response = await fetch(
-    `/api/task-evaluation-results/${encodeURIComponent(recordId)}/artifacts/${encodeURIComponent(artifactId)}`,
+    `/api/task-evaluation-results/${encodeURIComponent(recordId)}/artifacts/${encodeURIComponent(artifactId)}/ticket`,
     {
       method: "POST",
       credentials: "include",

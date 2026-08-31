@@ -64,7 +64,11 @@ vi.mock("../utils/email", () => ({
 
 beforeEach(() => {
   state.docs.clear();
-  state.sendEmail.mockReset().mockResolvedValue({ sent: true });
+  state.sendEmail.mockReset().mockResolvedValue({
+    sent: true,
+    provider: "sendgrid",
+    messageId: "sg-message-1",
+  });
   state.sendPush.mockReset().mockResolvedValue("push-message-1");
   process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
 });
@@ -110,9 +114,58 @@ describe("transactional notifications", () => {
       expect.objectContaining({
         event_type: "evaluation_results_ready",
         subject_id: "evaluation-run-1",
+        channel: "email",
+        status: "sent",
+        delivery_provider: "sendgrid",
+        provider_message_id: "sg-message-1",
         data: expect.objectContaining({ result_url: "/app/results/result-record-1" }),
       }),
     ]));
+  });
+
+  it("retries a failed terminal email but never resends an accepted replay", async () => {
+    state.sendEmail
+      .mockReset()
+      .mockResolvedValueOnce({
+        sent: false,
+        provider: "sendgrid",
+        messageId: null,
+        error: new Error("provider refused request"),
+      })
+      .mockResolvedValueOnce({
+        sent: true,
+        provider: "smtp",
+        messageId: "smtp-message-2",
+      });
+    const { dispatchTransactionalNotification } = await import(
+      "../utils/transactional-notifications"
+    );
+    const event = {
+      eventType: "evaluation_results_ready" as const,
+      recipientType: "buyer" as const,
+      recipientUserId: "member-2",
+      recipientEmail: "member2@example.com",
+      subjectId: "policy-canary-2",
+      sourceEventId: "sha256:canary-terminal-2",
+      sourceCollection: "taskEvaluationPolicyRuns",
+      sourceDocId: "policy-canary-2",
+    };
+
+    const failed = await dispatchTransactionalNotification(event);
+    const accepted = await dispatchTransactionalNotification(event);
+    const replay = await dispatchTransactionalNotification(event);
+
+    expect(failed.find((record) => record.channel === "email")).toMatchObject({
+      status: "failed",
+      delivery_provider: "sendgrid",
+    });
+    expect(accepted.find((record) => record.channel === "email")).toMatchObject({
+      status: "sent",
+      delivery_provider: "smtp",
+      provider_message_id: "smtp-message-2",
+    });
+    expect(replay).toEqual(accepted);
+    expect(state.sendEmail).toHaveBeenCalledTimes(2);
   });
 
   it("sends email, queues in-app, and audits the order confirmation event", async () => {

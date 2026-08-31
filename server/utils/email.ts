@@ -14,6 +14,13 @@ interface SendEmailOptions {
   attachments?: nodemailer.SendMailOptions["attachments"];
 }
 
+export type SendEmailResult = {
+  sent: boolean;
+  provider: "sendgrid" | "smtp" | null;
+  messageId: string | null;
+  error?: unknown;
+};
+
 let cachedTransporter: nodemailer.Transporter | null = null;
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -231,10 +238,10 @@ async function sendViaSendGrid({
   sendGridCategories,
   sendGridCustomArgs,
   attachments,
-}: SendEmailOptions) {
+}: SendEmailOptions): Promise<SendEmailResult> {
   const config = getSendGridConfig();
   if (!config.configured) {
-    return { sent: false };
+    return { sent: false, provider: null, messageId: null };
   }
 
   try {
@@ -297,7 +304,11 @@ async function sendViaSendGrid({
       }),
       "Email dispatched via SendGrid",
     );
-    return { sent: true };
+    return {
+      sent: true,
+      provider: "sendgrid",
+      messageId: response.headers.get("x-message-id"),
+    };
   } catch (error) {
     logger.error(
       {
@@ -317,7 +328,7 @@ async function sendViaSendGrid({
       },
       "Failed to send email via SendGrid",
     );
-    return { sent: false, error };
+    return { sent: false, provider: "sendgrid", messageId: null, error };
   }
 }
 
@@ -332,7 +343,7 @@ export async function sendEmail({
   sendGridCategories,
   sendGridCustomArgs,
   attachments,
-}: SendEmailOptions) {
+}: SendEmailOptions): Promise<SendEmailResult> {
   const sendGridResult = await sendViaSendGrid({
     to,
     subject,
@@ -367,12 +378,12 @@ export async function sendEmail({
       }),
       "Email transport not configured; message not sent",
     );
-    return { sent: false };
+    return { sent: false, provider: null, messageId: null };
   }
 
   try {
     const smtpFrom = process.env.SMTP_FROM?.trim() || fromEmail || "";
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: smtpFrom
         ? fromName
           ? `${fromName} <${smtpFrom}>`
@@ -401,7 +412,13 @@ export async function sendEmail({
       }),
       "Email dispatched",
     );
-    return { sent: true };
+    return {
+      sent: true,
+      provider: "smtp",
+      messageId: typeof info.messageId === "string" && info.messageId.trim()
+        ? info.messageId.trim()
+        : null,
+    };
   } catch (error) {
     logger.error(
       {
@@ -421,6 +438,6 @@ export async function sendEmail({
       },
       "Failed to send email",
     );
-    return { sent: false, error };
+    return { sent: false, provider: "smtp", messageId: null, error };
   }
 }

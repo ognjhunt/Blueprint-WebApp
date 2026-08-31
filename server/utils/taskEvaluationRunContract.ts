@@ -87,6 +87,10 @@ const resultArtifactSchema = z.object({
   sha256: digest,
   size_bytes: z.number().int().nonnegative(),
   content_type: nonEmpty,
+  media_type: nonEmpty.optional(),
+  retention_status: z.enum(["retained", "expires", "expired", "not_reported"]).optional(),
+  retention_expires_at_iso: z.string().datetime({ offset: true }).nullable().optional(),
+  access_mode: z.enum(["authenticated_ticket", "inline", "restricted", "not_reported"]).optional(),
 }).strict();
 
 export const taskEvaluationResultDeliverySchema = z.object({
@@ -190,9 +194,45 @@ const policyCanaryEpisodeSchema = z.object({
     frame_manifest: resultArtifactSchema.nullable(),
     videos: z.record(z.string(), resultArtifactSchema),
     typed_media_gap: z.object({ code: identifier, explanation: nonEmpty }).strict().nullable(),
+    episode_json: resultArtifactSchema.nullable().optional(),
+    indexed_mcap_rosbag: resultArtifactSchema.nullable().optional(),
   }).strict(),
   wall_time_seconds: z.number().nonnegative(),
   provider_attribution: nonEmpty,
+  timing: z.object({
+    started_at_iso: z.string().datetime({ offset: true }),
+    completed_at_iso: z.string().datetime({ offset: true }),
+    duration_seconds: z.number().nonnegative(),
+  }).strict().optional(),
+  timeline: z.array(z.object({
+    time_seconds: z.number().nonnegative(),
+    action: z.string().trim().max(500).nullable(),
+    joint_pose: z.string().trim().max(500).nullable(),
+    task_object_pose: z.string().trim().max(500).nullable(),
+    contact_state: z.string().trim().max(500).nullable(),
+    force_newtons: z.number().nullable(),
+    scoring_state: z.string().trim().max(500).nullable(),
+  }).strict()).max(10_000).optional(),
+  telemetry: z.object({
+    policy_query_count: z.number().int().nonnegative().nullable(),
+    policy_latency_ms: z.object({
+      p50: z.number().nonnegative().nullable(),
+      p95: z.number().nonnegative().nullable(),
+      maximum: z.number().nonnegative().nullable(),
+    }).strict(),
+    gpu_utilization_percent: z.number().min(0).max(100).nullable(),
+    gpu_memory_bytes: z.number().int().nonnegative().nullable(),
+    cpu_utilization_percent: z.number().min(0).max(100).nullable(),
+    memory_bytes: z.number().int().nonnegative().nullable(),
+    network_received_bytes: z.number().int().nonnegative().nullable(),
+    network_transmitted_bytes: z.number().int().nonnegative().nullable(),
+    disk_read_bytes: z.number().int().nonnegative().nullable(),
+    disk_written_bytes: z.number().int().nonnegative().nullable(),
+  }).strict().optional(),
+  video_timebase_offsets_seconds: z.record(
+    z.string().trim().min(1),
+    z.number().finite(),
+  ).optional(),
 }).strict().superRefine((episode, context) => {
   if (episode.episode_kind === "learned_candidate" && !episode.policy_candidate_id) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["policy_candidate_id"], message: "learned episode requires policy identity" });
@@ -261,10 +301,45 @@ export const policyCanaryResultProjectionSchema = z.object({
     count: z.number().int().nonnegative(),
     representative_episode_ids: z.array(identifier).max(20),
   }).strict()),
+  coverage_gaps: z.array(z.object({
+    family: nonEmpty,
+    code: identifier,
+    explanation: nonEmpty,
+    deterministic_fallback_family: nonEmpty,
+  }).strict()).optional(),
+  runtime_system_telemetry: z.object({
+    gpu_utilization_percent: z.number().min(0).max(100).nullable(),
+    gpu_memory_bytes: z.number().int().nonnegative().nullable(),
+    cpu_utilization_percent: z.number().min(0).max(100).nullable(),
+    memory_bytes: z.number().int().nonnegative().nullable(),
+    network_received_bytes: z.number().int().nonnegative().nullable(),
+    network_transmitted_bytes: z.number().int().nonnegative().nullable(),
+    disk_read_bytes: z.number().int().nonnegative().nullable(),
+    disk_written_bytes: z.number().int().nonnegative().nullable(),
+    policy_query_count: z.number().int().nonnegative().nullable(),
+    policy_latency_ms: z.object({
+      p50: z.number().nonnegative().nullable(),
+      p95: z.number().nonnegative().nullable(),
+      maximum: z.number().nonnegative().nullable(),
+    }).strict(),
+    episode_wall_time_seconds: z.object({
+      minimum: z.number().nonnegative().nullable(),
+      median: z.number().nonnegative().nullable(),
+      maximum: z.number().nonnegative().nullable(),
+    }).strict(),
+  }).strict().optional(),
   reproducibility: z.object({
     scene_revision_digest: digest,
     runtime_container_digest: digest,
     scoring_version: nonEmpty,
+    observation_schema_id: identifier.optional(),
+    action_schema_id: identifier.optional(),
+    calibration_digest: digest.optional(),
+    timebase: z.object({
+      clock_id: nonEmpty,
+      frequency_hz: z.number().positive().nullable(),
+      synchronized: z.boolean(),
+    }).strict().optional(),
     evidence_manifest: resultArtifactSchema,
     billing_receipt: resultArtifactSchema,
     teardown_receipt: resultArtifactSchema,
@@ -295,6 +370,22 @@ const policyCanaryRunPublicationSchema = z.object({
     display_name: nonEmpty,
     checkpoint_digest: digest,
   }).strict()).length(2),
+  submitted_by: z.object({ actor_id: identifier, actor_role: nonEmpty }).strict().optional(),
+  team_namespace: identifier.optional(),
+  access_visibility: z.enum(["owner_only", "organization_members"]).optional(),
+  started_at_iso: z.string().datetime({ offset: true }).optional(),
+  completed_at_iso: z.string().datetime({ offset: true }).optional(),
+  duration_seconds: z.number().nonnegative().optional(),
+  notification_delivery: z.object({
+    status: z.enum(["pending", "accepted", "delivered", "failed"]),
+    provider: nonEmpty.nullable(),
+    message_id: nonEmpty.nullable(),
+    attempts: z.number().int().nonnegative(),
+    accepted_at_iso: z.string().datetime({ offset: true }).nullable().optional(),
+    delivered_at_iso: z.string().datetime({ offset: true }).nullable(),
+    failure_reason: nonEmpty.nullable(),
+    receipt: resultArtifactSchema.nullable().optional(),
+  }).strict().optional(),
   result_delivery: policyCanaryResultDeliverySchema,
   policy_canary_result: policyCanaryResultProjectionSchema,
   proof_boundary: z.object({
@@ -546,11 +637,23 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
         episode.traces.task_object_trajectory,
         episode.evidence.lossless_policy_inputs,
         episode.evidence.frame_manifest,
+        episode.evidence.episode_json,
+        episode.evidence.indexed_mcap_rosbag,
         ...Object.values(episode.evidence.videos),
       ].filter((artifact): artifact is z.infer<typeof resultArtifactSchema> => Boolean(artifact));
       if (references.some((artifact) => !admittedIds.has(artifact.artifact_id))) {
         blockers.push("result_delivery_episode_artifact_not_admitted");
       }
+    }
+    const operationalReferences = [
+      result.reproducibility.evidence_manifest,
+      result.reproducibility.billing_receipt,
+      result.reproducibility.teardown_receipt,
+      result.reproducibility.provider_zero_receipt,
+      publication.notification_delivery?.receipt,
+    ].filter((artifact): artifact is z.infer<typeof resultArtifactSchema> => Boolean(artifact));
+    if (operationalReferences.some((artifact) => !admittedIds.has(artifact.artifact_id))) {
+      blockers.push("result_delivery_operational_artifact_not_admitted");
     }
     if (sensitivePaths(publication).length) {
       blockers.push("run_publication_secret_value_forbidden");

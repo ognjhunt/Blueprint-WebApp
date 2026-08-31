@@ -145,6 +145,16 @@ export const policyCanaryEpisodePresetSchema = z.object({
   }).strict(),
   estimate: estimateSchema,
 }).strict().superRefine((preset, context) => {
+  if (canonicalArtifactDigest(
+    { ordered_cells: preset.matrix.cells },
+    "__no_digest_field__",
+  ) !== preset.matrix.matrix_digest) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["matrix", "matrix_digest"],
+      message: "matrix digest must bind the ordered resolved cells",
+    });
+  }
   if (preset.availability === "enabled" && preset.matrix.cells.length !== preset.episodes_per_policy) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -286,7 +296,7 @@ export const internalPolicyCanaryStatusProjectionSchema = z.object({
   delivery_digest: digest.nullable().optional(),
   policy_run_result_projection: z.record(z.string(), z.unknown()).nullable().optional(),
   notification_delivery: z.object({
-    status: z.enum(["pending", "delivered", "failed"]),
+    status: z.enum(["pending", "accepted", "delivered", "failed"]),
     attempts: z.number().int().nonnegative(),
   }).passthrough().nullable().optional(),
   error: z.object({

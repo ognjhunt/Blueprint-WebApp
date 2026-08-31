@@ -8,6 +8,7 @@ import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/b
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { EvaluationResultOverview } from "@/components/blueprint/app/EvaluationResultOverview";
+import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
   humanBytes,
@@ -164,6 +165,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
 
       {delivery?.status === "ready" ? (
         <>
+          {canary ? <PolicyCanaryResultPortal result={result} user={user} /> : <>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Episode summary">
             {[
               ["Episodes", delivery.summary.episode_count],
@@ -194,11 +196,12 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
             </div>
             <p className="runway-num mt-3 text-[0.68rem] text-ink-400">Delivery {delivery.delivery_digest}</p>
           </section>
+          </>}
         </>
       ) : null}
 
       <details className="runway-panel p-4">
-        <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Inspect decision envelope and exact bindings</summary>
+        <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Inspect {canary ? "sealed publication and exact bindings" : "decision envelope and exact bindings"}</summary>
         <pre className="runway-num mt-4 max-h-[32rem] overflow-auto bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">{JSON.stringify(result.publication, null, 2)}</pre>
       </details>
     </>
