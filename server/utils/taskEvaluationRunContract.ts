@@ -5,6 +5,7 @@ import {
   maintainedSiteTaskTestbedSchema,
   nativeDecisionEvidenceRequestSchema,
 } from "./siteTaskTestbedContract";
+import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -583,6 +584,17 @@ function sensitivePaths(value: unknown, prefix = ""): string[] {
 export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
   | { ok: false; blockers: string[] }
   | { ok: true; publication: Record<string, any> } {
+  if (
+    value
+    && typeof value === "object"
+    && (value as Record<string, unknown>).schema_version
+      === "task_evaluation_run_publication.v4"
+  ) {
+    const canary = parsePipelinePolicyCanaryPublication(value);
+    return canary.ok
+      ? { ok: true, publication: canary.publication }
+      : canary;
+  }
   const parsed = taskEvaluationRunPublicationSchema.safeParse(value);
   if (!parsed.success) return { ok: false as const, blockers: ["run_publication_schema_invalid"] };
   const publication = parsed.data;

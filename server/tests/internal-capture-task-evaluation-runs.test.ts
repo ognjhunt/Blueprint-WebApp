@@ -8,9 +8,12 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
+import canaryBlockedFixture from "./fixtures/pipeline-policy-canary-preprovider-blocked.v1.json";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, any>>>(),
+  sendEmail: vi.fn(),
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
@@ -43,7 +46,19 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   };
   return {
     dbAdmin: {
-      collection: (name: string) => ({ doc: (id: string) => reference(name, id) }),
+      collection: (name: string) => ({
+        doc: (id: string) => reference(name, id),
+        where: (field: string, operator: string, value: unknown) => ({
+          limit: (limit: number) => ({
+            get: async () => ({
+              docs: [...(state.collections.get(name)?.entries() || [])]
+                .filter(([, record]) => operator === "==" && record[field] === value)
+                .slice(0, limit)
+                .map(([id, record]) => ({ id, data: () => structuredClone(record) })),
+            }),
+          }),
+        }),
+      }),
       runTransaction: async <T>(callback: (transaction: {
         get: (ref: Reference) => Promise<ReturnType<typeof read>>;
         create: (ref: Reference, payload: Record<string, unknown>) => void;
@@ -60,6 +75,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   };
 });
 
+vi.mock("../utils/email", () => ({ sendEmail: state.sendEmail }));
+
 vi.mock("../utils/pipelineSyncSecurity", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../utils/pipelineSyncSecurity")>();
   return {
@@ -69,6 +86,26 @@ vi.mock("../utils/pipelineSyncSecurity", async (importOriginal) => {
 });
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
+
+function policyCanaryPublication() {
+  const value = structuredClone(canaryPublicationFixture) as Record<string, any>;
+  value.result_delivery.delivery_digest = canonicalArtifactDigest(
+    value.result_delivery,
+    "delivery_digest",
+  );
+  value.policy_canary_result.result_delivery_digest = value.result_delivery.delivery_digest;
+  value.policy_canary_result.projection_digest = canonicalArtifactDigest(
+    value.policy_canary_result,
+    "projection_digest",
+  );
+  return value;
+}
+
+function policyCanaryPreproviderBlocked() {
+  const value = structuredClone(canaryBlockedFixture) as Record<string, any>;
+  value.payload_digest = canonicalArtifactDigest(value, "payload_digest");
+  return value;
+}
 
 function publication() {
   const plan: Record<string, any> = {
@@ -317,7 +354,9 @@ async function postSigned(socketPath: string, body: Record<string, unknown>) {
 
 afterEach(() => {
   state.collections.clear();
+  state.sendEmail.mockReset();
   delete process.env.PIPELINE_SYNC_TOKEN;
+  delete process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED;
 });
 
 describe("internal Pipeline Task Evaluation Run publication", () => {
@@ -451,6 +490,202 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       const notifications = state.collections.get("transactionalNotifications");
       expect(notifications?.size).toBe(3);
       expect(JSON.stringify([...(notifications?.values() || [])])).toContain("/app/results/capture-run-");
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("stores a v4 canary publication and returns one exactly-once accepted notification receipt", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
+    state.sendEmail.mockResolvedValue({
+      sent: true,
+      provider: "sendgrid",
+      messageId: "message-canary-1",
+    });
+    const body = policyCanaryPublication();
+    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
+      owner_user_id: "buyer-1",
+      organization_id: "team-1",
+      organization_binding_status: "firebase_tenant_verified",
+      request: { intake_id: body.intake_id },
+    }]]));
+    state.collections.set("taskEvaluationPolicyRuns", new Map([[body.run_id, {
+      schema_version: "task_evaluation_policy_run_web_record.v2",
+      run_id: body.run_id,
+      run_kind: "internal_policy_canary",
+      request_digest: body.request_digest,
+      pipeline_configuration_digest: body.configuration_digest,
+      owner_user_id: "buyer-1",
+      team_namespace: "team-1",
+      notification_recipient_user_id: "buyer-1",
+      notification: { email: "buyer@example.com" },
+      scene: { id: "839873" },
+      task: { id: "simple-relocation", label: "simple relocation" },
+      robot: { display_name: "Franka Panda + Robotiq" },
+      policy_candidates: [
+        { candidate_id: "pi05_droid", display_name: "PI 0.5 DROID" },
+        { candidate_id: "groot_n17_droid", display_name: "GR00T N1.7 DROID" },
+      ],
+      episode_plan: { episodes_per_policy: 10 },
+      state: "aggregating",
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      const first = await postSigned(socketPath, body);
+      expect(first.status).toBe(201);
+      expect(first.body).toMatchObject({
+        schema_version: "capture_task_evaluation_policy_canary_publication_receipt.v1",
+        status: "blocked",
+        already_exists: false,
+        capture_session_id: body.capture_session_id,
+        intake_id: body.intake_id,
+        run_id: body.run_id,
+        request_digest: body.request_digest,
+        configuration_digest: body.configuration_digest,
+        result_delivery_digest: body.result_delivery.delivery_digest,
+        policy_canary_projection_digest: body.policy_canary_result.projection_digest,
+        notification_delivery: {
+          terminal_state: "blocked",
+          status: "accepted",
+          attempts: 1,
+          provider: "sendgrid",
+          message_id: "message-canary-1",
+          delivered_at: null,
+          run_result_digest: body.policy_canary_result.projection_digest,
+        },
+      });
+      expect(state.collections.get("captureTaskEvaluationRuns")?.size).toBe(1);
+      expect(state.collections.get("taskEvaluationPolicyRuns")?.get(body.run_id))
+        .toMatchObject({
+          state: "blocked",
+          result_record_id: expect.stringMatching(/^capture-run-/),
+          delivery_digest: body.result_delivery.delivery_digest,
+          notification_delivery: { status: "accepted", attempts: 1 },
+        });
+
+      const replay = await postSigned(socketPath, body);
+      expect(replay.status).toBe(200);
+      expect(replay.body).toMatchObject({
+        already_exists: true,
+        notification_delivery: { status: "accepted", attempts: 1 },
+      });
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+
+      const conflict = structuredClone(body);
+      conflict.policy_canary_result.blockers.push("different_terminal_fact");
+      conflict.policy_canary_result.projection_digest = canonicalArtifactDigest(
+        conflict.policy_canary_result,
+        "projection_digest",
+      );
+      expect((await postSigned(socketPath, conflict)).status).toBe(409);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("persists a pre-provider blocker, binds its owner/team, and refuses replay conflicts", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
+    state.sendEmail.mockResolvedValue({
+      sent: true,
+      provider: "smtp",
+      messageId: "message-blocked-1",
+    });
+    const body = policyCanaryPreproviderBlocked();
+    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
+      owner_user_id: "buyer-1",
+      organization_id: "team-1",
+      organization_binding_status: "firebase_tenant_verified",
+      request: { intake_id: body.intake_id },
+    }]]));
+    state.collections.set("taskEvaluationPolicyRuns", new Map([["scene-839873-canary-1", {
+      schema_version: "task_evaluation_policy_run_web_record.v2",
+      run_id: "scene-839873-canary-1",
+      run_kind: "internal_policy_canary",
+      request_digest: body.request_digest,
+      owner_user_id: "buyer-1",
+      team_namespace: "team-1",
+      notification_recipient_user_id: "buyer-1",
+      notification: { email: "buyer@example.com" },
+      scene: { id: "839873" },
+      task: { id: "simple-relocation", label: "simple relocation" },
+      robot: { display_name: "Franka Panda + Robotiq" },
+      policy_candidates: [
+        { candidate_id: "pi05_droid", display_name: "PI 0.5 DROID" },
+        { candidate_id: "groot_n17_droid", display_name: "GR00T N1.7 DROID" },
+      ],
+      episode_plan: { episodes_per_policy: 10 },
+      state: "preparing",
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      const first = await postSigned(socketPath, body);
+      expect(first.status).toBe(201);
+      expect(first.body).toMatchObject({
+        schema_version: "capture_task_evaluation_policy_canary_blocked_receipt.v1",
+        status: "blocked",
+        already_exists: false,
+        activation_id: body.activation_id,
+        capture_session_id: body.capture_session_id,
+        intake_id: body.intake_id,
+        run_id: "scene-839873-canary-1",
+        request_digest: body.request_digest,
+        payload_digest: body.payload_digest,
+        notification_delivery: {
+          terminal_state: "blocked",
+          status: "accepted",
+          attempts: 1,
+          provider: "smtp",
+          message_id: "message-blocked-1",
+          run_result_digest: body.payload_digest,
+        },
+      });
+      expect(state.collections.get("taskEvaluationPolicyRuns")?.get("scene-839873-canary-1"))
+        .toMatchObject({
+          state: "blocked",
+          phase: "pre_provider_blocked",
+          preprovider_blocked: { payload_digest: body.payload_digest },
+          notification_delivery: { status: "accepted", attempts: 1 },
+        });
+      const replay = await postSigned(socketPath, body);
+      expect(replay.status).toBe(200);
+      expect(replay.body).toMatchObject({ already_exists: true });
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+
+      const conflict = structuredClone(body);
+      conflict.blockers = ["different_preprovider_fact"];
+      conflict.payload_digest = canonicalArtifactDigest(conflict, "payload_digest");
+      expect((await postSigned(socketPath, conflict)).status).toBe(409);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("refuses a signed canary blocker whose policy run belongs to another team", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    const body = policyCanaryPreproviderBlocked();
+    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
+      owner_user_id: "buyer-1",
+      organization_id: "team-1",
+      organization_binding_status: "firebase_tenant_verified",
+      request: { intake_id: body.intake_id },
+    }]]));
+    state.collections.set("taskEvaluationPolicyRuns", new Map([["scene-839873-canary-1", {
+      run_id: "scene-839873-canary-1",
+      run_kind: "internal_policy_canary",
+      request_digest: body.request_digest,
+      owner_user_id: "buyer-2",
+      team_namespace: "team-2",
+      state: "preparing",
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postSigned(socketPath, body);
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe("Policy canary owner or team binding mismatch");
+      expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+      expect(state.sendEmail).not.toHaveBeenCalled();
     } finally {
       await stopServer(server, socketPath);
     }
