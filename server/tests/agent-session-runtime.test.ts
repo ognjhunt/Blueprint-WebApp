@@ -19,6 +19,19 @@ const runOpenAIResponsesTask = vi.hoisted(() =>
     artifacts: {
       openai_response_id: "resp_123",
     },
+    continuation_state: {
+      openai_replay_input: [
+        {
+          role: "developer",
+          content: [{
+            type: "input_text",
+            text: "stable contract",
+            prompt_cache_breakpoint: { mode: "explicit" },
+          }],
+        },
+        { role: "user", content: "first message" },
+      ],
+    },
     requires_human_review: false,
     requires_approval: false,
   }),
@@ -254,6 +267,8 @@ describe("agent session runtime", () => {
       sessionId: session.id,
       task: {
         kind: "operator_thread",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         input: {
           message: "Follow up after the current run.",
         },
@@ -438,11 +453,39 @@ describe("agent session runtime", () => {
       sessionId: session.id,
       task: {
         kind: "operator_thread",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         input: {
           message: "Summarize the bounded work.",
         },
       },
     });
+    expect(runOpenAIResponsesTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          expected_prompt_cache_reuse_count: 1,
+          expected_prompt_cache_reuse_probability: 0.5,
+        }),
+      }),
+    );
+    await sendAgentSessionMessage({
+      sessionId: session.id,
+      task: {
+        kind: "operator_thread",
+        provider: "openai_responses",
+        runtime: "openai_responses",
+        input: { message: "Continue with retained context." },
+      },
+    });
+    expect(runOpenAIResponsesTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          openai_replay_input: expect.any(Array),
+          expected_prompt_cache_reuse_count: 1,
+          expected_prompt_cache_reuse_probability: 0.5,
+        }),
+      }),
+    );
 
     const events = await listRuntimeEventsForSession(session.id);
     const checkpoints = await listCheckpointsForSession(session.id);

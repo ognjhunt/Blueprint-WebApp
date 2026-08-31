@@ -223,6 +223,49 @@ type KnowledgePageRecommendation = {
   reason: string;
 };
 
+type CacheEfficiencyResponse = {
+  ok: boolean;
+  source: {
+    collection: string;
+    project_id: string;
+    since_iso: string;
+    records_scanned: number;
+    official_openai_billing: boolean;
+  };
+  totals: {
+    calls: number;
+    prompt_tokens: number;
+    cached_tokens: number;
+    cache_write_tokens: number;
+    cache_hit_ratio: number;
+    write_to_read_ratio: number | null;
+    cache_families: number;
+    cache_families_with_writes_without_reads: number;
+    cost_estimate_usd: number;
+    estimated_cost_without_caching_usd: number;
+    estimated_savings_usd: number;
+  };
+  rows: Array<{
+    task_kind: string;
+    model: string;
+    cache_family: string;
+    prompt_contract_version: string;
+    cache_decision: string;
+    calls: number;
+    input_tokens: number;
+    cached_tokens: number;
+    cache_write_tokens: number;
+    cache_hit_ratio: number;
+    cache_write_cost_usd: number;
+    estimated_savings_usd: number;
+  }>;
+  signals: Array<{
+    signal: string;
+    runs: number;
+    recommendation: string;
+  }>;
+};
+
 export default function AdminAgentConsole() {
   const queryClient = useQueryClient();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -276,6 +319,22 @@ export default function AdminAgentConsole() {
       if (!response.ok) throw new Error("Failed to fetch agent sessions");
       return response.json();
     },
+  });
+
+  const cacheEfficiencyQuery = useQuery<CacheEfficiencyResponse>({
+    queryKey: ["admin-agent-cache-efficiency"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/agent/cache-efficiency?hours=24&limit=500", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch cache efficiency telemetry");
+      const payload = await response.json();
+      if (!payload?.totals || !Array.isArray(payload.rows) || !Array.isArray(payload.signals)) {
+        throw new Error("Invalid cache efficiency telemetry response");
+      }
+      return payload;
+    },
+    refetchInterval: 60_000,
   });
 
   const activeSessionId =
@@ -1112,6 +1171,111 @@ export default function AdminAgentConsole() {
           <p className="runway-num mt-2 text-3xl font-semibold text-runway-red">{sessionStats.failed}</p>
         </div>
       </div>
+
+      <section className="runway-panel p-5" aria-labelledby="cache-efficiency-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="runway-eyebrow-muted">OpenAI cost control</p>
+            <h2
+              id="cache-efficiency-title"
+              className="mt-1 font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text"
+            >
+              GPT-5.6 cache efficiency
+            </h2>
+            <p className="mt-1 text-sm text-runway-mute">
+              Application usage estimates only. Official billing remains in OpenAI Platform.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="runway-button-secondary"
+            onClick={() => cacheEfficiencyQuery.refetch()}
+            disabled={cacheEfficiencyQuery.isFetching}
+          >
+            {cacheEfficiencyQuery.isFetching ? "Refreshing…" : "Refresh telemetry"}
+          </button>
+        </div>
+
+        {cacheEfficiencyQuery.isError ? (
+          <p className="mt-4 text-sm text-runway-red">Cache telemetry is unavailable.</p>
+        ) : cacheEfficiencyQuery.data ? (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["Calls", cacheEfficiencyQuery.data.totals.calls.toLocaleString()],
+                ["Cache writes", cacheEfficiencyQuery.data.totals.cache_write_tokens.toLocaleString()],
+                ["Cache reads", cacheEfficiencyQuery.data.totals.cached_tokens.toLocaleString()],
+                ["Hit ratio", `${(cacheEfficiencyQuery.data.totals.cache_hit_ratio * 100).toFixed(1)}%`],
+                [
+                  "Estimated savings",
+                  `$${cacheEfficiencyQuery.data.totals.estimated_savings_usd.toFixed(4)}`,
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="border border-runway-line bg-runway-black p-3">
+                  <p className="runway-meta">{label}</p>
+                  <p className="runway-num mt-2 text-xl text-runway-text">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="text-runway-faint">
+                  <tr className="border-b border-runway-line">
+                    <th className="py-2 pr-3">Family</th>
+                    <th className="py-2 pr-3">Model</th>
+                    <th className="py-2 pr-3">Decision</th>
+                    <th className="py-2 pr-3">Writes</th>
+                    <th className="py-2 pr-3">Reads</th>
+                    <th className="py-2 pr-3">Hit ratio</th>
+                    <th className="py-2">Savings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cacheEfficiencyQuery.data.rows.slice(0, 8).map((row) => (
+                    <tr
+                      key={`${row.model}:${row.cache_family}:${row.prompt_contract_version}`}
+                      className="border-b border-runway-line/60 text-runway-body"
+                    >
+                      <td className="py-2 pr-3">
+                        <span className="text-runway-text">{row.cache_family}</span>
+                        <span className="block text-xs text-runway-faint">
+                          {row.prompt_contract_version}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3">{row.model}</td>
+                      <td className="py-2 pr-3">{row.cache_decision}</td>
+                      <td className="py-2 pr-3">{row.cache_write_tokens.toLocaleString()}</td>
+                      <td className="py-2 pr-3">{row.cached_tokens.toLocaleString()}</td>
+                      <td className="py-2 pr-3">{(row.cache_hit_ratio * 100).toFixed(1)}%</td>
+                      <td className="py-2">${row.estimated_savings_usd.toFixed(4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {cacheEfficiencyQuery.data.signals.length > 0 ? (
+              <div className="mt-4 border border-runway-signal/40 bg-runway-signal/5 p-3">
+                <p className="runway-meta text-runway-signal">Waste signals</p>
+                <ul className="mt-2 space-y-1 text-sm text-runway-body">
+                  {cacheEfficiencyQuery.data.signals.slice(0, 6).map((signal) => (
+                    <li key={signal.signal}>
+                      <span className="font-medium text-runway-text">{signal.signal}</span>
+                      {` · ${signal.runs} run${signal.runs === 1 ? "" : "s"} · ${signal.recommendation}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <p className="mt-3 text-xs text-runway-faint">
+              Source: {cacheEfficiencyQuery.data.source.collection} · {cacheEfficiencyQuery.data.source.records_scanned} records · since {formatTimestamp(cacheEfficiencyQuery.data.source.since_iso)} · no raw prompts or user content projected.
+            </p>
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-runway-faint">Loading cache telemetry…</p>
+        )}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
