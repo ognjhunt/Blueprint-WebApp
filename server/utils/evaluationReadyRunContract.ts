@@ -470,6 +470,7 @@ export const EVALUATION_READY_RUN_STATES = [
   "abstained",
   "blocked",
   "failed",
+  "cancelled",
 ] as const;
 
 export const evaluationReadyRunStatusProjectionSchema = z.object({
@@ -590,7 +591,8 @@ export type EvaluationReadyRunRecord = {
 const SAFE_RESULT_RECORD_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/;
 
 export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
-  const terminal = ["results_ready", "abstained", "blocked", "failed"].includes(record.state);
+  const internalPolicyCanary = record.run_kind === "internal_policy_canary";
+  const terminal = ["results_ready", "abstained", "blocked", "failed", "cancelled"].includes(record.state);
   const resultRecordId = typeof record.result_record_id === "string"
     && SAFE_RESULT_RECORD_ID.test(record.result_record_id)
     ? record.result_record_id
@@ -599,7 +601,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
   const policyRunResult = taskEvaluationPolicyRunResultProjectionSchema.safeParse(
     record.policy_run_result,
   );
-  return {
+  const projection = {
     schema_version: "task_evaluation_policy_run_projection.v1" as const,
     run_id: record.run_id,
     source_launch_id: record.source_launch_id,
@@ -638,6 +640,60 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
       simulation_is_physical_success: false,
       deployment_or_safety_approved: false,
       cross_team_leaderboard_authorized: false,
+    },
+  };
+  if (!internalPolicyCanary) return projection;
+  return {
+    ...projection,
+    run_kind: "internal_policy_canary" as const,
+    claim_ceiling: "diagnostic_policy_execution" as const,
+    result_status: record.result_status === "completed_unqualified"
+      || record.result_status === "blocked"
+      || record.result_status === "cancelled"
+      ? record.result_status
+      : null,
+    scene_controls_status: "configured_controls_pending" as const,
+    stage: typeof record.stage === "string" ? record.stage : "queued",
+    request_digest: typeof record.request_digest === "string"
+      ? record.request_digest
+      : record.configuration_digest,
+    setup_digest: typeof record.setup_digest === "string" ? record.setup_digest : null,
+    scene_revision_digest: typeof record.scene_revision_digest === "string"
+      ? record.scene_revision_digest
+      : null,
+    robot_preset_id: typeof record.robot_preset_id === "string"
+      ? record.robot_preset_id
+      : null,
+    policy_candidate_ids: Array.isArray(record.policy_candidate_ids)
+      ? record.policy_candidate_ids.filter((value): value is string => typeof value === "string").slice(0, 2)
+      : [],
+    episode_plan: record.episode_plan && typeof record.episode_plan === "object"
+      ? record.episode_plan
+      : null,
+    completed_learned_episode_count: Number.isInteger(record.completed_learned_episode_count)
+      ? Math.max(0, Number(record.completed_learned_episode_count))
+      : record.progress?.completed_episodes || 0,
+    expected_learned_episode_count: 20 as const,
+    completed_control_episode_count: Number.isInteger(record.completed_control_episode_count)
+      ? Math.max(0, Number(record.completed_control_episode_count))
+      : 0,
+    policy_run_result_projection:
+      record.policy_run_result_projection && typeof record.policy_run_result_projection === "object"
+        ? record.policy_run_result_projection
+        : null,
+    notification_delivery:
+      record.notification_delivery && typeof record.notification_delivery === "object"
+        ? record.notification_delivery
+        : null,
+    warning: "Controls pending — results are unqualified." as const,
+    proof_boundary: {
+      simulation_is_physical_success: false as const,
+      deployment_or_safety_approved: false as const,
+      cross_team_leaderboard_authorized: false as const,
+      controls_qualification_bypassed: false as const,
+      result_is_unqualified: true as const,
+      official_ranking_permitted: false as const,
+      scene_promotion_permitted: false as const,
     },
   };
 }

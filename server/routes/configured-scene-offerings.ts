@@ -12,6 +12,13 @@ import {
 import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
 import { withTaskEvaluationLaunchStoreTimeout } from "../utils/taskEvaluationLaunchStore";
 import {
+  buildInternalPolicyCanaryLaunchRequest,
+  internalPolicyCanarySelectionSchema,
+  policyCanaryError,
+  resolveInternalPolicyCanarySelection,
+  type InternalPolicyCanarySetup,
+} from "../utils/internalPolicyCanaryContract";
+import {
   CANONICAL_POLICY_CANDIDATE_IDS,
   FRANKA_DROID_EMBODIMENT_ID,
   buildResolvedPolicyRunConfiguration,
@@ -22,7 +29,10 @@ import {
   type EvaluationReadyPolicyRunSetup,
   type EvaluationReadyRunRecord,
 } from "../utils/evaluationReadyRunContract";
-import { resolvePublishedLaunchProfileCatalog } from "../utils/taskEvaluationLaunchContract";
+import {
+  forwardTaskEvaluationLaunch,
+  resolvePublishedLaunchProfileCatalog,
+} from "../utils/taskEvaluationLaunchContract";
 import {
   buildPolicyRunLaunchPreparation,
   forwardTaskEvaluationLaunchPreparation,
@@ -99,6 +109,44 @@ async function policyRunSetupFor(
     ok: true as const,
     profile: matches[0],
     setup: matches[0].policy_run_setup as EvaluationReadyPolicyRunSetup,
+  };
+}
+
+async function policyCanarySetupFor(
+  sourceLaunchId: string,
+  offering: ConfiguredSceneOffering,
+) {
+  const catalog = await resolvePublishedLaunchProfileCatalog();
+  if (catalog.blocker) return {
+    ok: false as const,
+    status: 503,
+    code: catalog.blocker,
+  };
+  const matches = catalog.profiles.filter((profile) => {
+    const setup = profile.internal_policy_canary_setup;
+    return Boolean(
+      profile.source_commit
+      && setup
+      && setup.source_launch_id === sourceLaunchId
+      && setup.offering_digest === offering.offering_digest
+      && setup.scene_revision_digest
+        === offering.evaluation_preparation_binding.configured_scene_revision_digest
+      && profile.task_evaluation_run?.team_namespace === offering.team_namespace
+      && profile.task_evaluation_run.scene_id === offering.scene_identity.id
+      && profile.task_evaluation_run.configuration_run_id === offering.configuration_run_id,
+    );
+  });
+  if (matches.length !== 1) return {
+    ok: false as const,
+    status: matches.length === 0 ? 409 : 503,
+    code: matches.length === 0
+      ? "POLICY_CANARY_SETUP_NOT_PUBLISHED"
+      : "POLICY_CANARY_SETUP_AMBIGUOUS",
+  };
+  return {
+    ok: true as const,
+    profile: matches[0],
+    setup: matches[0].internal_policy_canary_setup as InternalPolicyCanarySetup,
   };
 }
 
@@ -279,6 +327,248 @@ router.get("/:launchId/evaluation-setup", async (req, res) => {
     setup: setup.setup,
     recipientEmail: resolved.access.email,
   }));
+});
+
+router.get("/:launchId/policy-canary-setup", async (req, res) => {
+  let resolved;
+  try {
+    resolved = await accessibleOffering(req.params.launchId, res);
+  } catch {
+    return res.status(503).json(policyCanaryError(
+      "CONFIGURED_SCENE_STORE_UNAVAILABLE",
+      "Configured scene offering store is unavailable.",
+    ));
+  }
+  if (!resolved) return res.status(404).json(policyCanaryError(
+    "CONFIGURED_SCENE_NOT_FOUND",
+    "Configured scene offering was not found in this team scope.",
+  ));
+  if (resolved.offering.status !== "configured_controls_pending") {
+    return res.status(409).json(policyCanaryError(
+      "POLICY_CANARY_REQUIRES_CONTROLS_PENDING_SCENE",
+      "This action is for internal controls-pending canaries. Use qualified evaluation after controls pass.",
+      { offering_status: resolved.offering.status },
+    ));
+  }
+  const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering);
+  if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
+    setup.code,
+    "A verified runnable policy-canary setup is not published for this exact configured revision.",
+  ));
+  res.set("Cache-Control", "private, no-store");
+  return res.status(200).json({
+    ...setup.setup,
+    offering: {
+      scene_id: resolved.offering.scene_identity.id,
+      scene_version: resolved.offering.scene_identity.version,
+      task_id: resolved.offering.task.identity.id,
+      task_version: resolved.offering.task.identity.version,
+      task_kind: resolved.offering.task.kind,
+      task_strategy: resolved.offering.task.strategy,
+      controls_status: resolved.offering.status,
+    },
+    notification_recipient_email: resolved.access.email,
+    warning: "Controls pending — results are unqualified.",
+    proof_boundary: {
+      controls_qualification_bypassed: false,
+      result_is_unqualified: true,
+      official_ranking_permitted: false,
+      scene_promotion_permitted: false,
+    },
+  });
+});
+
+router.post("/:launchId/policy-canary-runs", async (req, res) => {
+  if (!db) return res.status(503).json(policyCanaryError(
+    "POLICY_CANARY_STORE_UNAVAILABLE",
+    "Policy canary store is unavailable.",
+  ));
+  let resolved;
+  try {
+    resolved = await accessibleOffering(req.params.launchId, res);
+  } catch {
+    return res.status(503).json(policyCanaryError(
+      "CONFIGURED_SCENE_STORE_UNAVAILABLE",
+      "Configured scene offering store is unavailable.",
+    ));
+  }
+  if (!resolved) return res.status(404).json(policyCanaryError(
+    "CONFIGURED_SCENE_NOT_FOUND",
+    "Configured scene offering was not found in this team scope.",
+  ));
+  if (resolved.offering.status !== "configured_controls_pending") {
+    return res.status(409).json(policyCanaryError(
+      "POLICY_CANARY_REQUIRES_CONTROLS_PENDING_SCENE",
+      "This action is for internal controls-pending canaries. Use qualified evaluation after controls pass.",
+      { offering_status: resolved.offering.status },
+    ));
+  }
+  const parsed = internalPolicyCanarySelectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(422).json(policyCanaryError(
+    "POLICY_CANARY_CONFIGURATION_INVALID",
+    "Policy canary configuration is invalid.",
+    {
+      violations: parsed.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    },
+  ));
+  const selection = parsed.data;
+  const idempotencyKey = String(req.header("idempotency-key") || "").trim();
+  if (!idempotencyKey || idempotencyKey !== selection.run_id) {
+    return res.status(409).json(policyCanaryError(
+      "POLICY_CANARY_IDEMPOTENCY_CONFLICT",
+      "Idempotency-Key must equal the immutable run_id.",
+    ));
+  }
+  const authenticatedEmail = String(resolved.access.email || "").trim().toLowerCase();
+  if (!authenticatedEmail || selection.notification.email.toLowerCase() !== authenticatedEmail) {
+    return res.status(422).json(policyCanaryError(
+      "NOTIFICATION_EMAIL_NOT_AUTHENTICATED_ACCOUNT",
+      "Notification email must match the authenticated internal account.",
+    ));
+  }
+  const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering);
+  if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
+    setup.code,
+    "A verified runnable policy-canary setup is not published for this exact configured revision.",
+  ));
+  const selected = resolveInternalPolicyCanarySelection(setup.setup, selection);
+  if (!selected.ok) return res.status(422).json(policyCanaryError(
+    selected.code,
+    selected.message,
+    selected.details,
+  ));
+  const now = new Date().toISOString();
+  const request = buildInternalPolicyCanaryLaunchRequest({
+    selection,
+    setup: setup.setup,
+    profile: setup.profile,
+    actor: {
+      id: resolved.access.uid || "",
+      role: resolved.access.isAdmin
+        ? "admin"
+        : resolved.access.isOps ? "ops" : "team_member",
+    },
+    teamNamespace: resolved.offering.team_namespace,
+    controlsStatusAtSubmission: "configured_controls_pending",
+    authorizedAt: now,
+  });
+  const record = {
+    schema_version: "task_evaluation_policy_run_web_record.v2",
+    run_id: selection.run_id,
+    run_kind: selection.run_kind,
+    claim_ceiling: selection.claim_ceiling,
+    source_launch_id: req.params.launchId,
+    offering_digest: selection.offering_digest,
+    setup_digest: selection.setup_digest,
+    scene_revision_digest: selection.scene_revision_digest,
+    scene_controls_status_at_submission: "configured_controls_pending",
+    owner_user_id: resolved.access.uid,
+    team_namespace: resolved.offering.team_namespace,
+    state: "queued",
+    phase: "queued",
+    request_digest: request.request_digest,
+    configuration_digest: request.request_digest,
+    robot_preset_id: selection.robot_preset_id,
+    policy_candidate_ids: selection.policy_candidate_ids,
+    episode_plan: request.episode_plan,
+    episode_counts: {
+      learned_episode_count: 20,
+      control_episode_count: 20,
+      total_episode_count: 40,
+    },
+    progress: {
+      completed_episodes: 0,
+      total_episodes: 20,
+    },
+    completed_learned_episode_count: 0,
+    completed_control_episode_count: 0,
+    notification: selection.notification,
+    notification_recipient_user_id: resolved.access.uid,
+    notification_source_event_id: request.request_digest,
+    result_record_id: null,
+    delivery_digest: null,
+    created_at_iso: now,
+    updated_at_iso: now,
+  };
+  const runRef = db.collection(POLICY_RUN_COLLECTION).doc(selection.run_id);
+  let existing: Record<string, any> | null;
+  try {
+    existing = await withTaskEvaluationLaunchStoreTimeout(
+      db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(runRef);
+        if (snapshot.exists) {
+          const prior = snapshot.data() as Record<string, any>;
+          if (
+            prior.run_kind !== selection.run_kind
+            || prior.owner_user_id !== record.owner_user_id
+            || prior.team_namespace !== record.team_namespace
+            || prior.source_launch_id !== record.source_launch_id
+            || prior.request_digest !== record.request_digest
+          ) throw new Error("policy_canary_immutable_conflict");
+          return prior;
+        }
+        transaction.create(runRef, record);
+        return null;
+      }),
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === "policy_canary_immutable_conflict") {
+      return res.status(409).json(policyCanaryError(
+        "POLICY_CANARY_IMMUTABLE_CONFLICT",
+        "This run identity is already bound to another immutable request.",
+      ));
+    }
+    return res.status(503).json(policyCanaryError(
+      "POLICY_CANARY_STORE_UNAVAILABLE",
+      "Policy canary persistence is unavailable. Check this same run ID before submitting again.",
+      { persistence_state: "unknown", retryable: true },
+    ));
+  }
+  res.set("Cache-Control", "private, no-store");
+  if (existing) return res.status(200).json({
+    schema_version: "task_evaluation_policy_canary_web_receipt.v1",
+    status: existing.state,
+    already_exists: true,
+    run: existing,
+  });
+  const forwarded = await forwardTaskEvaluationLaunch({ request });
+  const update = forwarded.status === "forwarded"
+    ? {
+        state: "queued",
+        phase: "preparing",
+        launch_forward: forwarded,
+        updated_at_iso: new Date().toISOString(),
+      }
+    : {
+        state: "blocked",
+        phase: "blocked",
+        launch_forward: forwarded,
+        error: {
+          code: forwarded.blocker || "POLICY_CANARY_FORWARD_FAILED",
+          message: "Policy canary could not be queued in Pipeline.",
+        },
+        updated_at_iso: new Date().toISOString(),
+      };
+  try {
+    await withTaskEvaluationLaunchStoreTimeout(runRef.set(update, { merge: true }));
+  } catch {
+    return res.status(503).json(policyCanaryError(
+      "POLICY_CANARY_FORWARD_RECEIPT_STORE_UNAVAILABLE",
+      "Pipeline responded, but the forwarding receipt could not be sealed.",
+      { persistence_state: "forward_receipt_unknown", retryable: true },
+    ));
+  }
+  return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
+    schema_version: "task_evaluation_policy_canary_web_receipt.v1",
+    status: update.state,
+    already_exists: false,
+    run: { ...record, ...update },
+    forward: forwarded,
+    warning: "Controls pending — results are unqualified.",
+  });
 });
 
 router.post("/:launchId/evaluation-runs", async (req, res) => {

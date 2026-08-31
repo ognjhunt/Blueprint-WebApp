@@ -97,6 +97,7 @@ const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
 const AppEvaluationRunSetup = lazyRoute(() => import("../pages/app/EvaluationRunSetup"));
+const AppPolicyCanarySetup = lazyRoute(() => import("../pages/app/PolicyCanarySetup"));
 const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/EvaluationRunProgress"));
 const AppTaskEvaluationResultDetail = lazyRoute(
   () => import("../pages/app/TaskEvaluationResultDetail"),
@@ -407,6 +408,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/:sourceLaunchId/evaluate", layout: "protected", shell: "bare", component: AppEvaluationRunSetup },
+  { path: "/app/packs/:sourceLaunchId/policy-canary", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
   { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppSiteDetail },
   { path: "/app/policies", layout: "protected", shell: "bare", component: AppPolicies },
   { path: "/app/data", layout: "protected", shell: "bare", component: AppDataPackages },

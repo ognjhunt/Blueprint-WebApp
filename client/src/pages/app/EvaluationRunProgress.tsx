@@ -8,6 +8,7 @@ import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
+import type { PolicyCanaryRunProjection } from "@/lib/policyCanaryRuns";
 
 const stateOrder = ["queued_for_preparation", "preparing", "ready_to_activate", "queued", "running", "aggregating", "results_ready"];
 const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed"]);
@@ -46,6 +47,31 @@ function RunTimeline({ state }: { state: string }) {
       })}
     </ol>
   );
+}
+
+const canaryStages = [
+  "queued", "preparing", "provider_allocating", "runtime_starting",
+  "policy_a_running", "policy_b_running", "artifacts_syncing",
+  "report_generating", "billing_teardown", "terminal",
+];
+
+function PolicyCanaryTimeline({ stage }: { stage: string }) {
+  const activeIndex = Math.max(0, canaryStages.indexOf(stage));
+  return <ol className="grid gap-2 sm:grid-cols-5 lg:grid-cols-10" aria-label="Policy canary progress">
+    {canaryStages.map((item, index) => <li key={item} className={`border-t-2 pt-2 ${index < activeIndex ? "border-proof-bd" : index === activeIndex ? "border-runway-signal" : "border-line"}`}><span className="text-[0.68rem] font-semibold text-ink-600">{friendlyState(item)}</span></li>)}
+  </ol>;
+}
+
+function PolicyCanarySummary({ run }: { run: PolicyCanaryRunProjection }) {
+  return <section className="runway-panel p-5" aria-labelledby="canary-summary-title">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Diagnostic policy execution</p><h2 id="canary-summary-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Unqualified canary status</h2></div><StatusChip tone={run.state === "results_ready" ? "warn" : run.error ? "block" : "neutral"} square>{run.result_status ? friendlyState(run.result_status) : friendlyState(run.state)}</StatusChip></div>
+    <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-3">
+      <div className="bg-paper-0 p-4"><p className="runway-meta">Learned-policy episodes</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{run.completed_learned_episode_count}/{run.expected_learned_episode_count}</p></div>
+      <div className="bg-paper-0 p-4"><p className="runway-meta">Diagnostic controls</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{run.completed_control_episode_count}/{run.episode_counts?.control_episode_count || 20}</p><p className="text-caption text-ink-500">Reported separately; nonblocking</p></div>
+      <div className="bg-paper-0 p-4"><p className="runway-meta">Notification</p><p className="mt-2 text-body-s font-semibold text-ink-900">{String(run.notification_delivery?.status || "Pending")}</p></div>
+    </div>
+    <p className="mt-4 text-body-s text-ink-500">No winner is declared. Controls-pending or uninterpretable outcomes cannot contribute to official policy ranking, selection, or evaluation readiness.</p>
+  </section>;
 }
 
 function TerminalSummary({ run }: { run: EvaluationReadyRunProjection }) {
@@ -96,7 +122,7 @@ export default function EvaluationRunProgress() {
   const { runId = "" } = useParams<{ runId?: string }>();
   const decodedRunId = decodeURIComponent(runId);
   const { currentUser } = useAuth();
-  const [run, setRun] = useState<EvaluationReadyRunProjection | null>(null);
+  const [run, setRun] = useState<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,6 +146,10 @@ export default function EvaluationRunProgress() {
   }, [currentUser, decodedRunId]);
 
   const progress = run?.progress;
+  const canaryRun = run && "run_kind" in run && run.run_kind === "internal_policy_canary"
+    ? run as PolicyCanaryRunProjection
+    : null;
+  const internalCanary = Boolean(canaryRun);
   const percent = progress?.total_episodes ? Math.round((progress.completed_episodes / progress.total_episodes) * 100) : 0;
   return (
     <AppShell active="runs" breadcrumb={`runs / ${decodedRunId || "evaluation"}`}>
@@ -130,19 +160,19 @@ export default function EvaluationRunProgress() {
         {error ? <BuyerAppErrorState message={error} /> : null}
         {run ? <>
           <header className="border-b border-line pb-5">
-            <div className="flex flex-wrap items-center gap-3"><h1 className="font-display text-[1.65rem] font-semibold uppercase text-ink-900">Policy evaluation</h1><StatusChip tone={run.state === "results_ready" ? "proof" : run.error ? "block" : "warn"} square>{friendlyState(run.state)}</StatusChip></div>
+            <div className="flex flex-wrap items-center gap-3"><h1 className="font-display text-[1.65rem] font-semibold uppercase text-ink-900">{internalCanary ? "Policy canary" : "Policy evaluation"}</h1><StatusChip tone={internalCanary ? "warn" : run.state === "results_ready" ? "proof" : run.error ? "block" : "warn"} square>{friendlyState(run.state)}</StatusChip></div>
             <p className="runway-num mt-2 text-caption text-ink-400">{run.run_id}</p>
           </header>
-          <RunTimeline state={run.state} />
+          {canaryRun ? <><ProofBoundary level="warn" title="Controls pending — results are unqualified" icon={ShieldAlert}>This canary remains diagnostic even when every episode succeeds. It cannot change the scene to evaluation ready.</ProofBoundary><PolicyCanaryTimeline stage={canaryRun.stage} /></> : <RunTimeline state={run.state} />}
           <Card pad="md">
             <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{run.phase || friendlyState(run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
             {progress ? <><div className="mt-4 h-2 overflow-hidden bg-inset" aria-label={`${progress.completed_episodes} of ${progress.total_episodes} episodes complete`}><div className="h-full bg-runway-signal transition-[width]" style={{ width: `${percent}%` }} /></div><p className="runway-num mt-2 text-caption text-ink-500">{progress.completed_episodes} / {progress.total_episodes} episodes</p></> : null}
             {run.episode_counts ? <p className="mt-2 text-caption text-ink-400">{run.episode_counts.learned_episode_count} learned-policy episodes · {run.episode_counts.control_episode_count} control episodes</p> : null}
           </Card>
           {run.error ? <ProofBoundary level="block" title={run.error.code} icon={ShieldAlert}>{run.error.message}</ProofBoundary> : null}
-          <TerminalSummary run={run} />
+          {canaryRun ? <PolicyCanarySummary run={canaryRun} /> : <TerminalSummary run={run as EvaluationReadyRunProjection} />}
           {run.result ? <Button asChild variant="action" className="w-fit"><Link href={run.result.href}>Open complete results <ArrowRight aria-hidden="true" /></Link></Button> : null}
-          <ProofBoundary level="info" title="Private team delivery" icon={Bell}>We email the verified account when the digest-bound results record is ready. Access remains scoped to the authenticated team; simulation results are not physical success, deployment approval, or safety approval.</ProofBoundary>
+          <ProofBoundary level="info" title="Private team delivery" icon={Bell}>We email the verified account when the digest-bound result is ready, blocked, or cancelled. Access remains scoped to the authenticated team; simulation results are not physical success, deployment approval, or safety approval.</ProofBoundary>
         </> : null}
       </div>
     </AppShell>

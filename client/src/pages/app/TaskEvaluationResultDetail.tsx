@@ -91,6 +91,11 @@ function EpisodeCard({
   recordId: string;
 }) {
   const succeeded = episode.score.task_succeeded === true;
+  const videos: Record<string, TaskEvaluationResultArtifact> = episode.artifacts?.videos
+    || episode.evidence?.videos
+    || {};
+  const receipt = episode.artifacts?.receipt || episode.action_delivery?.delivery_readback || null;
+  const frameManifest = episode.artifacts?.frame_manifest || episode.evidence?.frame_manifest || null;
   return (
     <section className="runway-panel flex flex-col gap-4 p-4" aria-labelledby={`episode-${episode.episode_id}`}>
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
@@ -104,13 +109,14 @@ function EpisodeCard({
         </StatusChip>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
-        <ProtectedVideo user={user} recordId={recordId} label="External camera" artifact={episode.artifacts.videos.external} />
-        <ProtectedVideo user={user} recordId={recordId} label="Wrist camera" artifact={episode.artifacts.videos.wrist} />
-        <ProtectedVideo user={user} recordId={recordId} label="Overview" artifact={episode.artifacts.videos.overview} reviewOnly />
+        {Object.entries(videos).map(([camera, artifact]) => <ProtectedVideo key={camera} user={user} recordId={recordId} label={camera.replaceAll("_", " ")} artifact={artifact} reviewOnly={camera === "overview" || camera === "review"} />)}
       </div>
+      {episode.action_delivery ? <dl className="grid gap-px border border-line bg-line sm:grid-cols-4"><div className="bg-paper-0 p-3"><dt className="runway-meta">Policy queried</dt><dd className="mt-1 text-body-s font-semibold">{episode.policy_candidate_id ? "Yes" : "Control"}</dd></div><div className="bg-paper-0 p-3"><dt className="runway-meta">Actions reached robot</dt><dd className="mt-1 text-body-s font-semibold">{episode.action_delivery.actions_reached_robot ? "Yes" : "No"}</dd></div><div className="bg-paper-0 p-3"><dt className="runway-meta">Arm moved</dt><dd className="mt-1 text-body-s font-semibold">{episode.action_delivery.arm_moved ? "Yes" : "No"}</dd></div><div className="bg-paper-0 p-3"><dt className="runway-meta">Interpretability</dt><dd className="mt-1 text-body-s font-semibold">{episode.score.policy_outcome_interpretable === false ? "Uninterpretable" : "Interpretable"}</dd></div></dl> : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, episode.artifacts.receipt)}>Episode receipt</Button>
-        <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, episode.artifacts.frame_manifest)}>Frame manifest</Button>
+        {receipt ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, receipt)}>Episode receipt</Button> : null}
+        {frameManifest ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, frameManifest)}>Frame manifest</Button> : null}
+        {episode.action_delivery?.returned_action_sequence ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, episode.action_delivery!.returned_action_sequence!)}>Actions</Button> : null}
+        {episode.traces?.state ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, episode.traces!.state!)}>State trace</Button> : null}
       </div>
       <p className="text-body-s text-ink-500">Score authority: {episode.score.grader_authority.replace(/_/g, " ")}. The videos are derived review media; the digest-bound receipt and exact retained frames carry the evidence claim.</p>
     </section>
@@ -120,20 +126,22 @@ function EpisodeCard({
 function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser }) {
   const delivery = result.publication.result_delivery;
   const envelope = result.publication.decision_envelope;
+  const canary = result.publication.run_kind === "internal_policy_canary";
+  const canaryResult = result.publication.policy_canary_result;
   const packages = delivery?.artifacts.filter((artifact) => artifact.content_type === "application/zip") || [];
   return (
     <>
       <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
         <div>
-          <Eyebrow tone="brass" rule>Sealed Task Evaluation Result</Eyebrow>
-          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{envelope.decision_question || result.publication.run_id}</h1>
+          <Eyebrow tone="brass" rule>{canary ? "Internal policy canary" : "Sealed Task Evaluation Result"}</Eyebrow>
+          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{canary ? `${result.publication.scene?.id || "Scene"} · ${result.publication.task?.label || "Policy canary"}` : envelope?.decision_question || result.publication.run_id}</h1>
           <p className="runway-num mt-2 text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
         </div>
         <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadJson(result)}>Exact result JSON</Button>
       </header>
 
-      <ProofBoundary level="warn" title="Bounded evidence, not a leaderboard" icon={ShieldAlert}>
-        This result belongs to {result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
+      <ProofBoundary level="warn" title={canary ? "Unqualified policy canary — controls pending" : "Bounded evidence, not a leaderboard"} icon={ShieldAlert}>
+        {canary ? "Controls pending — results are unqualified. This diagnostic history cannot declare a winner, contribute to official ranking, or promote the scene to evaluation ready. " : ""}This result belongs to {result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
       </ProofBoundary>
 
       {!delivery ? <ProofBoundary level="info" title="Legacy result record">The decision is sealed, but this older publication predates automatic media packaging.</ProofBoundary> : null}
@@ -167,6 +175,8 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
 
           <EvaluationResultOverview episodes={delivery.episodes} />
 
+          {canary && canaryResult ? <section className="runway-panel overflow-x-auto p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Policy comparison</p><h2 className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Diagnostic metrics</h2></div><StatusChip tone="warn" square>No winner declaration</StatusChip></div><table className="mt-4 w-full min-w-[50rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Progress</th><th className="runway-meta px-3 py-2">Destination error</th><th className="runway-meta px-3 py-2">Contact</th><th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Interpretable</th></tr></thead><tbody>{(canaryResult.candidate_results || []).map((candidate: Record<string, any>) => <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{candidate.display_name}</td><td className="runway-num px-3 py-3">{candidate.success_rate == null ? "—" : `${Math.round(candidate.success_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{candidate.progress_score ?? "—"}</td><td className="runway-num px-3 py-3">{candidate.mean_destination_error ?? "—"}</td><td className="runway-num px-3 py-3">{candidate.contact_maintenance_rate == null ? "—" : `${Math.round(candidate.contact_maintenance_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{candidate.collision_rate == null ? "—" : `${Math.round(candidate.collision_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{Math.round(Number(candidate.action_delivery_rate || 0) * 100)}%</td><td className="runway-num px-3 py-3">{candidate.interpretable_episode_count}/{candidate.episodes_completed}</td></tr>)}</tbody></table></section> : null}
+
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2"><Eye className="size-4 text-ink-500" /><h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Episode review</h2></div>
             {delivery.episodes.map((episode) => <EpisodeCard key={episode.episode_id} episode={episode} user={user} recordId={result.record_id} />)}
@@ -176,9 +186,9 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
             <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Evidence downloads</h2>
             <p className="mt-1 text-body-s text-ink-500">The review pack is convenient for people. The full package also includes exact lossless policy inputs and camera frames and may be large.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {packages.map((artifact) => (
+              {(canary ? delivery.artifacts : packages).map((artifact) => (
                 <Button key={artifact.artifact_id} type="button" variant={artifact.role === "full_evidence_package" ? "action" : "secondary"} iconLeft={<Download />} onClick={() => void downloadArtifact(user, result.record_id, artifact)}>
-                  {artifact.role === "full_evidence_package" ? "Full evidence ZIP" : "Review ZIP"} · {humanBytes(artifact.size_bytes)}
+                  {artifact.role.replaceAll("_", " ")} · {humanBytes(artifact.size_bytes)}
                 </Button>
               ))}
             </div>

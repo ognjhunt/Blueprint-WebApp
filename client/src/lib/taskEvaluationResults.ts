@@ -19,11 +19,20 @@ export type TaskEvaluationResultEpisode = {
   episode_id: string;
   episode_kind: "control" | "learned_candidate";
   subject_id: string;
+  policy_candidate_id?: string | null;
+  policy_checkpoint_digest?: string | null;
+  robot_preset_id?: string;
+  runtime_identity?: string;
   score: {
     status: string;
     outcome?: unknown;
     task_succeeded?: boolean | null;
     grader_authority: string;
+    progress_score?: number | null;
+    destination_error?: number | null;
+    contact_maintenance_rate?: number | null;
+    collision?: boolean | null;
+    policy_outcome_interpretable?: boolean;
   };
   variation?: {
     cell_id: string;
@@ -48,8 +57,24 @@ export type TaskEvaluationResultEpisode = {
     frame_manifest_digest?: string;
     review_video_digest?: string;
     deterministic_non_policy_grader?: boolean;
+    lossless_policy_inputs?: TaskEvaluationResultArtifact | null;
+    frame_manifest?: TaskEvaluationResultArtifact | null;
+    videos?: Record<string, TaskEvaluationResultArtifact>;
+    typed_media_gap?: { code: string; explanation: string } | null;
   };
-  artifacts: {
+  action_delivery?: {
+    actions_reached_robot: boolean;
+    arm_moved: boolean;
+    returned_action_sequence?: TaskEvaluationResultArtifact | null;
+    delivery_readback?: TaskEvaluationResultArtifact | null;
+    harness_failure_code?: string | null;
+  };
+  traces?: {
+    state?: TaskEvaluationResultArtifact | null;
+    contact_force?: TaskEvaluationResultArtifact | null;
+    task_object_trajectory?: TaskEvaluationResultArtifact | null;
+  };
+  artifacts?: {
     receipt: TaskEvaluationResultArtifact;
     frame_manifest: TaskEvaluationResultArtifact;
     videos: Record<"external" | "wrist" | "overview", TaskEvaluationResultArtifact>;
@@ -57,12 +82,14 @@ export type TaskEvaluationResultEpisode = {
 };
 
 export type TaskEvaluationResultDelivery = {
-  schema_version: "task_evaluation_result_delivery.v1";
+  schema_version: "task_evaluation_result_delivery.v1" | "task_evaluation_result_delivery.v2";
   run_id: string;
-  state: "decided" | "partially_decided" | "abstained";
+  state?: "decided" | "partially_decided" | "abstained";
+  result_status?: "completed_unqualified" | "blocked" | "cancelled";
   status: "ready" | "blocked";
-  claim_class: "development_only" | "evaluation";
-  decision_envelope_digest: string;
+  claim_class?: "development_only" | "evaluation";
+  claim_ceiling?: "diagnostic_policy_execution";
+  decision_envelope_digest?: string;
   episode_evidence_index_digest?: string;
   stages: Array<{
     stage: "validate" | "seal" | "project" | "package" | "publish";
@@ -74,6 +101,7 @@ export type TaskEvaluationResultDelivery = {
     learned_candidate_episode_count: number;
     control_episode_count: number;
     successful_episode_count: number;
+    interpretable_episode_count?: number;
   };
   episodes: TaskEvaluationResultEpisode[];
   artifacts: TaskEvaluationResultArtifact[];
@@ -93,11 +121,24 @@ export type TaskEvaluationResultSiteRecord = {
   created_at_iso?: string;
   updated_at_iso?: string;
   publication: {
-    schema_version: "task_evaluation_run_publication.v1" | "task_evaluation_run_publication.v2";
+    schema_version: "task_evaluation_run_publication.v1" | "task_evaluation_run_publication.v2" | "task_evaluation_run_publication.v3" | "task_evaluation_run_publication.v4";
     run_id: string;
-    state: "decided" | "partially_decided" | "abstained";
-    testbed_digest: string;
-    decision_envelope: Record<string, any> & {
+    state?: "decided" | "partially_decided" | "abstained";
+    testbed_digest?: string;
+    run_kind?: "internal_policy_canary";
+    claim_ceiling?: "diagnostic_policy_execution";
+    result_status?: "completed_unqualified" | "blocked" | "cancelled";
+    scene_controls_status?: "configured_controls_pending";
+    warning?: string;
+    source_launch_id?: string;
+    offering_digest?: string;
+    request_digest?: string;
+    configuration_digest?: string;
+    scene?: { id: string; revision_digest: string };
+    task?: { id: string; label: string };
+    robot?: { preset_id: string; display_name: string };
+    policy_candidates?: Array<{ candidate_id: string; display_name: string; checkpoint_digest: string }>;
+    decision_envelope?: Record<string, any> & {
       decision_question: string;
       decision_envelope_digest: string;
       overall_outcome: "decision" | "partial_decision" | "abstention";
@@ -106,6 +147,7 @@ export type TaskEvaluationResultSiteRecord = {
       next_cheapest_experiment: string;
     };
     result_delivery?: TaskEvaluationResultDelivery;
+    policy_canary_result?: Record<string, any>;
     proof_boundary: Record<string, unknown>;
   };
 };
