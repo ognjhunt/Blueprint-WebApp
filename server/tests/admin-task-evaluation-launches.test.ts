@@ -1169,6 +1169,17 @@ describe("admin Task Evaluation launch route", () => {
     const own = configuredSceneOffering();
     const other = configuredSceneOffering();
     const pending = pausedUngradedConfiguredSceneOffering();
+    const correctedPending = structuredClone(pending);
+    correctedPending.configuration_run_id = "scene-run-002";
+    correctedPending.evaluation_preparation_binding.configured_scene_revision =
+      immutableRef("configured/revision-corrected", "1");
+    correctedPending.evaluation_preparation_binding.configured_scene_revision_digest = sha("2");
+    correctedPending.evaluation_preparation_binding.configured_scene_bundle =
+      immutableRef("configured/bundle-corrected", "3");
+    correctedPending.offering_digest = canonicalArtifactDigest(
+      correctedPending,
+      "offering_digest",
+    );
     other.team_namespace = "other-team";
     other.offering_digest = canonicalArtifactDigest(other, "offering_digest");
     state.records.set("own-launch", {
@@ -1188,18 +1199,27 @@ describe("admin Task Evaluation launch route", () => {
       configured_scene_offering_team_namespace: pending.team_namespace,
       configured_scene_offering_digest: pending.offering_digest,
       configured_scene_offering: pending,
+      terminal_updated_at_iso: "2026-08-30T12:00:00.000Z",
+    });
+    state.records.set("pending-launch-corrected", {
+      configured_scene_offering_state: "configured_controls_pending",
+      configured_scene_offering_team_namespace: correctedPending.team_namespace,
+      configured_scene_offering_digest: correctedPending.offering_digest,
+      configured_scene_offering: correctedPending,
+      terminal_updated_at_iso: "2026-08-31T12:00:00.000Z",
     });
     state.blobs.set("blueprint-inputs/configured/task-thumbnail.png", Buffer.from("exact-selected-frame"));
     const { server, url } = await startTeamOfferingServer();
     try {
       const response = await fetch(url);
       expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toMatchObject({
+      const catalogBody = await response.json() as any;
+      expect(catalogBody).toMatchObject({
         scope: "verified_team",
         offerings: [
           { source_launch_id: "own-launch", team_namespace: "robot-team-001" },
           {
-            source_launch_id: "pending-launch",
+            source_launch_id: "pending-launch-corrected",
             team_namespace: "robot-team-001",
             status: "configured_controls_pending",
             presentation: {
@@ -1216,6 +1236,10 @@ describe("admin Task Evaluation launch route", () => {
           },
         ],
       });
+      expect(catalogBody.offerings.map((row: any) => row.source_launch_id)).toEqual([
+        "own-launch",
+        "pending-launch-corrected",
+      ]);
       const denied = await fetch(`${url}/other-launch/thumbnail`);
       expect(denied.status).toBe(404);
       const thumbnail = await fetch(`${url}/own-launch/thumbnail`);
