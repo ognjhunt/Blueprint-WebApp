@@ -54,7 +54,11 @@ export const publishedLaunchProfileSchema = z.object({
       message: "dry-only profile must retain a readiness blocker",
     });
   }),
-  claim_ceiling: z.enum(["development_only", "partner_run_pending_physical_join"]),
+  claim_ceiling: z.enum([
+    "development_only",
+    "partner_run_pending_physical_join",
+    "diagnostic_policy_execution",
+  ]),
   required_authorization: z.object({
     max_spend_usd: z.number().positive().finite(),
     hard_ttl_seconds: z.number().int().positive(),
