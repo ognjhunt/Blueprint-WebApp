@@ -7,6 +7,10 @@ import {
   resolveInternalPolicyCanarySelection,
 } from "../utils/internalPolicyCanaryContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import {
+  CANONICAL_TASK_EVALUATION_ALLOCATOR,
+  loadPublishedLaunchProfiles,
+} from "../utils/taskEvaluationLaunchContract";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const ref = (character: string) => ({ uri: `gs://policy-canary/${character}`, digest: sha(character) });
@@ -139,6 +143,67 @@ function selection(value = setup()) {
 }
 
 describe("internal policy canary contract", () => {
+  it("admits a production-shaped diagnostic profile with distinct profile and offering identities", () => {
+    const setupValue = setup();
+    const profileId = "scene-839873-policy-canary-profile-v1";
+    expect(profileId).not.toBe(setupValue.source_launch_id);
+    process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([{
+      profile_id: profileId,
+      profile_digest: sha("3"),
+      source_commit: "a".repeat(40),
+      source_bundle: {
+        bundle_id: "scene-839873-configured-bundle",
+        source_kind: "interiorgs_sage",
+        ...ref("4"),
+      },
+      evaluation_run_spec: ref("5"),
+      required_controls: {
+        canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+        secret_profile_id: "scene-839873-policy-canary-runtime",
+        watchdog_required: true,
+        artifact_storage_required: true,
+        teardown_required: true,
+        provider_zero_required: true,
+        webapp_status_sync_required: true,
+        retry_cap: 0,
+      },
+      execution_admission: {
+        live_enabled: true,
+        readiness_receipt: ref("6"),
+        blockers: [],
+      },
+      claim_ceiling: "diagnostic_policy_execution",
+      required_authorization: {
+        max_spend_usd: 4.25,
+        hard_ttl_seconds: 3600,
+      },
+      task_evaluation_run: {
+        run_mode: "scene_configuration",
+        team_namespace: "blueprint",
+        scene_id: "scene-839873",
+        task_id: "simple-relocation",
+        configuration_run_id: "scene-839873-configuration-run",
+        evaluation_episode_executed: false,
+      },
+      internal_policy_canary_setup: setupValue,
+    }]);
+    try {
+      const profiles = loadPublishedLaunchProfiles();
+      expect(profiles).toHaveLength(1);
+      expect(profiles[0]).toMatchObject({
+        profile_id: profileId,
+        claim_ceiling: "diagnostic_policy_execution",
+        internal_policy_canary_setup: {
+          source_launch_id: "scene-839873-launch",
+          run_kind: "internal_policy_canary",
+          claim_ceiling: "diagnostic_policy_execution",
+        },
+      });
+    } finally {
+      delete process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON;
+    }
+  });
+
   it("forwards the exact typed Quick-10 authority through the canonical launch envelope", () => {
     const setupValue = setup();
     const request = buildInternalPolicyCanaryLaunchRequest({
