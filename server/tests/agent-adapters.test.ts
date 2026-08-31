@@ -191,7 +191,7 @@ describe("agent adapters", () => {
     expect(JSON.stringify(first.artifacts)).not.toContain("blueprint:cache:v1:");
   });
 
-  it("continues a legacy GPT-5.6 response without adding a late breakpoint", async () => {
+  it("fails closed at the legacy previous-response migration boundary", async () => {
     process.env.OPENAI_API_KEY = "test-key";
     openAiCreate.mockResolvedValue({
       id: "resp_legacy_continuation",
@@ -246,12 +246,9 @@ describe("agent adapters", () => {
       definition: operatorThreadTask,
     });
 
-    expect(result.status).toBe("completed");
-    const request = openAiCreate.mock.calls[0][0] as any;
-    expect(request.previous_response_id).toBe("resp_prior_dynamic_history");
-    expect(request.prompt_cache_options).toEqual({ mode: "explicit", ttl: "30m" });
-    expect(request).not.toHaveProperty("prompt_cache_key");
-    expect(JSON.stringify(request.input)).not.toContain("prompt_cache_breakpoint");
+    expect(result.status).toBe("failed");
+    expect(result.error).toContain("requires a fresh store-false replay session");
+    expect(openAiCreate).not.toHaveBeenCalled();
   });
 
   it("replays store-false GPT-5.6 history with the original breakpoint first", async () => {
@@ -269,12 +266,13 @@ describe("agent adapters", () => {
     });
     const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
     const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+    const { stableAgentDeveloperPrefix } = await import("../utils/openaiPromptCache");
     const replay = [
       {
         role: "developer",
         content: [{
           type: "input_text",
-          text: "stable developer contract",
+          text: stableAgentDeveloperPrefix("operator_thread"),
           prompt_cache_breakpoint: { mode: "explicit" },
         }],
       },
@@ -327,6 +325,76 @@ describe("agent adapters", () => {
     expect(result.continuation_state?.openai_replay_input).toEqual([
       ...request.input,
     ]);
+
+    const stale = structuredClone(replay);
+    stale[0].content[0].text = "stale developer contract";
+    const staleResult = await runOpenAIResponsesTask({
+      kind: "operator_thread",
+      input: { message: "Do not send stale state" },
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.6-sol",
+      metadata: {
+        openai_replay_input: stale,
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 0.5,
+      },
+      tool_policy: {
+        mode: "none", prefer_direct_api: true, browser_fallback_allowed: false,
+        isolated_runtime_required: false, allowed_mcp_servers: [], allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false, sensitive_actions: [], allow_preapproval: false,
+      },
+      session_policy: { dispatch_mode: "collect", lane: "session", max_concurrent: 1 },
+      outcome_contract: {
+        objective: "Continue safely", success_criteria: [], self_checks: [],
+        proof_requirements: [], pass_threshold: 1,
+      },
+      definition: operatorThreadTask,
+    });
+    expect(staleResult.status).toBe("failed");
+
+    const lateBreakpoint = [
+      ...replay,
+      {
+        role: "user",
+        content: [{
+          type: "input_text",
+          text: "dynamic secret-bearing history",
+          prompt_cache_breakpoint: { mode: "explicit" },
+        }],
+      },
+    ];
+    const lateResult = await runOpenAIResponsesTask({
+      kind: "operator_thread",
+      input: { message: "Do not cache dynamic history" },
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.6-sol",
+      metadata: {
+        openai_replay_input: lateBreakpoint,
+        expected_prompt_cache_reuse_count: 1,
+        expected_prompt_cache_reuse_probability: 0.5,
+      },
+      tool_policy: {
+        mode: "none", prefer_direct_api: true, browser_fallback_allowed: false,
+        isolated_runtime_required: false, allowed_mcp_servers: [], allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false, sensitive_actions: [], allow_preapproval: false,
+      },
+      session_policy: { dispatch_mode: "collect", lane: "session", max_concurrent: 1 },
+      outcome_contract: {
+        objective: "Continue safely", success_criteria: [], self_checks: [],
+        proof_requirements: [], pass_threshold: 1,
+      },
+      definition: operatorThreadTask,
+    });
+    expect(lateResult.status).toBe("failed");
+    expect(openAiCreate).toHaveBeenCalledTimes(1);
   });
 
   it("normalizes DeepSeek chat output and records cache usage", async () => {

@@ -10,8 +10,35 @@ import {
   cachePolicyEvidence,
   conservativeOpenAIInputTokenCeiling,
   normalizeOpenAIUsage,
+  stableAgentDeveloperPrefix,
   worstCaseOpenAIReservationUsd,
 } from "../../utils/openaiPromptCache";
+
+function countPromptCacheBreakpoints(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.reduce((sum, item) => sum + countPromptCacheBreakpoints(item), 0);
+  }
+  if (!value || typeof value !== "object") return 0;
+  return Object.entries(value as Record<string, unknown>).reduce(
+    (sum, [key, item]) => sum + (key === "prompt_cache_breakpoint" ? 1 : 0)
+      + countPromptCacheBreakpoints(item),
+    0,
+  );
+}
+
+function replayInputMatchesPolicy(input: unknown[], taskKind: string, enabled: boolean) {
+  if (!enabled || input.length === 0 || countPromptCacheBreakpoints(input) !== 1) return false;
+  const first = input[0] as Record<string, unknown> | undefined;
+  if (!first || first.role !== "developer" || !Array.isArray(first.content)) return false;
+  if (first.content.length !== 1) return false;
+  const content = first.content[0] as Record<string, unknown> | undefined;
+  return Boolean(
+    content
+    && content.type === "input_text"
+    && content.text === stableAgentDeveloperPrefix(taskKind)
+    && (content.prompt_cache_breakpoint as Record<string, unknown> | undefined)?.mode === "explicit",
+  );
+}
 
 const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
 const openAiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS ?? 20_000);
@@ -125,35 +152,45 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
   const replayInput = Array.isArray(metadata.openai_replay_input)
     ? metadata.openai_replay_input as any[]
     : null;
-  const legacyPreviousResponseContinuation = Boolean(
+  if (replayInput && !replayInputMatchesPolicy(
+    replayInput,
+    task.kind,
+    cachePolicy.status === "enabled",
+  )) {
+    return {
+      status: "failed",
+      provider: task.provider,
+      runtime: task.runtime,
+      model: task.model,
+      tool_mode: task.tool_policy.mode,
+      error: "OpenAI replay state is stale or violates the explicit breakpoint contract",
+      requires_human_review: true,
+      requires_approval: false,
+    };
+  }
+  if (
     previousResponseId
     && !replayInput
-    && cachePolicy.model_family.startsWith("gpt-5.6"),
-  );
-  const legacyPolicy = legacyPreviousResponseContinuation
-    ? buildExplicitOpenAIRequest({
-        model: task.model,
-        taskKind: task.kind,
-        dynamicPrompt,
-        tools,
-        expectedReuseCount: 0,
-        expectedReuseProbability: 0,
-      }).policy
-    : null;
-  const activeCachePolicy = legacyPolicy ?? cachePolicy;
+    && cachePolicy.model_family.startsWith("gpt-5.6")
+  ) {
+    return {
+      status: "failed",
+      provider: task.provider,
+      runtime: task.runtime,
+      model: task.model,
+      tool_mode: task.tool_policy.mode,
+      error: "Legacy previous_response_id session requires a fresh store-false replay session",
+      requires_human_review: true,
+      requires_approval: false,
+    };
+  }
+  const activeCachePolicy = cachePolicy;
   const cacheInput = cacheRequest.input;
   const initialInput: any = replayInput
     ? [...replayInput, { role: "user", content: dynamicPrompt }]
-    : legacyPreviousResponseContinuation
-      ? dynamicPrompt
-      : cacheInput;
+    : cacheInput;
   const { input: _unusedCacheInput, ...baseCacheControls } = cacheRequest;
-  const initialCacheControls = legacyPreviousResponseContinuation
-    ? {
-        store: false,
-        prompt_cache_options: { mode: "explicit", ttl: "30m" },
-      }
-    : baseCacheControls;
+  const initialCacheControls = baseCacheControls;
   const actualInputBytes = conservativeOpenAIInputTokenCeiling(initialInput, tools);
   if (actualInputBytes > openAiMaxInputTokens) {
     return {
@@ -225,9 +262,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       : null,
     continuation_mode: replayInput
       ? "manual_store_false_replay"
-      : legacyPreviousResponseContinuation
-        ? "legacy_previous_response_no_new_breakpoint"
-        : "new_context",
+      : "new_context",
     projected_max_cost_usd: projectedMaxCostUsd,
     hard_cost_cap_usd: openAiMaxInferenceCostUsd,
   });
