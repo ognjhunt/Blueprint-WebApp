@@ -3,6 +3,10 @@ import { z } from "zod";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import {
+  policyCanaryRunProjectionSchema,
+  type PolicyCanaryRunProjection,
+} from "@/lib/policyCanaryRuns";
 
 export const FRANKA_DROID_EMBODIMENT_ID = "franka_panda_robotiq_2f85_v1" as const;
 export const POLICY_RUN_CANDIDATE_IDS = ["pi05_droid", "groot_n17_droid"] as const;
@@ -430,14 +434,20 @@ export async function fetchEvaluationReadySetup(
 export async function fetchEvaluationReadyRun(
   currentUser: FirebaseUser,
   runId: string,
-) {
+): Promise<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null> {
   const response = await fetch(
     `/api/task-evaluation-runs/${encodeURIComponent(runId)}/status`,
     { credentials: "include", headers: await withFirebaseAuthHeaders(currentUser) },
   );
   if (response.status === 403 || response.status === 404) return null;
   if (!response.ok) throw new Error(`Evaluation run status is unavailable (${response.status})`);
-  const parsed = evaluationReadyRunProjectionSchema.safeParse(await response.json());
+  const payload = await response.json();
+  if (payload?.run_kind === "internal_policy_canary") {
+    const canary = policyCanaryRunProjectionSchema.safeParse(payload);
+    if (!canary.success) throw new Error("Policy canary status did not match the Website contract");
+    return canary.data;
+  }
+  const parsed = evaluationReadyRunProjectionSchema.safeParse(payload);
   if (!parsed.success) throw new Error("Evaluation run status did not match the Website contract");
   return parsed.data;
 }

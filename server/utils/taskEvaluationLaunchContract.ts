@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { evaluationReadyPolicyRunSetupSchema } from "./evaluationReadyRunContract";
+import { internalPolicyCanarySetupSchema } from "./internalPolicyCanaryContract";
 
 export const CANONICAL_TASK_EVALUATION_ALLOCATOR =
   "python -m blueprint_pipeline.paid_resource_allocator gpu-canary";
@@ -67,6 +68,7 @@ export const publishedLaunchProfileSchema = z.object({
     evaluation_episode_executed: z.literal(false),
   }).strict().optional(),
   policy_run_setup: evaluationReadyPolicyRunSetupSchema.optional(),
+  internal_policy_canary_setup: internalPolicyCanarySetupSchema.optional(),
 }).strict();
 
 export const taskEvaluationLaunchInputSchema = z.object({

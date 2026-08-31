@@ -34,7 +34,7 @@ function SealedResults({ results }: { results: TaskEvaluationResultSiteRecord[] 
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="runway-meta">Sealed result</p>
-                <h3 className="mt-1 text-body-l font-semibold text-ink-900">{result.publication.decision_envelope.decision_question || result.publication.run_id}</h3>
+                <h3 className="mt-1 text-body-l font-semibold text-ink-900">{result.publication.decision_envelope?.decision_question || result.publication.task?.label || result.publication.run_id}</h3>
                 <p className="runway-num mt-1 text-[0.68rem] text-ink-400">{result.publication.run_id}</p>
               </div>
               <StatusChip tone={delivery?.status === "ready" ? "proof" : delivery?.status === "blocked" ? "block" : "neutral"} square>

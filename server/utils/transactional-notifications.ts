@@ -39,6 +39,7 @@ export type TransactionalNotificationRecord = {
   skip_reason: string | null;
   failure_reason: string | null;
   provider_message_id: string | null;
+  delivery_provider: "sendgrid" | "smtp" | "firebase" | null;
   preference_key: string | null;
   data: Record<string, string>;
   created_at: string;
@@ -290,6 +291,7 @@ function baseRecord(
     skip_reason: null,
     failure_reason: null,
     provider_message_id: null,
+    delivery_provider: null,
     preference_key: stringValue(input.preferenceKey || defaultPreferenceKey(input.eventType), 80) || null,
     data: normalizeData(input.data),
     created_at: createdAt,
@@ -403,10 +405,12 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
     return writeRecord({
       ...record,
       recipient_email_domain: emailDomain(email),
-      status: result.sent ? "sent" : "skipped",
+      status: result.sent ? "sent" : result.error ? "failed" : "skipped",
       sent_at: result.sent ? nowIso() : null,
-      skip_reason: result.sent ? null : "email_transport_unavailable",
+      skip_reason: result.sent || result.error ? null : "email_transport_unavailable",
       failure_reason: result.error instanceof Error ? result.error.message.slice(0, 500) : null,
+      delivery_provider: result.provider,
+      provider_message_id: result.messageId,
       updated_at: nowIso(),
     });
   } catch (error) {
@@ -502,6 +506,7 @@ async function dispatchPush(input: TransactionalNotificationInput, profile: Reco
       status: "sent",
       sent_at: nowIso(),
       provider_message_id: messageId,
+      delivery_provider: "firebase",
       updated_at: nowIso(),
     });
   } catch (error) {

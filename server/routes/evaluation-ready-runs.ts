@@ -11,6 +11,8 @@ import {
   projectEvaluationReadyRun,
   type EvaluationReadyRunRecord,
 } from "../utils/evaluationReadyRunContract";
+import { internalPolicyCanaryStatusProjectionSchema } from "../utils/internalPolicyCanaryContract";
+import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
 import {
   createPipelineSyncRateLimiter,
   verifyPipelineSyncRequest,
@@ -22,7 +24,7 @@ const router = Router();
 const COLLECTION = "taskEvaluationPolicyRuns";
 const pipelineRateLimiter = createPipelineSyncRateLimiter();
 const stateRank = new Map(EVALUATION_READY_RUN_STATES.map((state, index) => [state, index]));
-const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed"]);
+const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
 
 function firebaseTenantId(res: Response) {
   const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
@@ -89,7 +91,10 @@ router.post(
       error: "Task Evaluation Run store is unavailable",
       code: "task_evaluation_policy_run_store_unavailable",
     });
-    const parsed = evaluationReadyRunStatusProjectionSchema.safeParse(req.body);
+    const canaryStatus = req.body?.run_kind === "internal_policy_canary";
+    const parsed = canaryStatus
+      ? internalPolicyCanaryStatusProjectionSchema.safeParse(req.body)
+      : evaluationReadyRunStatusProjectionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({
       error: "Policy-run status projection is invalid",
       code: "task_evaluation_policy_run_status_invalid",
@@ -98,13 +103,14 @@ router.post(
         message: issue.message,
       })),
     });
-    const projection = parsed.data;
+    const projection = parsed.data as Record<string, any>;
     if (projection.run_id !== req.params.runId) return res.status(400).json({
       error: "Policy-run status route identity mismatch",
       code: "task_evaluation_policy_run_status_route_mismatch",
     });
     if (
-      (projection.state === "results_ready" || projection.state === "abstained")
+      !canaryStatus
+      && (projection.state === "results_ready" || projection.state === "abstained")
       && !evaluationReadyResultSummarySchema.safeParse(projection.result_summary).success
     ) return res.status(400).json({
       error: "Policy-run terminal result summary is invalid",
@@ -119,10 +125,18 @@ router.post(
         const snapshot = await transaction.get(ref);
         if (!snapshot.exists) return { outcome: "not_found" as const, record: null };
         const existing = snapshot.data() as EvaluationReadyRunRecord;
+        const existingCanary = existing.run_kind === "internal_policy_canary";
         if (
           existing.source_launch_id !== projection.source_launch_id
           || existing.offering_digest !== projection.offering_digest
-          || existing.configuration_digest !== projection.configuration_digest
+          || existingCanary !== canaryStatus
+          || (existingCanary
+            ? (
+                existing.request_digest !== projection.request_digest
+                || (existing.pipeline_configuration_digest
+                  && existing.pipeline_configuration_digest !== projection.configuration_digest)
+              )
+            : existing.configuration_digest !== projection.configuration_digest)
         ) return { outcome: "identity_mismatch" as const, record: null };
         if (
           projection.progress
@@ -156,6 +170,18 @@ router.post(
           error: projection.error || null,
           pipeline_observed_at_iso: projection.observed_at_iso,
           updated_at_iso: new Date().toISOString(),
+          ...(existingCanary ? {
+            pipeline_configuration_digest: projection.configuration_digest,
+            stage: projection.stage,
+            result_status: projection.result_status,
+            completed_learned_episode_count:
+              projection.completed_learned_episode_count,
+            completed_control_episode_count:
+              projection.completed_control_episode_count,
+            policy_run_result_projection:
+              projection.policy_run_result_projection || null,
+            notification_delivery: projection.notification_delivery || null,
+          } : {}),
         };
         transaction.set(ref, update, { merge: true });
         return {
@@ -193,39 +219,96 @@ router.post(
       error: "Task Evaluation Run status store is unavailable",
       code: "task_evaluation_policy_run_status_store_unavailable",
     });
-    if (
-      (record.state === "results_ready" || record.state === "abstained")
-      && record.result_record_id
-    ) {
-      const resultUrl = evaluationResultWebsiteUrl(record.result_record_id);
-      await dispatchTransactionalNotification({
+    const canaryTerminal = record.run_kind === "internal_policy_canary"
+      && ["results_ready", "blocked", "failed", "cancelled"].includes(record.state);
+    const qualifiedResultTerminal = (
+      record.state === "results_ready" || record.state === "abstained"
+    ) && record.result_record_id;
+    if (canaryTerminal || qualifiedResultTerminal) {
+      const resultUrl = record.result_record_id
+        ? evaluationResultWebsiteUrl(record.result_record_id)
+        : `${String(process.env.APP_URL || process.env.VITE_PUBLIC_APP_URL || "https://tryblueprint.io").replace(/\/$/, "")}/app/evaluation-runs/${encodeURIComponent(record.run_id)}`;
+      const canaryEmail = record.run_kind === "internal_policy_canary"
+        ? buildPolicyCanaryTerminalEmail({ record, resultUrl })
+        : null;
+      const notificationRecords = await dispatchTransactionalNotification({
         eventType: "evaluation_results_ready",
         recipientType: "buyer",
         recipientUserId: String(record.notification_recipient_user_id || ""),
+        recipientEmail: record.run_kind === "internal_policy_canary"
+          && record.notification && typeof record.notification === "object"
+          && "email" in record.notification
+          ? String(record.notification.email || "")
+          : null,
         subjectId: record.run_id,
         sourceEventId: String(
           record.notification_source_event_id || record.configuration_digest,
         ),
         sourceCollection: COLLECTION,
         sourceDocId: record.run_id,
-        title: "Blueprint evaluation results are ready",
-        body: "Your Task Evaluation Run results are ready in Blueprint.",
-        emailSubject: "Your Blueprint evaluation results are ready",
-        emailText: `Your Task Evaluation Run results are ready: ${resultUrl}`,
+        title: canaryEmail
+          ? canaryEmail.title
+          : "Blueprint evaluation results are ready",
+        body: canaryEmail
+          ? canaryEmail.body
+          : "Your Task Evaluation Run results are ready in Blueprint.",
+        emailSubject: canaryEmail
+          ? canaryEmail.emailSubject
+          : "Your Blueprint evaluation results are ready",
+        emailText: canaryEmail
+          ? canaryEmail.emailText
+          : `Your Task Evaluation Run results are ready: ${resultUrl}`,
         preferenceKey: "account",
         data: {
           run_id: record.run_id,
           result_record_id: record.result_record_id,
           result_url: resultUrl,
+          run_kind: String(record.run_kind || "qualified_evaluation"),
+          result_status: String(record.result_status || record.state),
         },
       });
+      if (record.run_kind === "internal_policy_canary") {
+        const email = notificationRecords.find((item) => item.channel === "email");
+        const providerDelivered = record.notification_delivery
+          && typeof record.notification_delivery === "object"
+          && "status" in record.notification_delivery
+          && record.notification_delivery.status === "delivered"
+          ? record.notification_delivery
+          : null;
+        const notificationDelivery = providerDelivered || (email ? {
+          status: email.status === "sent" ? "accepted" : email.status === "failed" ? "failed" : "pending",
+          provider: email.delivery_provider || null,
+          message_id: email.provider_message_id,
+          attempts: 1,
+          accepted_at_iso: email.sent_at,
+          delivered_at_iso: null,
+          failure_reason: email.failure_reason,
+          run_result_digest: String(record.delivery_digest || record.request_digest || ""),
+        } : {
+          status: "failed",
+          provider: null,
+          message_id: null,
+          attempts: 1,
+          accepted_at_iso: null,
+          delivered_at_iso: null,
+          failure_reason: "notification_dispatch_record_missing",
+          run_result_digest: String(record.delivery_digest || record.request_digest || ""),
+        });
+        await withTaskEvaluationLaunchStoreTimeout(
+          db.collection(COLLECTION).doc(record.run_id).set({
+            notification_delivery: notificationDelivery,
+            updated_at_iso: new Date().toISOString(),
+          }, { merge: true }),
+        );
+        record = { ...record, notification_delivery: notificationDelivery };
+      }
     }
     res.set("Cache-Control", "private, no-store");
     return res.status(200).json({
       ...projectEvaluationReadyRun(record),
       already_exists: outcome === "replayed",
       notification_event_emitted:
-        record.state === "results_ready" || record.state === "abstained",
+        canaryTerminal || record.state === "results_ready" || record.state === "abstained",
     });
   },
 );

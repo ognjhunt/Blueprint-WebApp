@@ -146,13 +146,11 @@ export default function SitePacks() {
                     </p>
                   ) : null}
                   {controlsPending ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-4 block w-full cursor-not-allowed border border-runway-line-strong px-4 py-2.5 text-center text-caption font-semibold uppercase tracking-[0.04em] text-ink-400"
-                    >
-                      Evaluation locked until controls pass
-                    </button>
+                    <Button asChild variant="action" className="mt-4 w-full">
+                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/policy-canary`}>
+                        Run policy canary <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </Button>
                   ) : (
                     <Button asChild variant="action" className="mt-4 w-full">
                       <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate`}>
@@ -161,8 +159,9 @@ export default function SitePacks() {
                     </Button>
                   )}
                   <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
-                    Choose episode depth, review the exact two-policy matrix, and start. No JSON upload,
-                    provider choice, payment, team field, or notification-address field is required.
+                    {controlsPending
+                      ? "Run real learned policies now. Results will be marked unqualified until controls pass."
+                      : "Choose episode depth, review the exact two-policy matrix, and start. No JSON upload, provider choice, payment, or team field is required."}
                   </p>
                 </div>
               </article>;
