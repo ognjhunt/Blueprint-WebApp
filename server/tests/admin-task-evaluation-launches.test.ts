@@ -100,6 +100,65 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
+function directExecutionAdoption(originalReceipt: Record<string, any>) {
+  const blockers = [
+    "native_rigid_construction_gate_failed:base_collision_clearance",
+    "native_rigid_construction_gate_failed:destination_containment",
+    "native_rigid_construction_gate_failed:push_contact_maintained",
+    "native_rigid_construction_gate_failed:push_path",
+  ];
+  const receipt: Record<string, any> = {
+    schema_version: "task_evaluation_native_direct_execution_adoption.v1",
+    status: "blocked",
+    launch_id: originalReceipt.launch_id,
+    run_id: originalReceipt.run_id,
+    request_digest: originalReceipt.request_digest,
+    launch_profile_id: "scene-839873-construction",
+    launch_profile_digest: originalReceipt.launch_profile_digest,
+    binding_digest: originalReceipt.binding_digest,
+    original_launch_receipt_digest: originalReceipt.receipt_digest,
+    direct_execution_kind: "canonical_allocator_manual_rescue_adopted",
+    paid_execution_performed: true,
+    retry_cap: 0,
+    continuing_spend_from_this_run: false,
+    provider_instance_id: 49349649,
+    construction_gate_qualified: false,
+    controls_qualified: false,
+    evaluation_ready: false,
+    blockers,
+    website_projection: {
+      configured_scene_offering_status: "configured_controls_pending",
+      native_construction_status: "blocked",
+      native_construction_blockers: blockers,
+      controls_qualified: false,
+      evaluation_ready: false,
+      qualification_upgrade_performed: false,
+    },
+    source_receipts: {
+      native_construction_result: {
+        path: "/retained/native_task_arena_construction_result.v1.json",
+        size_bytes: 1024,
+        sha256: sha("d"),
+        schema_version: "native_task_arena_construction_result.v1",
+        status: "blocked",
+      },
+      post_teardown_provider_zero: {
+        path: "/retained/post_teardown_provider_zero_receipt.json",
+        size_bytes: 512,
+        sha256: sha("e"),
+        schema_version: "adp_paid_provider_zero.v1",
+      },
+    },
+    history_overwritten: false,
+    automatic_retry_performed: false,
+    provider_mutation_performed_by_adoption: false,
+    raw_secret_values_recorded: false,
+    claim_boundary: "Construction evidence only; controls remain pending.",
+  };
+  receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+  return receipt;
+}
+
 function profile() {
   return {
     profile_id: "interiorgs-sage-franka-001",
@@ -2494,6 +2553,118 @@ describe("admin Task Evaluation launch route", () => {
         terminal_receipt: { terminal_evidence: { status: "passed" } },
         control_plane_terminal_blocker: { execution_result: "not_observed" },
       });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("adds one blocked direct-execution adoption without replacing terminal history", async () => {
+    const requestDigest = sha("a");
+    const original: Record<string, any> = {
+      schema_version: "task_evaluation_launch_receipt.v1",
+      status: "blocked",
+      launch_id: "launch-adoption",
+      run_id: "launch-adoption",
+      request_digest: requestDigest,
+      launch_profile_digest: sha("b"),
+      binding_digest: sha("c"),
+      canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+      allocator_exit_code: 2,
+      execute_requested: true,
+      provider_mutation_attempted: false,
+      terminal_evidence: { status: "blocked" },
+      blockers: ["paid_resource_admission_not_admitted"],
+      raw_secret_values_recorded: false,
+      agent_operator_used: false,
+      claim_ceiling: "development_only",
+    };
+    original.receipt_digest = canonicalArtifactDigest(original, "receipt_digest");
+    state.records.set("launch-adoption", {
+      launch_id: "launch-adoption",
+      run_id: "launch-adoption",
+      request_digest: requestDigest,
+      launch_profile_digest: original.launch_profile_digest,
+      request: {
+        launch_profile_id: "scene-839873-construction",
+        launch_profile_digest: original.launch_profile_digest,
+      },
+      state: "blocked",
+      terminal_receipt: structuredClone(original),
+      terminal_receipt_digest: original.receipt_digest,
+    });
+    const adoption = directExecutionAdoption(original);
+    const { server, url } = await startInternalServer();
+    try {
+      const unbound = structuredClone(adoption);
+      unbound.original_launch_receipt_digest = sha("f");
+      unbound.receipt_digest = canonicalArtifactDigest(unbound, "receipt_digest");
+      const refused = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(unbound),
+      });
+      expect(refused.status).toBe(409);
+      expect(state.records.get("launch-adoption")?.terminal_adoption_receipt)
+        .toBeUndefined();
+
+      const first = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(adoption),
+      });
+      expect(first.status).toBe(201);
+      await expect(first.json()).resolves.toMatchObject({
+        status: "blocked",
+        already_exists: false,
+        configured_scene_offering_status: "configured_controls_pending",
+        native_construction_status: "blocked",
+        native_construction_blockers: adoption.blockers,
+        qualification_upgrade_performed: false,
+      });
+      expect(state.records.get("launch-adoption")).toMatchObject({
+        state: "blocked",
+        terminal_receipt_digest: original.receipt_digest,
+        terminal_receipt: { blockers: ["paid_resource_admission_not_admitted"] },
+        terminal_adoption_receipt_digest: adoption.receipt_digest,
+        terminal_adoption_original_receipt_digest: original.receipt_digest,
+        terminal_adoption_receipt: {
+          blockers: adoption.blockers,
+          controls_qualified: false,
+          evaluation_ready: false,
+        },
+        configured_scene_offering_state: "configured_controls_pending",
+        native_construction_status: "blocked",
+        native_construction_blockers: adoption.blockers,
+        controls_qualified: false,
+        evaluation_ready: false,
+      });
+
+      const replay = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(adoption),
+      });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+
+      const changed = structuredClone(adoption);
+      changed.blockers = [...changed.blockers, "different_native_blocker"];
+      changed.website_projection.native_construction_blockers = changed.blockers;
+      changed.receipt_digest = canonicalArtifactDigest(changed, "receipt_digest");
+      const conflict = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(changed),
+      });
+      expect(conflict.status).toBe(409);
+      await expect(conflict.json()).resolves.toMatchObject({
+        code: "task_evaluation_direct_execution_adoption_immutable_conflict",
+      });
+      expect(state.records.get("launch-adoption")?.terminal_adoption_receipt_digest)
+        .toBe(adoption.receipt_digest);
+
+      expect(state.records.get("launch-adoption")?.terminal_receipt_digest)
+        .toBe(original.receipt_digest);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
