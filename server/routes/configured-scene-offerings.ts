@@ -262,7 +262,9 @@ function catalogIdentity(offering: ConfiguredSceneOffering) {
 
 function catalogRevisionOrder(record: Record<string, unknown>, sourceLaunchId: string) {
   const terminalUpdatedAt = String(record.terminal_updated_at_iso || "");
-  return `${terminalUpdatedAt}\u0000${sourceLaunchId}`;
+  const parsed = Date.parse(terminalUpdatedAt);
+  const normalized = Number.isFinite(parsed) ? new Date(parsed).toISOString() : "";
+  return `${normalized}\u0000${sourceLaunchId}`;
 }
 
 router.get("/", async (_req, res) => {
