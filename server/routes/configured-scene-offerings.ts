@@ -295,7 +295,11 @@ router.get("/", async (_req, res) => {
         || parsed.data.status !== record.configured_scene_offering_state
         || parsed.data.offering_digest !== record.configured_scene_offering_digest
       ) {
-        throw new Error("configured_scene_offering_store_invalid");
+        // The launch collection also contains controls/construction runs. A
+        // historical run may retain an indexed offering-state field without
+        // carrying a configured-scene offering object. Such a record is not an
+        // offering and must not make every valid team scene unavailable.
+        continue;
       }
       if (!access.isOps && parsed.data.team_namespace !== tenantId) continue;
       const identity = catalogIdentity(parsed.data);
