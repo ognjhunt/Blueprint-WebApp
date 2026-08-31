@@ -20,16 +20,30 @@ function completedMetrics(record: PolicyCanaryRecord) {
   return [
     "Completed diagnostic metrics:",
     ...projection.candidate_results.map((candidate: Record<string, any>) => {
-      const successes = Number.isInteger(candidate.success_count)
-        ? candidate.success_count
+      const registered = Array.isArray(record.policy_candidates)
+        ? record.policy_candidates.find((row: Record<string, any>) => (
+            row.candidate_id === candidate.candidate_id
+          ))
+        : null;
+      const metricSuccesses = candidate.metrics?.success_count
+        ?? candidate.metrics?.successes
+        ?? candidate.metrics?.task_success_count;
+      const successes = Number.isInteger(candidate.success_count ?? metricSuccesses)
+        ? candidate.success_count ?? metricSuccesses
         : "not reported";
       const denominator = Number.isInteger(candidate.interpretable_episode_count)
         ? candidate.interpretable_episode_count
         : "not reported";
-      const actionDelivery = typeof candidate.action_delivery_rate === "number"
-        ? `${Math.round(candidate.action_delivery_rate * 100)}% action delivery`
+      const actionDeliveryRate = typeof candidate.action_delivery_rate === "number"
+        ? candidate.action_delivery_rate
+        : candidate.episodes_completed > 0
+          && Number.isInteger(candidate.actions_delivered_episode_count)
+          ? candidate.actions_delivered_episode_count / candidate.episodes_completed
+          : null;
+      const actionDelivery = actionDeliveryRate !== null
+        ? `${Math.round(actionDeliveryRate * 100)}% action delivery`
         : "action delivery not reported";
-      return `- ${text(candidate.display_name || candidate.candidate_id)}: ${successes}/${denominator} interpretable successes; ${actionDelivery}.`;
+      return `- ${text(registered?.display_name || candidate.display_name || candidate.candidate_id)}: ${successes}/${denominator} interpretable successes; ${actionDelivery}.`;
     }),
   ];
 }

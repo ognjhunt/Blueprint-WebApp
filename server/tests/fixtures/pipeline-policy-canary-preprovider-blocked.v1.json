@@ -1,0 +1,14 @@
+{
+  "schema_version": "task_evaluation_policy_canary_preprovider_blocked.v1",
+  "activation_id": "activation-839873",
+  "capture_session_id": "capture-839873",
+  "intake_id": "intake-839873",
+  "request_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "run_kind": "internal_policy_canary",
+  "claim_ceiling": "diagnostic_policy_execution",
+  "result_status": "blocked",
+  "provider_allocation_performed": false,
+  "automatic_retry_performed": false,
+  "blockers": ["policy_canary_setup_invalid"],
+  "payload_digest": ""
+}

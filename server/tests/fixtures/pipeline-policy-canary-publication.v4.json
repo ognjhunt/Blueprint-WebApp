@@ -1,0 +1,115 @@
+{
+  "schema_version": "task_evaluation_run_publication.v4",
+  "capture_session_id": "capture-839873",
+  "intake_id": "intake-839873",
+  "run_id": "scene-839873-canary-1",
+  "request_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "configuration_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "run_kind": "internal_policy_canary",
+  "claim_ceiling": "diagnostic_policy_execution",
+  "result_status": "blocked",
+  "scene_controls_status": "configured_controls_pending",
+  "warning": "Controls pending — results are unqualified.",
+  "result_delivery": {
+    "schema_version": "task_evaluation_result_delivery.v2",
+    "run_id": "scene-839873-canary-1",
+    "result_status": "blocked",
+    "claim_ceiling": "diagnostic_policy_execution",
+    "delivery_digest": ""
+  },
+  "policy_canary_result": {
+    "schema_version": "task_evaluation_policy_canary_result_projection.v1",
+    "run_id": "scene-839873-canary-1",
+    "request_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "configuration_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "result_delivery_digest": "",
+    "run_kind": "internal_policy_canary",
+    "claim_ceiling": "diagnostic_policy_execution",
+    "scene_controls_status": "configured_controls_pending",
+    "result_status": "blocked",
+    "warning": "Controls pending — results are unqualified.",
+    "counts": {
+      "policy_count": 2,
+      "episodes_per_policy": 10,
+      "learned_policy_rollout_count": 20,
+      "completed_learned_policy_rollout_count": 0,
+      "diagnostic_control_rollout_count": 20,
+      "completed_diagnostic_control_rollout_count": 0
+    },
+    "candidate_ids": ["pi05_droid", "groot_n17_droid"],
+    "candidate_results": [
+      {
+        "candidate_id": "pi05_droid",
+        "episodes_completed": 0,
+        "interpretable_episode_count": 0,
+        "actions_delivered_episode_count": 0,
+        "metrics": {},
+        "failure_counts": {"provider_capacity_unavailable": 10}
+      },
+      {
+        "candidate_id": "groot_n17_droid",
+        "episodes_completed": 0,
+        "interpretable_episode_count": 0,
+        "actions_delivered_episode_count": 0,
+        "metrics": {},
+        "failure_counts": {"provider_capacity_unavailable": 10}
+      }
+    ],
+    "episodes": [],
+    "comparison": {
+      "matched_cell_count": 0,
+      "winner_declared": false,
+      "official_ranking_contribution": false
+    },
+    "report": {
+      "result_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "permanent_result_path": "/internal/task-evaluation-runs/scene-839873-canary-1",
+      "machine_readable_report": {
+        "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "size_bytes": 10,
+        "artifact_id": "full-report"
+      },
+      "evidence_manifest": {
+        "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "size_bytes": 10,
+        "artifact_id": "evidence-manifest"
+      }
+    },
+    "closure": {
+      "billing": {
+        "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "size_bytes": 10,
+        "artifact_id": "billing"
+      },
+      "teardown": {
+        "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "size_bytes": 10,
+        "artifact_id": "teardown"
+      },
+      "provider_zero": {
+        "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "size_bytes": 10,
+        "artifact_id": "provider-zero",
+        "provider_zero_verified": true
+      }
+    },
+    "notification_delivery": {
+      "terminal_state": "blocked",
+      "status": "pending",
+      "attempts": 0,
+      "provider": "website_terminal_handler",
+      "message_id": null,
+      "delivered_at": null,
+      "run_result_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "blockers": ["provider_capacity_unavailable"],
+    "projection_digest": ""
+  },
+  "proof_boundary": {
+    "scene_promotion_authorized": false,
+    "official_policy_ranking_authorized": false,
+    "winner_selection_authorized": false,
+    "simulation_is_physical_success": false,
+    "deployment_or_safety_approved": false
+  }
+}
