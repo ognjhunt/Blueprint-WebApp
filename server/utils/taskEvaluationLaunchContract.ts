@@ -192,6 +192,72 @@ export function parseTaskEvaluationLaunchReceipt(value: unknown) {
   return { ok: true as const, receipt };
 }
 
+export const taskEvaluationDirectExecutionAdoptionReceiptSchema = z.object({
+  schema_version: z.literal("task_evaluation_native_direct_execution_adoption.v1"),
+  status: z.literal("blocked"),
+  launch_id: identifier,
+  run_id: identifier,
+  request_digest: digest,
+  launch_profile_id: identifier,
+  launch_profile_digest: digest,
+  binding_digest: digest,
+  original_launch_receipt_digest: digest,
+  direct_execution_kind: z.literal("canonical_allocator_manual_rescue_adopted"),
+  paid_execution_performed: z.literal(true),
+  retry_cap: z.literal(0),
+  continuing_spend_from_this_run: z.literal(false),
+  provider_instance_id: z.number().int().positive(),
+  construction_gate_qualified: z.literal(false),
+  controls_qualified: z.literal(false),
+  evaluation_ready: z.literal(false),
+  blockers: z.array(z.string().trim().min(1)).min(1),
+  website_projection: z.object({
+    configured_scene_offering_status: z.literal("configured_controls_pending"),
+    native_construction_status: z.literal("blocked"),
+    native_construction_blockers: z.array(z.string().trim().min(1)).min(1),
+    controls_qualified: z.literal(false),
+    evaluation_ready: z.literal(false),
+    qualification_upgrade_performed: z.literal(false),
+  }).strict(),
+  source_receipts: z.record(z.string(), z.object({
+    path: z.string().trim().min(1),
+    size_bytes: z.number().int().positive(),
+    sha256: digest,
+    schema_version: z.string().nullable().optional(),
+    status: z.string().optional(),
+  }).passthrough()),
+  history_overwritten: z.literal(false),
+  automatic_retry_performed: z.literal(false),
+  provider_mutation_performed_by_adoption: z.literal(false),
+  raw_secret_values_recorded: z.literal(false),
+  receipt_digest: digest,
+}).passthrough();
+
+export function parseTaskEvaluationDirectExecutionAdoptionReceipt(value: unknown) {
+  const parsed = taskEvaluationDirectExecutionAdoptionReceiptSchema.safeParse(value);
+  if (!parsed.success) return {
+    ok: false as const,
+    blockers: ["task_evaluation_direct_execution_adoption_schema_invalid"],
+  };
+  const receipt = parsed.data;
+  if (
+    receipt.run_id !== receipt.launch_id
+    || receipt.website_projection.native_construction_blockers.length
+      !== receipt.blockers.length
+    || receipt.website_projection.native_construction_blockers.some(
+      (blocker, index) => blocker !== receipt.blockers[index],
+    )
+    || canonicalArtifactDigest(
+      receipt as unknown as Record<string, unknown>,
+      "receipt_digest",
+    ) !== receipt.receipt_digest
+  ) return {
+    ok: false as const,
+    blockers: ["task_evaluation_direct_execution_adoption_digest_invalid"],
+  };
+  return { ok: true as const, receipt };
+}
+
 // A launch runs for roughly twenty-five minutes and the terminal receipt only
 // arrives at the very end, so this is the non-terminal channel that reports
 // boot, dependency, scene, and runtime phases while they happen.

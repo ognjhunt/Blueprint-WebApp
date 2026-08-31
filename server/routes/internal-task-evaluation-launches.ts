@@ -5,6 +5,7 @@ import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configur
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import {
   parseTaskEvaluationLaunchProgress,
+  parseTaskEvaluationDirectExecutionAdoptionReceipt,
   taskEvaluationLaunchPublicationReadinessRequestSchema,
   parseTaskEvaluationLaunchReceipt,
   parseTaskEvaluationLaunchSupervision,
@@ -91,23 +92,34 @@ router.post(
   requirePipelineSignature,
   async (req, res) => {
     if (!db) return res.status(503).json({ error: "Task Evaluation launch store is unavailable" });
-    const parsed = parseTaskEvaluationLaunchReceipt(req.body);
+    const directAdoption = req.body?.schema_version
+      === "task_evaluation_native_direct_execution_adoption.v1";
+    const parsed = directAdoption
+      ? parseTaskEvaluationDirectExecutionAdoptionReceipt(req.body)
+      : parseTaskEvaluationLaunchReceipt(req.body);
     if (!parsed.ok) return res.status(400).json({
       error: "Pipeline Task Evaluation launch receipt is invalid",
       blockers: parsed.blockers,
     });
     const receipt = parsed.receipt;
-    const configuredSceneOffering = parseConfiguredSceneOfferingFromLaunchReceipt(
-      receipt as unknown as Record<string, unknown>,
-    );
-    if (!configuredSceneOffering.ok) return res.status(400).json({
-      error: "Configured scene offering is invalid",
-      blockers: configuredSceneOffering.blockers,
-    });
-    const offering = configuredSceneOffering.offering;
+    const configuredSceneOffering = directAdoption
+      ? undefined
+      : parseConfiguredSceneOfferingFromLaunchReceipt(
+        receipt as unknown as Record<string, unknown>,
+      );
+    if (configuredSceneOffering && !configuredSceneOffering.ok) {
+      return res.status(400).json({
+        error: "Configured scene offering is invalid",
+        blockers: configuredSceneOffering.blockers,
+      });
+    }
+    const offering = configuredSceneOffering?.ok
+      ? configuredSceneOffering.offering
+      : undefined;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
     type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch"
-      | "configured_scene_offering_missing" | "immutable_conflict";
+      | "configured_scene_offering_missing" | "immutable_conflict"
+      | "adoption_updated" | "adoption_replayed" | "adoption_conflict";
     let outcome: Outcome;
     try {
       outcome = await db.runTransaction<Outcome>(async (transaction) => {
@@ -118,6 +130,59 @@ router.post(
           existing.request_digest !== receipt.request_digest
           || existing.run_id !== receipt.run_id
         ) return "binding_mismatch";
+        if (directAdoption) {
+          const adoptionProjection = receipt.website_projection as {
+            qualification_upgrade_performed: boolean;
+          };
+          const original = existing.terminal_receipt as Record<string, any> | undefined;
+          const existingProfileDigest = String(
+            existing.request?.launch_profile_digest
+              || existing.launch_profile_digest
+              || original?.launch_profile_digest
+              || "",
+          );
+          const existingProfileId = String(
+            existing.request?.launch_profile_id
+              || existing.launch_profile_id
+              || "",
+          );
+          if (
+            !original
+            || original.status !== "blocked"
+            || original.receipt_digest !== receipt.original_launch_receipt_digest
+            || original.request_digest !== receipt.request_digest
+            || original.launch_profile_digest !== receipt.launch_profile_digest
+            || existingProfileId !== receipt.launch_profile_id
+            || existingProfileDigest !== receipt.launch_profile_digest
+            || receipt.status !== "blocked"
+            || receipt.construction_gate_qualified !== false
+            || receipt.controls_qualified !== false
+            || receipt.evaluation_ready !== false
+            || adoptionProjection.qualification_upgrade_performed !== false
+          ) return "binding_mismatch";
+          if (existing.terminal_adoption_receipt) {
+            return existing.terminal_adoption_receipt.receipt_digest
+              === receipt.receipt_digest
+              ? "adoption_replayed"
+              : "adoption_conflict";
+          }
+          transaction.set(ref, {
+            state: "blocked",
+            terminal_adoption_receipt: receipt,
+            terminal_adoption_receipt_digest: receipt.receipt_digest,
+            terminal_adoption_original_receipt_digest:
+              receipt.original_launch_receipt_digest,
+            terminal_adoption_updated_at_iso: new Date().toISOString(),
+            configured_scene_offering_state: "configured_controls_pending",
+            native_construction_status: "blocked",
+            native_construction_blockers: receipt.blockers,
+            native_construction_evidence_refs: receipt.source_receipts,
+            controls_qualified: false,
+            evaluation_ready: false,
+            terminal_adoption_provider_mutation_observed: true,
+          }, { merge: true });
+          return "adoption_updated";
+        }
         const expectedTeamNamespace = String(
           existing.team_namespace || existing.request?.team_namespace || "",
         );
@@ -177,15 +242,25 @@ router.post(
       code: "configured_scene_offering_missing",
     });
     if (outcome === "immutable_conflict") return res.status(409).json({ error: "Immutable Task Evaluation launch receipt conflict" });
+    if (outcome === "adoption_conflict") return res.status(409).json({
+      error: "Immutable Task Evaluation direct-execution adoption conflict",
+      code: "task_evaluation_direct_execution_adoption_immutable_conflict",
+    });
     res.set("Cache-Control", "no-store");
-    return res.status(outcome === "replayed" ? 200 : 201).json({
+    return res.status(["replayed", "adoption_replayed"].includes(outcome) ? 200 : 201).json({
       schema_version: "task_evaluation_launch_web_sync_receipt.v1",
       status: receipt.status,
-      already_exists: outcome === "replayed",
+      already_exists: ["replayed", "adoption_replayed"].includes(outcome),
       launch_id: receipt.launch_id,
       run_id: receipt.run_id,
       request_digest: receipt.request_digest,
       receipt_digest: receipt.receipt_digest,
+      ...(directAdoption ? {
+        configured_scene_offering_status: "configured_controls_pending",
+        native_construction_status: "blocked",
+        native_construction_blockers: receipt.blockers,
+        qualification_upgrade_performed: false,
+      } : {}),
       ...(offering ? {
         configured_scene_offering_digest: offering.offering_digest,
         configured_scene_offering_status: offering.status,
