@@ -527,3 +527,49 @@ export function policyCanaryError(
 ) {
   return { error: { code, message, details } };
 }
+
+function normalizedEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function policyCanaryNotificationRecipientOptions(params: {
+  authenticatedEmail: string | null;
+  isAdmin: boolean;
+  isOps: boolean;
+  configuredAllowlist?: string;
+  approvedInternalEmail?: string;
+}) {
+  const recipients = new Set<string>();
+  const authenticated = normalizedEmail(params.authenticatedEmail);
+  if (authenticated) recipients.add(authenticated);
+  if (params.isAdmin || params.isOps) {
+    for (const entry of String(
+      params.configuredAllowlist
+        ?? process.env.BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST
+        ?? "",
+    ).split(",")) {
+      const email = normalizedEmail(entry);
+      if (email) recipients.add(email);
+    }
+    const approved = normalizedEmail(
+      params.approvedInternalEmail
+        ?? process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL
+        ?? "",
+    );
+    if (approved) recipients.add(approved);
+  }
+  return [...recipients].sort();
+}
+
+export function policyCanaryNotificationRecipientAllowed(params: {
+  requestedEmail: string;
+  authenticatedEmail: string | null;
+  isAdmin: boolean;
+  isOps: boolean;
+  configuredAllowlist?: string;
+  approvedInternalEmail?: string;
+}) {
+  return policyCanaryNotificationRecipientOptions(params).includes(
+    normalizedEmail(params.requestedEmail),
+  );
+}

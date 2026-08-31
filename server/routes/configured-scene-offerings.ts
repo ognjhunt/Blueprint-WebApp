@@ -15,6 +15,8 @@ import {
   buildInternalPolicyCanaryLaunchRequest,
   internalPolicyCanarySelectionSchema,
   policyCanaryError,
+  policyCanaryNotificationRecipientAllowed,
+  policyCanaryNotificationRecipientOptions,
   resolveInternalPolicyCanarySelection,
   type InternalPolicyCanarySetup,
 } from "../utils/internalPolicyCanaryContract";
@@ -368,6 +370,11 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
       controls_status: resolved.offering.status,
     },
     notification_recipient_email: resolved.access.email,
+    notification_recipient_options: policyCanaryNotificationRecipientOptions({
+      authenticatedEmail: resolved.access.email,
+      isAdmin: resolved.access.isAdmin,
+      isOps: resolved.access.isOps,
+    }),
     warning: "Controls pending — results are unqualified.",
     proof_boundary: {
       controls_qualification_bypassed: false,
@@ -422,11 +429,15 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
       "Idempotency-Key must equal the immutable run_id.",
     ));
   }
-  const authenticatedEmail = String(resolved.access.email || "").trim().toLowerCase();
-  if (!authenticatedEmail || selection.notification.email.toLowerCase() !== authenticatedEmail) {
+  if (!policyCanaryNotificationRecipientAllowed({
+    requestedEmail: selection.notification.email,
+    authenticatedEmail: resolved.access.email,
+    isAdmin: resolved.access.isAdmin,
+    isOps: resolved.access.isOps,
+  })) {
     return res.status(422).json(policyCanaryError(
-      "NOTIFICATION_EMAIL_NOT_AUTHENTICATED_ACCOUNT",
-      "Notification email must match the authenticated internal account.",
+      "NOTIFICATION_EMAIL_NOT_AUTHORIZED",
+      "Notification email must match the authenticated account or an admin-approved internal recipient.",
     ));
   }
   const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering);
@@ -473,6 +484,23 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     configuration_digest: request.request_digest,
     robot_preset_id: selection.robot_preset_id,
     policy_candidate_ids: selection.policy_candidate_ids,
+    scene: {
+      id: resolved.offering.scene_identity.id,
+      version: resolved.offering.scene_identity.version,
+    },
+    task: {
+      id: resolved.offering.task.identity.id,
+      label: resolved.offering.task.strategy.replaceAll("_", " "),
+    },
+    robot: {
+      preset_id: selected.robot.robot_preset_id,
+      display_name: selected.robot.display_name,
+    },
+    policy_candidates: selected.candidates.map((candidate) => ({
+      candidate_id: candidate.candidate_id,
+      display_name: candidate.display_name,
+      checkpoint_digest: candidate.checkpoint.digest,
+    })),
     episode_plan: request.episode_plan,
     episode_counts: {
       learned_episode_count: 20,

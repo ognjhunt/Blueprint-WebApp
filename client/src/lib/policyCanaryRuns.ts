@@ -113,6 +113,7 @@ export const policyCanarySetupViewSchema = z.object({
     controls_status: z.literal("configured_controls_pending"),
   }).strict(),
   notification_recipient_email: z.string().email().nullable(),
+  notification_recipient_options: z.array(z.string().email()).min(1),
   warning: z.literal("Controls pending — results are unqualified."),
   proof_boundary: z.object({
     controls_qualification_bypassed: z.literal(false),

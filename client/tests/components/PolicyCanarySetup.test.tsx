@@ -101,6 +101,7 @@ function setup(): PolicyCanarySetupView {
     setup_digest: sha("9"),
     offering: { scene_id: "scene-839873", scene_version: "v1", task_id: "simple-relocation", task_version: "v1", task_kind: "rigid_relocation", task_strategy: "planar_push", controls_status: "configured_controls_pending" },
     notification_recipient_email: "team@tryblueprint.io",
+    notification_recipient_options: ["team@tryblueprint.io"],
     warning: "Controls pending — results are unqualified.",
     proof_boundary: { controls_qualification_bypassed: false, result_is_unqualified: true, official_ranking_permitted: false, scene_promotion_permitted: false },
   };

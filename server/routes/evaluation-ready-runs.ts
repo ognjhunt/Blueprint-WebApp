@@ -12,6 +12,7 @@ import {
   type EvaluationReadyRunRecord,
 } from "../utils/evaluationReadyRunContract";
 import { internalPolicyCanaryStatusProjectionSchema } from "../utils/internalPolicyCanaryContract";
+import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
 import {
   createPipelineSyncRateLimiter,
   verifyPipelineSyncRequest,
@@ -227,10 +228,9 @@ router.post(
       const resultUrl = record.result_record_id
         ? evaluationResultWebsiteUrl(record.result_record_id)
         : `${String(process.env.APP_URL || process.env.VITE_PUBLIC_APP_URL || "https://tryblueprint.io").replace(/\/$/, "")}/app/evaluation-runs/${encodeURIComponent(record.run_id)}`;
-      const completedCanary = record.run_kind === "internal_policy_canary"
-        && record.state === "results_ready";
-      const cancelledCanary = record.run_kind === "internal_policy_canary"
-        && record.state === "cancelled";
+      const canaryEmail = record.run_kind === "internal_policy_canary"
+        ? buildPolicyCanaryTerminalEmail({ record, resultUrl })
+        : null;
       const notificationRecords = await dispatchTransactionalNotification({
         eventType: "evaluation_results_ready",
         recipientType: "buyer",
@@ -246,26 +246,17 @@ router.post(
         ),
         sourceCollection: COLLECTION,
         sourceDocId: record.run_id,
-        title: record.run_kind === "internal_policy_canary"
-          ? completedCanary
-            ? "Blueprint policy canary results are ready"
-            : cancelledCanary
-              ? "Blueprint policy canary was cancelled"
-              : "Blueprint policy canary is blocked"
+        title: canaryEmail
+          ? canaryEmail.title
           : "Blueprint evaluation results are ready",
-        body: record.run_kind === "internal_policy_canary"
-          ? "Scene controls remain pending. These diagnostic policy-execution results are unqualified."
+        body: canaryEmail
+          ? canaryEmail.body
           : "Your Task Evaluation Run results are ready in Blueprint.",
-        emailSubject: record.run_kind === "internal_policy_canary"
-          ? `Blueprint policy canary ${completedCanary ? "results are ready" : cancelledCanary ? "cancelled" : "blocked"}`
+        emailSubject: canaryEmail
+          ? canaryEmail.emailSubject
           : "Your Blueprint evaluation results are ready",
-        emailText: record.run_kind === "internal_policy_canary"
-          ? [
-              `Policy canary status: ${record.state}.`,
-              "Controls pending — results are unqualified.",
-              "Quick plan: 10 episodes per policy, 20 learned-policy rollouts total.",
-              `Open the authenticated result: ${resultUrl}`,
-            ].join("\n")
+        emailText: canaryEmail
+          ? canaryEmail.emailText
           : `Your Task Evaluation Run results are ready: ${resultUrl}`,
         preferenceKey: "account",
         data: {

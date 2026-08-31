@@ -226,6 +226,7 @@ Agent-side creative MCP note:
     a second authority record
   - `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED=true` on the Render worker so a crash between the durable Firestore write and signed Pipeline POST is recovered
   - `TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS=20` bounds intake-transport retries; these are idempotent queue deliveries and never authorize a paid GPU retry
+  - optional `BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST` is a comma-separated server-only list of internal policy-canary notification recipients. Only authenticated admin/ops users may select these overrides; ordinary team members remain restricted to their authenticated account email. `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL` is also admitted for admin/ops when explicitly configured.
   - when a Pipeline catalog URL is available, the server fetches and validates Pipeline's public `/api/live-pipeline/task-evaluation-launch-profiles` descriptor catalog as the live authority; `TASK_EVALUATION_LAUNCH_PROFILES_URL` is an optional explicit catalog endpoint override, and `TASK_EVALUATION_LAUNCH_PROFILES_JSON` is used only as an offline fallback when no Pipeline catalog URL can be resolved
   - launch receipts and supervision callbacks use the same canonical
     `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN`; no separate launch callback secret

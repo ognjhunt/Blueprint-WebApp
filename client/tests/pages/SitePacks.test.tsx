@@ -62,12 +62,15 @@ describe("SitePacks configured offering", () => {
     }), { status: 200, headers: { "content-type": "application/json" } }));
   });
 
-  it("opens the guided flow only for an evaluation-ready card", async () => {
+  it("keeps qualified evaluation strict while exposing the separate controls-pending canary", async () => {
     render(<SitePacks />);
 
     const configureLink = await screen.findByRole("link", { name: /configure evaluation/i });
     expect(configureLink).toHaveAttribute("href", "/app/packs/scene-839873-launch/evaluate");
-    expect(screen.getByRole("button", { name: /evaluation locked until controls pass/i })).toBeDisabled();
+    const canaryLink = screen.getByRole("link", { name: /run policy canary/i });
+    expect(canaryLink).toHaveAttribute("href", "/app/packs/scene-pending-launch/policy-canary");
+    expect(screen.getByText("Controls pending")).toBeInTheDocument();
+    expect(screen.getByText(/Results will be marked unqualified until controls pass/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/prepare task evaluation run/i)).not.toBeInTheDocument());
     expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
   });

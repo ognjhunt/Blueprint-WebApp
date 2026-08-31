@@ -130,6 +130,7 @@ const envSchema = z
     SLACK_BOT_TOKEN: z.string().trim().optional(),
     BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN: z.string().trim().optional(),
     BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL: z.string().trim().optional(),
+    BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST: z.string().trim().optional(),
     BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID: z.string().trim().optional(),
     BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET: z.string().trim().optional(),
     BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN: z.string().trim().optional(),
