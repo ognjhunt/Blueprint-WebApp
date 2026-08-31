@@ -1208,6 +1208,10 @@ describe("admin Task Evaluation launch route", () => {
       configured_scene_offering: correctedPending,
       terminal_updated_at_iso: "2026-08-31T12:00:00.000Z",
     });
+    state.records.set("controls-run-without-offering", {
+      configured_scene_offering_state: "configured_controls_pending",
+      configured_scene_offering_team_namespace: own.team_namespace,
+    });
     state.blobs.set("blueprint-inputs/configured/task-thumbnail.png", Buffer.from("exact-selected-frame"));
     const { server, url } = await startTeamOfferingServer();
     try {
