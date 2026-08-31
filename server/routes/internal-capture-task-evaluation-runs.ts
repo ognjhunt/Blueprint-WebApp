@@ -15,6 +15,7 @@ import {
   type PipelinePolicyCanaryPublication,
 } from "../utils/policyCanaryWebappSyncContract";
 import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
+import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
@@ -166,24 +167,41 @@ async function dispatchCanaryTerminalNotification(params: {
   return notification;
 }
 
-function sessionScope(session: Record<string, any>) {
-  const ownerUserId = String(session.owner_user_id || "");
+function configuredOffering(record: Record<string, any>) {
+  const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
+  if (
+    !parsed.success
+    || record.configured_scene_offering_state !== "configured_controls_pending"
+    || parsed.data.status !== "configured_controls_pending"
+    || record.configured_scene_offering_digest !== parsed.data.offering_digest
+  ) return null;
+  return parsed.data;
+}
+
+function offeringScope(
+  policyRun: Record<string, any>,
+  offering: { team_namespace: string },
+) {
+  const ownerUserId = String(policyRun.owner_user_id || "").trim();
+  const organizationId = offering.team_namespace;
   return {
     ownerUserId,
-    organizationId: String(session.organization_id || `user:${ownerUserId}`),
-    accessVisibility: session.organization_binding_status === "firebase_tenant_verified"
-      ? "organization_members" as const
-      : "owner_only" as const,
+    organizationId,
+    accessVisibility: organizationId === `user:${ownerUserId}`
+      ? "owner_only" as const
+      : "organization_members" as const,
   };
 }
 
-function policyRunBelongsToSession(
+function policyRunBelongsToOffering(
   policyRun: Record<string, any>,
-  session: Record<string, any>,
+  offering: { offering_digest: string; team_namespace: string },
+  sourceLaunchId: string,
 ) {
-  const scope = sessionScope(session);
-  return policyRun.owner_user_id === scope.ownerUserId
-    && policyRun.team_namespace === scope.organizationId;
+  return Boolean(String(policyRun.owner_user_id || "").trim())
+    && policyRun.source_launch_id === sourceLaunchId
+    && policyRun.offering_digest === offering.offering_digest
+    && policyRun.team_namespace === offering.team_namespace;
 }
 
 async function handlePolicyCanaryPublication(
@@ -191,25 +209,31 @@ async function handlePolicyCanaryPublication(
   res: Response,
 ) {
   if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
-  const sessionRef = db.collection("captureUploadSessions").doc(publication.capture_session_id);
+  const offeringRef = db.collection("taskEvaluationLaunches").doc(publication.capture_session_id);
   const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(publication.run_id);
   const recordId = `capture-run-${createHash("sha256").update(`${publication.capture_session_id}\0${publication.run_id}`).digest("hex").slice(0, 32)}`;
   const runRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
-  type Outcome = "created" | "replayed" | "session_not_found" | "policy_run_not_found" | "intake_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
+  type Outcome = "created" | "replayed" | "offering_not_found" | "offering_invalid" | "policy_run_not_found" | "configuration_run_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
   let transactionResult: { outcome: Outcome; policyRun: Record<string, any> | null };
   try {
     transactionResult = await db.runTransaction(async (transaction) => {
-      const [sessionSnapshot, policyRunSnapshot, runSnapshot] = await Promise.all([
-        transaction.get(sessionRef), transaction.get(policyRunRef), transaction.get(runRef),
+      const [offeringSnapshot, policyRunSnapshot, runSnapshot] = await Promise.all([
+        transaction.get(offeringRef), transaction.get(policyRunRef), transaction.get(runRef),
       ]);
-      if (!sessionSnapshot.exists) return { outcome: "session_not_found" as const, policyRun: null };
+      if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
-      const session = sessionSnapshot.data() as Record<string, any>;
+      const offeringRecord = offeringSnapshot.data() as Record<string, any>;
+      const offering = configuredOffering(offeringRecord);
+      if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
-      if (session.request?.intake_id !== publication.intake_id) {
-        return { outcome: "intake_mismatch" as const, policyRun: null };
+      if (offering.configuration_run_id !== publication.intake_id) {
+        return { outcome: "configuration_run_mismatch" as const, policyRun: null };
       }
-      if (!policyRunBelongsToSession(policyRun, session)) {
+      if (!policyRunBelongsToOffering(
+        policyRun,
+        offering,
+        publication.capture_session_id,
+      )) {
         return { outcome: "owner_team_mismatch" as const, policyRun: null };
       }
       if (
@@ -219,7 +243,7 @@ async function handlePolicyCanaryPublication(
           && policyRun.pipeline_configuration_digest !== publication.configuration_digest)
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
-      const scope = sessionScope(session);
+      const scope = offeringScope(policyRun, offering);
       const record = {
         schema_version: "capture_task_evaluation_run_record.v2",
         record_id: recordId,
@@ -273,8 +297,16 @@ async function handlePolicyCanaryPublication(
         } : { error: null }),
       };
       transaction.set(policyRunRef, update, { merge: true });
-      transaction.set(sessionRef, {
-        pipeline_task_evaluation_run: record,
+      transaction.set(offeringRef, {
+        policy_canary_terminal_sync: {
+          record_id: recordId,
+          run_id: publication.run_id,
+          request_digest: publication.request_digest,
+          configuration_digest: publication.configuration_digest,
+          projection_digest: publication.policy_canary_result.projection_digest,
+          result_status: publication.result_status,
+          updated_at_iso: now,
+        },
         pipeline_run_state: publication.result_status,
         pipeline_run_projection_updated_at_iso: now,
       }, { merge: true });
@@ -283,9 +315,10 @@ async function handlePolicyCanaryPublication(
   } catch {
     return res.status(503).json({ error: "Task Evaluation policy canary store is unavailable" });
   }
-  if (transactionResult.outcome === "session_not_found") return res.status(404).json({ error: "Capture upload not found" });
+  if (transactionResult.outcome === "offering_not_found") return res.status(404).json({ error: "Configured scene offering not found" });
+  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering is not a valid controls-pending revision" });
   if (transactionResult.outcome === "policy_run_not_found") return res.status(404).json({ error: "Policy canary run not found" });
-  if (transactionResult.outcome === "intake_mismatch") return res.status(409).json({ error: "Capture intake binding mismatch" });
+  if (transactionResult.outcome === "configuration_run_mismatch") return res.status(409).json({ error: "Configured scene configuration-run binding mismatch" });
   if (transactionResult.outcome === "owner_team_mismatch") return res.status(409).json({ error: "Policy canary owner or team binding mismatch" });
   if (transactionResult.outcome === "binding_mismatch") return res.status(409).json({ error: "Policy canary request or configuration binding mismatch" });
   if (transactionResult.outcome === "immutable_conflict") return res.status(409).json({ error: "Immutable policy canary publication conflict" });
@@ -355,24 +388,26 @@ async function handlePolicyCanaryPreproviderBlocked(
   if (resolved.status === "not_found") return res.status(404).json({ error: "Policy canary run not found" });
   if (resolved.status === "ambiguous") return res.status(409).json({ error: "Policy canary request digest is ambiguous" });
   const policyRunRef = resolved.ref as FirebaseFirestore.DocumentReference;
-  const sessionRef = db.collection("captureUploadSessions").doc(payload.capture_session_id);
+  const offeringRef = db.collection("taskEvaluationLaunches").doc(payload.capture_session_id);
   const recordId = `capture-run-${createHash("sha256").update(`${payload.capture_session_id}\0${payload.activation_id}`).digest("hex").slice(0, 32)}`;
   const blockedRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
-  type Outcome = "created" | "replayed" | "session_not_found" | "policy_run_not_found" | "intake_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
+  type Outcome = "created" | "replayed" | "offering_not_found" | "offering_invalid" | "policy_run_not_found" | "configuration_run_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
   let transactionResult: { outcome: Outcome; policyRun: Record<string, any> | null };
   try {
     transactionResult = await db.runTransaction(async (transaction) => {
-      const [sessionSnapshot, policyRunSnapshot, blockedSnapshot] = await Promise.all([
-        transaction.get(sessionRef), transaction.get(policyRunRef), transaction.get(blockedRef),
+      const [offeringSnapshot, policyRunSnapshot, blockedSnapshot] = await Promise.all([
+        transaction.get(offeringRef), transaction.get(policyRunRef), transaction.get(blockedRef),
       ]);
-      if (!sessionSnapshot.exists) return { outcome: "session_not_found" as const, policyRun: null };
+      if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
-      const session = sessionSnapshot.data() as Record<string, any>;
+      const offeringRecord = offeringSnapshot.data() as Record<string, any>;
+      const offering = configuredOffering(offeringRecord);
+      if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
-      if (session.request?.intake_id !== payload.intake_id) {
-        return { outcome: "intake_mismatch" as const, policyRun: null };
+      if (offering.configuration_run_id !== payload.intake_id) {
+        return { outcome: "configuration_run_mismatch" as const, policyRun: null };
       }
-      if (!policyRunBelongsToSession(policyRun, session)) {
+      if (!policyRunBelongsToOffering(policyRun, offering, payload.capture_session_id)) {
         return { outcome: "owner_team_mismatch" as const, policyRun: null };
       }
       if (
@@ -380,7 +415,7 @@ async function handlePolicyCanaryPreproviderBlocked(
         || policyRun.request_digest !== payload.request_digest
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
-      const scope = sessionScope(session);
+      const scope = offeringScope(policyRun, offering);
       const record = {
         schema_version: "capture_task_evaluation_policy_canary_preprovider_blocked_record.v1",
         record_id: recordId,
@@ -418,8 +453,16 @@ async function handlePolicyCanaryPreproviderBlocked(
         updated_at_iso: now,
       };
       transaction.set(policyRunRef, update, { merge: true });
-      transaction.set(sessionRef, {
-        pipeline_task_evaluation_policy_canary_preprovider_blocked: record,
+      transaction.set(offeringRef, {
+        policy_canary_preprovider_blocked_sync: {
+          record_id: recordId,
+          activation_id: payload.activation_id,
+          run_id: String(policyRun.run_id || policyRunRef.id),
+          request_digest: payload.request_digest,
+          payload_digest: payload.payload_digest,
+          result_status: "blocked",
+          updated_at_iso: now,
+        },
         pipeline_run_state: "blocked",
         pipeline_run_projection_updated_at_iso: now,
       }, { merge: true });
@@ -428,9 +471,10 @@ async function handlePolicyCanaryPreproviderBlocked(
   } catch {
     return res.status(503).json({ error: "Policy canary blocked receipt store is unavailable" });
   }
-  if (transactionResult.outcome === "session_not_found") return res.status(404).json({ error: "Capture upload not found" });
+  if (transactionResult.outcome === "offering_not_found") return res.status(404).json({ error: "Configured scene offering not found" });
+  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering is not a valid controls-pending revision" });
   if (transactionResult.outcome === "policy_run_not_found") return res.status(404).json({ error: "Policy canary run not found" });
-  if (transactionResult.outcome === "intake_mismatch") return res.status(409).json({ error: "Capture intake binding mismatch" });
+  if (transactionResult.outcome === "configuration_run_mismatch") return res.status(409).json({ error: "Configured scene configuration-run binding mismatch" });
   if (transactionResult.outcome === "owner_team_mismatch") return res.status(409).json({ error: "Policy canary owner or team binding mismatch" });
   if (transactionResult.outcome === "binding_mismatch") return res.status(409).json({ error: "Policy canary request binding mismatch" });
   if (transactionResult.outcome === "immutable_conflict") return res.status(409).json({ error: "Immutable pre-provider blocker conflict" });

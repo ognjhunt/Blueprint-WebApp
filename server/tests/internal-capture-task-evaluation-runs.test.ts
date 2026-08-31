@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
 import canaryBlockedFixture from "./fixtures/pipeline-policy-canary-preprovider-blocked.v1.json";
+import configuredOfferingFixture from "./fixtures/pipeline-configured-scene-offering.v1.json";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, any>>>(),
@@ -105,6 +106,28 @@ function policyCanaryPreproviderBlocked() {
   const value = structuredClone(canaryBlockedFixture) as Record<string, any>;
   value.payload_digest = canonicalArtifactDigest(value, "payload_digest");
   return value;
+}
+
+function configuredOfferingRecord(params: {
+  configurationRunId: string;
+  teamNamespace?: string;
+}) {
+  const offering = structuredClone(configuredOfferingFixture) as Record<string, any>;
+  offering.status = "configured_controls_pending";
+  offering.configuration_run_id = params.configurationRunId;
+  offering.team_namespace = params.teamNamespace || "team-1";
+  offering.evaluation_admission = {
+    zero_action_required: true,
+    scripted_positive_required: true,
+    learned_policy_evaluation_admitted: false,
+  };
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return {
+    configured_scene_offering_state: offering.status,
+    configured_scene_offering_digest: offering.offering_digest,
+    configured_scene_offering_team_namespace: offering.team_namespace,
+    configured_scene_offering: offering,
+  };
 }
 
 function publication() {
@@ -504,12 +527,13 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       messageId: "message-canary-1",
     });
     const body = policyCanaryPublication();
-    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
-      owner_user_id: "buyer-1",
-      organization_id: "team-1",
-      organization_binding_status: "firebase_tenant_verified",
-      request: { intake_id: body.intake_id },
-    }]]));
+    const offeringRecord = configuredOfferingRecord({
+      configurationRunId: body.intake_id,
+    });
+    state.collections.set("taskEvaluationLaunches", new Map([[
+      body.capture_session_id,
+      offeringRecord,
+    ]]));
     state.collections.set("taskEvaluationPolicyRuns", new Map([[body.run_id, {
       schema_version: "task_evaluation_policy_run_web_record.v2",
       run_id: body.run_id,
@@ -518,6 +542,8 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       pipeline_configuration_digest: body.configuration_digest,
       owner_user_id: "buyer-1",
       team_namespace: "team-1",
+      source_launch_id: body.capture_session_id,
+      offering_digest: offeringRecord.configured_scene_offering_digest,
       notification_recipient_user_id: "buyer-1",
       notification: { email: "buyer@example.com" },
       scene: { id: "839873" },
@@ -593,12 +619,13 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       messageId: "message-blocked-1",
     });
     const body = policyCanaryPreproviderBlocked();
-    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
-      owner_user_id: "buyer-1",
-      organization_id: "team-1",
-      organization_binding_status: "firebase_tenant_verified",
-      request: { intake_id: body.intake_id },
-    }]]));
+    const offeringRecord = configuredOfferingRecord({
+      configurationRunId: body.intake_id,
+    });
+    state.collections.set("taskEvaluationLaunches", new Map([[
+      body.capture_session_id,
+      offeringRecord,
+    ]]));
     state.collections.set("taskEvaluationPolicyRuns", new Map([["scene-839873-canary-1", {
       schema_version: "task_evaluation_policy_run_web_record.v2",
       run_id: "scene-839873-canary-1",
@@ -606,6 +633,8 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       request_digest: body.request_digest,
       owner_user_id: "buyer-1",
       team_namespace: "team-1",
+      source_launch_id: body.capture_session_id,
+      offering_digest: offeringRecord.configured_scene_offering_digest,
       notification_recipient_user_id: "buyer-1",
       notification: { email: "buyer@example.com" },
       scene: { id: "839873" },
@@ -665,18 +694,21 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
   it("refuses a signed canary blocker whose policy run belongs to another team", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     const body = policyCanaryPreproviderBlocked();
-    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
-      owner_user_id: "buyer-1",
-      organization_id: "team-1",
-      organization_binding_status: "firebase_tenant_verified",
-      request: { intake_id: body.intake_id },
-    }]]));
+    const offeringRecord = configuredOfferingRecord({
+      configurationRunId: body.intake_id,
+    });
+    state.collections.set("taskEvaluationLaunches", new Map([[
+      body.capture_session_id,
+      offeringRecord,
+    ]]));
     state.collections.set("taskEvaluationPolicyRuns", new Map([["scene-839873-canary-1", {
       run_id: "scene-839873-canary-1",
       run_kind: "internal_policy_canary",
       request_digest: body.request_digest,
       owner_user_id: "buyer-2",
       team_namespace: "team-2",
+      source_launch_id: body.capture_session_id,
+      offering_digest: offeringRecord.configured_scene_offering_digest,
       state: "preparing",
     }]]));
     const { server, socketPath } = await startServer();
@@ -685,6 +717,28 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       expect(response.status).toBe(409);
       expect(response.body.error).toBe("Policy canary owner or team binding mismatch");
       expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+
+      state.collections.get("taskEvaluationPolicyRuns")?.set(
+        "scene-839873-canary-1",
+        {
+          run_id: "scene-839873-canary-1",
+          run_kind: "internal_policy_canary",
+          request_digest: body.request_digest,
+          owner_user_id: "buyer-1",
+          team_namespace: "team-1",
+          source_launch_id: body.capture_session_id,
+          offering_digest: offeringRecord.configured_scene_offering_digest,
+          state: "preparing",
+        },
+      );
+      state.collections.get("taskEvaluationLaunches")?.set(
+        body.capture_session_id,
+        configuredOfferingRecord({ configurationRunId: "different-configuration-run" }),
+      );
+      const mismatch = await postSigned(socketPath, body);
+      expect(mismatch.status).toBe(409);
+      expect(mismatch.body.error).toBe("Configured scene configuration-run binding mismatch");
       expect(state.sendEmail).not.toHaveBeenCalled();
     } finally {
       await stopServer(server, socketPath);
