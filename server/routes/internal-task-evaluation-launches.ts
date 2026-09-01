@@ -287,7 +287,8 @@ router.post(
       ? configuredSceneOffering.offering
       : undefined;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
-    type Outcome = "updated" | "replayed" | "publication_recovered"
+    type Outcome = "updated" | "replayed" | "replayed_catalog_repaired"
+      | "publication_recovered"
       | "not_found" | "binding_mismatch"
       | "configured_scene_offering_missing" | "immutable_conflict"
       | "adoption_updated" | "adoption_replayed" | "adoption_conflict";
@@ -382,7 +383,16 @@ router.post(
           if (
             existing.terminal_receipt.receipt_digest === receipt.receipt_digest
             && sameOffering
-          ) return "replayed";
+          ) {
+            if (offering && existing.configured_scene_offering_state !== "launch_ready") {
+              transaction.set(ref, {
+                configured_scene_offering_state: "launch_ready",
+                configured_scene_offering_team_namespace: offering.team_namespace,
+              }, { merge: true });
+              return "replayed_catalog_repaired";
+            }
+            return "replayed";
+          }
           if (!offering || !isPublicationRecoveryUpgrade(existing, receipt)) {
             return "immutable_conflict";
           }
@@ -398,7 +408,7 @@ router.post(
             terminal_updated_at_iso: new Date().toISOString(),
             configured_scene_offering: offering,
             configured_scene_offering_digest: offering.offering_digest,
-            configured_scene_offering_state: offering.status,
+            configured_scene_offering_state: "launch_ready",
             configured_scene_offering_team_namespace: offering.team_namespace,
             configured_scene_offering_public_visibility:
               offering.public_display?.status === "authorized" ? "public" : "private",
@@ -417,7 +427,7 @@ router.post(
           ...(offering ? {
             configured_scene_offering: offering,
             configured_scene_offering_digest: offering.offering_digest,
-            configured_scene_offering_state: offering.status,
+            configured_scene_offering_state: "launch_ready",
             configured_scene_offering_team_namespace: offering.team_namespace,
             configured_scene_offering_public_visibility:
               offering.public_display?.status === "authorized" ? "public" : "private",
@@ -443,10 +453,18 @@ router.post(
       code: "task_evaluation_direct_execution_adoption_immutable_conflict",
     });
     res.set("Cache-Control", "no-store");
-    return res.status(["replayed", "adoption_replayed"].includes(outcome) ? 200 : 201).json({
+    return res.status([
+      "replayed",
+      "replayed_catalog_repaired",
+      "adoption_replayed",
+    ].includes(outcome) ? 200 : 201).json({
       schema_version: "task_evaluation_launch_web_sync_receipt.v1",
       status: receipt.status,
-      already_exists: ["replayed", "adoption_replayed"].includes(outcome),
+      already_exists: [
+        "replayed",
+        "replayed_catalog_repaired",
+        "adoption_replayed",
+      ].includes(outcome),
       launch_id: receipt.launch_id,
       run_id: receipt.run_id,
       request_digest: receipt.request_digest,
@@ -463,6 +481,9 @@ router.post(
       } : {}),
       ...(outcome === "publication_recovered" ? {
         publication_recovery_applied: true,
+      } : {}),
+      ...(outcome === "replayed_catalog_repaired" ? {
+        configured_scene_catalog_state_repaired: true,
       } : {}),
     });
   },
