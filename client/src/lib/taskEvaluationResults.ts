@@ -144,6 +144,37 @@ export type TaskEvaluationResultDelivery = {
     cross_team_leaderboard_authorized: false;
   };
   delivery_digest: string;
+  matrix_digest?: string | null;
+  candidate_results?: Array<{
+    candidate_id: string;
+    display_name: string;
+    checkpoint_digest: string;
+    episodes_completed: number;
+    interpretable_episode_count: number;
+    success_count: number;
+    success_rate: number | null;
+    progress_score: number | null;
+    mean_destination_error: number | null;
+    contact_maintenance_rate: number | null;
+    collision_rate: number | null;
+    action_delivery_rate: number;
+  }>;
+  reproducibility?: {
+    scene_id?: string;
+    task_id?: string;
+    robot_preset_id?: string;
+    scene_revision_digest?: string;
+    runtime_container_digest?: string;
+    scoring_version?: string;
+    observation_schema_id?: string;
+    action_schema_id?: string;
+    calibration_digest?: string;
+    timebase?: { clock_id: string; frequency_hz: number | null; synchronized: boolean };
+    evidence_manifest?: TaskEvaluationResultArtifact;
+    billing_receipt?: TaskEvaluationResultArtifact;
+    teardown_receipt?: TaskEvaluationResultArtifact;
+    provider_zero_receipt?: TaskEvaluationResultArtifact;
+  };
 };
 
 export type TaskEvaluationResultSiteRecord = {

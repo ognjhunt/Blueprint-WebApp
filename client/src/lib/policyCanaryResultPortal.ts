@@ -32,6 +32,32 @@ export const canaryFailureCohorts = [
   "evidence_gap",
 ] as const;
 
+export function resolvedCanaryCandidates(result: TaskEvaluationResultSiteRecord) {
+  const publication = result.publication;
+  if (publication.policy_candidates?.length === 2) return publication.policy_candidates;
+  const delivered = publication.result_delivery?.candidate_results || [];
+  if (delivered.length === 2) return delivered.map((candidate) => ({
+    candidate_id: candidate.candidate_id,
+    display_name: candidate.display_name,
+    checkpoint_digest: candidate.checkpoint_digest,
+  }));
+  const projected = publication.policy_canary_result?.candidate_results || [];
+  return projected.map((candidate: Record<string, any>) => {
+    const metrics = candidate.metrics || {};
+    const episode = publication.result_delivery?.episodes.find((row) => (
+      row.policy_candidate_id === candidate.candidate_id
+    ));
+    return {
+      candidate_id: candidate.candidate_id,
+      display_name: candidate.display_name || metrics.display_name || candidate.candidate_id,
+      checkpoint_digest: candidate.checkpoint_digest
+        || metrics.checkpoint_digest
+        || episode?.policy_checkpoint_digest
+        || "Unavailable — not delivered",
+    };
+  });
+}
+
 export function wilson95(successes: number, attempts: number) {
   if (!Number.isInteger(successes) || !Number.isInteger(attempts) || attempts <= 0) return null;
   const boundedSuccesses = Math.min(Math.max(successes, 0), attempts);

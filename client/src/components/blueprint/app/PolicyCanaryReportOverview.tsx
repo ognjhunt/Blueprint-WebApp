@@ -6,6 +6,7 @@ import {
   availableCanaryFilters,
   buildAlignedCanaryCells,
   buildFailureAnalysis,
+  resolvedCanaryCandidates,
   wilson95,
   type EpisodeFilters,
 } from "@/lib/policyCanaryResultPortal";
@@ -32,7 +33,7 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
   const publication = result.publication;
   const delivery = publication.result_delivery;
   const canary = publication.policy_canary_result || {};
-  const candidates = publication.policy_candidates || [];
+  const candidates = resolvedCanaryCandidates(result);
   const episodes = delivery?.episodes || [];
   const [filters, setFilters] = useState<EpisodeFilters>({
     family: "all", seed: "all", outcome: "all", interpretability: "all",
@@ -47,7 +48,10 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
   const origin = typeof window !== "undefined" ? window.location.origin : "https://tryblueprint.io";
   const resultPath = `${origin}/app/results/${encodeURIComponent(result.record_id)}`;
   const apiPath = `${origin}/api/task-evaluation-results/${encodeURIComponent(result.record_id)}`;
-  const reproducibility = canary.reproducibility || {};
+  const reproducibility = canary.reproducibility || delivery?.reproducibility || {};
+  const candidateResults = canary.candidate_results?.length
+    ? canary.candidate_results
+    : delivery?.candidate_results || [];
   const coverageGaps = Array.isArray(canary.coverage_gaps) ? canary.coverage_gaps : [];
 
   return <>
@@ -60,8 +64,8 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
         <Copyable label="Run ID" value={publication.run_id} />
         <Copyable label="Request digest" value={readable(publication.request_digest)} />
         <Copyable label="Configuration digest" value={readable(publication.configuration_digest)} />
-        <Copyable label="Matrix digest" value={readable(canary.matrix_digest)} />
-        <Copyable label="Scene revision digest" value={readable(publication.scene?.revision_digest)} />
+        <Copyable label="Matrix digest" value={readable(canary.matrix_digest || delivery?.matrix_digest)} />
+        <Copyable label="Scene revision digest" value={readable(publication.scene?.revision_digest || reproducibility.scene_revision_digest)} />
         <Copyable label="Runtime container digest" value={readable(reproducibility.runtime_container_digest)} />
         <Copyable label="Scoring version" value={readable(reproducibility.scoring_version)} />
       </dl><dl>
@@ -79,10 +83,12 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
 
     <section className="runway-panel overflow-x-auto p-5" aria-labelledby="canary-metrics-title">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Candidate metrics</p><h2 id="canary-metrics-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Numerators, denominators, and uncertainty</h2></div><StatusChip tone="warn" square>Diagnostic only</StatusChip></div>
-      <table className="mt-4 w-full min-w-[68rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Wilson 95% CI</th><th className="runway-meta px-3 py-2">Progress</th><th className="runway-meta px-3 py-2">Destination error</th><th className="runway-meta px-3 py-2">Contact maintained</th><th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Interpretable</th></tr></thead><tbody>{(canary.candidate_results || []).map((candidate: Record<string, any>) => {
-        const denominator = Number(candidate.interpretable_episode_count || 0);
-        const interval = wilson95(Number(candidate.success_count || 0), denominator);
-        return <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{candidate.display_name}</td><td className="runway-num px-3 py-3">{candidate.success_count}/{denominator} · {percent(candidate.success_rate)}</td><td className="runway-num px-3 py-3">{interval ? `${percent(interval.lower)}–${percent(interval.upper)}` : "Not meaningful"}</td><td className="runway-num px-3 py-3">{readable(candidate.progress_score)}</td><td className="runway-num px-3 py-3">{readable(candidate.mean_destination_error)}</td><td className="runway-num px-3 py-3">{percent(candidate.contact_maintenance_rate)}</td><td className="runway-num px-3 py-3">{percent(candidate.collision_rate)}</td><td className="runway-num px-3 py-3">{percent(candidate.action_delivery_rate)}</td><td className="runway-num px-3 py-3">{candidate.interpretable_episode_count}/{candidate.episodes_completed}</td></tr>;
+      <table className="mt-4 w-full min-w-[68rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Wilson 95% CI</th><th className="runway-meta px-3 py-2">Progress</th><th className="runway-meta px-3 py-2">Destination error</th><th className="runway-meta px-3 py-2">Contact maintained</th><th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Interpretable</th></tr></thead><tbody>{candidateResults.map((candidate: Record<string, any>) => {
+        const metrics = candidate.metrics || {};
+        const value = (key: string) => candidate[key] ?? metrics[key];
+        const denominator = Number(value("interpretable_episode_count") || 0);
+        const interval = wilson95(Number(value("success_count") || 0), denominator);
+        return <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{value("display_name") || candidate.candidate_id}</td><td className="runway-num px-3 py-3">{value("success_count")}/{denominator} · {percent(value("success_rate"))}</td><td className="runway-num px-3 py-3">{interval ? `${percent(interval.lower)}–${percent(interval.upper)}` : "Not meaningful"}</td><td className="runway-num px-3 py-3">{readable(value("progress_score"))}</td><td className="runway-num px-3 py-3">{readable(value("mean_destination_error"))}</td><td className="runway-num px-3 py-3">{percent(value("contact_maintenance_rate"))}</td><td className="runway-num px-3 py-3">{percent(value("collision_rate"))}</td><td className="runway-num px-3 py-3">{percent(value("action_delivery_rate"))}</td><td className="runway-num px-3 py-3">{denominator}/{value("episodes_completed")}</td></tr>;
       })}</tbody></table>
     </section>
 

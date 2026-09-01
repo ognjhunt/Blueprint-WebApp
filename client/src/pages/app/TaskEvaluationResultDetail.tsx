@@ -129,13 +129,20 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
   const canaryResult = result.publication.policy_canary_result;
+  const canaryReproducibility = delivery?.reproducibility;
+  const canaryScene = result.publication.scene?.id
+    || canaryReproducibility?.scene_id
+    || "Scene 839873";
+  const canaryTask = result.publication.task?.label
+    || canaryReproducibility?.task_id
+    || "Policy canary";
   const packages = delivery?.artifacts.filter((artifact) => artifact.content_type === "application/zip") || [];
   return (
     <>
       <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
         <div>
           <Eyebrow tone="brass" rule>{canary ? "Internal policy canary" : "Sealed Task Evaluation Result"}</Eyebrow>
-          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{canary ? `${result.publication.scene?.id || "Scene"} · ${result.publication.task?.label || "Policy canary"}` : envelope?.decision_question || result.publication.run_id}</h1>
+          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{canary ? `${canaryScene} · ${canaryTask}` : envelope?.decision_question || result.publication.run_id}</h1>
           <p className="runway-num mt-2 text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
         </div>
         <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadJson(result)}>Exact result JSON</Button>
