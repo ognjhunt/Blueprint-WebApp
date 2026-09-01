@@ -1202,7 +1202,9 @@ describe("admin Task Evaluation launch route", () => {
       terminal_updated_at_iso: "2026-08-30T12:00:00.000Z",
     });
     state.records.set("pending-launch-corrected", {
-      configured_scene_offering_state: "configured_controls_pending",
+      // Publication recovery indexes the repaired record as launch_ready while
+      // preserving its scientific controls-pending status inside the offering.
+      configured_scene_offering_state: "launch_ready",
       configured_scene_offering_team_namespace: correctedPending.team_namespace,
       configured_scene_offering_digest: correctedPending.offering_digest,
       configured_scene_offering: correctedPending,
