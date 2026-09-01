@@ -13,16 +13,20 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  const reference = (id: string) => ({
+  const reference = (collection: string, id: string) => ({
     id,
+    key: collection === "taskEvaluationLaunches" ? id : `${collection}:${id}`,
     get: async () => {
-      const record = state.records.get(id);
+      const key = collection === "taskEvaluationLaunches" ? id : `${collection}:${id}`;
+      const record = state.records.get(key);
       return { exists: Boolean(record), data: () => record && structuredClone(record) };
     },
   });
   return {
     dbAdmin: {
-      collection: () => ({ doc: reference }),
+      collection: (collection: string) => ({
+        doc: (id: string) => reference(collection, id),
+      }),
       runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => callback({
         get: async (ref: ReturnType<typeof reference>) => ref.get(),
         set: (
@@ -30,8 +34,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
           payload: Record<string, unknown>,
           options?: { merge?: boolean },
         ) => {
-          state.records.set(ref.id, options?.merge
-            ? { ...(state.records.get(ref.id) || {}), ...structuredClone(payload) }
+          state.records.set(ref.key, options?.merge
+            ? { ...(state.records.get(ref.key) || {}), ...structuredClone(payload) }
             : structuredClone(payload));
         },
       }),
@@ -150,6 +154,62 @@ describe("internal Task Evaluation launch progress route", () => {
     // it exactly as the launch route left it.
     expect(record?.state).toBe("queued_in_pipeline");
     expect(record?.terminal_receipt).toBeUndefined();
+  });
+
+  it("binds an internal policy canary to its authenticated policy-run record", async () => {
+    const runId = "scene839873-policy-canary-001";
+    const key = `taskEvaluationPolicyRuns:${runId}`;
+    state.records.set(key, {
+      schema_version: "task_evaluation_policy_run_web_record.v2",
+      run_kind: "internal_policy_canary",
+      run_id: runId,
+      request_digest: sha("b"),
+      state: "queued",
+      phase: "queued",
+    });
+    await withServer(async (url) => {
+      const response = await postProgress(url, progressPayload({
+        launch_id: runId,
+        run_id: runId,
+        request_digest: sha("b"),
+        phase: "intake_webapp_record_binding",
+        phase_status: "verified",
+      }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        status: "recorded",
+        launch_id: runId,
+        run_id: runId,
+        phase: "intake_webapp_record_binding",
+      });
+    });
+    expect(state.records.get(key)).toMatchObject({
+      run_kind: "internal_policy_canary",
+      state: "queued",
+      phase: "queued",
+      progress: {
+        phase: "intake_webapp_record_binding",
+        phase_status: "verified",
+      },
+    });
+    expect(state.records.has(runId)).toBe(false);
+  });
+
+  it("does not treat another policy-run kind as a canary launch record", async () => {
+    const runId = "qualified-policy-run-001";
+    state.records.set(`taskEvaluationPolicyRuns:${runId}`, {
+      run_kind: "qualified_evaluation",
+      run_id: runId,
+      request_digest: sha("b"),
+    });
+    await withServer(async (url) => {
+      const response = await postProgress(url, progressPayload({
+        launch_id: runId,
+        run_id: runId,
+        request_digest: sha("b"),
+      }));
+      expect(response.status).toBe(404);
+    });
   });
 
   it("replaces the prior phase so the control room reads the current one", async () => {
