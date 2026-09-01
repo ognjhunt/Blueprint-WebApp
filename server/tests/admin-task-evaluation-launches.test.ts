@@ -3016,4 +3016,133 @@ describe("admin Task Evaluation launch route", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it("upgrades one publication-only blocked launch while preserving terminal history", async () => {
+    const requestDigest = sha("a");
+    const original: Record<string, any> = {
+      schema_version: "task_evaluation_launch_receipt.v1",
+      status: "blocked",
+      launch_id: "launch-publication-recovery",
+      run_id: "launch-publication-recovery",
+      request_digest: requestDigest,
+      launch_profile_digest: sha("b"),
+      binding_digest: sha("c"),
+      canonical_allocator: CANONICAL_TASK_EVALUATION_ALLOCATOR,
+      allocator_exit_code: 2,
+      execute_requested: true,
+      provider_mutation_attempted: true,
+      terminal_evidence: { status: "blocked" },
+      blockers: ["scene_configuration_configured_revision_not_published"],
+      raw_secret_values_recorded: false,
+      agent_operator_used: false,
+      claim_ceiling: "development_only",
+    };
+    original.receipt_digest = canonicalArtifactDigest(original, "receipt_digest");
+    state.records.set("launch-publication-recovery", {
+      launch_id: "launch-publication-recovery",
+      run_id: "launch-publication-recovery",
+      request_digest: requestDigest,
+      team_namespace: "robot-team-001",
+      configured_scene_context: {
+        run_mode: "scene_configuration",
+        team_namespace: "robot-team-001",
+        scene_id: "interiorgs-839873",
+        task_id: "planar-mug-push",
+        configuration_run_id: "configuration-run-recovered",
+        evaluation_episode_executed: false,
+      },
+      state: "blocked",
+      terminal_receipt: structuredClone(original),
+      terminal_receipt_digest: original.receipt_digest,
+    });
+    const offering = configuredSceneOffering();
+    offering.configuration_run_id = "configuration-run-recovered";
+    offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    const publicationRecovery: Record<string, any> = {
+      schema_version: "task_evaluation_scene_configuration_publication_recovery.v1",
+      status: "completed",
+      recovery_source_commit: "d".repeat(40),
+      provider_execution_repeated: false,
+      paid_execution_requested: false,
+      provider_mutation_performed: false,
+      original_configuration_result_digest: sha("d"),
+      provider_result_digest: sha("e"),
+      original_terminal_receipt_digest: original.receipt_digest,
+      recovered_configuration_result_digest: sha("f"),
+      queue_finalization_digest: sha("1"),
+      recovery_digest: "",
+    };
+    publicationRecovery.recovery_digest = canonicalArtifactDigest(
+      publicationRecovery,
+      "recovery_digest",
+    );
+    const recovered: Record<string, any> = {
+      ...structuredClone(original),
+      status: "completed",
+      blockers: [],
+      terminal_evidence: {
+        status: "passed",
+        scene_configuration: {
+          configured_scene_revision_digest:
+            offering.evaluation_preparation_binding.configured_scene_revision_digest,
+          configured_scene_revision_reference: pipelineReference(
+            offering.evaluation_preparation_binding.configured_scene_revision,
+          ),
+          configured_scene_bundle_reference: pipelineReference(
+            offering.evaluation_preparation_binding.configured_scene_bundle,
+          ),
+          task_thumbnail_reference: pipelineReference(
+            offering.presentation.task_thumbnail,
+          ),
+          task_thumbnail_selection_receipt_reference: pipelineReference(
+            offering.presentation.selection_receipt,
+          ),
+          configured_scene_offering: offering,
+        },
+        publication_recovery: publicationRecovery,
+      },
+      publication_recovery: publicationRecovery,
+      receipt_digest: "",
+    };
+    recovered.receipt_digest = canonicalArtifactDigest(recovered, "receipt_digest");
+    const { server, url } = await startInternalServer();
+    try {
+      const response = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(recovered),
+      });
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        status: "completed",
+        publication_recovery_applied: true,
+        configured_scene_offering_digest: offering.offering_digest,
+      });
+      expect(state.records.get("launch-publication-recovery")).toMatchObject({
+        state: "completed",
+        terminal_receipt_before_publication_recovery_digest: original.receipt_digest,
+        terminal_receipt_before_publication_recovery: {
+          status: "blocked",
+          receipt_digest: original.receipt_digest,
+        },
+        terminal_receipt_digest: recovered.receipt_digest,
+        terminal_receipt: { status: "completed" },
+        publication_recovery: {
+          provider_execution_repeated: false,
+          original_terminal_receipt_digest: original.receipt_digest,
+        },
+        configured_scene_offering_digest: offering.offering_digest,
+      });
+
+      const replay = await fetch(`${url}/task-evaluation-launches`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(recovered),
+      });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
