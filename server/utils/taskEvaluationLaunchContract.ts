@@ -179,6 +179,23 @@ export const taskEvaluationLaunchReceiptSchema = z.object({
   receipt_digest: digest,
 }).passthrough();
 
+const taskEvaluationSceneConfigurationPublicationRecoverySchema = z.object({
+  schema_version: z.literal(
+    "task_evaluation_scene_configuration_publication_recovery.v1",
+  ),
+  status: z.literal("completed"),
+  recovery_source_commit: sourceCommit,
+  provider_execution_repeated: z.literal(false),
+  paid_execution_requested: z.literal(false),
+  provider_mutation_performed: z.literal(false),
+  original_configuration_result_digest: digest,
+  provider_result_digest: digest,
+  original_terminal_receipt_digest: digest,
+  recovered_configuration_result_digest: digest,
+  queue_finalization_digest: digest,
+  recovery_digest: digest,
+}).strict();
+
 export function parseTaskEvaluationLaunchReceipt(value: unknown) {
   const parsed = taskEvaluationLaunchReceiptSchema.safeParse(value);
   if (!parsed.success) return {
@@ -195,6 +212,31 @@ export function parseTaskEvaluationLaunchReceipt(value: unknown) {
     ok: false as const,
     blockers: ["task_evaluation_launch_receipt_digest_mismatch"],
   };
+  const recoveryValue = (
+    receipt as unknown as Record<string, unknown>
+  ).publication_recovery;
+  if (recoveryValue !== undefined) {
+    const recovery = taskEvaluationSceneConfigurationPublicationRecoverySchema
+      .safeParse(recoveryValue);
+    const terminal = receipt.terminal_evidence as Record<string, unknown>;
+    if (
+      !recovery.success
+      || receipt.status !== "completed"
+      || canonicalArtifactDigest(
+        recovery.success
+          ? recovery.data as unknown as Record<string, unknown>
+          : {},
+        "recovery_digest",
+      ) !== (recovery.success ? recovery.data.recovery_digest : "")
+      || typeof terminal.publication_recovery !== "object"
+      || terminal.publication_recovery === null
+      || (terminal.publication_recovery as Record<string, unknown>).recovery_digest
+        !== (recovery.success ? recovery.data.recovery_digest : "")
+    ) return {
+      ok: false as const,
+      blockers: ["task_evaluation_launch_publication_recovery_invalid"],
+    };
+  }
   return { ok: true as const, receipt };
 }
 

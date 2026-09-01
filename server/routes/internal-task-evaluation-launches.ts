@@ -87,6 +87,27 @@ function requirePipelineSignature(req: Request, res: Response, next: () => void)
   next();
 }
 
+function isPublicationRecoveryUpgrade(
+  existing: Record<string, any>,
+  receipt: Record<string, any>,
+) {
+  const recovery = receipt.publication_recovery;
+  return (
+    existing.terminal_receipt?.status === "blocked"
+    && receipt.status === "completed"
+    && recovery?.schema_version
+      === "task_evaluation_scene_configuration_publication_recovery.v1"
+    && recovery.status === "completed"
+    && recovery.original_terminal_receipt_digest
+      === existing.terminal_receipt.receipt_digest
+    && recovery.provider_execution_repeated === false
+    && recovery.paid_execution_requested === false
+    && recovery.provider_mutation_performed === false
+    && receipt.terminal_evidence?.publication_recovery?.recovery_digest
+      === recovery.recovery_digest
+  );
+}
+
 router.post(
   "/openai-inference-usage",
   rateLimiter,
@@ -266,7 +287,8 @@ router.post(
       ? configuredSceneOffering.offering
       : undefined;
     const ref = db.collection("taskEvaluationLaunches").doc(receipt.launch_id);
-    type Outcome = "updated" | "replayed" | "not_found" | "binding_mismatch"
+    type Outcome = "updated" | "replayed" | "publication_recovered"
+      | "not_found" | "binding_mismatch"
       | "configured_scene_offering_missing" | "immutable_conflict"
       | "adoption_updated" | "adoption_replayed" | "adoption_conflict";
     let outcome: Outcome;
@@ -357,9 +379,34 @@ router.post(
           const sameOffering = offering
             ? existing.configured_scene_offering_digest === offering.offering_digest
             : existing.configured_scene_offering_digest === undefined;
-          return existing.terminal_receipt.receipt_digest === receipt.receipt_digest && sameOffering
-            ? "replayed"
-            : "immutable_conflict";
+          if (
+            existing.terminal_receipt.receipt_digest === receipt.receipt_digest
+            && sameOffering
+          ) return "replayed";
+          if (!offering || !isPublicationRecoveryUpgrade(existing, receipt)) {
+            return "immutable_conflict";
+          }
+          transaction.set(ref, {
+            state: receipt.status,
+            terminal_receipt_before_publication_recovery: existing.terminal_receipt,
+            terminal_receipt_before_publication_recovery_digest:
+              existing.terminal_receipt.receipt_digest,
+            terminal_receipt: receipt,
+            terminal_receipt_digest: receipt.receipt_digest,
+            publication_recovery: receipt.publication_recovery,
+            provider_mutation_observed: receipt.provider_mutation_attempted,
+            terminal_updated_at_iso: new Date().toISOString(),
+            configured_scene_offering: offering,
+            configured_scene_offering_digest: offering.offering_digest,
+            configured_scene_offering_state: offering.status,
+            configured_scene_offering_team_namespace: offering.team_namespace,
+            configured_scene_offering_public_visibility:
+              offering.public_display?.status === "authorized" ? "public" : "private",
+            ...(offering.public_display ? {
+              configured_scene_offering_public_slug: offering.public_display.public_slug,
+            } : {}),
+          }, { merge: true });
+          return "publication_recovered";
         }
         transaction.set(ref, {
           state: receipt.status,
@@ -413,6 +460,9 @@ router.post(
       ...(offering ? {
         configured_scene_offering_digest: offering.offering_digest,
         configured_scene_offering_status: offering.status,
+      } : {}),
+      ...(outcome === "publication_recovered" ? {
+        publication_recovery_applied: true,
       } : {}),
     });
   },
