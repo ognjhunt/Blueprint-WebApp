@@ -544,6 +544,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       team_namespace: "team-1",
       source_launch_id: body.capture_session_id,
       offering_digest: offeringRecord.configured_scene_offering_digest,
+      scene_controls_status_at_submission: "configured_controls_pending",
       notification_recipient_user_id: "buyer-1",
       notification: { email: "buyer@example.com" },
       scene: { id: "839873" },
@@ -556,6 +557,21 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       episode_plan: { episodes_per_policy: 10 },
       state: "aggregating",
     }]]));
+    const evolvedOfferingRecord = structuredClone(offeringRecord);
+    evolvedOfferingRecord.configured_scene_offering.status = "launch_ready";
+    evolvedOfferingRecord.configured_scene_offering.offering_digest = canonicalArtifactDigest(
+      evolvedOfferingRecord.configured_scene_offering,
+      "offering_digest",
+    );
+    evolvedOfferingRecord.configured_scene_offering_state = "launch_ready";
+    evolvedOfferingRecord.configured_scene_offering_digest =
+      evolvedOfferingRecord.configured_scene_offering.offering_digest;
+    state.collections.set("taskEvaluationLaunches", new Map([[
+      body.capture_session_id,
+      evolvedOfferingRecord,
+    ]]));
+    expect(evolvedOfferingRecord.configured_scene_offering_digest)
+      .not.toBe(offeringRecord.configured_scene_offering_digest);
     const { server, socketPath } = await startServer();
     try {
       const first = await postSigned(socketPath, body);
@@ -635,6 +651,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       team_namespace: "team-1",
       source_launch_id: body.capture_session_id,
       offering_digest: offeringRecord.configured_scene_offering_digest,
+      scene_controls_status_at_submission: "configured_controls_pending",
       notification_recipient_user_id: "buyer-1",
       notification: { email: "buyer@example.com" },
       scene: { id: "839873" },

@@ -167,12 +167,10 @@ async function dispatchCanaryTerminalNotification(params: {
   return notification;
 }
 
-function configuredOffering(record: Record<string, any>) {
+function configuredOfferingForTerminalSync(record: Record<string, any>) {
   const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
   if (
     !parsed.success
-    || record.configured_scene_offering_state !== "configured_controls_pending"
-    || parsed.data.status !== "configured_controls_pending"
     || record.configured_scene_offering_digest !== parsed.data.offering_digest
   ) return null;
   return parsed.data;
@@ -200,7 +198,8 @@ function policyRunBelongsToOffering(
 ) {
   return Boolean(String(policyRun.owner_user_id || "").trim())
     && policyRun.source_launch_id === sourceLaunchId
-    && policyRun.offering_digest === offering.offering_digest
+    && policyRun.scene_controls_status_at_submission === "configured_controls_pending"
+    && /^sha256:[0-9a-f]{64}$/.test(String(policyRun.offering_digest || ""))
     && policyRun.team_namespace === offering.team_namespace;
 }
 
@@ -223,7 +222,7 @@ async function handlePolicyCanaryPublication(
       if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
       const offeringRecord = offeringSnapshot.data() as Record<string, any>;
-      const offering = configuredOffering(offeringRecord);
+      const offering = configuredOfferingForTerminalSync(offeringRecord);
       if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
       if (offering.configuration_run_id !== publication.intake_id) {
@@ -316,7 +315,7 @@ async function handlePolicyCanaryPublication(
     return res.status(503).json({ error: "Task Evaluation policy canary store is unavailable" });
   }
   if (transactionResult.outcome === "offering_not_found") return res.status(404).json({ error: "Configured scene offering not found" });
-  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering is not a valid controls-pending revision" });
+  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering record is invalid" });
   if (transactionResult.outcome === "policy_run_not_found") return res.status(404).json({ error: "Policy canary run not found" });
   if (transactionResult.outcome === "configuration_run_mismatch") return res.status(409).json({ error: "Configured scene configuration-run binding mismatch" });
   if (transactionResult.outcome === "owner_team_mismatch") return res.status(409).json({ error: "Policy canary owner or team binding mismatch" });
@@ -401,7 +400,7 @@ async function handlePolicyCanaryPreproviderBlocked(
       if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
       const offeringRecord = offeringSnapshot.data() as Record<string, any>;
-      const offering = configuredOffering(offeringRecord);
+      const offering = configuredOfferingForTerminalSync(offeringRecord);
       if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
       if (offering.configuration_run_id !== payload.intake_id) {
@@ -472,7 +471,7 @@ async function handlePolicyCanaryPreproviderBlocked(
     return res.status(503).json({ error: "Policy canary blocked receipt store is unavailable" });
   }
   if (transactionResult.outcome === "offering_not_found") return res.status(404).json({ error: "Configured scene offering not found" });
-  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering is not a valid controls-pending revision" });
+  if (transactionResult.outcome === "offering_invalid") return res.status(409).json({ error: "Configured scene offering record is invalid" });
   if (transactionResult.outcome === "policy_run_not_found") return res.status(404).json({ error: "Policy canary run not found" });
   if (transactionResult.outcome === "configuration_run_mismatch") return res.status(409).json({ error: "Configured scene configuration-run binding mismatch" });
   if (transactionResult.outcome === "owner_team_mismatch") return res.status(409).json({ error: "Policy canary owner or team binding mismatch" });
