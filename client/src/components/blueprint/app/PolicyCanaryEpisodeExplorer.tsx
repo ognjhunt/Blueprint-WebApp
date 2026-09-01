@@ -3,7 +3,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { Download, Film } from "lucide-react";
 
 import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
-import { buildAlignedCanaryCells } from "@/lib/policyCanaryResultPortal";
+import { buildAlignedCanaryCells, resolvedCanaryCandidates } from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
   humanBytes,
@@ -24,7 +24,9 @@ async function downloadArtifact(
   anchor.click();
 }
 
-function episodeVideos(episode?: TaskEvaluationResultEpisode) {
+function episodeVideos(
+  episode?: TaskEvaluationResultEpisode,
+): Record<string, TaskEvaluationResultArtifact> {
   return episode?.artifacts?.videos || episode?.evidence?.videos || {};
 }
 
@@ -103,13 +105,15 @@ function EpisodeDownloads({ episode, user, recordId }: { episode: TaskEvaluation
 export function PolicyCanaryEpisodeExplorer({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser }) {
   const publication = result.publication;
   const episodes = publication.result_delivery?.episodes || [];
-  const candidates = publication.policy_candidates || [];
+  const candidates = resolvedCanaryCandidates(result);
   const rows = useMemo(() => buildAlignedCanaryCells(episodes, candidates.map((candidate) => candidate.candidate_id), { family: "all", seed: "all", outcome: "all", interpretability: "all" }), [candidates, episodes]);
   const [selectedKey, setSelectedKey] = useState(rows[0]?.key || "");
   const selected = rows.find((row) => row.key === selectedKey) || rows[0];
   const pairedEpisodes = candidates.map((candidate) => selected?.episodesByCandidate[candidate.candidate_id]).filter((episode): episode is TaskEvaluationResultEpisode => Boolean(episode));
-  const cameras = [...new Set(pairedEpisodes.flatMap((episode) => Object.keys(episodeVideos(episode))))];
-  const [camera, setCamera] = useState(cameras[0] || "external");
+  const cameras: string[] = Array.from(new Set<string>(
+    pairedEpisodes.flatMap((episode) => Object.keys(episodeVideos(episode))),
+  ));
+  const [camera, setCamera] = useState<string>(cameras[0] || "external");
   const [selectedTime, setSelectedTime] = useState<number | null>(null);
   useEffect(() => {
     if (!selectedKey && rows[0]) setSelectedKey(rows[0].key);

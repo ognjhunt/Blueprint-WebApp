@@ -32,7 +32,9 @@ export function PolicyCanaryEvidenceInventory({ result, user }: { result: TaskEv
   const publication = result.publication;
   const canary = publication.policy_canary_result || {};
   const telemetry = canary.runtime_system_telemetry || {};
-  const reproducibility = canary.reproducibility || {};
+  const reproducibility = canary.reproducibility
+    || publication.result_delivery?.reproducibility
+    || {};
   const artifacts = buildCanaryArtifactInventory(result);
   const notification = publication.notification_delivery;
   const receiptRows: Array<[string, TaskEvaluationResultArtifact | undefined, string]> = [

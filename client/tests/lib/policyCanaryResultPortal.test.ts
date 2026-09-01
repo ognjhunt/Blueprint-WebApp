@@ -4,6 +4,7 @@ import {
   buildAlignedCanaryCells,
   buildCanaryArtifactInventory,
   buildFailureAnalysis,
+  resolvedCanaryCandidates,
   wilson95,
 } from "@/lib/policyCanaryResultPortal";
 import type {
@@ -133,5 +134,42 @@ describe("policy canary result portal data", () => {
   it("computes a bounded Wilson interval only with a meaningful denominator", () => {
     expect(wilson95(7, 10)).toMatchObject({ lower: expect.any(Number), upper: expect.any(Number) });
     expect(wilson95(0, 0)).toBeNull();
+  });
+
+  it("recovers candidate identities from Pipeline v2 delivery metadata", () => {
+    const result = {
+      publication: {
+        schema_version: "task_evaluation_run_publication.v4",
+        run_id: "run-1",
+        proof_boundary: {},
+        result_delivery: {
+          candidate_results: [
+            {
+              candidate_id: "pi05_droid",
+              display_name: "pi0.5-DROID Polaris joint-position",
+              checkpoint_digest: sha("a"),
+            },
+            {
+              candidate_id: "groot_n17_droid",
+              display_name: "GR00T N1.7 DROID",
+              checkpoint_digest: sha("b"),
+            },
+          ],
+        },
+      },
+    } as unknown as TaskEvaluationResultSiteRecord;
+
+    expect(resolvedCanaryCandidates(result)).toEqual([
+      {
+        candidate_id: "pi05_droid",
+        display_name: "pi0.5-DROID Polaris joint-position",
+        checkpoint_digest: sha("a"),
+      },
+      {
+        candidate_id: "groot_n17_droid",
+        display_name: "GR00T N1.7 DROID",
+        checkpoint_digest: sha("b"),
+      },
+    ]);
   });
 });
