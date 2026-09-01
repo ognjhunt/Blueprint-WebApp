@@ -501,12 +501,22 @@ router.post(
       blockers: parsed.blockers,
     });
     const progress = parsed.progress;
-    const ref = db.collection("taskEvaluationLaunches").doc(progress.launch_id);
+    const launchRef = db.collection("taskEvaluationLaunches").doc(progress.launch_id);
+    const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(progress.run_id);
     type Outcome = "recorded" | "ignored_terminal" | "not_found" | "binding_mismatch";
     let outcome: Outcome;
     try {
       outcome = await db.runTransaction<Outcome>(async (transaction) => {
-        const snapshot = await transaction.get(ref);
+        let ref = launchRef;
+        let snapshot = await transaction.get(launchRef);
+        if (!snapshot.exists && progress.launch_id === progress.run_id) {
+          const candidate = await transaction.get(policyRunRef);
+          const policyRun = candidate.data() as Record<string, any> | undefined;
+          if (candidate.exists && policyRun?.run_kind === "internal_policy_canary") {
+            ref = policyRunRef;
+            snapshot = candidate;
+          }
+        }
         if (!snapshot.exists) return "not_found";
         const existing = snapshot.data() as Record<string, any>;
         if (
