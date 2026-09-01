@@ -51,8 +51,21 @@ const STORED_OFFERING_STATES = [
   "evaluation_ready",
 ] as const;
 
-function isStoredOfferingState(value: unknown): value is ConfiguredSceneOffering["status"] {
+function isStoredOfferingState(
+  value: unknown,
+): value is (typeof STORED_OFFERING_STATES)[number] {
   return STORED_OFFERING_STATES.includes(value as ConfiguredSceneOffering["status"]);
+}
+
+function storedStateMatchesOffering(
+  storedState: (typeof STORED_OFFERING_STATES)[number],
+  offeringStatus: ConfiguredSceneOffering["status"],
+) {
+  return storedState === offeringStatus
+    || (
+      storedState === "launch_ready"
+      && offeringStatus === "configured_controls_pending"
+    );
 }
 
 function firebaseTenantId(res: Response) {
@@ -73,7 +86,10 @@ async function accessibleOffering(launchId: string, res: Response) {
   if (
     !isStoredOfferingState(record.configured_scene_offering_state)
     || !parsed.success
-    || parsed.data.status !== record.configured_scene_offering_state
+    || !storedStateMatchesOffering(
+      record.configured_scene_offering_state,
+      parsed.data.status,
+    )
     || parsed.data.offering_digest !== record.configured_scene_offering_digest
   ) return null;
   const tenantId = firebaseTenantId(res);
@@ -292,7 +308,10 @@ router.get("/", async (_req, res) => {
       const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
       if (
         !parsed.success
-        || parsed.data.status !== record.configured_scene_offering_state
+        || !storedStateMatchesOffering(
+          record.configured_scene_offering_state,
+          parsed.data.status,
+        )
         || parsed.data.offering_digest !== record.configured_scene_offering_digest
       ) {
         // The launch collection also contains controls/construction runs. A
