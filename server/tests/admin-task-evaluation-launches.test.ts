@@ -3055,7 +3055,7 @@ describe("admin Task Evaluation launch route", () => {
       terminal_receipt: structuredClone(original),
       terminal_receipt_digest: original.receipt_digest,
     });
-    const offering = configuredSceneOffering();
+    const offering = pausedUngradedConfiguredSceneOffering();
     offering.configuration_run_id = "configuration-run-recovered";
     offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
     const publicationRecovery: Record<string, any> = {
@@ -3131,16 +3131,28 @@ describe("admin Task Evaluation launch route", () => {
           provider_execution_repeated: false,
           original_terminal_receipt_digest: original.receipt_digest,
         },
+        configured_scene_offering_state: "launch_ready",
         configured_scene_offering_digest: offering.offering_digest,
       });
 
+      state.records.set("launch-publication-recovery", {
+        ...state.records.get("launch-publication-recovery"),
+        configured_scene_offering_state: "configured_controls_pending",
+      });
       const replay = await fetch(`${url}/task-evaluation-launches`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(recovered),
       });
       expect(replay.status).toBe(200);
-      await expect(replay.json()).resolves.toMatchObject({ already_exists: true });
+      await expect(replay.json()).resolves.toMatchObject({
+        already_exists: true,
+        configured_scene_catalog_state_repaired: true,
+      });
+      expect(state.records.get("launch-publication-recovery")).toMatchObject({
+        configured_scene_offering_state: "launch_ready",
+        terminal_receipt_digest: recovered.receipt_digest,
+      });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
