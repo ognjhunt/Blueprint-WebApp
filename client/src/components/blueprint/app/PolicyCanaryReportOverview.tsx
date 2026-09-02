@@ -70,9 +70,11 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
         <Copyable label="Scoring version" value={readable(reproducibility.scoring_version)} />
       </dl><dl>
         {candidates.map((candidate) => <Copyable key={candidate.candidate_id} label={`${candidate.display_name} checkpoint`} value={candidate.checkpoint_digest} />)}
-        <Copyable label="Started" value={readable(publication.started_at_iso)} />
-        <Copyable label="Completed" value={readable(publication.completed_at_iso)} />
-        <Copyable label="Duration seconds" value={readable(publication.duration_seconds)} />
+        <Copyable label="Started" value={readable(publication.started_at_iso || reproducibility.started_at_iso)} />
+        <Copyable label="Completed" value={readable(publication.completed_at_iso || reproducibility.completed_at_iso)} />
+        <Copyable label="Duration seconds" value={readable(publication.duration_seconds ?? reproducibility.duration_seconds)} />
+        <Copyable label="Official cost" value={typeof reproducibility.official_total_usd === "number" ? `$${reproducibility.official_total_usd.toFixed(3)}` : "Unavailable — not delivered"} />
+        <Copyable label="Provider / instance" value={`${readable(reproducibility.provider)} · ${Array.isArray(reproducibility.provider_instance_ids) ? reproducibility.provider_instance_ids.join(", ") : "instance unavailable"}`} />
         <Copyable label="Actor" value={publication.submitted_by ? `${publication.submitted_by.actor_id} · ${publication.submitted_by.actor_role}` : "Unavailable — not delivered"} />
         <Copyable label="Team / visibility" value={`${readable(publication.team_namespace)} · ${readable(publication.access_visibility || result.access_visibility)}`} />
         <Copyable label="Result URL" value={resultPath} />

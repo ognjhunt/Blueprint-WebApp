@@ -127,6 +127,12 @@ function result(): TaskEvaluationResultSiteRecord {
         reproducibility: {
           runtime_container_digest: sha("t"),
           scoring_version: "deterministic-v1",
+          official_total_usd: 0.379,
+          started_at_iso: "2026-08-31T12:00:00.000Z",
+          completed_at_iso: "2026-08-31T12:30:00.000Z",
+          duration_seconds: 1800,
+          provider: "vast",
+          provider_instance_ids: [49_609_705],
           evidence_manifest: evidenceManifest,
           billing_receipt: artifact("l", "billing_receipt"),
           teardown_receipt: artifact("n", "teardown_receipt"),
@@ -161,6 +167,8 @@ describe("PolicyCanaryResultPortal", () => {
     expect(within(closure!).getByText(sha("l"))).toBeTruthy();
     expect(within(closure!).getByText(sha("n"))).toBeTruthy();
     expect(within(closure!).getByText(sha("z"))).toBeTruthy();
+    expect(screen.getByText("$0.379")).toBeTruthy();
+    expect(screen.getByText("vast · 49609705")).toBeTruthy();
     expect(screen.getByText(/Diagnostic only/)).toBeTruthy();
   });
 });
