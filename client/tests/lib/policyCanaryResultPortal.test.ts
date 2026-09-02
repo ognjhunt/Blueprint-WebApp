@@ -77,6 +77,29 @@ describe("policy canary result portal data", () => {
     expect(Object.keys(rows[0].episodesByCandidate).sort()).toEqual(["policy-a", "policy-b"]);
   });
 
+  it("keeps Quick-10 cells in preregistered numeric order instead of seed order", () => {
+    const episodes = [
+      episode("policy-a", "scene839873.quick10.09.held_out_composition", 1),
+      episode("policy-b", "scene839873.quick10.09.held_out_composition", 1),
+      episode("policy-a", "scene839873.quick10.00.canonical_anchor", 999),
+      episode("policy-b", "scene839873.quick10.00.canonical_anchor", 999),
+      episode("policy-a", "scene839873.quick10.01.canonical_anchor", 2),
+      episode("policy-b", "scene839873.quick10.01.canonical_anchor", 2),
+    ];
+    const rows = buildAlignedCanaryCells(episodes, ["policy-a", "policy-b"], {
+      family: "all",
+      seed: "all",
+      outcome: "all",
+      interpretability: "all",
+    });
+
+    expect(rows.map((row) => row.cellId)).toEqual([
+      "scene839873.quick10.00.canonical_anchor",
+      "scene839873.quick10.01.canonical_anchor",
+      "scene839873.quick10.09.held_out_composition",
+    ]);
+  });
+
   it("builds fixed failure cohorts and representative episode links", () => {
     const failures = buildFailureAnalysis([
       episode("policy-a", "cell-1", 101, {
