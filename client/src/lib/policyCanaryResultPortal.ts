@@ -20,6 +20,44 @@ export type AlignedCanaryCell = {
   episodesByCandidate: Record<string, TaskEvaluationResultEpisode | undefined>;
 };
 
+export const primaryCanaryDownloadRoles = [
+  { key: "summary_csv", label: "Summary CSV", aliases: ["summary_csv"] },
+  { key: "episode_csv", label: "Episode CSV", aliases: ["episode_csv"] },
+  {
+    key: "full_json_report",
+    label: "Full JSON",
+    aliases: ["full_json_report", "machine_readable_report"],
+  },
+  { key: "evidence_manifest", label: "Evidence manifest", aliases: ["evidence_manifest"] },
+] as const;
+
+const canaryFamilyLabels: Record<string, string> = {
+  canonical_anchor: "Baseline anchor",
+  placement_approach: "Placement and approach",
+  illumination: "Lighting variation",
+  camera_sensor: "Camera and sensor variation",
+  bounded_physics: "Bounded physics variation",
+  admitted_object_material_cousin: "Object and material cousin",
+  pairwise_stress: "Combined stress",
+  pairwise: "Combined stress",
+  held_out_composition: "Held-out composition",
+  held_out: "Held-out composition",
+};
+
+export function humanCanaryCellLabel(
+  row: AlignedCanaryCell,
+  index: number,
+  rows: AlignedCanaryCell[],
+) {
+  const base = canaryFamilyLabels[row.familyId]
+    || row.familyId.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase());
+  const familyRows = rows.filter((candidate) => candidate.familyId === row.familyId);
+  if (familyRows.length < 2) return base;
+  const ordinal = rows.slice(0, index + 1)
+    .filter((candidate) => candidate.familyId === row.familyId).length;
+  return `${base} ${ordinal}`;
+}
+
 export const canaryFailureCohorts = [
   "collision",
   "no_motion",
@@ -120,9 +158,14 @@ export function buildAlignedCanaryCells(
     if (candidateIds.includes(candidateId)) row.episodesByCandidate[candidateId] = episode;
     rows.set(key, row);
   }
+  const quickCellIndex = (cellId: string) => {
+    const match = cellId.match(/(?:^|\.)quick10\.(\d{1,3})(?:\.|$)/);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  };
   return [...rows.values()].sort((left, right) => (
-    (left.seed ?? Number.MAX_SAFE_INTEGER) - (right.seed ?? Number.MAX_SAFE_INTEGER)
+    quickCellIndex(left.cellId) - quickCellIndex(right.cellId)
     || left.cellId.localeCompare(right.cellId)
+    || (left.seed ?? Number.MAX_SAFE_INTEGER) - (right.seed ?? Number.MAX_SAFE_INTEGER)
   ));
 }
 
@@ -232,6 +275,11 @@ export function buildCanaryArtifactInventory(result: TaskEvaluationResultSiteRec
   const artifacts = [
     ...(delivery?.artifacts || []),
     ...(delivery?.episodes || []).flatMap(episodeArtifacts),
+    canaryResult.report?.machine_readable_report,
+    canaryResult.report?.evidence_manifest,
+    canaryResult.closure?.billing,
+    canaryResult.closure?.teardown,
+    canaryResult.closure?.provider_zero,
     reproducibility.evidence_manifest,
     reproducibility.billing_receipt,
     reproducibility.teardown_receipt,
@@ -251,6 +299,17 @@ export function buildCanaryArtifactInventory(result: TaskEvaluationResultSiteRec
   return [...unique.values()].map(({ artifact }) => artifact).sort((left, right) => (
     left.role.localeCompare(right.role) || left.relative_path.localeCompare(right.relative_path)
   ));
+}
+
+export function primaryCanaryDownloads(result: TaskEvaluationResultSiteRecord) {
+  const inventory = buildCanaryArtifactInventory(result);
+  return primaryCanaryDownloadRoles.map((download) => ({
+    key: download.key,
+    label: download.label,
+    artifact: inventory.find((artifact) => download.aliases.some(
+      (alias) => alias === artifact.role,
+    )) || null,
+  }));
 }
 
 export function availableCanaryFilters(episodes: TaskEvaluationResultEpisode[]) {

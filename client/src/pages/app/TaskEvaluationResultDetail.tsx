@@ -128,7 +128,6 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
   const delivery = result.publication.result_delivery;
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
-  const canaryResult = result.publication.policy_canary_result;
   const canaryReproducibility = delivery?.reproducibility;
   const canaryScene = result.publication.scene?.id
     || canaryReproducibility?.scene_id
@@ -159,7 +158,22 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
         </ProofBoundary>
       ) : null}
 
-      {delivery ? (
+      {canary && delivery?.status === "ready" ? (
+        <PolicyCanaryResultPortal result={result} user={user} />
+      ) : null}
+
+      {delivery && canary ? (
+        <details className="runway-panel p-4">
+          <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">Delivery pipeline</summary>
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="Result delivery stages">
+            {delivery.stages.map((stage, index) => <StatusChip
+              key={stage.stage}
+              tone={stage.status === "complete" || stage.status === "ready" ? "proof" : stage.status === "blocked" ? "block" : "neutral"}
+              square
+            >{index + 1}. {stage.stage} · {stage.status}</StatusChip>)}
+          </div>
+        </details>
+      ) : delivery ? (
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Result delivery stages">
           {delivery.stages.map((stage, index) => (
             <Card key={stage.stage} pad="sm">
@@ -170,9 +184,8 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
         </section>
       ) : null}
 
-      {delivery?.status === "ready" ? (
+      {delivery?.status === "ready" && !canary ? (
         <>
-          {canary ? <PolicyCanaryResultPortal result={result} user={user} /> : <>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Episode summary">
             {[
               ["Episodes", delivery.summary.episode_count],
@@ -184,8 +197,6 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
 
           <EvaluationResultOverview episodes={delivery.episodes} />
 
-          {canary && canaryResult ? <section className="runway-panel overflow-x-auto p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Policy comparison</p><h2 className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Diagnostic metrics</h2></div><StatusChip tone="warn" square>No winner declaration</StatusChip></div><table className="mt-4 w-full min-w-[50rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Progress</th><th className="runway-meta px-3 py-2">Destination error</th><th className="runway-meta px-3 py-2">Contact</th><th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Interpretable</th></tr></thead><tbody>{(canaryResult.candidate_results || []).map((candidate: Record<string, any>) => <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{candidate.display_name}</td><td className="runway-num px-3 py-3">{candidate.success_rate == null ? "—" : `${Math.round(candidate.success_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{candidate.progress_score ?? "—"}</td><td className="runway-num px-3 py-3">{candidate.mean_destination_error ?? "—"}</td><td className="runway-num px-3 py-3">{candidate.contact_maintenance_rate == null ? "—" : `${Math.round(candidate.contact_maintenance_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{candidate.collision_rate == null ? "—" : `${Math.round(candidate.collision_rate * 100)}%`}</td><td className="runway-num px-3 py-3">{Math.round(Number(candidate.action_delivery_rate || 0) * 100)}%</td><td className="runway-num px-3 py-3">{candidate.interpretable_episode_count}/{candidate.episodes_completed}</td></tr>)}</tbody></table></section> : null}
-
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2"><Eye className="size-4 text-ink-500" /><h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Episode review</h2></div>
             {delivery.episodes.map((episode) => <EpisodeCard key={episode.episode_id} episode={episode} user={user} recordId={result.record_id} />)}
@@ -195,7 +206,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
             <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Evidence downloads</h2>
             <p className="mt-1 text-body-s text-ink-500">The review pack is convenient for people. The full package also includes exact lossless policy inputs and camera frames and may be large.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {(canary ? delivery.artifacts : packages).map((artifact) => (
+              {packages.map((artifact) => (
                 <Button key={artifact.artifact_id} type="button" variant={artifact.role === "full_evidence_package" ? "action" : "secondary"} iconLeft={<Download />} onClick={() => void downloadArtifact(user, result.record_id, artifact)}>
                   {artifact.role.replaceAll("_", " ")} · {humanBytes(artifact.size_bytes)}
                 </Button>
@@ -203,14 +214,13 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
             </div>
             <p className="runway-num mt-3 text-[0.68rem] text-ink-400">Delivery {delivery.delivery_digest}</p>
           </section>
-          </>}
         </>
       ) : null}
 
-      <details className="runway-panel p-4">
-        <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Inspect {canary ? "sealed publication and exact bindings" : "decision envelope and exact bindings"}</summary>
+      {!canary ? <details className="runway-panel p-4">
+        <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800">Inspect decision envelope and exact bindings</summary>
         <pre className="runway-num mt-4 max-h-[32rem] overflow-auto bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">{JSON.stringify(result.publication, null, 2)}</pre>
-      </details>
+      </details> : null}
     </>
   );
 }
