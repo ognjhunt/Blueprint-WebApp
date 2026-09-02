@@ -35,6 +35,7 @@ import {
   forwardTaskEvaluationLaunch,
   resolvePublishedLaunchProfileCatalog,
 } from "../utils/taskEvaluationLaunchContract";
+import { forwardStoredPolicyCanaryRun } from "../utils/taskEvaluationLaunchForwardWorker";
 import {
   buildPolicyRunLaunchPreparation,
   forwardTaskEvaluationLaunchPreparation,
@@ -531,8 +532,8 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     scene_controls_status_at_submission: "configured_controls_pending",
     owner_user_id: resolved.access.uid,
     team_namespace: resolved.offering.team_namespace,
-    state: "queued",
-    phase: "queued",
+    state: "forward_pending",
+    phase: "forwarding",
     request_digest: request.request_digest,
     configuration_digest: request.request_digest,
     robot_preset_id: selection.robot_preset_id,
@@ -569,6 +570,10 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     notification: selection.notification,
     notification_recipient_user_id: resolved.access.uid,
     notification_source_event_id: request.request_digest,
+    request,
+    forward_attempt_count: 0,
+    next_forward_at_iso: null,
+    retryable: true,
     result_record_id: null,
     delivery_digest: null,
     created_at_iso: now,
@@ -589,6 +594,19 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
             || prior.source_launch_id !== record.source_launch_id
             || prior.request_digest !== record.request_digest
           ) throw new Error("policy_canary_immutable_conflict");
+          if (!prior.request) {
+            const recovery = {
+              request,
+              state: "forward_pending",
+              phase: "forwarding",
+              forward_attempt_count: Number(prior.forward_attempt_count || 0),
+              next_forward_at_iso: null,
+              retryable: true,
+              updated_at_iso: new Date().toISOString(),
+            };
+            transaction.set(runRef, recovery, { merge: true });
+            return { ...prior, ...recovery };
+          }
           return prior;
         }
         transaction.create(runRef, record);
@@ -615,24 +633,22 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     already_exists: true,
     run: existing,
   });
-  const forwarded = await forwardTaskEvaluationLaunch({ request });
-  const update = forwarded.status === "forwarded"
-    ? {
-        state: "queued",
-        phase: "preparing",
-        launch_forward: forwarded,
-        updated_at_iso: new Date().toISOString(),
-      }
-    : {
-        state: "blocked",
-        phase: "blocked",
-        launch_forward: forwarded,
-        error: {
-          code: forwarded.blocker || "POLICY_CANARY_FORWARD_FAILED",
-          message: "Policy canary could not be queued in Pipeline.",
-        },
-        updated_at_iso: new Date().toISOString(),
-      };
+  const forwardResult = await forwardStoredPolicyCanaryRun(
+    record,
+    async () => forwardTaskEvaluationLaunch({ request }),
+  );
+  const forwarded = forwardResult.forward;
+  const update = {
+    ...forwardResult,
+    launch_forward: forwarded,
+    ...(forwarded?.status === "forwarded" ? {} : {
+      error: {
+        code: forwarded?.blocker || "POLICY_CANARY_FORWARD_FAILED",
+        message: "Policy canary could not be queued in Pipeline.",
+      },
+    }),
+    updated_at_iso: new Date().toISOString(),
+  };
   try {
     await withTaskEvaluationLaunchStoreTimeout(runRef.set(update, { merge: true }));
   } catch {
@@ -642,7 +658,7 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
       { persistence_state: "forward_receipt_unknown", retryable: true },
     ));
   }
-  return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
+  return res.status(forwarded?.status === "forwarded" ? 202 : 503).json({
     schema_version: "task_evaluation_policy_canary_web_receipt.v1",
     status: update.state,
     already_exists: false,
