@@ -37,7 +37,7 @@ export function resolvedCanaryCandidates(result: TaskEvaluationResultSiteRecord)
   if (publication.policy_candidates?.length === 2) return publication.policy_candidates;
   const delivered = publication.result_delivery?.candidate_results || [];
   if (delivered.length === 2) return delivered.map((candidate) => {
-    const episode = publication.result_delivery?.episodes.find((row) => (
+    const episode = (publication.result_delivery?.episodes || []).find((row) => (
       row.policy_candidate_id === candidate.candidate_id
     ));
     return {
