@@ -20,6 +20,8 @@ const LAUNCH_SUBMIT_SECRET = "task-evaluation-launch-submit-secret-0123456789abc
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
   blobs: new Map<string, Buffer>(),
+  launchProfiles: null as Record<string, any>[] | null,
+  launchForwardFailuresRemaining: 0,
   hangTransaction: false,
   isOps: true,
 }));
@@ -317,6 +319,189 @@ function pausedUngradedConfiguredSceneOffering() {
     "Visual review paused - appearance ungraded";
   offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
   return offering;
+}
+
+function internalPolicyCanarySetup(
+  sourceLaunchId: string,
+  offering: ReturnType<typeof pausedUngradedConfiguredSceneOffering>,
+) {
+  const cells = Array.from({ length: 10 }, (_, index) => ({
+    cell_id: `cell-${index + 1}`,
+    family: [
+      "canonical_anchor", "canonical_anchor", "placement_approach",
+      "placement_approach", "illumination", "camera_sensor",
+      "bounded_physics", "admitted_object_material_cousin",
+      "pairwise_stress", "held_out_composition",
+    ][index],
+    seed: index + 100,
+    partition: index === 9 ? "held_out" : index === 8 ? "stress" : "canonical",
+    label: `Cell ${index + 1}`,
+    cell_digest: sha(String(index % 10)),
+  }));
+  const policy = (candidateId: string, character: string) => ({
+    candidate_id: candidateId,
+    display_name: candidateId === "pi05_droid" ? "PI 0.5 DROID" : "GR00T N1.7 DROID",
+    checkpoint: immutableRef(`policy/${candidateId}`, character),
+    adapter_id: `${candidateId}-adapter`,
+    license_id: "verified-internal-use",
+    compatibility: {
+      robot_preset_ids: ["franka_panda_robotiq_2f85_v1"],
+      embodiment_ids: ["franka_panda_robotiq_2f85_v1"],
+      observation_schema_ids: ["droid-observation-v1"],
+      action_schema_ids: ["droid-action-v1"],
+      simulator_runtime_ids: ["isaac-sim-policy-v1"],
+      task_family_ids: ["rigid-relocation-v1"],
+    },
+    readiness: {
+      status: "verified_runnable",
+      receipt: immutableRef(`readiness/${candidateId}`, character),
+      reason: null,
+    },
+  });
+  const quick = {
+    preset_id: "quick_10",
+    label: "Quick",
+    episodes_per_policy: 10,
+    availability: "enabled",
+    recommended: true,
+    matrix: {
+      matrix_digest: canonicalArtifactDigest(
+        { ordered_cells: cells },
+        "__no_digest_field__",
+      ),
+      resolver_id: "policy-canary-quick-matrix",
+      resolver_version: "v1",
+      deterministic: true,
+      cells,
+      expected_family_counts: {
+        canonical_anchor: 2,
+        placement_approach: 2,
+        illumination: 1,
+        camera_sensor: 1,
+        bounded_physics: 1,
+        admitted_object_material_cousin: 1,
+        pairwise_stress: 1,
+        held_out_composition: 1,
+      },
+      coverage_gaps: [],
+    },
+    estimate: {
+      duration_minutes: { minimum: 20, maximum: 60 },
+      maximum_authorized_cost_usd: 4,
+      hard_ttl_seconds: 9_000,
+      basis_digest: sha("b"),
+      as_of: "2026-09-02T00:00:00.000Z",
+    },
+  };
+  const unavailable = (presetId: "standard_100" | "deep_500", label: "Standard" | "Deep", episodes: 100 | 500) => ({
+    ...quick,
+    preset_id: presetId,
+    label,
+    episodes_per_policy: episodes,
+    availability: "coming_later",
+    recommended: false,
+    matrix: {
+      ...quick.matrix,
+      cells: [],
+      matrix_digest: canonicalArtifactDigest(
+        { ordered_cells: [] },
+        "__no_digest_field__",
+      ),
+    },
+  });
+  const setup: Record<string, any> = {
+    schema_version: "task_evaluation_policy_canary_setup.v1",
+    source_launch_id: sourceLaunchId,
+    offering_digest: offering.offering_digest,
+    scene_revision_digest:
+      offering.evaluation_preparation_binding.configured_scene_revision_digest,
+    run_kind: "internal_policy_canary",
+    claim_ceiling: "diagnostic_policy_execution",
+    registry_digest: sha("e"),
+    robot_presets: [{
+      robot_preset_id: "franka_panda_robotiq_2f85_v1",
+      display_name: "Franka Panda + Robotiq 2F-85",
+      embodiment_id: "franka_panda_robotiq_2f85_v1",
+      task_family_id: "rigid-relocation-v1",
+      simulator_runtime_id: "isaac-sim-policy-v1",
+      runtime_image: immutableRef("policy/runtime", "f"),
+      observation_schema: {
+        schema_id: "droid-observation-v1",
+        cameras: ["external", "wrist"],
+        modalities: ["rgb", "proprioception"],
+      },
+      action_schema: {
+        schema_id: "droid-action-v1",
+        space: "cartesian-delta",
+        control_hz: 15,
+      },
+      readiness: {
+        status: "verified_runnable",
+        receipt: immutableRef("readiness/runtime", "f"),
+        reason: null,
+      },
+      policy_candidates: [
+        policy("pi05_droid", "1"),
+        policy("groot_n17_droid", "2"),
+      ],
+    }],
+    episode_presets: [
+      quick,
+      unavailable("standard_100", "Standard", 100),
+      unavailable("deep_500", "Deep", 500),
+    ],
+    diagnostics: {
+      zero_action: "nonblocking",
+      deterministic_scripted_positive: "nonblocking",
+    },
+    setup_digest: "",
+  };
+  setup.setup_digest = canonicalArtifactDigest(setup, "setup_digest");
+  return setup;
+}
+
+function internalPolicyCanaryProfile(
+  sourceLaunchId: string,
+  offering: ReturnType<typeof pausedUngradedConfiguredSceneOffering>,
+) {
+  return {
+    ...profile(),
+    profile_id: "scene-policy-canary-profile-v1",
+    profile_digest: sha("3"),
+    claim_ceiling: "diagnostic_policy_execution",
+    required_authorization: { max_spend_usd: 4, hard_ttl_seconds: 9_000 },
+    internal_policy_canary_setup: internalPolicyCanarySetup(sourceLaunchId, offering),
+  };
+}
+
+function internalPolicyCanarySelection(
+  runId: string,
+  setup: ReturnType<typeof internalPolicyCanarySetup>,
+) {
+  return {
+    schema_version: "task_evaluation_policy_canary_selection.v1",
+    run_kind: "internal_policy_canary",
+    claim_ceiling: "diagnostic_policy_execution",
+    run_id: runId,
+    offering_digest: setup.offering_digest,
+    setup_digest: setup.setup_digest,
+    scene_revision_digest: setup.scene_revision_digest,
+    robot_preset_id: "franka_panda_robotiq_2f85_v1",
+    policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+    episode_preset_id: "quick_10",
+    variation_matrix_digest: setup.episode_presets[0].matrix.matrix_digest,
+    notification: {
+      email: "founder@example.com",
+      notify_on: ["completed", "blocked", "cancelled"],
+    },
+    authorization: {
+      maximum_cost_usd: 4,
+      hard_ttl_seconds: 9_000,
+      maximum_provider_allocations: 1,
+      retry_cap: 0,
+    },
+    confirm_unqualified_execution: true,
+  };
 }
 
 function evaluationReadyConfiguredSceneOffering() {
@@ -801,6 +986,8 @@ function signedSubmissionHeaders(body: string, idempotencyKey = "launch-001") {
 beforeEach(() => {
   state.records.clear();
   state.blobs.clear();
+  state.launchProfiles = null;
+  state.launchForwardFailuresRemaining = 0;
   state.hangTransaction = false;
   state.isOps = true;
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
@@ -814,7 +1001,7 @@ beforeEach(() => {
     if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-profiles") {
       return new Response(JSON.stringify({
         schema_version: "task_evaluation_launch_profile_catalog.v1",
-        profiles: [profile()],
+        profiles: state.launchProfiles || [profile()],
       }), { status: 200, headers: { "content-type": "application/json" } });
     }
     if (url === "https://pipeline.example/task-evaluation-configured-scene-artifact-readback") {
@@ -998,6 +1185,16 @@ beforeEach(() => {
         provider_mutation_performed_by_worker: false,
         paid_execution_requested: false,
       }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (
+      url === "https://pipeline.example/launches"
+      && state.launchForwardFailuresRemaining > 0
+    ) {
+      state.launchForwardFailuresRemaining -= 1;
+      return new Response(JSON.stringify({ error: "temporary intake refusal" }), {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
     }
     const request = JSON.parse(String(init?.body || "{}"));
     return new Response(JSON.stringify({
@@ -1292,6 +1489,140 @@ describe("admin Task Evaluation launch route", () => {
         code: "configured_scene_offering_controls_pending",
         paid_execution_requested: false,
       });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("reuses the original authorization when retrying a forward-blocked policy canary", async () => {
+    state.isOps = false;
+    const sourceLaunchId = "controls-pending-policy-canary";
+    const offering = pausedUngradedConfiguredSceneOffering();
+    const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
+    const setup = canaryProfile.internal_policy_canary_setup;
+    const runId = "policy-canary-retry-001";
+    const body = internalPolicyCanarySelection(runId, setup);
+    state.launchProfiles = [canaryProfile];
+    state.launchForwardFailuresRemaining = 1;
+    state.records.set(sourceLaunchId, {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const { server, url } = await startTeamOfferingServer();
+    try {
+      const first = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(body),
+      });
+      expect(first.status).toBe(503);
+      await expect(first.json()).resolves.toMatchObject({
+        status: "forward_blocked",
+        already_exists: false,
+      });
+      const firstRecord = structuredClone(state.records.get(runId));
+      expect(firstRecord).toMatchObject({
+        state: "forward_blocked",
+        forward_attempt_count: 1,
+        retryable: true,
+      });
+      const originalAuthorizedAt = firstRecord?.request.authorization.authorized_at;
+      const originalRequestDigest = firstRecord?.request_digest;
+
+      // Ensure an implementation that hashes a fresh authorized_at cannot pass
+      // accidentally because both submissions landed in the same millisecond.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const retry = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(body),
+      });
+      expect(retry.status).toBe(202);
+      await expect(retry.json()).resolves.toMatchObject({
+        status: "queued",
+        already_exists: true,
+        run: {
+          request_digest: originalRequestDigest,
+          forward_attempt_count: 2,
+          error: null,
+        },
+      });
+      expect(state.records.get(runId)).toMatchObject({
+        state: "queued",
+        request_digest: originalRequestDigest,
+        forward_attempt_count: 2,
+        next_forward_at_iso: null,
+        retryable: false,
+        error: null,
+        request: {
+          request_digest: originalRequestDigest,
+          authorization: { authorized_at: originalAuthorizedAt },
+        },
+      });
+      const pipelineRequests = (globalThis.fetch as any).mock.calls
+        .filter(([target]: [string]) => target === "https://pipeline.example/launches")
+        .map(([, init]: [string, RequestInit]) => JSON.parse(String(init.body)));
+      expect(pipelineRequests).toHaveLength(2);
+      expect(pipelineRequests[1]).toMatchObject({
+        request_digest: originalRequestDigest,
+        authorization: { authorized_at: originalAuthorizedAt },
+      });
+      expect(pipelineRequests[1]).toEqual(pipelineRequests[0]);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("keeps a forward-blocked policy canary immutable when the selection changes", async () => {
+    state.isOps = false;
+    const sourceLaunchId = "controls-pending-policy-canary-conflict";
+    const offering = pausedUngradedConfiguredSceneOffering();
+    const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
+    const setup = canaryProfile.internal_policy_canary_setup;
+    const runId = "policy-canary-retry-conflict-001";
+    const body = internalPolicyCanarySelection(runId, setup);
+    state.launchProfiles = [canaryProfile];
+    state.launchForwardFailuresRemaining = 1;
+    state.records.set(sourceLaunchId, {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const { server, url } = await startTeamOfferingServer();
+    try {
+      const first = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(body),
+      });
+      expect(first.status).toBe(503);
+      const originalRequestDigest = state.records.get(runId)?.request_digest;
+
+      const changedSelection = {
+        ...body,
+        policy_candidate_ids: ["groot_n17_droid", "pi05_droid"],
+      };
+      const conflict = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: JSON.stringify(changedSelection),
+      });
+      expect(conflict.status).toBe(409);
+      await expect(conflict.json()).resolves.toMatchObject({
+        error: { code: "POLICY_CANARY_IMMUTABLE_CONFLICT" },
+      });
+      expect(state.records.get(runId)).toMatchObject({
+        state: "forward_blocked",
+        request_digest: originalRequestDigest,
+        forward_attempt_count: 1,
+      });
+      const pipelineCalls = (globalThis.fetch as any).mock.calls.filter(
+        ([target]: [string]) => target === "https://pipeline.example/launches",
+      );
+      expect(pipelineCalls).toHaveLength(1);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
