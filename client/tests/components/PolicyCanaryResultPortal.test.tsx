@@ -154,6 +154,13 @@ describe("PolicyCanaryResultPortal", () => {
     expect(inventory).toBeTruthy();
     expect(within(inventory!).getByText("summary csv")).toBeTruthy();
     expect(within(inventory!).getByText("provider zero receipt")).toBeTruthy();
+    const closure = screen
+      .getByText("Billing, teardown, provider zero, and notification")
+      .closest("details");
+    expect(closure).toBeTruthy();
+    expect(within(closure!).getByText(sha("l"))).toBeTruthy();
+    expect(within(closure!).getByText(sha("n"))).toBeTruthy();
+    expect(within(closure!).getByText(sha("z"))).toBeTruthy();
     expect(screen.getByText(/Diagnostic only/)).toBeTruthy();
   });
 });

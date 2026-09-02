@@ -2,7 +2,10 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { Download } from "lucide-react";
 
 import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
-import { buildCanaryArtifactInventory } from "@/lib/policyCanaryResultPortal";
+import {
+  buildCanaryArtifactInventory,
+  normalizedArtifact,
+} from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
   humanBytes,
@@ -38,10 +41,10 @@ export function PolicyCanaryEvidenceInventory({ result, user }: { result: TaskEv
   const artifacts = buildCanaryArtifactInventory(result);
   const notification = publication.notification_delivery;
   const receiptRows: Array<[string, TaskEvaluationResultArtifact | undefined, string]> = [
-    ["Billing", reproducibility.billing_receipt, "Official provider billing receipt"],
-    ["Teardown", reproducibility.teardown_receipt, "Resource teardown receipt"],
-    ["Provider zero", reproducibility.provider_zero_receipt, "Authenticated post-teardown inventory receipt"],
-    ["Email delivery", notification?.receipt || undefined, notification ? `${notification.status} · ${notification.delivered_at_iso || "timestamp unavailable"}` : "Unavailable — not delivered"],
+    ["Billing", normalizedArtifact(reproducibility.billing_receipt) || undefined, "Official provider billing receipt"],
+    ["Teardown", normalizedArtifact(reproducibility.teardown_receipt) || undefined, "Resource teardown receipt"],
+    ["Provider zero", normalizedArtifact(reproducibility.provider_zero_receipt) || undefined, "Authenticated post-teardown inventory receipt"],
+    ["Email delivery", normalizedArtifact(notification?.receipt) || undefined, notification ? `${notification.status} · ${notification.delivered_at_iso || "timestamp unavailable"}` : "Unavailable — not delivered"],
   ];
   const roleSet = new Set(artifacts.map((artifact) => artifact.role));
   const requiredRoles = [
