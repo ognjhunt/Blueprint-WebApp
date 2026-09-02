@@ -49,6 +49,27 @@ export function signedPipelineHeaders(body = "") {
   };
 }
 
+export async function probeTaskEvaluationResultArtifact(params: {
+  runId: string;
+  artifactId: string;
+}): Promise<"admitted" | "not_found" | "unavailable"> {
+  const endpoint = configuredArtifactEndpoint(params.runId, params.artifactId);
+  const signed = signedPipelineHeaders();
+  if (!endpoint || !signed) return "unavailable";
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: { ...signed, range: "bytes=0-0" },
+    });
+    if (response.status === 404) return "not_found";
+    if (!response.ok) return "unavailable";
+    await response.body?.cancel();
+    return "admitted";
+  } catch {
+    return "unavailable";
+  }
+}
+
 export async function streamTaskEvaluationResultArtifact(params: {
   runId: string;
   artifactId: string;

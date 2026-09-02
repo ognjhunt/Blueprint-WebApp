@@ -3,7 +3,11 @@ import { Router, type Response } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { resolveAccessContext } from "../utils/access-control";
 import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResultAccess";
-import { streamTaskEvaluationResultArtifact } from "../utils/taskEvaluationResultArtifactProxy";
+import { taskEvaluationResultArtifactAdmission } from "../utils/taskEvaluationResultArtifactAdmission";
+import {
+  probeTaskEvaluationResultArtifact,
+  streamTaskEvaluationResultArtifact,
+} from "../utils/taskEvaluationResultArtifactProxy";
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
@@ -127,14 +131,16 @@ router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
   if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
-  const delivery = record.publication.result_delivery;
-  const artifact = delivery?.status === "ready"
-    ? delivery.artifacts.find((row: Record<string, any>) => row.artifact_id === req.params.artifactId)
-    : null;
-  if (!artifact) return res.status(404).json({ error: "Result artifact not found" });
+  const admission = taskEvaluationResultArtifactAdmission(
+    record.publication,
+    req.params.artifactId,
+  );
+  if (admission === "denied") {
+    return res.status(404).json({ error: "Result artifact not found" });
+  }
   await streamTaskEvaluationResultArtifact({
     runId: record.publication.run_id,
-    artifactId: artifact.artifact_id,
+    artifactId: req.params.artifactId,
     req,
     res,
   });
@@ -150,10 +156,25 @@ router.post("/:recordId/artifacts/:artifactId/ticket", async (req, res) => {
   if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
-  const delivery = record.publication.result_delivery;
-  const admitted = delivery?.status === "ready"
-    && delivery.artifacts.some((row: Record<string, any>) => row.artifact_id === req.params.artifactId);
-  if (!admitted) return res.status(404).json({ error: "Result artifact not found" });
+  const admission = taskEvaluationResultArtifactAdmission(
+    record.publication,
+    req.params.artifactId,
+  );
+  if (admission === "denied") {
+    return res.status(404).json({ error: "Result artifact not found" });
+  }
+  if (admission === "pipeline_run_registry") {
+    const registryAdmission = await probeTaskEvaluationResultArtifact({
+      runId: record.publication.run_id,
+      artifactId: req.params.artifactId,
+    });
+    if (registryAdmission === "not_found") {
+      return res.status(404).json({ error: "Result artifact not found" });
+    }
+    if (registryAdmission !== "admitted") {
+      return res.status(503).json({ error: "Result artifact registry is unavailable" });
+    }
+  }
   const ticket = createTaskEvaluationResultDownloadTicket(record.record_id, req.params.artifactId);
   if (!ticket) return res.status(503).json({ error: "Result download tickets are not configured" });
   const query = new URLSearchParams({
