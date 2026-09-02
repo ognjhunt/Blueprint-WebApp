@@ -165,7 +165,7 @@ export default function EvaluationRunProgress() {
           </header>
           {canaryRun ? <><ProofBoundary level="warn" title="Controls pending — results are unqualified" icon={ShieldAlert}>This canary remains diagnostic even when every episode succeeds. It cannot change the scene to evaluation ready.</ProofBoundary><PolicyCanaryTimeline stage={canaryRun.stage} /></> : <RunTimeline state={run.state} />}
           <Card pad="md">
-            <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{run.phase || friendlyState(run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
+            <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{friendlyState(run.phase || run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
             {progress ? <><div className="mt-4 h-2 overflow-hidden bg-inset" aria-label={`${progress.completed_episodes} of ${progress.total_episodes} episodes complete`}><div className="h-full bg-runway-signal transition-[width]" style={{ width: `${percent}%` }} /></div><p className="runway-num mt-2 text-caption text-ink-500">{progress.completed_episodes} / {progress.total_episodes} episodes</p></> : null}
             {run.episode_counts ? <p className="mt-2 text-caption text-ink-400">{run.episode_counts.learned_episode_count} learned-policy episodes · {run.episode_counts.control_episode_count} control episodes</p> : null}
           </Card>

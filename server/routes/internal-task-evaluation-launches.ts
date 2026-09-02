@@ -530,8 +530,16 @@ router.post(
         // `state` is deliberately never written here. It is the terminal field,
         // and the control room stops polling the moment it reads a terminal
         // value, so an observation writing it would freeze the live view.
+        const progressUpdate = existing.run_kind === "internal_policy_canary"
+          ? {
+              // Policy-run records already use `progress` for the immutable
+              // completed/total episode pair. Keep lifecycle observations in
+              // their own field instead of erasing the real counters.
+              pipeline_progress: progress,
+            }
+          : { progress };
         transaction.set(ref, {
-          progress,
+          ...progressUpdate,
           progress_updated_at_iso: new Date().toISOString(),
         }, { merge: true });
         return "recorded";

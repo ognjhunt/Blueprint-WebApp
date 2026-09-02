@@ -181,4 +181,72 @@ describe("evaluation-ready policy-run contract", () => {
     expect(JSON.stringify(projected)).not.toContain("s3://");
     expect(JSON.stringify(projected)).not.toContain("secret-file:");
   });
+
+  it("projects live canary lifecycle without erasing real episode counters", () => {
+    const projected = projectEvaluationReadyRun({
+      schema_version: "task_evaluation_policy_run_web_record.v1",
+      run_id: "scene-839873-policy-canary-live",
+      run_kind: "internal_policy_canary",
+      source_launch_id: "scene-839873-launch",
+      offering_digest: sha("a"),
+      request_digest: sha("b"),
+      owner_user_id: "owner-001",
+      team_namespace: "team-001",
+      state: "queued",
+      stage: "queued",
+      phase: "preparing",
+      configuration_digest: sha("c"),
+      progress: { completed_episodes: 0, total_episodes: 20 },
+      completed_learned_episode_count: 0,
+      pipeline_progress: {
+        phase: "provider_allocating",
+        phase_status: "running",
+        observed_at_iso: "2026-09-02T00:40:00.000Z",
+        elapsed_seconds: 12,
+      },
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      created_at_iso: "2026-09-02T00:39:00.000Z",
+      updated_at_iso: "2026-09-02T00:39:00.000Z",
+    });
+
+    expect(projected).toMatchObject({
+      run_kind: "internal_policy_canary",
+      state: "running",
+      stage: "provider_allocating",
+      phase: "provider_allocating",
+      progress: { completed_episodes: 0, total_episodes: 20 },
+    });
+  });
+
+  it("recovers the live phase from records written before progress fields split", () => {
+    const projected = projectEvaluationReadyRun({
+      schema_version: "task_evaluation_policy_run_web_record.v1",
+      run_id: "scene-839873-policy-canary-legacy-progress",
+      run_kind: "internal_policy_canary",
+      source_launch_id: "scene-839873-launch",
+      offering_digest: sha("a"),
+      request_digest: sha("b"),
+      owner_user_id: "owner-001",
+      team_namespace: "team-001",
+      state: "queued",
+      stage: "queued",
+      phase: "preparing",
+      configuration_digest: sha("c"),
+      progress: {
+        phase: "vast_isaac_smoke_started",
+        phase_status: "running",
+      } as unknown as { completed_episodes: number; total_episodes: number },
+      completed_learned_episode_count: 0,
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      created_at_iso: "2026-09-02T00:39:00.000Z",
+      updated_at_iso: "2026-09-02T00:39:00.000Z",
+    });
+
+    expect(projected).toMatchObject({
+      state: "running",
+      stage: "runtime_starting",
+      phase: "vast_isaac_smoke_started",
+      progress: { completed_episodes: 0, total_episodes: 20 },
+    });
+  });
 });

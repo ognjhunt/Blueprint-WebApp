@@ -36,7 +36,13 @@ function result(): TaskEvaluationResultSiteRecord {
     evidence: {
       complete: true,
       frame_manifest: artifact(index ? "g" : "f", "frame_manifest"),
-      episode_json: artifact(index ? "k" : "j", "episode_json"),
+      episode_json: index
+        ? artifact("k", "episode_json")
+        : {
+          artifact_id: "j".repeat(32),
+          digest: sha("j"),
+          size_bytes: 128,
+        } as any,
       videos: {},
     },
     timeline: [{

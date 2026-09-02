@@ -36,6 +36,54 @@ const familyMetrics = (successRate: number, degradation = 0) => ({
 describe("EvaluationRunProgress", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("shows the Pipeline-authored canary phase with real episode counts", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue({
+      schema_version: "task_evaluation_policy_run_projection.v1",
+      run_id: "scene-839873-policy-run-001",
+      source_launch_id: "scene-839873-launch",
+      offering_digest: digest("a"),
+      configuration_digest: digest("b"),
+      run_kind: "internal_policy_canary",
+      claim_ceiling: "diagnostic_policy_execution",
+      result_status: null,
+      scene_controls_status: "configured_controls_pending",
+      state: "running",
+      terminal: false,
+      stage: "provider_allocating",
+      phase: "provider_allocating",
+      progress: { completed_episodes: 0, total_episodes: 20 },
+      episode_counts: {
+        learned_episode_count: 20,
+        control_episode_count: 20,
+        total_episode_count: 40,
+      },
+      completed_learned_episode_count: 0,
+      expected_learned_episode_count: 20,
+      completed_control_episode_count: 0,
+      robot_preset_id: "franka_panda_robotiq_2f85_v1",
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      episode_plan: null,
+      notification_delivery: null,
+      result: null,
+      error: null,
+      warning: "Controls pending — results are unqualified.",
+      created_at_iso: "2026-09-02T00:39:00.000Z",
+      updated_at_iso: "2026-09-02T00:40:00.000Z",
+      proof_boundary: {
+        simulation_is_physical_success: false,
+        deployment_or_safety_approved: false,
+        cross_team_leaderboard_authorized: false,
+      },
+    });
+
+    render(<EvaluationRunProgress />);
+
+    await waitFor(() => expect(screen.getAllByText("Provider allocating")).toHaveLength(2));
+    expect(screen.getByText("0 / 20 episodes")).toBeInTheDocument();
+    expect(screen.getAllByText("0/20")).toHaveLength(2);
+    expect(screen.getAllByText("Running")).toHaveLength(2);
+  });
+
   it("shows a terminal paired comparison and the private result link", async () => {
     vi.mocked(fetchEvaluationReadyRun).mockResolvedValue({
       schema_version: "task_evaluation_policy_run_projection.v1",

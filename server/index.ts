@@ -20,6 +20,11 @@ import {
   getPublicAssetPath,
 } from "./utils/public-artifacts";
 import { buildContentSecurityPolicy } from "./utils/contentSecurityPolicy";
+import {
+  createPipelineTaskEvaluationResultBodyParser,
+  DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT,
+  PIPELINE_TASK_EVALUATION_RESULT_PATH,
+} from "./utils/pipelineTaskEvaluationResultBodyParser";
 
 const env = validateEnv();
 
@@ -138,10 +143,24 @@ const hostedSessionLimiter = createRateLimiter({
 
 // Configure middleware
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
+const pipelineTaskEvaluationResultBodyLimit =
+  env.PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT ||
+  DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT;
 app.post(
   "/api/stripe/webhooks",
   express.raw({ type: "application/json", limit: defaultBodyLimit }),
   stripeWebhookHandler,
+);
+// A complete signed policy-canary report includes 20 episode projections and
+// their bounded artifact identities. Parse only this internal HMAC-authenticated
+// route with the larger limit; every public and unrelated API keeps the 1 MB
+// default below.
+app.use(
+  PIPELINE_TASK_EVALUATION_RESULT_PATH,
+  createPipelineTaskEvaluationResultBodyParser({
+    limit: pipelineTaskEvaluationResultBodyLimit,
+    verify: captureRawBody,
+  }),
 );
 app.use(express.json({ limit: defaultBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
