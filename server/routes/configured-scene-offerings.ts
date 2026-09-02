@@ -506,7 +506,7 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     selected.details,
   ));
   const now = new Date().toISOString();
-  const request = buildInternalPolicyCanaryLaunchRequest({
+  const freshRequest = buildInternalPolicyCanaryLaunchRequest({
     selection,
     setup: setup.setup,
     profile: setup.profile,
@@ -534,8 +534,8 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     team_namespace: resolved.offering.team_namespace,
     state: "forward_pending",
     phase: "forwarding",
-    request_digest: request.request_digest,
-    configuration_digest: request.request_digest,
+    request_digest: freshRequest.request_digest,
+    configuration_digest: freshRequest.request_digest,
     robot_preset_id: selection.robot_preset_id,
     policy_candidate_ids: selection.policy_candidate_ids,
     scene: {
@@ -555,7 +555,7 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
       display_name: candidate.display_name,
       checkpoint_digest: candidate.checkpoint.digest,
     })),
-    episode_plan: request.episode_plan,
+    episode_plan: freshRequest.episode_plan,
     episode_counts: {
       learned_episode_count: 20,
       control_episode_count: 20,
@@ -569,8 +569,8 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     completed_control_episode_count: 0,
     notification: selection.notification,
     notification_recipient_user_id: resolved.access.uid,
-    notification_source_event_id: request.request_digest,
-    request,
+    notification_source_event_id: freshRequest.request_digest,
+    request: freshRequest,
     forward_attempt_count: 0,
     next_forward_at_iso: null,
     retryable: true,
@@ -580,33 +580,39 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     updated_at_iso: now,
   };
   const runRef = db.collection(POLICY_RUN_COLLECTION).doc(selection.run_id);
-  let existing: Record<string, any> | null;
+  let priorRecord: Record<string, any> | null;
   try {
-    existing = await withTaskEvaluationLaunchStoreTimeout(
+    priorRecord = await withTaskEvaluationLaunchStoreTimeout(
       db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(runRef);
         if (snapshot.exists) {
           const prior = snapshot.data() as Record<string, any>;
+          const originalAuthorizedAt = prior.request?.authorization?.authorized_at;
+          if (typeof originalAuthorizedAt !== "string") {
+            throw new Error("policy_canary_immutable_conflict");
+          }
+          const replayRequest = buildInternalPolicyCanaryLaunchRequest({
+            selection,
+            setup: setup.setup,
+            profile: setup.profile,
+            actor: {
+              id: resolved.access.uid || "",
+              role: resolved.access.isAdmin
+                ? "admin"
+                : resolved.access.isOps ? "ops" : "team_member",
+            },
+            teamNamespace: resolved.offering.team_namespace,
+            controlsStatusAtSubmission: "configured_controls_pending",
+            authorizedAt: originalAuthorizedAt,
+          });
           if (
             prior.run_kind !== selection.run_kind
             || prior.owner_user_id !== record.owner_user_id
             || prior.team_namespace !== record.team_namespace
             || prior.source_launch_id !== record.source_launch_id
-            || prior.request_digest !== record.request_digest
+            || prior.request_digest !== replayRequest.request_digest
+            || prior.request?.request_digest !== replayRequest.request_digest
           ) throw new Error("policy_canary_immutable_conflict");
-          if (!prior.request) {
-            const recovery = {
-              request,
-              state: "forward_pending",
-              phase: "forwarding",
-              forward_attempt_count: Number(prior.forward_attempt_count || 0),
-              next_forward_at_iso: null,
-              retryable: true,
-              updated_at_iso: new Date().toISOString(),
-            };
-            transaction.set(runRef, recovery, { merge: true });
-            return { ...prior, ...recovery };
-          }
           return prior;
         }
         transaction.create(runRef, record);
@@ -627,26 +633,34 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     ));
   }
   res.set("Cache-Control", "private, no-store");
-  if (existing) return res.status(200).json({
+  const replayed = priorRecord !== null;
+  const storedRecord = priorRecord || record;
+  if (
+    replayed
+    && !["forward_pending", "forward_blocked"].includes(String(storedRecord.state || ""))
+  ) return res.status(200).json({
     schema_version: "task_evaluation_policy_canary_web_receipt.v1",
-    status: existing.state,
+    status: storedRecord.state,
     already_exists: true,
-    run: existing,
+    run: storedRecord,
   });
   const forwardResult = await forwardStoredPolicyCanaryRun(
-    record,
-    async () => forwardTaskEvaluationLaunch({ request }),
+    // A user-initiated retry is immediate. The background reconciler still
+    // respects next_forward_at_iso, but an explicit same-selection POST should
+    // match the established admin launch retry behavior.
+    replayed ? { ...storedRecord, next_forward_at_iso: null } : storedRecord,
+    async () => forwardTaskEvaluationLaunch({ request: storedRecord.request }),
   );
   const forwarded = forwardResult.forward;
   const update = {
     ...forwardResult,
     launch_forward: forwarded,
-    ...(forwarded?.status === "forwarded" ? {} : {
-      error: {
+    error: forwarded?.status === "forwarded"
+      ? null
+      : {
         code: forwarded?.blocker || "POLICY_CANARY_FORWARD_FAILED",
         message: "Policy canary could not be queued in Pipeline.",
       },
-    }),
     updated_at_iso: new Date().toISOString(),
   };
   try {
@@ -661,8 +675,8 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
   return res.status(forwarded?.status === "forwarded" ? 202 : 503).json({
     schema_version: "task_evaluation_policy_canary_web_receipt.v1",
     status: update.state,
-    already_exists: false,
-    run: { ...record, ...update },
+    already_exists: replayed,
+    run: { ...storedRecord, ...update },
     forward: forwarded,
     warning: "Controls pending — results are unqualified.",
   });
