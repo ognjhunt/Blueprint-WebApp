@@ -576,6 +576,17 @@ export type EvaluationReadyRunRecord = {
   updated_at_iso: string;
   phase?: string | null;
   progress?: { completed_episodes: number; total_episodes: number } | null;
+  pipeline_progress?: {
+    phase: string;
+    phase_status?: string;
+    observed_at_iso?: string;
+    elapsed_seconds?: number;
+    provider?: {
+      instance_state: string;
+      instance_age_seconds: number | null;
+      estimated_cost_usd: number | null;
+    };
+  } | null;
   episode_counts?: {
     learned_episode_count: number;
     control_episode_count: number;
@@ -590,9 +601,84 @@ export type EvaluationReadyRunRecord = {
 
 const SAFE_RESULT_RECORD_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/;
 
+const POLICY_CANARY_STAGE_ORDER = [
+  "queued",
+  "preparing",
+  "provider_allocating",
+  "runtime_starting",
+  "policy_a_running",
+  "policy_b_running",
+  "artifacts_syncing",
+  "report_generating",
+  "billing_teardown",
+  "terminal",
+] as const;
+
+type PolicyCanaryStage = typeof POLICY_CANARY_STAGE_ORDER[number];
+
+function lifecycleProgress(record: EvaluationReadyRunRecord) {
+  if (
+    record.pipeline_progress
+    && typeof record.pipeline_progress === "object"
+    && typeof record.pipeline_progress.phase === "string"
+  ) return record.pipeline_progress;
+  // Before lifecycle observations gained their own field, the progress route
+  // overwrote episode counters. Read those records without perpetuating the
+  // collision for new writes.
+  const legacy = record.progress as unknown;
+  if (
+    legacy
+    && typeof legacy === "object"
+    && "phase" in legacy
+    && typeof (legacy as { phase?: unknown }).phase === "string"
+  ) return legacy as EvaluationReadyRunRecord["pipeline_progress"];
+  return null;
+}
+
+function canaryStageForPhase(phase: string | null): PolicyCanaryStage | null {
+  if (!phase) return null;
+  if ((POLICY_CANARY_STAGE_ORDER as readonly string[]).includes(phase)) {
+    return phase as PolicyCanaryStage;
+  }
+  if (phase === "intake_webapp_record_binding" || phase === "starting") return "queued";
+  if (phase.startsWith("policy_pi05_droid")) return "policy_a_running";
+  if (phase.startsWith("policy_groot_n17_droid")) return "policy_b_running";
+  if (phase.startsWith("vast_instance_teardown") || phase.startsWith("awaiting_official_billing")) {
+    return "billing_teardown";
+  }
+  if (
+    phase.startsWith("vast_heartbeat")
+    || phase.startsWith("vast_gpu_sanity")
+    || phase.startsWith("vast_isaac_smoke")
+    || phase.startsWith("vast_blueprint_bundle")
+  ) return "runtime_starting";
+  if (phase.startsWith("vast_")) return "provider_allocating";
+  if (["completed_unqualified", "blocked", "cancelled"].includes(phase)) return "terminal";
+  return null;
+}
+
+function furthestCanaryStage(
+  stored: unknown,
+  observed: PolicyCanaryStage | null,
+): PolicyCanaryStage {
+  const storedStage = typeof stored === "string"
+    && (POLICY_CANARY_STAGE_ORDER as readonly string[]).includes(stored)
+    ? stored as PolicyCanaryStage
+    : "queued";
+  if (!observed) return storedStage;
+  return POLICY_CANARY_STAGE_ORDER.indexOf(observed)
+    > POLICY_CANARY_STAGE_ORDER.indexOf(storedStage)
+    ? observed
+    : storedStage;
+}
+
 export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
   const internalPolicyCanary = record.run_kind === "internal_policy_canary";
   const terminal = ["results_ready", "abstained", "blocked", "failed", "cancelled"].includes(record.state);
+  const pipelineProgress = lifecycleProgress(record);
+  const observedPhase = typeof pipelineProgress?.phase === "string"
+    ? pipelineProgress.phase
+    : null;
   const resultRecordId = typeof record.result_record_id === "string"
     && SAFE_RESULT_RECORD_ID.test(record.result_record_id)
     ? record.result_record_id
@@ -609,7 +695,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
     configuration_digest: record.configuration_digest,
     state: record.state,
     terminal,
-    phase: typeof record.phase === "string" ? record.phase : null,
+    phase: observedPhase || (typeof record.phase === "string" ? record.phase : null),
     progress: record.progress && Number.isInteger(record.progress.completed_episodes)
       && Number.isInteger(record.progress.total_episodes)
       ? {
@@ -643,8 +729,34 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
     },
   };
   if (!internalPolicyCanary) return projection;
+  const stage = terminal
+    ? furthestCanaryStage(record.stage, "terminal")
+    : furthestCanaryStage(record.stage, canaryStageForPhase(observedPhase));
+  const stageIndex = POLICY_CANARY_STAGE_ORDER.indexOf(stage);
+  const state = terminal
+    ? record.state
+    : stageIndex >= POLICY_CANARY_STAGE_ORDER.indexOf("artifacts_syncing")
+      ? "aggregating"
+      : stageIndex >= POLICY_CANARY_STAGE_ORDER.indexOf("provider_allocating")
+        ? "running"
+        : record.state;
+  const countProgress = record.progress
+    && Number.isInteger(record.progress.completed_episodes)
+    && Number.isInteger(record.progress.total_episodes)
+    ? {
+        completed_episodes: Math.max(0, record.progress.completed_episodes),
+        total_episodes: Math.max(0, record.progress.total_episodes),
+      }
+    : {
+        completed_episodes: Number.isInteger(record.completed_learned_episode_count)
+          ? Math.max(0, Number(record.completed_learned_episode_count))
+          : 0,
+        total_episodes: 20,
+      };
   return {
     ...projection,
+    state,
+    progress: countProgress,
     run_kind: "internal_policy_canary" as const,
     claim_ceiling: "diagnostic_policy_execution" as const,
     result_status: record.result_status === "completed_unqualified"
@@ -653,7 +765,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
       ? record.result_status
       : null,
     scene_controls_status: "configured_controls_pending" as const,
-    stage: typeof record.stage === "string" ? record.stage : "queued",
+    stage,
     request_digest: typeof record.request_digest === "string"
       ? record.request_digest
       : record.configuration_digest,

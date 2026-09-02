@@ -187,7 +187,7 @@ describe("internal Task Evaluation launch progress route", () => {
       run_kind: "internal_policy_canary",
       state: "queued",
       phase: "queued",
-      progress: {
+      pipeline_progress: {
         phase: "intake_webapp_record_binding",
         phase_status: "verified",
       },
