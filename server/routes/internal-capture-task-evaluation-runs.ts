@@ -16,6 +16,10 @@ import {
 } from "../utils/policyCanaryWebappSyncContract";
 import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
+import {
+  encodeTaskEvaluationRunPublication,
+  publicationFromResultRecord,
+} from "../utils/taskEvaluationRunPublicationStorage";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
@@ -212,6 +216,15 @@ async function handlePolicyCanaryPublication(
   const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(publication.run_id);
   const recordId = `capture-run-${createHash("sha256").update(`${publication.capture_session_id}\0${publication.run_id}`).digest("hex").slice(0, 32)}`;
   const runRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
+  let publicationStorage;
+  try {
+    publicationStorage = encodeTaskEvaluationRunPublication(publication);
+  } catch {
+    return res.status(413).json({
+      error: "Policy canary publication exceeds the bounded result envelope",
+      code: "POLICY_CANARY_PUBLICATION_TOO_LARGE",
+    });
+  }
   type Outcome = "created" | "replayed" | "offering_not_found" | "offering_invalid" | "policy_run_not_found" | "configuration_run_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
   let transactionResult: { outcome: Outcome; policyRun: Record<string, any> | null };
   try {
@@ -253,12 +266,16 @@ async function handlePolicyCanaryPublication(
           ? String((runSnapshot.data() as Record<string, any>).created_at_iso || now)
           : now,
         updated_at_iso: now,
-        publication,
+        publication_storage: publicationStorage,
       };
       let outcome: "created" | "replayed" = "created";
       if (runSnapshot.exists) {
         const existing = runSnapshot.data() as Record<string, any>;
-        if (stableJson(existing.publication) !== stableJson(publication)) {
+        const existingPublication = publicationFromResultRecord(existing);
+        if (
+          !existingPublication
+          || stableJson(existingPublication) !== stableJson(publication)
+        ) {
           return { outcome: "immutable_conflict" as const, policyRun: null };
         }
         outcome = "replayed";

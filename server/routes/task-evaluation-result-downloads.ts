@@ -4,6 +4,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { streamTaskEvaluationResultArtifact } from "../utils/taskEvaluationResultArtifactProxy";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
+import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 
 const router = Router();
 
@@ -27,7 +28,10 @@ router.get("/:recordId/:artifactId", async (req, res) => {
     return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
   }
   if (!snapshot.exists) return res.status(404).json({ error: "Result download is unavailable" });
-  const verified = parseVerifiedTaskEvaluationRunPublication(snapshot.data()?.publication);
+  const record = snapshot.data() as Record<string, unknown>;
+  const verified = parseVerifiedTaskEvaluationRunPublication(
+    publicationFromResultRecord(record),
+  );
   if (
     !verified.ok
     || (
