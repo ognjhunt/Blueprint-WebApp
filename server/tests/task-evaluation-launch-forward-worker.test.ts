@@ -7,9 +7,11 @@ import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   buildTaskEvaluationLaunchRequest,
 } from "../utils/taskEvaluationLaunchContract";
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   buildExpiredControlPlaneTerminalBlocker,
   closeExpiredTaskEvaluationLaunches,
+  forwardStoredPolicyCanaryRun,
   forwardStoredTaskEvaluationLaunch,
   validateStoredTaskEvaluationLaunch,
 } from "../utils/taskEvaluationLaunchForwardWorker";
@@ -106,6 +108,55 @@ describe("Task Evaluation launch forward worker", () => {
       paid_execution_retry_performed: false,
     });
     expect(forwarder).not.toHaveBeenCalled();
+  });
+
+  it("retries a stored policy canary forward under the same immutable run id", async () => {
+    const canary = record();
+    canary.request.run_kind = "internal_policy_canary";
+    canary.request.launch_id = "scene-839873-policy-canary-001";
+    canary.request.run_id = "scene-839873-policy-canary-001";
+    canary.request.request_digest = canonicalArtifactDigest(
+      canary.request,
+      "request_digest",
+    );
+    canary.request_digest = canary.request.request_digest;
+    const first = await forwardStoredPolicyCanaryRun(
+      canary,
+      vi.fn(async () => ({
+        status: "blocked" as const,
+        blocker: "pipeline_temporarily_unavailable",
+      })),
+    );
+
+    expect(first).toMatchObject({
+      state: "forward_blocked",
+      phase: "blocked",
+      retryable: true,
+      forward_attempt_count: 1,
+    });
+
+    const replay = {
+      ...canary,
+      ...first,
+      next_forward_at_iso: "2026-01-01T00:00:00.000Z",
+    };
+    const second = await forwardStoredPolicyCanaryRun(
+      replay,
+      vi.fn(async () => ({
+        status: "forwarded" as const,
+        performed: true,
+        required: true,
+        endpoint_configured: true,
+        pipeline_intake_status: "accepted" as const,
+      })),
+    );
+
+    expect(second).toMatchObject({
+      state: "queued",
+      phase: "preparing",
+      retryable: false,
+      forward_attempt_count: 2,
+    });
   });
 
   it("retains a typed control-plane blocker only after an accepted launch authority expires", () => {

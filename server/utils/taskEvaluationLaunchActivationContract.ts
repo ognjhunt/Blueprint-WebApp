@@ -34,11 +34,16 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   activation_id: identifier,
   team_namespace: identifier,
+  run_kind: z.enum(["qualified_evaluation", "internal_policy_canary"]).optional(),
+  capture_session_id: identifier.optional(),
+  intake_id: identifier.optional(),
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
+    "native_task_arena_policy_evaluation",
   ]),
   preparation: z.object({
     preparation_id: identifier,
@@ -55,9 +60,10 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
     profile_revision: identifier,
   }).strict(),
   requested_mutations: z.object({
-    profile_publication: z.literal(true),
-    catalog_synchronization: z.literal(true),
-    standing_authorization: z.literal(true),
+    profile_publication: z.boolean(),
+    catalog_synchronization: z.boolean(),
+    standing_authorization: z.boolean(),
+    policy_campaign_queue: z.boolean().optional(),
   }).strict(),
 }).strict().superRefine((value, context) => {
   if (
@@ -74,6 +80,28 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   if (Date.parse(value.authorization.authorized_on) >= Date.parse(
     value.authorization.standing_authorization_expires_at,
   )) context.addIssue({ code: z.ZodIssueCode.custom, message: "authorization window is invalid" });
+  if (value.lane === "native_task_arena_policy_evaluation") {
+    if (
+      value.run_kind !== "internal_policy_canary"
+      || !value.capture_session_id
+      || !value.intake_id
+      || value.requested_mutations.profile_publication !== false
+      || value.requested_mutations.catalog_synchronization !== false
+      || value.requested_mutations.standing_authorization !== false
+      || value.requested_mutations.policy_campaign_queue !== true
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "policy canary activation must queue only the unqualified policy campaign",
+    });
+  } else if (
+    value.requested_mutations.profile_publication !== true
+    || value.requested_mutations.catalog_synchronization !== true
+    || value.requested_mutations.standing_authorization !== true
+    || value.requested_mutations.policy_campaign_queue !== undefined
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "non-canary activation must publish profile authority only",
+  });
   if (value.activation_id === value.preparation.preparation_id) context.addIssue({
     code: z.ZodIssueCode.custom,
     message: "activation identity must be independent",
@@ -101,8 +129,10 @@ const intakeReceiptSchema = z.object({
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
+    "native_task_arena_policy_evaluation",
   ]),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   request_digest: digest,
@@ -122,8 +152,10 @@ export const taskEvaluationLaunchActivationStatusSchema = z.object({
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
+    "native_task_arena_policy_evaluation",
   ]).optional(),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/).optional(),
   request_digest: digest.optional(),

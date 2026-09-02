@@ -8,6 +8,7 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
 
 const COLLECTION = "taskEvaluationLaunches";
+const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
 
 function truthy(value: unknown) {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
@@ -138,20 +139,63 @@ export async function forwardStoredTaskEvaluationLaunch(
   };
 }
 
+export async function forwardStoredPolicyCanaryRun(
+  record: Record<string, any>,
+  forwarder = forwardTaskEvaluationLaunch,
+) {
+  const result = await forwardStoredTaskEvaluationLaunch(record, forwarder);
+  if (result.skipped) return result;
+  const state = result.state === "queued_in_pipeline"
+    || result.state === "queued_dispatch_blocked"
+    ? "queued"
+    : result.state;
+  return {
+    ...result,
+    state,
+    phase: state === "queued" ? "preparing" : "blocked",
+  };
+}
+
 export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
   if (!db) return { status: "blocked", blocker: "firestore_unavailable", processed: 0 };
-  const docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  const docs: Array<{
+    doc: FirebaseFirestore.QueryDocumentSnapshot;
+    kind: "launch" | "policy_canary";
+  }> = [];
   for (const state of ["forward_pending", "forward_blocked"] as const) {
     const snapshot = await withTaskEvaluationLaunchStoreTimeout(
       db.collection(COLLECTION).where("state", "==", state).limit(limit).get(),
     );
-    docs.push(...snapshot.docs);
-    if (docs.length >= limit) break;
+    docs.push(...snapshot.docs.map((doc) => ({ doc, kind: "launch" as const })));
   }
+  for (const state of ["forward_pending", "forward_blocked", "blocked"] as const) {
+    const snapshot = await withTaskEvaluationLaunchStoreTimeout(
+      db.collection(POLICY_RUN_COLLECTION).where("state", "==", state).limit(limit).get(),
+    );
+    docs.push(...snapshot.docs
+      .filter((doc) => {
+        const record = doc.data() as Record<string, any>;
+        return record.run_kind === "internal_policy_canary"
+          && record.launch_forward?.status !== "forwarded"
+          && record.request?.run_kind === "internal_policy_canary";
+      })
+      .map((doc) => ({ doc, kind: "policy_canary" as const })));
+  }
+  docs.sort((left, right) => {
+    const leftRecord = left.doc.data() as Record<string, any>;
+    const rightRecord = right.doc.data() as Record<string, any>;
+    const leftTime = Date.parse(String(leftRecord.updated_at_iso || leftRecord.created_at_iso || ""));
+    const rightTime = Date.parse(String(rightRecord.updated_at_iso || rightRecord.created_at_iso || ""));
+    const normalizedLeft = Number.isFinite(leftTime) ? leftTime : 0;
+    const normalizedRight = Number.isFinite(rightTime) ? rightTime : 0;
+    return normalizedLeft - normalizedRight || left.doc.id.localeCompare(right.doc.id);
+  });
   let processed = 0;
-  for (const doc of docs.slice(0, limit)) {
+  for (const { doc, kind } of docs.slice(0, limit)) {
     const record = doc.data() as Record<string, any>;
-    const result = await forwardStoredTaskEvaluationLaunch(record);
+    const result = kind === "policy_canary"
+      ? await forwardStoredPolicyCanaryRun(record)
+      : await forwardStoredTaskEvaluationLaunch(record);
     if (result.skipped) continue;
     await withTaskEvaluationLaunchStoreTimeout(
       doc.ref.set({
