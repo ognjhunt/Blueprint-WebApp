@@ -383,6 +383,26 @@ afterEach(() => {
 });
 
 describe("internal Pipeline Task Evaluation Run publication", () => {
+  it("retains a failed terminal email receipt on exact replay", async () => {
+    const { retainedNotification } = await import(
+      "../routes/internal-capture-task-evaluation-runs"
+    );
+    const failed = {
+      terminal_state: "blocked" as const,
+      status: "failed" as const,
+      attempts: 1,
+      provider: "website_transactional_email",
+      message_id: null,
+      accepted_at: null,
+      delivered_at: null,
+      failure_reason: "email_transport_unavailable",
+      run_result_digest: sha("a"),
+    };
+
+    expect(retainedNotification(failed, "blocked", sha("a"))).toEqual(failed);
+    expect(retainedNotification(failed, "completed", sha("a"))).toBeNull();
+  });
+
   it("stores one immutable run and replays the exact native envelope", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     state.collections.set("captureUploadSessions", new Map([["capture-run-1", {

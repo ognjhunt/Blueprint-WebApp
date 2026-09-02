@@ -181,7 +181,7 @@ function episodeArtifacts(episode: TaskEvaluationResultEpisode) {
   ].filter((artifact): artifact is TaskEvaluationResultArtifact => Boolean(artifact));
 }
 
-function normalizedArtifact(value: unknown): TaskEvaluationResultArtifact | null {
+export function normalizedArtifact(value: unknown): TaskEvaluationResultArtifact | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const artifactId = typeof record.artifact_id === "string"
