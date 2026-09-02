@@ -36,11 +36,18 @@ export function resolvedCanaryCandidates(result: TaskEvaluationResultSiteRecord)
   const publication = result.publication;
   if (publication.policy_candidates?.length === 2) return publication.policy_candidates;
   const delivered = publication.result_delivery?.candidate_results || [];
-  if (delivered.length === 2) return delivered.map((candidate) => ({
-    candidate_id: candidate.candidate_id,
-    display_name: candidate.display_name,
-    checkpoint_digest: candidate.checkpoint_digest,
-  }));
+  if (delivered.length === 2) return delivered.map((candidate) => {
+    const episode = (publication.result_delivery?.episodes || []).find((row) => (
+      row.policy_candidate_id === candidate.candidate_id
+    ));
+    return {
+      candidate_id: candidate.candidate_id,
+      display_name: candidate.display_name || candidate.candidate_id,
+      checkpoint_digest: candidate.checkpoint_digest
+        || episode?.policy_checkpoint_digest
+        || "Unavailable — not delivered",
+    };
+  });
   const projected = publication.policy_canary_result?.candidate_results || [];
   return projected.map((candidate: Record<string, any>) => {
     const metrics = candidate.metrics || {};
@@ -174,6 +181,49 @@ function episodeArtifacts(episode: TaskEvaluationResultEpisode) {
   ].filter((artifact): artifact is TaskEvaluationResultArtifact => Boolean(artifact));
 }
 
+function normalizedArtifact(value: unknown): TaskEvaluationResultArtifact | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const artifactId = typeof record.artifact_id === "string"
+    ? record.artifact_id.trim()
+    : "";
+  if (!artifactId) return null;
+  const digest = typeof record.sha256 === "string"
+    ? record.sha256
+    : typeof record.digest === "string"
+      ? record.digest
+      : "";
+  return {
+    ...record,
+    artifact_id: artifactId,
+    role: typeof record.role === "string" && record.role.trim()
+      ? record.role
+      : "unclassified_artifact",
+    relative_path: typeof record.relative_path === "string" && record.relative_path.trim()
+      ? record.relative_path
+      : artifactId,
+    sha256: digest,
+    size_bytes: typeof record.size_bytes === "number" ? record.size_bytes : 0,
+    content_type: typeof record.content_type === "string" && record.content_type.trim()
+      ? record.content_type
+      : typeof record.media_type === "string" && record.media_type.trim()
+        ? record.media_type
+        : "application/octet-stream",
+  } as TaskEvaluationResultArtifact;
+}
+
+function artifactQuality(value: unknown) {
+  if (!value || typeof value !== "object") return 0;
+  const record = value as Record<string, unknown>;
+  return [
+    record.role,
+    record.relative_path,
+    record.sha256 || record.digest,
+    record.size_bytes,
+    record.content_type || record.media_type,
+  ].filter((field) => field !== null && field !== undefined && field !== "").length;
+}
+
 export function buildCanaryArtifactInventory(result: TaskEvaluationResultSiteRecord) {
   const publication = result.publication;
   const delivery = publication.result_delivery;
@@ -188,9 +238,17 @@ export function buildCanaryArtifactInventory(result: TaskEvaluationResultSiteRec
     reproducibility.provider_zero_receipt,
     publication.notification_delivery?.receipt,
   ].filter((artifact): artifact is TaskEvaluationResultArtifact => Boolean(artifact));
-  const unique = new Map<string, TaskEvaluationResultArtifact>();
-  for (const artifact of artifacts) unique.set(artifact.artifact_id, artifact);
-  return [...unique.values()].sort((left, right) => (
+  const unique = new Map<string, { artifact: TaskEvaluationResultArtifact; quality: number }>();
+  for (const value of artifacts) {
+    const artifact = normalizedArtifact(value);
+    if (!artifact) continue;
+    const quality = artifactQuality(value);
+    const current = unique.get(artifact.artifact_id);
+    if (!current || quality > current.quality) {
+      unique.set(artifact.artifact_id, { artifact, quality });
+    }
+  }
+  return [...unique.values()].map(({ artifact }) => artifact).sort((left, right) => (
     left.role.localeCompare(right.role) || left.relative_path.localeCompare(right.relative_path)
   ));
 }
