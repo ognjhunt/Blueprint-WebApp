@@ -62,7 +62,7 @@ function terminalState(resultStatus: string): NotificationDelivery["terminal_sta
   return "blocked";
 }
 
-function retainedNotification(
+export function retainedNotification(
   value: unknown,
   expectedState: NotificationDelivery["terminal_state"],
   expectedDigest: string,
@@ -71,7 +71,7 @@ function retainedNotification(
   const row = value as Record<string, any>;
   if (
     row.terminal_state !== expectedState
-    || !["accepted", "delivered"].includes(String(row.status))
+    || !["accepted", "delivered", "failed"].includes(String(row.status))
     || row.run_result_digest !== expectedDigest
     || !Number.isInteger(row.attempts)
     || row.attempts < 1
