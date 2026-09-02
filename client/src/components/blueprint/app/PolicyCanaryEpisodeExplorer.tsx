@@ -20,7 +20,8 @@ async function downloadArtifact(
   const url = await createTaskEvaluationResultArtifactTicket(user, recordId, artifact.artifact_id);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = artifact.relative_path.split("/").pop() || artifact.role;
+  const relativePath = String(artifact.relative_path || artifact.artifact_id);
+  anchor.download = relativePath.split("/").pop() || artifact.role || artifact.artifact_id;
   anchor.click();
 }
 
@@ -89,17 +90,17 @@ function Timeline({
 
 function EpisodeDownloads({ episode, user, recordId }: { episode: TaskEvaluationResultEpisode; user: FirebaseUser; recordId: string }) {
   const artifacts = [
-    episode.evidence?.lossless_policy_inputs,
-    episode.evidence?.frame_manifest,
-    episode.evidence?.episode_json,
-    episode.evidence?.indexed_mcap_rosbag,
-    episode.action_delivery?.returned_action_sequence,
-    episode.action_delivery?.delivery_readback,
-    episode.traces?.state,
-    episode.traces?.contact_force,
-    episode.traces?.task_object_trajectory,
-  ].filter((artifact): artifact is TaskEvaluationResultArtifact => Boolean(artifact));
-  return <div className="flex flex-wrap gap-2">{artifacts.map((artifact) => <Button key={artifact.artifact_id} type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, artifact)}>{artifact.role.replaceAll("_", " ")}</Button>)}{!artifacts.length ? <p className="text-caption text-ink-500">Typed gap — no exact frame, episode JSON, action, state, contact, or indexed telemetry artifact was delivered.</p> : null}</div>;
+    ["lossless_policy_inputs", episode.evidence?.lossless_policy_inputs],
+    ["frame_manifest", episode.evidence?.frame_manifest],
+    ["episode_json", episode.evidence?.episode_json],
+    ["indexed_mcap_rosbag", episode.evidence?.indexed_mcap_rosbag],
+    ["returned_action_sequence", episode.action_delivery?.returned_action_sequence],
+    ["action_delivery_readback", episode.action_delivery?.delivery_readback],
+    ["state_trace", episode.traces?.state],
+    ["contact_force_trace", episode.traces?.contact_force],
+    ["task_object_trajectory", episode.traces?.task_object_trajectory],
+  ].filter((row): row is [string, TaskEvaluationResultArtifact] => Boolean(row[1]));
+  return <div className="flex flex-wrap gap-2">{artifacts.map(([fallbackRole, artifact]) => <Button key={artifact.artifact_id} type="button" size="sm" variant="secondary" iconLeft={<Download />} onClick={() => void downloadArtifact(user, recordId, artifact)}>{String(artifact.role || fallbackRole).replaceAll("_", " ")}</Button>)}{!artifacts.length ? <p className="text-caption text-ink-500">Typed gap — no exact frame, episode JSON, action, state, contact, or indexed telemetry artifact was delivered.</p> : null}</div>;
 }
 
 export function PolicyCanaryEpisodeExplorer({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser }) {
