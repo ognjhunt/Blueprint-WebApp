@@ -6,6 +6,7 @@ import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResult
 import { streamTaskEvaluationResultArtifact } from "../utils/taskEvaluationResultArtifactProxy";
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
+import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ type ResultRecord = Record<string, any> & {
   organization_id: string;
   access_visibility: "owner_only" | "organization_members";
   publication: Record<string, any>;
+  publication_storage?: Record<string, any>;
 };
 
 function firebaseTenantId(res: Response) {
@@ -52,7 +54,8 @@ async function readResultRecord(recordId: string): Promise<ResultRecord | null> 
   const snapshot = await db.collection("captureTaskEvaluationRuns").doc(recordId).get();
   if (!snapshot.exists) return null;
   const raw = snapshot.data() as ResultRecord;
-  const verified = parseVerifiedTaskEvaluationRunPublication(raw.publication);
+  const publication = publicationFromResultRecord(raw);
+  const verified = parseVerifiedTaskEvaluationRunPublication(publication);
   if (!verified.ok) return null;
   return { ...raw, record_id: recordId, publication: verified.publication };
 }
@@ -76,7 +79,8 @@ router.get("/", async (_req, res) => {
     const records: ReturnType<typeof publicRecord>[] = [];
     for (const document of snapshot.docs) {
       const raw = { ...document.data(), record_id: document.id } as ResultRecord;
-      const verified = parseVerifiedTaskEvaluationRunPublication(raw.publication);
+      const publication = publicationFromResultRecord(raw);
+      const verified = parseVerifiedTaskEvaluationRunPublication(publication);
       const allowed = taskEvaluationResultAccessAllowed(raw, {
         uid: access.uid,
         tenantId,
