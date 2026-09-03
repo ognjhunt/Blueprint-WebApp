@@ -20,6 +20,7 @@ import {
   encodeTaskEvaluationRunPublication,
   publicationFromResultRecord,
 } from "../utils/taskEvaluationRunPublicationStorage";
+import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
@@ -225,7 +226,7 @@ async function handlePolicyCanaryPublication(
       code: "POLICY_CANARY_PUBLICATION_TOO_LARGE",
     });
   }
-  type Outcome = "created" | "replayed" | "offering_not_found" | "offering_invalid" | "policy_run_not_found" | "configuration_run_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
+  type Outcome = "created" | "replayed" | "recovered" | "offering_not_found" | "offering_invalid" | "policy_run_not_found" | "configuration_run_mismatch" | "owner_team_mismatch" | "binding_mismatch" | "immutable_conflict";
   let transactionResult: { outcome: Outcome; policyRun: Record<string, any> | null };
   try {
     transactionResult = await db.runTransaction(async (transaction) => {
@@ -268,7 +269,7 @@ async function handlePolicyCanaryPublication(
         updated_at_iso: now,
         publication_storage: publicationStorage,
       };
-      let outcome: "created" | "replayed" = "created";
+      let outcome: "created" | "replayed" | "recovered" = "created";
       if (runSnapshot.exists) {
         const existing = runSnapshot.data() as Record<string, any>;
         const existingPublication = publicationFromResultRecord(existing);
@@ -276,9 +277,32 @@ async function handlePolicyCanaryPublication(
           !existingPublication
           || stableJson(existingPublication) !== stableJson(publication)
         ) {
-          return { outcome: "immutable_conflict" as const, policyRun: null };
+          if (
+            !existingPublication
+            || !policyCanaryRecoveredPublicationAllowed(
+              existingPublication,
+              publication,
+            )
+          ) return { outcome: "immutable_conflict" as const, policyRun: null };
+          transaction.set(runRef, {
+            ...record,
+            publication_recovery: {
+              schema_version: "capture_task_evaluation_policy_canary_publication_recovery.v1",
+              status: "recovered_complete_provider_output",
+              prior_result_status: existingPublication.result_status,
+              prior_projection_digest:
+                (existingPublication.policy_canary_result as Record<string, any>)
+                  .projection_digest || null,
+              recovered_projection_digest:
+                (publication.policy_canary_result as Record<string, any>).projection_digest,
+              recovered_at_iso: now,
+              prior_publication_storage: existing.publication_storage || null,
+            },
+          });
+          outcome = "recovered";
+        } else {
+          outcome = "replayed";
         }
-        outcome = "replayed";
       } else {
         transaction.create(runRef, record);
       }
@@ -356,6 +380,7 @@ async function handlePolicyCanaryPublication(
     schema_version: "capture_task_evaluation_policy_canary_publication_receipt.v1",
     status: publication.result_status,
     already_exists: transactionResult.outcome === "replayed",
+    publication_recovered: transactionResult.outcome === "recovered",
     capture_session_id: publication.capture_session_id,
     intake_id: publication.intake_id,
     run_id: publication.run_id,
