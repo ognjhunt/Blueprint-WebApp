@@ -404,7 +404,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
-  { path: "/app/results/:recordId", layout: "protected", shell: "bare", component: AppTaskEvaluationResultDetail },
+  { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/:sourceLaunchId/evaluate", layout: "protected", shell: "bare", component: AppEvaluationRunSetup },

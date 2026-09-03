@@ -23,4 +23,11 @@ describe("Task Evaluation Result tenant isolation", () => {
       { uid: "member-2", tenantId: "team-1", isOps: false },
     )).toBe(false);
   });
+
+  it("admits an explicitly unlisted public result without an identity", () => {
+    expect(taskEvaluationResultAccessAllowed(
+      { ...teamRecord, access_visibility: "unlisted_public" },
+      { uid: null, tenantId: "", isOps: false },
+    )).toBe(true);
+  });
 });

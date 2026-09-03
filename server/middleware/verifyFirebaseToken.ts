@@ -51,3 +51,14 @@ export default async function verifyFirebaseToken(
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
+
+export async function optionallyVerifyFirebaseToken(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.headers.authorization) {
+    return next();
+  }
+  return verifyFirebaseToken(req, res, next);
+}

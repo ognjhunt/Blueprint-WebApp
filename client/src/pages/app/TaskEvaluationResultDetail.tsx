@@ -29,7 +29,7 @@ function downloadJson(result: TaskEvaluationResultSiteRecord) {
 }
 
 async function downloadArtifact(
-  user: FirebaseUser,
+  user: FirebaseUser | null,
   recordId: string,
   artifact: TaskEvaluationResultArtifact,
 ) {
@@ -47,7 +47,7 @@ function ProtectedVideo({
   artifact,
   reviewOnly = false,
 }: {
-  user: FirebaseUser;
+  user: FirebaseUser | null;
   recordId: string;
   label: string;
   artifact: TaskEvaluationResultArtifact;
@@ -88,7 +88,7 @@ function EpisodeCard({
   recordId,
 }: {
   episode: TaskEvaluationResultEpisode;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
   recordId: string;
 }) {
   const succeeded = episode.score.task_succeeded === true;
@@ -124,7 +124,7 @@ function EpisodeCard({
   );
 }
 
-function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser }) {
+function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser | null }) {
   const delivery = result.publication.result_delivery;
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
@@ -148,7 +148,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
       </header>
 
       <ProofBoundary level="warn" title={canary ? "Unqualified policy canary — controls pending" : "Bounded evidence, not a leaderboard"} icon={ShieldAlert}>
-        {canary ? "Controls pending — results are unqualified. This diagnostic history cannot declare a winner, contribute to official ranking, or promote the scene to evaluation ready. " : ""}This result belongs to {result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
+        {canary ? "Controls pending — results are unqualified. This diagnostic history cannot declare a winner, contribute to official ranking, or promote the scene to evaluation ready. " : ""}{result.access_visibility === "unlisted_public" ? "Anyone with this unlisted link can view this result and its published evidence. " : `This result belongs to ${result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. `}Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
       </ProofBoundary>
 
       {!delivery ? <ProofBoundary level="info" title="Legacy result record">The decision is sealed, but this older publication predates automatic media packaging.</ProofBoundary> : null}
@@ -230,14 +230,14 @@ export default function TaskEvaluationResultDetail() {
   const recordId = params.recordId || "";
   const { result, currentUser, notFound, isLoading, error } = useTaskEvaluationResult(recordId);
   return (
-    <AppShell active="runs" breadcrumb={`results / ${recordId || "unknown"}`}>
-      <Helmet><title>Sealed Task Evaluation Result · Blueprint</title><meta name="description" content="Private sealed Task Evaluation Run result, media, and evidence downloads." /></Helmet>
+    <AppShell active="runs" breadcrumb={`results / ${recordId || "unknown"}`} publicView={!currentUser}>
+      <Helmet><title>Sealed Task Evaluation Result · Blueprint</title><meta name="description" content="Unlisted sealed Task Evaluation Run result, media, and evidence downloads." /><meta name="robots" content="noindex,nofollow,noarchive" /></Helmet>
       <div className="mx-auto flex max-w-[76rem] flex-col gap-6 px-4 py-8 lg:px-8">
-        <Link href="/app/runs" className="inline-flex w-fit items-center gap-1.5 text-body-s font-semibold text-ink-500 hover:text-ink-800"><ArrowLeft className="size-4" />All runs</Link>
+        <Link href={currentUser ? "/app/runs" : "/"} className="inline-flex w-fit items-center gap-1.5 text-body-s font-semibold text-ink-500 hover:text-ink-800"><ArrowLeft className="size-4" />{currentUser ? "All runs" : "Blueprint"}</Link>
         {isLoading ? <BuyerAppLoadingState /> : null}
         {!isLoading && error ? <BuyerAppErrorState message={error.message} /> : null}
-        {!isLoading && !error && result && currentUser ? <ResultContent result={result} user={currentUser} /> : null}
-        {!isLoading && !error && notFound ? <ProofBoundary level="block" title="Result not available">No result in your owner or verified-team scope matched this identifier.</ProofBoundary> : null}
+        {!isLoading && !error && result ? <ResultContent result={result} user={currentUser} /> : null}
+        {!isLoading && !error && notFound ? <ProofBoundary level="block" title="Result not available">No public result or result in your owner or verified-team scope matched this identifier.</ProofBoundary> : null}
       </div>
     </AppShell>
   );

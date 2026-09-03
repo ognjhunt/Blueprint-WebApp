@@ -11,7 +11,7 @@ export function PolicyCanaryResultPortal({
   user,
 }: {
   result: TaskEvaluationResultSiteRecord;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
 }) {
   return <div className="flex flex-col gap-6">
     <PolicyCanaryPrimarySummary result={result} user={user} />

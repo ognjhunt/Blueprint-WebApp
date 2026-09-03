@@ -160,6 +160,7 @@ function SidebarBody({ active, onNavigate }: SidebarBodyProps) {
 interface TopbarProps {
   breadcrumb: string;
   onOpenMenu: () => void;
+  publicView?: boolean;
 }
 
 function displayNameForUser({
@@ -192,7 +193,7 @@ function initialsForName(value: string) {
     .slice(0, 2);
 }
 
-function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
+function Topbar({ breadcrumb, onOpenMenu, publicView = false }: TopbarProps) {
   const { currentUser, userData } = useAuth();
   const displayName = displayNameForUser({ currentUser, userData });
   const initials = initialsForName(displayName);
@@ -200,14 +201,14 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-runway-line bg-runway-panel px-4 lg:px-6">
       <div className="flex min-w-0 items-center gap-2">
-        <button
+        {!publicView ? <button
           type="button"
           onClick={onOpenMenu}
           className="-ml-1 flex h-9 w-9 items-center justify-center rounded-none text-runway-body hover:bg-runway-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal lg:hidden"
           aria-label="Open navigation"
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        </button> : null}
         <div className="min-w-0 truncate font-mono text-[0.78rem] text-runway-mute">
           <span className="text-runway-faint">blueprint</span>
           <span className="px-1.5 text-runway-faint">/</span>
@@ -215,7 +216,12 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {publicView ? <Link
+        href="/sign-in"
+        className="text-[0.78rem] font-semibold uppercase tracking-[0.04em] text-runway-sky hover:text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
+      >
+        Sign in
+      </Link> : <div className="flex items-center gap-3">
         <button
           type="button"
           className="relative flex h-9 w-9 items-center justify-center rounded-none text-runway-mute hover:bg-runway-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
@@ -235,7 +241,7 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
             {displayName}
           </span>
         </div>
-      </div>
+      </div>}
     </header>
   );
 }
@@ -253,6 +259,8 @@ export interface AppShellProps {
   children: React.ReactNode;
   /** Optional class on the scrolling content wrapper. */
   contentClassName?: string;
+  /** Hide authenticated buyer navigation on an unlisted public result. */
+  publicView?: boolean;
 }
 
 /**
@@ -265,18 +273,19 @@ export function AppShell({
   breadcrumb,
   children,
   contentClassName,
+  publicView = false,
 }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-canvas">
       {/* Fixed sidebar — desktop */}
-      <aside className="hidden w-[15.5rem] shrink-0 border-r border-runway-line lg:block">
+      {!publicView ? <aside className="hidden w-[15.5rem] shrink-0 border-r border-runway-line lg:block">
         <SidebarBody active={active} />
-      </aside>
+      </aside> : null}
 
       {/* Mobile drawer */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+      {!publicView ? <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
           side="left"
           className="w-[15.5rem] border-0 bg-runway-deep p-0 text-runway-text sm:max-w-[15.5rem]"
@@ -284,11 +293,11 @@ export function AppShell({
           <SheetTitle className="sr-only">Buyer app navigation</SheetTitle>
           <SidebarBody active={active} onNavigate={() => setDrawerOpen(false)} />
         </SheetContent>
-      </Sheet>
+      </Sheet> : null}
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar breadcrumb={breadcrumb} onOpenMenu={() => setDrawerOpen(true)} />
+        <Topbar breadcrumb={breadcrumb} onOpenMenu={() => setDrawerOpen(true)} publicView={publicView} />
         <main
           className={cn("flex-1 overflow-y-auto", contentClassName)}
           role="main"

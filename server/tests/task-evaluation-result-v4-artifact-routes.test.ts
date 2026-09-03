@@ -9,7 +9,7 @@ import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publicat
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
   registry: new Set<string>(),
-  uid: "owner-1",
+  uid: "owner-1" as string | null,
   probes: [] as Array<{ runId: string; artifactId: string }>,
   streams: [] as Array<{ runId: string; artifactId: string }>,
 }));
@@ -85,7 +85,9 @@ async function startServer() {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
-    res.locals.firebaseUser = { uid: state.uid, tenantId: "team-1" };
+    if (state.uid) {
+      res.locals.firebaseUser = { uid: state.uid, tenantId: "team-1" };
+    }
     next();
   });
   app.use("/api/task-evaluation-results", resultsRouter);
@@ -160,6 +162,49 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     state.records.get("captureTaskEvaluationRuns:result-1")!.access_visibility = "owner_only";
     state.registry.add("scene-839873-canary-1:observation-frame");
 
+    expect((await issueTicket(url, "observation-frame")).status).toBe(404);
+    expect(state.probes).toEqual([]);
+  });
+
+  it("serves an unlisted public result and its admitted artifacts without a Firebase identity", async () => {
+    state.uid = null;
+    const stored = state.records.get("captureTaskEvaluationRuns:result-1")!;
+    stored.access_visibility = "unlisted_public";
+    state.registry.add("scene-839873-canary-1:observation-frame");
+
+    const detail = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    expect(detail.status).toBe(200);
+    const body = await detail.json() as Record<string, any>;
+    expect(body).toMatchObject({
+      organization_id: "unlisted",
+      access_visibility: "unlisted_public",
+    });
+    expect(body.publication.submitted_by).toBeUndefined();
+    expect(body.publication.team_namespace).toBeUndefined();
+    expect(body.publication.notification_delivery).toBeUndefined();
+
+    expect((await issueTicket(url, "observation-frame")).status).toBe(201);
+    expect(state.probes).toEqual([{
+      runId: "scene-839873-canary-1",
+      artifactId: "observation-frame",
+    }]);
+  });
+
+  it("does not expose the private organization to a signed-in stranger using an unlisted link", async () => {
+    state.uid = "other-user";
+    state.records.get("captureTaskEvaluationRuns:result-1")!.access_visibility = "unlisted_public";
+
+    const detail = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    expect(detail.status).toBe(200);
+    await expect(detail.json()).resolves.toMatchObject({
+      organization_id: "unlisted",
+      access_visibility: "unlisted_public",
+    });
+  });
+
+  it("keeps organization and owner-only result records hidden from anonymous callers", async () => {
+    state.uid = null;
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(404);
     expect((await issueTicket(url, "observation-frame")).status).toBe(404);
     expect(state.probes).toEqual([]);
   });

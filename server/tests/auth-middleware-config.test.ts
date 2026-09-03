@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
+import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "../middleware/verifyFirebaseToken";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   authAdmin: null,
@@ -38,5 +38,20 @@ describe("verifyFirebaseToken configuration guard", () => {
     expect(response.json).toHaveBeenCalledWith({
       error: expect.stringMatching(/Firebase Admin auth is not configured/i),
     });
+  });
+
+  it("lets an anonymous optional-auth request continue without weakening malformed-token checks", async () => {
+    const response = buildMockResponse();
+    const next = vi.fn() as NextFunction;
+
+    await optionallyVerifyFirebaseToken({ headers: {} } as Request, response, next);
+    expect(next).toHaveBeenCalledOnce();
+
+    next.mockClear();
+    await optionallyVerifyFirebaseToken({
+      headers: { authorization: "not-a-bearer-token" },
+    } as Request, response, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
   });
 });

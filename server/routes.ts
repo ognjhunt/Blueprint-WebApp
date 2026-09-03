@@ -60,7 +60,7 @@ import voiceRouter, {
   telephonyStatusHandler,
   voiceWebhookHandler,
 } from "./routes/voice";
-import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
+import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
@@ -253,7 +253,7 @@ export function registerRoutes(app: Express) {
   app.use(
     "/api/task-evaluation-results",
     csrfProtection,
-    verifyFirebaseToken,
+    optionallyVerifyFirebaseToken,
     taskEvaluationResultsRouter,
   );
   app.use(

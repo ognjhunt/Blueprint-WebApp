@@ -25,7 +25,7 @@ function bytes(value: unknown) {
 }
 
 async function downloadArtifact(
-  user: FirebaseUser,
+  user: FirebaseUser | null,
   recordId: string,
   artifact: TaskEvaluationResultArtifact,
 ) {
@@ -45,7 +45,7 @@ export function PolicyCanaryEvidenceInventory({
   user,
 }: {
   result: TaskEvaluationResultSiteRecord;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
 }) {
   const publication = result.publication;
   const canary = publication.policy_canary_result || {};
