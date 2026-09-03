@@ -162,6 +162,20 @@ async function policyCanarySetupFor(
       ? "POLICY_CANARY_SETUP_NOT_PUBLISHED"
       : "POLICY_CANARY_SETUP_AMBIGUOUS",
   };
+  const successContract = matches[0].internal_policy_canary_setup?.task_success_contract;
+  if (!successContract) return {
+    ok: false as const,
+    status: 409,
+    code: "TASK_SUCCESS_CONTRACT_NOT_PUBLISHED",
+  };
+  if (
+    successContract.scope.site_id !== offering.scene_identity.id
+    || successContract.scope.task_id !== offering.task.identity.id
+  ) return {
+    ok: false as const,
+    status: 409,
+    code: "TASK_SUCCESS_CONTRACT_SCOPE_MISMATCH",
+  };
   return {
     ok: true as const,
     profile: matches[0],
@@ -429,6 +443,7 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
       isAdmin: resolved.access.isAdmin,
       isOps: resolved.access.isOps,
     }),
+    task_success_contract_confirmation_team_id: resolved.offering.team_namespace,
     warning: "Controls pending — results are unqualified.",
     proof_boundary: {
       controls_qualification_bypassed: false,
@@ -499,7 +514,11 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     setup.code,
     "A verified runnable policy-canary setup is not published for this exact configured revision.",
   ));
-  const selected = resolveInternalPolicyCanarySelection(setup.setup, selection);
+  const selected = resolveInternalPolicyCanarySelection(setup.setup, selection, {
+    siteId: resolved.offering.scene_identity.id,
+    taskId: resolved.offering.task.identity.id,
+    teamId: resolved.offering.team_namespace,
+  });
   if (!selected.ok) return res.status(422).json(policyCanaryError(
     selected.code,
     selected.message,
@@ -528,6 +547,8 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
     source_launch_id: req.params.launchId,
     offering_digest: selection.offering_digest,
     setup_digest: selection.setup_digest,
+    task_success_contract: selection.task_success_contract,
+    task_success_contract_digest: selection.task_success_contract.contract_digest,
     scene_revision_digest: selection.scene_revision_digest,
     scene_controls_status_at_submission: "configured_controls_pending",
     owner_user_id: resolved.access.uid,

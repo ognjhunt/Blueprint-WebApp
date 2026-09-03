@@ -259,6 +259,9 @@ async function handlePolicyCanaryPublication(
         || policyRun.request_digest !== publication.request_digest
         || (policyRun.pipeline_configuration_digest
           && policyRun.pipeline_configuration_digest !== publication.configuration_digest)
+        || (policyRun.task_success_contract_digest
+          && policyRun.task_success_contract_digest
+            !== publication.policy_canary_result.task_success_contract?.contract_digest)
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
       const scope = offeringScope(policyRun, offering);

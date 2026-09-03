@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, ShieldAlert } from "lucide-react";
 import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
+import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createPolicyCanaryRun,
@@ -16,6 +17,10 @@ import {
   type PolicyCanarySelection,
   type PolicyCanarySetupView,
 } from "@/lib/policyCanaryRuns";
+import {
+  confirmRigidTaskSuccessContractProposal,
+  type RigidTaskSuccessContract,
+} from "@/lib/rigidTaskSuccessContract";
 
 type WizardStep = "setup" | "run_size" | "confirm";
 const steps: Array<{ id: WizardStep; label: string }> = [
@@ -138,6 +143,8 @@ export default function PolicyCanarySetup() {
   const [policyIds, setPolicyIds] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [proposalConfirmed, setProposalConfirmed] = useState(false);
+  const [confirmedSuccessContract, setConfirmedSuccessContract] = useState<RigidTaskSuccessContract | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const runId = useMemo(() => stableRunId(decodedLaunchId), [decodedLaunchId]);
@@ -158,6 +165,34 @@ export default function PolicyCanarySetup() {
     return () => { cancelled = true; };
   }, [currentUser, decodedLaunchId]);
 
+  useEffect(() => {
+    if (!setup) {
+      setConfirmedSuccessContract(null);
+      return;
+    }
+    if (setup.task_success_contract.provenance.confirmation_status === "confirmed") {
+      setConfirmedSuccessContract(setup.task_success_contract);
+      return;
+    }
+    if (!proposalConfirmed) {
+      setConfirmedSuccessContract(null);
+      return;
+    }
+    let cancelled = false;
+    void confirmRigidTaskSuccessContractProposal(
+      setup.task_success_contract,
+      setup.task_success_contract_confirmation_team_id,
+    ).then((contract) => {
+      if (!cancelled) setConfirmedSuccessContract(contract);
+    }).catch(() => {
+      if (!cancelled) {
+        setConfirmedSuccessContract(null);
+        setError("The confirmed task success contract could not be sealed.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [proposalConfirmed, setup]);
+
   const robot = setup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
   const canContinueSetup = Boolean(robot && policyIds.length === 2 && policyIds.every((id) => robot.policy_candidates.some((candidate) => candidate.candidate_id === id && !optionReason(candidate, robot))));
@@ -171,7 +206,14 @@ export default function PolicyCanarySetup() {
   }
 
   async function submit() {
-    if (!currentUser || !setup || !robot || !preset || policyIds.length !== 2) return;
+    if (
+      !currentUser
+      || !setup
+      || !robot
+      || !preset
+      || policyIds.length !== 2
+      || !confirmedSuccessContract
+    ) return;
     setSubmitting(true);
     setError(null);
     const input: PolicyCanarySelection = {
@@ -186,6 +228,7 @@ export default function PolicyCanarySetup() {
       policy_candidate_ids: [policyIds[0], policyIds[1]],
       episode_preset_id: "quick_10",
       variation_matrix_digest: preset.matrix.matrix_digest,
+      task_success_contract: confirmedSuccessContract,
       notification: { email, notify_on: ["completed", "blocked", "cancelled"] },
       authorization: { maximum_cost_usd: preset.estimate.maximum_authorized_cost_usd, hard_ttl_seconds: preset.estimate.hard_ttl_seconds, maximum_provider_allocations: 1, retry_cap: 0 },
       confirm_unqualified_execution: true,
@@ -211,8 +254,8 @@ export default function PolicyCanarySetup() {
       {setup && robot && preset ? <div className="runway-panel p-5 md:p-7">
         {step === "setup" ? <SetupStep setup={setup} robot={robot} selectedPolicyIds={policyIds} onRobot={changeRobot} onPolicies={setPolicyIds} /> : null}
         {step === "run_size" ? <RunSizeStep preset={preset} presets={setup.episode_presets} /> : null}
-        {step === "confirm" ? <section className="grid gap-6 lg:grid-cols-[1fr_0.72fr]"><div><h2 className="font-display text-title-m font-semibold uppercase text-ink-900">Confirm immutable plan</h2><dl className="mt-4 grid gap-3 text-body-s"><div><dt className="runway-meta">Scene revision</dt><dd className="runway-num break-all">{setup.offering.scene_id} · {setup.scene_revision_digest}</dd></div><div><dt className="runway-meta">Robot</dt><dd>{robot.display_name}</dd></div><div><dt className="runway-meta">Policies</dt><dd>{policyIds.map((id) => robot.policy_candidates.find((candidate) => candidate.candidate_id === id)?.display_name || id).join(" vs ")}</dd></div><div><dt className="runway-meta">Run</dt><dd>10 cells per policy · 20 learned rollouts · 20 nonblocking diagnostic controls</dd></div><div><dt className="runway-meta">Estimate</dt><dd>{preset.estimate.duration_minutes.minimum}–{preset.estimate.duration_minutes.maximum} min · maximum ${preset.estimate.maximum_authorized_cost_usd.toFixed(2)} · TTL {Math.round(preset.estimate.hard_ttl_seconds / 60)} min</dd></div></dl></div><div><label className="runway-label" htmlFor="policy-canary-email">Notification email</label><input id="policy-canary-email" type="email" className="runway-input" value={email} onChange={(event) => setEmail(event.target.value)} /><p className="mt-2 text-caption text-ink-500">We notify this server-approved internal recipient once when the run is ready, blocked, or cancelled.</p><label className="mt-5 flex gap-3 text-body-s text-ink-700"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-1 size-4" /><span>I authorize one provider allocation, retry cap 0, the displayed cost/TTL ceiling, and an unqualified diagnostic run.</span></label></div></section> : null}
-        <div className="mt-7 flex items-center justify-between border-t border-line pt-5"><Button type="button" variant="secondary" disabled={step === "setup" || submitting} onClick={() => setStep(step === "confirm" ? "run_size" : "setup")}>Back</Button>{step !== "confirm" ? <Button type="button" variant="action" iconRight={<ArrowRight />} disabled={step === "setup" && !canContinueSetup} onClick={() => setStep(step === "setup" ? "run_size" : "confirm")}>Continue</Button> : <Button type="button" variant="action" iconLeft={<Check />} disabled={!confirmed || submitting || !setup.notification_recipient_options.includes(email.toLowerCase())} onClick={() => void submit()}>{submitting ? "Submitting once…" : "Submit policy canary"}</Button>}</div>
+        {step === "confirm" ? <section className="flex flex-col gap-6"><div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]"><div><h2 className="font-display text-title-m font-semibold uppercase text-ink-900">Confirm immutable plan</h2><dl className="mt-4 grid gap-3 text-body-s"><div><dt className="runway-meta">Scene revision</dt><dd className="runway-num break-all">{setup.offering.scene_id} · {setup.scene_revision_digest}</dd></div><div><dt className="runway-meta">Robot</dt><dd>{robot.display_name}</dd></div><div><dt className="runway-meta">Policies</dt><dd>{policyIds.map((id) => robot.policy_candidates.find((candidate) => candidate.candidate_id === id)?.display_name || id).join(" vs ")}</dd></div><div><dt className="runway-meta">Run</dt><dd>10 cells per policy · 20 learned rollouts · 20 nonblocking diagnostic controls</dd></div><div><dt className="runway-meta">Estimate</dt><dd>{preset.estimate.duration_minutes.minimum}–{preset.estimate.duration_minutes.maximum} min · maximum ${preset.estimate.maximum_authorized_cost_usd.toFixed(2)} · TTL {Math.round(preset.estimate.hard_ttl_seconds / 60)} min</dd></div></dl></div><div><label className="runway-label" htmlFor="policy-canary-email">Notification email</label><input id="policy-canary-email" type="email" className="runway-input" value={email} onChange={(event) => setEmail(event.target.value)} /><p className="mt-2 text-caption text-ink-500">We notify this server-approved internal recipient once when the run is ready, blocked, or cancelled.</p><label className="mt-5 flex gap-3 text-body-s text-ink-700"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-1 size-4" /><span>I authorize one provider allocation, retry cap 0, the displayed cost/TTL ceiling, the exact task success contract below, and an unqualified diagnostic run.</span></label></div></div><TaskSuccessContractPanel contract={setup.task_success_contract} confirmationTeamId={setup.task_success_contract_confirmation_team_id} proposalConfirmed={proposalConfirmed} onProposalConfirmed={setProposalConfirmed} /></section> : null}
+        <div className="mt-7 flex items-center justify-between border-t border-line pt-5"><Button type="button" variant="secondary" disabled={step === "setup" || submitting} onClick={() => setStep(step === "confirm" ? "run_size" : "setup")}>Back</Button>{step !== "confirm" ? <Button type="button" variant="action" iconRight={<ArrowRight />} disabled={step === "setup" && !canContinueSetup} onClick={() => setStep(step === "setup" ? "run_size" : "confirm")}>Continue</Button> : <Button type="button" variant="action" iconLeft={<Check />} disabled={!confirmed || !confirmedSuccessContract || submitting || !setup.notification_recipient_options.includes(email.toLowerCase())} onClick={() => void submit()}>{submitting ? "Submitting once…" : "Submit policy canary"}</Button>}</div>
       </div> : null}
     </div>
   </AppShell>;

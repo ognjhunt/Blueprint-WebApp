@@ -24,6 +24,24 @@ const artifact = (character: string, role: string, contentType = "application/js
   access_mode: "authenticated_ticket" as const,
 });
 
+const taskSuccessContract = {
+  schema_version: "rigid_task_success_contract.v1" as const,
+  scope: { site_id: "scene-839873", task_id: "relocation" },
+  provenance: { author_source: "site_robot_team" as const, author_id: "team-1", confirmation_status: "confirmed" as const, confirmed_by_team_id: "team-1", proposal_digest: null },
+  criteria: {
+    destination_containment: { mode: "required" as const, position_bounds_world_m: { minimum: [0.41, -0.21, 0.72] as [number, number, number], maximum: [0.56, -0.06, 0.79] as [number, number, number] } },
+    orientation: { mode: "ignored" as const, reference_xyzw: [0, 0, 0, 1] as [number, number, number, number], tolerance_rad: 0.35 },
+    support: { height_mode: "required" as const, height_interval_m: [0.72, 0.79] as [number, number], contact_mode: "required" as const },
+    terminal_task_contact: { mode: "cleared" as const },
+    gripper_state: { mode: "ignored" as const, threshold_m: null },
+    settling: { mode: "required" as const, window_samples: 8, position_tolerance_m: 0.01, orientation_tolerance_rad: 0.08 },
+    safety: { mode: "required" as const },
+    motion: { movement_epsilon_m: 0.002, minimum_translation_m: 0.08, minimum_lift_m: null },
+    temporal_invariants: { schema_version: "rigid_task_event_ledger_expectation.v1" as const, no_drop: { mode: "ignored" as const, minimum_fall_m: 0.02 }, maximum_task_contact_force_n: null, forbidden_contact_classes: [], containment_excursions: "forbidden" as const, workspace_excursions: "ignored" as const, maximum_retries: null, maximum_regrasps: null },
+  },
+  contract_digest: sha("8"),
+};
+
 function result(): TaskEvaluationResultSiteRecord {
   const candidates = [
     { candidate_id: "policy-a", display_name: "Policy A", checkpoint_digest: sha("a") },
@@ -144,6 +162,7 @@ function result(): TaskEvaluationResultSiteRecord {
       policy_canary_result: {
         schema_version: "task_evaluation_policy_canary_result_projection.v1",
         matrix_digest: sha("m"),
+        task_success_contract: taskSuccessContract,
         counts: {
           policy_count: 2,
           episodes_per_policy: 10,
@@ -197,6 +216,8 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getByRole("heading", {
       name: "10 scenario cells · 2 policies · 20 episodes",
     })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Success criteria used for this result" })).toBeTruthy();
+    expect(screen.getByText("Eventual placement")).toBeTruthy();
     expect(screen.getByText("20/20 episode records")).toBeTruthy();
     expect(screen.getByText("12 completed · 8 blocked")).toBeTruthy();
     const primaryDownloads = screen.getByLabelText("Primary result downloads");

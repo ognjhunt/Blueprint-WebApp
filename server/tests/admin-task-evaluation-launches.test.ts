@@ -8,6 +8,7 @@ import { CANONICAL_TASK_EVALUATION_ALLOCATOR } from "../utils/taskEvaluationLaun
 import { taskEvaluationLaunchPreparationInputSchema } from "../utils/taskEvaluationLaunchPreparationContract";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { sealRigidTaskSuccessContract } from "../utils/rigidTaskSuccessContract";
 import {
   buildTaskEvaluationLaunchSubmissionSignature,
   TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
@@ -101,6 +102,27 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
 }));
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
+
+function taskSuccessContract(siteId = "scene-839873", taskId = "simple-relocation") {
+  return sealRigidTaskSuccessContract({
+    siteId,
+    taskId,
+    authorSource: "compatibility_default",
+    authorId: "blueprint:manipulation_strategy_defaults.v1",
+    confirmationStatus: "confirmed",
+    criteria: {
+      destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0.41, -0.21, 0.72], maximum: [0.56, -0.06, 0.79] } },
+      orientation: { mode: "ignored", reference_xyzw: [0, 0, 0, 1], tolerance_rad: 0.35 },
+      support: { height_mode: "required", height_interval_m: [0.72, 0.79], contact_mode: "required" },
+      terminal_task_contact: { mode: "cleared" },
+      gripper_state: { mode: "ignored", threshold_m: null },
+      settling: { mode: "required", window_samples: 8, position_tolerance_m: 0.01, orientation_tolerance_rad: 0.08 },
+      safety: { mode: "required" },
+      motion: { movement_epsilon_m: 0.002, minimum_translation_m: 0.08, minimum_lift_m: null },
+      temporal_invariants: { schema_version: "rigid_task_event_ledger_expectation.v1", no_drop: { mode: "ignored", minimum_fall_m: 0.02 }, maximum_task_contact_force_n: null, forbidden_contact_classes: [], containment_excursions: "forbidden", workspace_excursions: "ignored", maximum_retries: null, maximum_regrasps: null },
+    },
+  });
+}
 
 function directExecutionAdoption(originalReceipt: Record<string, any>) {
   const blockers = [
@@ -454,6 +476,10 @@ function internalPolicyCanarySetup(
       zero_action: "nonblocking",
       deterministic_scripted_positive: "nonblocking",
     },
+    task_success_contract: taskSuccessContract(
+      offering.scene_identity.id,
+      offering.task.identity.id,
+    ),
     setup_digest: "",
   };
   setup.setup_digest = canonicalArtifactDigest(setup, "setup_digest");
@@ -490,6 +516,7 @@ function internalPolicyCanarySelection(
     policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
     episode_preset_id: "quick_10",
     variation_matrix_digest: setup.episode_presets[0].matrix.matrix_digest,
+    task_success_contract: setup.task_success_contract,
     notification: {
       email: "founder@example.com",
       notify_on: ["completed", "blocked", "cancelled"],

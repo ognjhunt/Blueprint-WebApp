@@ -98,10 +98,28 @@ function setup(): PolicyCanarySetupView {
       { ...quick, preset_id: "deep_500", label: "Deep", episodes_per_policy: 500, availability: "coming_later", recommended: false, matrix: { ...quick.matrix, cells: [] } },
     ],
     diagnostics: { zero_action: "nonblocking", deterministic_scripted_positive: "nonblocking" },
+    task_success_contract: {
+      schema_version: "rigid_task_success_contract.v1",
+      scope: { site_id: "scene-839873", task_id: "simple-relocation" },
+      provenance: { author_source: "compatibility_default", author_id: "blueprint:manipulation_strategy_defaults.v1", confirmation_status: "confirmed", confirmed_by_team_id: null, proposal_digest: null },
+      criteria: {
+        destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0.41, -0.21, 0.72], maximum: [0.56, -0.06, 0.79] } },
+        orientation: { mode: "ignored", reference_xyzw: [0, 0, 0, 1], tolerance_rad: 0.35 },
+        support: { height_mode: "required", height_interval_m: [0.72, 0.79], contact_mode: "required" },
+        terminal_task_contact: { mode: "cleared" },
+        gripper_state: { mode: "ignored", threshold_m: null },
+        settling: { mode: "required", window_samples: 8, position_tolerance_m: 0.01, orientation_tolerance_rad: 0.08 },
+        safety: { mode: "required" },
+        motion: { movement_epsilon_m: 0.002, minimum_translation_m: 0.08, minimum_lift_m: null },
+        temporal_invariants: { schema_version: "rigid_task_event_ledger_expectation.v1", no_drop: { mode: "ignored", minimum_fall_m: 0.02 }, maximum_task_contact_force_n: null, forbidden_contact_classes: [], containment_excursions: "forbidden", workspace_excursions: "ignored", maximum_retries: null, maximum_regrasps: null },
+      },
+      contract_digest: sha("8"),
+    },
     setup_digest: sha("9"),
     offering: { scene_id: "scene-839873", scene_version: "v1", task_id: "simple-relocation", task_version: "v1", task_kind: "rigid_relocation", task_strategy: "planar_push", controls_status: "configured_controls_pending" },
     notification_recipient_email: "team@tryblueprint.io",
     notification_recipient_options: ["team@tryblueprint.io"],
+    task_success_contract_confirmation_team_id: "blueprint",
     warning: "Controls pending — results are unqualified.",
     proof_boundary: { controls_qualification_bypassed: false, result_is_unqualified: true, official_ranking_permitted: false, scene_promotion_permitted: false },
   };
@@ -129,5 +147,10 @@ describe("PolicyCanarySetup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByDisplayValue("team@tryblueprint.io")).toBeTruthy();
     expect(screen.getByText(/20 learned rollouts · 20 nonblocking diagnostic controls/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Task success criteria" })).toBeTruthy();
+    expect(screen.getByText("Eventual placement")).toBeTruthy();
+    expect(screen.getByText("Ignored")).toBeTruthy();
+    expect(screen.getByText("ignored")).toBeTruthy();
+    expect(screen.getByText("cleared")).toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -47,6 +48,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   request_digest: digest,
   configuration_digest: digest,
   result_delivery_digest: digest,
+  task_success_contract: confirmedRigidTaskSuccessContractSchema.optional(),
   matrix_digest: digest.nullable().optional(),
   reproducibility: z.object({
     scene_revision_digest: digest,
