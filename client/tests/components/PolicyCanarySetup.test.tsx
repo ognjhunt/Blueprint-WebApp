@@ -152,5 +152,7 @@ describe("PolicyCanarySetup", () => {
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.getByText("ignored")).toBeTruthy();
     expect(screen.getByText("cleared")).toBeTruthy();
+    expect(screen.getByText(/independent episode interpreter/i)).toBeTruthy();
+    expect(screen.getByText(/separate \$1\.50 maximum/i)).toBeTruthy();
   });
 });

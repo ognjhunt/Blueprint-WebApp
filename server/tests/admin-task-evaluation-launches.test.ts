@@ -529,6 +529,13 @@ function internalPolicyCanarySelection(
       maximum_provider_allocations: 1,
       retry_cap: 0,
     },
+    episode_interpretation: {
+      enabled: true,
+      external_disclosure_authorized: true,
+      provider_training_authorized: false,
+      public_redistribution_authorized: false,
+      maximum_cost_usd: 1.5,
+    },
     confirm_unqualified_execution: true,
   };
 }
