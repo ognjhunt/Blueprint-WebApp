@@ -49,7 +49,7 @@ function recoveredPublication() {
         score: { status: "scored", policy_outcome_interpretable: true },
         evidence: {
           complete: true,
-          lossless_policy_inputs_complete: true,
+          lossless_policy_inputs: { artifact_id: "lossless-policy-inputs" },
           frame_manifest: { artifact_id: "frames" },
           videos: { external: { artifact_id: "external" }, wrist: { artifact_id: "wrist" } },
         },
@@ -61,12 +61,11 @@ function recoveredPublication() {
         completed_learned_policy_rollout_count: 20,
         learned_policy_rollout_count: 20,
       },
-      winner_declared: false,
-      official_ranking_contribution: false,
     },
     proof_boundary: {
       scene_promotion_authorized: false,
       official_policy_ranking_authorized: false,
+      winner_selection_authorized: false,
     },
   };
 }
@@ -86,6 +85,12 @@ describe("policy canary recovered publication", () => {
     const incomplete = recoveredPublication();
     incomplete.result_delivery.episodes[0].evidence.videos = {};
     expect(policyCanaryRecoveredPublicationAllowed(priorPublication(), incomplete)).toBe(false);
+
+    const missingLosslessPolicyInputs = recoveredPublication();
+    delete missingLosslessPolicyInputs.result_delivery.episodes[0].evidence.lossless_policy_inputs;
+    expect(policyCanaryRecoveredPublicationAllowed(
+      priorPublication(), missingLosslessPolicyInputs,
+    )).toBe(false);
 
     const unrelatedBlocker = priorPublication();
     unrelatedBlocker.policy_canary_result.blockers = ["policy_runtime_failed"];
