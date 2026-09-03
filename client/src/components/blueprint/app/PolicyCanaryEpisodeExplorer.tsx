@@ -73,10 +73,12 @@ function terminalStatus(episode?: TaskEvaluationResultEpisode) {
 
 function EpisodeOutcomeSummary({
   artifact,
+  correctedScore,
   user,
   recordId,
 }: {
   artifact?: TaskEvaluationResultArtifact;
+  correctedScore?: PolicyCanaryScoreReceipt;
   user: FirebaseUser | null;
   recordId: string;
 }) {
@@ -87,6 +89,10 @@ function EpisodeOutcomeSummary({
     let cancelled = false;
     setReceipt(null);
     setFailed(false);
+    if (correctedScore) {
+      setReceipt(correctedScore);
+      return () => { cancelled = true; };
+    }
     if (!artifact) return () => { cancelled = true; };
     void (async () => {
       try {
@@ -106,9 +112,9 @@ function EpisodeOutcomeSummary({
       }
     })();
     return () => { cancelled = true; };
-  }, [artifact?.artifact_id, recordId, user]);
+  }, [artifact?.artifact_id, correctedScore, recordId, user]);
 
-  if (!artifact) return null;
+  if (!artifact && !correctedScore) return null;
   if (!receipt) return <div className="mt-4 border-l-4 border-runway-amber bg-inset p-4" aria-live="polite">
     <p className="runway-meta">Why this episode failed</p>
     <p className="mt-1 text-body-s font-semibold text-ink-900">
@@ -524,6 +530,7 @@ export function PolicyCanaryEpisodeExplorer({
             </p> : null}
             {episode ? <EpisodeOutcomeSummary
               artifact={scoreReceiptByEpisodeId.get(episode.episode_id)}
+              correctedScore={episode.corrected_score}
               user={user}
               recordId={result.record_id}
             /> : null}

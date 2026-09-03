@@ -231,6 +231,70 @@ describe("PolicyCanaryResultPortal", () => {
     expect(within(evidence!).getByText("vast · 49609705")).toBeTruthy();
   });
 
+  it("applies the verified score sidecar while preserving the unqualified boundary", () => {
+    const corrected = result();
+    const episodes = corrected.publication.result_delivery!.episodes;
+    corrected.score_correction = {
+      schema_version: "task_evaluation_policy_canary_score_correction_sidecar.v1",
+      correction: {
+        schema_version: "task_evaluation_policy_canary_score_correction.v1",
+        correction_id: "eef8610610decc0915dae0e7",
+        correction_digest: sha("q"),
+        source_run_id: corrected.publication.run_id,
+        source_result_status: "completed_unqualified",
+        corrected_result_status: "completed_unqualified",
+        episode_count: 20,
+        score_updates: episodes.map((episode, index) => ({
+          candidate_id: episode.policy_candidate_id!,
+          cell_id: episode.variation!.cell_id,
+          seed: episode.variation!.seed!,
+          old_score_digest: sha("o"),
+          new_score_digest: sha("n"),
+          new_score: {
+            status: "scored",
+            outcome: "pushed_and_settled",
+            task_succeeded: true,
+            failed_criteria: [],
+            failure_reason_plain_english: null,
+            measurements: {
+              maximum_translation_m: 0.18,
+              maximum_lift_m: 0,
+              settle_destination_inside: true,
+              settle_support_height_ok: true,
+              native_safety_ok: true,
+            },
+            task_success_contract: {
+              criteria: { temporal_invariants: { no_drop: { mode: "ignored" } } },
+            },
+            event_ledger: {
+              drop_events: index === 0 ? [{ step_index: 24, fall_m: 0.04 }] : [],
+              peak_task_contact_force_n: 6.4,
+            },
+          },
+        })),
+      },
+      source_binding: {
+        source_projection_digest: sha("p"),
+        source_delivery_digest: sha("d"),
+      },
+      audit: {
+        original_publication_preserved: true,
+        original_score_receipts_preserved: true,
+        corrected_result_status: "completed_unqualified",
+        winner_declared: false,
+      },
+      sidecar_digest: sha("s"),
+    };
+
+    render(<PolicyCanaryResultPortal result={corrected} user={{ uid: "member-1" } as any} />);
+
+    expect(screen.getByText("Deterministic score correction applied; original preserved")).toBeTruthy();
+    expect(screen.getByText("Task completed after recovery")).toBeTruthy();
+    expect(screen.getByText("1 observed · recovery allowed")).toBeTruthy();
+    expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("No corrected episode failed a task criterion.")).toBeTruthy();
+  });
+
   it("shows explicit video load, retry, and ready states", async () => {
     createArtifactTicket
       .mockRejectedValueOnce(new Error("technical ticket detail"))

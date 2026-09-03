@@ -31,6 +31,121 @@ export const primaryCanaryDownloadRoles = [
   { key: "evidence_manifest", label: "Evidence manifest", aliases: ["evidence_manifest"] },
 ] as const;
 
+function correctionEpisodeKey(candidateId: string, cellId: string, seed: number | undefined) {
+  return `${candidateId}\0${cellId}\0${seed ?? "unknown"}`;
+}
+
+export function applyPolicyCanaryScoreCorrection(
+  result: TaskEvaluationResultSiteRecord,
+): TaskEvaluationResultSiteRecord {
+  const sidecar = result.score_correction;
+  if (
+    !sidecar
+    || sidecar.correction.source_run_id !== result.publication.run_id
+    || sidecar.correction.corrected_result_status !== "completed_unqualified"
+    || sidecar.audit.original_publication_preserved !== true
+    || sidecar.audit.winner_declared !== false
+    || sidecar.correction.score_updates.length !== 20
+  ) return result;
+  const corrected = structuredClone(result);
+  const updates = new Map(sidecar.correction.score_updates.map((update) => [
+    correctionEpisodeKey(update.candidate_id, update.cell_id, update.seed),
+    update,
+  ]));
+  const episodes = corrected.publication.result_delivery?.episodes || [];
+  for (const episode of episodes) {
+    const candidateId = episode.policy_candidate_id || episode.subject_id;
+    const update = updates.get(correctionEpisodeKey(
+      candidateId,
+      episode.variation?.cell_id || "",
+      episode.variation?.seed,
+    ));
+    if (!update) continue;
+    const next = update.new_score;
+    const measurements = next.measurements || {};
+    episode.corrected_score = next;
+    episode.score = {
+      ...episode.score,
+      status: String(next.status || episode.score.status),
+      task_succeeded: typeof next.task_succeeded === "boolean"
+        ? next.task_succeeded
+        : episode.score.task_succeeded,
+      progress_score: typeof next.outcome_rank === "number"
+        ? Number(next.outcome_rank) / 5
+        : episode.score.progress_score,
+      destination_error: typeof measurements.final_horizontal_distance_to_destination_m === "number"
+        ? measurements.final_horizontal_distance_to_destination_m
+        : episode.score.destination_error,
+    };
+    const failedCriteria = Array.isArray(next.failed_criteria)
+      ? next.failed_criteria.map(String)
+      : [];
+    episode.failure = next.task_succeeded === false ? {
+      code: failedCriteria[0] || String(next.outcome || "task_not_complete"),
+      phase: "deterministic_score_correction",
+      summary: String(
+        next.failure_reason_plain_english
+          || failedCriteria.map((value) => value.replaceAll("_", " ")).join(", ")
+          || "The corrected deterministic score did not satisfy the task contract.",
+      ),
+    } : null;
+  }
+  const candidateIds = [...new Set(episodes.map((episode) => (
+    episode.policy_candidate_id || episode.subject_id
+  )))];
+  const correctedCandidates = candidateIds.map((candidateId) => {
+    const rows = episodes.filter((episode) => (
+      (episode.policy_candidate_id || episode.subject_id) === candidateId
+    ));
+    const interpretable = rows.filter((episode) => (
+      episode.score.policy_outcome_interpretable !== false
+    ));
+    const successes = interpretable.filter((episode) => episode.score.task_succeeded === true).length;
+    const failureCounts: Record<string, number> = {};
+    for (const episode of interpretable) {
+      for (const criterion of episode.corrected_score?.failed_criteria || []) {
+        failureCounts[criterion] = (failureCounts[criterion] || 0) + 1;
+      }
+    }
+    return {
+      candidate_id: candidateId,
+      episodes_completed: rows.length,
+      interpretable_episode_count: interpretable.length,
+      success_count: successes,
+      success_rate: interpretable.length ? successes / interpretable.length : null,
+      failure_counts: failureCounts,
+    };
+  });
+  const projectedCandidates = corrected.publication.policy_canary_result?.candidate_results;
+  if (Array.isArray(projectedCandidates)) {
+    for (const projected of projectedCandidates) {
+      const aggregate = correctedCandidates.find((row) => row.candidate_id === projected.candidate_id);
+      if (!aggregate) continue;
+      Object.assign(projected, aggregate);
+      if (projected.metrics && typeof projected.metrics === "object") {
+        Object.assign(projected.metrics, aggregate);
+      }
+    }
+  }
+  const deliveredCandidates = corrected.publication.result_delivery?.candidate_results;
+  if (Array.isArray(deliveredCandidates)) {
+    for (const delivered of deliveredCandidates) {
+      const aggregate = correctedCandidates.find((row) => row.candidate_id === delivered.candidate_id);
+      if (aggregate) Object.assign(delivered, aggregate);
+    }
+  }
+  if (corrected.publication.result_delivery) {
+    corrected.publication.result_delivery.summary.successful_episode_count = episodes.filter(
+      (episode) => episode.score.task_succeeded === true,
+    ).length;
+  }
+  if (corrected.publication.policy_canary_result?.counts) {
+    corrected.publication.policy_canary_result.counts.completed_learned_policy_rollout_count =
+      episodes.length;
+  }
+  return corrected;
+}
+
 const canaryFamilyLabels: Record<string, string> = {
   canonical_anchor: "Baseline anchor",
   placement_approach: "Placement and approach",

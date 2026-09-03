@@ -11,6 +11,7 @@ import {
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
+import { verifiedPolicyCanaryScoreCorrectionSidecar } from "../utils/policyCanaryScoreCorrectionContract";
 
 const router = Router();
 
@@ -53,6 +54,9 @@ async function accessFor(record: ResultRecord, res: Response) {
 
 function publicRecord(record: ResultRecord, options: { publicAudience?: boolean } = {}) {
   const publication = structuredClone(record.publication);
+  const scoreCorrection = verifiedPolicyCanaryScoreCorrectionSidecar(
+    record.policy_canary_score_correction,
+  );
   if (options.publicAudience) {
     delete publication.submitted_by;
     delete publication.team_namespace;
@@ -67,6 +71,7 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     created_at_iso: record.created_at_iso,
     updated_at_iso: record.updated_at_iso,
     publication,
+    ...(scoreCorrection ? { score_correction: scoreCorrection } : {}),
   };
 }
 
