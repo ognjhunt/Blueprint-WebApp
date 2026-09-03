@@ -115,6 +115,7 @@ function setup() {
     { ordered_cells: cells },
     "__no_digest_field__",
   );
+  const successContract = taskSuccessContract();
   const draft: Record<string, any> = {
     schema_version: "task_evaluation_policy_canary_setup.v1",
     source_launch_id: "scene-839873-launch",
@@ -145,7 +146,8 @@ function setup() {
       { ...quick, preset_id: "deep_500", label: "Deep", episodes_per_policy: 500, availability: "coming_later", recommended: false, matrix: { ...quick.matrix, cells: [] } },
     ],
     diagnostics: { zero_action: "nonblocking", deterministic_scripted_positive: "nonblocking" },
-    task_success_contract: taskSuccessContract(),
+    task_success_contract: successContract,
+    task_success_contract_digest: successContract.contract_digest,
     setup_digest: "",
   };
   for (const preset of draft.episode_presets) {

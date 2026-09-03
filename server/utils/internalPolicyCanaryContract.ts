@@ -207,6 +207,7 @@ export const internalPolicyCanarySetupSchema = z.object({
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
   task_success_contract: rigidTaskSuccessContractSchema.optional(),
+  task_success_contract_digest: digest.optional(),
   setup_digest: digest,
 }).strict().superRefine((setup, context) => {
   if (canonicalArtifactDigest(
@@ -225,6 +226,17 @@ export const internalPolicyCanarySetupSchema = z.object({
       message: "setup must publish Quick, Standard, and Deep exactly once",
     });
   }
+  if (
+    Boolean(setup.task_success_contract)
+      !== Boolean(setup.task_success_contract_digest)
+    || (setup.task_success_contract
+      && setup.task_success_contract_digest
+        !== setup.task_success_contract.contract_digest)
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["task_success_contract_digest"],
+    message: "task success contract digest mismatch",
+  });
 });
 
 export const internalPolicyCanarySelectionSchema = z.object({

@@ -431,6 +431,10 @@ function internalPolicyCanarySetup(
       ),
     },
   });
+  const successContract = taskSuccessContract(
+    offering.scene_identity.id,
+    offering.task.identity.id,
+  );
   const setup: Record<string, any> = {
     schema_version: "task_evaluation_policy_canary_setup.v1",
     source_launch_id: sourceLaunchId,
@@ -476,10 +480,8 @@ function internalPolicyCanarySetup(
       zero_action: "nonblocking",
       deterministic_scripted_positive: "nonblocking",
     },
-    task_success_contract: taskSuccessContract(
-      offering.scene_identity.id,
-      offering.task.identity.id,
-    ),
+    task_success_contract: successContract,
+    task_success_contract_digest: successContract.contract_digest,
     setup_digest: "",
   };
   setup.setup_digest = canonicalArtifactDigest(setup, "setup_digest");

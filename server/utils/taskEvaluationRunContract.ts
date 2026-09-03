@@ -285,6 +285,7 @@ export const policyCanaryResultProjectionSchema = z.object({
   configuration_digest: digest,
   matrix_digest: digest,
   task_success_contract: confirmedRigidTaskSuccessContractSchema.optional(),
+  task_success_contract_digest: digest.optional(),
   candidate_results: z.array(z.object({
     candidate_id: identifier,
     display_name: nonEmpty,
@@ -351,7 +352,19 @@ export const policyCanaryResultProjectionSchema = z.object({
   winner_declared: z.literal(false),
   official_ranking_contribution: z.literal(false),
   projection_digest: digest,
-}).strict();
+}).strict().superRefine((projection, context) => {
+  if (
+    Boolean(projection.task_success_contract)
+      !== Boolean(projection.task_success_contract_digest)
+    || (projection.task_success_contract
+      && projection.task_success_contract_digest
+        !== projection.task_success_contract.contract_digest)
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["task_success_contract_digest"],
+    message: "task success contract digest mismatch",
+  });
+});
 
 const policyCanaryRunPublicationSchema = z.object({
   schema_version: z.literal("task_evaluation_run_publication.v4"),

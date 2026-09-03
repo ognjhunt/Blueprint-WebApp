@@ -163,7 +163,12 @@ async function policyCanarySetupFor(
       : "POLICY_CANARY_SETUP_AMBIGUOUS",
   };
   const successContract = matches[0].internal_policy_canary_setup?.task_success_contract;
-  if (!successContract) return {
+  const successContractDigest = matches[0].internal_policy_canary_setup
+    ?.task_success_contract_digest;
+  if (
+    !successContract
+    || successContractDigest !== successContract.contract_digest
+  ) return {
     ok: false as const,
     status: 409,
     code: "TASK_SUCCESS_CONTRACT_NOT_PUBLISHED",
@@ -443,6 +448,7 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
       isAdmin: resolved.access.isAdmin,
       isOps: resolved.access.isOps,
     }),
+    task_success_contract_digest: setup.setup.task_success_contract_digest,
     task_success_contract_confirmation_team_id: resolved.offering.team_namespace,
     warning: "Controls pending — results are unqualified.",
     proof_boundary: {

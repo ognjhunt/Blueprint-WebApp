@@ -107,6 +107,7 @@ export const policyCanarySetupViewSchema = z.object({
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
   task_success_contract: rigidTaskSuccessContractSchema,
+  task_success_contract_digest: digest,
   setup_digest: digest,
   offering: z.object({
     scene_id: z.string(),
