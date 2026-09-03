@@ -11,7 +11,10 @@ import {
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
-import { verifiedPolicyCanaryScoreCorrectionSidecar } from "../utils/policyCanaryScoreCorrectionContract";
+import {
+  publicPolicyCanaryScoreCorrectionAudit,
+  verifiedPolicyCanaryScoreCorrectionSidecar,
+} from "../utils/policyCanaryScoreCorrectionContract";
 
 const router = Router();
 
@@ -57,6 +60,10 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
   const scoreCorrection = verifiedPolicyCanaryScoreCorrectionSidecar(
     record.policy_canary_score_correction,
   );
+  const scoreCorrectionAudit = publicPolicyCanaryScoreCorrectionAudit(
+    record.policy_canary_score_correction,
+    record.policy_canary_score_correction_history,
+  );
   if (options.publicAudience) {
     delete publication.submitted_by;
     delete publication.team_namespace;
@@ -72,6 +79,7 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     updated_at_iso: record.updated_at_iso,
     publication,
     ...(scoreCorrection ? { score_correction: scoreCorrection } : {}),
+    ...(scoreCorrectionAudit ? { score_correction_audit: scoreCorrectionAudit } : {}),
   };
 }
 
@@ -83,7 +91,17 @@ async function readResultRecord(recordId: string): Promise<ResultRecord | null> 
   const publication = publicationFromResultRecord(raw);
   const verified = parseVerifiedTaskEvaluationRunPublication(publication);
   if (!verified.ok) return null;
-  return { ...raw, record_id: recordId, publication: verified.publication };
+  const historySnapshot = await db.collection(
+    "taskEvaluationPolicyCanaryScoreCorrectionHistories",
+  ).doc(recordId).get();
+  return {
+    ...raw,
+    record_id: recordId,
+    publication: verified.publication,
+    ...(historySnapshot.exists ? {
+      policy_canary_score_correction_history: historySnapshot.data(),
+    } : {}),
+  };
 }
 
 router.get("/", async (_req, res) => {

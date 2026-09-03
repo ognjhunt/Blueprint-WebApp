@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import {
   policyCanaryScoreCorrectionStorageDecision,
+  policyCanaryScoreCorrectionTransition,
+  publicPolicyCanaryScoreCorrectionAudit,
   verifyPolicyCanaryScoreCorrectionIngest,
 } from "../utils/policyCanaryScoreCorrectionContract";
 
@@ -206,6 +208,54 @@ function fixture() {
   return { payload, publication, recordId };
 }
 
+function successor(
+  value: ReturnType<typeof fixture>,
+  prior: Extract<ReturnType<typeof verifyPolicyCanaryScoreCorrectionIngest>, { ok: true }>["sidecar"],
+) {
+  const payload = structuredClone(value.payload);
+  payload.schema_version = "task_evaluation_policy_canary_score_correction_ingest.v2";
+  payload.successor = {
+    correction_sequence: (prior.audit.correction_sequence ?? 1) + 1,
+    supersedes_correction_digest: prior.correction.correction_digest,
+    supersedes_sidecar_digest: prior.sidecar_digest,
+    supersedes_scoring_version_digest: prior.correction.scoring_version_digest,
+  };
+  payload.correction.scorer_identity.scorer_commit = "f".repeat(40);
+  payload.correction.scorer_identity.source_files[0].sha256 = sha("f");
+  payload.correction.scorer_identity.source_files_digest = canonicalArtifactDigest(
+    { value: payload.correction.scorer_identity.source_files },
+    "__no_digest_field__",
+  );
+  payload.correction.scorer_identity.scoring_version_digest = canonicalArtifactDigest(
+    payload.correction.scorer_identity,
+    "scoring_version_digest",
+  );
+  payload.correction.scoring_version_digest =
+    payload.correction.scorer_identity.scoring_version_digest;
+  payload.correction.score_updates.forEach((update: Record<string, any>, index: number) => {
+    update.scoring_version_digest = payload.correction.scoring_version_digest;
+    update.new_score.event_ledger.observed_contact_classes = ["task_object", "support_surface"];
+    const receipt = payload.derived_rescore_receipts[index];
+    receipt.scorer_commit = payload.correction.scorer_identity.scorer_commit;
+    receipt.scorer_source_files_digest = payload.correction.scorer_identity.source_files_digest;
+    receipt.scoring_version_digest = payload.correction.scoring_version_digest;
+    receipt.new_score = update.new_score;
+    receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+    update.derived_rescore_receipt.receipt_digest = receipt.receipt_digest;
+  });
+  payload.correction.correction_id = canonicalArtifactDigest({
+    source_result_digest: payload.correction.source_result_digest,
+    source_result_file_sha256: payload.correction.source_result_file_sha256,
+    scoring_version_digest: payload.correction.scoring_version_digest,
+  }, "__no_digest_field__").slice(7, 31);
+  payload.correction.correction_digest = canonicalArtifactDigest(
+    payload.correction,
+    "correction_digest",
+  );
+  payload.ingest_digest = canonicalArtifactDigest(payload, "ingest_digest");
+  return payload;
+}
+
 describe("policy canary score correction contract", () => {
   it("binds 20 corrected scores to the current immutable publication", () => {
     const value = fixture();
@@ -251,5 +301,126 @@ describe("policy canary score correction contract", () => {
     conflicting.correction.correction_digest = sha("9");
     expect(policyCanaryScoreCorrectionStorageDecision(verified.sidecar, conflicting).outcome)
       .toBe("conflict");
+  });
+
+  it("advances only a strictly linked new scoring version and retains prior history", () => {
+    const value = fixture();
+    const first = verifyPolicyCanaryScoreCorrectionIngest(value);
+    if (!first.ok) throw new Error(first.code);
+    const secondPayload = successor(value, first.sidecar);
+    const second = verifyPolicyCanaryScoreCorrectionIngest({
+      payload: secondPayload,
+      publication: value.publication,
+      recordId: value.recordId,
+    });
+    if (!second.ok) throw new Error(second.code);
+    const advanced = policyCanaryScoreCorrectionTransition({
+      currentValue: first.sidecar,
+      historyValue: null,
+      incoming: second.sidecar,
+      payload: second.payload,
+    });
+    expect(advanced).toMatchObject({
+      outcome: "advanced",
+      current: { correction: { correction_digest: second.sidecar.correction.correction_digest } },
+      history: { entries: [{ correction_digest: first.sidecar.correction.correction_digest }] },
+    });
+    if (advanced.outcome !== "advanced") throw new Error(advanced.code);
+    expect(policyCanaryScoreCorrectionTransition({
+      currentValue: advanced.current,
+      historyValue: advanced.history,
+      incoming: first.sidecar,
+      payload: first.payload,
+    }).outcome).toBe("historical_replayed");
+    expect(policyCanaryScoreCorrectionTransition({
+      currentValue: advanced.current,
+      historyValue: advanced.history,
+      incoming: second.sidecar,
+      payload: second.payload,
+    }).outcome).toBe("current_replayed");
+    const audit = publicPolicyCanaryScoreCorrectionAudit(advanced.current, advanced.history);
+    expect(audit).toMatchObject({
+      current_correction_sequence: 2,
+      history: [{ correction_sequence: 1, sidecar_digest: first.sidecar.sidecar_digest }],
+    });
+    expect(stableJson(audit)).not.toContain("score_updates");
+  });
+
+  it("rejects a successor that does not supersede current or omits the versioned envelope", () => {
+    const value = fixture();
+    const first = verifyPolicyCanaryScoreCorrectionIngest(value);
+    if (!first.ok) throw new Error(first.code);
+    const secondPayload = successor(value, first.sidecar);
+    secondPayload.successor.supersedes_correction_digest = sha("0");
+    secondPayload.ingest_digest = canonicalArtifactDigest(secondPayload, "ingest_digest");
+    const second = verifyPolicyCanaryScoreCorrectionIngest({
+      payload: secondPayload,
+      publication: value.publication,
+      recordId: value.recordId,
+    });
+    if (!second.ok) throw new Error(second.code);
+    expect(policyCanaryScoreCorrectionTransition({
+      currentValue: first.sidecar,
+      historyValue: null,
+      incoming: second.sidecar,
+      payload: second.payload,
+    })).toMatchObject({ outcome: "conflict", code: "successor_or_downgrade_invalid" });
+
+    const unversioned = successor(value, first.sidecar);
+    unversioned.schema_version = "task_evaluation_policy_canary_score_correction_ingest.v1";
+    delete unversioned.successor;
+    unversioned.ingest_digest = canonicalArtifactDigest(unversioned, "ingest_digest");
+    const parsedUnversioned = verifyPolicyCanaryScoreCorrectionIngest({
+      payload: unversioned,
+      publication: value.publication,
+      recordId: value.recordId,
+    });
+    if (!parsedUnversioned.ok) throw new Error(parsedUnversioned.code);
+    expect(policyCanaryScoreCorrectionTransition({
+      currentValue: first.sidecar,
+      historyValue: null,
+      incoming: parsedUnversioned.sidecar,
+      payload: parsedUnversioned.payload,
+    })).toMatchObject({ outcome: "conflict", code: "successor_envelope_required" });
+
+    const reusedVersion = successor(value, first.sidecar);
+    reusedVersion.correction.scorer_identity = structuredClone(first.sidecar.correction.scorer_identity);
+    reusedVersion.correction.scoring_version_digest = first.sidecar.correction.scoring_version_digest;
+    reusedVersion.correction.score_updates.forEach((update: Record<string, any>, index: number) => {
+      update.scoring_version_digest = reusedVersion.correction.scoring_version_digest;
+      const receipt = reusedVersion.derived_rescore_receipts[index];
+      receipt.scorer_commit = reusedVersion.correction.scorer_identity.scorer_commit;
+      receipt.scorer_source_files_digest = reusedVersion.correction.scorer_identity.source_files_digest;
+      receipt.scoring_version_digest = reusedVersion.correction.scoring_version_digest;
+      receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
+      update.derived_rescore_receipt.receipt_digest = receipt.receipt_digest;
+    });
+    reusedVersion.correction.correction_id = first.sidecar.correction.correction_id;
+    reusedVersion.correction.correction_digest = canonicalArtifactDigest(
+      reusedVersion.correction,
+      "correction_digest",
+    );
+    reusedVersion.ingest_digest = canonicalArtifactDigest(reusedVersion, "ingest_digest");
+    const parsedReused = verifyPolicyCanaryScoreCorrectionIngest({
+      payload: reusedVersion,
+      publication: value.publication,
+      recordId: value.recordId,
+    });
+    if (!parsedReused.ok) throw new Error(parsedReused.code);
+    expect(policyCanaryScoreCorrectionTransition({
+      currentValue: first.sidecar,
+      historyValue: null,
+      incoming: parsedReused.sidecar,
+      payload: parsedReused.payload,
+    })).toMatchObject({ outcome: "conflict", code: "successor_or_downgrade_invalid" });
+
+    const beyondBound = successor(value, first.sidecar);
+    beyondBound.successor.correction_sequence = 10;
+    beyondBound.ingest_digest = canonicalArtifactDigest(beyondBound, "ingest_digest");
+    expect(verifyPolicyCanaryScoreCorrectionIngest({
+      payload: beyondBound,
+      publication: value.publication,
+      recordId: value.recordId,
+    })).toMatchObject({ ok: false, code: "POLICY_CANARY_SCORE_CORRECTION_SCHEMA_INVALID" });
   });
 });

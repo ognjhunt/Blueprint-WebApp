@@ -292,6 +292,21 @@ export type TaskEvaluationResultSiteRecord = {
     proof_boundary: Record<string, unknown>;
   };
   score_correction?: PolicyCanaryScoreCorrectionSidecar;
+  score_correction_audit?: {
+    schema_version: "task_evaluation_policy_canary_score_correction_audit.v1";
+    current_correction_sequence: number;
+    current_correction_digest: string;
+    current_scoring_version_digest: string;
+    current_sidecar_digest: string;
+    history: Array<{
+      correction_sequence: number;
+      correction_digest: string;
+      scoring_version_digest: string;
+      sidecar_digest: string;
+    }>;
+    history_digest: string;
+    history_projection_digest: string;
+  };
 };
 
 export class TaskEvaluationArtifactTicketError extends Error {

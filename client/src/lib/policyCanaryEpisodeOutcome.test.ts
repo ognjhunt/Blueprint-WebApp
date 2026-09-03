@@ -44,4 +44,39 @@ describe("humanPolicyCanaryEpisodeOutcome", () => {
     expect(result.title).toBe("Collision or workspace violation");
     expect(result.tone).toBe("block");
   });
+
+  it("uses the held-out corrected contract instead of implying an ignored release failed", () => {
+    const result = humanPolicyCanaryEpisodeOutcome({
+      outcome: "pushed_and_settled",
+      task_succeeded: true,
+      task_success_contract: {
+        criteria: {
+          temporal_invariants: { no_drop: { mode: "ignored" } },
+          gripper_state: { mode: "ignored" },
+          terminal_task_contact: { mode: "cleared" },
+        },
+      },
+      measurements: {
+        released: false,
+        settle_task_contact_cleared: true,
+        settle_destination_inside: true,
+      },
+      event_ledger: { drop_events: [{ unsupported_started_step: 199, support_recontact_step: 201, fall_m: 0.049927 }] },
+    });
+
+    expect(result.title).toBe("Task completed after an unsupported fall");
+    expect(result.facts).not.toContainEqual({ label: "Released", value: "No" });
+    expect(result.facts).toContainEqual({
+      label: "Final robot contact cleared",
+      value: "Yes",
+    });
+    expect(result.facts).toContainEqual({
+      label: "Unsupported falls",
+      value: "1 unsupported fall · recovery allowed",
+    });
+    expect(result.facts).toContainEqual({
+      label: "Unsupported fall 1",
+      value: "5.0 cm · steps 199–201",
+    });
+  });
 });

@@ -131,7 +131,7 @@ const rescoreReceiptSchema = z.object({
   receipt_digest: digest,
 }).strict();
 
-export const policyCanaryScoreCorrectionIngestSchema = z.object({
+const policyCanaryScoreCorrectionIngestV1Schema = z.object({
   schema_version: z.literal("task_evaluation_policy_canary_score_correction_ingest.v1"),
   source_binding: z.object({
     run_id: identifier,
@@ -143,6 +143,30 @@ export const policyCanaryScoreCorrectionIngestSchema = z.object({
   derived_rescore_receipts: z.array(rescoreReceiptSchema).length(20),
   ingest_digest: digest,
 }).strict();
+
+const policyCanaryScoreCorrectionIngestV2Schema = z.object({
+  schema_version: z.literal("task_evaluation_policy_canary_score_correction_ingest.v2"),
+  source_binding: z.object({
+    run_id: identifier,
+    record_id: identifier,
+    policy_canary_projection_digest: digest,
+    result_delivery_digest: digest,
+  }).strict(),
+  successor: z.object({
+    correction_sequence: z.number().int().min(2).max(9),
+    supersedes_correction_digest: digest,
+    supersedes_sidecar_digest: digest,
+    supersedes_scoring_version_digest: digest,
+  }).strict(),
+  correction: policyCanaryScoreCorrectionSchema,
+  derived_rescore_receipts: z.array(rescoreReceiptSchema).length(20),
+  ingest_digest: digest,
+}).strict();
+
+export const policyCanaryScoreCorrectionIngestSchema = z.discriminatedUnion(
+  "schema_version",
+  [policyCanaryScoreCorrectionIngestV1Schema, policyCanaryScoreCorrectionIngestV2Schema],
+);
 
 export type PolicyCanaryScoreCorrection = z.infer<typeof policyCanaryScoreCorrectionSchema>;
 export type PolicyCanaryScoreCorrectionIngest = z.infer<
@@ -168,6 +192,10 @@ export type VerifiedPolicyCanaryScoreCorrectionSidecar = {
     original_score_receipts_preserved: true;
     corrected_result_status: "completed_unqualified";
     winner_declared: false;
+    correction_sequence?: number;
+    supersedes_correction_digest?: string | null;
+    supersedes_sidecar_digest?: string | null;
+    supersedes_scoring_version_digest?: string | null;
   };
   sidecar_digest: string;
 };
@@ -323,6 +351,18 @@ export function verifyPolicyCanaryScoreCorrectionIngest(params: {
       original_score_receipts_preserved: true,
       corrected_result_status: "completed_unqualified",
       winner_declared: false,
+      correction_sequence: payload.schema_version === "task_evaluation_policy_canary_score_correction_ingest.v2"
+        ? payload.successor.correction_sequence
+        : 1,
+      supersedes_correction_digest: payload.schema_version === "task_evaluation_policy_canary_score_correction_ingest.v2"
+        ? payload.successor.supersedes_correction_digest
+        : null,
+      supersedes_sidecar_digest: payload.schema_version === "task_evaluation_policy_canary_score_correction_ingest.v2"
+        ? payload.successor.supersedes_sidecar_digest
+        : null,
+      supersedes_scoring_version_digest: payload.schema_version === "task_evaluation_policy_canary_score_correction_ingest.v2"
+        ? payload.successor.supersedes_scoring_version_digest
+        : null,
     },
     sidecar_digest: `sha256:${"0".repeat(64)}`,
   };
@@ -342,6 +382,14 @@ export function verifiedPolicyCanaryScoreCorrectionSidecar(value: unknown) {
     || sidecar.audit?.original_score_receipts_preserved !== true
     || sidecar.audit?.corrected_result_status !== "completed_unqualified"
     || sidecar.audit?.winner_declared !== false
+    || !Number.isInteger(sidecar.audit?.correction_sequence ?? 1)
+    || (sidecar.audit?.correction_sequence ?? 1) < 1
+    || (sidecar.audit?.correction_sequence ?? 1) > 9
+    || ((sidecar.audit?.correction_sequence ?? 1) > 1 && (
+      !/^sha256:[0-9a-f]{64}$/.test(String(sidecar.audit?.supersedes_correction_digest || ""))
+      || !/^sha256:[0-9a-f]{64}$/.test(String(sidecar.audit?.supersedes_sidecar_digest || ""))
+      || !/^sha256:[0-9a-f]{64}$/.test(String(sidecar.audit?.supersedes_scoring_version_digest || ""))
+    ))
     || !policyCanaryScoreCorrectionSchema.safeParse(sidecar.correction).success
     || canonicalArtifactDigest(
       sidecar.correction as unknown as Record<string, unknown>,
@@ -368,4 +416,180 @@ export function policyCanaryScoreCorrectionStorageDecision(
     return { outcome: "conflict" as const, sidecar: null };
   }
   return { outcome: "replayed" as const, sidecar: existing };
+}
+
+export type PolicyCanaryScoreCorrectionHistoryEntry = {
+  correction_sequence: number;
+  correction_digest: string;
+  scoring_version_digest: string;
+  sidecar_digest: string;
+  sidecar: VerifiedPolicyCanaryScoreCorrectionSidecar;
+};
+
+export type PolicyCanaryScoreCorrectionHistory = {
+  schema_version: "task_evaluation_policy_canary_score_correction_history.v1";
+  entries: PolicyCanaryScoreCorrectionHistoryEntry[];
+  history_digest: string;
+};
+
+function historyEntry(sidecar: VerifiedPolicyCanaryScoreCorrectionSidecar) {
+  return {
+    correction_sequence: sidecar.audit.correction_sequence ?? 1,
+    correction_digest: sidecar.correction.correction_digest,
+    scoring_version_digest: sidecar.correction.scoring_version_digest,
+    sidecar_digest: sidecar.sidecar_digest,
+    sidecar,
+  } satisfies PolicyCanaryScoreCorrectionHistoryEntry;
+}
+
+export function verifiedPolicyCanaryScoreCorrectionHistory(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const history = value as PolicyCanaryScoreCorrectionHistory;
+  if (
+    history.schema_version !== "task_evaluation_policy_canary_score_correction_history.v1"
+    || !Array.isArray(history.entries)
+    || history.entries.length > 8
+    || canonicalArtifactDigest(
+      history as unknown as Record<string, unknown>,
+      "history_digest",
+    ) !== history.history_digest
+  ) return null;
+  const seenCorrections = new Set<string>();
+  const seenVersions = new Set<string>();
+  for (let index = 0; index < history.entries.length; index += 1) {
+    const entry = history.entries[index];
+    const sidecar = verifiedPolicyCanaryScoreCorrectionSidecar(entry?.sidecar);
+    if (
+      !sidecar
+      || entry.correction_sequence !== index + 1
+      || entry.correction_sequence !== (sidecar.audit.correction_sequence ?? 1)
+      || entry.correction_digest !== sidecar.correction.correction_digest
+      || entry.scoring_version_digest !== sidecar.correction.scoring_version_digest
+      || entry.sidecar_digest !== sidecar.sidecar_digest
+      || seenCorrections.has(entry.correction_digest)
+      || seenVersions.has(entry.scoring_version_digest)
+    ) return null;
+    seenCorrections.add(entry.correction_digest);
+    seenVersions.add(entry.scoring_version_digest);
+  }
+  return history;
+}
+
+function sealHistory(entries: PolicyCanaryScoreCorrectionHistoryEntry[]) {
+  const history: PolicyCanaryScoreCorrectionHistory = {
+    schema_version: "task_evaluation_policy_canary_score_correction_history.v1",
+    entries,
+    history_digest: `sha256:${"0".repeat(64)}`,
+  };
+  history.history_digest = canonicalArtifactDigest(
+    history as unknown as Record<string, unknown>,
+    "history_digest",
+  );
+  return history;
+}
+
+export function policyCanaryScoreCorrectionTransition(params: {
+  currentValue: unknown;
+  historyValue: unknown;
+  incoming: VerifiedPolicyCanaryScoreCorrectionSidecar;
+  payload: PolicyCanaryScoreCorrectionIngest;
+}) {
+  const current = verifiedPolicyCanaryScoreCorrectionSidecar(params.currentValue);
+  const history = params.historyValue === undefined || params.historyValue === null
+    ? sealHistory([])
+    : verifiedPolicyCanaryScoreCorrectionHistory(params.historyValue);
+  if (!history) return { outcome: "conflict" as const, code: "history_invalid" };
+  if (current?.correction.correction_digest === params.incoming.correction.correction_digest) {
+    return { outcome: "current_replayed" as const, current, history };
+  }
+  const historical = history.entries.find((entry) => (
+    entry.correction_digest === params.incoming.correction.correction_digest
+  ));
+  if (historical) return {
+    outcome: "historical_replayed" as const,
+    current,
+    history,
+    replayed: historical.sidecar,
+  };
+  if (!current) {
+    if (params.currentValue || params.payload.schema_version !== "task_evaluation_policy_canary_score_correction_ingest.v1") {
+      return { outcome: "conflict" as const, code: "initial_correction_invalid" };
+    }
+    return { outcome: "created" as const, current: params.incoming, history };
+  }
+  if (params.payload.schema_version !== "task_evaluation_policy_canary_score_correction_ingest.v2") {
+    return { outcome: "conflict" as const, code: "successor_envelope_required" };
+  }
+  const successor = params.payload.successor;
+  const currentSequence = current.audit.correction_sequence ?? 1;
+  const sameSource = [
+    "run_id",
+    "record_id",
+    "source_result_digest",
+    "source_result_file_sha256",
+    "source_artifact_inventory_digest",
+    "source_projection_digest",
+    "source_delivery_digest",
+  ].every((field) => (
+    (current.source_binding as Record<string, unknown>)[field]
+      === (params.incoming.source_binding as Record<string, unknown>)[field]
+  ));
+  const knownVersions = new Set([
+    current.correction.scoring_version_digest,
+    ...history.entries.map((entry) => entry.scoring_version_digest),
+  ]);
+  const knownCorrectionIds = new Set([
+    current.correction.correction_id,
+    ...history.entries.map((entry) => entry.sidecar.correction.correction_id),
+  ]);
+  if (
+    !sameSource
+    || successor.correction_sequence !== currentSequence + 1
+    || params.incoming.audit.correction_sequence !== successor.correction_sequence
+    || successor.supersedes_correction_digest !== current.correction.correction_digest
+    || successor.supersedes_sidecar_digest !== current.sidecar_digest
+    || successor.supersedes_scoring_version_digest !== current.correction.scoring_version_digest
+    || params.incoming.correction.correction_digest === current.correction.correction_digest
+    || knownVersions.has(params.incoming.correction.scoring_version_digest)
+    || knownCorrectionIds.has(params.incoming.correction.correction_id)
+  ) return { outcome: "conflict" as const, code: "successor_or_downgrade_invalid" };
+  if (history.entries.length >= 8) {
+    return { outcome: "conflict" as const, code: "history_limit_reached" };
+  }
+  const nextHistory = sealHistory([...history.entries, historyEntry(current)]);
+  return {
+    outcome: "advanced" as const,
+    current: params.incoming,
+    history: nextHistory,
+  };
+}
+
+export function publicPolicyCanaryScoreCorrectionAudit(
+  currentValue: unknown,
+  historyValue: unknown,
+) {
+  const current = verifiedPolicyCanaryScoreCorrectionSidecar(currentValue);
+  if (
+    current
+    && (current.audit.correction_sequence ?? 1) > 1
+    && (historyValue === undefined || historyValue === null)
+  ) return null;
+  const history = historyValue === undefined || historyValue === null
+    ? sealHistory([])
+    : verifiedPolicyCanaryScoreCorrectionHistory(historyValue);
+  if (!current || !history) return null;
+  const entries = history.entries.map(({ sidecar: _sidecar, ...entry }) => entry);
+  return {
+    schema_version: "task_evaluation_policy_canary_score_correction_audit.v1",
+    current_correction_sequence: current.audit.correction_sequence ?? 1,
+    current_correction_digest: current.correction.correction_digest,
+    current_scoring_version_digest: current.correction.scoring_version_digest,
+    current_sidecar_digest: current.sidecar_digest,
+    history: entries,
+    history_digest: history.history_digest,
+    history_projection_digest: canonicalArtifactDigest(
+      { entries },
+      "__no_digest_field__",
+    ),
+  };
 }

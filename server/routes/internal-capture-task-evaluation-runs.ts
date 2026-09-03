@@ -23,7 +23,7 @@ import {
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
-  policyCanaryScoreCorrectionStorageDecision,
+  policyCanaryScoreCorrectionTransition,
 } from "../utils/policyCanaryScoreCorrectionContract";
 
 const router = Router();
@@ -417,6 +417,8 @@ async function handlePolicyCanaryScoreCorrection(
   const recordId = String(policyRun.result_record_id || "");
   if (!recordId) return res.status(409).json({ error: "Completed policy canary result is not published" });
   const resultRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
+  const historyRef = db.collection("taskEvaluationPolicyCanaryScoreCorrectionHistories")
+    .doc(recordId);
   let resultSnapshot;
   try {
     resultSnapshot = await resultRef.get();
@@ -438,33 +440,64 @@ async function handlePolicyCanaryScoreCorrection(
     ...(verified.details ? { details: verified.details } : {}),
   });
   let transactionResult: {
-    outcome: "created" | "replayed" | "conflict";
+    outcome: "created" | "advanced" | "current_replayed" | "historical_replayed" | "conflict";
     sidecar: typeof verified.sidecar | null;
+    conflictCode?: string;
   };
   try {
     transactionResult = await db.runTransaction(async (transaction) => {
-      const latest = await transaction.get(resultRef);
+      const [latest, historySnapshot] = await Promise.all([
+        transaction.get(resultRef),
+        transaction.get(historyRef),
+      ]);
       if (!latest.exists) return { outcome: "conflict" as const, sidecar: null };
       const current = latest.data() as Record<string, any>;
       const currentPublication = publicationFromResultRecord(current);
       if (!currentPublication || stableJson(currentPublication) !== stableJson(publication)) {
         return { outcome: "conflict" as const, sidecar: null };
       }
-      const decision = policyCanaryScoreCorrectionStorageDecision(
-        current.policy_canary_score_correction,
-        verified.sidecar,
-      );
-      if (decision.outcome !== "created") return decision;
+      const latestVerified = verifyPolicyCanaryScoreCorrectionIngest({
+        payload,
+        publication: currentPublication,
+        recordId,
+      });
+      if (!latestVerified.ok) return {
+        outcome: "conflict" as const,
+        sidecar: null,
+        conflictCode: latestVerified.code,
+      };
+      const decision = policyCanaryScoreCorrectionTransition({
+        currentValue: current.policy_canary_score_correction,
+        historyValue: historySnapshot.exists ? historySnapshot.data() : null,
+        incoming: latestVerified.sidecar,
+        payload: latestVerified.payload,
+      });
+      if (decision.outcome === "conflict") return {
+        outcome: "conflict" as const,
+        sidecar: null,
+        conflictCode: decision.code,
+      };
+      if (decision.outcome === "current_replayed") return {
+        outcome: decision.outcome,
+        sidecar: decision.current,
+      };
+      if (decision.outcome === "historical_replayed") return {
+        outcome: decision.outcome,
+        sidecar: decision.replayed,
+      };
       transaction.set(resultRef, {
-        policy_canary_score_correction: verified.sidecar,
-        updated_at_iso: verified.sidecar.audit.verified_at_iso,
+        policy_canary_score_correction: decision.current,
+        updated_at_iso: decision.current.audit.verified_at_iso,
       }, { merge: true });
+      transaction.set(historyRef, decision.history);
       transaction.set(policyRunRef, {
-        score_correction_digest: verified.sidecar.correction.correction_digest,
-        score_correction_sidecar_digest: verified.sidecar.sidecar_digest,
-        score_correction_applied_at_iso: verified.sidecar.audit.verified_at_iso,
+        score_correction_digest: decision.current.correction.correction_digest,
+        score_correction_sidecar_digest: decision.current.sidecar_digest,
+        score_correction_sequence: decision.current.audit.correction_sequence ?? 1,
+        score_correction_history_digest: decision.history.history_digest,
+        score_correction_applied_at_iso: decision.current.audit.verified_at_iso,
       }, { merge: true });
-      return { outcome: "created" as const, sidecar: verified.sidecar };
+      return { outcome: decision.outcome, sidecar: decision.current };
     });
   } catch {
     return res.status(503).json({ error: "Policy canary score correction store is unavailable" });
@@ -472,18 +505,22 @@ async function handlePolicyCanaryScoreCorrection(
   if (transactionResult.outcome === "conflict" || !transactionResult.sidecar) return res.status(409).json({
     error: "Immutable policy canary score correction conflict",
     code: "POLICY_CANARY_SCORE_CORRECTION_IMMUTABLE_CONFLICT",
+    reason: transactionResult.conflictCode || "correction_conflict",
   });
   res.set("Cache-Control", "no-store");
   const storedSidecar = transactionResult.sidecar;
-  return res.status(transactionResult.outcome === "created" ? 201 : 200).json({
+  return res.status(["created", "advanced"].includes(transactionResult.outcome) ? 201 : 200).json({
     schema_version: "capture_task_evaluation_policy_canary_score_correction_receipt.v1",
     status: "completed_unqualified",
-    already_exists: transactionResult.outcome === "replayed",
+    already_exists: ["current_replayed", "historical_replayed"].includes(transactionResult.outcome),
+    historical_replay: transactionResult.outcome === "historical_replayed",
+    current_pointer_advanced: transactionResult.outcome === "advanced",
     run_id: runId,
     result_record_id: recordId,
     correction_id: storedSidecar.correction.correction_id,
     correction_digest: storedSidecar.correction.correction_digest,
     sidecar_digest: storedSidecar.sidecar_digest,
+    correction_sequence: storedSidecar.audit.correction_sequence ?? 1,
     original_publication_preserved: true,
     winner_declared: false,
   });
