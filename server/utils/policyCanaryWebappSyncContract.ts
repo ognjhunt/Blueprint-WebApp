@@ -14,7 +14,7 @@ const pipelineArtifactSchema = z.object({
   provider_zero_verified: z.boolean().optional(),
 }).strict();
 
-const pipelineEpisodeInterpretationSchema = z.object({
+export const pipelineEpisodeInterpretationSchema = z.object({
   status: z.enum(["completed", "abstained"]),
   abstention_reason: z.string().trim().min(1).max(128).nullable(),
   episode_outcome: z.enum(["appears_complete", "appears_incomplete", "unclear"]),
@@ -30,7 +30,7 @@ const pipelineEpisodeInterpretationSchema = z.object({
   ranking_or_promotion_effect: z.literal("none"),
 }).strict();
 
-const pipelineEpisodeInterpretationSummarySchema = z.object({
+export const pipelineEpisodeInterpretationSummarySchema = z.object({
   schema_version: z.literal("policy_canary_episode_interpretation_closeout.v1"),
   status: z.enum(["completed", "partial", "abstained"]),
   episode_count: z.number().int().min(0).max(20),

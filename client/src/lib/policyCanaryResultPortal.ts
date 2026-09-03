@@ -146,6 +146,40 @@ export function applyPolicyCanaryScoreCorrection(
   return corrected;
 }
 
+export function applyPolicyCanaryEpisodeInterpretation(
+  result: TaskEvaluationResultSiteRecord,
+): TaskEvaluationResultSiteRecord {
+  const sidecar = result.episode_interpretation;
+  if (
+    !sidecar
+    || sidecar.source_binding.record_id !== result.record_id
+    || sidecar.source_binding.source_run_id !== result.publication.run_id
+    || sidecar.source_binding.source_projection_digest
+      !== result.publication.policy_canary_result?.projection_digest
+    || sidecar.source_binding.source_delivery_digest
+      !== result.publication.result_delivery?.delivery_digest
+    || sidecar.source_binding.source_score_correction_sidecar_digest
+      !== (result.score_correction?.sidecar_digest || null)
+    || sidecar.audit.original_publication_preserved !== true
+    || sidecar.audit.deterministic_scores_unchanged !== true
+    || sidecar.audit.ranking_or_promotion_effect !== "none"
+    || sidecar.episodes.length !== 20
+  ) return result;
+  const interpreted = structuredClone(result);
+  const byEpisode = new Map(sidecar.episodes.map((row) => [
+    row.episode_id,
+    row.interpretation,
+  ]));
+  for (const episode of interpreted.publication.result_delivery?.episodes || []) {
+    const interpretation = byEpisode.get(episode.episode_id);
+    if (interpretation) episode.interpretation = interpretation;
+  }
+  if (interpreted.publication.policy_canary_result) {
+    interpreted.publication.policy_canary_result.episode_interpretation = sidecar.summary;
+  }
+  return interpreted;
+}
+
 const canaryFamilyLabels: Record<string, string> = {
   canonical_anchor: "Baseline anchor",
   placement_approach: "Placement and approach",

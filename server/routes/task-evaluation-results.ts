@@ -15,6 +15,9 @@ import {
   publicPolicyCanaryScoreCorrectionAudit,
   verifiedPolicyCanaryScoreCorrectionSidecar,
 } from "../utils/policyCanaryScoreCorrectionContract";
+import {
+  verifiedPolicyCanaryEpisodeInterpretationSidecar,
+} from "../utils/policyCanaryEpisodeInterpretationSidecar";
 
 const router = Router();
 
@@ -64,6 +67,20 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     record.policy_canary_score_correction,
     record.policy_canary_score_correction_history,
   );
+  const interpretationCandidate = verifiedPolicyCanaryEpisodeInterpretationSidecar(
+    record.policy_canary_episode_interpretation,
+  );
+  const episodeInterpretation = interpretationCandidate
+    && interpretationCandidate.source_binding.record_id === record.record_id
+    && interpretationCandidate.source_binding.source_run_id === publication.run_id
+    && interpretationCandidate.source_binding.source_projection_digest
+      === publication.policy_canary_result?.projection_digest
+    && interpretationCandidate.source_binding.source_delivery_digest
+      === publication.result_delivery?.delivery_digest
+    && interpretationCandidate.source_binding.source_score_correction_sidecar_digest
+      === (record.policy_canary_score_correction?.sidecar_digest || null)
+    ? interpretationCandidate
+    : null;
   if (options.publicAudience) {
     delete publication.submitted_by;
     delete publication.team_namespace;
@@ -80,6 +97,7 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     publication,
     ...(scoreCorrection ? { score_correction: scoreCorrection } : {}),
     ...(scoreCorrectionAudit ? { score_correction_audit: scoreCorrectionAudit } : {}),
+    ...(episodeInterpretation ? { episode_interpretation: episodeInterpretation } : {}),
   };
 }
 
@@ -91,15 +109,19 @@ async function readResultRecord(recordId: string): Promise<ResultRecord | null> 
   const publication = publicationFromResultRecord(raw);
   const verified = parseVerifiedTaskEvaluationRunPublication(publication);
   if (!verified.ok) return null;
-  const historySnapshot = await db.collection(
-    "taskEvaluationPolicyCanaryScoreCorrectionHistories",
-  ).doc(recordId).get();
+  const [historySnapshot, interpretationSnapshot] = await Promise.all([
+    db.collection("taskEvaluationPolicyCanaryScoreCorrectionHistories").doc(recordId).get(),
+    db.collection("taskEvaluationPolicyCanaryEpisodeInterpretations").doc(recordId).get(),
+  ]);
   return {
     ...raw,
     record_id: recordId,
     publication: verified.publication,
     ...(historySnapshot.exists ? {
       policy_canary_score_correction_history: historySnapshot.data(),
+    } : {}),
+    ...(interpretationSnapshot.exists ? {
+      policy_canary_episode_interpretation: interpretationSnapshot.data(),
     } : {}),
   };
 }

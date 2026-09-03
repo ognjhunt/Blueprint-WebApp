@@ -191,6 +191,40 @@ export type PolicyCanaryScoreCorrectionSidecar = {
   sidecar_digest: string;
 };
 
+export type PolicyCanaryEpisodeInterpretationSidecar = {
+  schema_version: "task_evaluation_policy_canary_episode_interpretation_sidecar.v1";
+  source_binding: {
+    record_id: string;
+    source_run_id: string;
+    source_projection_digest: string;
+    source_delivery_digest: string;
+    source_score_correction_sidecar_digest: string | null;
+  };
+  summary: Record<string, unknown> & {
+    schema_version: "policy_canary_episode_interpretation_closeout.v1";
+    status: "completed" | "partial" | "abstained";
+    episode_count: number;
+    receipt_count: number;
+    completed_count: number;
+    abstained_count: number;
+  };
+  episodes: Array<{
+    episode_id: string;
+    candidate_id: "pi05_droid" | "groot_n17_droid";
+    cell_id: string;
+    seed: number;
+    interpretation: NonNullable<TaskEvaluationResultEpisode["interpretation"]>;
+  }>;
+  audit: {
+    original_publication_preserved: true;
+    deterministic_scores_unchanged: true;
+    learned_interpretation_only: true;
+    ranking_or_promotion_effect: "none";
+    verified_at_iso: string;
+  };
+  sidecar_digest: string;
+};
+
 export type TaskEvaluationResultDelivery = {
   schema_version: "task_evaluation_result_delivery.v1" | "task_evaluation_result_delivery.v2";
   run_id: string;
@@ -310,6 +344,7 @@ export type TaskEvaluationResultSiteRecord = {
     proof_boundary: Record<string, unknown>;
   };
   score_correction?: PolicyCanaryScoreCorrectionSidecar;
+  episode_interpretation?: PolicyCanaryEpisodeInterpretationSidecar;
   score_correction_audit?: {
     schema_version: "task_evaluation_policy_canary_score_correction_audit.v1";
     current_correction_sequence: number;
