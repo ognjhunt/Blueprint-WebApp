@@ -14,6 +14,44 @@ const pipelineArtifactSchema = z.object({
   provider_zero_verified: z.boolean().optional(),
 }).strict();
 
+const pipelineEpisodeInterpretationSchema = z.object({
+  status: z.enum(["completed", "abstained"]),
+  abstention_reason: z.string().trim().min(1).max(128).nullable(),
+  episode_outcome: z.enum(["appears_complete", "appears_incomplete", "unclear"]),
+  summary: z.string().trim().min(1).max(8_000),
+  events: z.array(z.unknown()).max(200),
+  possible_missed_events: z.array(z.unknown()).max(100),
+  contract_considerations: z.array(z.string().trim().min(1).max(2_000)).max(100),
+  confidence: z.number().min(0).max(1),
+  deterministic_agreement: z.enum(["agrees", "disagrees", "abstains"]),
+  receipt: pipelineArtifactSchema,
+  learned_interpretation_only: z.literal(true),
+  authoritative_task_success_unchanged: z.literal(true),
+  ranking_or_promotion_effect: z.literal("none"),
+}).strict();
+
+const pipelineEpisodeInterpretationSummarySchema = z.object({
+  schema_version: z.literal("policy_canary_episode_interpretation_closeout.v1"),
+  status: z.enum(["completed", "partial", "abstained"]),
+  episode_count: z.number().int().min(0).max(20),
+  receipt_count: z.number().int().min(0).max(20),
+  completed_count: z.number().int().min(0).max(20),
+  abstained_count: z.number().int().min(0).max(20),
+  disagreement_count: z.number().int().min(0).max(20),
+  reused_receipt_count: z.number().int().min(0).max(20),
+  provider_call_count: z.number().int().min(0).max(20),
+  provider_invocation_attempt_count: z.number().int().min(0).max(20),
+  input_bundle_unavailable_count: z.number().int().min(0).max(20),
+  interpreter: z.record(z.string(), z.unknown()).nullable().optional(),
+  interpreter_profile_digest: digest.nullable().optional(),
+  official_cost_completion_error_type: z.string().trim().min(1).max(256).nullable().optional(),
+  closeout_error_type: z.string().trim().min(1).max(256).nullable().optional(),
+  authoritative_deterministic_result_unchanged: z.literal(true),
+  score_overwrite_performed: z.literal(false),
+  ranking_or_promotion_effect: z.literal("none"),
+  summary_digest: digest,
+}).strict();
+
 const pipelineNotificationSchema = z.object({
   terminal_state: z.enum(["completed", "blocked", "cancelled"]),
   status: z.enum(["pending", "delivered", "failed"]),
@@ -81,6 +119,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     diagnostic_control_rollout_count: z.number().int().min(0).max(20),
     completed_diagnostic_control_rollout_count: z.number().int().min(0).max(20),
   }).strict(),
+  episode_interpretation: pipelineEpisodeInterpretationSummarySchema.optional(),
   candidate_ids: z.tuple([z.literal("pi05_droid"), z.literal("groot_n17_droid")]),
   candidate_results: z.tuple([
     z.object({
@@ -111,6 +150,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     arm_moved: z.boolean(),
     policy_outcome_interpretable: z.boolean(),
     failure_taxonomy: z.string().trim().max(128).nullable(),
+    interpretation: pipelineEpisodeInterpretationSchema.nullable().optional(),
     evidence: pipelineEpisodeEvidenceSchema,
   }).strict()).max(20),
   comparison: z.object({

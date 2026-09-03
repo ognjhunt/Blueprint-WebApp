@@ -534,6 +534,21 @@ export function PolicyCanaryEpisodeExplorer({
               user={user}
               recordId={result.record_id}
             /> : null}
+            {episode?.interpretation ? <div className="mt-4 border-l-4 border-runway-amber bg-inset p-4">
+              <p className="runway-meta">Independent learned interpretation</p>
+              <h4 className="mt-1 text-body font-semibold text-ink-900">
+                {episode.interpretation.status === "abstained"
+                  ? "Interpreter abstained"
+                  : episode.interpretation.episode_outcome.replaceAll("_", " ")}
+              </h4>
+              <p className="mt-1 text-body-s text-ink-600">{episode.interpretation.summary}</p>
+              <p className="mt-2 text-caption text-ink-500">
+                Learned explanation only · deterministic score unchanged · confidence {Math.round(episode.interpretation.confidence * 100)}%
+              </p>
+              {episode.interpretation.deterministic_agreement === "disagrees" ? <p className="mt-2 text-caption font-semibold text-runway-amber">
+                This interpretation disagrees with deterministic scoring and is flagged for review; it does not change the result.
+              </p> : null}
+            </div> : null}
             <div className="mt-4">
               <EvidenceVideo
                 artifact={artifact}
