@@ -63,10 +63,20 @@ function PolicyCanaryTimeline({ stage }: { stage: string }) {
 }
 
 function PolicyCanarySummary({ run }: { run: PolicyCanaryRunProjection }) {
+  const terminalEpisodeCount = run.terminal
+    ? run.expected_learned_episode_count
+    : run.completed_learned_episode_count;
+  const nonCompletedEpisodeCount = Math.max(
+    0,
+    terminalEpisodeCount - run.completed_learned_episode_count,
+  );
+  const terminalBreakdown = run.terminal
+    ? `${run.completed_learned_episode_count} completed${nonCompletedEpisodeCount ? ` · ${nonCompletedEpisodeCount} ${run.result_status === "cancelled" ? "cancelled or not run" : "blocked"}` : ""}`
+    : null;
   return <section className="runway-panel p-5" aria-labelledby="canary-summary-title">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Diagnostic policy execution</p><h2 id="canary-summary-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Unqualified canary status</h2></div><StatusChip tone={run.state === "results_ready" ? "warn" : run.error ? "block" : "neutral"} square>{run.result_status ? friendlyState(run.result_status) : friendlyState(run.state)}</StatusChip></div>
     <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-3">
-      <div className="bg-paper-0 p-4"><p className="runway-meta">Learned-policy episodes</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{run.completed_learned_episode_count}/{run.expected_learned_episode_count}</p></div>
+      <div className="bg-paper-0 p-4"><p className="runway-meta">Learned-policy episode records</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{terminalEpisodeCount}/{run.expected_learned_episode_count}</p>{terminalBreakdown ? <p className="text-caption text-ink-500">{terminalBreakdown}</p> : null}</div>
       <div className="bg-paper-0 p-4"><p className="runway-meta">Diagnostic controls</p><p className="runway-num mt-2 text-title-l font-semibold text-ink-900">{run.completed_control_episode_count}/{run.episode_counts?.control_episode_count || 20}</p><p className="text-caption text-ink-500">Reported separately; nonblocking</p></div>
       <div className="bg-paper-0 p-4"><p className="runway-meta">Notification</p><p className="mt-2 text-body-s font-semibold text-ink-900">{String(run.notification_delivery?.status || "Pending")}</p></div>
     </div>
@@ -150,7 +160,11 @@ export default function EvaluationRunProgress() {
     ? run as PolicyCanaryRunProjection
     : null;
   const internalCanary = Boolean(canaryRun);
-  const percent = progress?.total_episodes ? Math.round((progress.completed_episodes / progress.total_episodes) * 100) : 0;
+  const displayedCompletedEpisodes = progress
+    ? canaryRun?.terminal ? progress.total_episodes : progress.completed_episodes
+    : 0;
+  const percent = progress?.total_episodes ? Math.round((displayedCompletedEpisodes / progress.total_episodes) * 100) : 0;
+  const progressLabel = canaryRun?.terminal ? "episode records terminal" : "episodes complete";
   return (
     <AppShell active="runs" breadcrumb={`runs / ${decodedRunId || "evaluation"}`}>
       <Helmet><title>Evaluation run · Blueprint</title></Helmet>
@@ -166,7 +180,7 @@ export default function EvaluationRunProgress() {
           {canaryRun ? <><ProofBoundary level="warn" title="Controls pending — results are unqualified" icon={ShieldAlert}>This canary remains diagnostic even when every episode succeeds. It cannot change the scene to evaluation ready.</ProofBoundary><PolicyCanaryTimeline stage={canaryRun.stage} /></> : <RunTimeline state={run.state} />}
           <Card pad="md">
             <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{friendlyState(run.phase || run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
-            {progress ? <><div className="mt-4 h-2 overflow-hidden bg-inset" aria-label={`${progress.completed_episodes} of ${progress.total_episodes} episodes complete`}><div className="h-full bg-runway-signal transition-[width]" style={{ width: `${percent}%` }} /></div><p className="runway-num mt-2 text-caption text-ink-500">{progress.completed_episodes} / {progress.total_episodes} episodes</p></> : null}
+            {progress ? <><div className="mt-4 h-2 overflow-hidden bg-inset" aria-label={`${displayedCompletedEpisodes} of ${progress.total_episodes} ${progressLabel}`}><div className="h-full bg-runway-signal transition-[width]" style={{ width: `${percent}%` }} /></div><p className="runway-num mt-2 text-caption text-ink-500">{displayedCompletedEpisodes} / {progress.total_episodes} {progressLabel}</p></> : null}
             {run.episode_counts ? <p className="mt-2 text-caption text-ink-400">{run.episode_counts.learned_episode_count} learned-policy episodes · {run.episode_counts.control_episode_count} control episodes</p> : null}
           </Card>
           {run.error ? <ProofBoundary level="block" title={run.error.code} icon={ShieldAlert}>{run.error.message}</ProofBoundary> : null}
