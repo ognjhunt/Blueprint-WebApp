@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import {
+  confirmedRigidTaskSuccessContractSchema,
+  rigidTaskSuccessContractMatchesSelection,
+  rigidTaskSuccessContractSchema,
+} from "./rigidTaskSuccessContract";
 
 export const INTERNAL_POLICY_CANARY_RUN_KIND = "internal_policy_canary" as const;
 export const INTERNAL_POLICY_CANARY_CLAIM_CEILING =
@@ -201,6 +206,8 @@ export const internalPolicyCanarySetupSchema = z.object({
     zero_action: z.enum(["nonblocking", "not_configured"]),
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
+  task_success_contract: rigidTaskSuccessContractSchema.optional(),
+  task_success_contract_digest: digest.optional(),
   setup_digest: digest,
 }).strict().superRefine((setup, context) => {
   if (canonicalArtifactDigest(
@@ -219,6 +226,17 @@ export const internalPolicyCanarySetupSchema = z.object({
       message: "setup must publish Quick, Standard, and Deep exactly once",
     });
   }
+  if (
+    Boolean(setup.task_success_contract)
+      !== Boolean(setup.task_success_contract_digest)
+    || (setup.task_success_contract
+      && setup.task_success_contract_digest
+        !== setup.task_success_contract.contract_digest)
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["task_success_contract_digest"],
+    message: "task success contract digest mismatch",
+  });
 });
 
 export const internalPolicyCanarySelectionSchema = z.object({
@@ -233,6 +251,7 @@ export const internalPolicyCanarySelectionSchema = z.object({
   policy_candidate_ids: z.tuple([identifier, identifier]),
   episode_preset_id: z.literal("quick_10"),
   variation_matrix_digest: digest,
+  task_success_contract: confirmedRigidTaskSuccessContractSchema,
   notification: z.object({
     email: z.string().trim().email(),
     notify_on: z.tuple([
@@ -356,6 +375,7 @@ export type PolicyCanarySelectionResolution =
 export function resolveInternalPolicyCanarySelection(
   setup: InternalPolicyCanarySetup,
   selection: InternalPolicyCanarySelection,
+  expectedScope?: { siteId: string; taskId: string; teamId: string },
 ): PolicyCanarySelectionResolution {
   if (
     selection.offering_digest !== setup.offering_digest
@@ -365,6 +385,24 @@ export function resolveInternalPolicyCanarySelection(
     ok: false,
     code: "POLICY_CANARY_SETUP_CHANGED",
     message: "The configured scene or policy registry changed. Review the exact plan again.",
+  };
+  if (!setup.task_success_contract) return {
+    ok: false,
+    code: "TASK_SUCCESS_CONTRACT_NOT_PUBLISHED",
+    message: "The task/site team has not published an exact success contract for this run.",
+  };
+  if (!rigidTaskSuccessContractMatchesSelection({
+      published: setup.task_success_contract,
+      selected: selection.task_success_contract,
+      expectedSiteId: expectedScope?.siteId || setup.task_success_contract.scope.site_id,
+      expectedTaskId: expectedScope?.taskId || setup.task_success_contract.scope.task_id,
+      expectedTeamId: expectedScope?.teamId
+        || selection.task_success_contract.provenance.confirmed_by_team_id
+        || "",
+    })) return {
+    ok: false,
+    code: "TASK_SUCCESS_CONTRACT_CHANGED",
+    message: "The confirmed success criteria do not match the published task/site contract.",
   };
   const robot = setup.robot_presets.find(
     (candidate) => candidate.robot_preset_id === selection.robot_preset_id,
@@ -455,7 +493,15 @@ export function buildInternalPolicyCanaryLaunchRequest(params: {
   controlsStatusAtSubmission: "configured_controls_pending" | "evaluation_ready";
   authorizedAt: string;
 }) {
-  const resolved = resolveInternalPolicyCanarySelection(params.setup, params.selection);
+  const resolved = resolveInternalPolicyCanarySelection(
+    params.setup,
+    params.selection,
+    {
+      siteId: String(params.setup.task_success_contract?.scope.site_id || ""),
+      taskId: String(params.setup.task_success_contract?.scope.task_id || ""),
+      teamId: params.teamNamespace,
+    },
+  );
   if (!resolved.ok) throw new Error(resolved.code);
   const cells = resolved.preset.matrix.cells;
   const request: Record<string, unknown> = {
@@ -474,6 +520,8 @@ export function buildInternalPolicyCanaryLaunchRequest(params: {
     evaluation_run_spec: params.profile.evaluation_run_spec,
     scene_revision_digest: params.selection.scene_revision_digest,
     scene_controls_status_at_submission: params.controlsStatusAtSubmission,
+    task_success_contract: params.selection.task_success_contract,
+    task_success_contract_digest: params.selection.task_success_contract.contract_digest,
     team_namespace: params.teamNamespace,
     robot_preset_id: resolved.robot.robot_preset_id,
     policy_candidate_ids: params.selection.policy_candidate_ids,

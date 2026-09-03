@@ -3,6 +3,10 @@ import type { User as FirebaseUser } from "firebase/auth";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import {
+  rigidTaskSuccessContractSchema,
+  type RigidTaskSuccessContract,
+} from "@/lib/rigidTaskSuccessContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const reference = z.object({ uri: z.string().min(1), digest }).passthrough();
@@ -102,6 +106,8 @@ export const policyCanarySetupViewSchema = z.object({
     zero_action: z.enum(["nonblocking", "not_configured"]),
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
+  task_success_contract: rigidTaskSuccessContractSchema,
+  task_success_contract_digest: digest,
   setup_digest: digest,
   offering: z.object({
     scene_id: z.string(),
@@ -114,6 +120,7 @@ export const policyCanarySetupViewSchema = z.object({
   }).strict(),
   notification_recipient_email: z.string().email().nullable(),
   notification_recipient_options: z.array(z.string().email()).min(1),
+  task_success_contract_confirmation_team_id: z.string().trim().min(1),
   warning: z.literal("Controls pending — results are unqualified."),
   proof_boundary: z.object({
     controls_qualification_bypassed: z.literal(false),
@@ -173,6 +180,7 @@ export type PolicyCanarySelection = {
   policy_candidate_ids: [string, string];
   episode_preset_id: "quick_10";
   variation_matrix_digest: string;
+  task_success_contract: RigidTaskSuccessContract;
   notification: {
     email: string;
     notify_on: ["completed", "blocked", "cancelled"];

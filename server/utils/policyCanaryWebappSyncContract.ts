@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -47,6 +48,8 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   request_digest: digest,
   configuration_digest: digest,
   result_delivery_digest: digest,
+  task_success_contract: confirmedRigidTaskSuccessContractSchema.optional(),
+  task_success_contract_digest: digest.optional(),
   matrix_digest: digest.nullable().optional(),
   reproducibility: z.object({
     scene_revision_digest: digest,
@@ -131,7 +134,19 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   notification_delivery: pipelineNotificationSchema,
   blockers: z.array(nonEmpty).max(128),
   projection_digest: digest,
-}).strict();
+}).strict().superRefine((projection, context) => {
+  if (
+    Boolean(projection.task_success_contract)
+      !== Boolean(projection.task_success_contract_digest)
+    || (projection.task_success_contract
+      && projection.task_success_contract_digest
+        !== projection.task_success_contract.contract_digest)
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["task_success_contract_digest"],
+    message: "task success contract digest mismatch",
+  });
+});
 
 export const pipelinePolicyCanaryResultDeliverySchema = z.object({
   schema_version: z.literal("task_evaluation_result_delivery.v2"),

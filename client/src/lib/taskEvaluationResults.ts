@@ -5,6 +5,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import type { RigidTaskSuccessContract } from "@/lib/rigidTaskSuccessContract";
 
 export type TaskEvaluationResultArtifact = {
   artifact_id: string;
@@ -288,7 +289,9 @@ export type TaskEvaluationResultSiteRecord = {
       next_cheapest_experiment: string;
     };
     result_delivery?: TaskEvaluationResultDelivery;
-    policy_canary_result?: Record<string, any>;
+    policy_canary_result?: Record<string, any> & {
+      task_success_contract?: RigidTaskSuccessContract;
+    };
     proof_boundary: Record<string, unknown>;
   };
   score_correction?: PolicyCanaryScoreCorrectionSidecar;

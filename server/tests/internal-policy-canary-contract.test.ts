@@ -8,12 +8,46 @@ import {
 } from "../utils/internalPolicyCanaryContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
+  confirmRigidTaskSuccessContract,
+  sealRigidTaskSuccessContract,
+} from "../utils/rigidTaskSuccessContract";
+import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   loadPublishedLaunchProfiles,
 } from "../utils/taskEvaluationLaunchContract";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const ref = (character: string) => ({ uri: `gs://policy-canary/${character}`, digest: sha(character) });
+
+function taskSuccessContract(authorSource: "compatibility_default" | "agent_proposal" = "compatibility_default") {
+  return sealRigidTaskSuccessContract({
+    siteId: "scene-839873",
+    taskId: "simple-relocation",
+    authorSource,
+    authorId: authorSource === "agent_proposal" ? "episode-interpretation-agent:v1" : "blueprint:manipulation_strategy_defaults.v1",
+    confirmationStatus: authorSource === "agent_proposal" ? "proposal_only" : "confirmed",
+    criteria: {
+      destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0.41, -0.21, 0.72], maximum: [0.56, -0.06, 0.79] } },
+      orientation: { mode: "ignored", reference_xyzw: [0, 0, 0, 1], tolerance_rad: 0.35 },
+      support: { height_mode: "required", height_interval_m: [0.72, 0.79], contact_mode: "required" },
+      terminal_task_contact: { mode: "cleared" },
+      gripper_state: { mode: "ignored", threshold_m: null },
+      settling: { mode: "required", window_samples: 8, position_tolerance_m: 0.01, orientation_tolerance_rad: 0.08 },
+      safety: { mode: "required" },
+      motion: { movement_epsilon_m: 0.002, minimum_translation_m: 0.08, minimum_lift_m: null },
+      temporal_invariants: {
+        schema_version: "rigid_task_event_ledger_expectation.v1",
+        no_drop: { mode: "ignored", minimum_fall_m: 0.02 },
+        maximum_task_contact_force_n: null,
+        forbidden_contact_classes: [],
+        containment_excursions: "forbidden",
+        workspace_excursions: "ignored",
+        maximum_retries: null,
+        maximum_regrasps: null,
+      },
+    },
+  });
+}
 
 function setup() {
   const cells = Array.from({ length: 10 }, (_, index) => ({
@@ -81,6 +115,7 @@ function setup() {
     { ordered_cells: cells },
     "__no_digest_field__",
   );
+  const successContract = taskSuccessContract();
   const draft: Record<string, any> = {
     schema_version: "task_evaluation_policy_canary_setup.v1",
     source_launch_id: "scene-839873-launch",
@@ -111,6 +146,8 @@ function setup() {
       { ...quick, preset_id: "deep_500", label: "Deep", episodes_per_policy: 500, availability: "coming_later", recommended: false, matrix: { ...quick.matrix, cells: [] } },
     ],
     diagnostics: { zero_action: "nonblocking", deterministic_scripted_positive: "nonblocking" },
+    task_success_contract: successContract,
+    task_success_contract_digest: successContract.contract_digest,
     setup_digest: "",
   };
   for (const preset of draft.episode_presets) {
@@ -136,6 +173,7 @@ function selection(value = setup()) {
     policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
     episode_preset_id: "quick_10",
     variation_matrix_digest: value.episode_presets[0].matrix.matrix_digest,
+    task_success_contract: value.task_success_contract,
     notification: { email: "team@tryblueprint.io", notify_on: ["completed", "blocked", "cancelled"] },
     authorization: { maximum_cost_usd: 4.25, hard_ttl_seconds: 3600, maximum_provider_allocations: 1, retry_cap: 0 },
     confirm_unqualified_execution: true,
@@ -237,12 +275,46 @@ describe("internal policy canary contract", () => {
         resolved_seeds: [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
         diagnostic_control_rollouts: { total_count: 20, blocking_for_policy_execution: false },
       },
+      task_success_contract: {
+        schema_version: "rigid_task_success_contract.v1",
+        contract_digest: setupValue.task_success_contract?.contract_digest,
+      },
+      task_success_contract_digest: setupValue.task_success_contract?.contract_digest,
       notification: { email: "team@tryblueprint.io", notify_on: ["completed", "blocked", "cancelled"] },
       required_controls: { maximum_provider_allocations: 1, retry_cap: 0 },
       scene_promotion_permitted: false,
       official_ranking_permitted: false,
     });
     expect(request.request_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  it("refuses an agent proposal until a team-confirmed immutable successor is selected", () => {
+    const setupValue = setup();
+    setupValue.task_success_contract = taskSuccessContract("agent_proposal");
+    setupValue.setup_digest = canonicalArtifactDigest(setupValue, "setup_digest");
+
+    expect(() => internalPolicyCanarySelectionSchema.parse({
+      ...selection(setup()),
+      setup_digest: setupValue.setup_digest,
+      task_success_contract: setupValue.task_success_contract,
+    })).toThrow(/task success contract is not confirmed/);
+
+    const confirmed = confirmRigidTaskSuccessContract(
+      setupValue.task_success_contract,
+      "blueprint",
+    );
+    const confirmedSelection = internalPolicyCanarySelectionSchema.parse({
+      ...selection(setup()),
+      setup_digest: setupValue.setup_digest,
+      task_success_contract: confirmed,
+    });
+    expect(resolveInternalPolicyCanarySelection(
+      setupValue,
+      confirmedSelection,
+      { siteId: "scene-839873", taskId: "simple-relocation", teamId: "blueprint" },
+    )).toMatchObject({ ok: true });
+    expect(confirmed.contract_digest).not.toBe(setupValue.task_success_contract.contract_digest);
+    expect(confirmed.provenance.proposal_digest).toBe(setupValue.task_success_contract.contract_digest);
   });
 
   it("rejects a policy whose action schema does not match the selected embodiment", () => {
