@@ -17,6 +17,10 @@ import {
   type TaskEvaluationResultEpisode,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
+import {
+  humanPolicyCanaryEpisodeOutcome,
+  type PolicyCanaryScoreReceipt,
+} from "@/lib/policyCanaryEpisodeOutcome";
 
 async function downloadArtifact(
   user: FirebaseUser | null,
@@ -65,6 +69,70 @@ function terminalStatus(episode?: TaskEvaluationResultEpisode) {
     label: episode.score.status.replaceAll("_", " ") || "Status unavailable",
     tone: "warn" as const,
   };
+}
+
+function EpisodeOutcomeSummary({
+  artifact,
+  user,
+  recordId,
+}: {
+  artifact?: TaskEvaluationResultArtifact;
+  user: FirebaseUser | null;
+  recordId: string;
+}) {
+  const [receipt, setReceipt] = useState<PolicyCanaryScoreReceipt | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReceipt(null);
+    setFailed(false);
+    if (!artifact) return () => { cancelled = true; };
+    void (async () => {
+      try {
+        const url = await createTaskEvaluationResultArtifactTicket(
+          user,
+          recordId,
+          artifact.artifact_id,
+        );
+        const response = await fetch(url, { credentials: "include" });
+        if (!response.ok) throw new Error(`score receipt ${response.status}`);
+        const text = await response.text();
+        if (text.length > 256_000) throw new Error("score receipt too large");
+        const parsed = JSON.parse(text) as PolicyCanaryScoreReceipt;
+        if (!cancelled) setReceipt(parsed);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [artifact?.artifact_id, recordId, user]);
+
+  if (!artifact) return null;
+  if (!receipt) return <div className="mt-4 border-l-4 border-runway-amber bg-inset p-4" aria-live="polite">
+    <p className="runway-meta">Why this episode failed</p>
+    <p className="mt-1 text-body-s font-semibold text-ink-900">
+      {failed ? "Detailed score receipt could not be loaded" : "Loading deterministic score…"}
+    </p>
+  </div>;
+
+  const summary = humanPolicyCanaryEpisodeOutcome(receipt);
+  const border = summary.tone === "proof"
+    ? "border-runway-green"
+    : summary.tone === "warn"
+      ? "border-runway-amber"
+      : "border-runway-red";
+  return <div className={`mt-4 border-l-4 ${border} bg-inset p-4`} aria-live="polite">
+    <p className="runway-meta">{summary.tone === "proof" ? "Episode result" : "Why this episode failed"}</p>
+    <h4 className="mt-1 text-body font-semibold text-ink-900">{summary.title}</h4>
+    <p className="mt-1 text-body-s text-ink-600">{summary.explanation}</p>
+    <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-caption sm:grid-cols-3">
+      {summary.facts.map((fact) => <div key={fact.label}>
+        <dt className="text-ink-400">{fact.label}</dt>
+        <dd className="mt-0.5 font-semibold text-ink-800">{fact.value}</dd>
+      </div>)}
+    </dl>
+  </div>;
 }
 
 function EvidenceVideo({
@@ -311,6 +379,18 @@ export function PolicyCanaryEpisodeExplorer({
     publication.policy_canary_result?.counts?.learned_policy_rollout_count
       || plannedCellCount * Math.max(candidates.length, 2),
   );
+  const scoreReceiptByEpisodeId = useMemo(() => new Map<string, TaskEvaluationResultArtifact>(
+    (Array.isArray(publication.policy_canary_result?.episodes)
+      ? publication.policy_canary_result.episodes
+      : [])
+      .map((row: Record<string, any>) => [
+        String(row.episode_id || ""),
+        row.evidence?.score_receipt as TaskEvaluationResultArtifact | undefined,
+      ] as const)
+      .filter((row): row is readonly [string, TaskEvaluationResultArtifact] => (
+        Boolean(row[0]) && Boolean(row[1]?.artifact_id)
+      )),
+  ), [publication.policy_canary_result]);
   const firstEpisodeNumber = selectedIndex * Math.max(candidates.length, 2) + 1;
   const lastEpisodeNumber = Math.min(
     firstEpisodeNumber + Math.max(candidates.length, 2) - 1,
@@ -442,6 +522,11 @@ export function PolicyCanaryEpisodeExplorer({
               <span className="font-semibold">{episode.failure.code.replaceAll("_", " ")}.</span>{" "}
               {episode.failure.summary || "No additional failure summary was delivered."}
             </p> : null}
+            {episode ? <EpisodeOutcomeSummary
+              artifact={scoreReceiptByEpisodeId.get(episode.episode_id)}
+              user={user}
+              recordId={result.record_id}
+            /> : null}
             <div className="mt-4">
               <EvidenceVideo
                 artifact={artifact}
