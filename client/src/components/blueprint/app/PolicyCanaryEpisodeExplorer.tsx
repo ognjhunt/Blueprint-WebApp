@@ -19,7 +19,7 @@ import {
 } from "@/lib/taskEvaluationResults";
 
 async function downloadArtifact(
-  user: FirebaseUser,
+  user: FirebaseUser | null,
   recordId: string,
   artifact: TaskEvaluationResultArtifact,
 ) {
@@ -79,7 +79,7 @@ function EvidenceVideo({
   artifact?: TaskEvaluationResultArtifact;
   camera: string;
   policy: string;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
   recordId: string;
   selectedTimeSeconds: number | null;
   timebaseOffsetSeconds: number | null;
@@ -248,7 +248,7 @@ function EpisodeDownloads({
   recordId,
 }: {
   episode: TaskEvaluationResultEpisode;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
   recordId: string;
 }) {
   const artifacts = [
@@ -284,7 +284,7 @@ export function PolicyCanaryEpisodeExplorer({
   user,
 }: {
   result: TaskEvaluationResultSiteRecord;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
 }) {
   const publication = result.publication;
   const episodes = publication.result_delivery?.episodes || [];

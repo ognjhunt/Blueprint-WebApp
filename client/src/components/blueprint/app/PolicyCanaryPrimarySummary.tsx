@@ -22,7 +22,7 @@ function PrimaryDownload({
   artifact: TaskEvaluationResultArtifact | null;
   label: string;
   recordId: string;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
   async function download() {
@@ -67,7 +67,7 @@ export function PolicyCanaryPrimarySummary({
   user,
 }: {
   result: TaskEvaluationResultSiteRecord;
-  user: FirebaseUser;
+  user: FirebaseUser | null;
 }) {
   const publication = result.publication;
   const canary = publication.policy_canary_result || {};

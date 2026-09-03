@@ -181,7 +181,7 @@ export type TaskEvaluationResultSiteRecord = {
   schema_version: "task_evaluation_result_site_record.v1";
   record_id: string;
   organization_id: string;
-  access_visibility: "owner_only" | "organization_members";
+  access_visibility: "owner_only" | "organization_members" | "unlisted_public";
   created_at_iso?: string;
   updated_at_iso?: string;
   publication: {
@@ -204,7 +204,7 @@ export type TaskEvaluationResultSiteRecord = {
     policy_candidates?: Array<{ candidate_id: string; display_name: string; checkpoint_digest: string }>;
     submitted_by?: { actor_id: string; actor_role: string };
     team_namespace?: string;
-    access_visibility?: "owner_only" | "organization_members";
+    access_visibility?: "owner_only" | "organization_members" | "unlisted_public";
     started_at_iso?: string;
     completed_at_iso?: string;
     duration_seconds?: number;
@@ -266,10 +266,13 @@ async function fetchResults(currentUser: FirebaseUser): Promise<TaskEvaluationRe
   return response.json() as Promise<TaskEvaluationResultList>;
 }
 
-async function fetchResult(currentUser: FirebaseUser, recordId: string) {
-  const response = await authenticatedFetch(
-    currentUser,
+async function fetchResult(currentUser: FirebaseUser | null, recordId: string) {
+  const response = await fetch(
     `/api/task-evaluation-results/${encodeURIComponent(recordId)}`,
+    {
+      credentials: "include",
+      headers: await withFirebaseAuthHeaders(currentUser),
+    },
   );
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Failed to load sealed result (${response.status})`);
@@ -277,7 +280,7 @@ async function fetchResult(currentUser: FirebaseUser, recordId: string) {
 }
 
 export async function createTaskEvaluationResultArtifactTicket(
-  currentUser: FirebaseUser,
+  currentUser: FirebaseUser | null,
   recordId: string,
   artifactId: string,
 ) {
@@ -332,8 +335,8 @@ export function useTaskEvaluationResult(recordId: string) {
   const { currentUser, loading } = useAuth();
   const query = useQuery({
     queryKey: ["task-evaluation-result", currentUser?.uid || "anonymous", recordId],
-    enabled: Boolean(currentUser && !loading && recordId),
-    queryFn: () => fetchResult(currentUser!, recordId),
+    enabled: Boolean(!loading && recordId),
+    queryFn: () => fetchResult(currentUser, recordId),
     staleTime: 30_000,
   });
   return {

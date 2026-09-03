@@ -18,7 +18,7 @@ type ResultRecord = Record<string, any> & {
   record_id: string;
   owner_user_id: string;
   organization_id: string;
-  access_visibility: "owner_only" | "organization_members";
+  access_visibility: "owner_only" | "organization_members" | "unlisted_public";
   publication: Record<string, any>;
   publication_storage?: Record<string, any>;
 };
@@ -31,6 +31,15 @@ function firebaseTenantId(res: Response) {
 async function accessFor(record: ResultRecord, res: Response) {
   const access = await resolveAccessContext(res);
   const tenantId = firebaseTenantId(res);
+  const privateAudience = Boolean(access.uid) && (
+    access.isOps
+    || record.owner_user_id === access.uid
+    || (
+      record.access_visibility === "organization_members"
+      && Boolean(tenantId)
+      && record.organization_id === tenantId
+    )
+  );
   return {
     allowed: taskEvaluationResultAccessAllowed(record, {
       uid: access.uid,
@@ -38,18 +47,26 @@ async function accessFor(record: ResultRecord, res: Response) {
       isOps: access.isOps,
     }),
     access,
+    privateAudience,
   };
 }
 
-function publicRecord(record: ResultRecord) {
+function publicRecord(record: ResultRecord, options: { publicAudience?: boolean } = {}) {
+  const publication = structuredClone(record.publication);
+  if (options.publicAudience) {
+    delete publication.submitted_by;
+    delete publication.team_namespace;
+    delete publication.notification_delivery;
+    publication.access_visibility = "unlisted_public";
+  }
   return {
     schema_version: "task_evaluation_result_site_record.v1",
     record_id: record.record_id,
-    organization_id: record.organization_id,
+    organization_id: options.publicAudience ? "unlisted" : record.organization_id,
     access_visibility: record.access_visibility,
     created_at_iso: record.created_at_iso,
     updated_at_iso: record.updated_at_iso,
-    publication: record.publication,
+    publication,
   };
 }
 
@@ -118,7 +135,9 @@ router.get("/:recordId", async (req, res) => {
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
   res.set("Cache-Control", "private, no-store");
-  return res.status(200).json(publicRecord(record));
+  return res.status(200).json(publicRecord(record, {
+    publicAudience: !permission.privateAudience,
+  }));
 });
 
 router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
