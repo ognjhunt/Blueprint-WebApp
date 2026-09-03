@@ -21,9 +21,14 @@ import {
   publicationFromResultRecord,
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
+import {
+  verifyPolicyCanaryScoreCorrectionIngest,
+  policyCanaryScoreCorrectionStorageDecision,
+} from "../utils/policyCanaryScoreCorrectionContract";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
+const POLICY_CANARY_SCORE_CORRECTION_MAX_BYTES = 3 * 1024 * 1024;
 
 function sameScientificIdentity(left: Record<string, any>, right: Record<string, any>) {
   return [
@@ -394,6 +399,96 @@ async function handlePolicyCanaryPublication(
   });
 }
 
+async function handlePolicyCanaryScoreCorrection(
+  runId: string,
+  payload: unknown,
+  res: Response,
+) {
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(runId);
+  let policyRunSnapshot;
+  try {
+    policyRunSnapshot = await policyRunRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary run store is unavailable" });
+  }
+  if (!policyRunSnapshot.exists) return res.status(404).json({ error: "Policy canary run not found" });
+  const policyRun = policyRunSnapshot.data() as Record<string, any>;
+  const recordId = String(policyRun.result_record_id || "");
+  if (!recordId) return res.status(409).json({ error: "Completed policy canary result is not published" });
+  const resultRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
+  let resultSnapshot;
+  try {
+    resultSnapshot = await resultRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary result store is unavailable" });
+  }
+  if (!resultSnapshot.exists) return res.status(404).json({ error: "Policy canary result not found" });
+  const resultRecord = resultSnapshot.data() as Record<string, any>;
+  const publication = publicationFromResultRecord(resultRecord);
+  if (!publication) return res.status(409).json({ error: "Original policy canary publication is invalid" });
+  const verified = verifyPolicyCanaryScoreCorrectionIngest({
+    payload,
+    publication,
+    recordId,
+  });
+  if (!verified.ok) return res.status(400).json({
+    error: "Pipeline policy canary score correction is invalid",
+    code: verified.code,
+    ...(verified.details ? { details: verified.details } : {}),
+  });
+  let transactionResult: {
+    outcome: "created" | "replayed" | "conflict";
+    sidecar: typeof verified.sidecar | null;
+  };
+  try {
+    transactionResult = await db.runTransaction(async (transaction) => {
+      const latest = await transaction.get(resultRef);
+      if (!latest.exists) return { outcome: "conflict" as const, sidecar: null };
+      const current = latest.data() as Record<string, any>;
+      const currentPublication = publicationFromResultRecord(current);
+      if (!currentPublication || stableJson(currentPublication) !== stableJson(publication)) {
+        return { outcome: "conflict" as const, sidecar: null };
+      }
+      const decision = policyCanaryScoreCorrectionStorageDecision(
+        current.policy_canary_score_correction,
+        verified.sidecar,
+      );
+      if (decision.outcome !== "created") return decision;
+      transaction.set(resultRef, {
+        policy_canary_score_correction: verified.sidecar,
+        updated_at_iso: verified.sidecar.audit.verified_at_iso,
+      }, { merge: true });
+      transaction.set(policyRunRef, {
+        score_correction_digest: verified.sidecar.correction.correction_digest,
+        score_correction_sidecar_digest: verified.sidecar.sidecar_digest,
+        score_correction_applied_at_iso: verified.sidecar.audit.verified_at_iso,
+      }, { merge: true });
+      return { outcome: "created" as const, sidecar: verified.sidecar };
+    });
+  } catch {
+    return res.status(503).json({ error: "Policy canary score correction store is unavailable" });
+  }
+  if (transactionResult.outcome === "conflict" || !transactionResult.sidecar) return res.status(409).json({
+    error: "Immutable policy canary score correction conflict",
+    code: "POLICY_CANARY_SCORE_CORRECTION_IMMUTABLE_CONFLICT",
+  });
+  res.set("Cache-Control", "no-store");
+  const storedSidecar = transactionResult.sidecar;
+  return res.status(transactionResult.outcome === "created" ? 201 : 200).json({
+    schema_version: "capture_task_evaluation_policy_canary_score_correction_receipt.v1",
+    status: "completed_unqualified",
+    already_exists: transactionResult.outcome === "replayed",
+    run_id: runId,
+    result_record_id: recordId,
+    correction_id: storedSidecar.correction.correction_id,
+    correction_digest: storedSidecar.correction.correction_digest,
+    sidecar_digest: storedSidecar.sidecar_digest,
+    original_publication_preserved: true,
+    winner_declared: false,
+  });
+}
+
 async function resolveBlockedPolicyRun(payload: PipelinePolicyCanaryPreproviderBlocked) {
   if (!db) return { status: "not_found" as const };
   const collection = db.collection("taskEvaluationPolicyRuns");
@@ -546,6 +641,25 @@ async function handlePolicyCanaryPreproviderBlocked(
     notification_delivery: notification,
   });
 }
+
+router.post(
+  "/capture-task-evaluation-runs/:runId/score-corrections",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    const rawBody = typeof (req as Request & { rawBody?: string }).rawBody === "string"
+      ? (req as Request & { rawBody?: string }).rawBody || "{}"
+      : JSON.stringify(req.body ?? {});
+    if (Buffer.byteLength(rawBody) > POLICY_CANARY_SCORE_CORRECTION_MAX_BYTES) {
+      return res.status(413).json({
+        error: "Policy canary score correction payload is too large",
+        code: "POLICY_CANARY_SCORE_CORRECTION_TOO_LARGE",
+        maximum_bytes: POLICY_CANARY_SCORE_CORRECTION_MAX_BYTES,
+      });
+    }
+    return handlePolicyCanaryScoreCorrection(req.params.runId, req.body, res);
+  },
+);
 
 router.post("/capture-task-evaluation-runs", rateLimiter, requirePipelineSignature, async (req, res) => {
   if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });

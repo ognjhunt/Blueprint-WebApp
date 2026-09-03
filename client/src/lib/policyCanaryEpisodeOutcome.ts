@@ -13,6 +13,21 @@ export type PolicyCanaryScoreReceipt = {
     released?: boolean;
     native_safety_ok?: boolean;
   };
+  failure_reason_plain_english?: string | null;
+  failed_criteria?: string[];
+  task_success_contract?: {
+    criteria?: { temporal_invariants?: { no_drop?: { mode?: "required" | "ignored" } } };
+  };
+  event_ledger?: {
+    drop_events?: Array<{ step_index?: number; fall_m?: number; [key: string]: unknown }>;
+    peak_task_contact_force_n?: number | null;
+    observed_contact_classes?: string[];
+    observed_forbidden_contact_classes?: string[];
+    containment_excursion_steps?: number[];
+    workspace_excursion_steps?: number[];
+    maximum_retries_observed?: number | null;
+    maximum_regrasps_observed?: number | null;
+  };
 };
 
 export type PolicyCanaryEpisodeOutcomeSummary = {
@@ -41,14 +56,19 @@ export function humanPolicyCanaryEpisodeOutcome(
   const supportFailed = measurements.settle_support_height_ok === false;
   const orientationFailed = measurements.settle_orientation_ok === false;
   const liftedMeaningfully = Number(measurements.maximum_lift_m || 0) >= 0.02;
+  const drops = receipt.event_ledger?.drop_events || [];
+  const noDropRequired = receipt.task_success_contract?.criteria?.temporal_invariants
+    ?.no_drop?.mode === "required";
 
   let title = "Task was not completed";
   let explanation = "The deterministic scorer did not report a more specific terminal reason.";
   let tone: PolicyCanaryEpisodeOutcomeSummary["tone"] = "block";
 
   if (receipt.task_succeeded === true || outcome === "placed_and_settled") {
-    title = "Task completed";
-    explanation = "The object finished inside the target, settled safely, and the robot released it.";
+    title = drops.length ? "Task completed after recovery" : "Task completed";
+    explanation = drops.length
+      ? `The object was dropped ${drops.length} time${drops.length === 1 ? "" : "s"}, then recovered and satisfied the terminal task criteria. This contract did not prohibit drops.`
+      : "The object finished inside the target and satisfied the deterministic terminal criteria.";
     tone = "proof";
   } else if (outcome === "collision_or_containment_failure") {
     title = "Collision or workspace violation";
@@ -80,6 +100,9 @@ export function humanPolicyCanaryEpisodeOutcome(
     explanation = "The episode ran, but the support-contact readback needed to interpret the final object state was not delivered.";
     tone = "warn";
   }
+  if (receipt.task_succeeded === false && receipt.failure_reason_plain_english) {
+    explanation = receipt.failure_reason_plain_english;
+  }
 
   return {
     title,
@@ -92,6 +115,38 @@ export function humanPolicyCanaryEpisodeOutcome(
       { label: "Released", value: yesNo(measurements.released) },
       { label: "Support height valid", value: yesNo(measurements.settle_support_height_ok) },
       { label: "Safety checks passed", value: yesNo(measurements.native_safety_ok) },
+      {
+        label: "Drop events",
+        value: drops.length
+          ? `${drops.length} observed · ${noDropRequired ? "prohibited" : "recovery allowed"}`
+          : "None observed",
+      },
+      {
+        label: "Peak task force",
+        value: typeof receipt.event_ledger?.peak_task_contact_force_n === "number"
+          ? `${receipt.event_ledger.peak_task_contact_force_n.toFixed(2)} N`
+          : "Not reported",
+      },
+      {
+        label: "Failed criteria",
+        value: receipt.failed_criteria?.length
+          ? receipt.failed_criteria.map((value) => value.replaceAll("_", " ")).join(", ")
+          : "None",
+      },
+      {
+        label: "Observed contacts",
+        value: receipt.event_ledger?.observed_contact_classes?.length
+          ? receipt.event_ledger.observed_contact_classes.join(", ")
+          : "None reported",
+      },
+      {
+        label: "Containment / workspace excursions",
+        value: `${receipt.event_ledger?.containment_excursion_steps?.length || 0} / ${receipt.event_ledger?.workspace_excursion_steps?.length || 0}`,
+      },
+      {
+        label: "Retries / regrasps",
+        value: `${receipt.event_ledger?.maximum_retries_observed ?? "Not reported"} / ${receipt.event_ledger?.maximum_regrasps_observed ?? "Not reported"}`,
+      },
     ],
   };
 }

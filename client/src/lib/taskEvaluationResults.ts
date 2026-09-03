@@ -107,11 +107,72 @@ export type TaskEvaluationResultEpisode = {
     disk_written_bytes: number | null;
   };
   video_timebase_offsets_seconds?: Record<string, number>;
+  corrected_score?: PolicyCanaryCorrectedScore;
   artifacts?: {
     receipt: TaskEvaluationResultArtifact;
     frame_manifest: TaskEvaluationResultArtifact;
     videos: Record<"external" | "wrist" | "overview", TaskEvaluationResultArtifact>;
   };
+};
+
+export type PolicyCanaryCorrectedScore = {
+  status?: string;
+  outcome?: string;
+  task_succeeded?: boolean;
+  criteria_satisfied?: Record<string, boolean>;
+  failed_criteria?: string[];
+  failure_reason_plain_english?: string | null;
+  measurements?: Record<string, unknown>;
+  task_success_contract?: Record<string, any>;
+  task_success_contract_digest?: string;
+  event_ledger?: {
+    drop_events?: Array<Record<string, any>>;
+    peak_task_contact_force_n?: number | null;
+    observed_contact_classes?: string[];
+    observed_forbidden_contact_classes?: string[];
+    containment_excursion_steps?: number[];
+    workspace_excursion_steps?: number[];
+    maximum_retries_observed?: number | null;
+    maximum_regrasps_observed?: number | null;
+    required_readback_gaps?: string[];
+  };
+  report_digest?: string;
+  [key: string]: unknown;
+};
+
+export type PolicyCanaryScoreCorrectionSidecar = {
+  schema_version: "task_evaluation_policy_canary_score_correction_sidecar.v1";
+  correction: {
+    schema_version: "task_evaluation_policy_canary_score_correction.v1";
+    correction_id: string;
+    correction_digest: string;
+    source_run_id: string;
+    source_result_status: "completed_unqualified";
+    corrected_result_status: "completed_unqualified";
+    episode_count: 20;
+    score_updates: Array<{
+      candidate_id: string;
+      cell_id: string;
+      seed: number;
+      old_score_digest: string;
+      new_score_digest: string;
+      new_score: PolicyCanaryCorrectedScore;
+    }>;
+    [key: string]: unknown;
+  };
+  source_binding: {
+    source_projection_digest: string;
+    source_delivery_digest: string;
+    [key: string]: unknown;
+  };
+  audit: {
+    original_publication_preserved: true;
+    original_score_receipts_preserved: true;
+    corrected_result_status: "completed_unqualified";
+    winner_declared: false;
+    [key: string]: unknown;
+  };
+  sidecar_digest: string;
 };
 
 export type TaskEvaluationResultDelivery = {
@@ -230,6 +291,7 @@ export type TaskEvaluationResultSiteRecord = {
     policy_canary_result?: Record<string, any>;
     proof_boundary: Record<string, unknown>;
   };
+  score_correction?: PolicyCanaryScoreCorrectionSidecar;
 };
 
 export class TaskEvaluationArtifactTicketError extends Error {
