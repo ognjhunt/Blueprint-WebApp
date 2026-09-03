@@ -211,7 +211,23 @@ describe("PolicyCanaryResultPortal", () => {
   });
 
   it("leads with the Quick-10 summary, primary downloads, and ordered cell navigator", () => {
-    render(<PolicyCanaryResultPortal result={result()} user={{ uid: "member-1" } as any} />);
+    const interpreted = result();
+    interpreted.publication.result_delivery!.episodes[0].interpretation = {
+      status: "completed",
+      abstention_reason: null,
+      episode_outcome: "appears_complete",
+      summary: "The mug appears to reach the target after one recovery.",
+      events: [],
+      possible_missed_events: [],
+      contract_considerations: ["A no-drop contract would change the deterministic outcome."],
+      confidence: 0.82,
+      deterministic_agreement: "disagrees",
+      receipt: artifact("i", "episode_interpretation_receipt"),
+      learned_interpretation_only: true,
+      authoritative_task_success_unchanged: true,
+      ranking_or_promotion_effect: "none",
+    };
+    render(<PolicyCanaryResultPortal result={interpreted} user={{ uid: "member-1" } as any} />);
 
     expect(screen.getByRole("heading", {
       name: "10 scenario cells · 2 policies · 20 episodes",
@@ -231,6 +247,9 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getAllByText(/quick10\.00\.canonical_anchor/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Uninterpretable").length).toBeGreaterThan(0);
+    expect(screen.getByText("Independent learned interpretation")).toBeTruthy();
+    expect(screen.getByText(/deterministic score unchanged/i)).toBeTruthy();
+    expect(screen.getByText(/disagrees with deterministic scoring/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText("Cell 2 of 10 · Episodes 3–4 of 20")).toBeTruthy();

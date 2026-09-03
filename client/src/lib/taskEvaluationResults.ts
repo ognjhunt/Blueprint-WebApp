@@ -109,6 +109,21 @@ export type TaskEvaluationResultEpisode = {
   };
   video_timebase_offsets_seconds?: Record<string, number>;
   corrected_score?: PolicyCanaryCorrectedScore;
+  interpretation?: {
+    status: "completed" | "abstained";
+    abstention_reason: string | null;
+    episode_outcome: "appears_complete" | "appears_incomplete" | "unclear";
+    summary: string;
+    events: Array<Record<string, unknown>>;
+    possible_missed_events: Array<Record<string, unknown>>;
+    contract_considerations: string[];
+    confidence: number;
+    deterministic_agreement: "agrees" | "disagrees" | "abstains";
+    receipt: TaskEvaluationResultArtifact;
+    learned_interpretation_only: true;
+    authoritative_task_success_unchanged: true;
+    ranking_or_promotion_effect: "none";
+  } | null;
   artifacts?: {
     receipt: TaskEvaluationResultArtifact;
     frame_manifest: TaskEvaluationResultArtifact;

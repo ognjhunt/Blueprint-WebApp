@@ -95,6 +95,44 @@ const resultArtifactSchema = z.object({
   access_mode: z.enum(["authenticated_ticket", "inline", "restricted", "not_reported"]).optional(),
 }).strict();
 
+const episodeInterpretationSchema = z.object({
+  status: z.enum(["completed", "abstained"]),
+  abstention_reason: z.string().trim().min(1).max(128).nullable(),
+  episode_outcome: z.enum(["appears_complete", "appears_incomplete", "unclear"]),
+  summary: z.string().trim().min(1).max(8_000),
+  events: z.array(z.unknown()).max(200),
+  possible_missed_events: z.array(z.unknown()).max(100),
+  contract_considerations: z.array(z.string().trim().min(1).max(2_000)).max(100),
+  confidence: z.number().min(0).max(1),
+  deterministic_agreement: z.enum(["agrees", "disagrees", "abstains"]),
+  receipt: resultArtifactSchema,
+  learned_interpretation_only: z.literal(true),
+  authoritative_task_success_unchanged: z.literal(true),
+  ranking_or_promotion_effect: z.literal("none"),
+}).strict();
+
+const episodeInterpretationSummarySchema = z.object({
+  schema_version: z.literal("policy_canary_episode_interpretation_closeout.v1"),
+  status: z.enum(["completed", "partial", "abstained"]),
+  episode_count: z.number().int().min(0).max(20),
+  receipt_count: z.number().int().min(0).max(20),
+  completed_count: z.number().int().min(0).max(20),
+  abstained_count: z.number().int().min(0).max(20),
+  disagreement_count: z.number().int().min(0).max(20),
+  reused_receipt_count: z.number().int().min(0).max(20),
+  provider_call_count: z.number().int().min(0).max(20),
+  provider_invocation_attempt_count: z.number().int().min(0).max(20),
+  input_bundle_unavailable_count: z.number().int().min(0).max(20),
+  interpreter: z.record(z.string(), z.unknown()).nullable().optional(),
+  interpreter_profile_digest: digest.nullable().optional(),
+  official_cost_completion_error_type: z.string().trim().min(1).max(256).nullable().optional(),
+  closeout_error_type: z.string().trim().min(1).max(256).nullable().optional(),
+  authoritative_deterministic_result_unchanged: z.literal(true),
+  score_overwrite_performed: z.literal(false),
+  ranking_or_promotion_effect: z.literal("none"),
+  summary_digest: digest,
+}).strict();
+
 export const taskEvaluationResultDeliverySchema = z.object({
   schema_version: z.literal("task_evaluation_result_delivery.v1"),
   run_id: identifier,
@@ -235,6 +273,7 @@ const policyCanaryEpisodeSchema = z.object({
     z.string().trim().min(1),
     z.number().finite(),
   ).optional(),
+  interpretation: episodeInterpretationSchema.nullable().optional(),
 }).strict().superRefine((episode, context) => {
   if (episode.episode_kind === "learned_candidate" && !episode.policy_candidate_id) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["policy_candidate_id"], message: "learned episode requires policy identity" });
@@ -266,6 +305,7 @@ export const policyCanaryResultDeliverySchema = z.object({
     successful_episode_count: z.number().int().nonnegative(),
     interpretable_episode_count: z.number().int().nonnegative(),
   }).strict(),
+  episode_interpretation: episodeInterpretationSummarySchema.optional(),
   episodes: z.array(policyCanaryEpisodeSchema),
   artifacts: z.array(resultArtifactSchema),
   proof_boundary: z.object({
@@ -286,6 +326,7 @@ export const policyCanaryResultProjectionSchema = z.object({
   matrix_digest: digest,
   task_success_contract: confirmedRigidTaskSuccessContractSchema.optional(),
   task_success_contract_digest: digest.optional(),
+  episode_interpretation: episodeInterpretationSummarySchema.optional(),
   candidate_results: z.array(z.object({
     candidate_id: identifier,
     display_name: nonEmpty,
