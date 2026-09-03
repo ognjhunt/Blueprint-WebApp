@@ -55,6 +55,13 @@ function fixture() {
       criteria_satisfied: { destination_containment: true, no_drop: true },
       event_ledger: {
         schema_version: "rigid_task_event_ledger.v1",
+        safety_events: cell === 1 ? [{
+          event_type: "forbidden_robot_object_contact_force_exceeded",
+          step_index: 72,
+          measured_force_n: 4.519,
+          threshold_n: 1,
+          contact_pair_identity_status: "contact_pair_identity_missing",
+        }] : [],
         drop_events: cell === 9 ? [{ step_index: 22, fall_m: 0.04 }] : [],
         peak_task_contact_force_n: 6.4,
         task_contact_force_sources: ["native_contact_sensor"],

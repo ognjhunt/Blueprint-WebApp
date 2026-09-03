@@ -21,6 +21,7 @@ const correctedScoreDocumentSchema = scoreDocumentSchema.extend({
   measurements: jsonRecord,
   event_ledger: z.object({
     schema_version: z.literal("rigid_task_event_ledger.v1"),
+    safety_events: z.array(jsonRecord).optional(),
     drop_events: z.array(jsonRecord),
     peak_task_contact_force_n: z.number().finite().nonnegative().nullable(),
     task_contact_force_sources: z.array(nonEmpty),
