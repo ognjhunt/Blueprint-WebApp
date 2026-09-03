@@ -25,10 +25,14 @@ import {
   verifyPolicyCanaryScoreCorrectionIngest,
   policyCanaryScoreCorrectionTransition,
 } from "../utils/policyCanaryScoreCorrectionContract";
+import {
+  verifyPolicyCanaryEpisodeInterpretationSidecar,
+} from "../utils/policyCanaryEpisodeInterpretationSidecar";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
 const POLICY_CANARY_SCORE_CORRECTION_MAX_BYTES = 3 * 1024 * 1024;
+const POLICY_CANARY_EPISODE_INTERPRETATION_MAX_BYTES = 768 * 1024;
 
 function sameScientificIdentity(left: Record<string, any>, right: Record<string, any>) {
   return [
@@ -529,6 +533,106 @@ async function handlePolicyCanaryScoreCorrection(
   });
 }
 
+async function handlePolicyCanaryEpisodeInterpretationBackfill(
+  runId: string,
+  payload: unknown,
+  res: Response,
+) {
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(runId);
+  let policyRunSnapshot;
+  try {
+    policyRunSnapshot = await policyRunRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary run store is unavailable" });
+  }
+  if (!policyRunSnapshot.exists) return res.status(404).json({ error: "Policy canary run not found" });
+  const policyRun = policyRunSnapshot.data() as Record<string, any>;
+  const recordId = String(policyRun.result_record_id || "");
+  if (!recordId) return res.status(409).json({ error: "Completed policy canary result is not published" });
+  const resultRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
+  const sidecarRef = db.collection(
+    "taskEvaluationPolicyCanaryEpisodeInterpretations",
+  ).doc(recordId);
+  let resultSnapshot;
+  try {
+    resultSnapshot = await resultRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary result store is unavailable" });
+  }
+  if (!resultSnapshot.exists) return res.status(404).json({ error: "Policy canary result not found" });
+  const publication = publicationFromResultRecord(
+    resultSnapshot.data() as Record<string, any>,
+  );
+  const parsedPublication = parsePipelinePolicyCanaryPublication(publication);
+  if (!parsedPublication.ok) return res.status(409).json({
+    error: "Original policy canary publication is invalid",
+  });
+  const verified = verifyPolicyCanaryEpisodeInterpretationSidecar({
+    payload,
+    publication: parsedPublication.publication,
+    recordId,
+    scoreCorrectionSidecarDigest: String(
+      (resultSnapshot.data() as Record<string, any>)
+        .policy_canary_score_correction?.sidecar_digest || "",
+    ) || null,
+  });
+  if (!verified.ok) return res.status(400).json({
+    error: "Pipeline episode interpretation backfill is invalid",
+    code: verified.code,
+  });
+  let outcome: "created" | "replayed" | "conflict";
+  try {
+    outcome = await db.runTransaction(async (transaction) => {
+      const [latest, existingSidecar] = await Promise.all([
+        transaction.get(resultRef),
+        transaction.get(sidecarRef),
+      ]);
+      if (!latest.exists) return "conflict" as const;
+      const current = latest.data() as Record<string, any>;
+      const currentPublication = publicationFromResultRecord(current);
+      if (!currentPublication || stableJson(currentPublication) !== stableJson(publication)) {
+        return "conflict" as const;
+      }
+      if (existingSidecar.exists) {
+        return stableJson(existingSidecar.data()) === stableJson(verified.sidecar)
+          ? "replayed" as const
+          : "conflict" as const;
+      }
+      transaction.set(resultRef, {
+        policy_canary_episode_interpretation_sidecar_digest:
+          verified.sidecar.sidecar_digest,
+        updated_at_iso: verified.sidecar.audit.verified_at_iso,
+      }, { merge: true });
+      transaction.create(sidecarRef, verified.sidecar);
+      transaction.set(policyRunRef, {
+        episode_interpretation_backfill_status: verified.sidecar.summary.status,
+        episode_interpretation_sidecar_digest: verified.sidecar.sidecar_digest,
+        episode_interpretation_applied_at_iso: verified.sidecar.audit.verified_at_iso,
+      }, { merge: true });
+      return "created" as const;
+    });
+  } catch {
+    return res.status(503).json({ error: "Episode interpretation backfill store is unavailable" });
+  }
+  if (outcome === "conflict") return res.status(409).json({
+    error: "Immutable episode interpretation backfill conflict",
+    code: "POLICY_CANARY_EPISODE_INTERPRETATION_IMMUTABLE_CONFLICT",
+  });
+  res.set("Cache-Control", "no-store");
+  return res.status(outcome === "created" ? 201 : 200).json({
+    schema_version: "capture_task_evaluation_episode_interpretation_backfill_receipt.v1",
+    status: verified.sidecar.summary.status,
+    already_exists: outcome === "replayed",
+    run_id: runId,
+    result_record_id: recordId,
+    sidecar_digest: verified.sidecar.sidecar_digest,
+    original_publication_preserved: true,
+    deterministic_scores_unchanged: true,
+    ranking_or_promotion_effect: "none",
+  });
+}
+
 async function resolveBlockedPolicyRun(payload: PipelinePolicyCanaryPreproviderBlocked) {
   if (!db) return { status: "not_found" as const };
   const collection = db.collection("taskEvaluationPolicyRuns");
@@ -698,6 +802,29 @@ router.post(
       });
     }
     return handlePolicyCanaryScoreCorrection(req.params.runId, req.body, res);
+  },
+);
+
+router.post(
+  "/capture-task-evaluation-runs/:runId/episode-interpretation-backfills",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    const rawBody = typeof (req as Request & { rawBody?: string }).rawBody === "string"
+      ? (req as Request & { rawBody?: string }).rawBody || "{}"
+      : JSON.stringify(req.body ?? {});
+    if (Buffer.byteLength(rawBody) > POLICY_CANARY_EPISODE_INTERPRETATION_MAX_BYTES) {
+      return res.status(413).json({
+        error: "Episode interpretation backfill payload is too large",
+        code: "POLICY_CANARY_EPISODE_INTERPRETATION_TOO_LARGE",
+        maximum_bytes: POLICY_CANARY_EPISODE_INTERPRETATION_MAX_BYTES,
+      });
+    }
+    return handlePolicyCanaryEpisodeInterpretationBackfill(
+      req.params.runId,
+      req.body,
+      res,
+    );
   },
 );
 
