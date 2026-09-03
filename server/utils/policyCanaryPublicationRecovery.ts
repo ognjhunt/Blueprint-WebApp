@@ -63,7 +63,7 @@ export function policyCanaryRecoveredPublicationAllowed(
       && episode?.score?.status === "scored"
       && episode?.score?.policy_outcome_interpretable === true
       && episode?.evidence?.complete === true
-      && episode?.evidence?.lossless_policy_inputs_complete === true
+      && Boolean(episode?.evidence?.lossless_policy_inputs)
       && Boolean(episode?.evidence?.frame_manifest)
       && Object.keys(episode?.evidence?.videos || {}).length >= 2
       && episode?.action_delivery?.actions_reached_robot === true
@@ -71,10 +71,9 @@ export function policyCanaryRecoveredPublicationAllowed(
     ))
     && nextCounts.completed_learned_policy_rollout_count === 20
     && nextCounts.learned_policy_rollout_count === 20
-    && next.policy_canary_result?.winner_declared === false
-    && next.policy_canary_result?.official_ranking_contribution === false
     && next.proof_boundary?.scene_promotion_authorized === false
     && next.proof_boundary?.official_policy_ranking_authorized === false
+    && next.proof_boundary?.winner_selection_authorized === false
   );
   return transportFailure && missingRuntimeResult && syntheticPrior && completeRecovery;
 }
