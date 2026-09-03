@@ -289,8 +289,8 @@ describe("PolicyCanaryResultPortal", () => {
     render(<PolicyCanaryResultPortal result={corrected} user={{ uid: "member-1" } as any} />);
 
     expect(screen.getByText("Deterministic score correction applied; original preserved")).toBeTruthy();
-    expect(screen.getByText("Task completed after recovery")).toBeTruthy();
-    expect(screen.getByText("1 observed · recovery allowed")).toBeTruthy();
+    expect(screen.getByText("Task completed after an unsupported fall")).toBeTruthy();
+    expect(screen.getByText("1 unsupported fall · recovery allowed")).toBeTruthy();
     expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
     expect(screen.getByText("No corrected episode failed a task criterion.")).toBeTruthy();
   });
