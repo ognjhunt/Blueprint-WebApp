@@ -9,6 +9,7 @@ vi.mock("@/lib/taskEvaluationResults", async (importOriginal) => ({
 }));
 
 import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
+import { TaskEvaluationArtifactTicketError } from "@/lib/taskEvaluationResults";
 import type { TaskEvaluationResultSiteRecord } from "@/lib/taskEvaluationResults";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -251,5 +252,23 @@ describe("PolicyCanaryResultPortal", () => {
       "External camera evidence for Policy A",
     )).toBeTruthy());
     expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
+  it("shows the actionable retry window when video authorization is throttled", async () => {
+    createArtifactTicket.mockRejectedValueOnce(
+      new TaskEvaluationArtifactTicketError(
+        "Playback is temporarily rate-limited. Retry in 42 seconds.",
+        { status: 429, retryAfterSeconds: 42 },
+      ),
+    );
+    render(<PolicyCanaryResultPortal result={result()} user={{ uid: "member-1" } as any} />);
+
+    fireEvent.click(screen.getByRole("button", {
+      name: "Load External camera video for Policy A",
+    }));
+
+    expect(await screen.findByText(
+      "Playback is temporarily rate-limited. Retry in 42 seconds.",
+    )).toBeTruthy();
   });
 });

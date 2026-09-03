@@ -232,6 +232,21 @@ export type TaskEvaluationResultSiteRecord = {
   };
 };
 
+export class TaskEvaluationArtifactTicketError extends Error {
+  readonly status: number;
+  readonly retryAfterSeconds: number | null;
+
+  constructor(message: string, options: {
+    status: number;
+    retryAfterSeconds: number | null;
+  }) {
+    super(message);
+    this.name = "TaskEvaluationArtifactTicketError";
+    this.status = options.status;
+    this.retryAfterSeconds = options.retryAfterSeconds;
+  }
+}
+
 type TaskEvaluationResultList = {
   scope: "owner" | "organization" | "blueprint_operations";
   public_leaderboard: false;
@@ -278,7 +293,21 @@ export async function createTaskEvaluationResultArtifactTicket(
       body: "{}",
     },
   );
-  if (!response.ok) throw new Error(`Failed to authorize result artifact (${response.status})`);
+  if (!response.ok) {
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.ceil(retryAfter)
+      : null;
+    const message = response.status === 429
+      ? `Playback is temporarily rate-limited.${retryAfterSeconds
+        ? ` Retry in ${retryAfterSeconds} seconds.`
+        : " Please retry shortly."}`
+      : `Failed to authorize result artifact (${response.status})`;
+    throw new TaskEvaluationArtifactTicketError(message, {
+      status: response.status,
+      retryAfterSeconds,
+    });
+  }
   const ticket = await response.json() as { download_url: string };
   return ticket.download_url;
 }

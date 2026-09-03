@@ -12,6 +12,7 @@ import {
 import {
   createTaskEvaluationResultArtifactTicket,
   humanBytes,
+  TaskEvaluationArtifactTicketError,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultEpisode,
   type TaskEvaluationResultSiteRecord,
@@ -113,9 +114,11 @@ function EvidenceVideo({
         artifact.artifact_id,
       ));
       setState("ready");
-    } catch {
+    } catch (reason) {
       setState("failed");
-      setError("The video could not be loaded. Try again.");
+      setError(reason instanceof TaskEvaluationArtifactTicketError
+        ? reason.message
+        : "The video could not be loaded. Try again.");
     }
   }
 
