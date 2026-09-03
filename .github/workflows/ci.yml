@@ -88,7 +88,10 @@ jobs:
           if-no-files-found: ignore
 
       - name: Dependency security audit (production deps, fail on high+)
-        run: npm audit --omit=dev --audit-level=high
+        # Audit the committed lock directly. `npm ci` has already proven the
+        # install, while npm's retiring quick-audit endpoint can reject the
+        # realized peer tree as "invalid" before returning any advisories.
+        run: timeout 360 npm audit --package-lock-only --omit=dev --audit-level=high
 
   rules-emulator:
     runs-on: ubuntu-latest
