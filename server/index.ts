@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createServer } from "http";
 import rateLimit from "express-rate-limit";
+import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 
 import { registerRoutes } from "./routes";
 import { stripeWebhookHandler } from "./routes/stripe-webhooks";
@@ -114,7 +115,11 @@ const globalLimiter = createRateLimiter({
   windowMs: globalRateLimitWindowMs,
   limit: globalRateLimitMax,
   prefix: "rl:global:",
-  skipPaths: ["/health", "/site-worlds/sessions"],
+  // Signed result downloads carry a short-lived HMAC ticket and re-check the
+  // immutable per-run artifact registry. HTML video players issue many Range
+  // requests while seeking; counting those chunks against the ordinary API
+  // budget makes valid evidence playback fail partway through a review.
+  skipPaths: [...GLOBAL_RATE_LIMIT_SKIP_PATHS],
 });
 
 const aiLimiter = createRateLimiter({
