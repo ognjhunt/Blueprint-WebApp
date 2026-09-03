@@ -176,6 +176,7 @@ function selection(value = setup()) {
     task_success_contract: value.task_success_contract,
     notification: { email: "team@tryblueprint.io", notify_on: ["completed", "blocked", "cancelled"] },
     authorization: { maximum_cost_usd: 4.25, hard_ttl_seconds: 3600, maximum_provider_allocations: 1, retry_cap: 0 },
+    episode_interpretation: { enabled: true, external_disclosure_authorized: true, provider_training_authorized: false, public_redistribution_authorized: false, maximum_cost_usd: 1.5 },
     confirm_unqualified_execution: true,
   });
 }
@@ -280,12 +281,22 @@ describe("internal policy canary contract", () => {
         contract_digest: setupValue.task_success_contract?.contract_digest,
       },
       task_success_contract_digest: setupValue.task_success_contract?.contract_digest,
+      episode_interpretation_authority: {
+        run_id: "scene-839873-policy-canary-001",
+        interpreter_profile_digest: "sha256:eca3944e331b60cc08fdb1548d753be7c1b513b7b703ad5fce8401b09eb83baf",
+        maximum_cost_usd: 1.5,
+        provider_training_authorized: false,
+        public_redistribution_authorized: false,
+      },
       notification: { email: "team@tryblueprint.io", notify_on: ["completed", "blocked", "cancelled"] },
       required_controls: { maximum_provider_allocations: 1, retry_cap: 0 },
       scene_promotion_permitted: false,
       official_ranking_permitted: false,
     });
     expect(request.request_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(request.episode_interpretation_authority.authority_digest).toMatch(
+      /^sha256:[0-9a-f]{64}$/,
+    );
   });
 
   it("refuses an agent proposal until a team-confirmed immutable successor is selected", () => {

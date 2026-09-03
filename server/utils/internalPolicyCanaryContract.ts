@@ -266,6 +266,13 @@ export const internalPolicyCanarySelectionSchema = z.object({
     maximum_provider_allocations: z.literal(1),
     retry_cap: z.literal(0),
   }).strict(),
+  episode_interpretation: z.object({
+    enabled: z.literal(true),
+    external_disclosure_authorized: z.literal(true),
+    provider_training_authorized: z.literal(false),
+    public_redistribution_authorized: z.literal(false),
+    maximum_cost_usd: z.literal(1.5),
+  }).strict(),
   confirm_unqualified_execution: z.literal(true),
 }).strict().superRefine((selection, context) => {
   if (selection.policy_candidate_ids[0] === selection.policy_candidate_ids[1]) {
@@ -504,6 +511,60 @@ export function buildInternalPolicyCanaryLaunchRequest(params: {
   );
   if (!resolved.ok) throw new Error(resolved.code);
   const cells = resolved.preset.matrix.cells;
+  const interpretationIdentity = {
+    interpreter_id: "openai_multimodal_episode_interpreter_v1",
+    principal_kind: "independent_interpreter",
+    provider_id: "openai",
+    execution_site: "external_provider",
+    runtime: "openai_agents_sdk",
+    model: "gpt-5.6-luna",
+    model_version: "gpt-5.6-luna",
+  };
+  const sourceRightsAdmission: Record<string, unknown> = {
+    schema_version: "policy_canary_episode_interpretation_source_rights_admission.v1",
+    run_id: params.selection.run_id,
+    team_namespace: params.teamNamespace,
+    accepted_by: params.actor.id,
+    accepted_on: params.authorizedAt,
+    external_disclosure_authorized: true,
+    disclosed_artifact_roles: [
+      "contact_force_trace",
+      "deterministic_score",
+      "frame_manifest",
+      "lossless_frame",
+      "review_video",
+      "state_trace",
+      "task_success_contract",
+    ],
+    provider_training_authorized: false,
+    public_redistribution_authorized: false,
+    admission_digest: "",
+  };
+  sourceRightsAdmission.admission_digest = canonicalArtifactDigest(
+    sourceRightsAdmission,
+    "admission_digest",
+  );
+  const interpretationAuthority: Record<string, unknown> = {
+    schema_version: "policy_canary_episode_interpretation_batch_authority.v1",
+    status: "approved",
+    run_id: params.selection.run_id,
+    interpreter: interpretationIdentity,
+    interpreter_profile_digest: "sha256:eca3944e331b60cc08fdb1548d753be7c1b513b7b703ad5fce8401b09eb83baf",
+    allowed_artifact_roles: sourceRightsAdmission.disclosed_artifact_roles,
+    external_disclosure_authorized: true,
+    provider_training_authorized: false,
+    public_redistribution_authorized: false,
+    maximum_cost_usd: params.selection.episode_interpretation.maximum_cost_usd,
+    source_rights_admission_digest: sourceRightsAdmission.admission_digest,
+    accepted_by: params.actor.id,
+    accepted_on: params.authorizedAt,
+    authority_reference: `website:${params.selection.run_id}`,
+    authority_digest: "",
+  };
+  interpretationAuthority.authority_digest = canonicalArtifactDigest(
+    interpretationAuthority,
+    "authority_digest",
+  );
   const request: Record<string, unknown> = {
     schema_version: "task_evaluation_launch_request.v1",
     launch_id: params.selection.run_id,
@@ -522,6 +583,8 @@ export function buildInternalPolicyCanaryLaunchRequest(params: {
     scene_controls_status_at_submission: params.controlsStatusAtSubmission,
     task_success_contract: params.selection.task_success_contract,
     task_success_contract_digest: params.selection.task_success_contract.contract_digest,
+    episode_interpretation_source_rights_admission: sourceRightsAdmission,
+    episode_interpretation_authority: interpretationAuthority,
     team_namespace: params.teamNamespace,
     robot_preset_id: resolved.robot.robot_preset_id,
     policy_candidate_ids: params.selection.policy_candidate_ids,
