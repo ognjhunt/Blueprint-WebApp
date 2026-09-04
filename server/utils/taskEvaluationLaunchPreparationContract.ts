@@ -172,6 +172,23 @@ const taskSubjectSchema = z.discriminatedUnion("mode", [
   }).strict(),
 ]);
 
+const rigidDestinationSchema = z.object({
+  schema_version: z.literal("task_evaluation_rigid_destination_asset.v1"),
+  identity: versionedIdentity,
+  relation: z.enum(["inside", "on"]),
+  visible_label: z.string().trim().min(1).max(200),
+  asset: immutableReference,
+  rights_admission: immutableReference,
+  static_qualification: immutableReference,
+  native_import_qualification: immutableReference,
+  geometry: immutableReference,
+  pose_world: z.object({
+    position_world_m: z.tuple([z.number(), z.number(), z.number()]),
+    orientation_xyzw: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  }).strict(),
+  provider_disclosure_allowed: z.literal(true),
+}).strict();
+
 const taskSchema = z.object({
   identity: versionedIdentity,
   binding_mode: z.enum(["define_configuration_template", "reuse_configured_template"]),
@@ -179,6 +196,7 @@ const taskSchema = z.object({
   strategy: z.enum(["planar_push", "pick_and_place", "articulated_open_close"]),
   configured_scene_revision_digest: digest.optional(),
   subject: taskSubjectSchema,
+  destination: rigidDestinationSchema.optional(),
   definition: immutableReference.optional(),
   success_criteria: immutableReference.optional(),
   execution: immutableReference.optional(),
@@ -202,6 +220,22 @@ const taskSchema = z.object({
       message: "episode evaluation cannot replace configured task semantics",
     });
   }
+  if (value.strategy === "pick_and_place") {
+    const orientation = value.destination?.pose_world.orientation_xyzw;
+    const norm = orientation?.reduce((total, component) => total + component ** 2, 0);
+    if (
+      !value.destination
+      || value.destination.identity.id === value.subject.identity.id
+      || norm === undefined
+      || Math.abs(norm - 1) > 1e-6
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "pick-and-place requires a distinct qualified destination asset with a unit pose",
+    });
+  } else if (value.destination) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "only pick-and-place may bind a passive destination asset",
+  });
 });
 
 const runtimeMountSchema = z.object({
@@ -241,13 +275,6 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   policy_run_configuration: resolvedPolicyRunConfigurationSchema.optional(),
   policy_run_setup: evaluationReadyPolicyRunSetupSchema.optional(),
   policy_run_selection: resolvedPolicyRunSelectionSchema.optional(),
-  appearance_review_override: z.object({
-    mode: z.literal("paused_ungraded"),
-    scope: z.literal("artifixer_appearance_only"),
-    ungraded_publication_acknowledged: z.literal(true),
-    review_provider_call_permitted: z.literal(false),
-    warning_label: z.literal("Visual review paused - appearance ungraded"),
-  }).strict().optional(),
   scene: sceneSchema,
   construction: constructionSchema,
   robot: z.object({
@@ -399,10 +426,6 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       });
     }
   } else {
-    if (value.appearance_review_override) context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "episode evaluation cannot override appearance review",
-    });
     if (value.construction.mode !== "reuse_configured_scene") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation must reuse the configured scene revision",
