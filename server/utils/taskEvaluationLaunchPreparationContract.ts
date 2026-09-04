@@ -182,6 +182,7 @@ const rigidDestinationSchema = z.object({
   static_qualification: immutableReference,
   native_import_qualification: immutableReference,
   geometry: immutableReference,
+  placement_qualification: immutableReference,
   pose_world: z.object({
     position_world_m: z.tuple([z.number(), z.number(), z.number()]),
     orientation_xyzw: z.tuple([z.number(), z.number(), z.number(), z.number()]),

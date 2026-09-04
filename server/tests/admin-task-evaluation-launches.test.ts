@@ -1356,6 +1356,7 @@ describe("admin Task Evaluation launch route", () => {
       static_qualification: immutableRef("document-tray-static"),
       native_import_qualification: immutableRef("document-tray-native"),
       geometry: immutableRef("document-tray-geometry"),
+      placement_qualification: immutableRef("document-tray-placement"),
       pose_world: {
         position_world_m: [3.2, -6.76, 0.82],
         orientation_xyzw: [0, 0, 0, 1],
