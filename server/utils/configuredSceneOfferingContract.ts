@@ -88,7 +88,10 @@ export const configuredSceneOfferingSchema = z.object({
     kind: z.string().trim().min(1).max(192),
     strategy: z.string().trim().min(1).max(192),
     subject_identity: identity,
-    destination: rigidDestinationSchema.omit({ placement_qualification: true }).optional(),
+    destination: rigidDestinationSchema
+      .omit({ placement_qualification: true })
+      .required({ native_import_qualification: true, geometry: true })
+      .optional(),
   }).strict(),
   presentation: z.object({
     task_thumbnail: taskThumbnailReference,
