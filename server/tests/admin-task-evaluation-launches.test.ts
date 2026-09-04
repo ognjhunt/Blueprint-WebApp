@@ -1316,7 +1316,7 @@ describe("admin Task Evaluation launch route", () => {
     ).toBe(false);
   });
 
-  it("accepts only the exact acknowledged appearance-review pause override", () => {
+  it("forbids new appearance-review pause overrides", () => {
     const paused = preparationInput();
     (paused as Record<string, any>).appearance_review_override = {
       mode: "paused_ungraded",
@@ -1325,11 +1325,6 @@ describe("admin Task Evaluation launch route", () => {
       review_provider_call_permitted: false,
       warning_label: "Visual review paused - appearance ungraded",
     };
-    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(paused).success)
-      .toBe(true);
-
-    (paused as Record<string, any>).appearance_review_override
-      .ungraded_publication_acknowledged = false;
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(paused).success)
       .toBe(false);
 
@@ -1342,6 +1337,36 @@ describe("admin Task Evaluation launch route", () => {
       warning_label: "Visual review paused - appearance ungraded",
     };
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(episode).success)
+      .toBe(false);
+  });
+
+  it("requires a distinct qualified destination for pick-and-place", () => {
+    const input = evaluationPreparationInput();
+    input.task.strategy = "pick_and_place";
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success)
+      .toBe(false);
+
+    input.task.destination = {
+      schema_version: "task_evaluation_rigid_destination_asset.v1",
+      identity: { id: "document-tray", version: "v1" },
+      relation: "inside",
+      visible_label: "blue document tray",
+      asset: immutableRef("document-tray.usda"),
+      rights_admission: immutableRef("document-tray-rights"),
+      static_qualification: immutableRef("document-tray-static"),
+      native_import_qualification: immutableRef("document-tray-native"),
+      geometry: immutableRef("document-tray-geometry"),
+      pose_world: {
+        position_world_m: [3.2, -6.76, 0.82],
+        orientation_xyzw: [0, 0, 0, 1],
+      },
+      provider_disclosure_allowed: true,
+    };
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success)
+      .toBe(true);
+
+    input.task.destination.identity = input.task.subject.identity;
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success)
       .toBe(false);
   });
 
