@@ -141,15 +141,18 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
       <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
         <div>
           <Eyebrow tone="brass" rule>{canary ? "Internal policy canary" : "Sealed Task Evaluation Result"}</Eyebrow>
-          <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{canary ? `${canaryScene} · ${canaryTask}` : envelope?.decision_question || result.publication.run_id}</h1>
-          <p className="runway-num mt-2 text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
+          {canary ? <>
+            <h1 className="mt-2 font-display text-[1.65rem] font-semibold tracking-[0.005em] text-ink-900">Head-to-head policy test</h1>
+            <p className="mt-1 text-body-s text-ink-600">{canaryScene} · {canaryTask} · simulation</p>
+          </> : <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{envelope?.decision_question || result.publication.run_id}</h1>}
+          <p className="runway-num mt-2 break-all text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
         </div>
         <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadJson(result)}>Exact result JSON</Button>
       </header>
 
-      <ProofBoundary level="warn" title={canary ? "Unqualified policy canary — controls pending" : "Bounded evidence, not a leaderboard"} icon={ShieldAlert}>
-        {canary ? "Controls pending — results are unqualified. This diagnostic history cannot declare a winner, contribute to official ranking, or promote the scene to evaluation ready. " : ""}{result.access_visibility === "unlisted_public" ? "Anyone with this unlisted link can view this result and its published evidence. " : `This result belongs to ${result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. `}Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
-      </ProofBoundary>
+      {!canary ? <ProofBoundary level="warn" title="Bounded evidence, not a leaderboard" icon={ShieldAlert}>
+        {result.access_visibility === "unlisted_public" ? "Anyone with this unlisted link can view this result and its published evidence. " : `This result belongs to ${result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. `}Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
+      </ProofBoundary> : null}
 
       {!delivery ? <ProofBoundary level="info" title="Legacy result record">The decision is sealed, but this older publication predates automatic media packaging.</ProofBoundary> : null}
       {delivery?.status === "blocked" ? (

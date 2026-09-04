@@ -54,6 +54,32 @@ export function PolicyCanaryEvidenceInventory({
     || publication.result_delivery?.reproducibility
     || {};
   const artifacts = buildCanaryArtifactInventory(result);
+  const totalArtifactBytes = artifacts.reduce((total, artifact) => total + (artifact.size_bytes || 0), 0);
+  const roleSummary = [...artifacts.reduce((map, artifact) => {
+    const entry = map.get(artifact.role) || { role: artifact.role, count: 0, bytes: 0 };
+    entry.count += 1;
+    entry.bytes += artifact.size_bytes || 0;
+    map.set(artifact.role, entry);
+    return map;
+  }, new Map<string, { role: string; count: number; bytes: number }>()).values()]
+    .sort((left, right) => right.count - left.count || right.bytes - left.bytes);
+  const systemTelemetryValues = [
+    telemetry.gpu_utilization_percent,
+    telemetry.gpu_memory_bytes,
+    telemetry.cpu_utilization_percent,
+    telemetry.memory_bytes,
+    telemetry.network_received_bytes,
+    telemetry.network_transmitted_bytes,
+    telemetry.disk_read_bytes,
+    telemetry.disk_written_bytes,
+    telemetry.policy_query_count,
+    telemetry.policy_latency_ms?.p50,
+    telemetry.policy_latency_ms?.p95,
+    telemetry.policy_latency_ms?.maximum,
+  ];
+  const hasSystemTelemetry = systemTelemetryValues.some(
+    (value) => value !== null && value !== undefined,
+  );
   const candidates = resolvedCanaryCandidates(result);
   const notification = publication.notification_delivery;
   const receiptRows: Array<[string, TaskEvaluationResultArtifact | undefined, string]> = [
@@ -130,6 +156,11 @@ export function PolicyCanaryEvidenceInventory({
           ["Calibration digest", reported(reproducibility.calibration_digest)],
           ["Clock / frequency", reproducibility.timebase ? `${reproducibility.timebase.clock_id} · ${reported(reproducibility.timebase.frequency_hz, " Hz")}` : "Unavailable — not delivered"],
           ["Timebase synchronized", reproducibility.timebase ? reproducibility.timebase.synchronized ? "Yes" : "No" : "Unavailable — not delivered"],
+        ].map(([label, value]) => <tr key={label} className="border-b border-line-soft">
+          <th className="runway-meta w-64 px-3 py-3">{label}</th>
+          <td className="runway-num px-3 py-3 text-ink-700">{value}</td>
+        </tr>)}</tbody></table>
+        {hasSystemTelemetry ? <table className="mt-3 w-full border-collapse text-left text-caption"><tbody>{[
           ["GPU utilization", reported(telemetry.gpu_utilization_percent, "%")],
           ["GPU memory", bytes(telemetry.gpu_memory_bytes)],
           ["CPU utilization", reported(telemetry.cpu_utilization_percent, "%")],
@@ -141,20 +172,28 @@ export function PolicyCanaryEvidenceInventory({
         ].map(([label, value]) => <tr key={label} className="border-b border-line-soft">
           <th className="runway-meta w-64 px-3 py-3">{label}</th>
           <td className="runway-num px-3 py-3 text-ink-700">{value}</td>
-        </tr>)}</tbody></table>
+        </tr>)}</tbody></table> : <p className="mt-3 text-caption text-ink-500">System telemetry (GPU, memory, disk, network, policy latency) was not captured in this run.</p>}
       </section>
 
       <section aria-labelledby="canary-artifact-inventory-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Complete artifact inventory</h3>
-            <p className="mt-1 text-caption text-ink-500">Every row is digest-bound and uses a bounded authenticated ticket.</p>
+            <p className="mt-1 text-caption text-ink-500">All {artifacts.length} files are hash-verified and digest-bound to this run · {humanBytes(totalArtifactBytes)} total.</p>
           </div>
           <div className="flex flex-wrap gap-2">{requiredRoles.map((role) => <StatusChip key={role} tone={roleSet.has(role) ? "proof" : "warn"} square>
             {role.replaceAll("_", " ")} · {roleSet.has(role) ? "delivered" : "typed gap"}
           </StatusChip>)}</div>
         </div>
-        <div className="mt-4 max-h-[38rem] overflow-auto border border-line">
+        <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+          {roleSummary.map((entry) => <div key={entry.role} className="bg-paper-0 p-3">
+            <p className="text-caption font-semibold text-ink-800">{entry.role.replaceAll("_", " ")}</p>
+            <p className="runway-num mt-1 text-body-s text-ink-700">{entry.count} file{entry.count === 1 ? "" : "s"} · {humanBytes(entry.bytes)}</p>
+          </div>)}
+        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer text-caption font-semibold text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">View all {artifacts.length} files with digests</summary>
+          <div className="mt-3 max-h-[38rem] overflow-auto border border-line">
           <table className="w-full min-w-[70rem] border-collapse text-left text-caption">
             <thead className="sticky top-0 bg-runway-black">
               <tr className="border-b border-line">
@@ -181,7 +220,8 @@ export function PolicyCanaryEvidenceInventory({
               >Download</Button></td>
             </tr>)}{!artifacts.length ? <tr><td className="px-3 py-6 text-ink-500" colSpan={6}>No artifacts were delivered.</td></tr> : null}</tbody>
           </table>
-        </div>
+          </div>
+        </details>
       </section>
 
       <section aria-labelledby="canary-closure-title">

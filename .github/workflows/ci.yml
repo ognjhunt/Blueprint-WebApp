@@ -90,8 +90,21 @@ jobs:
       - name: Dependency security audit (production deps, fail on high+)
         # Audit the committed lock directly. `npm ci` has already proven the
         # install, while npm's retiring quick-audit endpoint can reject the
-        # realized peer tree as "invalid" before returning any advisories.
-        run: timeout 360 npm audit --package-lock-only --omit=dev --audit-level=high
+        # realized peer tree as "invalid" (HTTP 400) before returning any
+        # advisories. Keep the high+ gate when the endpoint answers, but do not
+        # let its retirement outage fail CI (and, with the CI-gated deploy,
+        # block production); surface it as a warning instead.
+        run: |
+          set -o pipefail
+          if out=$(timeout 360 npm audit --package-lock-only --omit=dev --audit-level=high 2>&1); then
+            printf '%s\n' "$out"
+          elif printf '%s\n' "$out" | grep -qE 'audit endpoint returned an error|being retired|Invalid package tree|Bad Request'; then
+            printf '%s\n' "$out"
+            echo "::warning::npm quick-audit endpoint unavailable (being retired); high+ advisory gate skipped for this run"
+          else
+            printf '%s\n' "$out"
+            exit 1
+          fi
 
   rules-emulator:
     runs-on: ubuntu-latest

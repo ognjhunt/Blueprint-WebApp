@@ -2,8 +2,11 @@ import { useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Download } from "lucide-react";
 
-import { Button, StatusChip } from "@/components/blueprint";
+import { Button, PolicyRankBar, StatusChip } from "@/components/blueprint";
 import {
+  canaryCandidateSummaries,
+  formatCanaryPercent,
+  pairedCanaryComparison,
   primaryCanaryDownloads,
   resolvedCanaryCandidates,
 } from "@/lib/policyCanaryResultPortal";
@@ -62,6 +65,11 @@ function PrimaryDownload({
   </Button>;
 }
 
+function ciCaption(wilson: { lower: number; upper: number } | null) {
+  if (!wilson) return "Interval not meaningful at this count";
+  return `95% CI ${Math.round(wilson.lower * 100)}–${Math.round(wilson.upper * 100)}%`;
+}
+
 export function PolicyCanaryPrimarySummary({
   result,
   user,
@@ -83,30 +91,73 @@ export function PolicyCanaryPrimarySummary({
     .filter((episode) => episode.episode_kind === "learned_candidate").length;
   const blocked = Math.max(episodeRecords - completed, 0);
   const downloads = primaryCanaryDownloads(result);
+  const summaries = canaryCandidateSummaries(result);
+  const comparison = pairedCanaryComparison(result);
+  const hasVerdict = Boolean(comparison && summaries.some((summary) => summary.success_rate !== null));
 
   return <section
     className="runway-panel overflow-hidden border-t-2 border-t-runway-signal"
     aria-labelledby="canary-primary-summary"
   >
-    <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:p-6">
-      <div>
-        <p className="runway-meta text-runway-signal">Quick policy canary</p>
-        <h2
+    <div className="flex flex-col gap-6 p-5 lg:p-6">
+      <div className="flex flex-col gap-2">
+        <p className="runway-meta text-runway-signal">Head-to-head policy test · simulation</p>
+        {hasVerdict && comparison ? <>
+          <h2 className="font-display text-[clamp(1.4rem,3.2vw,2.15rem)] font-semibold leading-tight tracking-[0.005em] text-ink-900">
+            {comparison.headline}
+          </h2>
+          <p className="max-w-3xl text-body-s text-ink-600">{comparison.verdict}</p>
+        </> : <h2 id="canary-primary-summary" className="font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
+          {cellCount} scenario cells · {policyCount} policies · {episodeCount} episodes
+        </h2>}
+      </div>
+
+      {hasVerdict ? <div className="flex flex-col gap-4 border-t border-line pt-5">
+        <p className="runway-meta">Success rate · scored episodes · Wilson 95% interval</p>
+        <div className="flex flex-col gap-4">
+          {summaries.map((summary) => {
+            const isLeader = comparison?.leader?.candidate_id === summary.candidate_id;
+            return <div key={summary.candidate_id} className="flex flex-col gap-1">
+              <PolicyRankBar
+                label={summary.display_name}
+                value={summary.success_rate ?? 0}
+                winner={isLeader}
+                style={{ gridTemplateColumns: "minmax(10rem,16rem) minmax(0,1fr) auto" }}
+                metric={<span>
+                  {formatCanaryPercent(summary.success_rate)}
+                  <span className="ml-1 text-ink-400">{summary.success_count}/{summary.interpretable_count}</span>
+                </span>}
+              />
+              <p className="runway-num pl-2 text-[0.66rem] text-ink-400">
+                {ciCaption(summary.wilson)}
+              </p>
+            </div>;
+          })}
+        </div>
+        <p className="text-caption text-ink-500">
+          N = {cellCount} per policy on one scene — a diagnostic sample. Peer practice for a ranking-grade
+          claim is roughly 50–300+ trials per condition, so this run can flag a large gap but does not
+          settle a winner.
+        </p>
+      </div> : null}
+
+      <div className="flex flex-col gap-3 border-t border-line pt-5">
+        {hasVerdict ? <h2
           id="canary-primary-summary"
-          className="mt-2 font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900"
+          className="runway-meta text-ink-500"
         >
           {cellCount} scenario cells · {policyCount} policies · {episodeCount} episodes
-        </h2>
-        <p className="mt-3 text-body-s text-ink-600">
+        </h2> : null}
+        <p className="text-body-s text-ink-600">
           {candidates.map((candidate) => candidate.display_name).join(" versus ")}
         </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-        <StatusChip tone={episodeRecords === episodeCount ? "proof" : "warn"} square>
-          {episodeRecords}/{episodeCount} episode records
-        </StatusChip>
-        <StatusChip tone={blocked ? "warn" : "proof"} square>{completed} completed · {blocked} blocked</StatusChip>
-        <StatusChip tone="warn" square>No winner · unqualified</StatusChip>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusChip tone={episodeRecords === episodeCount ? "proof" : "warn"} square>
+            {episodeRecords}/{episodeCount} episode records
+          </StatusChip>
+          <StatusChip tone={blocked ? "warn" : "proof"} square>{completed} completed · {blocked} blocked</StatusChip>
+          <StatusChip tone="warn" square>No winner declared · diagnostic</StatusChip>
+        </div>
       </div>
     </div>
     <div className="border-t border-line bg-inset px-5 py-4 lg:px-6">
