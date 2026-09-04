@@ -201,8 +201,11 @@ export const rigidDestinationSchema = z.object({
   asset: immutableReference,
   rights_admission: immutableReference,
   static_qualification: immutableReference,
-  native_import_qualification: immutableReference,
-  geometry: immutableReference,
+  // A supplemental destination has no source object, so the scene-configuration
+  // run itself produces its Isaac-native import qualification and task geometry;
+  // later run modes must carry the published references.
+  native_import_qualification: immutableReference.optional(),
+  geometry: immutableReference.optional(),
   placement_qualification: immutableReference.optional(),
   native_probe: rigidDestinationNativeProbeSchema.optional(),
   pose_world: z.object({
@@ -417,6 +420,14 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "scene configuration must defer placement qualification to its native probe",
     });
+    if (
+      value.task.strategy === "pick_and_place"
+      && (value.task.destination?.native_import_qualification
+        || value.task.destination?.geometry)
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration produces the destination's native import qualification and geometry itself",
+    });
     if (value.scene.mode === "configure_source_scene" && value.scene.rights.provider_disclosure_scope !== "derived_only") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "production scene construction requires derived-only disclosure",
@@ -474,6 +485,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       message: "episode evaluation requires configured scene, robot, and controller bindings",
     });
     if (value.task.strategy === "pick_and_place") {
+      if (
+        !value.task.destination?.native_import_qualification
+        || !value.task.destination?.geometry
+      ) context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "destination qualification and episode evaluation require the published destination native import qualification and geometry",
+      });
       if (value.run_mode === "destination_qualification") {
         if (
           !value.task.destination?.native_probe

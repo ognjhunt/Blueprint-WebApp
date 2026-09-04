@@ -3575,3 +3575,74 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 });
+
+describe("supplemental destination qualifications are produced by the scene-configuration run", () => {
+  function pendingDestination() {
+    return {
+      schema_version: "task_evaluation_rigid_destination_asset.v1",
+      identity: { id: "document-tray", version: "v1" },
+      relation: "inside",
+      visible_label: "blue document tray",
+      asset: immutableRef("document-tray.usdz"),
+      rights_admission: immutableRef("document-tray-rights"),
+      static_qualification: immutableRef("document-tray-static"),
+      native_probe: {
+        schema_version: "task_evaluation_rigid_destination_native_probe_configuration.v1",
+        placement_support_scene_prim_paths: ["/Root/Cabinet"],
+        qualification_limits: {
+          maximum_penetration_m: 0.001,
+          minimum_support_contact_force_n: 0.01,
+          maximum_forbidden_contact_force_n: 0.1,
+          settle_translation_tolerance_m: 0.002,
+          settle_rotation_tolerance_rad: 0.01,
+          reset_translation_tolerance_m: 0.002,
+          reset_rotation_tolerance_rad: 0.01,
+          minimum_camera_pixels: { external: 100, wrist: 100, overview: 100 },
+        },
+        settle_sample_count: 3,
+        settle_steps_per_sample: 60,
+      },
+      pose_world: {
+        position_world_m: [3.25, -6.76, 0.275],
+        orientation_xyzw: [0, 0, 0, 1],
+      },
+      provider_disclosure_allowed: true,
+    } as Record<string, any>;
+  }
+
+  it("lets a scene-configuration request declare a destination without run-produced references", () => {
+    const input = preparationInput() as Record<string, any>;
+    input.task.strategy = "pick_and_place";
+    input.task.destination = pendingDestination();
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(true);
+
+    for (const field of ["native_import_qualification", "geometry"]) {
+      const prequalified = structuredClone(input);
+      prequalified.task.destination[field] = immutableRef(`document-tray-${field}`);
+      expect(taskEvaluationLaunchPreparationInputSchema.safeParse(prequalified).success).toBe(false);
+    }
+  });
+
+  it("still requires the published native import and geometry for destination qualification", () => {
+    const input = evaluationPreparationInput() as Record<string, any>;
+    input.run_mode = "destination_qualification";
+    input.task.strategy = "pick_and_place";
+    input.task.destination = pendingDestination();
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(false);
+    input.task.destination.native_import_qualification = immutableRef("document-tray-native");
+    input.task.destination.geometry = immutableRef("document-tray-geometry");
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("refuses a configured-scene offering whose destination lacks the run-produced references", () => {
+    const offering = configuredSceneOffering() as Record<string, any>;
+    offering.task.strategy = "pick_and_place";
+    offering.task.destination = pendingDestination();
+    offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(false);
+    offering.task.destination.native_import_qualification = immutableRef("document-tray-native");
+    offering.task.destination.geometry = immutableRef("document-tray-geometry");
+    offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
+  });
+});
