@@ -7,6 +7,7 @@ import {
   buildAlignedCanaryCells,
   buildFailureAnalysis,
   humanCanaryCellLabel,
+  pairedCanaryComparison,
   resolvedCanaryCandidates,
   wilson95,
   type EpisodeFilters,
@@ -54,16 +55,42 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
     ),
   ).sort(([left], [right]) => left.localeCompare(right));
 
+  const comparison = pairedCanaryComparison(result);
+  const metricValue = (candidate: Record<string, any>, key: string) => {
+    const metrics = candidate.metrics || {};
+    return candidate[key] ?? metrics[key];
+  };
+  const optionalMetricLabels: Record<string, string> = {
+    progress_score: "progress",
+    mean_destination_error: "destination error",
+    contact_maintenance_rate: "contact maintained",
+  };
+  const optionalMetricColumns = [
+    { key: "progress_score", label: "Progress", render: (candidate: Record<string, any>) => readable(metricValue(candidate, "progress_score")) },
+    { key: "mean_destination_error", label: "Destination error", render: (candidate: Record<string, any>) => readable(metricValue(candidate, "mean_destination_error")) },
+    { key: "contact_maintenance_rate", label: "Contact maintained", render: (candidate: Record<string, any>) => percent(metricValue(candidate, "contact_maintenance_rate")) },
+  ].filter((column) => candidateResults.some((candidate: Record<string, any>) => {
+    const raw = metricValue(candidate, column.key);
+    return raw !== null && raw !== undefined && raw !== "";
+  }));
+  const droppedMetricLabels = Object.keys(optionalMetricLabels)
+    .filter((key) => !optionalMetricColumns.some((column) => column.key === key))
+    .map((key) => optionalMetricLabels[key]);
+
   return <>
     <section className="runway-panel overflow-x-auto p-5" aria-labelledby="canary-metrics-title">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Candidate metrics</p><h2 id="canary-metrics-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Numerators, denominators, and uncertainty</h2></div><StatusChip tone="warn" square>Diagnostic only</StatusChip></div>
-      <table className="mt-4 w-full min-w-[68rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Wilson 95% CI</th><th className="runway-meta px-3 py-2">Progress</th><th className="runway-meta px-3 py-2">Destination error</th><th className="runway-meta px-3 py-2">Contact maintained</th><th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Interpretable</th></tr></thead><tbody>{candidateResults.map((candidate: Record<string, any>) => {
-        const metrics = candidate.metrics || {};
-        const value = (key: string) => candidate[key] ?? metrics[key];
-        const denominator = Number(value("interpretable_episode_count") || 0);
-        const interval = wilson95(Number(value("success_count") || 0), denominator);
-        return <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{value("display_name") || candidate.candidate_id}</td><td className="runway-num px-3 py-3">{value("success_count")}/{denominator} · {percent(value("success_rate"))}</td><td className="runway-num px-3 py-3">{interval ? `${percent(interval.lower)}–${percent(interval.upper)}` : "Not meaningful"}</td><td className="runway-num px-3 py-3">{readable(value("progress_score"))}</td><td className="runway-num px-3 py-3">{readable(value("mean_destination_error"))}</td><td className="runway-num px-3 py-3">{percent(value("contact_maintenance_rate"))}</td><td className="runway-num px-3 py-3">{percent(value("collision_rate"))}</td><td className="runway-num px-3 py-3">{percent(value("action_delivery_rate"))}</td><td className="runway-num px-3 py-3">{denominator}/{value("episodes_completed")}</td></tr>;
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="runway-meta">Candidate metrics</p><h2 id="canary-metrics-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Success, uncertainty, and the paired gap</h2></div><StatusChip tone="warn" square>Diagnostic only</StatusChip></div>
+      {comparison ? <div className="mt-3 border-l-2 border-runway-signal pl-3">
+        <p className="text-body-s font-semibold text-ink-900">{comparison.headline}</p>
+        <p className="mt-0.5 text-caption text-ink-500">{comparison.verdict}{comparison.comparablePairs ? ` Matched cells ${comparison.comparablePairs}; discordant split ${comparison.leaderOnlyWins}–${comparison.laggardOnlyWins}.` : ""}</p>
+      </div> : null}
+      <table className="mt-4 w-full min-w-[46rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Policy</th><th className="runway-meta px-3 py-2">Success</th><th className="runway-meta px-3 py-2">Wilson 95% CI</th>{optionalMetricColumns.map((column) => <th key={column.key} className="runway-meta px-3 py-2">{column.label}</th>)}<th className="runway-meta px-3 py-2">Collision</th><th className="runway-meta px-3 py-2">Action delivery</th><th className="runway-meta px-3 py-2">Scored episodes</th></tr></thead><tbody>{candidateResults.map((candidate: Record<string, any>) => {
+        const denominator = Number(metricValue(candidate, "interpretable_episode_count") || 0);
+        const interval = wilson95(Number(metricValue(candidate, "success_count") || 0), denominator);
+        const isLeader = comparison?.leader?.candidate_id === candidate.candidate_id;
+        return <tr key={candidate.candidate_id} className="border-b border-line-soft"><td className="px-3 py-3 font-semibold">{metricValue(candidate, "display_name") || candidate.candidate_id}{isLeader ? <StatusChip tone="proof" square dot={false} className="ml-2">Lead</StatusChip> : null}</td><td className="runway-num px-3 py-3">{metricValue(candidate, "success_count")}/{denominator} · {percent(metricValue(candidate, "success_rate"))}</td><td className="runway-num px-3 py-3">{interval ? `${percent(interval.lower)}–${percent(interval.upper)}` : "Not meaningful"}</td>{optionalMetricColumns.map((column) => <td key={column.key} className="runway-num px-3 py-3">{column.render(candidate)}</td>)}<td className="runway-num px-3 py-3">{percent(metricValue(candidate, "collision_rate"))}</td><td className="runway-num px-3 py-3">{percent(metricValue(candidate, "action_delivery_rate"))}</td><td className="runway-num px-3 py-3">{denominator}/{metricValue(candidate, "episodes_completed")}</td></tr>;
       })}</tbody></table>
+      {droppedMetricLabels.length ? <p className="mt-3 text-caption text-ink-500">Not delivered for this run: {droppedMetricLabels.join(", ")}. These metrics are omitted rather than shown blank.</p> : null}
     </section>
 
     <section className="runway-panel p-5" aria-labelledby="canary-matrix-title">
