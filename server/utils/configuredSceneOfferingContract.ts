@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { rigidDestinationSchema } from "./taskEvaluationLaunchPreparationContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const sourceCommit = z.string().regex(/^[0-9a-f]{40}$/);
@@ -87,6 +88,7 @@ export const configuredSceneOfferingSchema = z.object({
     kind: z.string().trim().min(1).max(192),
     strategy: z.string().trim().min(1).max(192),
     subject_identity: identity,
+    destination: rigidDestinationSchema.omit({ placement_qualification: true }).optional(),
   }).strict(),
   presentation: z.object({
     task_thumbnail: taskThumbnailReference,
@@ -133,6 +135,16 @@ export const configuredSceneOfferingSchema = z.object({
   public_display: publicDisplay.optional(),
   offering_digest: digest,
 }).strict().superRefine((offering, context) => {
+  if (
+    offering.task.strategy === "pick_and_place"
+    && (
+      !offering.task.destination
+      || offering.task.destination.identity.id === offering.task.subject_identity.id
+    )
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "pick-and-place offering requires a distinct destination probe contract",
+  });
   if (offering.presentation.selection.frame_digest !== offering.presentation.task_thumbnail.digest) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -258,7 +270,24 @@ export function preparationMatchesConfiguredSceneOffering(
   offering: ConfiguredSceneOffering,
 ) {
   const binding = offering.evaluation_preparation_binding;
-  return request.run_mode === "episode_evaluation"
+  const requestDestination = request.task?.destination;
+  const offeringDestination = offering.task.destination;
+  const comparableRequestDestination = requestDestination
+    ? Object.fromEntries(
+      Object.entries(requestDestination).filter(([key]) => key !== "placement_qualification")
+    )
+    : undefined;
+  const destinationMatches = offeringDestination
+    ? Boolean(comparableRequestDestination)
+      && canonicalArtifactDigest(
+        comparableRequestDestination as Record<string, unknown>,
+        "placement_qualification",
+      ) === canonicalArtifactDigest(
+        offeringDestination as unknown as Record<string, unknown>,
+        "placement_qualification",
+      )
+    : requestDestination === undefined;
+  return ["episode_evaluation", "destination_qualification"].includes(request.run_mode)
     && request.team_namespace === offering.team_namespace
     && request.scene?.mode === binding.scene_mode
     && sameIdentity(request.scene?.identity, offering.scene_identity)
@@ -272,7 +301,8 @@ export function preparationMatchesConfiguredSceneOffering(
     && request.task?.kind === offering.task.kind
     && request.task?.strategy === offering.task.strategy
     && sameIdentity(request.task?.subject?.identity, offering.task.subject_identity)
-    && request.task?.configured_scene_revision_digest === binding.configured_scene_revision_digest;
+    && request.task?.configured_scene_revision_digest === binding.configured_scene_revision_digest
+    && destinationMatches;
 }
 
 export function parseConfiguredSceneOfferingFromLaunchReceipt(receipt: Record<string, unknown>) {

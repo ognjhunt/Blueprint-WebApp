@@ -77,6 +77,38 @@ function publicOffering(thumbnailBytes = Buffer.from("authorized-derived-thumbna
       kind: "rigid_relocation",
       strategy: "pick_and_place",
       subject_identity: { id: "replacement-mug", version: "v1" },
+      destination: {
+        schema_version: "task_evaluation_rigid_destination_asset.v1",
+        identity: { id: "blue-document-tray", version: "v1" },
+        relation: "inside",
+        visible_label: "blue document tray",
+        asset: { uri: "s3://private-fixture/tray.usda", digest: sha("1"), size_bytes: 100 },
+        rights_admission: { uri: "s3://private-fixture/tray-rights.json", digest: sha("2"), size_bytes: 100 },
+        static_qualification: { uri: "s3://private-fixture/tray-static.json", digest: sha("3"), size_bytes: 100 },
+        native_import_qualification: { uri: "s3://private-fixture/tray-native.json", digest: sha("4"), size_bytes: 100 },
+        geometry: { uri: "s3://private-fixture/tray-geometry.json", digest: sha("5"), size_bytes: 100 },
+        pose_world: {
+          position_world_m: [3.2, -6.76, 0.82],
+          orientation_xyzw: [0, 0, 0, 1],
+        },
+        provider_disclosure_allowed: true,
+        native_probe: {
+          schema_version: "task_evaluation_rigid_destination_native_probe_configuration.v1",
+          placement_support_scene_prim_paths: ["/Root/Cabinet"],
+          qualification_limits: {
+            maximum_penetration_m: 0.001,
+            minimum_support_contact_force_n: 0.01,
+            maximum_forbidden_contact_force_n: 0.1,
+            settle_translation_tolerance_m: 0.002,
+            settle_rotation_tolerance_rad: 0.01,
+            reset_translation_tolerance_m: 0.002,
+            reset_rotation_tolerance_rad: 0.01,
+            minimum_camera_pixels: { external: 100, wrist: 100, overview: 100 },
+          },
+          settle_sample_count: 3,
+          settle_steps_per_sample: 60,
+        },
+      },
     },
     presentation: {
       task_thumbnail: {

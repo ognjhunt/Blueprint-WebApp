@@ -61,7 +61,7 @@ type LaunchProgress = {
 };
 
 type PreparationContractPreview = {
-  runMode: "scene_configuration" | "episode_evaluation";
+  runMode: "scene_configuration" | "destination_qualification" | "episode_evaluation";
   teamNamespace: string;
   sceneId: string;
   sceneVersion: string;
@@ -101,7 +101,11 @@ function previewDiscoveryContract(value: string): DiscoveryContractPreview | nul
 function previewPreparationContract(value: string): PreparationContractPreview | null {
   try {
     const request = JSON.parse(value) as Record<string, any>;
-    if (request.run_mode !== "scene_configuration" && request.run_mode !== "episode_evaluation") {
+    if (
+      request.run_mode !== "scene_configuration"
+      && request.run_mode !== "destination_qualification"
+      && request.run_mode !== "episode_evaluation"
+    ) {
       return null;
     }
     const hardCapUsd = Number(request.spend?.hard_cap_usd);
