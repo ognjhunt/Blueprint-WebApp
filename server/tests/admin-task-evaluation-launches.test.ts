@@ -1366,6 +1366,28 @@ describe("admin Task Evaluation launch route", () => {
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success)
       .toBe(true);
 
+    const qualification = structuredClone(input);
+    qualification.run_mode = "destination_qualification";
+    delete qualification.task.destination.placement_qualification;
+    qualification.task.destination.native_probe = {
+      schema_version: "task_evaluation_rigid_destination_native_probe_configuration.v1",
+      placement_support_scene_prim_paths: ["/Root/Cabinet"],
+      qualification_limits: {
+        maximum_penetration_m: 0.001,
+        minimum_support_contact_force_n: 0.01,
+        maximum_forbidden_contact_force_n: 0.1,
+        settle_translation_tolerance_m: 0.002,
+        settle_rotation_tolerance_rad: 0.01,
+        reset_translation_tolerance_m: 0.002,
+        reset_rotation_tolerance_rad: 0.01,
+        minimum_camera_pixels: { external: 100, wrist: 100, overview: 100 },
+      },
+      settle_sample_count: 3,
+      settle_steps_per_sample: 60,
+    };
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(qualification).success)
+      .toBe(true);
+
     input.task.destination.identity = input.task.subject.identity;
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(input).success)
       .toBe(false);

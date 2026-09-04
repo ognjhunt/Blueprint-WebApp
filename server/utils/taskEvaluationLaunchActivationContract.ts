@@ -25,9 +25,17 @@ const predecessorLineage = z.object({
   prior_webapp_sync: reference,
   prior_provider_zero: reference,
   prior_spend_reconciliation: reference,
-  construction_result: reference,
+  construction_result: reference.optional(),
+  destination_qualification_result: reference.optional(),
   zero_action_result: reference.optional(),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (Boolean(value.construction_result) === Boolean(value.destination_qualification_result)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "predecessor lineage requires exactly one native result",
+    });
+  }
+});
 
 export const taskEvaluationLaunchActivationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_activation_request.v1"),
@@ -40,6 +48,8 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_destination_qualification",
+    "native_task_arena_construction_after_destination",
     "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
@@ -67,7 +77,11 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
   }).strict(),
 }).strict().superRefine((value, context) => {
   if (
-    ["task_evaluation_scene_configuration", "native_task_arena_construction"].includes(
+    [
+      "task_evaluation_scene_configuration",
+      "native_task_arena_construction",
+      "native_task_arena_destination_qualification",
+    ].includes(
       value.lane,
     )
       ? value.lineage.kind !== "initial_project"
@@ -129,6 +143,8 @@ const intakeReceiptSchema = z.object({
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_destination_qualification",
+    "native_task_arena_construction_after_destination",
     "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",
@@ -152,6 +168,8 @@ export const taskEvaluationLaunchActivationStatusSchema = z.object({
   lane: z.enum([
     "task_evaluation_scene_configuration",
     "native_task_arena_construction",
+    "native_task_arena_destination_qualification",
+    "native_task_arena_construction_after_destination",
     "native_task_arena_controls",
     "native_task_arena_zero_action",
     "native_task_arena_scripted_positive",

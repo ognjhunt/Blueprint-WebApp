@@ -66,4 +66,38 @@ describe("Task Evaluation policy-canary activation contract", () => {
     request.requested_mutations.profile_publication = true;
     expect(taskEvaluationLaunchActivationInputSchema.safeParse(request).success).toBe(false);
   });
+
+  it("chains destination qualification into construction without reusing initial lineage", () => {
+    const initial = canaryActivation() as any;
+    delete initial.run_kind;
+    delete initial.capture_session_id;
+    delete initial.intake_id;
+    initial.lane = "native_task_arena_destination_qualification";
+    initial.lineage = {
+      kind: "initial_project",
+      project_spend_reconciliation: reference("6"),
+      initial_provider_zero: reference("7"),
+    };
+    initial.requested_mutations = {
+      profile_publication: true,
+      catalog_synchronization: true,
+      standing_authorization: true,
+    };
+    expect(taskEvaluationLaunchActivationInputSchema.safeParse(initial).success).toBe(true);
+
+    const construction = structuredClone(initial);
+    construction.lane = "native_task_arena_construction_after_destination";
+    construction.lineage = {
+      kind: "predecessor",
+      prior_authority: reference("8"),
+      prior_result: reference("9"),
+      prior_launch_receipt: reference("a"),
+      prior_webapp_sync: reference("b"),
+      prior_provider_zero: reference("c"),
+      prior_spend_reconciliation: reference("d"),
+      destination_qualification_result: reference("e"),
+    };
+    expect(taskEvaluationLaunchActivationInputSchema.safeParse(construction).success)
+      .toBe(true);
+  });
 });
