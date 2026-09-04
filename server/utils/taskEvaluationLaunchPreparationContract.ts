@@ -172,7 +172,28 @@ const taskSubjectSchema = z.discriminatedUnion("mode", [
   }).strict(),
 ]);
 
-const rigidDestinationSchema = z.object({
+const rigidDestinationNativeProbeSchema = z.object({
+  schema_version: z.literal("task_evaluation_rigid_destination_native_probe_configuration.v1"),
+  placement_support_scene_prim_paths: z.array(z.string().regex(/^\/\S+$/)).min(1).max(64),
+  qualification_limits: z.object({
+    maximum_penetration_m: z.number().positive(),
+    minimum_support_contact_force_n: z.number().positive(),
+    maximum_forbidden_contact_force_n: z.number().positive(),
+    settle_translation_tolerance_m: z.number().positive(),
+    settle_rotation_tolerance_rad: z.number().positive(),
+    reset_translation_tolerance_m: z.number().positive(),
+    reset_rotation_tolerance_rad: z.number().positive(),
+    minimum_camera_pixels: z.object({
+      external: z.number().int().positive(),
+      wrist: z.number().int().positive(),
+      overview: z.number().int().positive(),
+    }).strict(),
+  }).strict(),
+  settle_sample_count: z.number().int().min(3),
+  settle_steps_per_sample: z.number().int().positive(),
+}).strict();
+
+export const rigidDestinationSchema = z.object({
   schema_version: z.literal("task_evaluation_rigid_destination_asset.v1"),
   identity: versionedIdentity,
   relation: z.enum(["inside", "on"]),
@@ -182,7 +203,8 @@ const rigidDestinationSchema = z.object({
   static_qualification: immutableReference,
   native_import_qualification: immutableReference,
   geometry: immutableReference,
-  placement_qualification: immutableReference,
+  placement_qualification: immutableReference.optional(),
+  native_probe: rigidDestinationNativeProbeSchema.optional(),
   pose_world: z.object({
     position_world_m: z.tuple([z.number(), z.number(), z.number()]),
     orientation_xyzw: z.tuple([z.number(), z.number(), z.number(), z.number()]),
@@ -268,7 +290,7 @@ const externalServiceCapsSchema = z.object({
 
 export const taskEvaluationLaunchPreparationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_request.v1"),
-  run_mode: z.enum(["scene_configuration", "episode_evaluation"]),
+  run_mode: z.enum(["scene_configuration", "destination_qualification", "episode_evaluation"]),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   preparation_id: identifier,
   team_namespace: identifier,
@@ -387,6 +409,14 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "scene configuration cannot carry an evaluation robot or controller",
     });
+    if (
+      value.task.strategy === "pick_and_place"
+      && (!value.task.destination?.native_probe
+        || value.task.destination.placement_qualification)
+    ) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "scene configuration must defer placement qualification to its native probe",
+    });
     if (value.scene.mode === "configure_source_scene" && value.scene.rights.provider_disclosure_scope !== "derived_only") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "production scene construction requires derived-only disclosure",
@@ -443,6 +473,20 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation requires configured scene, robot, and controller bindings",
     });
+    if (value.task.strategy === "pick_and_place") {
+      if (value.run_mode === "destination_qualification") {
+        if (
+          !value.task.destination?.native_probe
+          || value.task.destination.placement_qualification
+        ) context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "destination qualification requires probe inputs and forbids a prior placement receipt",
+        });
+      } else if (!value.task.destination?.placement_qualification) context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "episode evaluation requires the native placement qualification",
+      });
+    }
     if (value.execution_adapter.kind !== "native_task_arena") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation requires production native-Arena compilation",
@@ -615,7 +659,7 @@ export const taskEvaluationLaunchPreparationStatusSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_status.v1"),
   status: z.enum(["not_found", "pending", "processing", "materialized", "blocked"]),
   preparation_id: identifier,
-  run_mode: z.enum(["scene_configuration", "episode_evaluation"]).optional(),
+  run_mode: z.enum(["scene_configuration", "destination_qualification", "episode_evaluation"]).optional(),
   run_id: identifier.optional(),
   team_namespace: identifier.optional(),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/).optional(),
