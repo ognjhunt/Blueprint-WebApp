@@ -10,7 +10,12 @@ import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   confirmRigidTaskSuccessContract,
   sealRigidTaskSuccessContract,
+  rigidTaskSuccessContractSchema,
 } from "../utils/rigidTaskSuccessContract";
+import {
+  rigidTaskSuccessContractSchema as clientSuccessSchema,
+  describeRigidTaskSuccessContract,
+} from "../../client/src/lib/rigidTaskSuccessContract";
 import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   loadPublishedLaunchProfiles,
@@ -335,5 +340,54 @@ describe("internal policy canary contract", () => {
       ok: false,
       code: "POLICY_INCOMPATIBLE",
     });
+  });
+});
+
+describe("destination-qualified retreat contract", () => {
+  function retreatContract() {
+    const contract = taskSuccessContract();
+    contract.criteria.gripper_state = { mode: "released", threshold_m: 0.06 };
+    contract.criteria.retreat = {
+      mode: "required", minimum_clearance_m: 0.05,
+      withdrawal_unit_destination_frame: [0, 0, 1],
+    };
+    contract.contract_digest = canonicalArtifactDigest(contract, "contract_digest");
+    return contract;
+  }
+
+  it("preserves the scored criterion through server and client parsing", () => {
+    const contract = retreatContract();
+    expect(rigidTaskSuccessContractSchema.parse(contract)).toEqual(contract);
+    const projected = clientSuccessSchema.parse(contract);
+    expect(projected.criteria.retreat).toEqual(contract.criteria.retreat);
+    expect(describeRigidTaskSuccessContract(projected)).toContainEqual({
+      label: "Gripper retreat", value: "At least 0.050 m",
+      detail: "Measured clearance from the object along the qualified destination withdrawal direction throughout the final settle window.",
+    });
+    const changed = structuredClone(contract);
+    changed.criteria.retreat!.minimum_clearance_m = 0.04;
+    expect(rigidTaskSuccessContractSchema.safeParse(changed).success).toBe(false);
+  });
+
+  it.each([[0, 0, 0], [0, 0, 2], [Number.NaN, 0, 1]])(
+    "rejects an invalid withdrawal direction %s %s %s", (x, y, z) => {
+      const contract = retreatContract();
+      contract.criteria.retreat!.withdrawal_unit_destination_frame = [x, y, z];
+      expect(clientSuccessSchema.safeParse(contract).success).toBe(false);
+      expect(rigidTaskSuccessContractSchema.safeParse(contract).success).toBe(false);
+    },
+  );
+
+  it("rejects retreat when release or settling is ignored", () => {
+    for (const mutate of [
+      (value: ReturnType<typeof retreatContract>) => { value.criteria.gripper_state = { mode: "ignored", threshold_m: null }; },
+      (value: ReturnType<typeof retreatContract>) => { value.criteria.settling.mode = "ignored"; },
+      (value: ReturnType<typeof retreatContract>) => { value.criteria.terminal_task_contact.mode = "ignored"; },
+    ]) {
+      const contract = retreatContract();
+      mutate(contract);
+      contract.contract_digest = canonicalArtifactDigest(contract, "contract_digest");
+      expect(rigidTaskSuccessContractSchema.safeParse(contract).success).toBe(false);
+    }
   });
 });

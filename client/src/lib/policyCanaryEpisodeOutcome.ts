@@ -13,6 +13,12 @@ export type PolicyCanaryScoreReceipt = {
     settled?: boolean;
     released?: boolean;
     native_safety_ok?: boolean;
+    retreat?: {
+      satisfied?: boolean;
+      readback_complete?: boolean;
+      minimum_observed_clearance_m?: number | null;
+      required_clearance_m?: number;
+    };
   };
   failure_reason_plain_english?: string | null;
   failed_criteria?: string[];
@@ -21,6 +27,7 @@ export type PolicyCanaryScoreReceipt = {
       temporal_invariants?: { no_drop?: { mode?: "required" | "ignored" } };
       gripper_state?: { mode?: "released" | "closed_at_most" | "ignored" };
       terminal_task_contact?: { mode?: "cleared" | "maintained" | "ignored" };
+      retreat?: { mode?: "required"; minimum_clearance_m?: number };
     };
   };
   event_ledger?: {
@@ -115,6 +122,10 @@ export function humanPolicyCanaryEpisodeOutcome(
     title = "Support-contact result unavailable";
     explanation = "The episode ran, but the support-contact readback needed to interpret the final object state was not delivered.";
     tone = "warn";
+  } else if (outcome === "native_retreat_readback_missing") {
+    title = "Gripper retreat result unavailable";
+    explanation = "The native position and contact measurements needed to verify gripper clearance were incomplete.";
+    tone = "warn";
   }
   if (receipt.task_succeeded === false && receipt.failure_reason_plain_english) {
     explanation = receipt.failure_reason_plain_english;
@@ -133,6 +144,17 @@ export function humanPolicyCanaryEpisodeOutcome(
       label: "Final robot contact cleared",
       value: yesNo(measurements.settle_task_contact_cleared),
     });
+  }
+  if (receipt.task_success_contract?.criteria?.retreat?.mode === "required") {
+    const retreat = measurements.retreat;
+    facts.push(
+      { label: "Gripper retreat verified", value: retreat?.readback_complete === true
+        ? yesNo(retreat.satisfied) : "Not reported" },
+      { label: "Minimum gripper clearance", value: centimeters(retreat?.minimum_observed_clearance_m) },
+      { label: "Required gripper clearance", value: centimeters(
+        receipt.task_success_contract.criteria.retreat.minimum_clearance_m,
+      ) },
+    );
   }
   facts.push(
     { label: "Support height valid", value: yesNo(measurements.settle_support_height_ok) },

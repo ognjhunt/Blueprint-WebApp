@@ -68,6 +68,14 @@ export const rigidTaskSuccessContractSchema = z.object({
       maximum_retries: z.number().int().nonnegative().nullable(),
       maximum_regrasps: z.number().int().nonnegative().nullable(),
     }).strict(),
+    retreat: z.object({
+      mode: z.literal("required"),
+      minimum_clearance_m: z.number().finite().positive(),
+      withdrawal_unit_destination_frame: z.tuple([
+        z.number().finite(), z.number().finite(), z.number().finite(),
+      ]).refine((direction) => Math.abs(direction.reduce((sum, value) => sum + value * value, 0) - 1) <= 1e-6,
+        "withdrawal direction must be a unit vector"),
+    }).strict().optional(),
   }).strict(),
   contract_digest: digest,
 }).strict();
@@ -175,6 +183,11 @@ export function describeRigidTaskSuccessContract(
       value: criteria.settling.mode === "required" ? "Required" : "Ignored",
       detail: `${criteria.settling.window_samples} samples · position tolerance ${meters(criteria.settling.position_tolerance_m)} · orientation tolerance ${criteria.settling.orientation_tolerance_rad} rad`,
     },
+    ...(criteria.retreat ? [{
+      label: "Gripper retreat",
+      value: `At least ${meters(criteria.retreat.minimum_clearance_m)}`,
+      detail: "Measured clearance from the object along the qualified destination withdrawal direction throughout the final settle window.",
+    }] : []),
     {
       label: "Safety",
       value: "Required",

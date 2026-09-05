@@ -105,7 +105,23 @@ export const rigidTaskSuccessCriteriaSchema = z.object({
     minimum_lift_m: finiteNonnegative.nullable(),
   }).strict(),
   temporal_invariants: temporalInvariantsSchema,
-}).strict();
+  retreat: z.object({
+    mode: z.literal("required"),
+    minimum_clearance_m: z.number().finite().positive(),
+    withdrawal_unit_destination_frame: z.tuple([
+      z.number().finite(), z.number().finite(), z.number().finite(),
+    ]).refine((direction) => Math.abs(direction.reduce((sum, value) => sum + value * value, 0) - 1) <= 1e-6,
+      "withdrawal direction must be a unit vector"),
+  }).strict().optional(),
+}).strict().superRefine((criteria, context) => {
+  if (criteria.retreat && (criteria.settling.mode !== "required"
+    || criteria.gripper_state.mode !== "released"
+    || criteria.terminal_task_contact.mode !== "cleared")) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["retreat"],
+    message: "retreat requires settling, release and cleared terminal contact",
+  });
+});
 
 export const rigidTaskSuccessContractSchema = z.object({
   schema_version: z.literal("rigid_task_success_contract.v1"),
