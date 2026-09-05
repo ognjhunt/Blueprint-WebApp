@@ -41,6 +41,8 @@ describe("EvaluationRunConfiguration", () => {
     expect(screen.getByRole("radio", { name: /quick test/i })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: /standard/i })).toBeDisabled();
     expect(screen.getByRole("radio", { name: /deep/i })).toBeDisabled();
+    expect(screen.getByText("10 fixed scenario cells")).toBeInTheDocument();
+    expect(screen.getByText(/published preregistered matrix fixes the cells; you choose only the depth/i)).toBeInTheDocument();
     expect(screen.getByText(/10 cells means 20 learned-policy episodes \+ 20 control episodes = 40 total/i)).toBeInTheDocument();
     expect(screen.getByText(/outcome-independent compiler/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /pay|checkout/i })).not.toBeInTheDocument();
