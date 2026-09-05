@@ -105,6 +105,12 @@ export const rigidTaskSuccessCriteriaSchema = z.object({
     minimum_lift_m: finiteNonnegative.nullable(),
   }).strict(),
   temporal_invariants: temporalInvariantsSchema,
+  controls: z.object({
+    mode: z.literal("required_per_cell"),
+    control_ids: z.tuple([
+      z.literal("zero_action_negative"), z.literal("deterministic_scripted_positive"),
+    ]),
+  }).strict().optional(),
   retreat: z.object({
     mode: z.literal("required"),
     minimum_clearance_m: z.number().finite().positive(),

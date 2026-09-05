@@ -377,3 +377,44 @@ describe("PolicyCanaryResultPortal", () => {
     )).toBeTruthy();
   });
 });
+
+describe("per-cell controls", () => {
+  it("shows separate control outcomes and loads control videos only on demand", async () => {
+    createArtifactTicket.mockReset().mockResolvedValue("/api/download/control-video");
+    const value = result();
+    const controls = Array.from({ length: 10 }, (_, cell) => (["zero_action_negative", "deterministic_scripted_positive"] as const).map((controlId) => {
+      const ref = (role: string) => ({ artifact_id: `control-${cell}-${controlId}-${role}`, digest: sha("a"), size_bytes: 128 });
+      return { episode_id: `control-${cell}-${controlId}`, cell_id: `cell-${cell}`, seed: 3000 + cell,
+        control_id: controlId, terminal_state: "completed" as const, control_passed: true,
+        receipt_digest: sha("a"), receipt: ref("receipt"), cell_receipt: ref("cell-receipt"),
+        videos: { external: ref("external"), wrist: ref("wrist"), overview: ref("overview") },
+        artifacts: ["control_cell_archive", "frame_manifest", "state_trace", "action_trace"].map((role) => ({ ...ref(role), role })),
+        score: { status: "scored", task_succeeded: controlId === "deterministic_scripted_positive",
+          outcome: controlId === "zero_action_negative" ? "never_moved" : "placed", failed_criteria: [] }, evidence_gaps: [],
+      };
+    })).flat();
+    value.publication.scene_controls_status = "controls_verified_development_only";
+    value.publication.policy_canary_result!.controls = controls;
+    value.publication.policy_canary_result!.controls_summary = { expected_count: 20, recorded_count: 20, completed_count: 20, passed_count: 20, verified_cell_count: 10 };
+    value.publication.result_delivery!.artifacts.push(artifact("a", "controls_csv", "text/csv"));
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    const section = screen.getByRole("region", { name: "Per-cell controls" });
+    expect(within(section).getAllByRole("row")).toHaveLength(21);
+    expect(within(section).getByText("20 / 20 controls verified")).toBeTruthy();
+    expect(within(section).getByText(/zero-action control should leave the task incomplete/)).toBeTruthy();
+    expect(screen.queryByText(/no reference baseline has run/)).toBeNull();
+    expect(createArtifactTicket).not.toHaveBeenCalled();
+    fireEvent.click(within(section).getByRole("button", { name: "Load External camera video for Zero-action negative" }));
+    await waitFor(() => expect(createArtifactTicket).toHaveBeenCalledWith(null, value.record_id, controls[0].videos.external.artifact_id));
+    expect(within(section).getByLabelText("External camera evidence for Zero-action negative").getAttribute("src")).toBe("/api/download/control-video");
+    fireEvent.click(within(section).getByRole("button", { name: "Inspect Scripted positive for cell-1" }));
+    expect(within(section).getByRole("heading", { name: "Scripted positive · cell-1" })).toBeTruthy();
+    expect(within(section).getByRole("button", { name: "Cell evidence ZIP" })).toBeTruthy();
+    expect(within(section).getByRole("button", { name: "Controls CSV" })).toBeTruthy();
+  });
+  it("reports absent controls without treating them as policy failures", () => {
+    render(<PolicyCanaryResultPortal result={result()} user={null} />);
+    expect(screen.getByText("No control episode receipts were delivered for this run.")).toBeTruthy();
+    expect(screen.getByText("0 / 20 controls passed")).toBeTruthy();
+  });
+});

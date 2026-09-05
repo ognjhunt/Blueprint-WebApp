@@ -1,3 +1,4 @@
+import { controlsStatuses, controlsWarnings } from "./policyCanaryControls";
 import { z } from "zod";
 import type { User as FirebaseUser } from "firebase/auth";
 
@@ -143,7 +144,7 @@ export const policyCanaryRunProjectionSchema = z.object({
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]).nullable(),
-  scene_controls_status: z.literal("configured_controls_pending"),
+  scene_controls_status: z.enum(controlsStatuses),
   state: z.string().min(1),
   terminal: z.boolean(),
   stage: z.string().min(1),
@@ -163,7 +164,7 @@ export const policyCanaryRunProjectionSchema = z.object({
   notification_delivery: z.record(z.string(), z.unknown()).nullable(),
   result: z.object({ record_id: z.string(), href: z.string(), api_href: z.string() }).nullable(),
   error: z.object({ code: z.string(), message: z.string() }).nullable(),
-  warning: z.literal("Controls pending — results are unqualified."),
+  warning: z.enum([controlsWarnings.configured_controls_pending, controlsWarnings.controls_failed, controlsWarnings.controls_verified_development_only]),
 }).passthrough();
 
 export type PolicyCanaryRunProjection = z.infer<typeof policyCanaryRunProjectionSchema>;

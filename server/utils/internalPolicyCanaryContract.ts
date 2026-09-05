@@ -1,3 +1,4 @@
+import { controlsStatusSchema } from "./policyCanaryControls";
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
@@ -307,7 +308,7 @@ export const internalPolicyCanaryStatusProjectionSchema = z.object({
   run_kind: z.literal(INTERNAL_POLICY_CANARY_RUN_KIND),
   claim_ceiling: z.literal(INTERNAL_POLICY_CANARY_CLAIM_CEILING),
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]).nullable(),
-  scene_controls_status: z.literal("configured_controls_pending"),
+  scene_controls_status: controlsStatusSchema,
   state: z.enum(["queued", "running", "aggregating", "results_ready", "blocked", "failed", "cancelled"]),
   stage: z.enum(policyCanaryStages),
   phase: z.string().trim().min(1).max(120).nullable(),

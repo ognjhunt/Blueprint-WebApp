@@ -76,6 +76,12 @@ export const rigidTaskSuccessContractSchema = z.object({
       ]).refine((direction) => Math.abs(direction.reduce((sum, value) => sum + value * value, 0) - 1) <= 1e-6,
         "withdrawal direction must be a unit vector"),
     }).strict().optional(),
+    controls: z.object({
+      mode: z.literal("required_per_cell"),
+      control_ids: z.tuple([
+        z.literal("zero_action_negative"), z.literal("deterministic_scripted_positive"),
+      ]),
+    }).strict().optional(),
   }).strict(),
   contract_digest: digest,
 }).strict();
@@ -187,6 +193,11 @@ export function describeRigidTaskSuccessContract(
       label: "Gripper retreat",
       value: `At least ${meters(criteria.retreat.minimum_clearance_m)}`,
       detail: "Measured clearance from the object along the qualified destination withdrawal direction throughout the final settle window.",
+    }] : []),
+    ...(criteria.controls ? [{
+      label: "Scenario controls",
+      value: "Required on every cell",
+      detail: "Zero-action negative and deterministic scripted-positive checks run before either learned policy.",
     }] : []),
     {
       label: "Safety",

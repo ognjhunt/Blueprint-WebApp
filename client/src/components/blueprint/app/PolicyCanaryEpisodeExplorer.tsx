@@ -141,7 +141,7 @@ function EpisodeOutcomeSummary({
   </div>;
 }
 
-function EvidenceVideo({
+export function EvidenceVideo({
   artifact,
   camera,
   policy,
