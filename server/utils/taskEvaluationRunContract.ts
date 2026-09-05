@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { controlsStatusSchema, controlsWarningSchema, policyCanaryControlFields } from "./policyCanaryControls";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import {
@@ -288,6 +289,9 @@ const policyCanaryEpisodeSchema = z.object({
 });
 
 export const policyCanaryResultDeliverySchema = z.object({
+  ...policyCanaryControlFields,
+  scene_controls_status: controlsStatusSchema.optional(),
+  warning: controlsWarningSchema.optional(),
   schema_version: z.literal("task_evaluation_result_delivery.v2"),
   run_id: identifier,
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]),
@@ -319,6 +323,9 @@ export const policyCanaryResultDeliverySchema = z.object({
 }).strict();
 
 export const policyCanaryResultProjectionSchema = z.object({
+  ...policyCanaryControlFields,
+  scene_controls_status: controlsStatusSchema.optional(),
+  warning: controlsWarningSchema.optional(),
   schema_version: z.literal("task_evaluation_policy_canary_result_projection.v1"),
   run_id: identifier,
   request_digest: digest,
@@ -417,8 +424,8 @@ const policyCanaryRunPublicationSchema = z.object({
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]),
-  scene_controls_status: z.literal("configured_controls_pending"),
-  warning: z.literal("Controls pending — results are unqualified."),
+  scene_controls_status: controlsStatusSchema,
+  warning: controlsWarningSchema,
   scene: z.object({ id: identifier, revision_digest: digest }).strict(),
   task: z.object({ id: identifier, label: nonEmpty }).strict(),
   robot: z.object({ preset_id: identifier, display_name: nonEmpty }).strict(),
@@ -447,7 +454,7 @@ const policyCanaryRunPublicationSchema = z.object({
   policy_canary_result: policyCanaryResultProjectionSchema,
   proof_boundary: z.object({
     result_is_unqualified: z.literal(true),
-    controls_pending: z.literal(true),
+    controls_pending: z.boolean(),
     winner_declared: z.literal(false),
     official_ranking_contribution: z.literal(false),
     scene_promotion_permitted: z.literal(false),

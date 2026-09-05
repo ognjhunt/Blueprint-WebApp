@@ -1,3 +1,4 @@
+import type { ControlsStatus, PolicyCanaryControl, ControlsSummary } from "./policyCanaryControls";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -226,6 +227,10 @@ export type PolicyCanaryEpisodeInterpretationSidecar = {
 };
 
 export type TaskEvaluationResultDelivery = {
+  controls?: PolicyCanaryControl[];
+  controls_summary?: ControlsSummary;
+  scene_controls_status?: ControlsStatus;
+  warning?: string;
   schema_version: "task_evaluation_result_delivery.v1" | "task_evaluation_result_delivery.v2";
   run_id: string;
   state?: "decided" | "partially_decided" | "abstained";
@@ -303,7 +308,7 @@ export type TaskEvaluationResultSiteRecord = {
     run_kind?: "internal_policy_canary";
     claim_ceiling?: "diagnostic_policy_execution";
     result_status?: "completed_unqualified" | "blocked" | "cancelled";
-    scene_controls_status?: "configured_controls_pending";
+    scene_controls_status?: ControlsStatus;
     warning?: string;
     source_launch_id?: string;
     offering_digest?: string;
@@ -339,6 +344,9 @@ export type TaskEvaluationResultSiteRecord = {
     };
     result_delivery?: TaskEvaluationResultDelivery;
     policy_canary_result?: Record<string, any> & {
+      controls?: PolicyCanaryControl[];
+      controls_summary?: ControlsSummary;
+      scene_controls_status?: ControlsStatus;
       task_success_contract?: RigidTaskSuccessContract;
     };
     proof_boundary: Record<string, unknown>;

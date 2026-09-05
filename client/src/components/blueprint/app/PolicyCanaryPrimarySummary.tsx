@@ -16,7 +16,7 @@ import {
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
 
-function PrimaryDownload({
+export function PrimaryDownload({
   artifact,
   label,
   recordId,

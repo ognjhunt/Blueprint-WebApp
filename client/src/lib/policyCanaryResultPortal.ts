@@ -426,6 +426,8 @@ export function buildCanaryArtifactInventory(result: TaskEvaluationResultSiteRec
     ...(delivery?.episodes || []).flatMap(episodeArtifacts),
     canaryResult.report?.machine_readable_report,
     canaryResult.report?.evidence_manifest,
+    canaryResult.report?.controls_csv,
+    ...(canaryResult.controls || delivery?.controls || []).flatMap((control: import("./policyCanaryControls").PolicyCanaryControl) => [control.receipt, control.cell_receipt, ...Object.values(control.videos), ...control.artifacts]),
     canaryResult.closure?.billing,
     canaryResult.closure?.teardown,
     canaryResult.closure?.provider_zero,

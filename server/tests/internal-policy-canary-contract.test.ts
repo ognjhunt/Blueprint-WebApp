@@ -391,3 +391,26 @@ describe("destination-qualified retreat contract", () => {
     }
   });
 });
+
+describe("required per-cell controls contract", () => {
+  it("retains both exact controls and refuses an incomplete pair", () => {
+    const contract = taskSuccessContract();
+    contract.criteria.controls = {
+      mode: "required_per_cell",
+      control_ids: ["zero_action_negative", "deterministic_scripted_positive"],
+    };
+    contract.contract_digest = canonicalArtifactDigest(contract, "contract_digest");
+    expect(rigidTaskSuccessContractSchema.parse(contract)).toEqual(contract);
+    const projected = clientSuccessSchema.parse(contract);
+    expect(projected.criteria.controls).toEqual(contract.criteria.controls);
+    expect(describeRigidTaskSuccessContract(projected)).toContainEqual({
+      label: "Scenario controls", value: "Required on every cell",
+      detail: "Zero-action negative and deterministic scripted-positive checks run before either learned policy.",
+    });
+    const missing = structuredClone(contract) as any;
+    missing.criteria.controls.control_ids.pop();
+    missing.contract_digest = canonicalArtifactDigest(missing, "contract_digest");
+    expect(rigidTaskSuccessContractSchema.safeParse(missing).success).toBe(false);
+    expect(clientSuccessSchema.safeParse(missing).success).toBe(false);
+  });
+});

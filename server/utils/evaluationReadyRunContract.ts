@@ -1,3 +1,5 @@
+import { pipelinePolicyCanaryResultProjectionSchema } from "./policyCanaryWebappSyncContract";
+import { controlsWarnings } from "./policyCanaryControls";
 import { createHash } from "node:crypto";
 
 import { z } from "zod";
@@ -753,6 +755,8 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
           : 0,
         total_episodes: 20,
       };
+  const controlProjection = pipelinePolicyCanaryResultProjectionSchema.safeParse(record.policy_run_result_projection);
+  const controlsStatus = controlProjection.success ? controlProjection.data.scene_controls_status : "configured_controls_pending";
   return {
     ...projection,
     state,
@@ -764,7 +768,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
       || record.result_status === "cancelled"
       ? record.result_status
       : null,
-    scene_controls_status: "configured_controls_pending" as const,
+    scene_controls_status: controlsStatus,
     stage,
     request_digest: typeof record.request_digest === "string"
       ? record.request_digest
@@ -797,7 +801,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
       record.notification_delivery && typeof record.notification_delivery === "object"
         ? record.notification_delivery
         : null,
-    warning: "Controls pending — results are unqualified." as const,
+    warning: controlsWarnings[controlsStatus],
     proof_boundary: {
       simulation_is_physical_success: false as const,
       deployment_or_safety_approved: false as const,

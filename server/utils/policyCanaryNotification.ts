@@ -1,3 +1,5 @@
+import { pipelinePolicyCanaryResultProjectionSchema } from "./policyCanaryWebappSyncContract";
+import { controlsWarnings } from "./policyCanaryControls";
 type PolicyCanaryRecord = Record<string, any>;
 
 function text(value: unknown, fallback = "not reported") {
@@ -69,9 +71,11 @@ export function buildPolicyCanaryTerminalEmail(params: {
   const episodesPerPolicy = Number(
     record.episode_plan?.episodes_per_policy || 10,
   );
+  const projection = pipelinePolicyCanaryResultProjectionSchema.safeParse(record.policy_run_result_projection);
+  const warning = controlsWarnings[projection.success ? projection.data.scene_controls_status : "configured_controls_pending"];
   return {
     title: `Blueprint policy canary ${copy.subjectState}`,
-    body: `Scene ${sceneId} policy canary ${copy.status}. Controls pending — results are unqualified.`,
+    body: `Scene ${sceneId} policy canary ${copy.status}. ${warning}`,
     emailSubject: `Blueprint policy canary ${copy.subjectState} — Scene ${sceneId}`,
     emailText: [
       `Scene: ${sceneId}`,
@@ -80,7 +84,7 @@ export function buildPolicyCanaryTerminalEmail(params: {
       `Policies: ${policies}`,
       `Run size: ${episodesPerPolicy} episodes per policy`,
       `Terminal status: ${copy.status}`,
-      "Controls pending — results are unqualified.",
+      warning,
       "This diagnostic run cannot declare a winner, contribute to official ranking, or promote the scene to evaluation ready.",
       ...completedMetrics(record),
       `Open the authenticated result: ${resultUrl}`,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { controlsStatusSchema, controlsWarningSchema, policyCanaryControlFields, controlsProjectionBlockers } from "./policyCanaryControls";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
@@ -108,9 +109,10 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   }).strict().optional(),
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
-  scene_controls_status: z.literal("configured_controls_pending"),
+  scene_controls_status: controlsStatusSchema,
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]),
-  warning: z.literal("Controls pending — results are unqualified."),
+  warning: controlsWarningSchema,
+  ...policyCanaryControlFields,
   counts: z.object({
     policy_count: z.literal(2),
     episodes_per_policy: z.literal(10),
@@ -163,6 +165,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     permanent_result_path: z.string().regex(/^\/[^\s]*$/),
     machine_readable_report: pipelineArtifactSchema,
     evidence_manifest: pipelineArtifactSchema,
+    controls_csv: pipelineArtifactSchema.optional(),
   }).strict(),
   closure: z.object({
     billing: pipelineArtifactSchema,
@@ -175,6 +178,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   blockers: z.array(nonEmpty).max(128),
   projection_digest: digest,
 }).strict().superRefine((projection, context) => {
+  for (const message of controlsProjectionBlockers(projection)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["controls"], message });
   if (
     Boolean(projection.task_success_contract)
       !== Boolean(projection.task_success_contract_digest)
@@ -194,6 +198,9 @@ export const pipelinePolicyCanaryResultDeliverySchema = z.object({
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   delivery_digest: digest,
+  scene_controls_status: controlsStatusSchema.optional(),
+  warning: controlsWarningSchema.optional(),
+  ...policyCanaryControlFields,
 }).passthrough();
 
 export const pipelinePolicyCanaryPublicationSchema = z.object({
@@ -206,8 +213,8 @@ export const pipelinePolicyCanaryPublicationSchema = z.object({
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   result_status: z.enum(["completed_unqualified", "blocked", "cancelled"]),
-  scene_controls_status: z.literal("configured_controls_pending"),
-  warning: z.literal("Controls pending — results are unqualified."),
+  scene_controls_status: controlsStatusSchema,
+  warning: controlsWarningSchema,
   result_delivery: pipelinePolicyCanaryResultDeliverySchema,
   policy_canary_result: pipelinePolicyCanaryResultProjectionSchema,
   proof_boundary: z.object({
@@ -266,8 +273,24 @@ export function parsePipelinePolicyCanaryPublication(value: unknown) {
     || projection.configuration_digest !== publication.configuration_digest
     || projection.result_delivery_digest !== delivery.delivery_digest
     || projection.result_status !== publication.result_status
+    || projection.scene_controls_status !== publication.scene_controls_status
+    || projection.warning !== publication.warning
     || projection.notification_delivery.run_result_digest !== projection.report.result_digest
   ) blockers.push("policy_canary_publication_binding_mismatch");
+  if (projection.controls) {
+    for (const key of ["controls", "controls_summary", "controls_gate", "strict_paired_gate", "paired_delivery", "strict_gate_blockers"] as const) {
+      if (canonicalArtifactDigest({ value: projection[key] }, "comparison_digest") !== canonicalArtifactDigest({ value: delivery[key] }, "comparison_digest")) blockers.push("policy_canary_controls_delivery_mismatch");
+    }
+    if (delivery.scene_controls_status !== projection.scene_controls_status || delivery.warning !== projection.warning) blockers.push("policy_canary_controls_delivery_mismatch");
+    const inventory = Array.isArray(delivery.artifacts) ? delivery.artifacts as Array<Record<string, unknown>> : [];
+    const controlsCsv = projection.report.controls_csv;
+    if (!controlsCsv || !inventory.some((artifact) => artifact.artifact_id === controlsCsv.artifact_id && artifact.digest === controlsCsv.digest && artifact.size_bytes === controlsCsv.size_bytes)) blockers.push("policy_canary_controls_csv_unbound");
+    for (const control of projection.controls) {
+      for (const ref of [control.receipt, control.cell_receipt, ...Object.values(control.videos), ...control.artifacts]) {
+        if (inventory.filter((artifact) => artifact.artifact_id === ref.artifact_id && artifact.digest === ref.digest && artifact.size_bytes === ref.size_bytes).length !== 1) blockers.push("policy_canary_control_artifact_unbound");
+      }
+    }
+  }
   if (sensitivePaths(publication).length) blockers.push("policy_canary_publication_secret_value_forbidden");
   return blockers.length
     ? { ok: false as const, blockers: [...new Set(blockers)].sort() }

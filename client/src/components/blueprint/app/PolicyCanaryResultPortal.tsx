@@ -1,3 +1,5 @@
+import { controlsVerified } from "@/lib/policyCanaryControls";
+import { PolicyCanaryControls } from "./PolicyCanaryControls";
 import type { ReactNode } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Check, ShieldAlert, X } from "lucide-react";
@@ -33,6 +35,8 @@ function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord })
   const matched = comparison?.comparablePairs ?? 0;
   const correction = result.score_correction;
   const interpretation = result.episode_interpretation;
+  const controls = result.publication.policy_canary_result || result.publication.result_delivery || {};
+  const verifiedControls = controlsVerified({ ...controls, scene_controls_status: result.publication.scene_controls_status });
   const visibility = result.access_visibility === "unlisted_public"
     ? "Anyone with this unlisted link can view this result and its published evidence."
     : result.access_visibility === "organization_members"
@@ -67,7 +71,7 @@ function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord })
         <ul className="flex flex-col gap-2">
           <ReadingPoint tone="block">Physical-world success. This is simulation, and a sim ranking can invert on real hardware.</ReadingPoint>
           <ReadingPoint tone="block">A deployment or safety approval of either policy.</ReadingPoint>
-          <ReadingPoint tone="block">An official ranking or scene promotion — the sample is small and no reference baseline has run on this scene yet.</ReadingPoint>
+          <ReadingPoint tone="block">An official ranking or scene promotion. {verifiedControls ? "The controls are verified for this simulation matrix; the result remains development-only." : "Control evidence has not been verified for this matrix."}</ReadingPoint>
         </ul>
       </div>
     </div>
@@ -76,8 +80,8 @@ function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord })
       <p>{visibility}</p>
       <p>
         <span className="font-semibold text-ink-700">To advance this pair to physical trials,</span>{" "}
-        a qualifying run adds the delivered success contract, a reference baseline on this scene, more trials
-        per condition, and multiple seeds per cell.
+        the decision still needs an approved prospective protocol and physical outcome adjudication.
+        Simulation controls do not provide physical evidence.
       </p>
       {correction || interpretation ? <details className="mt-1">
         <summary className="cursor-pointer font-semibold text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">
@@ -123,6 +127,7 @@ export function PolicyCanaryResultPortal({
       rates above cannot yet serve as an acceptance test. Do not reinterpret completion from the review
       video alone — the deterministic criteria are the authority.
     </ProofBoundary>}
+    <PolicyCanaryControls result={projectedResult} user={user} />
     <PolicyCanaryEpisodeExplorer result={projectedResult} user={user} />
     <PolicyCanaryReportOverview result={projectedResult} />
     <PolicyCanaryEvidenceInventory result={projectedResult} user={user} />
