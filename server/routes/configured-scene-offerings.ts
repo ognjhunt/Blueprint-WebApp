@@ -12,13 +12,9 @@ import {
 import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
 import { withTaskEvaluationLaunchStoreTimeout } from "../utils/taskEvaluationLaunchStore";
 import {
-  buildInternalPolicyCanaryLaunchRequest,
   internalPolicyCanarySelectionSchema,
   policyCanaryError,
-  policyCanaryNotificationRecipientAllowed,
   policyCanaryNotificationRecipientOptions,
-  resolveInternalPolicyCanarySelection,
-  type InternalPolicyCanarySetup,
 } from "../utils/internalPolicyCanaryContract";
 import {
   CANONICAL_POLICY_CANDIDATE_IDS,
@@ -32,10 +28,13 @@ import {
   type EvaluationReadyRunRecord,
 } from "../utils/evaluationReadyRunContract";
 import {
-  forwardTaskEvaluationLaunch,
   resolvePublishedLaunchProfileCatalog,
 } from "../utils/taskEvaluationLaunchContract";
-import { forwardStoredPolicyCanaryRun } from "../utils/taskEvaluationLaunchForwardWorker";
+import {
+  loadConfiguredSceneOffering,
+  policyCanarySetupFor,
+  submitPolicyCanaryRun,
+} from "../utils/policyCanaryRunSubmission";
 import {
   buildPolicyRunLaunchPreparation,
   forwardTaskEvaluationLaunchPreparation,
@@ -78,24 +77,11 @@ async function accessibleOffering(launchId: string, res: Response) {
   if (!db) return null;
   const access = await resolveAccessContext(res);
   if (!access.uid) return null;
-  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
-    db.collection(COLLECTION).doc(launchId).get(),
-  );
-  if (!snapshot.exists) return null;
-  const record = snapshot.data() as Record<string, unknown>;
-  const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
-  if (
-    !isStoredOfferingState(record.configured_scene_offering_state)
-    || !parsed.success
-    || !storedStateMatchesOffering(
-      record.configured_scene_offering_state,
-      parsed.data.status,
-    )
-    || parsed.data.offering_digest !== record.configured_scene_offering_digest
-  ) return null;
+  const loaded = await loadConfiguredSceneOffering(launchId);
+  if (!loaded) return null;
   const tenantId = firebaseTenantId(res);
-  if (!access.isOps && (!tenantId || tenantId !== parsed.data.team_namespace)) return null;
-  return { offering: parsed.data, access };
+  if (!access.isOps && (!tenantId || tenantId !== loaded.offering.team_namespace)) return null;
+  return { offering: loaded.offering, access };
 }
 
 async function policyRunSetupFor(
@@ -128,63 +114,6 @@ async function policyRunSetupFor(
     ok: true as const,
     profile: matches[0],
     setup: matches[0].policy_run_setup as EvaluationReadyPolicyRunSetup,
-  };
-}
-
-async function policyCanarySetupFor(
-  sourceLaunchId: string,
-  offering: ConfiguredSceneOffering,
-) {
-  const catalog = await resolvePublishedLaunchProfileCatalog();
-  if (catalog.blocker) return {
-    ok: false as const,
-    status: 503,
-    code: catalog.blocker,
-  };
-  const matches = catalog.profiles.filter((profile) => {
-    const setup = profile.internal_policy_canary_setup;
-    return Boolean(
-      profile.source_commit
-      && setup
-      && setup.source_launch_id === sourceLaunchId
-      && setup.offering_digest === offering.offering_digest
-      && setup.scene_revision_digest
-        === offering.evaluation_preparation_binding.configured_scene_revision_digest
-      && profile.task_evaluation_run?.team_namespace === offering.team_namespace
-      && profile.task_evaluation_run.scene_id === offering.scene_identity.id
-      && profile.task_evaluation_run.configuration_run_id === offering.configuration_run_id,
-    );
-  });
-  if (matches.length !== 1) return {
-    ok: false as const,
-    status: matches.length === 0 ? 409 : 503,
-    code: matches.length === 0
-      ? "POLICY_CANARY_SETUP_NOT_PUBLISHED"
-      : "POLICY_CANARY_SETUP_AMBIGUOUS",
-  };
-  const successContract = matches[0].internal_policy_canary_setup?.task_success_contract;
-  const successContractDigest = matches[0].internal_policy_canary_setup
-    ?.task_success_contract_digest;
-  if (
-    !successContract
-    || successContractDigest !== successContract.contract_digest
-  ) return {
-    ok: false as const,
-    status: 409,
-    code: "TASK_SUCCESS_CONTRACT_NOT_PUBLISHED",
-  };
-  if (
-    successContract.scope.site_id !== offering.scene_identity.id
-    || successContract.scope.task_id !== offering.task.identity.id
-  ) return {
-    ok: false as const,
-    status: 409,
-    code: "TASK_SUCCESS_CONTRACT_SCOPE_MISMATCH",
-  };
-  return {
-    ok: true as const,
-    profile: matches[0],
-    setup: matches[0].internal_policy_canary_setup as InternalPolicyCanarySetup,
   };
 }
 
@@ -504,208 +433,17 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
       "Idempotency-Key must equal the immutable run_id.",
     ));
   }
-  if (!policyCanaryNotificationRecipientAllowed({
-    requestedEmail: selection.notification.email,
-    authenticatedEmail: resolved.access.email,
-    isAdmin: resolved.access.isAdmin,
-    isOps: resolved.access.isOps,
-  })) {
-    return res.status(422).json(policyCanaryError(
-      "NOTIFICATION_EMAIL_NOT_AUTHORIZED",
-      "Notification email must match the authenticated account or an admin-approved internal recipient.",
-    ));
-  }
-  const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering);
-  if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
-    setup.code,
-    "A verified runnable policy-canary setup is not published for this exact configured revision.",
-  ));
-  const selected = resolveInternalPolicyCanarySelection(setup.setup, selection, {
-    siteId: resolved.offering.scene_identity.id,
-    taskId: resolved.offering.task.identity.id,
-    teamId: resolved.offering.team_namespace,
-  });
-  if (!selected.ok) return res.status(422).json(policyCanaryError(
-    selected.code,
-    selected.message,
-    selected.details,
-  ));
-  const now = new Date().toISOString();
-  const freshRequest = buildInternalPolicyCanaryLaunchRequest({
+  return submitPolicyCanaryRun({
+    launchId: req.params.launchId,
+    offering: resolved.offering,
     selection,
-    setup: setup.setup,
-    profile: setup.profile,
-    actor: {
-      id: resolved.access.uid || "",
-      role: resolved.access.isAdmin
-        ? "admin"
-        : resolved.access.isOps ? "ops" : "team_member",
+    access: {
+      uid: resolved.access.uid,
+      email: resolved.access.email,
+      isAdmin: resolved.access.isAdmin,
+      isOps: resolved.access.isOps,
     },
-    teamNamespace: resolved.offering.team_namespace,
-    controlsStatusAtSubmission: "configured_controls_pending",
-    authorizedAt: now,
-  });
-  const record = {
-    schema_version: "task_evaluation_policy_run_web_record.v2",
-    run_id: selection.run_id,
-    run_kind: selection.run_kind,
-    claim_ceiling: selection.claim_ceiling,
-    source_launch_id: req.params.launchId,
-    offering_digest: selection.offering_digest,
-    setup_digest: selection.setup_digest,
-    task_success_contract: selection.task_success_contract,
-    task_success_contract_digest: selection.task_success_contract.contract_digest,
-    scene_revision_digest: selection.scene_revision_digest,
-    scene_controls_status_at_submission: "configured_controls_pending",
-    owner_user_id: resolved.access.uid,
-    team_namespace: resolved.offering.team_namespace,
-    state: "forward_pending",
-    phase: "forwarding",
-    request_digest: freshRequest.request_digest,
-    configuration_digest: freshRequest.request_digest,
-    robot_preset_id: selection.robot_preset_id,
-    policy_candidate_ids: selection.policy_candidate_ids,
-    scene: {
-      id: resolved.offering.scene_identity.id,
-      version: resolved.offering.scene_identity.version,
-    },
-    task: {
-      id: resolved.offering.task.identity.id,
-      label: resolved.offering.task.strategy.replaceAll("_", " "),
-    },
-    robot: {
-      preset_id: selected.robot.robot_preset_id,
-      display_name: selected.robot.display_name,
-    },
-    policy_candidates: selected.candidates.map((candidate) => ({
-      candidate_id: candidate.candidate_id,
-      display_name: candidate.display_name,
-      checkpoint_digest: candidate.checkpoint.digest,
-    })),
-    episode_plan: freshRequest.episode_plan,
-    episode_counts: {
-      learned_episode_count: 20,
-      control_episode_count: 20,
-      total_episode_count: 40,
-    },
-    progress: {
-      completed_episodes: 0,
-      total_episodes: 20,
-    },
-    completed_learned_episode_count: 0,
-    completed_control_episode_count: 0,
-    notification: selection.notification,
-    notification_recipient_user_id: resolved.access.uid,
-    notification_source_event_id: freshRequest.request_digest,
-    request: freshRequest,
-    forward_attempt_count: 0,
-    next_forward_at_iso: null,
-    retryable: true,
-    result_record_id: null,
-    delivery_digest: null,
-    created_at_iso: now,
-    updated_at_iso: now,
-  };
-  const runRef = db.collection(POLICY_RUN_COLLECTION).doc(selection.run_id);
-  let priorRecord: Record<string, any> | null;
-  try {
-    priorRecord = await withTaskEvaluationLaunchStoreTimeout(
-      db.runTransaction(async (transaction) => {
-        const snapshot = await transaction.get(runRef);
-        if (snapshot.exists) {
-          const prior = snapshot.data() as Record<string, any>;
-          const originalAuthorizedAt = prior.request?.authorization?.authorized_at;
-          if (typeof originalAuthorizedAt !== "string") {
-            throw new Error("policy_canary_immutable_conflict");
-          }
-          const replayRequest = buildInternalPolicyCanaryLaunchRequest({
-            selection,
-            setup: setup.setup,
-            profile: setup.profile,
-            actor: {
-              id: resolved.access.uid || "",
-              role: resolved.access.isAdmin
-                ? "admin"
-                : resolved.access.isOps ? "ops" : "team_member",
-            },
-            teamNamespace: resolved.offering.team_namespace,
-            controlsStatusAtSubmission: "configured_controls_pending",
-            authorizedAt: originalAuthorizedAt,
-          });
-          if (
-            prior.run_kind !== selection.run_kind
-            || prior.owner_user_id !== record.owner_user_id
-            || prior.team_namespace !== record.team_namespace
-            || prior.source_launch_id !== record.source_launch_id
-            || prior.request_digest !== replayRequest.request_digest
-            || prior.request?.request_digest !== replayRequest.request_digest
-          ) throw new Error("policy_canary_immutable_conflict");
-          return prior;
-        }
-        transaction.create(runRef, record);
-        return null;
-      }),
-    );
-  } catch (error) {
-    if (error instanceof Error && error.message === "policy_canary_immutable_conflict") {
-      return res.status(409).json(policyCanaryError(
-        "POLICY_CANARY_IMMUTABLE_CONFLICT",
-        "This run identity is already bound to another immutable request.",
-      ));
-    }
-    return res.status(503).json(policyCanaryError(
-      "POLICY_CANARY_STORE_UNAVAILABLE",
-      "Policy canary persistence is unavailable. Check this same run ID before submitting again.",
-      { persistence_state: "unknown", retryable: true },
-    ));
-  }
-  res.set("Cache-Control", "private, no-store");
-  const replayed = priorRecord !== null;
-  const storedRecord = priorRecord || record;
-  if (
-    replayed
-    && !["forward_pending", "forward_blocked"].includes(String(storedRecord.state || ""))
-  ) return res.status(200).json({
-    schema_version: "task_evaluation_policy_canary_web_receipt.v1",
-    status: storedRecord.state,
-    already_exists: true,
-    run: storedRecord,
-  });
-  const forwardResult = await forwardStoredPolicyCanaryRun(
-    // A user-initiated retry is immediate. The background reconciler still
-    // respects next_forward_at_iso, but an explicit same-selection POST should
-    // match the established admin launch retry behavior.
-    replayed ? { ...storedRecord, next_forward_at_iso: null } : storedRecord,
-    async () => forwardTaskEvaluationLaunch({ request: storedRecord.request }),
-  );
-  const forwarded = forwardResult.forward;
-  const update = {
-    ...forwardResult,
-    launch_forward: forwarded,
-    error: forwarded?.status === "forwarded"
-      ? null
-      : {
-        code: forwarded?.blocker || "POLICY_CANARY_FORWARD_FAILED",
-        message: "Policy canary could not be queued in Pipeline.",
-      },
-    updated_at_iso: new Date().toISOString(),
-  };
-  try {
-    await withTaskEvaluationLaunchStoreTimeout(runRef.set(update, { merge: true }));
-  } catch {
-    return res.status(503).json(policyCanaryError(
-      "POLICY_CANARY_FORWARD_RECEIPT_STORE_UNAVAILABLE",
-      "Pipeline responded, but the forwarding receipt could not be sealed.",
-      { persistence_state: "forward_receipt_unknown", retryable: true },
-    ));
-  }
-  return res.status(forwarded?.status === "forwarded" ? 202 : 503).json({
-    schema_version: "task_evaluation_policy_canary_web_receipt.v1",
-    status: update.state,
-    already_exists: replayed,
-    run: { ...storedRecord, ...update },
-    forward: forwarded,
-    warning: "Controls pending — results are unqualified.",
+    res,
   });
 });
 
