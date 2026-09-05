@@ -1578,6 +1578,132 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
+  it("fires a controls-pending policy canary through the signed service channel", async () => {
+    // The progression worker owns the hand-off from passing controls into the
+    // Quick-10 canary. It has no browser session, so the same immutable
+    // selection the offering page sends must be accepted over the HMAC channel
+    // with the runner as an ops actor, and the pipeline must receive exactly
+    // the request the browser route would have built.
+    state.isOps = false;
+    process.env.BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST = "owner@example.com";
+    const sourceLaunchId = "controls-pending-policy-canary-service";
+    const offering = pausedUngradedConfiguredSceneOffering();
+    const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
+    const setup = canaryProfile.internal_policy_canary_setup;
+    const runId = "policy-canary-service-001";
+    const body = internalPolicyCanarySelection(runId, setup);
+    body.notification.email = "owner@example.com";
+    state.launchProfiles = [canaryProfile];
+    state.records.set(sourceLaunchId, {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const { server, url } = await startSubmissionServer();
+    try {
+      const payload = JSON.stringify(body);
+      const response = await fetch(`${url}/policy-canary-runs/${sourceLaunchId}`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(payload, runId),
+        body: payload,
+      });
+      expect(response.status).toBe(202);
+      const receipt = await response.json();
+      expect(receipt).toMatchObject({
+        schema_version: "task_evaluation_policy_canary_web_receipt.v1",
+        status: "queued",
+        already_exists: false,
+        submission_channel: "production_webapp_service_api",
+        run: {
+          run_id: runId,
+          run_kind: "internal_policy_canary",
+          owner_user_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+          team_namespace: offering.team_namespace,
+          scene_controls_status_at_submission: "configured_controls_pending",
+          notification: { email: "owner@example.com" },
+        },
+      });
+      const record = state.records.get(runId);
+      expect(record).toMatchObject({
+        state: "queued",
+        source_launch_id: sourceLaunchId,
+        request: {
+          run_kind: "internal_policy_canary",
+          authorization: { actor: { id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID, role: "ops" } },
+        },
+      });
+      const pipelineRequests = (globalThis.fetch as any).mock.calls
+        .filter(([target]: [string]) => target === "https://pipeline.example/launches")
+        .map(([, init]: [string, RequestInit]) => JSON.parse(String(init.body)));
+      expect(pipelineRequests).toHaveLength(1);
+      expect(pipelineRequests[0]).toMatchObject({
+        run_kind: "internal_policy_canary",
+        launch_id: runId,
+        policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+        preset_id: "quick_10",
+        notification: { email: "owner@example.com" },
+      });
+      // Replaying the identical selection returns the sealed record and does
+      // not forward a second time.
+      const replay = await fetch(`${url}/policy-canary-runs/${sourceLaunchId}`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(payload, runId),
+        body: payload,
+      });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ already_exists: true, status: "queued" });
+      expect((globalThis.fetch as any).mock.calls
+        .filter(([target]: [string]) => target === "https://pipeline.example/launches")).toHaveLength(1);
+    } finally {
+      delete process.env.BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST;
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("refuses a service-channel policy canary that is unsigned or notifies an unapproved address", async () => {
+    state.isOps = false;
+    process.env.BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST = "owner@example.com";
+    const sourceLaunchId = "controls-pending-policy-canary-service-refusals";
+    const offering = pausedUngradedConfiguredSceneOffering();
+    const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
+    const runId = "policy-canary-service-002";
+    const body = internalPolicyCanarySelection(runId, canaryProfile.internal_policy_canary_setup);
+    body.notification.email = "stranger@example.com";
+    state.launchProfiles = [canaryProfile];
+    state.records.set(sourceLaunchId, {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const { server, url } = await startSubmissionServer();
+    try {
+      const payload = JSON.stringify(body);
+      const unsigned = await fetch(`${url}/policy-canary-runs/${sourceLaunchId}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": runId },
+        body: payload,
+      });
+      expect(unsigned.status).toBe(401);
+      const unapproved = await fetch(`${url}/policy-canary-runs/${sourceLaunchId}`, {
+        method: "POST",
+        headers: signedSubmissionHeaders(payload, runId),
+        body: payload,
+      });
+      expect(unapproved.status).toBe(422);
+      await expect(unapproved.json()).resolves.toMatchObject({
+        error: { code: "NOTIFICATION_EMAIL_NOT_AUTHORIZED" },
+      });
+      expect(state.records.has(runId)).toBe(false);
+      expect((globalThis.fetch as any).mock.calls
+        .filter(([target]: [string]) => target === "https://pipeline.example/launches")).toHaveLength(0);
+    } finally {
+      delete process.env.BLUEPRINT_POLICY_CANARY_NOTIFICATION_EMAIL_ALLOWLIST;
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("reuses the original authorization when retrying a forward-blocked policy canary", async () => {
     state.isOps = false;
     const sourceLaunchId = "controls-pending-policy-canary";

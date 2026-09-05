@@ -8,6 +8,14 @@ import {
   createTaskEvaluationLaunchSubmissionRateLimiter,
   verifyTaskEvaluationLaunchSubmissionRequest,
 } from "../utils/taskEvaluationLaunchSubmissionAuth";
+import {
+  internalPolicyCanarySelectionSchema,
+  policyCanaryError,
+} from "../utils/internalPolicyCanaryContract";
+import {
+  loadConfiguredSceneOffering,
+  submitPolicyCanaryRun,
+} from "../utils/policyCanaryRunSubmission";
 
 const router = Router();
 const rateLimiter = createTaskEvaluationLaunchSubmissionRateLimiter();
@@ -65,5 +73,65 @@ router.post("/preflight", rateLimiter, requireLaunchSubmissionSignature, async (
     idempotencyKey,
   });
 });
+
+// The progression worker hands a passing controls pair into the Quick-10
+// canary without a browser session. It sends the same immutable selection the
+// offering page sends, signed as the production runner, which acts as ops;
+// the pipeline receives the byte-identical request either way.
+router.post(
+  "/policy-canary-runs/:launchId",
+  rateLimiter,
+  requireLaunchSubmissionSignature,
+  async (req: Request, res: Response) => {
+    const parsed = internalPolicyCanarySelectionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(422).json(policyCanaryError(
+      "POLICY_CANARY_CONFIGURATION_INVALID",
+      "Policy canary configuration is invalid.",
+      {
+        violations: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    ));
+    const selection = parsed.data;
+    const idempotencyKey = String(req.header("Idempotency-Key") || "").trim();
+    if (!idempotencyKey || idempotencyKey !== selection.run_id) {
+      return res.status(409).json(policyCanaryError(
+        "POLICY_CANARY_IDEMPOTENCY_CONFLICT",
+        "Idempotency-Key must equal the immutable run_id.",
+      ));
+    }
+    let loaded;
+    try {
+      loaded = await loadConfiguredSceneOffering(req.params.launchId);
+    } catch {
+      return res.status(503).json(policyCanaryError(
+        "CONFIGURED_SCENE_STORE_UNAVAILABLE",
+        "Configured scene offering store is unavailable.",
+      ));
+    }
+    if (!loaded) return res.status(404).json(policyCanaryError(
+      "CONFIGURED_SCENE_NOT_FOUND",
+      "Configured scene offering was not found.",
+    ));
+    if (loaded.offering.status !== "configured_controls_pending") {
+      return res.status(409).json(policyCanaryError(
+        "POLICY_CANARY_REQUIRES_CONTROLS_PENDING_SCENE",
+        "This channel starts internal controls-pending canaries only.",
+        { offering_status: loaded.offering.status },
+      ));
+    }
+    const clientId = String(res.locals.taskEvaluationLaunchSubmissionClientId);
+    return submitPolicyCanaryRun({
+      launchId: req.params.launchId,
+      offering: loaded.offering,
+      selection,
+      access: { uid: clientId, email: null, isAdmin: false, isOps: true },
+      res,
+      submissionChannel: "production_webapp_service_api",
+    });
+  },
+);
 
 export default router;
