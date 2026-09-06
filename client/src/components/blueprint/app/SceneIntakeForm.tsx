@@ -16,6 +16,8 @@ export function SceneIntakeForm({
 }) {
   const retryStorageKey = `scene-intake-pending:${JSON.stringify([currentUser.uid, currentUser.tenantId || null])}`;
   const [source, setSource] = useState("");
+  const [collisionSource, setCollisionSource] = useState("");
+  const [collisionFrameConfirmed, setCollisionFrameConfirmed] = useState(false);
   const [task, setTask] = useState({
     subject: "",
     support: "",
@@ -27,8 +29,8 @@ export function SceneIntakeForm({
     { id: "", artifact_digest: "" },
     { id: "", artifact_digest: "" },
   ]);
-  const [spend, setSpend] = useState(25);
-  const [attempts, setAttempts] = useState(1);
+  const [spend, setSpend] = useState(35);
+  const [attempts, setAttempts] = useState(8);
   const [retries, setRetries] = useState(0);
   const [provider, setProvider] = useState("vast");
   const [additionalProviders, setAdditionalProviders] = useState<string[]>([]);
@@ -51,6 +53,7 @@ export function SceneIntakeForm({
       label: string;
       validation_status: string;
       selectable: boolean;
+      kind?: string;
     }>
   >([]);
   const refresh = async () => {
@@ -92,6 +95,8 @@ export function SceneIntakeForm({
         const command = JSON.parse(retained);
         setPendingCommand(command);
         setSource(command.source_session_id);
+        setCollisionSource(command.collision_source_session_id || "");
+        setCollisionFrameConfirmed(command.collision_same_frame_confirmed === true);
         setTask(
           Object.fromEntries(
             Object.entries(command.task)
@@ -146,6 +151,7 @@ export function SceneIntakeForm({
     const command = pendingCommand || {
       submission_id: `scene-${crypto.randomUUID()}`,
       source_session_id: source,
+      ...(collisionSource ? { collision_source_session_id: collisionSource, collision_same_frame_confirmed: collisionFrameConfirmed } : {}),
       task: {
         task_id: `task-${source}`,
         strategy: "pick_and_place",
@@ -232,7 +238,7 @@ export function SceneIntakeForm({
         Start a Task Evaluation Run
       </h2>
       <p className="my-3 text-body-s text-ink-600">
-        Choose an admitted upload, confirm one pick-and-place task, and bound
+        Choose a completed 3DGS or mesh result, confirm one pick-and-place task, and bound
         processing. Supplied geometry stays distinct from observed capture.
         Results remain development-only simulation evidence.
       </p>
@@ -259,12 +265,12 @@ export function SceneIntakeForm({
               className={field}
               required
               value={source}
-              onChange={(e) => setSource(e.target.value)}
+              onChange={(e) => { setSource(e.target.value); setCollisionSource(""); setCollisionFrameConfirmed(false); }}
             >
-              <option value="">Choose a capture or provided scene</option>
-              {nativeSources.map((s) => (
+              <option value="">Choose a completed 3DGS or mesh</option>
+              {nativeSources.filter((s) => ["mesh", "gaussian_splat"].includes(s.kind || "")).map((s) => (
                 <option key={s.id} value={s.id} disabled={!s.selectable}>
-                  {s.label} · App capture ·{" "}
+                  {s.label} · Completed scene ·{" "}
                   {s.validation_status.replace(/_/g, " ")}
                 </option>
               ))}
@@ -272,6 +278,7 @@ export function SceneIntakeForm({
                 .filter(
                   (s) =>
                     s.pipeline_handoff?.status === "forwarded" &&
+                    s.capture_authority_profile.startsWith("provided_scene_") &&
                     !["revoked", "revocation_in_progress"].includes(s.status),
                 )
                 .map((s) => (
@@ -279,11 +286,24 @@ export function SceneIntakeForm({
                     {s.scene_id} ·{" "}
                     {s.capture_authority_profile === "provided_scene_mesh"
                       ? "Provided geometry"
+                      : s.capture_authority_profile === "provided_scene_splat" ? "Completed 3DGS"
                       : "Capture"}
                   </option>
                 ))}
             </select>
           </label>
+          {sessions.some((session) => session.session_id === source && session.capture_authority_profile === "provided_scene_splat") ? <>
+            <label>Collision mesh in the same frame
+              <select className={field} value={collisionSource} onChange={(event) => { setCollisionSource(event.target.value); setCollisionFrameConfirmed(false); }}>
+                <option value="">No mesh attached yet</option>
+                {sessions.filter((session) => session.capture_authority_profile === "provided_scene_mesh" && session.pipeline_handoff?.status === "forwarded" && !["revoked", "revocation_in_progress"].includes(session.status)).map((session) =>
+                  <option key={session.session_id} value={session.session_id}>{session.scene_id} · {session.original_filename}</option>)}
+              </select>
+            </label>
+            {collisionSource ? <label className="flex items-start gap-2 md:col-span-2"><input type="checkbox" required checked={collisionFrameConfirmed} onChange={(event) => setCollisionFrameConfirmed(event.target.checked)} />
+              I confirm these exports use the same declared coordinate frame. This does not certify physical scale or collision accuracy.
+            </label> : <p className="text-body-s text-ink-500 md:col-span-2">A splat supplies appearance, not contact geometry. Attach the matching mesh when available; missing geometry will be reported before paid work.</p>}
+          </> : null}
           {Object.entries(task).map(([key, value]) => (
             <label key={key}>
               {
@@ -356,7 +376,7 @@ export function SceneIntakeForm({
             />
           </label>
           <label>
-            Maximum paid attempts
+            Stage attempt limit
             <input
               className={field}
               type="number"

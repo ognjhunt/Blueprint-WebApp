@@ -356,6 +356,8 @@ describe("persistent authenticated scene intake", () => {
       buildSceneIntake(input, sceneOwner({ uid: "owner" }), provided).source
         .kind,
     ).toBe("mesh");
+    provided.request.capture_authority_profile = "provided_scene_splat";
+    expect(buildSceneIntake(input, sceneOwner({ uid: "owner" }), provided).source.kind).toBe("gaussian_splat");
     input.source_session_id = "native-cap-one";
     const native = {
       creator_id: "owner",

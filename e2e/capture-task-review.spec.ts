@@ -252,6 +252,15 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
 
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/app/captures", { waitUntil: "networkidle" });
+  await page.getByLabel("Capture type", { exact: true }).selectOption("provided_scene_splat");
+  await page.getByRole("combobox", { name: "Asset units", exact: true }).selectOption("1");
+  await page.getByRole("combobox", { name: "Up axis", exact: true }).selectOption("Z");
+  for (const width of [320, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await expect(page.getByRole("combobox", { name: "Asset units", exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Up axis", exact: true })).toHaveValue("Z");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
   await page.getByRole("button", { name: "Review tasks" }).click();
   await expect(
     page.getByRole("heading", { name: "Review proposed tasks" }),
@@ -317,7 +326,16 @@ test("owner submits bounded scene intent and sees source verification without a 
       await route.fulfill({ status: 204, body: "" });
       return;
     } else if (path === "/api/capture-uploads" && request.method() === "GET")
-      body = { sessions: [] };
+      body = { sessions: [{
+        schema_version: "capture_upload_session.v1", session_id: "provided-splat-one", intake_id: "asset-intake",
+        status: "uploaded_verification_pending", capture_authority_profile: "provided_scene_splat", source_type: "provided_scene_splat",
+        scene_id: "workcell", original_filename: "workcell.ply", size_bytes: 10000, media_type: "application/octet-stream",
+        part_size_bytes: 10000, expected_part_count: 1, uploaded_parts: [], storage_uri: null,
+        pipeline_handoff: { status: "forwarded" }, upload_validation: { status: "passed" },
+        malware_content_validation: { status: "passed" }, content_addressing: { status: "server_sha256_verified" },
+        task_review: { status: "not_requested", candidate_count: 0 }, claim_boundary: {},
+        created_at_iso: "2026-09-06T00:00:00Z", updated_at_iso: "2026-09-06T00:00:00Z", error: null,
+      }] };
     else if (path === "/api/task-evaluation-scene-intakes/options")
       body = {
         provider_terms: {
@@ -382,7 +400,7 @@ test("owner submits bounded scene intent and sees source verification without a 
   await page.goto("/app/captures", { waitUntil: "networkidle" });
   await page
     .getByRole("combobox", { name: "Source", exact: true })
-    .selectOption("native-cap-one");
+    .selectOption("provided-splat-one");
   await page.getByLabel("Object to move", { exact: true }).fill("blue tote");
   await page
     .getByLabel("Starting support surface", { exact: true })
@@ -401,13 +419,13 @@ test("owner submits bounded scene intent and sees source verification without a 
     page.getByText("awaiting source", { exact: true }),
   ).toBeVisible();
   expect(submitted).toMatchObject({
-    source_session_id: "native-cap-one",
+    source_session_id: "provided-splat-one",
     task: {
       subject: { description: "blue tote", authority: "owner_confirmed" },
     },
     execution: {
-      max_total_spend_usd: 25,
-      max_paid_attempts: 1,
+      max_total_spend_usd: 35,
+      max_paid_attempts: 8,
       max_retries: 0,
       allowed_providers: ["vast"],
       claim_scope: "development_only",

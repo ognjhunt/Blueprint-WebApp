@@ -49,6 +49,7 @@ const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
 
 const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; detail: string; accept: string }> = {
+  provided_scene_splat: { label: "Completed 3D Gaussian splat", detail: "Standard binary PLY from your reconstruction provider. The asset is retained unchanged; collision, task physics, and physical accuracy require separate evidence.", accept: ".ply" },
   provided_scene_mesh: { label: "Provided scene geometry", detail: "USD, GLB, or PLY supplied geometry. This is not observed capture, measured collision truth, or physical proof.", accept: ".usd,.usda,.usdc,.glb,.ply" },
   camera_360_equirectangular: {
     label: "360 equirectangular video",
@@ -221,6 +222,9 @@ function SessionHistory({
 export default function Captures() {
   const { currentUser } = useAuth();
   const [profile, setProfile] = useState<WebCaptureAuthorityProfile>("camera_360_equirectangular");
+  const [assetMetersPerUnit, setAssetMetersPerUnit] = useState("");
+  const [assetUpAxis, setAssetUpAxis] = useState("");
+  const providedAsset = profile.startsWith("provided_scene_");
   const [sceneId, setSceneId] = useState("");
   const [deviceManufacturer, setDeviceManufacturer] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
@@ -427,8 +431,8 @@ export default function Captures() {
   }
 
   function buildRequest(selectedFile: File): CreateCaptureUploadSession {
-    const mediaType = profile === "provided_scene_mesh" ? "application/octet-stream" : selectedFile.type || (profile === "camera_360_native" ? "application/octet-stream" : "video/mp4");
-    const videoStream = profile === "provided_scene_mesh" ? "provided_geometry" : profile === "camera_360_native" ? "retained_original" : "retained_video";
+    const mediaType = providedAsset ? "application/octet-stream" : selectedFile.type || (profile === "camera_360_native" ? "application/octet-stream" : "video/mp4");
+    const videoStream = providedAsset ? "provided_geometry" : profile === "camera_360_native" ? "retained_original" : "retained_video";
     return {
       schema_version: "capture_upload_session_request.v1",
       intake_id: identity.intakeId,
@@ -441,14 +445,17 @@ export default function Captures() {
         size_bytes: selectedFile.size,
         media_type: mediaType,
       },
-      capture_device: profile === "provided_scene_mesh" ? { status: "not_applicable_provided_geometry" } : {
+      capture_device: providedAsset ? { status: "not_applicable_provided_geometry" } : {
         manufacturer: deviceManufacturer.trim() || "customer_declared_unknown",
         model: deviceModel.trim() || "customer_declared_unknown",
       },
-      timing_declaration: profile === "provided_scene_mesh" ? { status: "not_applicable_provided_geometry" } : profile === "camera_360_native"
+      timing_declaration: providedAsset ? { status: "not_applicable_provided_geometry" } : profile === "camera_360_native"
         ? { status: "embedded_provider_metadata_unverified" }
         : { clock: "media_pts", monotonic_time_available: false },
-      coordinate_frame_declaration: { status: profile === "provided_scene_mesh" ? "provided_geometry_frame_unverified" : "not_available_from_video" },
+      coordinate_frame_declaration: providedAsset ? {
+        status: "owner_declared_asset_frame", meters_per_unit: Number(assetMetersPerUnit), up_axis: assetUpAxis,
+        physical_scale_measured: false,
+      } : { status: "not_available_from_video" },
       available_sensor_streams: [
         { stream_type: videoStream, status: "available" },
         ...(profile.startsWith("camera_360")
@@ -471,15 +478,15 @@ export default function Captures() {
       calibration_board_dimensions: null,
       operator_notes: notes.trim() ? [notes.trim()] : [],
       permitted_reconstruction_providers: ["local_only"],
-      permitted_evidence_uses: profile === "provided_scene_mesh" ? ["provided_geometry", "development_only"] : ["captured_observation", "task_discovery"],
+      permitted_evidence_uses: providedAsset ? ["provided_geometry", "development_only"] : ["captured_observation", "task_discovery"],
     };
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!currentUser || !file) return;
-    if (file.size < (profile === "provided_scene_mesh" ? 1 : MIN_RESUMABLE_BYTES) || file.size > MAX_CAPTURE_BYTES) {
-      setError(profile === "provided_scene_mesh" ? "Provided geometry must contain bytes and be no larger than 50 GiB." : "Capture video must be larger than 5 MiB and no larger than 50 GiB for this resumable lane.");
+    if (file.size < (providedAsset ? 1 : MIN_RESUMABLE_BYTES) || file.size > MAX_CAPTURE_BYTES) {
+      setError(providedAsset ? "Provided scene assets must contain bytes and be no larger than 50 GiB." : "Capture video must be larger than 5 MiB and no larger than 50 GiB for this resumable lane.");
       return;
     }
     if (!activeSession && (!rightsAccepted || !consentAccepted)) {
@@ -669,6 +676,17 @@ export default function Captures() {
               </select>
               <p className="mt-2 text-body-s text-ink-500">{profileDetails.detail}</p>
             </div>
+
+            {providedAsset && !activeSession ? <fieldset className="grid gap-4 md:grid-cols-2">
+              <legend className={labelClass}>Asset coordinate frame</legend>
+              <label><span className={labelClass}>Asset units</span><select className={fieldClass} required disabled={Boolean(activeSession)} value={assetMetersPerUnit} onChange={(event) => setAssetMetersPerUnit(event.target.value)}>
+                <option value="">Choose the exported units</option><option value="1">Meters</option><option value="0.01">Centimeters</option><option value="0.001">Millimeters</option>
+              </select></label>
+              <label><span className={labelClass}>Up axis</span><select className={fieldClass} required disabled={Boolean(activeSession)} value={assetUpAxis} onChange={(event) => setAssetUpAxis(event.target.value)}>
+                <option value="">Choose the exported up axis</option><option value="Z">Z up</option><option value="Y">Y up</option>
+              </select></label>
+              <p className="text-body-s text-ink-500 md:col-span-2">Use the export settings from your provider. These are asset declarations, not measurements of the physical site.</p>
+            </fieldset> : null}
 
             <div className="grid gap-4 md:grid-cols-2">
               <label><span className={labelClass}>Scene ID</span><input className={fieldClass} required disabled={Boolean(activeSession)} value={sceneId} onChange={(event) => setSceneId(event.target.value)} placeholder="warehouse-cell-a" /></label>

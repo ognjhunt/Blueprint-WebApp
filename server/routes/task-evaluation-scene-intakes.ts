@@ -60,10 +60,14 @@ router.post("/", async (req, res) => {
         const source = await transaction.get(
           db!.collection(sourceRef.collection).doc(sourceRef.id),
         );
+        const collisionRef = parsed.data.collision_source_session_id ? sceneSourceReference(parsed.data.collision_source_session_id) : null;
+        const collision = collisionRef ? await transaction.get(db!.collection(collisionRef.collection).doc(collisionRef.id)) : null;
         const request = buildSceneIntake(
           parsed.data,
           owner,
           source.data() || {},
+          Date.now() / 1000,
+          collision?.data(),
         );
         const record = {
           owner_user_id: owner.user_id,
@@ -90,6 +94,8 @@ router.post("/", async (req, res) => {
       "source_not_owned",
       "source_validation_required",
       "source_rights_binding_required",
+      "collision_source_binding_required",
+      "collision_source_mesh_required",
       "source_revoked",
       "consent_expiry_invalid",
       "idempotency_conflict",

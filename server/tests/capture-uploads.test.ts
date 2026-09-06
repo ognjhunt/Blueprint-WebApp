@@ -893,18 +893,21 @@ afterEach(() => {
 });
 
 describe("resumable capture uploads", () => {
-  it("uploads a small provided mesh as one bounded file without inventing multipart receipts", async () => {
+  it.each([
+    ["provided_scene_mesh", "scene.usda"],
+    ["provided_scene_splat", "scene.ply"],
+  ])("transports a small %s as one bounded file without inventing multipart receipts", async (profile, filename) => {
     const { server, socketPath } = await startServer();
     try {
-      const bytes = Buffer.from('#usda 1.0\ndef Xform "root" {}\n');
+      const bytes = Buffer.from(profile === "provided_scene_mesh" ? '#usda 1.0\ndef Xform "root" {}\n' : 'ply\nformat binary_little_endian 1.0\nend_header\n');
       const response = await postJson(
         socketPath,
         "/capture-uploads",
         request({
-          capture_authority_profile: "provided_scene_mesh",
-          source_type: "provided_scene_mesh",
+          capture_authority_profile: profile,
+          source_type: profile,
           original_file: {
-            original_filename: "scene.usda",
+            original_filename: filename,
             size_bytes: bytes.length,
             media_type: "application/octet-stream",
           },
@@ -924,7 +927,7 @@ describe("resumable capture uploads", () => {
       const boundary = "mesh-test-boundary";
       const payload = Buffer.concat([
         Buffer.from(
-          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="scene.usda"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`,
         ),
         bytes,
         Buffer.from(`\r\n--${boundary}--\r\n`),
