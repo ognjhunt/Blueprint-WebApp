@@ -405,12 +405,14 @@ test("owner submits bounded scene intent and sees source verification without a 
   await page
     .getByLabel("Starting support surface", { exact: true })
     .fill("work table");
-  await page.getByLabel("Destination", { exact: true }).fill("tray");
-  await expect(
-    page.getByLabel("Observable success condition", { exact: true }),
-  ).toHaveValue(
-    "Place the object fully inside the destination, release it, and move the gripper clear.",
-  );
+  // Destination is now a structured pose group; its required text field is the
+  // surface/container label. Relation defaults to "on", the target position to
+  // (0,0,0), and the success criteria to valid whole-step defaults, so filling
+  // the label is enough to submit. The old single "Destination" text field and
+  // its auto-derived "Observable success condition" readout no longer exist.
+  await page
+    .getByLabel("Destination surface or container", { exact: true })
+    .fill("tray");
   await page.getByLabel(/I confirm this task/).check();
   await page
     .getByRole("button", { name: "Confirm task and submit run", exact: true })
