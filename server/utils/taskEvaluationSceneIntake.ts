@@ -62,6 +62,8 @@ export const sceneIntakeCommand = z
   .object({
     submission_id: identifier,
     source_session_id: identifier,
+    collision_source_session_id: identifier.optional(),
+    collision_same_frame_confirmed: z.literal(true).optional(),
     task: z
       .object({
         task_id: identifier,
@@ -182,12 +184,24 @@ export function nativeSourceInOrganization(
     ? source.organization_id === owner.organization_id
     : owner.organization_id === `user:${owner.user_id}`;
 }
+type SceneIntakeRequest = {
+  schema_version: "task_evaluation_scene_intake_request.v1";
+  submission_id: string;
+  owner: ReturnType<typeof sceneOwner>;
+  source: { kind: "mesh" | "gaussian_splat" | "capture_bundle"; binding_id: string; content_digest: string;
+    collision_mesh?: { binding_id: string; content_digest: string; rights_reference: string; frame_relation: "owner_declared_common_frame" } };
+  task: z.infer<typeof sceneIntakeCommand>["task"];
+  execution: z.infer<typeof sceneIntakeCommand>["execution"];
+  consent: z.infer<typeof sceneIntakeCommand>["consent"] & { rights_reference: string; accepted_by: string; accepted_at_epoch: number };
+};
+
 export function buildSceneIntake(
   command: z.infer<typeof sceneIntakeCommand>,
   owner: ReturnType<typeof sceneOwner>,
   source: Record<string, any>,
   now = Date.now() / 1000,
-) {
+  collisionSource?: Record<string, any>,
+): SceneIntakeRequest {
   const native = command.source_session_id.startsWith("native-");
   if (
     (native ? source.creator_id : source.owner_user_id) !== owner.user_id ||
@@ -259,16 +273,29 @@ export function buildSceneIntake(
     (!native && !digest.safeParse(rightsReference).success)
   )
     throw new Error("source_rights_binding_required");
+  let collisionBinding: SceneIntakeRequest["source"]["collision_mesh"];
+  if (command.collision_source_session_id) {
+    if (profile !== "provided_scene_splat" || command.collision_same_frame_confirmed !== true ||
+        command.collision_source_session_id === command.source_session_id || !collisionSource)
+      throw new Error("collision_source_binding_required");
+    const { collision_source_session_id, collision_same_frame_confirmed: _confirmed, ...baseCommand } = command;
+    const companion = buildSceneIntake({ ...baseCommand, source_session_id: collision_source_session_id }, owner, collisionSource, now);
+    if (companion.source.kind !== "mesh") throw new Error("collision_source_mesh_required");
+    collisionBinding = { binding_id: companion.source.binding_id, content_digest: companion.source.content_digest,
+                         rights_reference: companion.consent.rights_reference,
+                         frame_relation: "owner_declared_common_frame" };
+  }
   return {
     schema_version: "task_evaluation_scene_intake_request.v1",
     submission_id: command.submission_id,
     owner,
     source: {
-      kind: profile === "provided_scene_mesh" ? "mesh" : "capture_bundle",
+      kind: profile === "provided_scene_mesh" ? "mesh" : profile === "provided_scene_splat" ? "gaussian_splat" : "capture_bundle",
       binding_id: command.source_session_id,
       content_digest: native
         ? identity.raw_bundle_digest
         : receipt.capture_digest,
+      ...(collisionBinding ? { collision_mesh: collisionBinding } : {}),
     },
     task: command.task,
     execution: command.execution,
@@ -469,11 +496,14 @@ export async function processSceneIntakeQueue(limit = 10) {
             const source = await storeTimeout(
               db.collection(sourceRef.collection).doc(sourceRef.id).get(),
             );
+            const collisionRef = record.command.collision_source_session_id ? sceneSourceReference(record.command.collision_source_session_id) : null;
+            const collision = collisionRef ? await storeTimeout(db.collection(collisionRef.collection).doc(collisionRef.id).get()) : null;
             const rebuilt = buildSceneIntake(
               sceneIntakeCommand.parse(record.command),
               record.request.owner,
               source.data() || {},
               record.request.consent.accepted_at_epoch,
+              collision?.data(),
             );
             validateSceneProviderTerms(record.command);
             if (sceneDigest(rebuilt) !== record.request_digest)

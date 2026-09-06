@@ -8,7 +8,8 @@ export type WebCaptureAuthorityProfile =
   | "camera_360_equirectangular"
   | "camera_360_native"
   | "monocular_video"
-  | "provided_scene_mesh";
+  | "provided_scene_mesh"
+  | "provided_scene_splat";
 
 export type CaptureUploadSession = {
   schema_version: "capture_upload_session.v1";
@@ -838,7 +839,7 @@ export async function uploadCaptureFile(params: {
   ) {
     throw new Error("The selected file does not match this resumable upload session.");
   }
-  if (params.session.capture_authority_profile === "provided_scene_mesh" && params.session.size_bytes <= 5*1024*1024) {
+  if (params.session.capture_authority_profile.startsWith("provided_scene_") && params.session.size_bytes <= 5*1024*1024) {
     const form=new FormData();form.append("file",params.file);
     const result=await apiRequest<CaptureUploadSession>(params.currentUser,`/api/capture-uploads/${encodeURIComponent(params.session.session_id)}/file`,{method:"POST",body:form});
     params.onProgress?.(1,1);return result;

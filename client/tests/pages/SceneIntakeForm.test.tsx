@@ -39,7 +39,11 @@ beforeEach(() => {
                 {
                   id: "native-cap-one",
                   label: "App workcell",
-                  validation_status: "pending_pipeline_storage_readback",
+                  kind: "gaussian_splat",
+                  capture_authority_profile: "provided_scene_splat",
+                  pipeline_handoff: { status: "forwarded" },
+                  status: "uploaded_verification_pending",
+                  validation_status: "passed",
                   selectable: true,
                 },
               ],
@@ -106,8 +110,8 @@ describe("scene task intake UI", () => {
     expect(input).toMatchObject({
       source_session_id: "native-cap-one",
       execution: {
-        max_total_spend_usd: 25,
-        max_paid_attempts: 1,
+        max_total_spend_usd: 35,
+        max_paid_attempts: 8,
         max_retries: 0,
         claim_scope: "development_only",
       },
@@ -131,7 +135,11 @@ describe("scene task intake UI", () => {
                 {
                   id: "native-cap-one",
                   label: "App workcell",
-                  validation_status: "pending_pipeline_storage_readback",
+                  kind: "gaussian_splat",
+                  capture_authority_profile: "provided_scene_splat",
+                  pipeline_handoff: { status: "forwarded" },
+                  status: "uploaded_verification_pending",
+                  validation_status: "passed",
                   selectable: true,
                 },
               ],

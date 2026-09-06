@@ -76,6 +76,7 @@ const webCaptureProfiles = [
   "camera_360_native",
   "monocular_video",
   "provided_scene_mesh",
+  "provided_scene_splat",
 ] as const;
 
 const streamSchema = z
@@ -140,7 +141,7 @@ const sessionRequestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if (value.capture_authority_profile !== "provided_scene_mesh" && value.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES) {
+    if (!value.capture_authority_profile.startsWith("provided_scene_") && value.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES) {
       context.addIssue({code:z.ZodIssueCode.custom,path:["original_file","size_bytes"],message:"Video multipart uploads must exceed 5 MiB"});
     }
     if (value.source_type !== value.capture_authority_profile) {
@@ -333,6 +334,8 @@ function fileExtensionFor(request: SessionRequest) {
   const extension = path.extname(original).toLowerCase();
   const allowed = request.capture_authority_profile === "camera_360_native"
     ? new Set([".insv"])
+    : request.capture_authority_profile === "provided_scene_splat"
+    ? new Set([".ply"])
     : request.capture_authority_profile === "provided_scene_mesh"
     ? new Set([".usd", ".usda", ".usdc", ".glb", ".ply"])
     : new Set([".mp4", ".mov"]);
@@ -341,6 +344,7 @@ function fileExtensionFor(request: SessionRequest) {
 
 function mediaTypeAllowed(request: SessionRequest) {
   const value = request.original_file.media_type.toLowerCase();
+  if (request.capture_authority_profile === "provided_scene_splat") return ["application/octet-stream", "application/ply"].includes(value);
   if (request.capture_authority_profile === "provided_scene_mesh") return ["application/octet-stream", "model/gltf-binary", "model/vnd.usd+zip", "text/plain"].includes(value);
   if (request.capture_authority_profile === "camera_360_native") {
     return value === "application/octet-stream" || value === "video/x-insta360";
@@ -349,7 +353,7 @@ function mediaTypeAllowed(request: SessionRequest) {
 }
 
 function requiredStreams(profile: SessionRequest["capture_authority_profile"]) {
-  if (profile === "provided_scene_mesh") return ["provided_geometry"];
+  if (profile.startsWith("provided_scene_")) return ["provided_geometry"];
   if (profile === "camera_360_equirectangular") {
     return ["retained_video", "camera_metadata"];
   }
@@ -982,7 +986,7 @@ router.post("/", async (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const smallMesh = request.capture_authority_profile === "provided_scene_mesh" && request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
+  const smallMesh = request.capture_authority_profile.startsWith("provided_scene_") && request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
   const partSize = smallMesh ? request.original_file.size_bytes : configuredPartSize(request.original_file.size_bytes);
   const expectedPartCount = Math.ceil(request.original_file.size_bytes / partSize);
   if ((!smallMesh && expectedPartCount < 2) || expectedPartCount > MAX_PARTS) {
@@ -2556,14 +2560,13 @@ router.post(
         .status(owned.status)
         .json({ error: "Capture upload not found" });
     if (
-      owned.record.request.capture_authority_profile !==
-        "provided_scene_mesh" ||
+      !owned.record.request.capture_authority_profile.startsWith("provided_scene_") ||
       owned.record.request.original_file.size_bytes >= MIN_RESUMABLE_FILE_BYTES
     )
       return res
         .status(409)
         .json({
-          error: "Single-file transport is only for small provided meshes",
+          error: "Single-file transport is only for small provided scene assets",
         });
     res.locals.smallMeshRecord = owned.record;
     next();
