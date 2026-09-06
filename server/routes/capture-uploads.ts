@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import multer from "multer";
 
 import { Router, type Response } from "express";
 import { z } from "zod";
@@ -55,6 +56,7 @@ import {
   resolveStorageProviderName,
   safeStorageFileName,
   startBackblazeResumableCapture,
+  uploadSmallBackblazeCapture,
   type StoredCapturePart,
 } from "../utils/storage-provider";
 
@@ -73,6 +75,7 @@ const webCaptureProfiles = [
   "camera_360_equirectangular",
   "camera_360_native",
   "monocular_video",
+  "provided_scene_mesh",
 ] as const;
 
 const streamSchema = z
@@ -94,7 +97,7 @@ const sessionRequestSchema = z
     original_file: z
       .object({
         original_filename: z.string().trim().min(1).max(255),
-        size_bytes: z.number().int().min(MIN_RESUMABLE_FILE_BYTES).max(MAX_CAPTURE_FILE_BYTES),
+        size_bytes: z.number().int().positive().max(MAX_CAPTURE_FILE_BYTES),
         media_type: z.string().trim().min(1).max(128),
       })
       .strict(),
@@ -137,6 +140,9 @@ const sessionRequestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.capture_authority_profile !== "provided_scene_mesh" && value.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES) {
+      context.addIssue({code:z.ZodIssueCode.custom,path:["original_file","size_bytes"],message:"Video multipart uploads must exceed 5 MiB"});
+    }
     if (value.source_type !== value.capture_authority_profile) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -300,11 +306,11 @@ function sha256Text(value: string) {
 
 function authenticatedUser(res: Response) {
   const user = res.locals.firebaseUser as
-    | { uid?: string; tenantId?: string; tenant_id?: string }
+    | { uid?: string; tenantId?: string; tenant_id?: string; firebase?: {tenant?:string} }
     | undefined;
   return {
     uid: String(user?.uid || "").trim(),
-    tenantId: String(user?.tenantId || user?.tenant_id || "").trim(),
+    tenantId: String(user?.tenantId || user?.tenant_id || user?.firebase?.tenant || "").trim(),
   };
 }
 
@@ -327,12 +333,15 @@ function fileExtensionFor(request: SessionRequest) {
   const extension = path.extname(original).toLowerCase();
   const allowed = request.capture_authority_profile === "camera_360_native"
     ? new Set([".insv"])
+    : request.capture_authority_profile === "provided_scene_mesh"
+    ? new Set([".usd", ".usda", ".usdc", ".glb", ".ply"])
     : new Set([".mp4", ".mov"]);
   return allowed.has(extension) ? extension : null;
 }
 
 function mediaTypeAllowed(request: SessionRequest) {
   const value = request.original_file.media_type.toLowerCase();
+  if (request.capture_authority_profile === "provided_scene_mesh") return ["application/octet-stream", "model/gltf-binary", "model/vnd.usd+zip", "text/plain"].includes(value);
   if (request.capture_authority_profile === "camera_360_native") {
     return value === "application/octet-stream" || value === "video/x-insta360";
   }
@@ -340,6 +349,7 @@ function mediaTypeAllowed(request: SessionRequest) {
 }
 
 function requiredStreams(profile: SessionRequest["capture_authority_profile"]) {
+  if (profile === "provided_scene_mesh") return ["provided_geometry"];
   if (profile === "camera_360_equirectangular") {
     return ["retained_video", "camera_metadata"];
   }
@@ -972,9 +982,10 @@ router.post("/", async (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const partSize = configuredPartSize(request.original_file.size_bytes);
+  const smallMesh = request.capture_authority_profile === "provided_scene_mesh" && request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
+  const partSize = smallMesh ? request.original_file.size_bytes : configuredPartSize(request.original_file.size_bytes);
   const expectedPartCount = Math.ceil(request.original_file.size_bytes / partSize);
-  if (expectedPartCount < 2 || expectedPartCount > MAX_PARTS) {
+  if ((!smallMesh && expectedPartCount < 2) || expectedPartCount > MAX_PARTS) {
     return res.status(422).json({
       error: "Capture file cannot be represented by the supported multipart contract",
     });
@@ -985,10 +996,10 @@ router.post("/", async (req, res) => {
     schema_version: "capture_upload_session_record.v1",
     session_id: sessionId,
     owner_user_id: user.uid,
-    organization_id: user.tenantId || request.organization_id || `user:${user.uid}`,
+    organization_id: user.tenantId || `user:${user.uid}`,
     organization_binding_status: user.tenantId
       ? "firebase_tenant_verified"
-      : "owner_declared_or_user_scoped",
+      : "firebase_user_scoped",
     request,
     request_fingerprint_sha256: fingerprint,
     status: "provider_start_pending",
@@ -1019,6 +1030,11 @@ router.post("/", async (req, res) => {
   }
 
   try {
+    if (smallMesh) {
+      const active: SessionRecord = {...pending,status:"upload_pending",upload_transport:"single_file"};
+      await ref.set(active,{merge:false});
+      return res.status(201).json(publicSession(active));
+    }
     const provider = await startBackblazeResumableCapture({
       objectPath,
       contentType: request.original_file.media_type,
@@ -2524,6 +2540,143 @@ function validateProviderParts(record: SessionRecord, parts: StoredCapturePart[]
   return [...new Set(blockers)].sort();
 }
 
+const smallMeshUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * MEBIBYTE, files: 1 },
+});
+router.post(
+  "/:sessionId/file",
+  async (req, res, next) => {
+    const user = authenticatedUser(res);
+    if (!user.uid)
+      return res.status(401).json({ error: "Missing authenticated user" });
+    const owned = await readOwnedSession(req.params.sessionId, user.uid);
+    if (!owned.record)
+      return res
+        .status(owned.status)
+        .json({ error: "Capture upload not found" });
+    if (
+      owned.record.request.capture_authority_profile !==
+        "provided_scene_mesh" ||
+      owned.record.request.original_file.size_bytes >= MIN_RESUMABLE_FILE_BYTES
+    )
+      return res
+        .status(409)
+        .json({
+          error: "Single-file transport is only for small provided meshes",
+        });
+    res.locals.smallMeshRecord = owned.record;
+    next();
+  },
+  smallMeshUpload.single("file"),
+  async (req, res) => {
+    const record = res.locals.smallMeshRecord as SessionRecord;
+    const file = (
+      req as typeof req & {
+        file?: { size: number; originalname: string; buffer: Buffer };
+      }
+    ).file;
+    if (
+      !file ||
+      file.size !== record.request.original_file.size_bytes ||
+      file.originalname !== record.request.original_file.original_filename
+    )
+      return res
+        .status(422)
+        .json({
+          error: "Selected mesh does not match the retained upload session",
+        });
+    const sha256 = `sha256:${createHash("sha256").update(file.buffer).digest("hex")}`;
+    const sha1 = createHash("sha1").update(file.buffer).digest("hex");
+    const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    try {
+      const claimed = await db!.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        const latest = snapshot.data() as SessionRecord;
+        if (latest.small_upload_sha256 && latest.small_upload_sha256 !== sha256)
+          throw new Error("small_mesh_bytes_conflict");
+        if (
+          latest.status === "uploaded_verification_pending" ||
+          latest.pipeline_capture_intake_receipt
+        )
+          return latest;
+        if (
+          !["upload_pending", "uploading"].includes(latest.status) ||
+          Number(latest.small_upload_lease_until_ms || 0) > Date.now()
+        )
+          throw new Error("small_mesh_upload_in_progress_or_closed");
+        const patch = {
+          status: "uploading",
+          small_upload_sha256: sha256,
+          small_upload_lease_until_ms: Date.now() + 120000,
+        };
+        transaction.set(ref, patch, { merge: true });
+        return { ...latest, ...patch };
+      });
+      if (
+        claimed.status === "uploaded_verification_pending" ||
+        claimed.pipeline_capture_intake_receipt
+      )
+        return res.json(
+          publicSession(await processCompletedCaptureIntake(claimed)),
+        );
+      const uploaded = await uploadSmallBackblazeCapture({
+        objectPath: record.object_path!,
+        data: file.buffer,
+        contentType: record.request.original_file.media_type,
+        sha1,
+      });
+      const completed: SessionRecord = {
+        ...claimed,
+        status: "uploaded_verification_pending",
+        provider_file_id: uploaded.fileId,
+        storage_uri: uploaded.storageUri,
+        small_upload_lease_until_ms: 0,
+        upload_validation: {
+          status: "single_file_server_bytes_received",
+          size_bytes: file.size,
+          sha256,
+        },
+        content_addressing: { status: "pending_pipeline_storage_readback" },
+        updated_at_iso: new Date().toISOString(),
+      };
+      const retained = await db!.runTransaction(async transaction => {
+        const snapshot=await transaction.get(ref);const latest=snapshot.data() as SessionRecord;
+        if (["cancelled","revoked","revocation_in_progress"].includes(latest.status)) {
+          transaction.set(ref,{provider_file_id:uploaded.fileId,storage_uri:uploaded.storageUri,small_upload_cleanup_pending:true},{merge:true});
+          return null;
+        }
+        if (latest.small_upload_sha256!==sha256) throw new Error("small_mesh_bytes_conflict");
+        if (latest.status==="uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) return latest;
+        if (latest.status!=="uploading" || latest.small_upload_lease_until_ms!==claimed.small_upload_lease_until_ms) throw new Error("small_mesh_upload_lease_changed");
+        transaction.set(ref,{...latest,...completed},{merge:false});return {...latest,...completed};
+      });
+      if (!retained) {
+        await deleteBackblazeCaptureFile({fileId:uploaded.fileId,fileName:record.object_path!});
+        await ref.set({small_upload_cleanup_pending:false},{merge:true});
+        return res.status(409).json({error:"small_mesh_upload_cancelled_before_admission"});
+      }
+      return res.json(
+        publicSession(await processCompletedCaptureIntake(retained)),
+      );
+    } catch (error) {
+      logger.warn(
+        { sessionId: record.session_id, err: error },
+        "Small mesh upload requires retry or reconciliation",
+      );
+      return res
+        .status(409)
+        .json({
+          error:
+            error instanceof Error && error.message.startsWith("small_mesh_")
+              ? error.message
+              : "small_mesh_upload_pending_reconciliation",
+          retry_same_session: true,
+        });
+    }
+  },
+);
+
 router.post("/:sessionId/complete", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
@@ -2601,7 +2754,15 @@ router.delete("/:sessionId", async (req, res) => {
   const result = await readOwnedSession(req.params.sessionId, user.uid);
   if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
   const record = result.record;
-  if (record.status === "cancelled") return res.status(200).json(publicSession(record));
+  if (record.status === "cancelled") {
+    if (record.small_upload_cleanup_pending && record.provider_file_id && record.object_path) {
+      try {
+        await deleteBackblazeCaptureFile({fileId:record.provider_file_id,fileName:record.object_path});
+        await db!.collection("captureUploadSessions").doc(record.session_id).set({small_upload_cleanup_pending:false},{merge:true});
+      } catch {return res.status(502).json({error:"Small mesh cancellation cleanup requires retry"});}
+    }
+    return res.status(200).json(publicSession(record));
+  }
   if (record.status === "uploaded_verification_pending") {
     return res.status(409).json({ error: "Completed capture uploads require the revocation workflow" });
   }

@@ -1,6 +1,7 @@
 import type { Response } from "express";
 
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { dbAdmin as db, authAdmin } from "../../client/src/lib/firebaseAdmin";
+import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
 
 export type AccessRole = "admin" | "ops";
 
@@ -136,4 +137,20 @@ export async function resolveAccessContext(res: Response): Promise<AccessContext
 export async function hasAnyRole(res: Response, requiredRoles: AccessRole[]): Promise<boolean> {
   const context = await resolveAccessContext(res);
   return requiredRoles.some((role) => context.roles.includes(role));
+}
+
+/** Paid-route authority never trusts historical, formerly client-writable profiles. */
+export async function resolveExecutionAccessContext(res: Response): Promise<AccessContext> {
+  const principal=res.locals.firebaseUser as FirebaseUserLike & {tenantId?:string;tenant_id?:string;firebase?:{tenant?:string}};
+  const uid=typeof principal?.uid==="string"?principal.uid:null;
+  const denied:AccessContext={uid:null,email:typeof principal?.email==="string"?principal.email:null,roles:[],isAdmin:false,isOps:false};
+  if (!uid || !authAdmin) return denied;
+  try {
+    const tenant=principal?.tenantId || principal?.tenant_id || principal?.firebase?.tenant;
+    const authority=tenant?authAdmin.tenantManager().authForTenant(tenant):authAdmin;
+    const account=await withTaskEvaluationLaunchStoreTimeout(authority.getUser(uid));
+    if (account.disabled) return denied;
+    const roles=rolesFromFirebaseUser(account.customClaims);
+    return {uid,email:account.email || denied.email,roles,isAdmin:roles.includes("admin"),isOps:roles.includes("admin") || roles.includes("ops")};
+  } catch { return denied; }
 }

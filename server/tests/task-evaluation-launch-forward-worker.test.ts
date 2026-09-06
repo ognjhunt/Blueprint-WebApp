@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
+const authority = vi.hoisted(()=>({enabled:true}));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
 
 import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
@@ -68,10 +69,16 @@ function record() {
 }
 
 afterEach(() => {
+  authority.enabled=true;
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
 });
 
 describe("Task Evaluation launch forward worker", () => {
+  it("refuses a historical admin launch when current verified claims are absent",async()=>{
+    authority.enabled=false;const forwarder=vi.fn();
+    expect(await forwardStoredTaskEvaluationLaunch(record(),forwarder)).toMatchObject({state:"forward_terminal_blocked",blockers:["execution_actor_verified_custom_claims_required"]});
+    expect(forwarder).not.toHaveBeenCalled();
+  });
   it("replays only the same digest-bound intake and never a paid execution", async () => {
     const forwarder = vi.fn(async () => ({
       status: "forwarded" as const,

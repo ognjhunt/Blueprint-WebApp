@@ -1,5 +1,8 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
+import { resolveExecutionAccessContext } from "./access-control";
+import type { Response } from "express";
 import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   forwardTaskEvaluationLaunch,
@@ -103,6 +106,16 @@ export async function forwardStoredTaskEvaluationLaunch(
     provider_mutation_performed: false,
     paid_execution_retry_performed: false,
   };
+  const actor = record.request.authorization?.actor;
+  if (!actor || typeof actor.id!=="string" || !actor.id || !["admin","ops","team_member"].includes(actor.role)) return {state:"forward_terminal_blocked",blockers:["execution_actor_identity_missing"],retryable:false,provider_mutation_performed:false,paid_execution_retry_performed:false};
+  const serviceIssued = actor?.id === "blueprint-production-runner"
+    && (record.submission?.channel === "production_webapp_service_api"
+      && record.submission?.service_id === actor.id
+      || record.submission_channel === "production_webapp_service_api");
+  if (["admin", "ops"].includes(actor?.role) && !serviceIssued) {
+    const access=await resolveExecutionAccessContext({locals:{firebaseUser:{uid:actor.id,...(record.firebase_tenant_id ? {tenantId:record.firebase_tenant_id} : {})}}} as Response);
+    if (!access.isOps) return {state:"forward_terminal_blocked",blockers:["execution_actor_verified_custom_claims_required"],retryable:false,provider_mutation_performed:false,paid_execution_retry_performed:false};
+  }
   const attempts = Number(record.forward_attempt_count || 0);
   if (attempts >= maxAttempts()) return {
     state: "forward_terminal_blocked",
@@ -305,6 +318,9 @@ export function startTaskEvaluationLaunchForwardWorker() {
     ? intervalValue
     : 60_000;
   const run = () => {
+    void processSceneIntakeQueue().catch((error) => {
+      logger.error({ err: error }, "Task Evaluation scene intake reconciliation failed");
+    });
     void processTaskEvaluationLaunchForwardQueue().catch((error) => {
       logger.error({ err: error }, "Task Evaluation launch forward reconciliation failed");
     });

@@ -293,6 +293,7 @@ const externalServiceCapsSchema = z.object({
 
 export const taskEvaluationLaunchPreparationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_request.v1"),
+  scene_intent_digest: digest.optional(),
   run_mode: z.enum(["scene_configuration", "destination_qualification", "episode_evaluation"]),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   preparation_id: identifier,

@@ -35,6 +35,7 @@ vi.mock("@/lib/captureUploads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/captureUploads")>();
   return {
     ...actual,
+    apiRequest: vi.fn(async (_user, path) => path.endsWith("/sources") ? { sources: [] } : { intakes: [] }),
     listCaptureUploads: state.list,
     getCaptureUpload: state.get,
     createCaptureUpload: state.create,

@@ -41,6 +41,7 @@ import {
   type WebCaptureAuthorityProfile,
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
+import { SceneIntakeForm } from "@/components/blueprint/app/SceneIntakeForm";
 
 const fieldClass = "runway-input mt-1.5";
 const labelClass = "text-body-s font-semibold text-ink-800";
@@ -48,6 +49,7 @@ const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
 
 const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; detail: string; accept: string }> = {
+  provided_scene_mesh: { label: "Provided scene geometry", detail: "USD, GLB, or PLY supplied geometry. This is not observed capture, measured collision truth, or physical proof.", accept: ".usd,.usda,.usdc,.glb,.ply" },
   camera_360_equirectangular: {
     label: "360 equirectangular video",
     detail: "Stitched MP4/MOV with camera metadata. Observation and task discovery only until scale or calibration is separately verified.",
@@ -220,7 +222,6 @@ export default function Captures() {
   const { currentUser } = useAuth();
   const [profile, setProfile] = useState<WebCaptureAuthorityProfile>("camera_360_equirectangular");
   const [sceneId, setSceneId] = useState("");
-  const [organizationId, setOrganizationId] = useState("");
   const [deviceManufacturer, setDeviceManufacturer] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
   const [knownTask, setKnownTask] = useState("");
@@ -426,8 +427,8 @@ export default function Captures() {
   }
 
   function buildRequest(selectedFile: File): CreateCaptureUploadSession {
-    const mediaType = selectedFile.type || (profile === "camera_360_native" ? "application/octet-stream" : "video/mp4");
-    const videoStream = profile === "camera_360_native" ? "retained_original" : "retained_video";
+    const mediaType = profile === "provided_scene_mesh" ? "application/octet-stream" : selectedFile.type || (profile === "camera_360_native" ? "application/octet-stream" : "video/mp4");
+    const videoStream = profile === "provided_scene_mesh" ? "provided_geometry" : profile === "camera_360_native" ? "retained_original" : "retained_video";
     return {
       schema_version: "capture_upload_session_request.v1",
       intake_id: identity.intakeId,
@@ -435,20 +436,19 @@ export default function Captures() {
       capture_authority_profile: profile,
       source_type: profile,
       scene_id: sceneId.trim(),
-      organization_id: organizationId.trim() || undefined,
       original_file: {
         original_filename: selectedFile.name,
         size_bytes: selectedFile.size,
         media_type: mediaType,
       },
-      capture_device: {
+      capture_device: profile === "provided_scene_mesh" ? { status: "not_applicable_provided_geometry" } : {
         manufacturer: deviceManufacturer.trim() || "customer_declared_unknown",
         model: deviceModel.trim() || "customer_declared_unknown",
       },
-      timing_declaration: profile === "camera_360_native"
+      timing_declaration: profile === "provided_scene_mesh" ? { status: "not_applicable_provided_geometry" } : profile === "camera_360_native"
         ? { status: "embedded_provider_metadata_unverified" }
         : { clock: "media_pts", monotonic_time_available: false },
-      coordinate_frame_declaration: { status: "not_available_from_video" },
+      coordinate_frame_declaration: { status: profile === "provided_scene_mesh" ? "provided_geometry_frame_unverified" : "not_available_from_video" },
       available_sensor_streams: [
         { stream_type: videoStream, status: "available" },
         ...(profile.startsWith("camera_360")
@@ -471,15 +471,15 @@ export default function Captures() {
       calibration_board_dimensions: null,
       operator_notes: notes.trim() ? [notes.trim()] : [],
       permitted_reconstruction_providers: ["local_only"],
-      permitted_evidence_uses: ["captured_observation", "task_discovery"],
+      permitted_evidence_uses: profile === "provided_scene_mesh" ? ["provided_geometry", "development_only"] : ["captured_observation", "task_discovery"],
     };
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!currentUser || !file) return;
-    if (file.size < MIN_RESUMABLE_BYTES || file.size > MAX_CAPTURE_BYTES) {
-      setError("Capture video must be larger than 5 MiB and no larger than 50 GiB for this resumable lane.");
+    if (file.size < (profile === "provided_scene_mesh" ? 1 : MIN_RESUMABLE_BYTES) || file.size > MAX_CAPTURE_BYTES) {
+      setError(profile === "provided_scene_mesh" ? "Provided geometry must contain bytes and be no larger than 50 GiB." : "Capture video must be larger than 5 MiB and no larger than 50 GiB for this resumable lane.");
       return;
     }
     if (!activeSession && (!rightsAccepted || !consentAccepted)) {
@@ -672,7 +672,6 @@ export default function Captures() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <label><span className={labelClass}>Scene ID</span><input className={fieldClass} required disabled={Boolean(activeSession)} value={sceneId} onChange={(event) => setSceneId(event.target.value)} placeholder="warehouse-cell-a" /></label>
-              <label><span className={labelClass}>Organization ID</span><input className={fieldClass} disabled={Boolean(activeSession)} value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} placeholder="Uses account organization when available" /></label>
               <label><span className={labelClass}>Camera manufacturer</span><input className={fieldClass} disabled={Boolean(activeSession)} value={deviceManufacturer} onChange={(event) => setDeviceManufacturer(event.target.value)} placeholder="Insta360, Apple, other" /></label>
               <label><span className={labelClass}>Camera model</span><input className={fieldClass} disabled={Boolean(activeSession)} value={deviceModel} onChange={(event) => setDeviceModel(event.target.value)} placeholder="X5, iPhone 17 Pro, other" /></label>
             </div>
@@ -707,6 +706,8 @@ export default function Captures() {
             {activeSession?.pipeline_handoff?.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake and Capture QA recorded" icon={CheckCircle2}>Pipeline verified server-side size and SHA-256, received a clean malware-scanner result, content-addressed the raw input, and returned a separate deterministic Capture QA result. Reconstruction and task success remain separate gates.</ProofBoundary> : null}
           </aside>
         </form>
+
+        {currentUser ? <SceneIntakeForm currentUser={currentUser} sessions={sessions} /> : null}
 
         {reviewLoading ? <BuyerAppLoadingState /> : taskReview?.discovery ? (
           <div id="task-review">
