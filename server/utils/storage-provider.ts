@@ -17,6 +17,7 @@ export type StorageUploadResult = {
   objectPath: string;
   url: string;
   bucketName: string | null;
+  fileId?: string;
 };
 
 export type ResumableCaptureUpload = {
@@ -226,7 +227,7 @@ export async function uploadToBackblaze(
   }
 
   const target = await getBackblazeUploadTarget(config.bucketId);
-  await getBackblazeClient().uploadFile({
+  const uploaded = await getBackblazeClient().uploadFile({
     uploadUrl: target.uploadUrl,
     uploadAuthToken: target.authorizationToken,
     fileName: input.objectPath,
@@ -238,8 +239,27 @@ export async function uploadToBackblaze(
     provider: "backblaze",
     objectPath: input.objectPath,
     bucketName: config.bucketName,
+    ...(uploaded?.data?.fileId ? { fileId: String(uploaded.data.fileId) } : {}),
     url: buildBackblazePublicUrl(config.bucketName, input.objectPath),
   };
+}
+
+/** Recover an ambiguous small upload by its exact path and provider SHA-1. */
+export async function uploadSmallBackblazeCapture(input: StorageUploadInput & { sha1: string }): Promise<ResumableCaptureUpload> {
+  await ensureBackblazeAuthorized();
+  const config = getBackblazeConfig();
+  const listing = await getBackblazeClient().listFileVersions({ bucketId: config.bucketId, startFileName: input.objectPath, maxFileCount: 1 });
+  const existing = listing?.data?.files?.[0];
+  let fileId: string;
+  if (existing?.fileName === input.objectPath) {
+    if (existing.action !== "upload" || existing.contentLength !== input.data.length || existing.contentSha1 !== input.sha1) throw new Error("small_capture_existing_bytes_conflict");
+    fileId = String(existing.fileId);
+  } else {
+    const uploaded = await uploadToBackblaze(input);
+    if (!uploaded.fileId) throw new Error("small_capture_file_identity_missing");
+    fileId = uploaded.fileId;
+  }
+  return { provider: "backblaze", fileId, objectPath: input.objectPath, bucketName: config.bucketName, storageUri: `b2://${config.bucketName}/${input.objectPath}` };
 }
 
 export async function startBackblazeResumableCapture(input: {

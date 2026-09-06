@@ -119,4 +119,10 @@ describe("capture upload client", () => {
       headers: expect.objectContaining({ Authorization: "part-token-2" }),
     });
   });
+  it("uses the authenticated small-file endpoint for a mesh without multipart authorization", async()=>{
+    const mesh={...session,capture_authority_profile:"provided_scene_mesh" as const,source_type:"provided_scene_mesh" as const,original_filename:"mesh.ply",media_type:"application/octet-stream"};
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({...mesh,status:"uploaded_verification_pending"})));
+    await uploadCaptureFile({currentUser:{uid:"buyer-1"} as FirebaseUser,session:mesh,file:new File([new Uint8Array([1,2,3,4])],"mesh.ply")});
+    expect(fetchMock).toHaveBeenCalledTimes(1);expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/file$/);expect(fetchMock.mock.calls[0][1].body).toBeInstanceOf(FormData);expect(fetchMock.mock.calls[0][1].headers).toMatchObject({Authorization:"Bearer firebase-test","X-CSRF-Token":"csrf-test"});expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("Content-Type");
+  });
 });

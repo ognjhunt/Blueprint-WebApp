@@ -94,6 +94,10 @@ vi.mock("../utils/access-control", () => ({
     uid: "founder-001", email: "founder@example.com", roles: ["admin"],
     isAdmin: state.isOps, isOps: state.isOps,
   }),
+  resolveExecutionAccessContext: async () => ({
+    uid: "founder-001", email: "founder@example.com", roles: ["admin"],
+    isAdmin: state.isOps, isOps: state.isOps,
+  }),
 }));
 
 vi.mock("../utils/pipelineSyncSecurity", () => ({
@@ -2229,6 +2233,17 @@ describe("admin Task Evaluation launch route", () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+  it("preserves an immutable parent scene intent binding through preparation forwarding",async()=>{
+    const {server,url}=await startServer();const input={...preparationInput(),scene_intent_digest:sha("f")};
+    try {
+      const response=await fetch(`${url}/preparations`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(input)});
+      expect(response.status).toBe(202);expect(state.records.get(input.preparation_id)?.request).toMatchObject({scene_intent_digest:sha("f")});
+      const changed=await fetch(`${url}/preparations`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...input,scene_intent_digest:sha("e")})});
+      expect(changed.status).toBe(409);
+      const forwarded=vi.mocked(fetch).mock.calls.filter(([target])=>String(target)==="https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations");
+      expect(forwarded).toHaveLength(1);expect(JSON.parse(String(forwarded[0][1]?.body))).toMatchObject({scene_intent_digest:sha("f")});
+    } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
   });
 
   it("accepts an episode evaluation only with configured scene, robot, and controller bindings", async () => {

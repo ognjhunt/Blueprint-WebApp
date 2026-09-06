@@ -7,6 +7,7 @@ import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "./routes/api/upload-to-b2";
 import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
+import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
 import taskEvaluationResultDownloadsRouter from "./routes/task-evaluation-result-downloads";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
@@ -262,6 +263,7 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     captureUploadsRouter,
   );
+  app.use("/api/task-evaluation-scene-intakes", csrfProtection, verifyFirebaseToken, taskEvaluationSceneIntakesRouter);
   app.post(
     "/api/post-signup-workflows",
     csrfProtection,

@@ -213,6 +213,7 @@ export async function submitPolicyCanaryRun(params: {
     scene_revision_digest: selection.scene_revision_digest,
     scene_controls_status_at_submission: "configured_controls_pending",
     owner_user_id: access.uid,
+    firebase_tenant_id: String(res.locals.firebaseUser?.tenantId || res.locals.firebaseUser?.tenant_id || res.locals.firebaseUser?.firebase?.tenant || "") || null,
     team_namespace: offering.team_namespace,
     state: "forward_pending",
     phase: "forwarding",

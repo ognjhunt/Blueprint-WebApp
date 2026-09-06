@@ -12,6 +12,7 @@ import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, unknown>>(),
   start: vi.fn(),
+  smallUpload: vi.fn(),
   authorize: vi.fn(),
   listParts: vi.fn(),
   finish: vi.fn(),
@@ -104,6 +105,7 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
     ...actual,
     resolveStorageProviderName: () => "backblaze",
     startBackblazeResumableCapture: state.start,
+    uploadSmallBackblazeCapture: state.smallUpload,
     authorizeBackblazeCapturePart: state.authorize,
     listBackblazeCaptureParts: state.listParts,
     finishBackblazeResumableCapture: state.finish,
@@ -862,6 +864,7 @@ async function createSession(socketPath: string) {
 afterEach(() => {
   state.records.clear();
   state.start.mockReset();
+  state.smallUpload.mockReset();
   state.authorize.mockReset();
   state.listParts.mockReset();
   state.finish.mockReset();
@@ -890,6 +893,108 @@ afterEach(() => {
 });
 
 describe("resumable capture uploads", () => {
+  it("uploads a small provided mesh as one bounded file without inventing multipart receipts", async () => {
+    const { server, socketPath } = await startServer();
+    try {
+      const bytes = Buffer.from('#usda 1.0\ndef Xform "root" {}\n');
+      const response = await postJson(
+        socketPath,
+        "/capture-uploads",
+        request({
+          capture_authority_profile: "provided_scene_mesh",
+          source_type: "provided_scene_mesh",
+          original_file: {
+            original_filename: "scene.usda",
+            size_bytes: bytes.length,
+            media_type: "application/octet-stream",
+          },
+          available_sensor_streams: [
+            { stream_type: "provided_geometry", status: "available" },
+          ],
+        }),
+      );
+      expect(response.status).toBe(201);
+      const session = (await response.json()) as any;
+      expect(session.expected_part_count).toBe(1);
+      expect(state.start).not.toHaveBeenCalled();
+      state.smallUpload.mockImplementation(async (input) => ({
+        fileId: "small-file-1",
+        storageUri: `b2://bucket/${input.objectPath}`,
+      }));
+      const boundary = "mesh-test-boundary";
+      const payload = Buffer.concat([
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="scene.usda"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+        ),
+        bytes,
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ]);
+      const upload = () =>
+        new Promise<{ status: number; body: any }>((resolve, reject) => {
+          const request = httpRequest(
+            {
+              socketPath,
+              path: `/capture-uploads/${session.session_id}/file`,
+              method: "POST",
+              headers: {
+                "Content-Type": `multipart/form-data; boundary=${boundary}`,
+                "Content-Length": payload.length,
+              },
+            },
+            (response) => {
+              const chunks: Buffer[] = [];
+              response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+              response.on("end", () => {
+                try {
+                  resolve({
+                    status: response.statusCode!,
+                    body: JSON.parse(Buffer.concat(chunks).toString()),
+                  });
+                } catch (error) {
+                  reject(error);
+                }
+              });
+            },
+          );
+          request.on("error", reject);
+          request.end(payload);
+        });
+      const uploaded = await upload();
+      expect(uploaded.status).toBe(200);
+      expect(uploaded.body.upload_validation).toMatchObject({
+        status: "single_file_server_bytes_received",
+        size_bytes: bytes.length,
+      });
+      expect(uploaded.body.uploaded_parts).toEqual([]);
+      expect((await upload()).status).toBe(200);
+      expect(state.smallUpload).toHaveBeenCalledTimes(1);
+      expect(state.finish).not.toHaveBeenCalled();
+      state.records.get(session.session_id)!.status="upload_pending";
+      state.smallUpload.mockImplementationOnce(async input=>{
+        state.records.get(session.session_id)!.status="cancelled";
+        return {fileId:"late-upload",storageUri:`b2://bucket/${input.objectPath}`};
+      });
+      state.deleteCapture.mockResolvedValue({alreadyAbsent:false});
+      expect((await upload()).status).toBe(409);
+      expect(state.records.get(session.session_id)!.status).toBe("cancelled");
+      expect(state.deleteCapture).toHaveBeenCalledWith(expect.objectContaining({fileId:"late-upload"}));
+      const video = await postJson(
+        socketPath,
+        "/capture-uploads",
+        request({
+          idempotency_key: "different-small-video",
+          original_file: {
+            original_filename: "clip.mp4",
+            size_bytes: bytes.length,
+            media_type: "video/mp4",
+          },
+        }),
+      );
+      expect(video.status).toBe(400);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
   it("revokes a completed capture across Pipeline, object storage, and WebApp with retry-safe evidence", async () => {
     const sessionId = "capture-lifecycle-owner-1";
     const captureDigest = `sha256:${"3".repeat(64)}`;
@@ -2269,7 +2374,7 @@ describe("resumable capture uploads", () => {
       expect(state.intakeForward).toHaveBeenCalledWith(expect.objectContaining({
         captureSessionId: created.session_id,
         customerId: "buyer-123",
-        organizationId: "org-1",
+        organizationId: "user:buyer-123",
         request: expect.objectContaining({ intake_id: "intake-360-1" }),
         transfer: expect.objectContaining({ authorizationToken: "ephemeral-download-secret" }),
       }));

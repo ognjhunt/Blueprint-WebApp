@@ -667,6 +667,8 @@ router.post("/captures", async (req: Request, res: Response) => {
   const payload = {
     id: captureId,
     creator_id: creatorId,
+    organization_id: String(res.locals.firebaseUser?.tenantId || res.locals.firebaseUser?.tenant_id || res.locals.firebaseUser?.firebase?.tenant || `user:${creatorId}`),
+    organization_binding_status: "firebase_principal_verified",
     capture_job_id: optionalTrimmedString(body.capture_job_id, 200),
     buyer_request_id: optionalTrimmedString(body.buyer_request_id, 200),
     site_submission_id: optionalTrimmedString(body.site_submission_id, 200),

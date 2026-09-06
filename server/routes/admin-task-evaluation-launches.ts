@@ -2,8 +2,8 @@ import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { requireAdminRole } from "../middleware/requireAdminRole";
-import { resolveAccessContext } from "../utils/access-control";
+import { requireExecutionRole as requireAdminRole } from "../middleware/requireAdminRole";
+import { resolveExecutionAccessContext as resolveAccessContext } from "../utils/access-control";
 import {
   configuredSceneOfferingBinding,
   configuredSceneOfferingSchema,
@@ -349,6 +349,7 @@ export async function submitTaskEvaluationLaunch(
       service_id: context.serviceId,
       idempotency_key: context.idempotencyKey,
     },
+    firebase_tenant_id: String(res.locals.firebaseUser?.tenantId || res.locals.firebaseUser?.tenant_id || res.locals.firebaseUser?.firebase?.tenant || "") || null,
     created_at_iso: new Date().toISOString(),
   };
   let priorRecord: Record<string, any> | null;

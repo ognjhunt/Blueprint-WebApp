@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { submitTaskEvaluationLaunchPreparation } from "./admin-task-evaluation-launches";
-import { resolveAccessContext } from "../utils/access-control";
+import { resolveExecutionAccessContext as resolveAccessContext } from "../utils/access-control";
 import {
   configuredSceneOfferingBinding,
   configuredSceneOfferingSchema,

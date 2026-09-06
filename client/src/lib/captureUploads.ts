@@ -7,7 +7,8 @@ import type { TaskEvaluationResultDelivery } from "@/lib/taskEvaluationResults";
 export type WebCaptureAuthorityProfile =
   | "camera_360_equirectangular"
   | "camera_360_native"
-  | "monocular_video";
+  | "monocular_video"
+  | "provided_scene_mesh";
 
 export type CaptureUploadSession = {
   schema_version: "capture_upload_session.v1";
@@ -505,7 +506,11 @@ type PartAuthorization = {
   authorization_token: string;
 };
 
-async function apiRequest<T>(
+export class CaptureUploadRequestError extends Error {
+  constructor(message: string, public readonly status: number, public readonly code?: string) { super(message); }
+}
+
+export async function apiRequest<T>(
   currentUser: FirebaseUser,
   path: string,
   init: RequestInit = {},
@@ -513,7 +518,7 @@ async function apiRequest<T>(
   const headers = await withFirebaseAuthHeaders(
     currentUser,
     await withCsrfHeader({
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...((init.headers as Record<string, string> | undefined) || {}),
     }),
   );
@@ -527,7 +532,7 @@ async function apiRequest<T>(
     const blockers = Array.isArray(payload.blockers)
       ? ` ${payload.blockers.join(", ")}`
       : "";
-    throw new Error(`${String(payload.error || "Capture upload request failed")}.${blockers}`);
+    throw new CaptureUploadRequestError(`${String(payload.error || "Capture upload request failed")}.${blockers}`, response.status, String(payload.error || ""));
   }
   return payload as T;
 }
@@ -832,6 +837,11 @@ export async function uploadCaptureFile(params: {
     params.file.size !== params.session.size_bytes
   ) {
     throw new Error("The selected file does not match this resumable upload session.");
+  }
+  if (params.session.capture_authority_profile === "provided_scene_mesh" && params.session.size_bytes <= 5*1024*1024) {
+    const form=new FormData();form.append("file",params.file);
+    const result=await apiRequest<CaptureUploadSession>(params.currentUser,`/api/capture-uploads/${encodeURIComponent(params.session.session_id)}/file`,{method:"POST",body:form});
+    params.onProgress?.(1,1);return result;
   }
   const uploaded = new Map(
     params.session.uploaded_parts.map((part) => [part.partNumber, part.contentSha1]),
