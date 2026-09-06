@@ -7,6 +7,29 @@ import {
   type CaptureUploadSession,
 } from "@/lib/captureUploads";
 
+// Destination placement defaults. Orientation is fixed to identity (level); the
+// position origin is a placeholder the owner must set to the real drop point.
+const DESTINATION_DEFAULTS = {
+  relation: "on" as "on" | "inside",
+  visible_label: "",
+  x: 0,
+  y: 0,
+  z: 0,
+};
+// Structured success-criteria defaults for a rigid-object pick-and-place. The
+// factory requires control_frequency_hz * maximum_episode_seconds to be a whole
+// number of steps; 15 * 24 = 360 satisfies it.
+const SUCCESS_DEFAULTS = {
+  control_frequency_hz: 15,
+  maximum_episode_seconds: 24,
+  minimum_lift_m: 0.05,
+  pregrasp_clearance_m: 0.1,
+  minimum_planar_displacement_m: 0.1,
+  maximum_final_planar_target_error_m: 0.05,
+};
+// The contract requires exactly zero retries and regrasps; not owner-tunable.
+const SUCCESS_FIXED = { maximum_retries: 0, maximum_regrasps: 0 } as const;
+
 export function SceneIntakeForm({
   currentUser,
   sessions,
@@ -18,13 +41,9 @@ export function SceneIntakeForm({
   const [source, setSource] = useState("");
   const [collisionSource, setCollisionSource] = useState("");
   const [collisionFrameConfirmed, setCollisionFrameConfirmed] = useState(false);
-  const [task, setTask] = useState({
-    subject: "",
-    support: "",
-    destination: "",
-    success:
-      "Place the object fully inside the destination, release it, and move the gripper clear.",
-  });
+  const [task, setTask] = useState({ subject: "", support: "" });
+  const [destination, setDestination] = useState(DESTINATION_DEFAULTS);
+  const [success, setSuccess] = useState(SUCCESS_DEFAULTS);
   const [policies, setPolicies] = useState([
     { id: "", artifact_digest: "" },
     { id: "", artifact_digest: "" },
@@ -97,18 +116,44 @@ export function SceneIntakeForm({
         setSource(command.source_session_id);
         setCollisionSource(command.collision_source_session_id || "");
         setCollisionFrameConfirmed(command.collision_same_frame_confirmed === true);
-        setTask(
-          Object.fromEntries(
-            Object.entries(command.task)
-              .filter(([key]) =>
-                ["subject", "support", "destination", "success"].includes(key),
-              )
-              .map(([key, value]) => [
-                key,
-                (value as { description: string }).description,
-              ]),
-          ) as typeof task,
-        );
+        setTask({
+          subject: command.task.subject?.description ?? "",
+          support: command.task.support?.description ?? "",
+        });
+        const retainedDestination = command.task.destination || {};
+        const retainedPosition = Array.isArray(
+          retainedDestination.position_world_m,
+        )
+          ? retainedDestination.position_world_m
+          : [0, 0, 0];
+        setDestination({
+          relation:
+            retainedDestination.relation === "inside" ? "inside" : "on",
+          visible_label: retainedDestination.visible_label ?? "",
+          x: Number(retainedPosition[0]) || 0,
+          y: Number(retainedPosition[1]) || 0,
+          z: Number(retainedPosition[2]) || 0,
+        });
+        setSuccess({
+          control_frequency_hz:
+            command.task.success?.control_frequency_hz ??
+            SUCCESS_DEFAULTS.control_frequency_hz,
+          maximum_episode_seconds:
+            command.task.success?.maximum_episode_seconds ??
+            SUCCESS_DEFAULTS.maximum_episode_seconds,
+          minimum_lift_m:
+            command.task.success?.minimum_lift_m ??
+            SUCCESS_DEFAULTS.minimum_lift_m,
+          pregrasp_clearance_m:
+            command.task.success?.pregrasp_clearance_m ??
+            SUCCESS_DEFAULTS.pregrasp_clearance_m,
+          minimum_planar_displacement_m:
+            command.task.success?.minimum_planar_displacement_m ??
+            SUCCESS_DEFAULTS.minimum_planar_displacement_m,
+          maximum_final_planar_target_error_m:
+            command.task.success?.maximum_final_planar_target_error_m ??
+            SUCCESS_DEFAULTS.maximum_final_planar_target_error_m,
+        });
         setPolicies(command.execution.policy_candidates);
         setSpend(command.execution.max_total_spend_usd);
         setAttempts(command.execution.max_paid_attempts);
@@ -148,6 +193,18 @@ export function SceneIntakeForm({
     event.preventDefault();
     setBusy(true);
     setError("");
+    if (
+      !pendingCommand &&
+      !Number.isInteger(
+        success.control_frequency_hz * success.maximum_episode_seconds,
+      )
+    ) {
+      setError(
+        "Control frequency × maximum episode seconds must be a whole number of simulation steps.",
+      );
+      setBusy(false);
+      return;
+    }
     const command = pendingCommand || {
       submission_id: `scene-${crypto.randomUUID()}`,
       source_session_id: source,
@@ -155,12 +212,15 @@ export function SceneIntakeForm({
       task: {
         task_id: `task-${source}`,
         strategy: "pick_and_place",
-        ...Object.fromEntries(
-          Object.entries(task).map(([key, description]) => [
-            key,
-            { description, authority: "owner_confirmed" },
-          ]),
-        ),
+        subject: { description: task.subject, authority: "owner_confirmed" },
+        support: { description: task.support, authority: "owner_confirmed" },
+        destination: {
+          relation: destination.relation,
+          visible_label: destination.visible_label,
+          position_world_m: [destination.x, destination.y, destination.z],
+          orientation_xyzw: [0, 0, 0, 1],
+        },
+        success: { ...success, ...SUCCESS_FIXED },
       },
       execution: {
         max_total_spend_usd: spend,
@@ -304,26 +364,192 @@ export function SceneIntakeForm({
               I confirm these exports use the same declared coordinate frame. This does not certify physical scale or collision accuracy.
             </label> : <p className="text-body-s text-ink-500 md:col-span-2">A splat supplies appearance, not contact geometry. Attach the matching mesh when available; missing geometry will be reported before paid work.</p>}
           </> : null}
-          {Object.entries(task).map(([key, value]) => (
-            <label key={key}>
-              {
-                (
+          <label>
+            Object to move
+            <input
+              className={field}
+              required
+              value={task.subject}
+              onChange={(e) => setTask({ ...task, subject: e.target.value })}
+            />
+          </label>
+          <label>
+            Starting support surface
+            <input
+              className={field}
+              required
+              value={task.support}
+              onChange={(e) => setTask({ ...task, support: e.target.value })}
+            />
+          </label>
+          <fieldset className="space-y-2 md:col-span-2">
+            <legend className="font-medium text-ink-800">
+              Destination placement
+            </legend>
+            <p className="text-body-s text-ink-500">
+              Where the object must end up. A structured pose is required — a
+              description alone cannot be simulated. Orientation defaults to
+              identity (level).
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label>
+                Placement relation
+                <select
+                  className={field}
+                  value={destination.relation}
+                  onChange={(e) =>
+                    setDestination({
+                      ...destination,
+                      relation: e.target.value as "on" | "inside",
+                    })
+                  }
+                >
+                  <option value="on">On the surface</option>
+                  <option value="inside">Inside the container</option>
+                </select>
+              </label>
+              <label>
+                Destination surface or container
+                <input
+                  className={field}
+                  required
+                  value={destination.visible_label}
+                  onChange={(e) =>
+                    setDestination({
+                      ...destination,
+                      visible_label: e.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Target X (m)
+                <input
+                  className={field}
+                  type="number"
+                  required
+                  step="any"
+                  value={destination.x}
+                  onChange={(e) =>
+                    setDestination({
+                      ...destination,
+                      x: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Target Y (m)
+                <input
+                  className={field}
+                  type="number"
+                  required
+                  step="any"
+                  value={destination.y}
+                  onChange={(e) =>
+                    setDestination({
+                      ...destination,
+                      y: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Target Z (m)
+                <input
+                  className={field}
+                  type="number"
+                  required
+                  step="any"
+                  value={destination.z}
+                  onChange={(e) =>
+                    setDestination({
+                      ...destination,
+                      z: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <p className="text-body-s text-ink-500">
+              Coordinates are in the scene&apos;s world frame. The default origin
+              (0, 0, 0) is a placeholder — set the real drop point.
+            </p>
+          </fieldset>
+          <fieldset className="space-y-2 md:col-span-2">
+            <legend className="font-medium text-ink-800">
+              Success criteria
+            </legend>
+            <p className="text-body-s text-ink-500">
+              Structured thresholds the run scores against. Defaults suit a
+              rigid-object pick-and-place; adjust only if the task needs it.
+              Retries and regrasps are fixed at zero.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {(
+                [
                   {
-                    subject: "Object to move",
-                    support: "Starting support surface",
-                    destination: "Destination",
-                    success: "Observable success condition",
-                  } as Record<string, string>
-                )[key]
-              }
-              <input
-                className={field}
-                required
-                value={value}
-                onChange={(e) => setTask({ ...task, [key]: e.target.value })}
-              />
-            </label>
-          ))}
+                    key: "control_frequency_hz",
+                    label: "Control frequency (Hz)",
+                    min: "1",
+                    step: "1",
+                  },
+                  {
+                    key: "maximum_episode_seconds",
+                    label: "Maximum episode seconds",
+                    min: "0.01",
+                    step: "any",
+                  },
+                  {
+                    key: "minimum_lift_m",
+                    label: "Minimum lift (m)",
+                    min: "0.001",
+                    step: "any",
+                  },
+                  {
+                    key: "pregrasp_clearance_m",
+                    label: "Pre-grasp clearance (m)",
+                    min: "0.001",
+                    step: "any",
+                  },
+                  {
+                    key: "minimum_planar_displacement_m",
+                    label: "Minimum planar displacement (m)",
+                    min: "0.001",
+                    step: "any",
+                  },
+                  {
+                    key: "maximum_final_planar_target_error_m",
+                    label: "Maximum final planar target error (m)",
+                    min: "0.001",
+                    step: "any",
+                  },
+                ] as const
+              ).map((row) => (
+                <label key={row.key}>
+                  {row.label}
+                  <input
+                    className={field}
+                    type="number"
+                    required
+                    min={row.min}
+                    step={row.step}
+                    value={success[row.key]}
+                    onChange={(e) =>
+                      setSuccess({
+                        ...success,
+                        [row.key]: Number(e.target.value),
+                      } as typeof success)
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="text-body-s text-ink-500">
+              Control frequency × maximum episode seconds must be a whole number
+              of steps (default 15 × 24 = 360).
+            </p>
+          </fieldset>
           {policies.map((policy, index) => (
             <div key={index} className="space-y-2">
               <label>

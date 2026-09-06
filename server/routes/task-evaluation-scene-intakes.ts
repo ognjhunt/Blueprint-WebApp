@@ -36,11 +36,17 @@ function projection(id: string, value: Record<string, any>) {
 router.post("/", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Intake store unavailable" });
   const parsed = sceneIntakeCommand.safeParse(req.body);
-  if (!parsed.success)
-    return res.status(400).json({
-      error: "Invalid scene, task, or bounded consent",
-      issues: parsed.error.flatten(),
-    });
+  if (!parsed.success) {
+    // Surface the same canonical, actionable codes the completed-scene factory
+    // would raise so a description-only submission is not silently dropped.
+    const paths = parsed.error.issues.map((issue) => issue.path.join("."));
+    const error = paths.some((path) => path.startsWith("task.destination"))
+      ? "task_destination_pose_required"
+      : paths.some((path) => path.startsWith("task.success"))
+        ? "task_success_criteria_required"
+        : "Invalid scene, task, or bounded consent";
+    return res.status(400).json({ error, issues: parsed.error.flatten() });
+  }
   try {
     const owner = sceneOwner(res.locals.firebaseUser || {});
     const id = `scene-${sceneDigest({ owner, submission_id: parsed.data.submission_id }).slice(7)}`;

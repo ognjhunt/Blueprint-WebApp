@@ -10,6 +10,52 @@ const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const mapping = z
   .record(z.string(), z.unknown())
   .refine((v) => Object.keys(v).length > 0);
+// Structured task inputs the completed-scene factory
+// (task_evaluation_completed_scene_attempt_factory._task_and_blockers) requires.
+// A description-only destination or success block is refused up-front here so the
+// website never stages an intent the factory would reject with
+// task_destination_pose_required / task_success_criteria_required.
+const finiteNumber = z.number().finite();
+const vector3 = z.tuple([finiteNumber, finiteNumber, finiteNumber]);
+// (x, y, z, w) with unit norm, so the pose is a valid rotation.
+const unitQuaternion = z
+  .tuple([finiteNumber, finiteNumber, finiteNumber, finiteNumber])
+  .refine(
+    (q) =>
+      Math.abs(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3] - 1) <=
+      1e-6,
+    { message: "orientation_xyzw must be a unit quaternion" },
+  );
+const taskDestination = z
+  .object({
+    relation: z.enum(["on", "inside"]),
+    visible_label: z.string().trim().min(1).max(200),
+    position_world_m: vector3,
+    orientation_xyzw: unitQuaternion,
+  })
+  .strict();
+const positiveMeasure = z.number().finite().positive();
+const taskSuccess = z
+  .object({
+    control_frequency_hz: positiveMeasure,
+    maximum_episode_seconds: positiveMeasure,
+    minimum_lift_m: positiveMeasure,
+    pregrasp_clearance_m: positiveMeasure,
+    minimum_planar_displacement_m: positiveMeasure,
+    maximum_final_planar_target_error_m: positiveMeasure,
+    maximum_retries: z.literal(0),
+    maximum_regrasps: z.literal(0),
+  })
+  .strict()
+  // control_frequency_hz * maximum_episode_seconds must be a whole number of
+  // simulation steps.
+  .refine(
+    (s) => Number.isInteger(s.control_frequency_hz * s.maximum_episode_seconds),
+    {
+      message:
+        "control_frequency_hz * maximum_episode_seconds must be a whole number of steps",
+    },
+  );
 const statusSchema = z
   .object({
     schema_version: z.literal("task_evaluation_scene_intent_status.v1"),
@@ -70,8 +116,8 @@ export const sceneIntakeCommand = z
         strategy: z.literal("pick_and_place"),
         subject: mapping,
         support: mapping,
-        destination: mapping,
-        success: mapping,
+        destination: taskDestination,
+        success: taskSuccess,
       })
       .strict(),
     execution: z

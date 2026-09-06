@@ -56,15 +56,27 @@ function fill() {
   fireEvent.change(screen.getByLabelText("Source"), {
     target: { value: "native-cap-one" },
   });
-  for (const label of [
-    "Object to move",
-    "Starting support surface",
-    "Destination",
-    "Observable success condition",
-  ])
-    fireEvent.change(screen.getByLabelText(label), {
-      target: { value: label },
-    });
+  fireEvent.change(screen.getByLabelText("Object to move"), {
+    target: { value: "block" },
+  });
+  fireEvent.change(screen.getByLabelText("Starting support surface"), {
+    target: { value: "table" },
+  });
+  fireEvent.change(screen.getByLabelText("Placement relation"), {
+    target: { value: "inside" },
+  });
+  fireEvent.change(screen.getByLabelText("Destination surface or container"), {
+    target: { value: "tray" },
+  });
+  fireEvent.change(screen.getByLabelText("Target X (m)"), {
+    target: { value: "0.4" },
+  });
+  fireEvent.change(screen.getByLabelText("Target Y (m)"), {
+    target: { value: "0" },
+  });
+  fireEvent.change(screen.getByLabelText("Target Z (m)"), {
+    target: { value: "0.1" },
+  });
   fireEvent.change(screen.getByLabelText("Candidate 1 ID"), {
     target: { value: "one" },
   });
@@ -123,6 +135,52 @@ describe("scene task intake UI", () => {
     });
     expect(input).not.toHaveProperty("owner");
     expect(input.consent).not.toHaveProperty("accepted_by");
+    // The structured destination pose and success criteria the factory requires
+    // are forwarded, not a description-only task.
+    expect(input.task.subject).toEqual({
+      description: "block",
+      authority: "owner_confirmed",
+    });
+    expect(input.task.destination).toEqual({
+      relation: "inside",
+      visible_label: "tray",
+      position_world_m: [0.4, 0, 0.1],
+      orientation_xyzw: [0, 0, 0, 1],
+    });
+    expect(input.task.success).toEqual({
+      control_frequency_hz: 15,
+      maximum_episode_seconds: 24,
+      minimum_lift_m: 0.05,
+      pregrasp_clearance_m: 0.1,
+      minimum_planar_displacement_m: 0.1,
+      maximum_final_planar_target_error_m: 0.05,
+      maximum_retries: 0,
+      maximum_regrasps: 0,
+    });
+    // The shipped defaults satisfy the factory's integer-steps rule.
+    expect(
+      Number.isInteger(
+        input.task.success.control_frequency_hz *
+          input.task.success.maximum_episode_seconds,
+      ),
+    ).toBe(true);
+  });
+  it("blocks submission when control rate times episode seconds is not a whole number of steps", async () => {
+    render(<SceneIntakeForm currentUser={user} sessions={[]} />);
+    await screen.findByRole("option", { name: /App workcell/ });
+    fill();
+    fireEvent.change(screen.getByLabelText("Maximum episode seconds"), {
+      target: { value: "24.5" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm task and submit run" }),
+    );
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /whole number of simulation steps/i,
+    );
+    expect(
+      state.api.mock.calls.some((call) => call[2]?.method === "POST"),
+    ).toBe(false);
   });
   it("isolates retries by tenant and restores the same owner's exact request after remount", async () => {
     state.api.mockImplementation(async (_user, path, init) => {

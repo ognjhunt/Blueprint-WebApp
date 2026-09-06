@@ -111,8 +111,22 @@ function command() {
       strategy: "pick_and_place",
       subject: { description: "block" },
       support: { description: "table" },
-      destination: { description: "tray" },
-      success: { description: "inside tray" },
+      destination: {
+        relation: "inside" as const,
+        visible_label: "tray",
+        position_world_m: [0.4, 0, 0.1],
+        orientation_xyzw: [0, 0, 0, 1],
+      },
+      success: {
+        control_frequency_hz: 15,
+        maximum_episode_seconds: 24,
+        minimum_lift_m: 0.05,
+        pregrasp_clearance_m: 0.1,
+        minimum_planar_displacement_m: 0.1,
+        maximum_final_planar_target_error_m: 0.05,
+        maximum_retries: 0,
+        maximum_regrasps: 0,
+      },
     },
     execution: {
       max_total_spend_usd: 20,
@@ -720,5 +734,134 @@ describe("same-owner collision-mesh companion binding", () => {
     await processSceneIntakeQueue();
     expect(stored()[1].state).toBe("accepted");
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+describe("structured task destination and success contract", () => {
+  // The completed-scene factory requires a real destination pose and structured
+  // success criteria. The website must supply and validate these; a
+  // description-only task must fail closed here, not silently forward.
+  it("validates and forwards the structured destination pose and success criteria unchanged", () => {
+    const parsed = sceneIntakeCommand.safeParse(command());
+    expect(parsed.success).toBe(true);
+    const request = buildSceneIntake(
+      sceneIntakeCommand.parse(command()),
+      sceneOwner({ uid: "owner" }),
+      source(),
+    );
+    // buildSceneIntake stages task verbatim; the pose and criteria reach the intent.
+    expect(request.task.destination).toEqual({
+      relation: "inside",
+      visible_label: "tray",
+      position_world_m: [0.4, 0, 0.1],
+      orientation_xyzw: [0, 0, 0, 1],
+    });
+    expect(request.task.success).toEqual({
+      control_frequency_hz: 15,
+      maximum_episode_seconds: 24,
+      minimum_lift_m: 0.05,
+      pregrasp_clearance_m: 0.1,
+      minimum_planar_displacement_m: 0.1,
+      maximum_final_planar_target_error_m: 0.05,
+      maximum_retries: 0,
+      maximum_regrasps: 0,
+    });
+    // The shipped defaults land on a whole number of simulation steps.
+    expect(
+      Number.isInteger(
+        request.task.success.control_frequency_hz *
+          request.task.success.maximum_episode_seconds,
+      ),
+    ).toBe(true);
+  });
+  it("refuses a description-only task with an actionable code and stages nothing", async () => {
+    const url = await app();
+    const descriptionOnly = {
+      ...command(),
+      task: {
+        task_id: "task-one",
+        strategy: "pick_and_place",
+        subject: { description: "block" },
+        support: { description: "table" },
+        destination: { description: "tray" },
+        success: { description: "inside tray" },
+      },
+    };
+    const response = await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(descriptionOnly),
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("task_destination_pose_required");
+    expect(
+      [...store.rows.keys()].some((key) =>
+        key.startsWith("taskEvaluationSceneIntakes/"),
+      ),
+    ).toBe(false);
+  });
+  it("rejects an invalid destination pose", () => {
+    const withDestination = (destination: unknown) =>
+      sceneIntakeCommand.safeParse({
+        ...command(),
+        task: { ...command().task, destination },
+      }).success;
+    // Non-unit quaternion.
+    expect(
+      withDestination({
+        relation: "on",
+        visible_label: "tray",
+        position_world_m: [0, 0, 0],
+        orientation_xyzw: [1, 1, 0, 0],
+      }),
+    ).toBe(false);
+    // Non-finite position component.
+    expect(
+      withDestination({
+        relation: "on",
+        visible_label: "tray",
+        position_world_m: [Infinity, 0, 0],
+        orientation_xyzw: [0, 0, 0, 1],
+      }),
+    ).toBe(false);
+    // Unknown relation and empty label both fail closed.
+    expect(
+      withDestination({
+        relation: "beside",
+        visible_label: "tray",
+        position_world_m: [0, 0, 0],
+        orientation_xyzw: [0, 0, 0, 1],
+      }),
+    ).toBe(false);
+    expect(
+      withDestination({
+        relation: "on",
+        visible_label: "",
+        position_world_m: [0, 0, 0],
+        orientation_xyzw: [0, 0, 0, 1],
+      }),
+    ).toBe(false);
+    // A valid full pose passes.
+    expect(
+      withDestination({
+        relation: "on",
+        visible_label: "tray",
+        position_world_m: [1, 2, 3],
+        orientation_xyzw: [0, 0, 0, 1],
+      }),
+    ).toBe(true);
+  });
+  it("enforces zero retries/regrasps and the integer-steps success coupling", () => {
+    const withSuccess = (patch: Record<string, unknown>) =>
+      sceneIntakeCommand.safeParse({
+        ...command(),
+        task: { ...command().task, success: { ...command().task.success, ...patch } },
+      }).success;
+    expect(withSuccess({ maximum_retries: 1 })).toBe(false);
+    expect(withSuccess({ maximum_regrasps: 1 })).toBe(false);
+    expect(withSuccess({ minimum_lift_m: 0 })).toBe(false);
+    // 15 * 24.5 = 367.5 is not a whole number of steps.
+    expect(withSuccess({ maximum_episode_seconds: 24.5 })).toBe(false);
+    // 20 Hz * 24 s = 480 steps is valid.
+    expect(withSuccess({ control_frequency_hz: 20 })).toBe(true);
   });
 });
