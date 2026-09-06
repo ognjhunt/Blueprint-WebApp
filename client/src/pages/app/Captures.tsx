@@ -707,7 +707,7 @@ export default function Captures() {
           </aside>
         </form>
 
-        {currentUser ? <SceneIntakeForm currentUser={currentUser} sessions={sessions} /> : null}
+        {currentUser ? <SceneIntakeForm key={JSON.stringify([currentUser.uid, currentUser.tenantId || null])} currentUser={currentUser} sessions={sessions} /> : null}
 
         {reviewLoading ? <BuyerAppLoadingState /> : taskReview?.discovery ? (
           <div id="task-review">

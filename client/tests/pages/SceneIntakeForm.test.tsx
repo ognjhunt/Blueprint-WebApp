@@ -120,7 +120,7 @@ describe("scene task intake UI", () => {
     expect(input).not.toHaveProperty("owner");
     expect(input.consent).not.toHaveProperty("accepted_by");
   });
-  it("restores exactly the same request after an ambiguous response and remount", async () => {
+  it("isolates retries by tenant and restores the same owner's exact request after remount", async () => {
     state.api.mockImplementation(async (_user, path, init) => {
       if (init?.method === "POST") throw new Error("connection lost");
       return path.endsWith("/options")
@@ -145,9 +145,23 @@ describe("scene task intake UI", () => {
       screen.getByRole("button", { name: "Confirm task and submit run" }),
     );
     await screen.findByRole("button", { name: "Retry same submission" });
-    const retained = sessionStorage.getItem("scene-intake-pending:owner");
+    const retained = sessionStorage.getItem(sessionStorage.key(0)!);
     expect(retained).toBeTruthy();
     first.unmount();
+    const otherTenant = render(
+      <SceneIntakeForm
+        currentUser={{ ...user, tenantId: "other-tenant" } as User}
+        sessions={[]}
+      />,
+    );
+    await screen.findByRole("option", { name: /App workcell/ });
+    expect(
+      screen.queryByRole("button", { name: "Retry same submission" }),
+    ).toBeNull();
+    expect(
+      (screen.getByLabelText("Object to move") as HTMLInputElement).value,
+    ).toBe("");
+    otherTenant.unmount();
     render(<SceneIntakeForm currentUser={user} sessions={[]} />);
     fireEvent.click(
       await screen.findByRole("button", { name: "Retry same submission" }),

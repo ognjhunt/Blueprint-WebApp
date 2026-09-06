@@ -14,6 +14,7 @@ export function SceneIntakeForm({
   currentUser: User;
   sessions: CaptureUploadSession[];
 }) {
+  const retryStorageKey = `scene-intake-pending:${JSON.stringify([currentUser.uid, currentUser.tenantId || null])}`;
   const [source, setSource] = useState("");
   const [task, setTask] = useState({
     subject: "",
@@ -69,7 +70,7 @@ export function SceneIntakeForm({
       .then((options) => {
         setProviderTerms(options.provider_terms || {});
         if (
-          !sessionStorage.getItem(`scene-intake-pending:${currentUser.uid}`)
+          !sessionStorage.getItem(retryStorageKey)
         ) {
           setTerms(options.provider_terms?.vast?.digest || "");
           if (options.policy_pairs?.[0])
@@ -85,7 +86,7 @@ export function SceneIntakeForm({
       );
     try {
       const retained = sessionStorage.getItem(
-        `scene-intake-pending:${currentUser.uid}`,
+        retryStorageKey,
       );
       if (retained) {
         const command = JSON.parse(retained);
@@ -137,7 +138,7 @@ export function SceneIntakeForm({
       15000,
     );
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, retryStorageKey]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -175,14 +176,14 @@ export function SceneIntakeForm({
     setPendingCommand(command);
     try {
       sessionStorage.setItem(
-        `scene-intake-pending:${currentUser.uid}`,
+        retryStorageKey,
         JSON.stringify(command),
       );
       await apiRequest(currentUser, "/api/task-evaluation-scene-intakes", {
         method: "POST",
         body: JSON.stringify(command),
       });
-      sessionStorage.removeItem(`scene-intake-pending:${currentUser.uid}`);
+      sessionStorage.removeItem(retryStorageKey);
       setPendingCommand(null);
       setConfirmed(false);
       await refresh();
@@ -201,7 +202,7 @@ export function SceneIntakeForm({
       ) {
         setPendingCommand(null);
         setConfirmed(false);
-        sessionStorage.removeItem(`scene-intake-pending:${currentUser.uid}`);
+        sessionStorage.removeItem(retryStorageKey);
       }
       setError(
         reason instanceof Error
