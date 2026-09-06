@@ -9,7 +9,9 @@ const sha = (character: string) => `sha256:${character.repeat(64)}`;
 // intercepts clicks on the controls underneath it.
 test.beforeEach(seedCookieConsent);
 
-test("customer reviews Pipeline-authored task intent without a false approval", async ({ page }, testInfo) => {
+test("customer reviews Pipeline-authored task intent without a false approval", async ({
+  page,
+}, testInfo) => {
   const consoleProblems: string[] = [];
   page.on("console", (message) => {
     if (
@@ -60,9 +62,15 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
       capture_authority_profile: "camera_360_equirectangular",
     },
     scene_analysis: {
-      observed_site_facts: [{ description: "A blue tote is directly visible on the table." }],
-      inferred_objects_and_affordances: [{ description: "The tote may be graspable from its rim." }],
-      unsupported_or_occluded_regions: [{ description: "The rear grasp surface is occluded." }],
+      observed_site_facts: [
+        { description: "A blue tote is directly visible on the table." },
+      ],
+      inferred_objects_and_affordances: [
+        { description: "The tote may be graspable from its rim." },
+      ],
+      unsupported_or_occluded_regions: [
+        { description: "The rear grasp surface is occluded." },
+      ],
       hazards: [],
       privacy_sensitive_areas: [],
     },
@@ -128,27 +136,55 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === "/api/csrf") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ csrfToken: "e2e-csrf" }) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ csrfToken: "e2e-csrf" }),
+      });
       return;
     }
     if (path === "/api/analytics/ingest" && request.method() === "POST") {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
+    if (
+      request.method() === "GET" &&
+      [
+        "/api/task-evaluation-scene-intakes",
+        "/api/task-evaluation-scene-intakes/options",
+        "/api/task-evaluation-scene-intakes/sources",
+      ].includes(path)
+    ) {
+      const body = path.endsWith("/options")
+        ? { provider_terms: {}, policy_pairs: [] }
+        : path.endsWith("/sources")
+          ? { sources: [] }
+          : { intakes: [] };
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+      return;
+    }
     if (path === "/api/capture-uploads" && request.method() === "GET") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ sessions: [{
-          ...session,
-          task_review: {
-            ...session.task_review,
-            status: commandRecorded
-              ? "decision_pending_pipeline_validation"
-              : "task_approval_required",
-            latest_action: commandRecorded ? "approve" : null,
-          },
-        }] }),
+        body: JSON.stringify({
+          sessions: [
+            {
+              ...session,
+              task_review: {
+                ...session.task_review,
+                status: commandRecorded
+                  ? "decision_pending_pipeline_validation"
+                  : "task_approval_required",
+                latest_action: commandRecorded ? "approve" : null,
+              },
+            },
+          ],
+        }),
       });
       return;
     }
@@ -208,23 +244,31 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     await route.fulfill({
       status: 599,
       contentType: "application/json",
-      body: JSON.stringify({ error: `Unmocked E2E API: ${request.method()} ${path}` }),
+      body: JSON.stringify({
+        error: `Unmocked E2E API: ${request.method()} ${path}`,
+      }),
     });
   });
 
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/app/captures", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Review tasks" }).click();
-  await expect(page.getByRole("heading", { name: "Review proposed tasks" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Review proposed tasks" }),
+  ).toBeVisible();
   await expect(page.getByText("Direct observations")).toBeVisible();
-  await expect(page.getByText("Inferred objects and affordances")).toBeVisible();
-  await expect(page.getByText(/does not prove the task succeeds/i)).toBeVisible();
+  await expect(
+    page.getByText("Inferred objects and affordances"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/does not prove the task succeeds/i),
+  ).toBeVisible();
 
   const approve = page.getByRole("button", { name: "Approve candidate" });
   await expect(approve).toBeDisabled();
-  await page.getByPlaceholder(/Why this task is correct/i).fill(
-    "This is the exact task we want evaluated.",
-  );
+  await page
+    .getByPlaceholder(/Why this task is correct/i)
+    .fill("This is the exact task we want evaluated.");
   await approve.click();
   await expect(page.getByText("Decision command recorded")).toBeVisible();
   await expect(page.getByText(/pending Pipeline validation/i)).toBeVisible();
@@ -236,11 +280,151 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     rationale: "This is the exact task we want evaluated.",
     edited_task: null,
   });
-  expect(JSON.stringify(submittedCommand)).not.toMatch(/selected_provider|approved_task_definition|decision_evidence_request/i);
+  expect(JSON.stringify(submittedCommand)).not.toMatch(
+    /selected_provider|approved_task_definition|decision_evidence_request/i,
+  );
   expect(unmockedApiRequests).toEqual([]);
   expect(consoleProblems).toEqual([]);
   await page.screenshot({
     path: testInfo.outputPath("capture-task-review.png"),
+    fullPage: true,
+  });
+});
+
+test("owner submits bounded scene intent and sees source verification without a success claim", async ({
+  page,
+}, testInfo) => {
+  const unmocked: string[] = [];
+  let submitted: Record<string, any> | null = null;
+  const id = `scene-${"1".repeat(64)}`;
+  const projection = () => ({
+    id,
+    submission_id: submitted?.submission_id,
+    state: "accepted",
+    receipt: { intent_id: id },
+    pipeline_status: {
+      status: "awaiting_source",
+      phase: "Source verification",
+      blockers: ["source_storage_readback_required"],
+    },
+  });
+  await page.route("**/api/**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    let body: unknown;
+    if (path === "/api/csrf") body = { csrfToken: "e2e-csrf" };
+    else if (path === "/api/analytics/ingest" && request.method() === "POST") {
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    } else if (path === "/api/capture-uploads" && request.method() === "GET")
+      body = { sessions: [] };
+    else if (path === "/api/task-evaluation-scene-intakes/options")
+      body = {
+        provider_terms: {
+          vast: {
+            digest: sha("e"),
+            label: "Retained test terms",
+            url: "https://vast.ai/terms",
+          },
+        },
+        policy_pairs: [
+          [
+            { id: "pi05_droid", artifact_digest: sha("a") },
+            { id: "groot_n17_droid", artifact_digest: sha("b") },
+          ],
+        ],
+      };
+    else if (path === "/api/task-evaluation-scene-intakes/sources")
+      body = {
+        sources: [
+          {
+            id: "native-cap-one",
+            label: "App workcell",
+            validation_status: "pending_pipeline_storage_readback",
+            selectable: true,
+          },
+        ],
+      };
+    else if (
+      path === "/api/task-evaluation-scene-intakes" &&
+      request.method() === "POST"
+    ) {
+      submitted = request.postDataJSON();
+      expect(request.headers().authorization).toBeTruthy();
+      expect(request.headers()["x-csrf-token"]).toBe("e2e-csrf");
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: JSON.stringify(projection()),
+      });
+      return;
+    } else if (
+      path === "/api/task-evaluation-scene-intakes" &&
+      request.method() === "GET"
+    )
+      body = { intakes: submitted ? [projection()] : [] };
+    else {
+      unmocked.push(`${request.method()} ${path}`);
+      await route.fulfill({
+        status: 599,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Unmocked scene-intake request" }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/app/captures", { waitUntil: "networkidle" });
+  await page
+    .getByRole("combobox", { name: "Source", exact: true })
+    .selectOption("native-cap-one");
+  await page.getByLabel("Object to move", { exact: true }).fill("blue tote");
+  await page
+    .getByLabel("Starting support surface", { exact: true })
+    .fill("work table");
+  await page.getByLabel("Destination", { exact: true }).fill("tray");
+  await expect(
+    page.getByLabel("Observable success condition", { exact: true }),
+  ).toHaveValue(
+    "Place the object fully inside the destination, release it, and move the gripper clear.",
+  );
+  await page.getByLabel(/I confirm this task/).check();
+  await page
+    .getByRole("button", { name: "Confirm task and submit run", exact: true })
+    .click();
+  await expect(
+    page.getByText("awaiting source", { exact: true }),
+  ).toBeVisible();
+  expect(submitted).toMatchObject({
+    source_session_id: "native-cap-one",
+    task: {
+      subject: { description: "blue tote", authority: "owner_confirmed" },
+    },
+    execution: {
+      max_total_spend_usd: 25,
+      max_paid_attempts: 1,
+      max_retries: 0,
+      allowed_providers: ["vast"],
+      claim_scope: "development_only",
+    },
+    consent: {
+      provider_terms_reference: sha("e"),
+      task_confirmed: true,
+      private_processing_authorized: true,
+      provider_training_authorized: false,
+      spend_authorized: true,
+    },
+  });
+  expect(submitted).not.toHaveProperty("owner");
+  expect(submitted?.consent).not.toHaveProperty("accepted_by");
+  expect(unmocked).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("scene-intake-awaiting-source.png"),
     fullPage: true,
   });
 });
