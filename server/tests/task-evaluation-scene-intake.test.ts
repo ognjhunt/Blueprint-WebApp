@@ -525,3 +525,200 @@ describe("persistent authenticated scene intake", () => {
     );
   });
 });
+describe("same-owner collision-mesh companion binding", () => {
+  // A completed 3DGS source can carry an optional same-owner collision mesh in a
+  // declared common frame. buildSceneIntake reuses the full source-admission
+  // validation for the companion (a recursive build), so ownership, revocation,
+  // rights, and byte identity are enforced identically for both exports and the
+  // companion's bytes+rights are pinned into the request digest.
+  const splatSource = () => {
+    const value = source();
+    value.request.capture_authority_profile = "provided_scene_splat";
+    return value;
+  };
+  const meshSource = (overrides: Record<string, any> = {}) => {
+    const value = source();
+    value.request.capture_authority_profile = "provided_scene_mesh";
+    // Distinct companion bytes/rights so the companion binding is observable.
+    value.pipeline_capture_intake_receipt.capture_digest = sha("1");
+    value.pipeline_capture_intake_receipt.envelope_digest = sha("2");
+    return { ...value, ...overrides };
+  };
+  const companionCommand = (overrides: Record<string, any> = {}) => ({
+    ...command(),
+    source_session_id: "capture-splat-one",
+    collision_source_session_id: "capture-mesh-one",
+    collision_same_frame_confirmed: true as const,
+    ...overrides,
+  });
+  const owner = () => sceneOwner({ uid: "owner" });
+
+  it("pins the companion's bytes and rights into the source binding", () => {
+    const request = buildSceneIntake(
+      sceneIntakeCommand.parse(companionCommand()),
+      owner(),
+      splatSource(),
+      undefined,
+      meshSource(),
+    );
+    expect(request.source.kind).toBe("gaussian_splat");
+    expect(request.source.collision_mesh).toEqual({
+      binding_id: "capture-mesh-one",
+      content_digest: sha("1"),
+      rights_reference: sha("2"),
+      frame_relation: "owner_declared_common_frame",
+    });
+  });
+
+  it("rejects a companion mesh owned by a different user or verified tenant", () => {
+    const parsed = sceneIntakeCommand.parse(companionCommand());
+    // Different owning user.
+    expect(() =>
+      buildSceneIntake(
+        parsed,
+        owner(),
+        splatSource(),
+        undefined,
+        meshSource({ owner_user_id: "intruder" }),
+      ),
+    ).toThrow("source_not_owned");
+    // Same user id, but the companion is bound to a different verified tenant.
+    expect(() =>
+      buildSceneIntake(
+        parsed,
+        owner(),
+        splatSource(),
+        undefined,
+        meshSource({
+          organization_binding_status: "firebase_tenant_verified",
+          organization_id: "tenant-elsewhere",
+        }),
+      ),
+    ).toThrow("source_not_owned");
+  });
+
+  it("refuses to reuse the same session as its own collision companion", () => {
+    expect(() =>
+      buildSceneIntake(
+        sceneIntakeCommand.parse(
+          companionCommand({ collision_source_session_id: "capture-splat-one" }),
+        ),
+        owner(),
+        splatSource(),
+        undefined,
+        splatSource(),
+      ),
+    ).toThrow("collision_source_binding_required");
+  });
+
+  it("requires the companion to be a mesh and the frame to be confirmed", () => {
+    // A splat cannot stand in for contact geometry.
+    expect(() =>
+      buildSceneIntake(
+        sceneIntakeCommand.parse(companionCommand()),
+        owner(),
+        splatSource(),
+        undefined,
+        splatSource(),
+      ),
+    ).toThrow("collision_source_mesh_required");
+    // Companion attached without the common-frame confirmation is refused; the
+    // schema only accepts the literal true, so an unconfirmed frame cannot parse.
+    expect(
+      sceneIntakeCommand.safeParse(
+        companionCommand({ collision_same_frame_confirmed: false }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("rejects a companion whose source is revoked at build time", () => {
+    const parsed = sceneIntakeCommand.parse(companionCommand());
+    for (const revoked of [
+      { status: "revoked" },
+      { status: "revocation_in_progress" },
+      { capture_access: { future_processing_allowed: false } },
+      { completed_capture_lifecycle: { state: "active" } },
+    ]) {
+      expect(() =>
+        buildSceneIntake(
+          parsed,
+          owner(),
+          splatSource(),
+          undefined,
+          meshSource(revoked),
+        ),
+      ).toThrow("source_revoked");
+    }
+  });
+
+  it("rechecks companion ownership drift and revocation before any paid delivery", async () => {
+    const url = await app();
+    store.rows.set("captureUploadSessions/capture-splat-one", splatSource());
+    store.rows.set("captureUploadSessions/capture-mesh-one", meshSource());
+    expect(
+      (
+        await realFetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(companionCommand()),
+        })
+      ).status,
+    ).toBe(202);
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    // The companion source is revoked after admission.
+    store.rows.get(
+      "captureUploadSessions/capture-mesh-one",
+    ).capture_access = { future_processing_allowed: false };
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].blocker).toBe("source_revoked");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("refuses delivery when companion bytes or rights change after admission", async () => {
+    const url = await app();
+    store.rows.set("captureUploadSessions/capture-splat-one", splatSource());
+    store.rows.set("captureUploadSessions/capture-mesh-one", meshSource());
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(companionCommand()),
+    });
+    const fetcher = vi.fn(
+      async (_url: any, init: any) =>
+        new Response(JSON.stringify(accepted(JSON.parse(init.body)))),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const receipt = () =>
+      store.rows.get("captureUploadSessions/capture-mesh-one")
+        .pipeline_capture_intake_receipt;
+    // Companion bytes drift.
+    receipt().capture_digest = sha("9");
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].blocker).toBe("stored_request_digest_invalid");
+    // Restore bytes; companion rights drift.
+    receipt().capture_digest = sha("1");
+    receipt().envelope_digest = sha("8");
+    Object.assign(stored()[1], {
+      state: "forward_pending",
+      blocker: null,
+      next_forward_at_ms: 0,
+    });
+    await processSceneIntakeQueue();
+    expect(stored()[1].blocker).toBe("stored_request_digest_invalid");
+    // No paid transport was attempted while the companion binding was invalid.
+    expect(fetcher).not.toHaveBeenCalled();
+    // With the original bytes and rights restored, the pinned request delivers.
+    receipt().envelope_digest = sha("2");
+    Object.assign(stored()[1], {
+      state: "forward_pending",
+      blocker: null,
+      next_forward_at_ms: 0,
+    });
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("accepted");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});

@@ -132,7 +132,7 @@ function SessionHistory({
     <section className="flex flex-col gap-3" aria-label="Capture upload history">
       <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">History</h2>
       {sessions.length ? (
-        <div className="runway-panel overflow-x-auto">
+        <div className="runway-panel relative overflow-x-auto">
           <table className="w-full min-w-[48rem] border-collapse text-left">
             <thead><tr className="border-b border-line">
               <th className="runway-meta px-4 py-3">Capture</th>
