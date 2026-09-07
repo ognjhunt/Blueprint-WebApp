@@ -8,6 +8,7 @@ vi.mock("@/lib/taskEvaluationResults", async (importOriginal) => ({
   createTaskEvaluationResultArtifactTicket: createArtifactTicket,
 }));
 
+import { applyPolicyCanaryScoreCorrection, pairedCanaryComparison } from "@/lib/policyCanaryResultPortal";
 import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
 import { TaskEvaluationArtifactTicketError } from "@/lib/taskEvaluationResults";
 import type { TaskEvaluationResultSiteRecord } from "@/lib/taskEvaluationResults";
@@ -235,7 +236,7 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getByRole("heading", { name: "Success criteria used for this result" })).toBeTruthy();
     expect(screen.getByText("Eventual placement")).toBeTruthy();
     expect(screen.getByText("20/20 episode records")).toBeTruthy();
-    expect(screen.getByText("12 completed · 8 blocked")).toBeTruthy();
+    expect(screen.getByText("12 reported completed · 8 other delivered records")).toBeTruthy();
     const primaryDownloads = screen.getByLabelText("Primary result downloads");
     for (const label of ["Summary CSV", "Episode CSV", "Full JSON", "Evidence manifest"]) {
       expect(within(primaryDownloads).getByRole("button", { name: label })).toBeTruthy();
@@ -326,6 +327,9 @@ describe("PolicyCanaryResultPortal", () => {
       sidecar_digest: sha("s"),
     };
 
+    expect(pairedCanaryComparison(applyPolicyCanaryScoreCorrection(corrected))).toMatchObject({
+      comparablePairs: 9, bothSucceeded: 9, bothFailed: 0, deltaPoints: 0, pValue: null,
+    });
     render(<PolicyCanaryResultPortal result={corrected} user={{ uid: "member-1" } as any} />);
 
     expect(screen.getByText("Post-publication adjustments applied")).toBeTruthy();
@@ -334,6 +338,7 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getByText("1 unsupported fall · recovery allowed")).toBeTruthy();
     expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
     expect(screen.getByText("No corrected episode failed a task criterion.")).toBeTruthy();
+    expect(screen.getByRole("heading", {name: "Equal observed success on matched pairs"})).toBeTruthy();
   });
 
   it("shows explicit video load, retry, and ready states", async () => {
@@ -356,7 +361,61 @@ describe("PolicyCanaryResultPortal", () => {
     await waitFor(() => expect(screen.getByLabelText(
       "External camera evidence for Policy A",
     )).toBeTruthy());
+    expect(screen.queryByText("Ready")).toBeNull();
+    fireEvent.loadedMetadata(screen.getByLabelText("External camera evidence for Policy A"));
     expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
+  it("recovers an expired or unreadable media response through a fresh authorized ticket", async () => {
+    createArtifactTicket.mockResolvedValueOnce("/api/download/expired").mockResolvedValueOnce("/api/download/fresh");
+    render(<PolicyCanaryResultPortal result={result()} user={{uid:"member-1"} as any} />);
+    fireEvent.click(screen.getByRole("button",{name:"Load External camera video for Policy A"}));
+    const video = await screen.findByLabelText("External camera evidence for Policy A");
+    fireEvent.error(video);
+    expect(screen.getByText(/media could not be read or its access expired/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Retry External camera video for Policy A"}));
+    await waitFor(() => expect(screen.getByLabelText("External camera evidence for Policy A").getAttribute("src")).toBe("/api/download/fresh"));
+    fireEvent.loadedMetadata(screen.getByLabelText("External camera evidence for Policy A"));
+    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(createArtifactTicket).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not claim capture provenance, complete media, or a paired result for pre-observation records", () => {
+    const value = result();
+    value.access_visibility = "unlisted_public";
+    value.publication.result_status = "blocked";
+    value.publication.policy_canary_result!.task_success_contract = undefined;
+    value.publication.result_delivery!.episodes = [];
+    value.publication.result_delivery!.artifacts = [];
+    value.publication.policy_canary_result!.reproducibility = {};
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getByRole("heading",{name:"No mutually scorable pairs"})).toBeTruthy();
+    expect(screen.getByText("Success criteria not verified")).toBeTruthy();
+    expect(screen.getByText(/Missing manifests, frames, or incomplete episodes/)).toBeTruthy();
+    expect(screen.queryByText(/one captured scene|trail for every episode|files are hash-verified/)).toBeNull();
+    expect(screen.getByText(/Anyone with this unlisted link/)).toBeTruthy();
+  });
+
+  it("keeps an absent score and missing media visible as unknown evidence", () => {
+    const value = result();
+    const episode = value.publication.result_delivery!.episodes[0] as any;
+    delete episode.score;
+    episode.evidence = {};
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getByText("Status unavailable")).toBeTruthy();
+    expect(screen.getAllByText("Interpretability unknown").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Typed evidence gap/).length).toBeGreaterThan(0);
+  });
+
+  it("shows both duplicate episode records instead of selecting the last outcome", () => {
+    const value = result();
+    const duplicate = structuredClone(value.publication.result_delivery!.episodes[0]);
+    duplicate.episode_id = "conflicting-duplicate"; duplicate.score.task_succeeded = false;
+    value.publication.result_delivery!.episodes.push(duplicate);
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getAllByText("Ambiguous duplicate episodes").length).toBeGreaterThan(0);
+    expect(screen.getByText(/conflicting-duplicate · Task not complete/)).toBeTruthy();
+    expect(screen.getByText(/They are excluded from the comparison/)).toBeTruthy();
   });
 
   it("shows the actionable retry window when video authorization is throttled", async () => {

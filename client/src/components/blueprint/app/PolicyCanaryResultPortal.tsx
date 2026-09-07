@@ -61,9 +61,9 @@ function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord })
       <div>
         <p className="runway-meta mb-2">What this establishes</p>
         <ul className="flex flex-col gap-2">
-          <ReadingPoint tone="proof">Each policy&rsquo;s observed success rate on this one captured scene{matched ? `, across ${matched} matched scenario cells` : ""}.</ReadingPoint>
-          <ReadingPoint tone="proof">Which policy led on this sample, and whether that gap is statistically distinguishable.</ReadingPoint>
-          <ReadingPoint tone="proof">A digest-bound, re-downloadable evidence trail for every episode.</ReadingPoint>
+          <ReadingPoint tone="proof">Overall rates use each policy’s explicitly scorable delivered episodes.</ReadingPoint>
+          <ReadingPoint tone="proof">{matched ? `The observed paired difference across ${matched} mutually scorable cells, with a paired sign test.` : "No paired comparison is available without mutually scorable cells."}</ReadingPoint>
+          <ReadingPoint tone="proof">Available episode artifacts can be requested below. Missing manifests, frames, or incomplete episodes remain evidence gaps.</ReadingPoint>
         </ul>
       </div>
       <div>

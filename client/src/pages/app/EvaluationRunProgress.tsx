@@ -7,11 +7,11 @@ import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint"
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
+import { EvaluationRunStatusError, fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
 import type { PolicyCanaryRunProjection } from "@/lib/policyCanaryRuns";
 
 const stateOrder = ["queued_for_preparation", "preparing", "ready_to_activate", "queued", "running", "aggregating", "results_ready"];
-const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed"]);
+const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
 const candidateLabels = { pi05_droid: "π0.5 DROID", groot_n17_droid: "GR00T N1.7 DROID" } as const;
 const familyLabels = {
   canonical_anchor: "Canonical anchor",
@@ -122,27 +122,51 @@ export default function EvaluationRunProgress() {
   const { runId = "" } = useParams<{ runId?: string }>();
   const decodedRunId = decodeURIComponent(runId);
   const { currentUser } = useAuth();
-  const [run, setRun] = useState<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null>(null);
+  const [snapshot, setSnapshot] = useState<{
+    owner: string; runId: string; run: EvaluationReadyRunProjection | PolicyCanaryRunProjection;
+  } | null>(null);
+  const run = currentUser && snapshot?.owner === currentUser.uid && snapshot.runId === decodedRunId
+    ? snapshot.run : null;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setSnapshot(null);
+    setError(null);
     if (!currentUser || !decodedRunId) return;
     let cancelled = false;
+    let failures = 0;
+    let verified: EvaluationReadyRunProjection | PolicyCanaryRunProjection | null = null;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       try {
-        const next = await fetchEvaluationReadyRun(currentUser, decodedRunId);
+        const next = await fetchEvaluationReadyRun(currentUser, decodedRunId, controller.signal);
         if (cancelled) return;
-        if (!next) throw new Error("This run is not available to the signed-in team.");
-        setRun(next);
+        if (!next) throw new EvaluationRunStatusError(404);
+        if (next.run_id !== decodedRunId) throw new EvaluationRunStatusError(409);
+        if (verified && Date.parse(String(verified.updated_at_iso)) > Date.parse(String(next.updated_at_iso))) {
+          setError("An older status update was ignored. Showing the last verified status; retrying automatically.");
+          timer = setTimeout(() => void load(), 8_000);
+          return;
+        }
+        failures = 0;
+        verified = next;
+        setSnapshot({ owner: currentUser.uid, runId: decodedRunId, run: next });
         setError(null);
-        if (!terminalStates.has(next.state)) timer = setTimeout(() => void load(), 8_000);
+        if (!next.terminal && !terminalStates.has(next.state)) timer = setTimeout(() => void load(), 8_000);
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Evaluation status is unavailable");
+        if (cancelled) return;
+        const status = reason instanceof EvaluationRunStatusError ? reason.status : null;
+        const retryable = status === null || status === 429 || status >= 500;
+        if (!retryable) setSnapshot(null);
+        setError(retryable
+          ? "Status update failed. Displayed data may be stale; retrying automatically."
+          : reason instanceof Error ? reason.message : "Evaluation status is unavailable");
+        if (retryable) timer = setTimeout(() => void load(), Math.min(8_000 * 2 ** failures++, 60_000));
       }
     };
     void load();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+    return () => { cancelled = true; controller.abort(); if (timer) clearTimeout(timer); };
   }, [currentUser, decodedRunId]);
 
   const progress = run?.progress;

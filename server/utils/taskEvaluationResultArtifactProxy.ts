@@ -84,34 +84,60 @@ export async function streamTaskEvaluationResultArtifact(params: {
   }
   const requestHeaders: Record<string, string> = { ...headers };
   if (params.req.headers.range) requestHeaders.range = params.req.headers.range;
+  const controller = new AbortController();
+  let stream: Readable | undefined;
+  const disconnect = () => { controller.abort(); stream?.destroy(); };
+  params.res.once("close", disconnect);
   let upstream: globalThis.Response;
   try {
-    upstream = await fetch(endpoint, { method: "GET", headers: requestHeaders });
+    upstream = await fetch(endpoint, { method: "GET", headers: requestHeaders, signal: controller.signal });
   } catch {
-    params.res.status(502).json({ error: "Result artifact origin is unavailable" });
+    params.res.off("close", disconnect);
+    if (!params.res.destroyed) params.res.status(502).json({ error: "Result artifact origin is unavailable" });
+    return;
+  }
+  if (params.res.destroyed) {
+    await upstream.body?.cancel();
     return;
   }
   if (!upstream.ok || !upstream.body) {
-    params.res.status(upstream.status === 404 ? 404 : 502).json({
-      error: "Result artifact origin rejected the request",
-    });
+    await upstream.body?.cancel();
+    params.res.off("close", disconnect);
+    // Origin credentials are server-owned: 401/403 are delivery failures, not
+    // a reason to expose its response or ask the browser for provider secrets.
+    const status = [404, 416, 429].includes(upstream.status) ? upstream.status : 502;
+    for (const header of status === 429 ? ["retry-after"] : status === 416 ? ["content-range"] : []) {
+      const value = upstream.headers.get(header);
+      if (value) params.res.set(header, value);
+    }
+    params.res.status(status).json({ error: status === 404 ? "Result artifact not found"
+      : status === 416 ? "Requested artifact range is not available"
+      : status === 429 ? "Result artifact delivery is busy; retry later"
+      : "Result artifact origin rejected the request" });
     return;
   }
   params.res.status(upstream.status);
   for (const header of [
-    "content-type",
-    "content-length",
-    "content-range",
-    "accept-ranges",
-    "content-disposition",
-    "x-blueprint-artifact-sha256",
+    "content-type", "content-length", "content-range", "accept-ranges",
+    "content-disposition", "x-blueprint-artifact-sha256",
   ]) {
     const value = upstream.headers.get(header);
     if (value) params.res.set(header, value);
   }
   params.res.set("Cache-Control", "private, no-store");
   params.res.set("X-Content-Type-Options", "nosniff");
-  const stream = Readable.fromWeb(upstream.body as never);
-  params.res.on("close", () => stream.destroy());
+  stream = Readable.fromWeb(upstream.body as never);
+  stream.once("error", () => {
+    controller.abort();
+    if (params.res.destroyed) return;
+    if (params.res.headersSent) {
+      // A partial media response must terminate, never look like a complete file.
+      params.res.destroy();
+    } else {
+      for (const header of ["content-length", "content-range", "content-disposition", "x-blueprint-artifact-sha256"]) params.res.removeHeader(header);
+      params.res.status(502).json({ error: "Result artifact stream was interrupted; retry the download" });
+    }
+  });
+  stream.once("end", () => params.res.off("close", disconnect));
   stream.pipe(params.res);
 }

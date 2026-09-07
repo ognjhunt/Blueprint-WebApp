@@ -18,6 +18,7 @@ export type AlignedCanaryCell = {
   seed: number | null;
   partition: string;
   episodesByCandidate: Record<string, TaskEvaluationResultEpisode | undefined>;
+  duplicateEpisodesByCandidate: Record<string, TaskEvaluationResultEpisode[]>;
 };
 
 export const primaryCanaryDownloadRoles = [
@@ -66,16 +67,16 @@ export function applyPolicyCanaryScoreCorrection(
     episode.corrected_score = next;
     episode.score = {
       ...episode.score,
-      status: String(next.status || episode.score.status),
+      status: String(next.status || episode.score?.status),
       task_succeeded: typeof next.task_succeeded === "boolean"
         ? next.task_succeeded
-        : episode.score.task_succeeded,
+        : episode.score?.task_succeeded,
       progress_score: typeof next.outcome_rank === "number"
         ? Number(next.outcome_rank) / 5
-        : episode.score.progress_score,
+        : episode.score?.progress_score,
       destination_error: typeof measurements.final_horizontal_distance_to_destination_m === "number"
         ? measurements.final_horizontal_distance_to_destination_m
-        : episode.score.destination_error,
+        : episode.score?.destination_error,
     };
     const failedCriteria = Array.isArray(next.failed_criteria)
       ? next.failed_criteria.map(String)
@@ -98,9 +99,9 @@ export function applyPolicyCanaryScoreCorrection(
       (episode.policy_candidate_id || episode.subject_id) === candidateId
     ));
     const interpretable = rows.filter((episode) => (
-      episode.score.policy_outcome_interpretable !== false
+      isScorable(episode)
     ));
-    const successes = interpretable.filter((episode) => episode.score.task_succeeded === true).length;
+    const successes = interpretable.filter((episode) => episode.score?.task_succeeded === true).length;
     const failureCounts: Record<string, number> = {};
     for (const episode of interpretable) {
       for (const criterion of episode.corrected_score?.failed_criteria || []) {
@@ -136,7 +137,7 @@ export function applyPolicyCanaryScoreCorrection(
   }
   if (corrected.publication.result_delivery) {
     corrected.publication.result_delivery.summary.successful_episode_count = episodes.filter(
-      (episode) => episode.score.task_succeeded === true,
+      (episode) => episode.score?.task_succeeded === true,
     ).length;
   }
   if (corrected.publication.policy_canary_result?.counts) {
@@ -271,15 +272,15 @@ export function wilson95(successes: number, attempts: number) {
 function episodeMatches(episode: TaskEvaluationResultEpisode, filters: EpisodeFilters) {
   if (filters.family !== "all" && episode.variation?.family_id !== filters.family) return false;
   if (filters.seed !== "all" && String(episode.variation?.seed) !== filters.seed) return false;
-  if (filters.outcome === "success" && episode.score.task_succeeded !== true) return false;
-  if (filters.outcome === "failure" && episode.score.task_succeeded !== false && !episode.failure) return false;
+  if (filters.outcome === "success" && episode.score?.task_succeeded !== true) return false;
+  if (filters.outcome === "failure" && episode.score?.task_succeeded !== false && !episode.failure) return false;
   if (
     filters.interpretability === "interpretable"
-    && episode.score.policy_outcome_interpretable === false
+    && episode.score?.policy_outcome_interpretable !== true
   ) return false;
   if (
     filters.interpretability === "uninterpretable"
-    && episode.score.policy_outcome_interpretable !== false
+    && episode.score?.policy_outcome_interpretable !== false
   ) return false;
   return true;
 }
@@ -302,9 +303,17 @@ export function buildAlignedCanaryCells(
       seed,
       partition: episode.variation?.partition || "unreported",
       episodesByCandidate: {},
+      duplicateEpisodesByCandidate: {},
     };
     const candidateId = episode.policy_candidate_id || episode.subject_id;
-    if (candidateIds.includes(candidateId)) row.episodesByCandidate[candidateId] = episode;
+    if (candidateIds.includes(candidateId)) {
+      const prior = row.episodesByCandidate[candidateId];
+      if (row.duplicateEpisodesByCandidate[candidateId]) row.duplicateEpisodesByCandidate[candidateId].push(episode);
+      else if (prior) {
+        row.duplicateEpisodesByCandidate[candidateId] = [prior, episode];
+        delete row.episodesByCandidate[candidateId];
+      } else row.episodesByCandidate[candidateId] = episode;
+    }
     rows.set(key, row);
   }
   const quickCellIndex = (cellId: string) => {
@@ -326,7 +335,7 @@ function failureCohort(episode: TaskEvaluationResultEpisode): typeof canaryFailu
     episode.action_delivery?.harness_failure_code,
     episode.evidence?.typed_media_gap?.code,
   ].filter(Boolean).join(" ").toLowerCase();
-  if (episode.score.collision === true || material.includes("collision")) return "collision";
+  if (episode.score?.collision === true || material.includes("collision")) return "collision";
   if (material.includes("no_motion") || material.includes("no motion") || (
     episode.action_delivery?.actions_reached_robot === true
     && episode.action_delivery.arm_moved === false
@@ -482,46 +491,58 @@ export type CanaryCandidateSummary = {
   display_name: string;
   success_count: number;
   interpretable_count: number;
+  delivered_count: number;
+  excluded_count: number;
   success_rate: number | null;
   wilson: { lower: number; upper: number } | null;
 };
 
-function numeric(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+// Unknown interpretability and missing boolean outcomes are not scored failures.
+function isScorable(episode: TaskEvaluationResultEpisode) {
+  return episode.score?.policy_outcome_interpretable === true
+    && typeof episode.score?.task_succeeded === "boolean";
+}
+
+function boundCellKey(episode: TaskEvaluationResultEpisode) {
+  const variation = episode.variation;
+  return variation?.cell_id && Number.isFinite(variation.seed)
+    ? JSON.stringify([variation.cell_id, variation.seed]) : null;
+}
+
+// A duplicate candidate/cell/seed is ambiguous, even when its values agree.
+// Preserve the records in the explorer, but never choose the last one as truth.
+function uniqueCandidateEpisodes(episodes: TaskEvaluationResultEpisode[], candidateId: string) {
+  const rows = episodes.filter((episode) => episode.episode_kind === "learned_candidate"
+    && (episode.policy_candidate_id || episode.subject_id) === candidateId);
+  const counts = new Map<string, number>();
+  const ids = new Map<string, number>();
+  for (const row of rows) {
+    const key = boundCellKey(row);
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    ids.set(row.episode_id, (ids.get(row.episode_id) || 0) + 1);
+  }
+  return { rows, unique: rows.filter((row) => {
+    const key = boundCellKey(row);
+    return key && counts.get(key) === 1 && ids.get(row.episode_id) === 1;
+  }) };
 }
 
 export function canaryCandidateSummaries(
   result: TaskEvaluationResultSiteRecord,
 ): CanaryCandidateSummary[] {
-  const publication = result.publication;
-  const delivery = publication.result_delivery;
-  const canary = publication.policy_canary_result || {};
-  const candidateResults: Array<Record<string, any>> = canary.candidate_results?.length
-    ? canary.candidate_results
-    : delivery?.candidate_results || [];
-  const byId = new Map(candidateResults.map((row) => [row.candidate_id, row]));
-  const episodes = delivery?.episodes || [];
+  const episodes = result.publication.result_delivery?.episodes || [];
   return resolvedCanaryCandidates(result).map((candidate) => {
-    const row = byId.get(candidate.candidate_id);
-    const metrics = (row?.metrics as Record<string, unknown>) || {};
-    let successCount = numeric(row?.success_count ?? metrics.success_count);
-    let interpretable = numeric(
-      row?.interpretable_episode_count ?? metrics.interpretable_episode_count,
-    );
-    if (successCount === null || interpretable === null) {
-      const rows = episodes.filter((episode) => (
-        episode.episode_kind === "learned_candidate"
-        && (episode.policy_candidate_id || episode.subject_id) === candidate.candidate_id
-        && episode.score.policy_outcome_interpretable !== false
-      ));
-      interpretable = rows.length;
-      successCount = rows.filter((episode) => episode.score.task_succeeded === true).length;
-    }
+    const { rows, unique } = uniqueCandidateEpisodes(episodes, candidate.candidate_id);
+    const scored = unique.filter(isScorable);
+    const successCount = scored.filter((episode) => episode.score?.task_succeeded === true).length;
+    const interpretable = scored.length;
     return {
       candidate_id: candidate.candidate_id,
       display_name: candidate.display_name,
       success_count: successCount,
       interpretable_count: interpretable,
+      delivered_count: rows.length,
+      excluded_count: rows.length - interpretable,
       success_rate: interpretable > 0 ? successCount / interpretable : null,
       wilson: wilson95(successCount, interpretable),
     };
@@ -569,27 +590,17 @@ export function pairedCanaryComparison(
   if (summaries.length !== 2) return null;
   const [candidateA, candidateB] = summaries;
   const episodes = result.publication.result_delivery?.episodes || [];
-  const rows = buildAlignedCanaryCells(
-    episodes,
-    [candidateA.candidate_id, candidateB.candidate_id],
-    { family: "all", seed: "all", outcome: "all", interpretability: "all" },
-  );
+  const aRows = uniqueCandidateEpisodes(episodes, candidateA.candidate_id).unique;
+  const bRows = new Map(uniqueCandidateEpisodes(episodes, candidateB.candidate_id).unique
+    .map((episode) => [boundCellKey(episode), episode]));
   let comparablePairs = 0;
   let aOnlyWins = 0;
   let bOnlyWins = 0;
   let bothSucceeded = 0;
   let bothFailed = 0;
-  for (const row of rows) {
-    const a = row.episodesByCandidate[candidateA.candidate_id];
-    const b = row.episodesByCandidate[candidateB.candidate_id];
-    if (!a || !b) continue;
-    if (
-      a.score.policy_outcome_interpretable === false
-      || b.score.policy_outcome_interpretable === false
-    ) continue;
-    if (typeof a.score.task_succeeded !== "boolean" || typeof b.score.task_succeeded !== "boolean") {
-      continue;
-    }
+  for (const a of aRows) {
+    const b = bRows.get(boundCellKey(a));
+    if (!b || !isScorable(a) || !isScorable(b)) continue;
     comparablePairs += 1;
     const aWin = a.score.task_succeeded;
     const bWin = b.score.task_succeeded;
@@ -604,15 +615,9 @@ export function pairedCanaryComparison(
 
   let leader: CanaryCandidateSummary | null = null;
   let deltaPoints: number | null = null;
-  if (candidateA.success_rate !== null && candidateB.success_rate !== null) {
-    if (candidateA.success_rate === candidateB.success_rate) {
-      deltaPoints = 0;
-    } else {
-      leader = candidateA.success_rate > candidateB.success_rate ? candidateA : candidateB;
-      deltaPoints = Math.round(
-        Math.abs(candidateA.success_rate - candidateB.success_rate) * 100,
-      );
-    }
+  if (comparablePairs > 0) {
+    deltaPoints = Math.round(Math.abs(aOnlyWins - bOnlyWins) / comparablePairs * 100);
+    if (aOnlyWins !== bOnlyWins) leader = aOnlyWins > bOnlyWins ? candidateA : candidateB;
   }
   const leaderWins = leader?.candidate_id === candidateA.candidate_id ? aOnlyWins : bOnlyWins;
   const laggardWins = leader?.candidate_id === candidateA.candidate_id ? bOnlyWins : aOnlyWins;
@@ -625,21 +630,15 @@ export function pairedCanaryComparison(
 
   let headline: string;
   let verdict: string;
-  if (leader && deltaPoints) {
-    headline = `${leader.display_name} led by ${deltaPoints} pp`;
-    if (comparablePairs === 0) {
-      verdict = "No matched, scorable cells were available to test the gap.";
-    } else if (distinguishable) {
-      verdict = `The gap is statistically distinguishable on matched cells (exact sign test ${pText}).`;
-    } else {
-      verdict = `The gap is not statistically distinguishable at this sample size — a diagnostic signal, not a declared winner (exact sign test ${pText}).`;
-    }
+  if (leader) {
+    headline = `${leader.display_name}: ${deltaPoints} pp higher observed paired success`;
+    verdict = `On ${comparablePairs} mutually scorable cell/seed pairs, the paired difference is ${distinguishable ? "" : "not "}statistically distinguishable (two-sided exact sign test ${pText}). No winner, ranking, selection, or readiness claim is authorized by this diagnostic comparison.`;
   } else if (deltaPoints === 0) {
-    headline = "Both policies scored the same success rate";
-    verdict = "No separation on this scene at this sample size.";
+    headline = "Equal observed success on matched pairs";
+    verdict = `On ${comparablePairs} mutually scorable cell/seed pairs, the paired difference is zero. ${pText ? `Two-sided exact sign test ${pText}.` : "No discordant pairs; the sign test is not informative."} No winner or readiness claim is authorized.`;
   } else {
-    headline = "Comparative success rate not delivered for both policies";
-    verdict = "At least one policy did not deliver a scorable success rate.";
+    headline = "No mutually scorable pairs";
+    verdict = "Paired difference and uncertainty are unavailable. Overall candidate rates use separate denominators and cannot establish a paired comparison.";
   }
 
   return {

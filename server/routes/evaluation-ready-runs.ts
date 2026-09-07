@@ -56,7 +56,9 @@ async function readForTeam(runId: string, res: Response) {
   const access = await resolveAccessContext(res);
   if (!access.uid) return null;
   const tenantId = firebaseTenantId(res);
-  if (!access.isOps && (!tenantId || tenantId !== record.team_namespace)) return null;
+  const personalOwner = record.owner_user_id === access.uid
+    && record.team_namespace === `user:${access.uid}`;
+  if (!access.isOps && !personalOwner && (!tenantId || tenantId !== record.team_namespace)) return null;
   return record;
 }
 
@@ -142,7 +144,7 @@ router.post(
           projection.progress
           && existing.episode_counts
           && projection.progress.total_episodes
-            !== existing.episode_counts.total_episode_count
+            !== (existingCanary ? existing.episode_counts.learned_episode_count : existing.episode_counts.total_episode_count)
         ) return { outcome: "progress_mismatch" as const, record: null };
         const exactReplay = existing.state === projection.state
           && (existing.delivery_digest || null) === (projection.delivery_digest || null)
@@ -153,6 +155,12 @@ router.post(
         }
         if (terminalStates.has(existing.state)) {
           return { outcome: "terminal_conflict" as const, record: null };
+        }
+        // Delivery time is not observation time. Same-state progress can arrive
+        // out of order; retain the later producer snapshot, including its evidence.
+        if (existing.pipeline_observed_at_iso
+          && Date.parse(projection.observed_at_iso) < Date.parse(String(existing.pipeline_observed_at_iso))) {
+          return { outcome: "state_regression" as const, record: null };
         }
         if ((stateRank.get(projection.state) || 0) < (stateRank.get(existing.state) || 0)) {
           return { outcome: "state_regression" as const, record: null };

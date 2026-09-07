@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
-import { ChevronLeft, ChevronRight, Download, Film } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film } from "lucide-react";
+
+import { PrimaryDownload } from "./PolicyCanaryPrimarySummary";
 
 import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
 import {
@@ -22,23 +24,6 @@ import {
   type PolicyCanaryScoreReceipt,
 } from "@/lib/policyCanaryEpisodeOutcome";
 
-async function downloadArtifact(
-  user: FirebaseUser | null,
-  recordId: string,
-  artifact: TaskEvaluationResultArtifact,
-) {
-  const url = await createTaskEvaluationResultArtifactTicket(
-    user,
-    recordId,
-    artifact.artifact_id,
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  const relativePath = String(artifact.relative_path || artifact.artifact_id);
-  anchor.download = relativePath.split("/").pop() || artifact.role || artifact.artifact_id;
-  anchor.click();
-}
-
 function episodeVideos(
   episode?: TaskEvaluationResultEpisode,
 ): Record<string, TaskEvaluationResultArtifact> {
@@ -57,16 +42,16 @@ function cameraLabel(camera: string) {
 
 function terminalStatus(episode?: TaskEvaluationResultEpisode) {
   if (!episode) return { label: "Episode absent", tone: "neutral" as const };
-  const material = [episode.score.status, episode.failure?.code, episode.failure?.phase]
+  const material = [episode.score?.status, episode.failure?.code, episode.failure?.phase]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
   if (material.includes("blocked")) return { label: "Blocked", tone: "block" as const };
   if (material.includes("cancel")) return { label: "Cancelled", tone: "neutral" as const };
-  if (episode.score.task_succeeded === true) return { label: "Success", tone: "proof" as const };
-  if (episode.score.task_succeeded === false) return { label: "Task not complete", tone: "block" as const };
+  if (episode.score?.task_succeeded === true) return { label: "Success", tone: "proof" as const };
+  if (episode.score?.task_succeeded === false) return { label: "Task not complete", tone: "block" as const };
   return {
-    label: episode.score.status.replaceAll("_", " ") || "Status unavailable",
+    label: episode.score?.status?.replaceAll("_", " ") || "Status unavailable",
     tone: "warn" as const,
   };
 }
@@ -141,7 +126,11 @@ function EpisodeOutcomeSummary({
   </div>;
 }
 
-export function EvidenceVideo({
+export function EvidenceVideo(props: Parameters<typeof EvidenceVideoContent>[0]) {
+  return <EvidenceVideoContent key={`${props.user?.uid || "anonymous"}:${props.recordId}:${props.artifact?.artifact_id || "missing"}`} {...props} />;
+}
+
+function EvidenceVideoContent({
   artifact,
   camera,
   policy,
@@ -162,6 +151,16 @@ export function EvidenceVideo({
   const [state, setState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (!url || state !== "loading") return;
+    const timer = setTimeout(() => {
+      setUrl(null); setState("failed");
+      setError("Media loading timed out. Retry to authorize a fresh download.");
+    }, 30_000);
+    return () => clearTimeout(timer);
+  }, [url, state]);
 
   useEffect(() => {
     setUrl(null);
@@ -182,13 +181,14 @@ export function EvidenceVideo({
     setState("loading");
     setError(null);
     try {
-      setUrl(await createTaskEvaluationResultArtifactTicket(
+      const ticket = await createTaskEvaluationResultArtifactTicket(
         user,
         recordId,
         artifact.artifact_id,
-      ));
-      setState("ready");
+      );
+      if (mounted.current) setUrl(ticket);
     } catch (reason) {
+      if (!mounted.current) return;
       setState("failed");
       setError(reason instanceof TaskEvaluationArtifactTicketError
         ? reason.message
@@ -244,6 +244,11 @@ export function EvidenceVideo({
       controls
       playsInline
       preload="metadata"
+      onLoadedMetadata={() => setState("ready")}
+      onError={() => {
+        setUrl(null); setState("failed");
+        setError("The media could not be read or its access expired. Retry to authorize a fresh download.");
+      }}
     /> : <div className="mt-3 flex aspect-video items-center justify-center bg-runway-black px-4 text-center text-caption text-runway-muted">
       Video bytes load only when requested.
     </div>}
@@ -337,16 +342,11 @@ function EpisodeDownloads({
     ["task_object_trajectory", episode.traces?.task_object_trajectory],
   ].filter((row): row is [string, TaskEvaluationResultArtifact] => Boolean(row[1]));
   return <div className="flex flex-wrap gap-2">
-    {artifacts.map(([fallbackRole, artifact]) => <Button
-      key={artifact.artifact_id}
-      type="button"
-      size="sm"
-      variant="secondary"
-      iconLeft={<Download aria-hidden="true" />}
-      onClick={() => void downloadArtifact(user, recordId, artifact)}
-    >
-      {String(artifact.role || fallbackRole).replaceAll("_", " ")}
-    </Button>)}
+    {artifacts.map(([fallbackRole, artifact]) => <PrimaryDownload
+      key={artifact.artifact_id} artifact={artifact}
+      label={String(artifact.role || fallbackRole).replaceAll("_", " ")}
+      user={user} recordId={recordId}
+    />)}
     {!artifacts.length ? <p className="text-caption text-ink-500">
       Typed gap — no exact frame, episode JSON, action, state, contact, or telemetry artifact was delivered.
     </p> : null}
@@ -502,7 +502,8 @@ export function PolicyCanaryEpisodeExplorer({
       <div className="mt-4 grid gap-px border border-line bg-line md:grid-cols-2">
         {candidates.map((candidate) => {
           const episode = selected.episodesByCandidate[candidate.candidate_id];
-          const status = terminalStatus(episode);
+          const duplicates = selected.duplicateEpisodesByCandidate[candidate.candidate_id] || [];
+          const status = duplicates.length ? {label:"Ambiguous duplicate episodes",tone:"warn" as const} : terminalStatus(episode);
           const artifact = episode ? episodeVideos(episode)[camera] : undefined;
           const offset = episode?.video_timebase_offsets_seconds?.[camera];
           return <section
@@ -519,11 +520,17 @@ export function PolicyCanaryEpisodeExplorer({
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <StatusChip tone={status.tone} square>{status.label}</StatusChip>
-                <StatusChip tone={episode?.score.policy_outcome_interpretable === false ? "warn" : episode ? "proof" : "neutral"} square>
-                  {episode?.score.policy_outcome_interpretable === false ? "Uninterpretable" : episode ? "Interpretable" : "No episode"}
+                <StatusChip tone={episode?.score?.policy_outcome_interpretable === true ? "proof" : "warn"} square>
+                  {episode?.score?.policy_outcome_interpretable === true ? "Interpretable" : episode?.score?.policy_outcome_interpretable === false ? "Uninterpretable" : episode ? "Interpretability unknown" : "No episode"}
                 </StatusChip>
               </div>
             </div>
+            {duplicates.length ? <div className="mt-3 text-caption text-ink-600">
+              Multiple records name this candidate, cell, and seed. They are excluded from the comparison.
+              <ul>{duplicates.map((row, index) => <li key={`${row.episode_id}-${index}`}>
+                {row.episode_id} · {terminalStatus(row).label}
+              </li>)}</ul>
+            </div> : null}
             {episode?.failure ? <p className="mt-3 border-l-2 border-runway-red pl-3 text-body-s text-ink-700">
               <span className="font-semibold">{episode.failure.code.replaceAll("_", " ")}.</span>{" "}
               {episode.failure.summary || "No additional failure summary was delivered."}

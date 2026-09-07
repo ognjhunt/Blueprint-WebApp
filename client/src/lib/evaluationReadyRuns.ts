@@ -431,16 +431,25 @@ export async function fetchEvaluationReadySetup(
   };
 }
 
+export class EvaluationRunStatusError extends Error {
+  constructor(public readonly status: number) {
+    super(status === 401 ? "Sign in again to view this run."
+      : status === 403 ? "You do not have permission to view this run."
+      : status === 404 ? "This run was not found in your permitted scope."
+      : `Evaluation run status is unavailable (${status})`);
+  }
+}
+
 export async function fetchEvaluationReadyRun(
   currentUser: FirebaseUser,
   runId: string,
+  signal?: AbortSignal,
 ): Promise<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null> {
   const response = await fetch(
     `/api/task-evaluation-runs/${encodeURIComponent(runId)}/status`,
-    { credentials: "include", headers: await withFirebaseAuthHeaders(currentUser) },
+    { credentials: "include", headers: await withFirebaseAuthHeaders(currentUser), signal },
   );
-  if (response.status === 403 || response.status === 404) return null;
-  if (!response.ok) throw new Error(`Evaluation run status is unavailable (${response.status})`);
+  if (!response.ok) throw new EvaluationRunStatusError(response.status);
   const payload = await response.json();
   if (payload?.run_kind === "internal_policy_canary") {
     const canary = policyCanaryRunProjectionSchema.safeParse(payload);

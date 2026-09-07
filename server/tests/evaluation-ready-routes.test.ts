@@ -223,4 +223,48 @@ describe("Evaluation Ready run routes", () => {
     expect(refused.status).toBe(409);
     expect(state.notificationCalls).toHaveLength(2);
   });
+  it("rejects older same-state updates without erasing newer progress or owner binding", async () => {
+    const original = { ...runRecord(), pipeline_observed_at_iso: "2026-08-30T12:09:00.000Z", progress: {completed_episodes: 12,total_episodes:28} };
+    state.records.set(original.run_id, original);
+    const response = await fetch(`${url}/${original.run_id}/pipeline-status`, {
+      method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({
+        schema_version:"task_evaluation_policy_run_status_projection.v1", run_id:original.run_id,
+        source_launch_id:original.source_launch_id, offering_digest:original.offering_digest,
+        configuration_digest:original.configuration_digest, state:"running", phase:"older",
+        progress:{completed_episodes:2,total_episodes:28}, observed_at_iso:"2026-08-30T12:08:00.000Z",
+      }),
+    });
+    expect(response.status).toBe(409);
+    expect(state.records.get(original.run_id)).toEqual(original);
+    expect(state.notificationCalls).toHaveLength(0);
+  });
+  it("accepts canary learned-episode progress separately from the control count", async () => {
+    const original = { ...runRecord(), run_kind:"internal_policy_canary", request_digest:sha("c"),
+      episode_counts:{learned_episode_count:20,control_episode_count:20,total_episode_count:40} };
+    state.records.set(original.run_id, original);
+    const response = await fetch(`${url}/${original.run_id}/pipeline-status`, {
+      method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+        schema_version:"task_evaluation_policy_run_status_projection.v1",run_id:original.run_id,
+        source_launch_id:original.source_launch_id,offering_digest:original.offering_digest,
+        configuration_digest:sha("d"), request_digest:sha("c"), run_kind:"internal_policy_canary",
+        claim_ceiling:"diagnostic_policy_execution", result_status:null,scene_controls_status:"configured_controls_pending",
+        state:"running",stage:"policy_a_running",phase:"policy_a_running",
+        progress:{completed_episodes:2,total_episodes:20},completed_learned_episode_count:2,
+        expected_learned_episode_count:20,completed_control_episode_count:0,
+        observed_at_iso:"2026-08-30T12:08:00.000Z",
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(state.records.get(original.run_id)?.progress).toEqual({completed_episodes:2,total_episodes:20});
+    expect(state.records.get(original.run_id)?.owner_user_id).toBe("member-001");
+  });
+
+  it("allows a personal run owner without a tenant but refuses another personal owner", async () => {
+    state.tenantId = "";
+    state.records.set("evaluation-run-001", {...runRecord(),team_namespace:"user:member-001"});
+    expect((await fetch(`${url}/evaluation-run-001/status`)).status).toBe(200);
+    state.records.set("evaluation-run-001", {...runRecord(),owner_user_id:"other",team_namespace:"user:other"});
+    expect((await fetch(`${url}/evaluation-run-001/status`)).status).toBe(404);
+  });
+
 });

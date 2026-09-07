@@ -246,4 +246,28 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     expect((await fetch(`${url}${tampered}`)).status).toBe(404);
     expect(state.streams).toHaveLength(2);
   });
+  it("keeps a listed manifest separate from absent frames and supports registry-backed offloaded evidence", async () => {
+    // A producer-sealed manifest descriptor does not establish that every named
+    // frame remains readable. The exact per-run registry owns each object.
+    state.registry.add("scene-839873-canary-1:evidence-manifest");
+    expect((await issueTicket(url,"evidence-manifest")).status).toBe(201);
+    expect((await issueTicket(url,"frame-named-by-manifest-but-absent")).status).toBe(404);
+    state.registry.add("scene-839873-canary-1:offloaded-frame");
+    const ticket=await issueTicket(url,"offloaded-frame");
+    expect(ticket.status).toBe(201);
+    const body=await ticket.json() as {download_url:string};
+    expect((await fetch(`${url}${body.download_url}`)).status).toBe(206);
+  });
+
+  it("refuses an expired ticket before streaming and permits fresh owner authorization", async () => {
+    const {createTaskEvaluationResultDownloadTicket}=await import('../utils/taskEvaluationResultDownloadTicket');
+    state.registry.add("scene-839873-canary-1:review-video");
+    const expired=createTaskEvaluationResultDownloadTicket("result-1","review-video",1000)!;
+    const response=await fetch(`${url}/api/task-evaluation-result-downloads/result-1/review-video?expires=${expired.expires}&signature=${expired.signature}`);
+    expect(response.status).toBe(404);expect(state.streams).toHaveLength(0);
+    const current=await issueTicket(url,"review-video");expect(current.status).toBe(201);
+    const body=await current.json() as {download_url:string};
+    expect((await fetch(`${url}${body.download_url}`)).status).toBe(206);
+  });
+
 });

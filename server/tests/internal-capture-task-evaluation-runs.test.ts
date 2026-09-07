@@ -634,6 +634,12 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       });
       expect(state.sendEmail).toHaveBeenCalledTimes(1);
 
+      const terminalBeforeLateBlocker = structuredClone(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id));
+      const lateBlocker = policyCanaryPreproviderBlocked();
+      expect((await postSigned(socketPath, lateBlocker)).status).toBe(409);
+      expect(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)).toEqual(terminalBeforeLateBlocker);
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+
       const conflict = structuredClone(body);
       conflict.policy_canary_result.blockers.push("different_terminal_fact");
       conflict.policy_canary_result.projection_digest = canonicalArtifactDigest(
@@ -641,6 +647,12 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
         "projection_digest",
       );
       expect((await postSigned(socketPath, conflict)).status).toBe(409);
+      const retained = structuredClone([...state.collections.get("captureTaskEvaluationRuns")!.values()][0]);
+      state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!.owner_user_id = "buyer-2";
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      expect([...state.collections.get("captureTaskEvaluationRuns")!.values()][0]).toEqual(retained);
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+
     } finally {
       await stopServer(server, socketPath);
     }

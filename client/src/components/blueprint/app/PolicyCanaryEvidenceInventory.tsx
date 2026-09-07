@@ -1,5 +1,5 @@
 import type { User as FirebaseUser } from "firebase/auth";
-import { Download } from "lucide-react";
+import { PrimaryDownload } from "./PolicyCanaryPrimarySummary";
 
 import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
 import {
@@ -8,7 +8,6 @@ import {
   resolvedCanaryCandidates,
 } from "@/lib/policyCanaryResultPortal";
 import {
-  createTaskEvaluationResultArtifactTicket,
   humanBytes,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
@@ -22,22 +21,6 @@ function reported(value: unknown, suffix = "") {
 
 function bytes(value: unknown) {
   return typeof value === "number" ? humanBytes(value) : "Unavailable — not delivered";
-}
-
-async function downloadArtifact(
-  user: FirebaseUser | null,
-  recordId: string,
-  artifact: TaskEvaluationResultArtifact,
-) {
-  const url = await createTaskEvaluationResultArtifactTicket(
-    user,
-    recordId,
-    artifact.artifact_id,
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = artifact.relative_path.split("/").pop() || artifact.role;
-  anchor.click();
 }
 
 export function PolicyCanaryEvidenceInventory({
@@ -179,7 +162,7 @@ export function PolicyCanaryEvidenceInventory({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Complete artifact inventory</h3>
-            <p className="mt-1 text-caption text-ink-500">All {artifacts.length} files are hash-verified and digest-bound to this run · {humanBytes(totalArtifactBytes)} total.</p>
+            <p className="mt-1 text-caption text-ink-500">{artifacts.length} artifact descriptors carry reported digests and sizes · {humanBytes(totalArtifactBytes)} reported total. Availability and readable bytes are checked when requested.</p>
           </div>
           <div className="flex flex-wrap gap-2">{requiredRoles.map((role) => <StatusChip key={role} tone={roleSet.has(role) ? "proof" : "warn"} square>
             {role.replaceAll("_", " ")} · {roleSet.has(role) ? "delivered" : "typed gap"}
@@ -211,13 +194,7 @@ export function PolicyCanaryEvidenceInventory({
               <td className="runway-num px-3 py-3">{humanBytes(artifact.size_bytes)}</td>
               <td className="runway-num max-w-64 break-all px-3 py-3">{artifact.sha256}</td>
               <td className="px-3 py-3">{artifact.retention_status || "Not reported"}{artifact.retention_expires_at_iso ? ` · ${artifact.retention_expires_at_iso}` : ""}</td>
-              <td className="px-3 py-3"><Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                iconLeft={<Download aria-hidden="true" />}
-                onClick={() => void downloadArtifact(user, result.record_id, artifact)}
-              >Download</Button></td>
+              <td className="px-3 py-3"><PrimaryDownload artifact={artifact} label="Download" recordId={result.record_id} user={user} /></td>
             </tr>)}{!artifacts.length ? <tr><td className="px-3 py-6 text-ink-500" colSpan={6}>No artifacts were delivered.</td></tr> : null}</tbody>
           </table>
           </div>
@@ -232,7 +209,7 @@ export function PolicyCanaryEvidenceInventory({
             <td className="px-3 py-3 font-semibold">{label}</td>
             <td className="px-3 py-3">{state}</td>
             <td className="runway-num max-w-72 break-all px-3 py-3">{artifact?.sha256 || "Unavailable — not delivered"}</td>
-            <td className="px-3 py-3">{artifact ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download aria-hidden="true" />} onClick={() => void downloadArtifact(user, result.record_id, artifact)}>Download</Button> : <span className="text-ink-400">Typed gap</span>}</td>
+            <td className="px-3 py-3">{artifact ? <PrimaryDownload artifact={artifact} label="Download" recordId={result.record_id} user={user} /> : <span className="text-ink-400">Typed gap</span>}</td>
           </tr>)}</tbody>
         </table>
         {notification?.status === "failed" ? <ProofBoundary level="warn" title="Notification delivery failed">
