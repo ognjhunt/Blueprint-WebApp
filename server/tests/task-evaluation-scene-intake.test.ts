@@ -92,6 +92,7 @@ import router from "../routes/task-evaluation-scene-intakes";
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
+  SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT,
   sceneDigest,
   sceneIntakeCommand,
   sceneOwner,
@@ -184,6 +185,44 @@ function accepted(request: any) {
     intent_digest: sha("d"),
     request_digest: sceneDigest(request),
     provider_mutation_performed_inside_http_request: false,
+  };
+  return { ...value, receipt_digest: sceneDigest(value) };
+}
+function pipelineStatus(request: any, overrides: Record<string, any> = {}) {
+  const value = {
+    schema_version: "task_evaluation_scene_intent_status.v1",
+    intent_id: "scene-one",
+    intent_digest: sha("d"),
+    request_digest: sceneDigest(request),
+    owner: request.owner,
+    status: "expired",
+    phase: "authority",
+    blockers: ["scene_intake_authority_expired"],
+    attempts: [{
+      attempt_id: "attempt-one",
+      source_commit: "d".repeat(40),
+      runtime_digest: sha("e"),
+      input_digest: sha("f"),
+      provider: "vast",
+      maximum_spend_usd: 2,
+      status: "reserved",
+    }],
+    result_reference: null,
+    provider_mutation_performed_by_status_read: false,
+    ...overrides,
+  };
+  return { ...value, status_digest: sceneDigest(value) };
+}
+function revocationReceipt(request: any) {
+  const value = {
+    schema_version: "task_evaluation_scene_intent_revocation.v1",
+    intent_id: "scene-one",
+    intent_digest: sha("d"),
+    owner: request.owner,
+    status: "revoked",
+    revoked_at_epoch: Date.now() / 1000,
+    scope: "future_execution",
+    provider_mutation_performed: false,
   };
   return { ...value, receipt_digest: sceneDigest(value) };
 }
@@ -431,28 +470,27 @@ describe("persistent authenticated scene intake", () => {
     [key] = stored();
     await realFetch(`${url}/${key.split("/")[1]}/revoke`, { method: "POST" });
     fetcher.mockImplementation(async (_url: any, init: any) => {
+      if (init.method === "GET") {
+        return new Response(JSON.stringify(pipelineStatus(stored()[1].request, {
+          status: "revoked",
+          phase: "authority",
+          blockers: ["scene_intake_authority_revoked"],
+          attempts: [],
+        })));
+      }
       const body = JSON.parse(init.body);
       expect(body.owner).toEqual({
         user_id: "owner",
         organization_id: "user:owner",
       });
-      const receipt = {
-        schema_version: "task_evaluation_scene_intent_revocation.v1",
-        intent_id: "scene-one",
-        intent_digest: sha("d"),
-        owner: body.owner,
-        status: "revoked",
-        revoked_at_epoch: Date.now() / 1000,
-        scope: "future_execution",
-        provider_mutation_performed: false,
-      };
-      return new Response(
-        JSON.stringify({ ...receipt, receipt_digest: sceneDigest(receipt) }),
-      );
+      return new Response(JSON.stringify(revocationReceipt({ owner: body.owner })));
     });
     await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("revoked");
+    expect(stored()[1].state).toBe("closeout_pending");
     expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("revoked");
   });
   it("expires original consent and rejects changed provider terms before delivery", async () => {
     const url = await app();
@@ -480,6 +518,140 @@ describe("persistent authenticated scene intake", () => {
     );
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("keeps polling a late result after Pipeline expiry and never forwards a second execution", async () => {
+    const url = await app();
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(command()),
+    });
+    const fetcher = vi.fn(async (_url: any, init: any) => {
+      if (init.method === "POST")
+        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
+      const record = stored()[1];
+      const statusPolls = fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "GET").length;
+      return new Response(JSON.stringify(statusPolls === 1
+        ? pipelineStatus(record.request)
+        : pipelineStatus(record.request, {
+          status: "completed",
+          phase: "terminal",
+          blockers: [],
+          result_reference: {
+            uri: "s3://example/late-result.tar",
+            digest: sha("9"),
+            size_bytes: 123,
+          },
+        })));
+    });
+    vi.stubGlobal("fetch", fetcher);
+
+    await processSceneIntakeQueue();
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("closeout_pending");
+    expect(stored()[1].pipeline_status.status).toBe("expired");
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("completed");
+    expect(stored()[1].pipeline_status.result_reference.uri).toBe("s3://example/late-result.tar");
+    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
+  });
+
+  it("delivers a late terminal failure after revocation while preserving future-execution revocation", async () => {
+    const url = await app();
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(command()),
+    });
+    const fetcher = vi.fn(async (_url: any, init: any) => {
+      if (init.method === "POST" && String(_url).endsWith("/revoke"))
+        return new Response(JSON.stringify(revocationReceipt(stored()[1].request)));
+      if (init.method === "POST")
+        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
+      const record = stored()[1];
+      const statusPolls = fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "GET").length;
+      return new Response(JSON.stringify(statusPolls === 1
+        ? pipelineStatus(record.request, {
+          status: "revoked",
+          phase: "authority",
+          blockers: ["scene_intake_authority_revoked"],
+        })
+        : pipelineStatus(record.request, {
+          status: "blocked",
+          phase: "policy_canary_blocked",
+          blockers: ["provider_capacity_unavailable"],
+        })));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    const id = stored()[0].split("/")[1];
+    expect((await realFetch(`${url}/${id}/revoke`, { method: "POST" })).status).toBe(202);
+    await processSceneIntakeQueue();
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("closeout_pending");
+    expect(stored()[1].pipeline_status.status).toBe("revoked");
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("blocked");
+    expect(stored()[1].pipeline_status.blockers).toEqual(["provider_capacity_unavailable"]);
+    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "POST", "GET", "GET"]);
+    expect(fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "POST")).toHaveLength(2);
+  });
+
+  it("bounds repeated read-only closeout polling with an explicit blocker", async () => {
+    const url = await app();
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(command()),
+    });
+    const fetcher = vi.fn(async (_url: any, init: any) => {
+      if (init.method === "POST")
+        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
+      return new Response(JSON.stringify(pipelineStatus(stored()[1].request)));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    stored()[1].state = "closeout_pending";
+    stored()[1].closeout_poll_count = SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT - 1;
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("blocked");
+    expect(stored()[1].blocker).toBe("terminal_closeout_poll_cap_exhausted");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps an expired intent terminal when Pipeline reports no authorized attempt", async () => {
+    const url = await app();
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(command()),
+    });
+    const fetcher = vi.fn(async (_url: any, init: any) => {
+      if (init.method === "POST")
+        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
+      return new Response(JSON.stringify(pipelineStatus(stored()[1].request, {
+        status: "expired",
+        blockers: ["scene_intake_authority_expired"],
+        attempts: [],
+      })));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("expired");
+    expect(stored()[1].closeout_complete).toBe(true);
+    const calls = fetcher.mock.calls.length;
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(fetcher).toHaveBeenCalledTimes(calls);
+  });
+
   it("polls due records ahead of an older record scheduled for later", async () => {
     const url = await app();
     const input = command();

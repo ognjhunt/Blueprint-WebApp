@@ -762,6 +762,7 @@ export function SceneIntakeForm({
             {![
               "revoked",
               "revocation_pending",
+              "closeout_pending",
               "completed",
               "expired",
             ].includes(intake.state) ? (
@@ -777,6 +778,12 @@ export function SceneIntakeForm({
               <p className="text-body-s">
                 Revocation stops future admissions. It does not assert teardown
                 of an already running resource.
+              </p>
+            ) : null}
+            {intake.state === "closeout_pending" ? (
+              <p className="text-body-s">
+                Future execution is closed; the existing attempt is still being
+                reconciled for a terminal result.
               </p>
             ) : null}
           </div>

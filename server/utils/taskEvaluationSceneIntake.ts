@@ -151,6 +151,22 @@ export const sceneIntakeCommand = z
   })
   .strict();
 export const SCENE_INTAKE_COLLECTION = "taskEvaluationSceneIntakes";
+// A provider run can outlive the owner's future-execution authority. Keep
+// polling its Pipeline status through a bounded read-only window so a late
+// terminal result is delivered without reopening forwarding or spending. At
+// the normal one-minute worker cadence this is one hour; exhaustion is an
+// explicit terminal blocker rather than an unbounded retry loop.
+export const SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT = 60;
+const SCENE_STATUS_POLL_STATES = ["accepted", "closeout_pending", "expired", "revoked"] as const;
+
+function isSceneStatusPollState(value: string): value is (typeof SCENE_STATUS_POLL_STATES)[number] {
+  return SCENE_STATUS_POLL_STATES.includes(value as (typeof SCENE_STATUS_POLL_STATES)[number]);
+}
+
+function storedCloseoutPollCount(record: Record<string, any>): number {
+  const value = record.closeout_poll_count;
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
 // RFC 8785: ECMAScript number serialization and UTF-16 key ordering. Never
 // locale-sort cross-runtime signed packets or hash Python's 20.0 spelling.
 export function sceneCanonicalJson(value: unknown): string {
@@ -448,6 +464,12 @@ export async function processSceneIntakeQueue(limit = 10) {
     "forward_blocked",
     "commercial_authorization_required",
     "accepted",
+    "closeout_pending",
+    // These states were terminal in older worker versions. Revisit only when
+    // the retained Pipeline status proves a paid attempt exists, so historical
+    // late results are recoverable without making unissued intents live again.
+    "expired",
+    "revoked",
   ] as const) {
     const rows = await storeTimeout(
       db
@@ -496,24 +518,79 @@ export async function processSceneIntakeQueue(limit = 10) {
             intentDigest,
           );
           patch = {
-            state: "revoked",
+            // A revocation closes future admissions, but an already-accepted
+            // Pipeline intent may still have a running/retained attempt. Move
+            // those records to the read-only status poller; an unissued local
+            // cancellation remains terminal and never needs a Pipeline GET.
+            state: record.receipt ? "closeout_pending" : "revoked",
             revocation_receipt: revocation,
+            ...(record.receipt ? { closeout_poll_count: 0 } : {}),
             blocker: null,
+            next_forward_at_ms: now + 60000,
           };
-        } else if (state === "accepted") {
+        } else if ((state === "expired" || state === "revoked")
+          && (record.closeout_complete === true || !record.receipt?.intent_id)) {
+          // A terminal authority state with no accepted Pipeline receipt has no
+          // downstream run to discover. Keep it terminal and out of the worker
+          // schedule; no status read can create an execution capability.
+          patch = {
+            state,
+            blocker: record.blocker || null,
+            closeout_complete: true,
+            next_forward_at_ms: Number.MAX_SAFE_INTEGER,
+          };
+        } else if (isSceneStatusPollState(state)) {
+          if (!record.receipt?.intent_id)
+            throw new Error("pipeline_status_receipt_missing");
           const status = await scenePipelineRequest(
             record.request,
             record.receipt.intent_id,
           );
           if (status.intent_digest !== record.receipt.intent_digest)
             throw new Error("pipeline_intent_digest_invalid");
+          const hasReservedAttempt = Array.isArray(status.attempts) && status.attempts.some(
+            (attempt: Record<string, any>) =>
+              attempt && typeof attempt === "object"
+              && typeof attempt.maximum_spend_usd === "number"
+              && Number.isFinite(attempt.maximum_spend_usd)
+              && attempt.maximum_spend_usd > 0,
+          );
+          const authorityEnded = ["expired", "revoked"].includes(status.status)
+            || status.blockers?.some((blocker: unknown) =>
+              blocker === "scene_intake_authority_expired"
+              || blocker === "scene_intake_authority_revoked");
+          const terminalFailure = status.status === "blocked"
+            && status.phase === "policy_canary_blocked";
+          const closeoutPollCount = storedCloseoutPollCount(record);
+          const closeoutRequired = authorityEnded && hasReservedAttempt;
+          const closeoutExhausted = closeoutRequired
+            && closeoutPollCount >= SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT - 1;
+          const nextState = status.status === "completed"
+            ? "completed"
+            : terminalFailure
+              ? "blocked"
+              : closeoutExhausted
+                ? "blocked"
+                : closeoutRequired
+                  ? "closeout_pending"
+                  : ["expired", "revoked"].includes(status.status)
+                    ? status.status
+                    : "accepted";
           patch = {
             pipeline_status: status,
-            state: ["completed", "revoked", "expired"].includes(status.status)
-              ? status.status
-              : "accepted",
-            next_forward_at_ms: now + 60000,
+            state: nextState,
+            next_forward_at_ms: ["expired", "revoked"].includes(status.status)
+              && !hasReservedAttempt
+              ? Number.MAX_SAFE_INTEGER
+              : now + 60000,
             blocker: null,
+            ...(closeoutRequired ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
+            ...(["expired", "revoked"].includes(status.status) && !hasReservedAttempt
+              ? { closeout_complete: true }
+              : {}),
+            ...(closeoutExhausted
+              ? { blocker: "terminal_closeout_poll_cap_exhausted" }
+              : {}),
           };
         } else {
           if (record.request.execution.expires_at_epoch <= now / 1000)
@@ -597,6 +674,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             "pipeline_receipt_invalid",
             "pipeline_revocation_receipt_invalid",
             "pipeline_intent_digest_invalid",
+            "pipeline_status_receipt_missing",
             "revocation_requested_before_delivery",
           ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode)
             ? rawCode
@@ -610,18 +688,26 @@ export async function processSceneIntakeQueue(limit = 10) {
           "source_validation_required",
           "source_rights_binding_required",
         ].includes(code);
+        const statusPollState = isSceneStatusPollState(state);
+        const closeoutPoll = statusPollState && state !== "accepted";
+        const closeoutPollCount = storedCloseoutPollCount(record);
+        const closeoutPollExhausted = closeoutPoll
+          && closeoutPollCount >= SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT - 1;
+        const fallbackState = state === "revocation_pending"
+          ? "revocation_pending"
+          : statusPollState
+            ? state === "closeout_pending" || state === "expired" || state === "revoked"
+              ? state
+              : "accepted"
+            : terminal
+              ? "blocked"
+              : "forward_blocked";
         patch = {
-          state:
-            state === "revocation_pending"
-              ? "revocation_pending"
-              : state === "accepted"
-                ? "accepted"
-                : terminal
-                  ? "blocked"
-                  : "forward_blocked",
-          blocker: code,
+          state: closeoutPollExhausted ? "blocked" : fallbackState,
+          blocker: closeoutPollExhausted ? "terminal_closeout_poll_cap_exhausted" : code,
           next_forward_at_ms: now + 60000,
           forward_attempt_count: (record.forward_attempt_count || 0) + 1,
+          ...(closeoutPoll ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
         };
       }
       await storeTimeout(
@@ -631,7 +717,9 @@ export async function processSceneIntakeQueue(limit = 10) {
             transaction.update(row.ref, {
               ...patch,
               ...(latest.data()?.revocation_requested &&
-              patch.state !== "revoked"
+              patch.state !== "revoked" &&
+              patch.state !== "closeout_pending" &&
+              !isSceneStatusPollState(state)
                 ? { state: "revocation_pending", next_forward_at_ms: 0 }
                 : {}),
               lease_until_ms: 0,
