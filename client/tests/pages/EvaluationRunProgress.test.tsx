@@ -79,9 +79,57 @@ describe("EvaluationRunProgress", () => {
     render(<EvaluationRunProgress />);
 
     await waitFor(() => expect(screen.getAllByText("Provider allocating")).toHaveLength(2));
-    expect(screen.getByText("0 / 20 episodes")).toBeInTheDocument();
+    expect(screen.getByText("0 / 20 episodes complete")).toBeInTheDocument();
     expect(screen.getAllByText("0/20")).toHaveLength(2);
     expect(screen.getAllByText("Running")).toHaveLength(2);
+  });
+
+  it("shows all terminal canary episode records without hiding blocked episodes", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue({
+      schema_version: "task_evaluation_policy_run_projection.v1",
+      run_id: "scene-839873-policy-run-001",
+      source_launch_id: "scene839873-launch",
+      offering_digest: digest("a"),
+      configuration_digest: digest("b"),
+      run_kind: "internal_policy_canary",
+      claim_ceiling: "diagnostic_policy_execution",
+      result_status: "blocked",
+      scene_controls_status: "configured_controls_pending",
+      state: "blocked",
+      terminal: true,
+      stage: "terminal",
+      phase: "blocked",
+      progress: { completed_episodes: 11, total_episodes: 20 },
+      episode_counts: {
+        learned_episode_count: 20,
+        control_episode_count: 20,
+        total_episode_count: 40,
+      },
+      completed_learned_episode_count: 11,
+      expected_learned_episode_count: 20,
+      completed_control_episode_count: 0,
+      robot_preset_id: "franka_panda_robotiq_2f85_v1",
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      episode_plan: null,
+      notification_delivery: { status: "failed", attempts: 1 },
+      result: { record_id: "result-001", href: "/app/results/result-001", api_href: "/api/task-evaluation-results/result-001" },
+      error: { code: "POLICY_EPISODE_BLOCKED", message: "Nine episodes are blocked." },
+      warning: "Controls pending — results are unqualified.",
+      created_at_iso: "2026-09-03T03:00:00.000Z",
+      updated_at_iso: "2026-09-03T04:00:00.000Z",
+      proof_boundary: {
+        simulation_is_physical_success: false,
+        deployment_or_safety_approved: false,
+        cross_team_leaderboard_authorized: false,
+      },
+    });
+
+    render(<EvaluationRunProgress />);
+
+    await waitFor(() => expect(screen.getByText("20 / 20 episode records terminal")).toBeInTheDocument());
+    expect(screen.getByText("11 completed · 9 blocked")).toBeInTheDocument();
+    expect(screen.getByText("20/20")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
   });
 
   it("shows a terminal paired comparison and the private result link", async () => {
