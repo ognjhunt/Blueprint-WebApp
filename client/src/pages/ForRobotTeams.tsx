@@ -1,36 +1,25 @@
 /**
- * For robot teams.
+ * For robot teams — lean.
  *
- * The pitch is deliberately not "more leads." A robot company with 100 credible
- * buyers per available robot does not have a lead problem — it has a
- * qualification problem, and its binding constraint is deployment-engineer
- * weeks. So this page leads with allocation: what an opportunity has to look
- * like before it is worth spending those weeks on, and what Blueprint hands
- * over so that judgement can be made before anyone travels.
+ * The pitch is not "more leads". A robot company with 100 buyers per available
+ * robot has a qualification problem, and its binding constraint is
+ * deployment-engineer weeks. Lead with that, show what arrives before the team
+ * does, and show where the economics compound: retesting later software builds
+ * against the same captured job.
  */
 import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
-import {
-  AllocationFigure,
-  CompilerFigure,
-  DeploymentPipelineChart,
-  ObservedDeploymentsFigure,
-} from "@/components/site/runway/figures";
+import { AllocationFigure, RepeatEconomicsFigure } from "@/components/site/runway/figures";
 import { PageHero } from "@/components/site/publicSections";
 import {
   Band,
-  FigureFrame,
   Inner,
   MetricStrip,
   Pullquote,
   RunwayCta,
   SectionHead,
 } from "@/components/site/runway/shell";
-import {
-  deploymentPipelineMeta,
-  marketSources,
-  observedDeploymentsNote,
-} from "@/data/deploymentMarket";
+import { marketSources } from "@/data/deploymentMarket";
 import { robotTeamHero } from "@/data/publicSiteCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -40,26 +29,22 @@ const teamReceives = [
   {
     step: "01",
     title: "A task dossier",
-    detail:
-      "Workflow, objects, weights, cycle times, exceptions, systems, and the acceptance criteria — in one standard shape.",
+    detail: "The workflow, objects, weights, cycle times, exceptions and the pass mark — in one standard shape.",
   },
   {
     step: "02",
-    title: "A permissioned testbed",
-    detail:
-      "Evaluate the job without receiving unrestricted site files. Evaluation rights are not training rights.",
+    title: "A hosted testbed",
+    detail: "Evaluate the job without receiving a downloadable copy of the site. Testing is not training.",
   },
   {
     step: "03",
-    title: "A screened envelope",
-    detail:
-      "Reach, clearance, footprint, and sightlines measured off the capture, before a rollout is spent on a site that will not take the robot.",
+    title: "A fit screen",
+    detail: "Reach, clearance and footprint measured off the recording, before a rollout is spent on a site that will not take the robot.",
   },
   {
     step: "04",
     title: "The open questions",
-    detail:
-      "What failed, what is unresolved, and exactly what the onsite proof of concept still has to settle.",
+    detail: "What failed, what is unresolved, and exactly what the onsite pilot still has to settle.",
   },
 ] as const;
 
@@ -68,7 +53,7 @@ export default function ForRobotTeams() {
     <>
       <SEO
         title="Real jobs at sites with budget | Blueprint for robot teams"
-        description="Every job on Blueprint comes from a site with a named budget, an internal owner, and a procurement path. Test against it before you send anyone onsite."
+        description="Every job on Blueprint comes from a site with a budget and a named owner. Test against it before you send anyone onsite — then retest each software build against the same recording."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
@@ -87,7 +72,7 @@ export default function ForRobotTeams() {
       <PageHero
         eyebrow={robotTeamHero.eyebrow}
         title={robotTeamHero.title}
-        body={robotTeamHero.body}
+        body="Tell us what your robot can do; we find matching work. The customer is qualified, the job is defined and the test is written before you fly — so your engineers commission instead of discover."
         chips={robotTeamHero.chips}
         ctaHref={joinHref}
         ctaLabel="Join the robot network"
@@ -105,7 +90,7 @@ export default function ForRobotTeams() {
             index="01"
             eyebrow="The real constraint"
             title="You are not short of leads. You are short of weeks."
-            lede="A larger contract that consumes six engineers for four months can lose to a smaller one that needs almost no customisation."
+            lede="A big contract that eats six engineers for four months can lose to a small one that needs almost no customisation."
           />
           <div className="mt-14">
             <AllocationFigure />
@@ -118,12 +103,9 @@ export default function ForRobotTeams() {
           <SectionHead
             index="02"
             eyebrow="What arrives before you do"
-            title="The four things your team normally spends two months building."
+            title="Four things your team normally spends two months building."
           />
-          <div className="mt-14">
-            <CompilerFigure />
-          </div>
-          <Reveal className="mt-8">
+          <Reveal className="mt-14">
             <ol className="grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
               {teamReceives.map((item) => (
                 <li key={item.step} className="bg-runway-panel p-6">
@@ -145,8 +127,22 @@ export default function ForRobotTeams() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="03"
-            eyebrow="What it is worth"
-            title="Every month removed from months 0–2 is a month of fleet revenue."
+            eyebrow="Where it compounds"
+            title="The first run is real work. The tenth is nearly free."
+            lede="Once the job is captured, a new software build skips the survey, the reconstruction and the physical setup."
+          />
+          <div className="mt-14">
+            <RepeatEconomicsFigure />
+          </div>
+        </Inner>
+      </Band>
+
+      <Band tone="deep" rule>
+        <Inner className="py-20 lg:py-28">
+          <SectionHead
+            index="04"
+            eyebrow="Your place in the timeline"
+            title="We prepare it. You install it and prove it."
             lede="The only published unit economics in the category put a five-figure preparation cost on each robot, before the recurring contract starts."
           />
           <MetricStrip
@@ -154,7 +150,7 @@ export default function ForRobotTeams() {
             metrics={[
               {
                 value: "~$15K",
-                label: "Modelled deployment cost per robot, to the OEM",
+                label: "Modelled deployment cost per robot, to the robot company",
                 source: marketSources.agilityDeck,
                 tone: "red",
               },
@@ -172,7 +168,7 @@ export default function ForRobotTeams() {
               },
               {
                 value: "×1",
-                label: "Times the site has to be discovered, instead of once per vendor",
+                label: "Times the site is recorded, instead of once per vendor",
                 tone: "text",
               },
             ]}
@@ -184,44 +180,11 @@ export default function ForRobotTeams() {
         </Inner>
       </Band>
 
-      <Band tone="deep" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHead
-            index="04"
-            eyebrow="Your place in the timeline"
-            title="We prepare it. You install it and prove it."
-            lede="The handoff makes onsite work narrower and better informed. It does not claim a virtual test deployed your robot."
-          />
-          <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 01"
-              title="Path to scaled deployment"
-              basis="illustrative"
-              sources={[deploymentPipelineMeta.source]}
-              caveat={deploymentPipelineMeta.caveat}
-            >
-              <DeploymentPipelineChart />
-            </FigureFrame>
-          </Reveal>
-
-          <Reveal className="mt-8">
-            <FigureFrame
-              label="Fig. 02"
-              title="Elapsed time on publicly documented humanoid deployments"
-              basis="published"
-              caveat={observedDeploymentsNote}
-            >
-              <ObservedDeploymentsFigure />
-            </FigureFrame>
-          </Reveal>
-        </Inner>
-      </Band>
-
       <Band tone="black" rule>
         <Inner className="py-16 lg:py-24">
           <Pullquote attribution="Core access · no listing fee, no lead fee">
-            Join, match, and run standard evaluations free. You pay for exceptional compute, not
-            for access.
+            Join, match and run standard evaluations free. You pay for exceptional compute, not for
+            access.
           </Pullquote>
         </Inner>
       </Band>
@@ -229,7 +192,7 @@ export default function ForRobotTeams() {
       <RunwayCta
         eyebrow="Before field engineering"
         title="Start with a job your team can inspect."
-        body="Browse permission-matched opportunities, submit your robot specification, and use the shared testbed before deciding whether the onsite proof of concept is worth the weeks."
+        body="Browse permission-matched opportunities, submit your robot spec, and use the shared recording before deciding whether the onsite pilot is worth the weeks."
         primaryHref={joinHref}
         primaryLabel="Join the robot network"
         secondaryHref="/pricing"

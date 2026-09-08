@@ -38,39 +38,10 @@ describe("Home", () => {
     expect(container).toHaveTextContent(/~0/);
   });
 
-  it("defines the unit of supply as a qualified deployable workcell", () => {
-    render(<Home />);
-    expect(
-      screen.getByRole("heading", { name: /A qualified deployable workcell/i }),
-    ).toBeInTheDocument();
-    // The eight criteria are what stop "interested sites" being counted as supply.
-    for (const criterion of [
-      /A real operator, named and reachable/i,
-      /Someone with authority and budget/i,
-      /Agreement to deploy if the acceptance criteria are met/i,
-    ]) {
-      expect(screen.getByText(criterion)).toBeInTheDocument();
-    }
-    expect(
-      screen.getByText(/Fifty of these beat five thousand interested sites/i),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps the robot team's proprietary work with the robot team", () => {
-    render(<Home />);
-    expect(
-      screen.getByRole("heading", { name: /Do the work once\. Not once per vendor/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Proprietary policies and model weights/i)).toBeInTheDocument();
-    expect(screen.getByText(/Final safety validation and commissioning/i)).toBeInTheDocument();
-  });
-
-  it("does not claim the cross-vendor record already exists", () => {
+  it("states the honest claim, not a six-months-to-two-weeks promise", () => {
     const { container } = render(<Home />);
-    expect(container).toHaveTextContent(/Blueprint learns what nobody else can see/i);
-    // The honesty line is the guard: this is what the model builds, not an asset held today.
     expect(container).toHaveTextContent(
-      /This record does not exist yet\. It is what the model builds/i,
+      /use the real robot only for the tests that actually need the real robot/i,
     );
   });
 });

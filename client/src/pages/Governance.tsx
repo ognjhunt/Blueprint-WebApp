@@ -74,7 +74,7 @@ export default function Governance() {
       <PageHero
         eyebrow="Site data controls"
         title="Robot teams test your site without ever getting your site."
-        body="Written for the operations lead and the counsel who will ask. Every mechanism below is enforced in the pipeline rather than in a policy binder — several of them block our own runs when a record is missing."
+        body="Robot teams evaluate your job on our infrastructure — they never receive a copy of your site. Every control below is enforced in code, not a policy binder, and several block our own runs when a record is missing."
         chips={["Consent fails closed", "Hosted, not downloadable", "Revocable after delivery"]}
         ctaHref={submitHref}
         ctaLabel="Submit a job"

@@ -73,6 +73,41 @@ export const marketSources = {
     label: "GXO multi-year agreement, June 2024",
     href: "https://investors.gxo.com/news-releases/news-release-details/gxo-signs-industry-first-multi-year-agreement-agility-robotics",
   },
+  // What a custom automation station or single-station system actually costs to
+  // build, from the industry's own trade association. Used to price the "wrong
+  // pilot" a good screen avoids — a real, published range, not a Blueprint guess.
+  a3CustomAutomation: {
+    label: "A3 / Automate.org: custom automation buyer's guide",
+    href: "https://www.automate.org/robotics/news/what-manufacturers-need-to-know-before-investing-in-custom-automation",
+  },
+  // The published hourly cost of the people who do pre-pilot work. Everything the
+  // site says about person-months of internal labour is arithmetic on this rate,
+  // and is labelled as derived rather than charted as if it were itself a source.
+  blsEcec: {
+    label: "U.S. Bureau of Labor Statistics, Employer Costs for Employee Compensation",
+    href: "https://www.bls.gov/news.release/ecec.t04.htm",
+  },
+  // A concrete, published price for a bounded physical hardware-fit test — the
+  // closest thing to a list price for "bring the robot and see if it physically
+  // fits", and still only a two-day test, not a production pilot.
+  schmidtFitTest: {
+    label: "SchmidtFactories: Humanoid Hardware-Fit-Test",
+    href: "https://www.schmidtfactories.de/en/humanoid-hardware-fit-test/",
+  },
+  // A vendor case study about ANOTHER company (Dexterity) adopting virtual
+  // regression testing. Cited only to size the underlying engineering problem —
+  // never as evidence about Blueprint's own results.
+  resimDexterity: {
+    label: "ReSim case study: Dexterity",
+    href: "https://www.resim.ai/case-studies/dexterity-ai",
+  },
+  // A third-party operator's vendor-neutral testing lab. Cited as evidence that
+  // pre-deployment evaluation has material operator-side value — not as a
+  // Blueprint result and not a Blueprint customer.
+  kencoLabs: {
+    label: "Kenco: Innovation Labs identifies $5M in customer savings",
+    href: "https://kencogroup.com/news/kenco-logistics-innovation-labs-identifies-5-million-in-customer-savings-within-first-year-of-expansion/",
+  },
 } as const satisfies Record<string, MarketSource>;
 
 /* ------------------------------------------------------------------ the gap */
@@ -795,3 +830,238 @@ export const historicalAnalogues = [
 
 export const analogueLesson =
   "In each of these markets the winner was not the largest listing board. It was the operator that made scarce capacity productive fastest.";
+
+/* --------------------------------------------- what happens today, both sides */
+
+/**
+ * The two-sided "what happens without Blueprint" story, in plain language.
+ *
+ * This is the part a non-technical reader most needs: before a robot can work at
+ * a site, a long manual process runs on BOTH sides, and almost none of it needs
+ * the robot to be physically present. Each side's list is descriptive of the
+ * industry process; each carries one published anchor so the reader can check
+ * that the process is real and expensive, not a strawman.
+ */
+export const todayWithoutBlueprint = {
+  lede:
+    "Before a robot can start work at a site, a lot of manual work happens on both sides — and almost none of it needs the robot to be there yet. Today both sides do it from scratch, every time, for every vendor conversation.",
+  robotTeam: {
+    label: "What the robot company does today",
+    steps: [
+      "Visit the site, record the task, measure the space, list the objects",
+      "Turn vague business goals into exact pass/fail criteria",
+      "Recreate the task in its own lab or simulator, and configure the robot",
+      "Run internal tests, review the failures by hand, adjust",
+      "Ship the robot and send engineers on site",
+      "Run a physical pilot, then decide: continue, redesign, or stop",
+    ],
+    anchor:
+      "Agility Robotics publishes the clearest public version of this: roughly months 0–2 for proof of technology before any onsite work. Agility calls the timeline illustrative, not an industry average.",
+    source: marketSources.agilityDeck,
+    basis: "illustrative" as EvidenceBasis,
+  },
+  site: {
+    label: "What the site does today",
+    steps: [
+      "Decide which workflow is even worth automating",
+      "Find vendors and explain the same task to each of them",
+      "Host separate calls, demos, security reviews and site visits",
+      "Compare proposals built on different assumptions and metrics",
+      "Prepare power, networking, safety, floor space and staff",
+      "Host a physical pilot while operations keep running around it",
+    ],
+    anchor:
+      "Poorly defined requirements are a leading cause of change orders and failed automation projects. A3 puts serious custom automation at $150,000–$350,000+ for a semi-automated station and $200,000–$600,000+ for a single-station system.",
+    source: marketSources.a3CustomAutomation,
+    basis: "published" as EvidenceBasis,
+  },
+  takeaway:
+    "Both lists are mostly homework. Blueprint does the homework once, up front, so the real robot only has to show up for the parts that genuinely need it.",
+} as const;
+
+/* ------------------------------------------------ what the decision costs today */
+
+/**
+ * The label every Blueprint-modelled number must carry.
+ *
+ * Published figures are graded and sourced. Blueprint's own person-month and
+ * dollar ranges are neither `published` nor `illustrative` — they are a planning
+ * model, and the file's rule (no third grade, no Blueprint estimate charted as a
+ * source) means they are shown as clearly-labelled prose, never inside a graded
+ * FigureFrame.
+ */
+export const MODELLED_TARGET_NOTE =
+  "A modelled planning target, not a measured Blueprint result.";
+
+/**
+ * What the pre-pilot decision costs each side today. The `anchors` are published
+ * and sourced; the `planningModel` is Blueprint's own estimate and is labelled
+ * as modelled everywhere it renders.
+ */
+export const preDeploymentCost = {
+  lede:
+    "Public pricing is unusually opaque, so there is no defensible universal average. The anchors below are published figures. The person-month ranges are Blueprint's planning model — a way to estimate the early phase, labelled as modelled rather than measured.",
+  anchors: [
+    {
+      id: "labor",
+      value: "~$73–$88/hr",
+      label:
+        "Fully loaded cost of the people who do this work, professional to management occupations",
+      note:
+        "One full-time professional month therefore costs an employer roughly $13,000–$15,000, before travel, hardware, software and overhead. (The monthly figure is derived from the hourly rate.)",
+      source: marketSources.blsEcec,
+      basis: "published" as EvidenceBasis,
+    },
+    {
+      id: "fit-test",
+      value: "from €13,800",
+      label: "A bounded, two-day physical hardware-fit test",
+      note:
+        "Excludes robot rental, transport, insurance and tooling. It is a fit test, not a production pilot — roughly the cheapest paid way to answer “does the robot physically fit” today.",
+      source: marketSources.schmidtFitTest,
+      basis: "published" as EvidenceBasis,
+    },
+    {
+      id: "station",
+      value: "$150K–$600K+",
+      label: "A semi-automated station to a single-station system, per A3",
+      note:
+        "$150,000–$350,000+ for a semi-automated station; $200,000–$600,000+ for a single-station system. This is the size of commitment a wrong pilot can lead into.",
+      source: marketSources.a3CustomAutomation,
+      basis: "published" as EvidenceBasis,
+    },
+    {
+      id: "deploy",
+      value: "~$15K",
+      label: "Modelled one-time deployment cost per robot, to the robot company",
+      note:
+        "From Agility's investor model for its standardised Digit — excludes corporate R&D and SG&A, and is labelled by Agility as an assumption.",
+      source: marketSources.agilityDeck,
+      basis: "illustrative" as EvidenceBasis,
+    },
+  ],
+  planningModel: {
+    robotTeam: {
+      label: "The robot company's likely burden, per unfamiliar workcell",
+      lines: [
+        "2–6 professional person-months across deployment, simulation, controls, perception and project management",
+        "roughly $30,000–$90,000 of internal labour",
+        "plus travel, lab fixtures, compute, robot availability and onsite costs",
+      ],
+    },
+    site: {
+      label: "The site's likely burden, per first pilot",
+      lines: [
+        "0.5–2 internal person-months across automation, operations, IT, safety, facilities, procurement and management",
+        "roughly $7,000–$30,000 of internal labour",
+        "plus a paid assessment, deployment fee, rental or pilot from tens of thousands into low six figures",
+      ],
+    },
+    combined:
+      "Together, the pre-deployment decision can easily consume one to two months, several professional person-months, and tens of thousands of dollars — before the site has strong physical evidence either way.",
+  },
+} as const;
+
+/* --------------------------------------------- first workcell vs later builds */
+
+/**
+ * Why the economics compound. The first run is honest work, not free. The
+ * recurring leverage comes from retesting later software builds against the same
+ * captured job. The external number is a vendor case study about a DIFFERENT
+ * company and is footnoted as such.
+ */
+export const repeatEconomics = {
+  lede:
+    "The first workcell is not almost-free: Blueprint still has to reconstruct the scene, connect the robot's interface, qualify the test and review the evidence. The economics get much stronger on the second, third and tenth software build against the same captured job.",
+  firstRun: {
+    label: "First workcell",
+    detail:
+      "Real work: reconstruct the scene, integrate the robot interface, qualify the test, review the evidence. The target is to turn a six-to-eight-week pre-pilot into roughly two-to-four weeks.",
+    modelled: true,
+  },
+  repeatRun: {
+    label: "Every later software build",
+    detail:
+      "No new site survey, task definition, reconstruction or physical setup. If the robot interface stays compatible, a repeat comparison can move from weeks of scheduling and manual prep to days.",
+    modelled: true,
+  },
+  externalEvidence: {
+    claim: "Robot companies already report large gains from standardised virtual regression testing.",
+    stats: [
+      { value: "7×", label: "more regression testing" },
+      { value: "75%", label: "less time creating test metrics" },
+      { value: "3×", label: "more bugs caught before merging" },
+    ],
+    detail:
+      "In a vendor-published case study, Dexterity reported these gains after adopting virtual regression testing.",
+    source: marketSources.resimDexterity,
+    basis: "published" as EvidenceBasis,
+    footnote:
+      "A case study about another company, cited to show the size of the engineering problem. It is not independent evidence about Blueprint.",
+  },
+} as const;
+
+/* ------------------------------------------------- the largest saving of all */
+
+/**
+ * The biggest value is not compute and may not even be the first few weeks of
+ * engineering. It is avoiding the wrong physical pilot. Kenco is cited as
+ * third-party evidence that operators pay for this layer, never as a Blueprint
+ * result.
+ */
+export const avoidWrongPilot = {
+  headline:
+    "The biggest saving is not compute, and may not even be the first few weeks of engineering. It is avoiding the wrong physical pilot.",
+  detail:
+    "If Blueprint can credibly rule out one unsuitable candidate before hardware arrives, both sides avoid finding out the hard way.",
+  avoided: [
+    "another robot shipment or rental",
+    "another onsite engineering trip",
+    "another integration effort",
+    "weeks or months of floor disruption",
+    "a pilot costing tens of thousands of dollars",
+    "or, worst case, committing to a six-figure system that cannot do the task",
+  ],
+  externalEvidence: {
+    claim: "Operators already invest in a testing layer for exactly this reason.",
+    detail:
+      "Kenco says an earlier version of its vendor-neutral innovation lab tested about 20 projects a year and identified more than $5 million in customer savings in a single year.",
+    source: marketSources.kencoLabs,
+    basis: "published" as EvidenceBasis,
+    footnote:
+      "A third-party operator's lab, cited as evidence that pre-deployment evaluation has material value. It is not a Blueprint result.",
+  },
+} as const;
+
+/* ---------------------------------------------------- the claim, said honestly */
+
+/**
+ * The exact language of the honest claim. `wrong` is the claim the site refuses
+ * to make; `plain` and `commercial` are the two it does.
+ */
+export const theRightClaim = {
+  wrong: "Blueprint cuts deployment from six months to two weeks.",
+  plain:
+    "Blueprint does the site-specific testing before the physical pilot, so robot teams spend less engineering time preparing and sites spend less floor time discovering basic problems.",
+  commercial:
+    "We help you use the real robot only for the tests that actually need the real robot.",
+} as const;
+
+/**
+ * The five things Blueprint measures against a customer's normal process. Stated
+ * as what we hold ourselves to, because the savings are a hypothesis until these
+ * numbers exist.
+ */
+export const whatWeMeasure = {
+  lede:
+    "Blueprint's savings are a hypothesis until enough paid projects prove them. So for the first projects we measure five things against the customer's normal process, and we report those rather than borrow anyone else's.",
+  metrics: [
+    "Calendar days from a qualified task to a go/no-go decision",
+    "Robot-team engineering hours spent",
+    "Site staff hours spent",
+    "Site visits and physical robot-hours avoided",
+    "Whether the later physical result matched Blueprint's recommendation",
+  ],
+  note:
+    "These are the numbers we will publish once they exist. Until then, every projected saving on this site is labelled as a modelled target.",
+} as const;

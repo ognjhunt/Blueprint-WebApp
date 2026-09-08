@@ -77,7 +77,7 @@ export default function CaptureVisit() {
       <PageHero
         eyebrow="The capture visit"
         title="We come to you. One access window. Nothing left behind."
-        body="A capture happens only after your task matches a robot team we are actually in conversation with. When it does, we send a trained operator with a 360 camera and phone rig — one workcell, two passes, and a named escort from your team. This is the only part of the service your site physically experiences."
+        body="A capture only happens once your task matches a robot team we're already talking to. Then we send a trained operator with a 360 camera and phone rig — one workcell, two passes, one escort from your team. It's the only part of the service your site physically sees."
         chips={["Match first, then capture", "We send the operator", "Austin metro"]}
         ctaHref={submitHref}
         ctaLabel="Submit a job"

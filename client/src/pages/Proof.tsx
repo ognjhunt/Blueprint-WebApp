@@ -1,8 +1,10 @@
-import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { DeploymentPipelineChart } from "@/components/site/runway/figures";
-import { FigureFrame } from "@/components/site/runway/shell";
+import {
+  PreDeploymentCostFigure,
+  TodayProcessFigure,
+} from "@/components/site/runway/figures";
 import { Reveal } from "@/components/site/motion";
 import {
   Band,
@@ -11,42 +13,21 @@ import {
   PageHero,
   SectionHeader,
 } from "@/components/site/publicSections";
-import {
-  deploymentPipelineMeta,
-  marketSources,
-} from "@/data/deploymentMarket";
+import { theRightClaim } from "@/data/deploymentMarket";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const evidenceLayers = [
   {
     title: "Captured fact",
-    body: "The site, task, objects, timing, access rules, and provenance recorded from the real workflow.",
+    body: "The site, task, objects, and timing recorded from the real workflow.",
   },
   {
     title: "Derived test",
-    body: "Geometry checks, simulation, generated conditions, and provider tools used only inside their qualified scope.",
+    body: "Geometry checks and simulation, used only inside their qualified scope.",
   },
   {
     title: "Physical proof",
-    body: "The robot running at the real site. This is what settles onsite performance and safety—not a digital twin.",
-  },
-] as const;
-
-const publicAnchors = [
-  {
-    label: "Six-plus-month deployment path",
-    fact: "Agility's June 2026 investor presentation labels months 0–2 as Proof of Tech, months 2–3 as onsite POC, months 4–6 as a RaaS pilot, and month 6+ as the path to scale.",
-    href: marketSources.agilityDeck.href,
-  },
-  {
-    label: "What happens in months 0–2",
-    fact: "Agility says it defines the win, studies layout and objects, recreates site conditions in simulation and physically at Agility, then tests and refines the workflow.",
-    href: marketSources.agilityProcess.href,
-  },
-  {
-    label: "A real early deployment took time",
-    fact: "GXO announced its Digit proof of concept on December 6, 2023. Digit entered regular operations on June 5, 2024. That deployment predates Agility's formal CAP program.",
-    href: marketSources.gxoAgreement.href,
+    body: "The robot running at the real site. This settles onsite performance and safety—not a digital twin.",
   },
 ] as const;
 
@@ -55,7 +36,7 @@ export default function Proof() {
     <>
       <SEO
         title="Evidence behind the months 0–2 problem | Blueprint"
-        description="The primary-source timeline, illustrative economics, and proof boundaries behind what Blueprint claims to do."
+        description="What the pre-pilot work is, what it costs today, and exactly where Blueprint helps — with every figure sourced."
         canonical="/proof"
         jsonLd={[
           webPageJsonLd({
@@ -74,12 +55,8 @@ export default function Proof() {
       <PageHero
         eyebrow="Proof, not pitch"
         title="The first two months are real work."
-        body="Agility's published timeline puts workflow definition, site recreation, and robot testing before onsite integration. Blueprint automates that phase without pretending it deployed the robot."
-        chips={[
-          "Primary sources",
-          "Illustrative prices labeled",
-          "Physical proof stays physical",
-        ]}
+        body="Before a robot can start work, a long list of manual jobs runs on both sides — and almost none of it needs the robot present. Here is that work, what it costs, and where Blueprint helps. Sourced figures, and our own numbers labelled as modelled."
+        chips={["Primary sources", "Modelled targets labelled", "Physical proof stays physical"]}
         ctaHref="/how-it-works"
         ctaLabel="See Blueprint's four steps"
         secondaryHref="/faq"
@@ -89,94 +66,44 @@ export default function Proof() {
         imageCaption="Captured site evidence · not deployment proof"
       />
 
+      {/* 01 — the two-sided process */}
       <Band tone="canvas">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="01"
-            eyebrow="The published process"
-            title="We are built for the first highlighted phase."
+            eyebrow="What happens today"
+            title="A pilot starts with weeks of manual work — on both sides."
+            lede="None of it needs the robot present. Today both sides redo it from scratch, for every vendor."
           />
           <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 01"
-              title="Path to scaled deployment"
-              basis="illustrative"
-              sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
-              caveat={deploymentPipelineMeta.caveat}
-            >
-              <DeploymentPipelineChart />
-            </FigureFrame>
+            <TodayProcessFigure />
           </Reveal>
         </Inner>
       </Band>
 
+      {/* 02 — what it costs today */}
       <Band tone="paper" rule>
         <Inner className="py-20 lg:py-28">
           <SectionHeader
             index="02"
-            eyebrow="The source record"
-            title="Three facts. Three direct links."
+            eyebrow="What it costs"
+            title="One to two months and tens of thousands of dollars, before anyone has strong evidence."
+            lede="The anchors are published. The person-month ranges are our planning model, labelled as modelled."
           />
-          <div className="mt-14 divide-y divide-runway-line border-y border-runway-line">
-            {publicAnchors.map((anchor, index) => (
-              <Reveal key={anchor.label} delay={index * 0.05}>
-                <a
-                  href={anchor.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group grid gap-4 py-6 sm:grid-cols-[0.32fr_0.68fr] sm:gap-10"
-                >
-                  <span className="flex items-start justify-between gap-3 text-body-s font-semibold text-runway-text">
-                    {anchor.label}
-                    <ArrowUpRight
-                      className="mt-1 h-4 w-4 shrink-0 text-runway-mute group-hover:text-action"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span className="text-body-s leading-7 text-runway-mute">
-                    {anchor.fact}
-                  </span>
-                </a>
-              </Reveal>
-            ))}
-          </div>
+          <Reveal className="mt-14">
+            <PreDeploymentCostFigure />
+          </Reveal>
         </Inner>
       </Band>
 
-      <Band tone="ink">
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="03"
-            eyebrow="Read the money correctly"
-            title="Published anchor — not a market price"
-            lede="Agility's June 2026 investor model uses an illustrative ~$15,000 one-time deployment cost and ~$25,000 deployment fee per Digit. It does not publish how that cost splits between months 0–2 and onsite work, and it does not disclose a typical total site contract value."
-            onInk
-          />
-          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line sm:grid-cols-3">
-            {[
-              ["~$15K", "Illustrative one-time deployment cost per Digit"],
-              ["~$25K", "Illustrative one-time RaaS deployment fee per Digit"],
-              ["Unknown", "Published split between prep and onsite work"],
-            ].map(([value, label]) => (
-              <div key={value} className="bg-runway-panel p-6">
-                <p className="font-mono text-title-l font-semibold text-runway-text">
-                  {value}
-                </p>
-                <p className="mt-3 text-caption leading-6 text-runway-mute">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Inner>
-      </Band>
-
+      {/* 03 — the boundary + the honest claim */}
       <Band tone="canvas">
         <Inner className="py-20 lg:py-28">
           <SectionHeader
-            index="04"
+            index="03"
             eyebrow="Blueprint's claim boundary"
             title="A good filter is not a deployment certificate."
+            lede="Blueprint narrows the trip. Real hardware still settles physical performance and safety."
           />
           <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-runway-line bg-runway-line lg:grid-cols-3">
             {evidenceLayers.map((layer, index) => (
@@ -185,28 +112,29 @@ export default function Proof() {
                   {index < 2 ? (
                     <Check className="h-5 w-5 text-runway-signal" aria-hidden="true" />
                   ) : (
-                    <TriangleAlert
-                      className="h-5 w-5 text-runway-amber"
-                      aria-hidden="true"
-                    />
+                    <TriangleAlert className="h-5 w-5 text-runway-amber" aria-hidden="true" />
                   )}
                   <h2 className="mt-5 text-title-m font-semibold tracking-tight text-runway-text">
                     {layer.title}
                   </h2>
-                  <p className="mt-3 text-body-s leading-7 text-runway-mute">
-                    {layer.body}
-                  </p>
+                  <p className="mt-3 text-body-s leading-7 text-runway-mute">{layer.body}</p>
                 </article>
               </Reveal>
             ))}
           </div>
+          <Reveal className="mt-10 border-l-2 border-runway-signal pl-6 sm:pl-8">
+            <p className="max-w-[62ch] text-body-l leading-8 text-runway-text">
+              {theRightClaim.commercial}
+            </p>
+            <p className="runway-meta mt-4">The claim we make · not “six months to two weeks”</p>
+          </Reveal>
         </Inner>
       </Band>
 
       <ClosingCta
         eyebrow="The practical result"
         title="Simulation narrows the trip. Hardware proves the deployment."
-        body="Blueprint reports what fits, what fails, what remains unknown, and what the onsite proof of concept must settle."
+        body="Blueprint reports what fits, what fails, what is still unknown, and what the onsite pilot must settle."
         primaryHref="/how-it-works"
         primaryLabel="See how it works"
         secondaryHref="/governance"

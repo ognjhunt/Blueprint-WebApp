@@ -214,10 +214,10 @@ describe("build output", () => {
     expect(homeHtml).toContain("Real jobs, fully specified.");
     expect(homeHtml).toContain("Robot teams prove who can do them.");
     expect(homeHtml).toContain("Don’t send engineers to scope a deployment.");
-    // Both halves of the boundary prerender, and so does the unit of supply.
+    // Both halves of the boundary prerender, and so does the months-0–2 thesis.
     expect(homeHtml).toContain("Blueprint owns the site. You own the robot.");
     expect(homeHtml).toContain("Stays with the robot company");
-    expect(homeHtml).toContain("A qualified deployable workcell.");
+    expect(homeHtml).toContain("Two of the six months happen before the robot is crated.");
     expect(homeHtml).toContain("Capture");
     expect(homeHtml).toContain("Recreate");
     expect(homeHtml).toContain("Evaluate");
@@ -250,7 +250,7 @@ describe("build output", () => {
     expect(pricingHtml).not.toContain("Quick-look eval");
     expect(pricingHtml).not.toContain("Robot-team subscription");
     expect(proofHtml).toContain("The first two months are real work");
-    expect(proofHtml).toContain("Published anchor — not a market price");
+    expect(proofHtml).toContain("A modelled planning target");
     expect(proofHtml).toContain("A good filter is not a deployment certificate");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
@@ -278,6 +278,6 @@ describe("build output", () => {
     expect(browserJavaScript).toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
     expect(browserJavaScript).toContain("Real jobs, fully specified.");
-    expect(browserJavaScript).toContain("A qualified deployable workcell.");
+    expect(browserJavaScript).toContain("the real robot only shows up for the tests that need it");
   });
 });

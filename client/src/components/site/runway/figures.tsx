@@ -21,12 +21,14 @@
 import {
   allocationFactors,
   allocationThesis,
+  avoidWrongPilot,
   bomVersusDeployment,
   bottleneckChain,
   capAdoption,
   contractedAnchor,
   deploymentCompiler,
   historicalAnalogues,
+  MODELLED_TARGET_NOTE,
   observedDeployments,
   deploymentCostSplit,
   deploymentPipelineMeta,
@@ -37,10 +39,15 @@ import {
   installations2024,
   oemDeploymentPhases,
   perRobotEconomics,
+  preDeploymentCost,
   regionalShare2024,
+  repeatEconomics,
   shipmentsNotDeployments,
   structuralComparison,
+  todayWithoutBlueprint,
+  whatWeMeasure,
 } from "@/data/deploymentMarket";
+import type { MarketSource } from "@/data/deploymentMarket";
 import {
   captureCeiling,
   visitSchedule,
@@ -1617,5 +1624,293 @@ export function HonestEdgesFigure() {
         </Reveal>
       ))}
     </ol>
+  );
+}
+
+/* ---------------------------------------------- shared small pieces */
+
+/** Inline source link, styled to match the other citations in this file. */
+function FigureSource({ source }: { source: MarketSource }) {
+  return (
+    <a
+      href={source.href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-block font-mono text-[10px] uppercase tracking-[0.12em] text-runway-faint underline-offset-4 transition-colors hover:text-runway-signal hover:underline"
+    >
+      {source.label}
+    </a>
+  );
+}
+
+const badgeToneByBasis: Record<"published" | "illustrative", string> = {
+  published: "border-runway-green/40 text-runway-green",
+  illustrative: "border-runway-amber/40 text-runway-amber",
+};
+
+const badgeLabelByBasis: Record<"published" | "illustrative", string> = {
+  published: "Published figure",
+  illustrative: "Illustrative model",
+};
+
+function BasisBadge({ basis }: { basis: "published" | "illustrative" }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.14em]",
+        badgeToneByBasis[basis],
+      )}
+    >
+      {badgeLabelByBasis[basis]}
+    </span>
+  );
+}
+
+/** A small chip that marks a number as Blueprint's own modelled target. */
+function ModelledChip() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-full border border-runway-cyan/40 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.14em] text-runway-cyan"
+      title={MODELLED_TARGET_NOTE}
+    >
+      Modelled target
+    </span>
+  );
+}
+
+/* ------------------------------------------ what happens today, both sides */
+
+/**
+ * The two-sided pre-Blueprint process. Two columns of plain steps — robot
+ * company on the left, site on the right — each with one published anchor under
+ * it so the reader can check the process is real and expensive. The point is
+ * made in the footer: almost none of this needs the robot to be present.
+ */
+export function TodayProcessFigure() {
+  const columns = [
+    { key: "robotTeam", ...todayWithoutBlueprint.robotTeam },
+    { key: "site", ...todayWithoutBlueprint.site },
+  ] as const;
+
+  return (
+    <div>
+      <div className="grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line lg:grid-cols-2">
+        {columns.map((column) => (
+          <div key={column.key} className="flex flex-col bg-runway-panel p-6 lg:p-8">
+            <p className="runway-meta">{column.label}</p>
+            <ol className="mt-6 space-y-3">
+              {column.steps.map((step, index) => (
+                <Reveal key={step} as="li" delay={index * 0.03} className="flex gap-3">
+                  <span className="runway-num mt-0.5 shrink-0 text-[11px] tracking-[0.16em] text-runway-faint">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-[13.5px] leading-6 text-runway-mute">{step}</span>
+                </Reveal>
+              ))}
+            </ol>
+            <div className="mt-6 border-t border-runway-line pt-5">
+              <div className="mb-3">
+                <BasisBadge basis={column.basis} />
+              </div>
+              <p className="text-[12.5px] leading-6 text-runway-faint">{column.anchor}</p>
+              <p className="mt-3">
+                <FigureSource source={column.source} />
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Reveal delay={0.15} className="mt-8 border-l-2 border-runway-signal pl-6">
+        <p className="max-w-[72ch] text-[15px] leading-[1.7] text-runway-text">
+          {todayWithoutBlueprint.takeaway}
+        </p>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ---------------------------------------- what the decision costs today */
+
+/**
+ * The pre-pilot cost, split cleanly: published anchors on top (each graded and
+ * sourced), then Blueprint's own planning model in a visually distinct panel
+ * that is labelled as modelled and carries no evidence grade — because it is not
+ * one.
+ */
+export function PreDeploymentCostFigure() {
+  return (
+    <div>
+      <p className="max-w-[74ch] text-[14px] leading-[1.7] text-runway-mute">
+        {preDeploymentCost.lede}
+      </p>
+
+      <ul className="mt-8 grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
+        {preDeploymentCost.anchors.map((anchor, index) => (
+          <Reveal key={anchor.id} as="li" delay={index * 0.05} className="bg-runway-panel p-6">
+            <div className="flex items-start justify-between gap-2">
+              <p className="runway-num text-[clamp(1.5rem,2.4vw,2rem)] font-semibold leading-none text-runway-text">
+                {anchor.value}
+              </p>
+              <BasisBadge basis={anchor.basis} />
+            </div>
+            <p className="mt-4 text-[13px] font-medium leading-6 text-runway-text">{anchor.label}</p>
+            <p className="mt-2.5 text-[12px] leading-5 text-runway-faint">{anchor.note}</p>
+            <p className="mt-3">
+              <FigureSource source={anchor.source} />
+            </p>
+          </Reveal>
+        ))}
+      </ul>
+
+      <Reveal delay={0.15} className="mt-6 rounded-md border border-runway-cyan/30 bg-runway-cyan/[0.05] p-6 lg:p-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="runway-meta text-runway-cyan">Blueprint planning model</p>
+          <ModelledChip />
+        </div>
+        <div className="mt-6 grid gap-px overflow-hidden rounded-sm border border-runway-line bg-runway-line sm:grid-cols-2">
+          {[preDeploymentCost.planningModel.robotTeam, preDeploymentCost.planningModel.site].map(
+            (block) => (
+              <div key={block.label} className="bg-runway-panel p-5">
+                <p className="text-[13px] font-semibold leading-6 text-runway-text">{block.label}</p>
+                <ul className="mt-4 space-y-2.5">
+                  {block.lines.map((line) => (
+                    <li key={line} className="flex gap-3 text-[12.5px] leading-6 text-runway-mute">
+                      <span aria-hidden="true" className="mt-2.5 h-px w-3 shrink-0 bg-runway-cyan" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+          )}
+        </div>
+        <p className="mt-5 max-w-[76ch] text-[13px] leading-6 text-runway-text">
+          {preDeploymentCost.planningModel.combined}
+        </p>
+        <p className="runway-meta mt-4 text-runway-cyan/80">{MODELLED_TARGET_NOTE}</p>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ---------------------------------------- first workcell vs later builds */
+
+/**
+ * The repeat-economics contrast. First run and repeat run side by side, both
+ * marked as modelled targets, with the third-party ReSim numbers beneath as
+ * evidence of the problem's size — footnoted so it cannot be read as Blueprint's.
+ */
+export function RepeatEconomicsFigure() {
+  const e = repeatEconomics.externalEvidence;
+  return (
+    <div>
+      <p className="max-w-[74ch] text-[14px] leading-[1.7] text-runway-mute">{repeatEconomics.lede}</p>
+
+      <div className="mt-8 grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line md:grid-cols-2">
+        {[repeatEconomics.firstRun, repeatEconomics.repeatRun].map((block, index) => (
+          <Reveal
+            key={block.label}
+            delay={index * 0.06}
+            className={cn("bg-runway-panel p-6 lg:p-8", index === 1 && "bg-runway-signal/[0.06]")}
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <p
+                className={cn(
+                  "text-[15px] font-semibold tracking-[-0.015em]",
+                  index === 1 ? "text-runway-signal" : "text-runway-text",
+                )}
+              >
+                {block.label}
+              </p>
+              <ModelledChip />
+            </div>
+            <p className="mt-3 text-[13px] leading-6 text-runway-mute">{block.detail}</p>
+          </Reveal>
+        ))}
+      </div>
+
+      <Reveal delay={0.18} className="mt-6 rounded-md border border-runway-line bg-runway-deep p-6 lg:p-8">
+        <p className="text-[14px] font-semibold leading-6 text-runway-text">{e.claim}</p>
+        <div className="mt-6 grid gap-px overflow-hidden rounded-sm border border-runway-line bg-runway-line sm:grid-cols-3">
+          {e.stats.map((stat) => (
+            <div key={stat.label} className="bg-runway-panel p-5">
+              <p className="runway-num text-[clamp(1.8rem,3vw,2.4rem)] font-semibold leading-none text-runway-cyan">
+                {stat.value}
+              </p>
+              <p className="mt-3 text-[12.5px] leading-5 text-runway-mute">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <BasisBadge basis={e.basis} />
+          <FigureSource source={e.source} />
+        </div>
+        <p className="mt-3 max-w-[76ch] text-[12px] leading-6 text-runway-faint">{e.footnote}</p>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------------ avoiding the wrong pilot */
+
+/**
+ * The largest saving. The headline claim, the concrete list of what a wrong
+ * pilot costs, and the Kenco third-party anchor — footnoted as not-Blueprint.
+ */
+export function AvoidWrongPilotFigure() {
+  const e = avoidWrongPilot.externalEvidence;
+  return (
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+      <Reveal>
+        <p className="font-display uppercase text-[clamp(1.5rem,2.8vw,2.3rem)] font-semibold leading-[1.15] tracking-[0.005em] text-runway-text">
+          {avoidWrongPilot.headline}
+        </p>
+        <p className="mt-5 max-w-[54ch] text-[14px] leading-[1.7] text-runway-mute">
+          {avoidWrongPilot.detail}
+        </p>
+        <ul className="mt-6 space-y-2.5">
+          {avoidWrongPilot.avoided.map((item) => (
+            <li key={item} className="flex gap-3 text-[13.5px] leading-6 text-runway-mute">
+              <span aria-hidden="true" className="mt-2.5 h-px w-3 shrink-0 bg-runway-signal" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+
+      <Reveal delay={0.12} className="flex">
+        <div className="flex w-full flex-col justify-center rounded-md border border-runway-line bg-runway-panel p-6 lg:p-8">
+          <p className="text-[14px] font-semibold leading-6 text-runway-text">{e.claim}</p>
+          <p className="mt-3 text-[13px] leading-6 text-runway-mute">{e.detail}</p>
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-runway-line pt-5">
+            <BasisBadge basis={e.basis} />
+            <FigureSource source={e.source} />
+          </div>
+          <p className="mt-3 text-[12px] leading-6 text-runway-faint">{e.footnote}</p>
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+/* -------------------------------------------------- what Blueprint measures */
+
+/** The five things Blueprint holds itself to, since the savings are a hypothesis. */
+export function WhatWeMeasureFigure() {
+  return (
+    <div>
+      <p className="max-w-[74ch] text-[14px] leading-[1.7] text-runway-mute">{whatWeMeasure.lede}</p>
+      <ol className="mt-8 grid gap-px overflow-hidden rounded-md border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-5">
+        {whatWeMeasure.metrics.map((metric, index) => (
+          <Reveal key={metric} as="li" delay={index * 0.05} className="bg-runway-panel p-5">
+            <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <p className="mt-4 text-[13px] leading-6 text-runway-text">{metric}</p>
+          </Reveal>
+        ))}
+      </ol>
+      <p className="runway-meta mt-5 leading-5">{whatWeMeasure.note}</p>
+    </div>
   );
 }
