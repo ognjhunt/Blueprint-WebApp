@@ -1,7 +1,14 @@
+import { taskEvaluationFirebaseTenant } from "../utils/taskEvaluationFirebaseTenant";
+import { z } from "zod";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
+import { MAX_RESULT_NOTIFICATION_ATTEMPTS, ResultNotificationRetryError, retryTaskEvaluationResultNotification } from "../utils/taskEvaluationNotificationRetry";
+import { projectCorrectedScoringContract } from "../utils/taskEvaluationCorrectedScoringContract";
+import { projectWebsiteResultNotification } from "../utils/taskEvaluationResultNotification";
+import { resultArtifactMetadata } from "../utils/taskEvaluationArtifactIntegrity";
 import { Router, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { resolveAccessContext } from "../utils/access-control";
+import { resolveAccessContext, resolveExecutionAccessContext } from "../utils/access-control";
 import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResultAccess";
 import { taskEvaluationResultArtifactAdmission } from "../utils/taskEvaluationResultArtifactAdmission";
 import {
@@ -31,8 +38,7 @@ type ResultRecord = Record<string, any> & {
 };
 
 function firebaseTenantId(res: Response) {
-  const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
-  return String(user?.tenantId || user?.tenant_id || "").trim();
+  return taskEvaluationFirebaseTenant(res.locals.firebaseUser);
 }
 
 async function accessFor(record: ResultRecord, res: Response) {
@@ -60,9 +66,15 @@ async function accessFor(record: ResultRecord, res: Response) {
 
 function publicRecord(record: ResultRecord, options: { publicAudience?: boolean } = {}) {
   const publication = structuredClone(record.publication);
-  const scoreCorrection = verifiedPolicyCanaryScoreCorrectionSidecar(
+  const scoreCorrectionCandidate = verifiedPolicyCanaryScoreCorrectionSidecar(
     record.policy_canary_score_correction,
   );
+  const scoreCorrection = scoreCorrectionCandidate
+    && scoreCorrectionCandidate.correction.source_run_id === publication.run_id
+    && scoreCorrectionCandidate.source_binding.source_projection_digest === publication.policy_canary_result?.projection_digest
+    && scoreCorrectionCandidate.source_binding.source_delivery_digest === publication.result_delivery?.delivery_digest
+    ? scoreCorrectionCandidate : null;
+  const correctedScoringContract = projectCorrectedScoringContract(publication, scoreCorrection);
   const scoreCorrectionAudit = publicPolicyCanaryScoreCorrectionAudit(
     record.policy_canary_score_correction,
     record.policy_canary_score_correction_history,
@@ -85,6 +97,7 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     delete publication.submitted_by;
     delete publication.team_namespace;
     delete publication.notification_delivery;
+    if (publication.policy_canary_result) delete publication.policy_canary_result.notification_delivery;
     publication.access_visibility = "unlisted_public";
   }
   return {
@@ -96,6 +109,7 @@ function publicRecord(record: ResultRecord, options: { publicAudience?: boolean 
     updated_at_iso: record.updated_at_iso,
     publication,
     ...(scoreCorrection ? { score_correction: scoreCorrection } : {}),
+    ...(correctedScoringContract ? { corrected_scoring_contract: correctedScoringContract } : {}),
     ...(scoreCorrectionAudit ? { score_correction_audit: scoreCorrectionAudit } : {}),
     ...(episodeInterpretation ? { episode_interpretation: episodeInterpretation } : {}),
   };
@@ -180,9 +194,50 @@ router.get("/:recordId", async (req, res) => {
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
   res.set("Cache-Control", "private, no-store");
-  return res.status(200).json(publicRecord(record, {
+  let websiteDelivery;
+  if (permission.privateAudience && record.publication.run_kind === "internal_policy_canary") {
+    try {
+      const snapshot = await db!.collection("taskEvaluationPolicyRuns").doc(record.publication.run_id).get();
+      const notification = projectWebsiteResultNotification(record, snapshot.exists ? snapshot.data() : undefined);
+      const run = snapshot.exists ? snapshot.data() : undefined;
+      const retryState = ["dispatching", "accepted", "failed", "unknown"].includes(run?.notification_retry?.status) ? run!.notification_retry.status : null;
+      websiteDelivery = { status: notification ? "available" : "unbound", notification, retry_state: retryState,
+        can_retry_email: notification?.status === "failed" && notification.attempts < MAX_RESULT_NOTIFICATION_ATTEMPTS
+          && retryState !== "dispatching" && retryState !== "unknown"
+          && (permission.access.isOps || record.owner_user_id === permission.access.uid),
+      };
+    } catch {
+      // A notification-store outage must not hide the sealed scientific result.
+      websiteDelivery = { status: "unavailable", notification: null };
+    }
+  }
+  return res.status(200).json({ ...publicRecord(record, {
     publicAudience: !permission.privateAudience,
-  }));
+  }), ...(websiteDelivery ? { website_delivery: websiteDelivery } : {}) });
+});
+
+const notificationRetryRequest = z.object({
+  request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/),
+  expected_result_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  authorize_email_retry: z.literal(true),
+}).strict();
+
+router.post("/:recordId/notification-retries", verifyFirebaseToken, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  if (!db) return res.status(503).json({ error: "Result notification store is unavailable" });
+  const parsed = notificationRetryRequest.safeParse(req.body);
+  if (!parsed.success || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(req.params.recordId)) return res.status(400).json({ error: "Explicit digest-bound email retry authorization is required" });
+  const access = await resolveExecutionAccessContext(res);
+  if (!access.uid) return res.status(401).json({ error: "Authentication required" });
+  try {
+    const receipt = await retryTaskEvaluationResultNotification({ db, recordId: req.params.recordId,
+      requestId: parsed.data.request_id, expectedDigest: parsed.data.expected_result_digest,
+      actor: { uid: access.uid, isOps: access.isOps } });
+    return res.status(receipt.status === "dispatching" ? 202 : 200).json(receipt);
+  } catch (error) {
+    if (error instanceof ResultNotificationRetryError) return res.status(error.status).json({ error: error.code });
+    return res.status(503).json({ error: "Result notification retry is unavailable; keep the same request identifier when checking again" });
+  }
 });
 
 router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
@@ -195,6 +250,8 @@ router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
   if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const metadata = resultArtifactMetadata(record.publication, req.params.artifactId);
+  if (metadata.status === "invalid") return res.status(404).json({ error: "Result artifact metadata is invalid" });
   const admission = taskEvaluationResultArtifactAdmission(
     record.publication,
     req.params.artifactId,
@@ -205,6 +262,7 @@ router.get("/:recordId/artifacts/:artifactId", async (req, res) => {
   await streamTaskEvaluationResultArtifact({
     runId: record.publication.run_id,
     artifactId: req.params.artifactId,
+    expected: metadata.status === "known" ? metadata.metadata : undefined,
     req,
     res,
   });
@@ -220,6 +278,8 @@ router.post("/:recordId/artifacts/:artifactId/ticket", async (req, res) => {
   if (!record) return res.status(404).json({ error: "Task Evaluation Result not found" });
   const permission = await accessFor(record, res);
   if (!permission.allowed) return res.status(404).json({ error: "Task Evaluation Result not found" });
+  const metadata = resultArtifactMetadata(record.publication, req.params.artifactId);
+  if (metadata.status === "invalid") return res.status(404).json({ error: "Result artifact metadata is invalid" });
   const admission = taskEvaluationResultArtifactAdmission(
     record.publication,
     req.params.artifactId,
@@ -231,6 +291,7 @@ router.post("/:recordId/artifacts/:artifactId/ticket", async (req, res) => {
     const registryAdmission = await probeTaskEvaluationResultArtifact({
       runId: record.publication.run_id,
       artifactId: req.params.artifactId,
+      expected: metadata.status === "known" ? metadata.metadata : undefined,
     });
     if (registryAdmission === "not_found") {
       return res.status(404).json({ error: "Result artifact not found" });

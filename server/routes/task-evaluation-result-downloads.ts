@@ -1,3 +1,4 @@
+import { resultArtifactMetadata } from "../utils/taskEvaluationArtifactIntegrity";
 import { Router } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -48,9 +49,12 @@ router.get("/:recordId/:artifactId", async (req, res) => {
   if (admission === "denied") {
     return res.status(404).json({ error: "Result download is unavailable" });
   }
+  const metadata = resultArtifactMetadata(verified.publication, artifactId);
+  if (metadata.status === "invalid") return res.status(404).json({ error: "Result artifact metadata is invalid" });
   await streamTaskEvaluationResultArtifact({
     runId: verified.publication.run_id,
     artifactId,
+    expected: metadata.status === "known" ? metadata.metadata : undefined,
     req,
     res,
   });

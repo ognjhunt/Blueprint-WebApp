@@ -61,9 +61,9 @@ function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord })
       <div>
         <p className="runway-meta mb-2">What this establishes</p>
         <ul className="flex flex-col gap-2">
-          <ReadingPoint tone="proof">Each policy&rsquo;s observed success rate on this one captured scene{matched ? `, across ${matched} matched scenario cells` : ""}.</ReadingPoint>
-          <ReadingPoint tone="proof">Which policy led on this sample, and whether that gap is statistically distinguishable.</ReadingPoint>
-          <ReadingPoint tone="proof">A digest-bound, re-downloadable evidence trail for every episode.</ReadingPoint>
+          <ReadingPoint tone="proof">Overall rates use each policy’s explicitly scorable delivered episodes.</ReadingPoint>
+          <ReadingPoint tone="proof">{matched ? `The observed paired difference across ${matched} mutually scorable cells, with a paired sign test.` : "No paired comparison is available without mutually scorable cells."}</ReadingPoint>
+          <ReadingPoint tone="proof">Available episode artifacts can be requested below. Missing manifests, frames, or incomplete episodes remain evidence gaps.</ReadingPoint>
         </ul>
       </div>
       <div>
@@ -116,17 +116,31 @@ export function PolicyCanaryResultPortal({
   const successContract = findPublishedTaskSuccessContract(
     projectedResult.publication,
   );
+  const correctedCandidate = projectedResult.corrected_scoring_contract;
+  const correctedContract = correctedCandidate
+    && correctedCandidate.source_correction_digest === projectedResult.score_correction?.correction.correction_digest
+    && correctedCandidate.source_projection_digest === projectedResult.publication.policy_canary_result?.projection_digest
+    && correctedCandidate.source_delivery_digest === projectedResult.publication.result_delivery?.delivery_digest
+    && correctedCandidate.original_request_authorization === false
+    ? correctedCandidate : null;
+  const correctionRejected = Boolean(result.score_correction && !projectedResult.score_correction);
   return <div className="flex flex-col gap-6">
     <PolicyCanaryPrimarySummary result={projectedResult} user={user} />
     <HowToReadCanary result={projectedResult} />
     {successContract ? <TaskSuccessContractPanel
       contract={successContract}
       title="Success criteria used for this result"
+      resultReview
     /> : <ProofBoundary level="block" title="Success criteria not verified">
-      The immutable pass/fail contract the scorer used was not delivered with this result, so the success
-      rates above cannot yet serve as an acceptance test. Do not reinterpret completion from the review
-      video alone — the deterministic criteria are the authority.
+      A verified success contract was not delivered in the original publication, so the success rates
+      above cannot yet serve as an acceptance test. Corrected scoring criteria, when shown below,
+      explain the rescore and do not create task or execution authorization.
     </ProofBoundary>}
+    {correctionRejected ? <ProofBoundary level="warn" title="Score adjustment not applied">The adjustment did not match this result. Original scores remain visible.</ProofBoundary> : null}
+    {correctedContract && correctedContract.contract.contract_digest !== successContract?.contract_digest ? <>
+      <p className="text-body-s text-ink-600">These criteria were bound to the verified score correction. {correctedContract.team_confirmation_recorded ? "The contract records a team confirmation." : "They are a registry compatibility default, without team confirmation."} They do not replace the original request authorization.</p>
+      <TaskSuccessContractPanel contract={correctedContract.contract} title="Criteria used for corrected scores" resultReview />
+    </> : null}
     <PolicyCanaryControls result={projectedResult} user={user} />
     <PolicyCanaryEpisodeExplorer result={projectedResult} user={user} />
     <PolicyCanaryReportOverview result={projectedResult} />

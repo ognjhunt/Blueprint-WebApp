@@ -269,6 +269,13 @@ async function handlePolicyCanaryPublication(
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
       const scope = offeringScope(policyRun, offering);
+      if (runSnapshot.exists) {
+        const retained = runSnapshot.data() as Record<string, any>;
+        if (retained.owner_user_id !== scope.ownerUserId
+          || retained.organization_id !== scope.organizationId) {
+          return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        }
+      }
       const record = {
         schema_version: "capture_task_evaluation_run_record.v2",
         record_id: recordId,
@@ -694,8 +701,24 @@ async function handlePolicyCanaryPreproviderBlocked(
         policyRun.run_kind !== "internal_policy_canary"
         || policyRun.request_digest !== payload.request_digest
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
+      // A delayed pre-allocation refusal cannot replace a later execution
+      // closeout, result binding, or cancellation. Exact blocker replays remain
+      // allowed below only while this blocker still owns the terminal state.
+      if (policyRun.result_record_id || policyRun.delivery_digest
+        || (["results_ready", "blocked", "failed", "cancelled"].includes(policyRun.state)
+          && !(policyRun.state === "blocked" && policyRun.phase === "pre_provider_blocked"
+            && policyRun.preprovider_blocked))) {
+        return { outcome: "immutable_conflict" as const, policyRun: null };
+      }
       const now = new Date().toISOString();
       const scope = offeringScope(policyRun, offering);
+      if (blockedSnapshot.exists) {
+        const retained = blockedSnapshot.data() as Record<string, any>;
+        if (retained.owner_user_id !== scope.ownerUserId
+          || retained.organization_id !== scope.organizationId) {
+          return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        }
+      }
       const record = {
         schema_version: "capture_task_evaluation_policy_canary_preprovider_blocked_record.v1",
         record_id: recordId,

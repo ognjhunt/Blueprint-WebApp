@@ -1,0 +1,9 @@
+{
+  "fixture_only": true,
+  "pipeline_commit": "b7c0249b5cfbe48bd14a00b6b4ca6e2169a50eba",
+  "validator": "episode_visual_evidence.validate_multicamera_frame_manifest",
+  "verify_files": true,
+  "frame_count": 4,
+  "all_frame_bytes_verified": true,
+  "no_policy_or_provider_execution": true
+}

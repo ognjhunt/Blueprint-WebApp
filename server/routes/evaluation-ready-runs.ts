@@ -1,3 +1,5 @@
+import { taskEvaluationFirebaseTenant } from "../utils/taskEvaluationFirebaseTenant";
+import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import { Router, type NextFunction, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -27,8 +29,7 @@ const stateRank = new Map(EVALUATION_READY_RUN_STATES.map((state, index) => [sta
 const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
 
 function firebaseTenantId(res: Response) {
-  const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
-  return String(user?.tenantId || user?.tenant_id || "").trim();
+  return taskEvaluationFirebaseTenant(res.locals.firebaseUser);
 }
 
 function requirePipelineSignature(req: Request, res: Response, next: NextFunction) {
@@ -56,7 +57,9 @@ async function readForTeam(runId: string, res: Response) {
   const access = await resolveAccessContext(res);
   if (!access.uid) return null;
   const tenantId = firebaseTenantId(res);
-  if (!access.isOps && (!tenantId || tenantId !== record.team_namespace)) return null;
+  const personalOwner = record.owner_user_id === access.uid
+    && record.team_namespace === `user:${access.uid}`;
+  if (!access.isOps && !personalOwner && (!tenantId || tenantId !== record.team_namespace)) return null;
   return record;
 }
 
@@ -104,6 +107,7 @@ router.post(
       })),
     });
     const projection = parsed.data as Record<string, any>;
+    const projectionDigest = canonicalArtifactDigest(projection, "__no_digest_field__");
     if (projection.run_id !== req.params.runId) return res.status(400).json({
       error: "Policy-run status route identity mismatch",
       code: "task_evaluation_policy_run_status_route_mismatch",
@@ -142,17 +146,29 @@ router.post(
           projection.progress
           && existing.episode_counts
           && projection.progress.total_episodes
-            !== existing.episode_counts.total_episode_count
+            !== (existingCanary ? existing.episode_counts.learned_episode_count : existing.episode_counts.total_episode_count)
         ) return { outcome: "progress_mismatch" as const, record: null };
         const exactReplay = existing.state === projection.state
           && (existing.delivery_digest || null) === (projection.delivery_digest || null)
           && (existing.result_record_id || null) === (projection.result_record_id || null)
-          && existing.pipeline_observed_at_iso === projection.observed_at_iso;
+          && existing.pipeline_observed_at_iso === projection.observed_at_iso
+          && (existing.pipeline_status_projection_digest
+            ? existing.pipeline_status_projection_digest === projectionDigest
+            : existing.phase === projection.phase
+              && stableJson(existing.progress || null) === stableJson(projection.progress || null)
+              && stableJson(existing.result_summary || null) === stableJson(projection.result_summary || null)
+              && stableJson(existing.error || null) === stableJson(projection.error || null));
         if (exactReplay) {
           return { outcome: "replayed" as const, record: existing };
         }
         if (terminalStates.has(existing.state)) {
           return { outcome: "terminal_conflict" as const, record: null };
+        }
+        // Delivery time is not observation time. Same-state progress can arrive
+        // out of order; retain the later producer snapshot, including its evidence.
+        if (existing.pipeline_observed_at_iso
+          && Date.parse(projection.observed_at_iso) <= Date.parse(String(existing.pipeline_observed_at_iso))) {
+          return { outcome: "state_regression" as const, record: null };
         }
         if ((stateRank.get(projection.state) || 0) < (stateRank.get(existing.state) || 0)) {
           return { outcome: "state_regression" as const, record: null };
@@ -169,6 +185,7 @@ router.post(
           delivery_digest: projection.delivery_digest || null,
           error: projection.error || null,
           pipeline_observed_at_iso: projection.observed_at_iso,
+          pipeline_status_projection_digest: projectionDigest,
           updated_at_iso: new Date().toISOString(),
           ...(existingCanary ? {
             pipeline_configuration_digest: projection.configuration_digest,

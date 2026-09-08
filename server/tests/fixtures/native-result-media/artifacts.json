@@ -1,0 +1,42 @@
+[
+  {
+    "artifact_id": "frame-0-external",
+    "relative_path": "media/fixture-episode/frames/external/000000-policy-input.png",
+    "sha256": "sha256:00978b660dc7e2fe10c8d0d40b94092bd46e3e53e254558c424a03d020f8bce4",
+    "size_bytes": 135,
+    "role": "lossless_policy_input_frame",
+    "content_type": "image/png"
+  },
+  {
+    "artifact_id": "frame-0-wrist",
+    "relative_path": "media/fixture-episode/frames/wrist/000000-policy-input.png",
+    "sha256": "sha256:3c787f4904382f10d88bda0e64087967c2c56a0d4680a6617cd4c3936b2c4f70",
+    "size_bytes": 135,
+    "role": "lossless_policy_input_frame",
+    "content_type": "image/png"
+  },
+  {
+    "artifact_id": "frame-1-external",
+    "relative_path": "media/fixture-episode/frames/external/000001-terminal-observation.png",
+    "sha256": "sha256:3c787f4904382f10d88bda0e64087967c2c56a0d4680a6617cd4c3936b2c4f70",
+    "size_bytes": 135,
+    "role": "lossless_policy_input_frame",
+    "content_type": "image/png"
+  },
+  {
+    "artifact_id": "frame-1-wrist",
+    "relative_path": "media/fixture-episode/frames/wrist/000001-terminal-observation.png",
+    "sha256": "sha256:915442ccf98291f1bd6aad803b5393707ccdd0f2d495ee94d79a9fd0ab229cdd",
+    "size_bytes": 135,
+    "role": "lossless_policy_input_frame",
+    "content_type": "image/png"
+  },
+  {
+    "artifact_id": "frame-manifest",
+    "relative_path": "manifest.json",
+    "sha256": "sha256:6079fa6d22268b9f4c144a7e2449d01cdd1fb0d3e931e7e50eb10eabc39efd5a",
+    "size_bytes": 9681,
+    "role": "frame_manifest",
+    "content_type": "application/json"
+  }
+]

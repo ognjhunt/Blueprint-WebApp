@@ -239,7 +239,10 @@ export default function TaskEvaluationResultDetail() {
         <Link href={currentUser ? "/app/runs" : "/"} className="inline-flex w-fit items-center gap-1.5 text-body-s font-semibold text-ink-500 hover:text-ink-800"><ArrowLeft className="size-4" />{currentUser ? "All runs" : "Blueprint"}</Link>
         {isLoading ? <BuyerAppLoadingState /> : null}
         {!isLoading && error ? <BuyerAppErrorState message={error.message} /> : null}
-        {!isLoading && !error && result ? <ResultContent result={result} user={currentUser} /> : null}
+        {!isLoading && result ? <>
+          {error ? <p role="status" className="text-body-s text-ink-600">The result could not be refreshed. Showing the last loaded result.</p> : null}
+          <ResultContent result={result} user={currentUser} />
+        </> : null}
         {!isLoading && !error && notFound ? <ProofBoundary level="block" title="Result not available">No public result or result in your owner or verified-team scope matched this identifier.</ProofBoundary> : null}
       </div>
     </AppShell>

@@ -19,7 +19,8 @@ const fetchCsrfToken = async (): Promise<string> => {
   return data.csrfToken;
 };
 
-export const getCsrfToken = async (): Promise<string> => {
+export const getCsrfToken = async (options: { refresh?: boolean } = {}): Promise<string> => {
+  if (options.refresh) cachedToken = null;
   if (cachedToken) {
     return cachedToken;
   }
@@ -35,7 +36,8 @@ export const getCsrfToken = async (): Promise<string> => {
 
 export const withCsrfHeader = async (
   headers: Record<string, string> = {},
+  options: { refresh?: boolean } = {},
 ): Promise<Record<string, string>> => ({
   ...headers,
-  "X-CSRF-Token": await getCsrfToken(),
+  "X-CSRF-Token": await getCsrfToken(options),
 });

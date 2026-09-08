@@ -1,3 +1,4 @@
+import { boundedResultArtifactRequest, resultRetryAfterSeconds } from "./resultArtifactRequest";
 import type { User as FirebaseUser } from "firebase/auth";
 import { z } from "zod";
 
@@ -431,16 +432,28 @@ export async function fetchEvaluationReadySetup(
   };
 }
 
+export class EvaluationRunStatusError extends Error {
+  constructor(public readonly status: number, public readonly retryAfterSeconds: number | null = null) {
+    super(status === 401 ? "Sign in again to view this run."
+      : status === 403 ? "You do not have permission to view this run."
+      : status === 404 ? "This run was not found in your permitted scope."
+      : `Evaluation run status is unavailable (${status})`);
+  }
+}
+
 export async function fetchEvaluationReadyRun(
   currentUser: FirebaseUser,
   runId: string,
+  signal?: AbortSignal,
 ): Promise<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null> {
+  return boundedResultArtifactRequest(async (requestSignal) => {
+  const headers = await withFirebaseAuthHeaders(currentUser);
+  requestSignal.throwIfAborted();
   const response = await fetch(
     `/api/task-evaluation-runs/${encodeURIComponent(runId)}/status`,
-    { credentials: "include", headers: await withFirebaseAuthHeaders(currentUser) },
+    { credentials: "include", headers, signal: requestSignal },
   );
-  if (response.status === 403 || response.status === 404) return null;
-  if (!response.ok) throw new Error(`Evaluation run status is unavailable (${response.status})`);
+  if (!response.ok) throw new EvaluationRunStatusError(response.status, resultRetryAfterSeconds(response.headers.get("retry-after")));
   const payload = await response.json();
   if (payload?.run_kind === "internal_policy_canary") {
     const canary = policyCanaryRunProjectionSchema.safeParse(payload);
@@ -450,4 +463,5 @@ export async function fetchEvaluationReadyRun(
   const parsed = evaluationReadyRunProjectionSchema.safeParse(payload);
   if (!parsed.success) throw new Error("Evaluation run status did not match the Website contract");
   return parsed.data;
+  }, signal);
 }

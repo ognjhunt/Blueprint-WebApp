@@ -7,12 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { RigidTaskSuccessContract } from "@/lib/rigidTaskSuccessContract";
+import { boundedResultArtifactRequest, resultRetryAfterSeconds, resultPostWithCsrfRecovery } from "./resultArtifactRequest";
 
 export type TaskEvaluationResultArtifact = {
   artifact_id: string;
   role: string;
   relative_path: string;
   sha256: string;
+  digest?: string;
   size_bytes: number;
   content_type: string;
   media_type?: string;
@@ -227,6 +229,11 @@ export type PolicyCanaryEpisodeInterpretationSidecar = {
 };
 
 export type TaskEvaluationResultDelivery = {
+  inline_compaction?: {
+    schema_version: "task_evaluation_policy_canary_inline_compaction.v1";
+    inline_artifact_count: number; omitted_artifact_count: number; source_artifact_count: number;
+    full_artifact_inventory?: string;
+  };
   controls?: PolicyCanaryControl[];
   controls_summary?: ControlsSummary;
   scene_controls_status?: ControlsStatus;
@@ -351,6 +358,24 @@ export type TaskEvaluationResultSiteRecord = {
     };
     proof_boundary: Record<string, unknown>;
   };
+  corrected_scoring_contract?: {
+    schema_version: "task_evaluation_corrected_scoring_contract_projection.v1";
+    source_correction_digest: string; source_projection_digest: string; source_delivery_digest: string;
+    original_request_authorization: false; team_confirmation_recorded: boolean;
+    contract: RigidTaskSuccessContract;
+  };
+  website_delivery?: {
+    status: "available" | "unavailable" | "unbound";
+    can_retry_email?: boolean;
+    retry_state?: "dispatching" | "accepted" | "failed" | "unknown" | null;
+    notification: {
+      schema_version: "task_evaluation_result_notification_projection.v1";
+      record_id: string; run_id: string; run_result_digest: string;
+      status: "pending" | "accepted" | "delivered" | "failed";
+      attempts: number; accepted_at_iso: string | null; delivered_at_iso: string | null;
+      failure_reason: string | null;
+    } | null;
+  };
   score_correction?: PolicyCanaryScoreCorrectionSidecar;
   episode_interpretation?: PolicyCanaryEpisodeInterpretationSidecar;
   score_correction_audit?: {
@@ -391,78 +416,97 @@ type TaskEvaluationResultList = {
   results: TaskEvaluationResultSiteRecord[];
 };
 
-async function authenticatedFetch(currentUser: FirebaseUser, path: string) {
-  return fetch(path, {
-    credentials: "include",
-    headers: await withFirebaseAuthHeaders(currentUser),
-  });
+export class TaskEvaluationResultReadError extends Error {
+  constructor(public readonly status: number) {
+    super(status === 401 ? "Sign in again to read this result."
+      : status === 403 ? "You do not have permission to read this result."
+      : `Sealed result is unavailable (${status})`);
+  }
 }
 
-async function fetchResults(currentUser: FirebaseUser): Promise<TaskEvaluationResultList> {
-  const response = await authenticatedFetch(currentUser, "/api/task-evaluation-results");
-  if (!response.ok) throw new Error(`Failed to load sealed results (${response.status})`);
-  return response.json() as Promise<TaskEvaluationResultList>;
+export function taskEvaluationResultRetry(failureCount: number, error: unknown) {
+  return failureCount < 3 && (!(error instanceof TaskEvaluationResultReadError)
+    || error.status === 429 || error.status >= 500);
 }
 
-async function fetchResult(currentUser: FirebaseUser | null, recordId: string) {
-  const response = await fetch(
-    `/api/task-evaluation-results/${encodeURIComponent(recordId)}`,
-    {
-      credentials: "include",
-      headers: await withFirebaseAuthHeaders(currentUser),
-    },
-  );
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Failed to load sealed result (${response.status})`);
-  return response.json() as Promise<TaskEvaluationResultSiteRecord>;
+function resultAccessRefused(error: unknown) {
+  return error instanceof TaskEvaluationResultReadError && [401, 403, 409].includes(error.status);
+}
+
+async function authenticatedFetch(currentUser: FirebaseUser | null, path: string, signal?: AbortSignal) {
+  const headers = await withFirebaseAuthHeaders(currentUser);
+  signal?.throwIfAborted();
+  return fetch(path, { credentials: "include", headers, signal, redirect: "error" });
+}
+
+async function fetchResults(currentUser: FirebaseUser, signal?: AbortSignal): Promise<TaskEvaluationResultList> {
+  return boundedResultArtifactRequest(async (requestSignal) => {
+    const response = await authenticatedFetch(currentUser, "/api/task-evaluation-results", requestSignal);
+    if (!response.ok) throw new TaskEvaluationResultReadError(response.status);
+    return response.json() as Promise<TaskEvaluationResultList>;
+  }, signal);
+}
+
+async function fetchResult(currentUser: FirebaseUser | null, recordId: string, signal?: AbortSignal) {
+  return boundedResultArtifactRequest(async (requestSignal) => {
+    const response = await authenticatedFetch(currentUser, `/api/task-evaluation-results/${encodeURIComponent(recordId)}`, requestSignal);
+    if (response.status === 404) return null;
+    if (!response.ok) throw new TaskEvaluationResultReadError(response.status);
+    const result = await response.json() as TaskEvaluationResultSiteRecord;
+    if (result?.record_id !== recordId || !result.publication?.run_id) throw new TaskEvaluationResultReadError(409);
+    return result;
+  }, signal);
 }
 
 export async function createTaskEvaluationResultArtifactTicket(
   currentUser: FirebaseUser | null,
   recordId: string,
   artifactId: string,
+  options: { signal?: AbortSignal } = {},
 ) {
-  const response = await fetch(
-    `/api/task-evaluation-results/${encodeURIComponent(recordId)}/artifacts/${encodeURIComponent(artifactId)}/ticket`,
-    {
-      method: "POST",
-      credentials: "include",
-      headers: await withFirebaseAuthHeaders(
-        currentUser,
-        await withCsrfHeader({ "Content-Type": "application/json" }),
-      ),
-      body: "{}",
-    },
-  );
-  if (!response.ok) {
-    const retryAfter = Number(response.headers.get("retry-after"));
-    const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0
-      ? Math.ceil(retryAfter)
-      : null;
-    const message = response.status === 429
-      ? `Playback is temporarily rate-limited.${retryAfterSeconds
-        ? ` Retry in ${retryAfterSeconds} seconds.`
-        : " Please retry shortly."}`
-      : `Failed to authorize result artifact (${response.status})`;
-    throw new TaskEvaluationArtifactTicketError(message, {
-      status: response.status,
-      retryAfterSeconds,
-    });
-  }
-  const ticket = await response.json() as { download_url: string };
-  return ticket.download_url;
+  return boundedResultArtifactRequest(async (signal) => {
+    const response = await resultPostWithCsrfRecovery(async (refreshCsrf) => {
+      const headers = await withFirebaseAuthHeaders(currentUser,
+        await withCsrfHeader({ "Content-Type": "application/json" }, { refresh: refreshCsrf }));
+      signal.throwIfAborted();
+      return fetch(
+        `/api/task-evaluation-results/${encodeURIComponent(recordId)}/artifacts/${encodeURIComponent(artifactId)}/ticket`,
+        { method: "POST", credentials: "include", headers, body: "{}", signal, redirect: "error" },
+      );
+    }, signal);
+    if (!response.ok) {
+      const retryAfterSeconds = resultRetryAfterSeconds(response.headers.get("retry-after"));
+      try { await response.body?.cancel(); } catch { /* Origin already closed. */ }
+      const message = response.status === 429
+        ? `Playback is temporarily rate-limited.${retryAfterSeconds
+          ? ` Retry in ${retryAfterSeconds} seconds.` : " Please retry shortly."}`
+        : response.status === 401 ? "Sign in again to authorize this artifact."
+        : response.status === 403 ? "You do not have permission to access this artifact."
+        : response.status === 404 ? "This artifact is unavailable in your permitted scope."
+        : `Failed to authorize result artifact (${response.status})`;
+      throw new TaskEvaluationArtifactTicketError(message, { status: response.status, retryAfterSeconds });
+    }
+    const ticket = await response.json() as { download_url?: unknown };
+    const expectedPath = `/api/task-evaluation-result-downloads/${encodeURIComponent(recordId)}/${encodeURIComponent(artifactId)}`;
+    if (typeof ticket.download_url !== "string" || !ticket.download_url.startsWith(`${expectedPath}?`)
+      || ticket.download_url.includes("#") || ticket.download_url.includes("\\")) {
+      throw new Error("Artifact authorization returned an invalid download binding");
+    }
+    return ticket.download_url;
+  }, options.signal);
 }
 
 export function useTaskEvaluationResults() {
   const { currentUser, loading } = useAuth();
   const query = useQuery({
-    queryKey: ["task-evaluation-results", currentUser?.uid || "anonymous"],
+    queryKey: ["task-evaluation-results", currentUser?.uid || "anonymous", currentUser?.tenantId || ""],
     enabled: Boolean(currentUser && !loading),
-    queryFn: () => fetchResults(currentUser!),
+    queryFn: ({ signal }) => fetchResults(currentUser!, signal),
+    retry: taskEvaluationResultRetry,
     staleTime: 30_000,
   });
   return useMemo(() => ({
-    results: query.data?.results || [],
+    results: resultAccessRefused(query.error) ? [] : query.data?.results || [],
     scope: query.data?.scope || null,
     isLoading: loading || query.isLoading,
     error: query.error instanceof Error ? query.error : null,
@@ -471,14 +515,21 @@ export function useTaskEvaluationResults() {
 
 export function useTaskEvaluationResult(recordId: string) {
   const { currentUser, loading } = useAuth();
+  const deliveryObservationStarted = useMemo(() => Date.now(), [currentUser?.uid, currentUser?.tenantId, recordId]);
   const query = useQuery({
-    queryKey: ["task-evaluation-result", currentUser?.uid || "anonymous", recordId],
+    queryKey: ["task-evaluation-result", currentUser?.uid || "anonymous", currentUser?.tenantId || "", recordId],
     enabled: Boolean(!loading && recordId),
-    queryFn: () => fetchResult(currentUser, recordId),
+    queryFn: ({ signal }) => fetchResult(currentUser, recordId, signal),
+    retry: taskEvaluationResultRetry,
+    refetchInterval: (query) => {
+      if (query.state.error || Date.now() - deliveryObservationStarted >= 15 * 60_000) return false;
+      const status = query.state.data?.website_delivery?.notification?.status;
+      return status === "pending" || status === "accepted" || query.state.data?.website_delivery?.retry_state === "dispatching" ? 30_000 : false;
+    },
     staleTime: 30_000,
   });
   return {
-    result: query.data || null,
+    result: resultAccessRefused(query.error) ? null : query.data || null,
     notFound: query.isFetched && query.data === null,
     isLoading: loading || query.isLoading,
     error: query.error instanceof Error ? query.error : null,

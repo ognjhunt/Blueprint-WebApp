@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 
 import {
+  ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS,
   configuredArtifactEndpoint,
   probeTaskEvaluationResultArtifact,
   signedPipelineHeaders,
@@ -20,6 +21,7 @@ const ENVIRONMENT_NAMES = [
 afterEach(() => {
   for (const name of ENVIRONMENT_NAMES) delete process.env[name];
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Task Evaluation Result artifact origin", () => {
@@ -64,7 +66,7 @@ describe("Task Evaluation Result artifact origin", () => {
       "https://pipeline.example/runs/{run_id}/artifacts/{artifact_id}";
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-token";
     const cancel = vi.fn().mockResolvedValue(undefined);
-    const fetchMock = vi.fn().mockResolvedValue({ status: 206, ok: true, body: { cancel } });
+    const fetchMock = vi.fn().mockResolvedValue({ status: 206, ok: true, body: { cancel }, headers: new Headers({ "content-length": "1", "content-range": "bytes 0-0/1", "x-blueprint-artifact-sha256": `sha256:${"a".repeat(64)}` }) });
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(probeTaskEvaluationResultArtifact({
@@ -100,4 +102,18 @@ describe("Task Evaluation Result artifact origin", () => {
       artifactId: "frame-1",
     })).resolves.toBe("unavailable");
   });
+  it("cancels refused probe bodies and bounds a hanging admission probe", async () => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE="https://pipeline.example/{run_id}/{artifact_id}";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN="fixture-key";
+    const cancel=vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({status:404,ok:false,body:{cancel}}));
+    await expect(probeTaskEvaluationResultArtifact({runId:"run",artifactId:"frame"})).resolves.toBe("not_found");
+    expect(cancel).toHaveBeenCalledOnce();
+    vi.useFakeTimers(); let signal!:AbortSignal;
+    vi.stubGlobal("fetch",vi.fn((_url,options)=>new Promise((_resolve,reject)=>{signal=options.signal;signal.addEventListener("abort",()=>reject(new Error("timeout")));})));
+    const pending=probeTaskEvaluationResultArtifact({runId:"run",artifactId:"frame"});
+    await vi.advanceTimersByTimeAsync(ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS);
+    await expect(pending).resolves.toBe("unavailable");expect(signal.aborted).toBe(true);
+  });
+
 });

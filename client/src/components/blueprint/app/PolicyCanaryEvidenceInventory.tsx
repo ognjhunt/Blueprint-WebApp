@@ -1,5 +1,8 @@
+import { PolicyCanaryNotificationRetry } from "./PolicyCanaryNotificationRetry";
+import { useEffect, useRef, useState } from "react";
+import { canaryEvidenceManifestArtifact, loadCanaryEvidenceManifest } from "@/lib/policyCanaryEvidenceManifest";
 import type { User as FirebaseUser } from "firebase/auth";
-import { Download } from "lucide-react";
+import { PrimaryDownload } from "./PolicyCanaryPrimarySummary";
 
 import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
 import {
@@ -8,7 +11,6 @@ import {
   resolvedCanaryCandidates,
 } from "@/lib/policyCanaryResultPortal";
 import {
-  createTaskEvaluationResultArtifactTicket,
   humanBytes,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
@@ -24,23 +26,11 @@ function bytes(value: unknown) {
   return typeof value === "number" ? humanBytes(value) : "Unavailable — not delivered";
 }
 
-async function downloadArtifact(
-  user: FirebaseUser | null,
-  recordId: string,
-  artifact: TaskEvaluationResultArtifact,
-) {
-  const url = await createTaskEvaluationResultArtifactTicket(
-    user,
-    recordId,
-    artifact.artifact_id,
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = artifact.relative_path.split("/").pop() || artifact.role;
-  anchor.click();
+export function PolicyCanaryEvidenceInventory(props: Parameters<typeof PolicyCanaryEvidenceInventoryContent>[0]) {
+  return <PolicyCanaryEvidenceInventoryContent key={`${props.user?.uid || "anonymous"}:${props.user?.tenantId || ""}:${props.result.record_id}:${props.result.publication.result_delivery?.delivery_digest || "missing"}`} {...props} />;
 }
 
-export function PolicyCanaryEvidenceInventory({
+function PolicyCanaryEvidenceInventoryContent({
   result,
   user,
 }: {
@@ -53,7 +43,24 @@ export function PolicyCanaryEvidenceInventory({
   const reproducibility = canary.reproducibility
     || publication.result_delivery?.reproducibility
     || {};
-  const artifacts = buildCanaryArtifactInventory(result);
+  const [fullArtifacts, setFullArtifacts] = useState<TaskEvaluationResultArtifact[] | null>(null);
+  const [manifestState, setManifestState] = useState<"idle" | "loading" | "failed" | "verified">("idle");
+  const [visibleArtifactCount, setVisibleArtifactCount] = useState(100);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  const inlineArtifacts = buildCanaryArtifactInventory(result);
+  const artifacts = fullArtifacts || inlineArtifacts;
+  const manifestArtifact = canaryEvidenceManifestArtifact(result);
+  const omittedArtifactCount = publication.result_delivery?.inline_compaction?.omitted_artifact_count || 0;
+  async function loadManifest() {
+    controller.current?.abort();
+    const request = new AbortController(); controller.current = request;
+    setManifestState("loading");
+    try {
+      const complete = await loadCanaryEvidenceManifest(result, user, request.signal);
+      if (!request.signal.aborted) { setFullArtifacts(complete); setManifestState("verified"); }
+    } catch { if (!request.signal.aborted) setManifestState("failed"); }
+  }
   const totalArtifactBytes = artifacts.reduce((total, artifact) => total + (artifact.size_bytes || 0), 0);
   const roleSummary = [...artifacts.reduce((map, artifact) => {
     const entry = map.get(artifact.role) || { role: artifact.role, count: 0, bytes: 0 };
@@ -81,12 +88,20 @@ export function PolicyCanaryEvidenceInventory({
     (value) => value !== null && value !== undefined,
   );
   const candidates = resolvedCanaryCandidates(result);
-  const notification = publication.notification_delivery;
+  const notification = result.website_delivery?.notification || null;
+  const producerNotification = publication.notification_delivery || canary.notification_delivery;
+  const deliveryLabel = notification
+    ? notification.status === "accepted" ? "Accepted by email transport; inbox delivery not confirmed"
+      : notification.status === "delivered" ? "Delivery reported by the Website notification system"
+      : notification.status === "failed" ? "Notification delivery failed" : "Notification pending"
+    : result.website_delivery?.status === "unavailable" ? "Website delivery status temporarily unavailable"
+      : "Website delivery receipt not verified for this result";
   const receiptRows: Array<[string, TaskEvaluationResultArtifact | undefined, string]> = [
     ["Billing", normalizedArtifact(reproducibility.billing_receipt || canary.closure?.billing) || undefined, "Official provider billing receipt"],
     ["Teardown", normalizedArtifact(reproducibility.teardown_receipt || canary.closure?.teardown) || undefined, "Resource teardown receipt"],
     ["Provider zero", normalizedArtifact(reproducibility.provider_zero_receipt || canary.closure?.provider_zero) || undefined, "Authenticated post-teardown inventory receipt"],
-    ["Email delivery", normalizedArtifact(notification?.receipt) || undefined, notification ? `${notification.status} · ${notification.delivered_at_iso || "timestamp unavailable"}` : "Unavailable — not delivered"],
+    ["Website email delivery", undefined, `${deliveryLabel}${notification ? ` · ${notification.delivered_at_iso || notification.accepted_at_iso || "timestamp unavailable"}` : ""}`],
+    ["Producer notification snapshot", normalizedArtifact(producerNotification?.receipt) || undefined, producerNotification ? `${producerNotification.status} · publication-time snapshot` : "Unavailable — not delivered"],
   ];
   const roleSet = new Set(artifacts.map((artifact) => artifact.role));
   const requiredRoles = [
@@ -132,7 +147,7 @@ export function PolicyCanaryEvidenceInventory({
           <p className="runway-meta">Advanced evidence</p>
           <h2 className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Evidence and provenance</h2>
         </div>
-        <span className="runway-num text-caption text-ink-500">{artifacts.length} delivered files · expand to inspect</span>
+        <span className="runway-num text-caption text-ink-500">{artifacts.length} {fullArtifacts ? "manifest-listed" : "inline"} descriptors · expand to inspect</span>
       </div>
     </summary>
 
@@ -178,13 +193,22 @@ export function PolicyCanaryEvidenceInventory({
       <section aria-labelledby="canary-artifact-inventory-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Complete artifact inventory</h3>
-            <p className="mt-1 text-caption text-ink-500">All {artifacts.length} files are hash-verified and digest-bound to this run · {humanBytes(totalArtifactBytes)} total.</p>
+            <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Published artifact inventory</h3>
+            <p className="mt-1 text-caption text-ink-500">{artifacts.length} artifact descriptors carry reported digests and sizes · {humanBytes(totalArtifactBytes)} reported total. Availability and readable bytes are checked when requested.</p>
           </div>
           <div className="flex flex-wrap gap-2">{requiredRoles.map((role) => <StatusChip key={role} tone={roleSet.has(role) ? "proof" : "warn"} square>
             {role.replaceAll("_", " ")} · {roleSet.has(role) ? "delivered" : "typed gap"}
           </StatusChip>)}</div>
         </div>
+        {omittedArtifactCount > 0 && !fullArtifacts ? <p className="mt-3 text-caption text-ink-600">
+          The compact publication omits {omittedArtifactCount.toLocaleString()} additional descriptors. Load the digest-bound manifest to inspect its full inventory.
+        </p> : null}
+        {manifestArtifact && manifestState !== "verified" ? <Button className="mt-3" type="button" size="sm" variant="secondary"
+          disabled={manifestState === "loading"} onClick={() => void loadManifest()}>
+          {manifestState === "loading" ? "Verifying full manifest…" : manifestState === "failed" ? "Retry full evidence manifest" : "Load full evidence manifest"}
+        </Button> : null}
+        {manifestState === "failed" ? <p role="status" className="mt-2 text-caption text-runway-red">The full manifest could not be loaded or verified. Inline descriptors remain available.</p> : null}
+        {manifestState === "verified" ? <p role="status" className="mt-2 text-caption text-ink-600">Full manifest bytes and run binding verified. Individual artifact availability is checked when requested.</p> : null}
         <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {roleSummary.map((entry) => <div key={entry.role} className="bg-paper-0 p-3">
             <p className="text-caption font-semibold text-ink-800">{entry.role.replaceAll("_", " ")}</p>
@@ -205,22 +229,17 @@ export function PolicyCanaryEvidenceInventory({
                 <th className="runway-meta px-3 py-2">File</th>
               </tr>
             </thead>
-            <tbody>{artifacts.map((artifact) => <tr key={artifact.artifact_id} className="border-b border-line-soft">
+            <tbody>{artifacts.slice(0, visibleArtifactCount).map((artifact) => <tr key={artifact.artifact_id} className="border-b border-line-soft">
               <td className="px-3 py-3 font-semibold">{artifact.role.replaceAll("_", " ")}</td>
               <td className="runway-num px-3 py-3">{artifact.media_type || artifact.content_type}</td>
               <td className="runway-num px-3 py-3">{humanBytes(artifact.size_bytes)}</td>
               <td className="runway-num max-w-64 break-all px-3 py-3">{artifact.sha256}</td>
               <td className="px-3 py-3">{artifact.retention_status || "Not reported"}{artifact.retention_expires_at_iso ? ` · ${artifact.retention_expires_at_iso}` : ""}</td>
-              <td className="px-3 py-3"><Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                iconLeft={<Download aria-hidden="true" />}
-                onClick={() => void downloadArtifact(user, result.record_id, artifact)}
-              >Download</Button></td>
+              <td className="px-3 py-3"><PrimaryDownload artifact={artifact} label="Download" recordId={result.record_id} user={user} /></td>
             </tr>)}{!artifacts.length ? <tr><td className="px-3 py-6 text-ink-500" colSpan={6}>No artifacts were delivered.</td></tr> : null}</tbody>
           </table>
           </div>
+          {visibleArtifactCount < artifacts.length ? <Button className="mt-3" type="button" size="sm" variant="secondary" onClick={() => setVisibleArtifactCount((count) => count + 100)}>Show next 100 artifacts</Button> : null}
         </details>
       </section>
 
@@ -232,9 +251,11 @@ export function PolicyCanaryEvidenceInventory({
             <td className="px-3 py-3 font-semibold">{label}</td>
             <td className="px-3 py-3">{state}</td>
             <td className="runway-num max-w-72 break-all px-3 py-3">{artifact?.sha256 || "Unavailable — not delivered"}</td>
-            <td className="px-3 py-3">{artifact ? <Button type="button" size="sm" variant="secondary" iconLeft={<Download aria-hidden="true" />} onClick={() => void downloadArtifact(user, result.record_id, artifact)}>Download</Button> : <span className="text-ink-400">Typed gap</span>}</td>
+            <td className="px-3 py-3">{artifact ? <PrimaryDownload artifact={artifact} label="Download" recordId={result.record_id} user={user} /> : <span className="text-ink-400">Typed gap</span>}</td>
           </tr>)}</tbody>
         </table>
+        {result.website_delivery?.retry_state === "dispatching" || result.website_delivery?.retry_state === "unknown" ? <p role="status" className="mt-3 text-caption text-ink-600">The latest email retry is pending or requires receipt reconciliation. Automatic resend is disabled.</p> : null}
+        {user && result.website_delivery?.can_retry_email ? <PolicyCanaryNotificationRetry result={result} user={user} /> : null}
         {notification?.status === "failed" ? <ProofBoundary level="warn" title="Notification delivery failed">
           The result remains valid and accessible. Failure: {notification.failure_reason || "provider did not return a reason"}. Attempts: {notification.attempts}.
         </ProofBoundary> : null}

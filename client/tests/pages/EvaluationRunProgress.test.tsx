@@ -1,16 +1,18 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import EvaluationRunProgress from "@/pages/app/EvaluationRunProgress";
 import { fetchEvaluationReadyRun } from "@/lib/evaluationReadyRuns";
 
+const identity = vi.hoisted(() => ({ user: { uid: "friend-1" } as {uid:string} | null, runId: "scene-839873-policy-run-001" }));
+
 vi.mock("wouter", () => ({
-  useParams: () => ({ runId: "scene-839873-policy-run-001" }),
+  useParams: () => ({ runId: identity.runId }),
   Link: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ currentUser: { uid: "friend-1" } }),
+  useAuth: () => ({ currentUser: identity.user }),
 }));
 
 vi.mock("@/components/blueprint/app/AppShell", () => ({
@@ -146,4 +148,91 @@ describe("EvaluationRunProgress", () => {
     expect(screen.getByRole("link", { name: /open complete results/i })).toHaveAttribute("href", "/app/results/result-001");
     expect(screen.getByText(/simulation results are not physical success/i)).toBeInTheDocument();
   });
+});
+
+const status = (state = "running", time = "2026-09-07T12:00:00Z"): any => ({
+  run_id: identity.runId, state, terminal: state === "results_ready", phase: state,
+  updated_at_iso: time, error: null,
+});
+
+describe("status recovery", () => {
+  beforeEach(() => { vi.resetAllMocks(); vi.useFakeTimers(); identity.user = {uid:"friend-1"}; identity.runId = "run-one"; });
+  afterEach(() => { cleanup(); vi.useRealTimers(); });
+  const tick = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+  it("retains stale status, backs off after failures, recovers and stops at terminal", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce(status())
+      .mockRejectedValueOnce(new TypeError("network"))
+      .mockRejectedValueOnce(new Error("503"))
+      .mockResolvedValueOnce(status("results_ready"));
+    render(<EvaluationRunProgress />); await tick(); await tick(8000);
+    expect(screen.getByText(/Displayed data may be stale/)).toBeInTheDocument();
+    expect(screen.getByText("run-one")).toBeInTheDocument();
+    await tick(8000); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(3);
+    await tick(15999); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(3);
+    await tick(1); expect(screen.queryByText(/Displayed data may be stale/)).toBeNull();
+    await tick(120000); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(4);
+  });
+  it("aborts requests and cancels timers on unmount", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue(status());
+    const view = render(<EvaluationRunProgress />); await tick();
+    const signal = vi.mocked(fetchEvaluationReadyRun).mock.calls[0][2];
+    view.unmount(); expect(signal?.aborted).toBe(true);
+    await tick(120000); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(1);
+  });
+  it("clears old owner/run data and ignores an outstanding response after logout", async () => {
+    let finish!: (value:any) => void;
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce(status()).mockImplementationOnce(() => new Promise(resolve => {finish=resolve;}));
+    const view = render(<EvaluationRunProgress />); await tick();
+    identity.runId = "run-two"; view.rerender(<EvaluationRunProgress />); await tick();
+    expect(screen.queryByText("run-one")).toBeNull();
+    identity.user = null; view.rerender(<EvaluationRunProgress />); await tick();
+    await act(async () => finish(status("results_ready")));
+    expect(screen.queryByText("run-two", {selector:"p"})).toBeNull();
+    await tick(120000); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(2);
+  });
+  it("does not replace a newer snapshot with older progress", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce({...status(), phase:"Latest verified phase"})
+      .mockResolvedValueOnce(status("queued", "2026-09-07T11:00:00Z"));
+    render(<EvaluationRunProgress />); await tick(); await tick(8000);
+    expect(screen.getByText("Latest verified phase")).toBeInTheDocument();
+    expect(screen.getByText(/older status update was ignored/)).toBeInTheDocument();
+  });
+  it.each([401,403,404])("clears evidence and stops on HTTP %s", async code => {
+    const { EvaluationRunStatusError } = await import('@/lib/evaluationReadyRuns');
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce(status()).mockRejectedValueOnce(new EvaluationRunStatusError(code));
+    render(<EvaluationRunProgress />); await tick(); await tick(8000);
+    expect(screen.queryByText("run-one", {selector:"p"})).toBeNull();
+    await tick(120000); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(2);
+  });
+  it("caps repeated transient retries at sixty seconds", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockRejectedValue(new TypeError("offline"));
+    render(<EvaluationRunProgress />); await tick();
+    for (const delay of [8000,16000,32000,60000,60000]) await tick(delay);
+    expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(6);
+    await tick(59999); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(6);
+    await tick(1); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(7);
+  });
+  it.each(["blocked","failed","cancelled","abstained","results_ready"])("stops on terminal state %s", async state => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue(status(state));
+    render(<EvaluationRunProgress />); await tick(); await tick(120000);
+    expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("honors status Retry-After without losing the last verified snapshot", async () => {
+    const { EvaluationRunStatusError } = await import('@/lib/evaluationReadyRuns');
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce(status()).mockRejectedValueOnce(new EvaluationRunStatusError(429,42)).mockResolvedValueOnce(status("results_ready"));
+    render(<EvaluationRunProgress />); await tick(); await tick(8000);
+    await tick(41999); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("run-one")).toBeInTheDocument();
+    await tick(1); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not present retained blocked execution progress as the phase of a ready result", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue({...status("results_ready"),phase:"blocked"});
+    render(<EvaluationRunProgress />); await tick();
+    expect(screen.getByText("Current phase").parentElement?.textContent).toContain("Results ready");
+    expect(screen.getByText(/Last reported phase:/)).toBeInTheDocument();
+    expect(screen.getByText("Blocked")).toBeInTheDocument();
+  });
+
 });

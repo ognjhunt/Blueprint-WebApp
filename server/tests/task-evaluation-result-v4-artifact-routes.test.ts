@@ -10,6 +10,9 @@ const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
   registry: new Set<string>(),
   uid: "owner-1" as string | null,
+  notificationUnavailable: false,
+  nestedTenant: null as string | null,
+  conflictingTenant: null as string | null,
   probes: [] as Array<{ runId: string; artifactId: string }>,
   streams: [] as Array<{ runId: string; artifactId: string }>,
 }));
@@ -19,6 +22,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     collection: (collection: string) => ({
       doc: (id: string) => ({
         get: async () => {
+          if (collection === "taskEvaluationPolicyRuns" && state.notificationUnavailable) throw new Error("fixture notification store unavailable");
           const record = state.records.get(`${collection}:${id}`);
           return {
             exists: Boolean(record),
@@ -35,7 +39,7 @@ vi.mock("../utils/taskEvaluationResultArtifactProxy", () => ({
     runId: string;
     artifactId: string;
   }) => {
-    state.probes.push(input);
+    state.probes.push({ runId: input.runId, artifactId: input.artifactId });
     return state.registry.has(`${input.runId}:${input.artifactId}`)
       ? "admitted"
       : "not_found";
@@ -86,7 +90,7 @@ async function startServer() {
   app.use(express.json());
   app.use((_req, res, next) => {
     if (state.uid) {
-      res.locals.firebaseUser = { uid: state.uid, tenantId: "team-1" };
+      res.locals.firebaseUser = state.nestedTenant ? { uid: state.uid, firebase: { tenant: state.nestedTenant }, ...(state.conflictingTenant ? { tenantId: state.conflictingTenant } : {}) } : { uid: state.uid, tenantId: "team-1" };
     }
     next();
   });
@@ -121,6 +125,8 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     state.probes = [];
     state.streams = [];
     state.uid = "owner-1";
+    state.notificationUnavailable = false;
+    state.nestedTenant = null; state.conflictingTenant = null;
     state.records.set("captureTaskEvaluationRuns:result-1", record());
     ({ server, url } = await startServer());
   });
@@ -246,4 +252,63 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     expect((await fetch(`${url}${tampered}`)).status).toBe(404);
     expect(state.streams).toHaveLength(2);
   });
+  it("keeps a listed manifest separate from absent frames and supports registry-backed offloaded evidence", async () => {
+    // A producer-sealed manifest descriptor does not establish that every named
+    // frame remains readable. The exact per-run registry owns each object.
+    state.registry.add("scene-839873-canary-1:evidence-manifest");
+    expect((await issueTicket(url,"evidence-manifest")).status).toBe(201);
+    expect((await issueTicket(url,"frame-named-by-manifest-but-absent")).status).toBe(404);
+    state.registry.add("scene-839873-canary-1:offloaded-frame");
+    const ticket=await issueTicket(url,"offloaded-frame");
+    expect(ticket.status).toBe(201);
+    const body=await ticket.json() as {download_url:string};
+    expect((await fetch(`${url}${body.download_url}`)).status).toBe(206);
+  });
+
+  it("refuses an expired ticket before streaming and permits fresh owner authorization", async () => {
+    const {createTaskEvaluationResultDownloadTicket}=await import('../utils/taskEvaluationResultDownloadTicket');
+    state.registry.add("scene-839873-canary-1:review-video");
+    const expired=createTaskEvaluationResultDownloadTicket("result-1","review-video",1000)!;
+    const response=await fetch(`${url}/api/task-evaluation-result-downloads/result-1/review-video?expires=${expired.expires}&signature=${expired.signature}`);
+    expect(response.status).toBe(404);expect(state.streams).toHaveLength(0);
+    const current=await issueTicket(url,"review-video");expect(current.status).toBe(201);
+    const body=await current.json() as {download_url:string};
+    expect((await fetch(`${url}${body.download_url}`)).status).toBe(206);
+  });
+
+  it("joins a current Website notification for its owner without changing the Pipeline snapshot", async () => {
+    const value = state.records.get("captureTaskEvaluationRuns:result-1")!;
+    const publication = value.publication;
+    state.records.set(`taskEvaluationPolicyRuns:${publication.run_id}`, {
+      run_id: publication.run_id, run_kind: "internal_policy_canary", result_record_id: "result-1",
+      owner_user_id: "owner-1", team_namespace: "team-1", request_digest: publication.request_digest,
+      delivery_digest: publication.result_delivery.delivery_digest,
+      notification_delivery: { terminal_state: "blocked", status: "accepted", attempts: 1,
+        run_result_digest: publication.policy_canary_result.projection_digest, accepted_at: "2026-09-07T00:00:00Z", delivered_at: null },
+    });
+    const response = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    const result = await response.json() as any;
+    expect(result.website_delivery.notification).toMatchObject({status:"accepted",delivered_at_iso:null});
+    expect(result.publication.policy_canary_result.notification_delivery.status).toBe("pending");
+    value.access_visibility = "unlisted_public"; state.uid = null;
+    const publicResult = await (await fetch(`${url}/api/task-evaluation-results/result-1`)).json() as any;
+    expect(publicResult.website_delivery).toBeUndefined();
+    expect(publicResult.publication.policy_canary_result.notification_delivery).toBeUndefined();
+  });
+  it("keeps the sealed result available during a notification-store outage", async () => {
+    state.notificationUnavailable = true;
+    const response = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    expect(response.status).toBe(200);
+    expect((await response.json() as any).website_delivery).toEqual({status:"unavailable",notification:null});
+  });
+
+  it("uses Firebase's standard nested tenant claim and refuses conflicting team identities", async () => {
+    state.uid = "member-2"; state.nestedTenant = "team-1";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(200);
+    state.nestedTenant = "team-2";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(404);
+    state.nestedTenant = "team-1"; state.conflictingTenant = "team-2";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(404);
+  });
+
 });

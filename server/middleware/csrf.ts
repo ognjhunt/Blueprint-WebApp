@@ -16,13 +16,17 @@ const parseCookies = (cookieHeader?: string) => {
     if (!rawKey) {
       return acc;
     }
-    acc[decodeURIComponent(rawKey)] = decodeURIComponent(rest.join("="));
+    try { acc[decodeURIComponent(rawKey)] = decodeURIComponent(rest.join("=")); }
+    catch { /* Malformed cookie entries are not CSRF credentials. */ }
     return acc;
   }, {});
 };
 
-export const csrfCookieHandler = (_req: Request, res: Response) => {
-  const token = crypto.randomBytes(32).toString("hex");
+export const csrfCookieHandler = (req: Request, res: Response) => {
+  // A token read in another tab must not invalidate an already-open page.
+  const current = parseCookies(req.headers.cookie)[CSRF_COOKIE_NAME];
+  const token = typeof current === "string" && /^[0-9a-f]{64}$/.test(current)
+    ? current : crypto.randomBytes(32).toString("hex");
 
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: true,

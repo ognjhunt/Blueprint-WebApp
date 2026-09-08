@@ -7,11 +7,11 @@ import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint"
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
+import { EvaluationRunStatusError, fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
 import type { PolicyCanaryRunProjection } from "@/lib/policyCanaryRuns";
 
 const stateOrder = ["queued_for_preparation", "preparing", "ready_to_activate", "queued", "running", "aggregating", "results_ready"];
-const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed"]);
+const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
 const candidateLabels = { pi05_droid: "π0.5 DROID", groot_n17_droid: "GR00T N1.7 DROID" } as const;
 const familyLabels = {
   canonical_anchor: "Canonical anchor",
@@ -122,30 +122,60 @@ export default function EvaluationRunProgress() {
   const { runId = "" } = useParams<{ runId?: string }>();
   const decodedRunId = decodeURIComponent(runId);
   const { currentUser } = useAuth();
-  const [run, setRun] = useState<EvaluationReadyRunProjection | PolicyCanaryRunProjection | null>(null);
+  const ownerKey = currentUser ? `${currentUser.uid}:${currentUser.tenantId || ""}` : null;
+  const [snapshot, setSnapshot] = useState<{
+    owner: string; runId: string; run: EvaluationReadyRunProjection | PolicyCanaryRunProjection;
+  } | null>(null);
+  const run = currentUser && snapshot?.owner === ownerKey && snapshot.runId === decodedRunId
+    ? snapshot.run : null;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setSnapshot(null);
+    setError(null);
     if (!currentUser || !decodedRunId) return;
     let cancelled = false;
+    let failures = 0;
+    let verified: EvaluationReadyRunProjection | PolicyCanaryRunProjection | null = null;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       try {
-        const next = await fetchEvaluationReadyRun(currentUser, decodedRunId);
+        const next = await fetchEvaluationReadyRun(currentUser, decodedRunId, controller.signal);
         if (cancelled) return;
-        if (!next) throw new Error("This run is not available to the signed-in team.");
-        setRun(next);
+        if (!next) throw new EvaluationRunStatusError(404);
+        if (next.run_id !== decodedRunId) throw new EvaluationRunStatusError(409);
+        if (verified && Date.parse(String(verified.updated_at_iso)) > Date.parse(String(next.updated_at_iso))) {
+          setError("An older status update was ignored. Showing the last verified status; retrying automatically.");
+          timer = setTimeout(() => void load(), Math.min(8_000 * 2 ** failures++, 60_000));
+          return;
+        }
+        failures = 0;
+        verified = next;
+        setSnapshot({ owner: ownerKey!, runId: decodedRunId, run: next });
         setError(null);
-        if (!terminalStates.has(next.state)) timer = setTimeout(() => void load(), 8_000);
+        if (!next.terminal && !terminalStates.has(next.state)) timer = setTimeout(() => void load(), 8_000);
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Evaluation status is unavailable");
+        if (cancelled) return;
+        const status = reason instanceof EvaluationRunStatusError ? reason.status : null;
+        const retryable = status === null || status === 429 || status >= 500;
+        if (!retryable) setSnapshot(null);
+        setError(retryable
+          ? "Status update failed. Displayed data may be stale; retrying automatically."
+          : reason instanceof Error ? reason.message : "Evaluation status is unavailable");
+        if (retryable) {
+          const backoff = Math.min(8_000 * 2 ** failures++, 60_000);
+          const retryAfter = reason instanceof EvaluationRunStatusError ? (reason.retryAfterSeconds || 0) * 1000 : 0;
+          timer = setTimeout(() => void load(), Math.max(backoff, retryAfter));
+        }
       }
     };
     void load();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [currentUser, decodedRunId]);
+    return () => { cancelled = true; controller.abort(); if (timer) clearTimeout(timer); };
+  }, [currentUser, decodedRunId, ownerKey]);
 
   const progress = run?.progress;
+  const terminal = Boolean(run && (run.terminal || terminalStates.has(run.state)));
   const canaryRun = run && "run_kind" in run && run.run_kind === "internal_policy_canary"
     ? run as PolicyCanaryRunProjection
     : null;
@@ -165,7 +195,8 @@ export default function EvaluationRunProgress() {
           </header>
           {canaryRun ? <><ProofBoundary level="warn" title={canaryRun.warning} icon={ShieldAlert}>This canary remains diagnostic even when every episode succeeds. It cannot change the scene to evaluation ready.</ProofBoundary><PolicyCanaryTimeline stage={canaryRun.stage} /></> : <RunTimeline state={run.state} />}
           <Card pad="md">
-            <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{friendlyState(run.phase || run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
+            <div className="flex items-end justify-between gap-4"><div><p className="runway-meta">Current phase</p><p className="mt-1 text-body font-semibold text-ink-900">{friendlyState(terminal ? run.state : run.phase || run.state)}</p></div>{progress ? <p className="runway-num text-title-m font-semibold text-ink-900">{percent}%</p> : null}</div>
+            {terminal && run.phase && run.phase !== run.state ? <p className="mt-2 text-caption text-ink-500">Last reported phase: <span>{friendlyState(run.phase)}</span></p> : null}
             {progress ? <><div className="mt-4 h-2 overflow-hidden bg-inset" aria-label={`${progress.completed_episodes} of ${progress.total_episodes} episodes complete`}><div className="h-full bg-runway-signal transition-[width]" style={{ width: `${percent}%` }} /></div><p className="runway-num mt-2 text-caption text-ink-500">{progress.completed_episodes} / {progress.total_episodes} episodes</p></> : null}
             {run.episode_counts ? <p className="mt-2 text-caption text-ink-400">{run.episode_counts.learned_episode_count} learned-policy episodes · {run.episode_counts.control_episode_count} control episodes</p> : null}
           </Card>

@@ -37,4 +37,10 @@ describe("Task Evaluation Run publication storage", () => {
       payload_base64: `${storage.payload_base64.slice(0, -4)}AAAA`,
     })).toBeNull();
   });
+  it("rejects incorrect declared compressed and uncompressed sizes", () => {
+    const storage=encodeTaskEvaluationRunPublication({run_id:"fixture"});
+    expect(decodeTaskEvaluationRunPublication({...storage,compressed_size_bytes:storage.compressed_size_bytes+1})).toBeNull();
+    expect(decodeTaskEvaluationRunPublication({...storage,uncompressed_size_bytes:storage.uncompressed_size_bytes+1})).toBeNull();
+  });
+
 });

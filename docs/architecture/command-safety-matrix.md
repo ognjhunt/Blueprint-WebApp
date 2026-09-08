@@ -8,6 +8,7 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 
 | Command | Side-effect class | Notes |
 |---|---:|---|
+| `npm run test:result-consumer:browser` | local browser + mocked APIs | Starts only loopback Vite with dev-only fake auth, no production dotenv files or backend. One worker; all result/media/email calls are fixtures. Set `RESULT_CONSUMER_QA_PORT` and `RESULT_CONSUMER_QA_OUTPUT` for isolated lanes. |
 | `npm run check` | local read/compile only | Runs `tsc -p tsconfig.full.json --noEmit`. Safe default verification for TypeScript contracts. |
 | `npm run audit:assets` | local read only | Scans repo/public assets for root screenshot dumps, oversized files, and unreferenced public image/thumbnail assets. It can fail on generated or stale local files. |
 | `npm run qa:polish` | local browser automation + output artifacts | Starts the Playwright local dev server, checks public routes at desktop/mobile sizes, writes screenshots and reports under `output/qa/brand-polish/latest/`, and does not call live sends, providers, payments, deploys, or Notion writes. |
@@ -51,6 +52,10 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 | `npm run test` | local tests | Runs full Vitest suite without coverage. |
 | `npm run alpha:check` | heavy local gate | Runs `npm run check`, then Vitest coverage with a single worker and fails on skipped assertions. |
 | `npm run build` | local build output | Builds Vite client, prerenders, generates sitemap, and bundles server into `dist/`. Safe locally but changes generated build output. |
+
+### Result email retry is a mutation
+
+`POST /api/task-evaluation-results/:recordId/notification-retries` can send one result email to the run's bound recipient. It requires an explicit owner/operations action, CSRF, an idempotency request ID, expected result digest, and bounded attempt admission. Never use it as a read-only status or media probe. Local result-consumer tests fake the sender and do not authorize a live resend.
 
 ## Commands With External Or Live Side Effects
 

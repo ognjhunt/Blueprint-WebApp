@@ -9,6 +9,7 @@ MANIFEST_PATH="$WORKSPACE_DIR/corpus.manifest.txt"
 GRAPHIFY_IGNORE_SOURCE="$ROOT_DIR/.graphifyignore"
 ROOT_OUTPUT_DIR="$ROOT_DIR/graphify-out"
 SCAN_DIR=""
+PYTHON_BIN="${BLUEPRINT_GRAPHIFY_PYTHON:-python3}"
 
 RUN_GRAPHIFY=1
 NO_VIZ=0
@@ -30,6 +31,9 @@ Options:
   --no-viz         Skip HTML output for the AST pilot
   --mode <value>   Reserved for future semantic/deep extraction support
   --help           Show this help text
+
+Set BLUEPRINT_GRAPHIFY_PYTHON to an existing isolated interpreter with graphifyy.
+The runner never installs packages or changes that interpreter.
 EOF
 }
 
@@ -186,13 +190,12 @@ if [ "$RUN_GRAPHIFY" -eq 0 ]; then
   exit 0
 fi
 
-if ! python3 - <<'PY' >/dev/null 2>&1
+if ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
 import graphify  # noqa: F401
 PY
 then
-  echo "error: graphifyy Python package is not available to python3." >&2
-  echo "Install it first, then rerun this command." >&2
-  echo "Suggested install: python3 -m pip install --user graphifyy" >&2
+  echo "error: graphifyy is unavailable in the selected Python interpreter." >&2
+  echo "Set BLUEPRINT_GRAPHIFY_PYTHON to an existing isolated interpreter with graphifyy." >&2
   exit 1
 fi
 
@@ -224,7 +227,7 @@ fi
 # equivalent temporary copy outside the repo, while still writing outputs back
 # to the derived corpus path and publishing the canonical root graphify-out/.
 PY_ARGS[1]="$SCAN_DIR"
-python3 "$ROOT_DIR/scripts/graphify/run-staged-ast-pilot.py" "${PY_ARGS[@]}"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/graphify/run-staged-ast-pilot.py" "${PY_ARGS[@]}"
 
 publish_root_graphify_out
 

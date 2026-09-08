@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Download } from "lucide-react";
 
@@ -12,11 +12,16 @@ import {
 } from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
+  TaskEvaluationArtifactTicketError,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
 
-export function PrimaryDownload({
+export function PrimaryDownload(props: Parameters<typeof PrimaryDownloadContent>[0]) {
+  return <PrimaryDownloadContent key={`${props.user?.uid || "anonymous"}:${props.user?.tenantId || ""}:${props.recordId}:${props.artifact?.artifact_id || "missing"}`} {...props} />;
+}
+
+function PrimaryDownloadContent({
   artifact,
   label,
   recordId,
@@ -28,22 +33,40 @@ export function PrimaryDownload({
   user: FirebaseUser | null;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
+  const mounted = useRef(true);
+  const request = useRef<AbortController | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryWait, setRetryWait] = useState<number | null>(null);
+  useEffect(() => {
+    if (!retryWait) return;
+    const timer = setTimeout(() => setRetryWait(null), retryWait * 1000);
+    return () => clearTimeout(timer);
+  }, [retryWait]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
   async function download() {
-    if (!artifact) return;
+    if (!artifact || retryWait) return;
+    request.current?.abort(); request.current = new AbortController();
+    setError(null);
     setState("loading");
     try {
       const url = await createTaskEvaluationResultArtifactTicket(
         user,
         recordId,
         artifact.artifact_id,
+        { signal: request.current.signal },
       );
+      if (!mounted.current) return;
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = artifact.relative_path.split("/").pop() || artifact.role;
+      anchor.download = String(artifact.relative_path || artifact.artifact_id).split("/").pop() || artifact.role;
       anchor.click();
       setState("idle");
-    } catch {
-      setState("failed");
+    } catch (reason) {
+      if (mounted.current) {
+        setState("failed");
+        setError(reason instanceof TaskEvaluationArtifactTicketError ? reason.message : "Artifact authorization failed. Retry the download.");
+        if (reason instanceof TaskEvaluationArtifactTicketError && reason.status === 429) setRetryWait(reason.retryAfterSeconds);
+      }
     }
   }
   const text = !artifact
@@ -53,16 +76,16 @@ export function PrimaryDownload({
       : state === "failed"
         ? `Retry ${label}`
         : label;
-  return <Button
+  return <span className="inline-flex max-w-full flex-col items-start gap-1"><Button
     type="button"
     size="sm"
     variant={label === "Full JSON" ? "action" : "secondary"}
     iconLeft={<Download aria-hidden="true" />}
-    disabled={!artifact || state === "loading"}
+    disabled={!artifact || state === "loading" || Boolean(retryWait)}
     onClick={() => void download()}
   >
     {text}
-  </Button>;
+  </Button>{error ? <span role="status" className="max-w-xs text-caption text-runway-red">{error}</span> : null}</span>;
 }
 
 function ciCaption(wilson: { lower: number; upper: number } | null) {
@@ -89,11 +112,11 @@ export function PolicyCanaryPrimarySummary({
   );
   const episodeRecords = (publication.result_delivery?.episodes || [])
     .filter((episode) => episode.episode_kind === "learned_candidate").length;
-  const blocked = Math.max(episodeRecords - completed, 0);
+  const otherRecords = Math.max(episodeRecords - completed, 0);
   const downloads = primaryCanaryDownloads(result);
   const summaries = canaryCandidateSummaries(result);
   const comparison = pairedCanaryComparison(result);
-  const hasVerdict = Boolean(comparison && summaries.some((summary) => summary.success_rate !== null));
+  const hasVerdict = Boolean(comparison);
 
   return <section
     className="runway-panel overflow-hidden border-t-2 border-t-runway-signal"
@@ -113,15 +136,14 @@ export function PolicyCanaryPrimarySummary({
       </div>
 
       {hasVerdict ? <div className="flex flex-col gap-4 border-t border-line pt-5">
-        <p className="runway-meta">Success rate · scored episodes · Wilson 95% interval</p>
+        <p className="runway-meta">Overall candidate rates · separate scored denominators · Wilson 95% intervals</p>
         <div className="flex flex-col gap-4">
           {summaries.map((summary) => {
-            const isLeader = comparison?.leader?.candidate_id === summary.candidate_id;
             return <div key={summary.candidate_id} className="flex flex-col gap-1">
               <PolicyRankBar
                 label={summary.display_name}
                 value={summary.success_rate ?? 0}
-                winner={isLeader}
+                winner={false}
                 style={{ gridTemplateColumns: "minmax(10rem,16rem) minmax(0,1fr) auto" }}
                 metric={<span>
                   {formatCanaryPercent(summary.success_rate)}
@@ -129,15 +151,16 @@ export function PolicyCanaryPrimarySummary({
                 </span>}
               />
               <p className="runway-num pl-2 text-[0.66rem] text-ink-400">
-                {ciCaption(summary.wilson)}
+                {ciCaption(summary.wilson)} · {summary.delivered_count} delivered records · {summary.excluded_count} unscored or ambiguous records
               </p>
             </div>;
           })}
         </div>
         <p className="text-caption text-ink-500">
-          N = {cellCount} per policy on one scene — a diagnostic sample. Peer practice for a ranking-grade
-          claim is roughly 50–300+ trials per condition, so this run can flag a large gap but does not
-          settle a winner.
+          Paired headline and sign test use only unique matching cell/seed records with explicit
+          interpretability and boolean outcomes for both candidates. Overall rates include each
+          candidate’s other scorable cells; missing or ambiguous records remain excluded and visible.
+          These diagnostic observations do not settle a winner.
         </p>
       </div> : null}
 
@@ -155,7 +178,8 @@ export function PolicyCanaryPrimarySummary({
           <StatusChip tone={episodeRecords === episodeCount ? "proof" : "warn"} square>
             {episodeRecords}/{episodeCount} episode records
           </StatusChip>
-          <StatusChip tone={blocked ? "warn" : "proof"} square>{completed} completed · {blocked} blocked</StatusChip>
+          <StatusChip tone={otherRecords ? "warn" : "neutral"} square>{completed} reported completed · {otherRecords} other delivered records</StatusChip>
+          {publication.result_status ? <StatusChip tone="warn" square>{publication.result_status.replaceAll("_", " ")}</StatusChip> : null}
           <StatusChip tone="warn" square>No winner declared · diagnostic</StatusChip>
         </div>
       </div>
