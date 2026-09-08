@@ -49,7 +49,7 @@ describe("public real-site evaluation copy", () => {
     expect(container).toHaveTextContent(/Use it to commission\. Not to discover/i);
     expect(container).toHaveTextContent(/Blueprint owns the site\. You own the robot/i);
     expect(container).toHaveTextContent(
-      /the gaps and the acceptance criteria — packaged before anyone flies/i,
+      /the gaps and the pass mark — packaged before anyone flies/i,
     );
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.

@@ -1,82 +1,49 @@
 import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
-import { DeploymentPipelineChart } from "@/components/site/runway/figures";
-import { FigureFrame } from "@/components/site/runway/shell";
 import { Reveal } from "@/components/site/motion";
-import {
-  Band,
-  ClosingCta,
-  Inner,
-  SectionHeader,
-} from "@/components/site/publicSections";
-import { deploymentPipelineMeta } from "@/data/deploymentMarket";
+import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
   {
     question: "What does Blueprint do?",
     answer:
-      "Blueprint evaluates robots for real sites and prepares the deployment. We record one real job, rebuild it as a secure test, find out which robots can do it, and hand the gaps and acceptance criteria to the team doing the install. We only take sites that want a pilot or deployment and have budget for one.",
+      "We record one real job, rebuild it as a test every robot takes, find out which robots can do it, and hand the gaps and the pass mark to the team doing the install. We only take sites that want a pilot and have budget for one.",
   },
   {
     question: "Why is that useful?",
     answer:
-      "Without Blueprint, every robot company repeats site discovery, modeling, assumptions, and early testing. The answers are hard to compare, and basic mismatches are often found after engineers or hardware are already committed.",
-  },
-  {
-    question: "Do you work with any site that asks?",
-    answer:
-      "No. We only run evaluations for sites that want a pilot or deployment and are prepared to pay for one. Before a job becomes an evaluation, the site names the work, a budget range, an internal owner, a pilot area, timing, and how it actually buys. That is our admission bar — it is not a signed order, verified funding, or a promise that the site will purchase.",
-  },
-  {
-    question: "Why does that matter to a robot team?",
-    answer:
-      "Because you are testing against demand instead of a demo. Every job you see on Blueprint already carries a budget, a named owner, and a procurement path, so the qualifying work is done before your deployment engineers spend a day on it.",
+      "Without Blueprint, every robot company redoes site discovery, modelling and early testing from scratch — and basic mismatches often surface only after engineers and hardware are already onsite. That is slow and expensive on both sides.",
   },
   {
     question: "Why call this months 0–2?",
     answer:
-      "Agility's published Customer Acceleration Program labels its first roughly two months as Proof of Tech: test skills, confirm use-case fit, gather first KPIs, and define the workflow. Agility also says it recreates customer conditions in simulation and physically at its own facility during this phase.",
+      "Agility's published timeline labels its first roughly two months as proof of technology: test the skills, confirm the task fits, and define the workflow — before the robot ever ships. That is the phase Blueprint does.",
   },
   {
     question: "Does Blueprint replace onsite integration?",
     answer:
-      "No. The robot provider still connects the real robot, maps the work area, integrates systems, handles site-specific adjustments, trains onsite teams, and completes safety and commissioning work.",
+      "No. The robot company still connects the robot, maps the space, integrates systems, trains the team, and completes safety and commissioning work.",
   },
   {
     question: "Does Blueprint replace the physical pilot?",
     answer:
-      "No. Simulation can filter and focus the trip. Real hardware is still required to prove uptime, throughput, reliability, safety, and business impact at the actual site.",
-  },
-  {
-    question: "What does a site need to submit?",
-    answer:
-      "Answers, not artifacts. Six questions about the room decide whether a robot could work there today, and a description of the task in your own words does the rest. Object weights, cycle time, volume, and your acceptance threshold are dropdowns. Nothing has to be measured, drawn, or exported first. If you already have a short video of the task being done, you can point us at it — useful, and optional. Alongside the job we also ask the commercial side: a budget range, a named internal owner, and the procurement path.",
-  },
-  {
-    question: "Do we have to capture the site ourselves?",
-    answer:
-      "No. Blueprint sends a trained capture operator with a 360 camera and phone rig, and nobody at your site captures anything. Your team supplies an escort, the task objects, and the person who can say what counts as success.",
-  },
-  {
-    question: "Does every site get a capture visit?",
-    answer:
-      "No, and not because of cost. A capture is the last step of qualification: we screen the task, then check it against the robot teams we are actually in conversation with, and only send an operator once there is a match. We do not capture speculatively — a captured site with no interested robot team costs us money and tells you something false about demand.",
+      "No. Simulation can filter and focus the trip. Real hardware is still required to prove uptime, throughput, reliability and safety at the actual site.",
   },
   {
     question: "Do robot teams download the site twin?",
     answer:
-      "No. They receive progressive access. Qualified teams can run approved evaluations in Blueprint's controlled environment without receiving unrestricted raw site files. Training rights are negotiated separately.",
+      "No. Qualified teams run approved evaluations inside Blueprint's hosted environment. They never receive a downloadable copy of your site, and training rights are separate.",
   },
   {
     question: "What if a robot does not fit?",
     answer:
-      "That is a useful result. Blueprint reports the mismatch, the evidence behind it, and what would have to change. It does not invent a winner or call the site deployment-ready.",
+      "That is a useful result — and often the most valuable one, because it stops a pilot that would have failed. Blueprint reports the mismatch and what would have to change. It never invents a winner.",
   },
   {
     question: "How is Blueprint paid?",
     answer:
-      "Two numbers, both paid by robot teams. $1,000 to evaluate a site-task, which buys a captured task, a standardised test and a scored result. If that team is then selected for the pilot or deployment, the total for that task is $10,000. A team that loses pays $1,000; a team that wins pays $10,000. Nothing else — no percentage, no per-robot rate, nothing recurring. Sites pay nothing, because they contribute the floor, the access and the task data.",
+      "Two numbers, both paid by robot teams: $1,000 to evaluate a site-task, and $10,000 in total if that team wins the work. Nothing recurring. Sites pay nothing.",
   },
 ];
 
@@ -108,31 +75,11 @@ export default function FAQ() {
               We find the robot that can do the job, then help you deploy it.
             </h1>
             <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">
-              Ten short answers. No simulation jargon required.
+              Short answers. No jargon.
             </p>
           </Reveal>
           <Reveal delay={0.08} className="mt-14">
             <EditorialFaq title="Questions" items={faqItems} />
-          </Reveal>
-        </Inner>
-      </Band>
-
-      <Band tone="paper" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            eyebrow="Keep the boundary visible"
-            title="We cover the highlighted phase."
-          />
-          <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 01"
-              title="Path to scaled deployment"
-              basis="illustrative"
-              sources={[deploymentPipelineMeta.source, deploymentPipelineMeta.processSource]}
-              caveat={deploymentPipelineMeta.caveat}
-            >
-              <DeploymentPipelineChart />
-            </FigureFrame>
           </Reveal>
         </Inner>
       </Band>

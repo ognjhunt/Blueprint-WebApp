@@ -1,36 +1,25 @@
 /**
- * For site operators.
+ * For site operators — lean.
  *
- * The operator's real question is not "which robot should I buy" — it is
- * "will anyone send me one, and what do I have to do to be worth sending one
- * to." So the page is organised around queue position: robot capacity is
- * allocated, not merely sold, and a site that arrives already captured,
- * modelled, and screened is cheaper to say yes to than one that arrives as a
- * phone call.
- *
- * The access ladder is given its own section because the objection that kills
- * these conversations is never price. It is "I am not handing my facility
- * model to eight vendors."
+ * The operator's real question is "will anyone send me a robot, and what do I
+ * have to do to be worth sending one to." So: show the job, set the rules, see
+ * who fits — then the biggest reason to do this at all, which is not paying for
+ * the wrong physical pilot.
  */
 import { LockKeyhole, ScanSearch, ShieldCheck } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
 import { Reveal } from "@/components/site/motion";
-import {
-  DeploymentPipelineChart,
-  QualifyingGatesFigure,
-  StructuralCompareFigure,
-} from "@/components/site/runway/figures";
+import { AvoidWrongPilotFigure, QualifyingGatesFigure } from "@/components/site/runway/figures";
 import { PageHero } from "@/components/site/publicSections";
 import {
   Band,
   BoundaryPanel,
-  FigureFrame,
   Inner,
   RunwayCta,
   SectionHead,
 } from "@/components/site/runway/shell";
-import { deploymentBoundary, deploymentPipelineMeta } from "@/data/deploymentMarket";
+import { deploymentBoundary } from "@/data/deploymentMarket";
 import { qualifyingStandard } from "@/data/qualifyingEnvironments";
 import { siteOperatorHero } from "@/data/publicSiteCopy";
 import { serviceArea } from "@/data/serviceArea";
@@ -42,17 +31,17 @@ const submitHref =
 const siteSteps = [
   {
     title: "Show the job",
-    body: "Phone video, plans, measurements, throughput, exceptions — and a guided scan where one is available.",
+    body: "A phone video, plans, throughput, the exceptions — and a guided scan where one is available.",
     Icon: ScanSearch,
   },
   {
     title: "Set the rules",
-    body: "Restricted areas, allowed uses, approved viewers, and whether physical access is ever permitted.",
+    body: "Restricted areas, allowed uses, approved viewers, and whether anyone ever tests on your floor.",
     Icon: LockKeyhole,
   },
   {
-    title: "Review qualified fit",
-    body: "Which robot categories fit, what stays unknown, and which teams have earned deeper access.",
+    title: "See who fits",
+    body: "Which robot types fit, what stays unknown, and which teams have earned deeper access.",
     Icon: ShieldCheck,
   },
 ] as const;
@@ -104,7 +93,7 @@ export default function ForSiteOperators() {
       <PageHero
         eyebrow={siteOperatorHero.eyebrow}
         title={siteOperatorHero.title}
-        body={siteOperatorHero.body}
+        body="Tell us one real job. We record it once and run every qualified team against the same test, so you compare measured results instead of demo reels — before anyone visits your floor."
         chips={siteOperatorHero.chips}
         ctaHref={submitHref}
         ctaLabel="Submit a job"
@@ -122,7 +111,7 @@ export default function ForSiteOperators() {
             index="01"
             eyebrow="What you do"
             title="Show the job. Set the rules. See who fits."
-            lede="You don't need to pick a robot to start. Just know the job."
+            lede="You don't need to pick a robot to start. You just need to know the job."
           />
           <div className="mt-14 grid gap-px border border-runway-line bg-runway-line lg:grid-cols-3">
             {siteSteps.map(({ title, body, Icon }, index) => (
@@ -151,37 +140,10 @@ export default function ForSiteOperators() {
           <div className="mt-14">
             <QualifyingGatesFigure />
           </div>
-          <Reveal className="mt-10 border-t border-runway-line pt-8">
-            <p className="max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-mute">
-              {qualifyingStandard.consequence}
+          <Reveal className="mt-8 border-t border-runway-line pt-6">
+            <p className="max-w-[68ch] text-[13.5px] leading-[1.7] text-runway-mute">
+              {serviceArea.claim} {serviceArea.detail}
             </p>
-            <p className="mt-4 max-w-[68ch] text-[14.5px] leading-[1.75] text-runway-text">
-              {qualifyingStandard.secondOrder}
-            </p>
-          </Reveal>
-
-          {/*
-            The fifth practical condition. A site can clear all four gates above
-            and still be somewhere we cannot send an operator, so the geography
-            is stated next to the screen rather than discovered on a call.
-          */}
-          <Reveal delay={0.12} className="mt-10 border-t border-runway-line pt-8">
-            <div className="grid gap-x-14 gap-y-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div>
-                <span className="runway-meta text-runway-signal">And one more</span>
-                <p className="mt-3 text-[17px] font-semibold leading-[1.35] tracking-[-0.025em] text-runway-text">
-                  {serviceArea.claim}
-                </p>
-              </div>
-              <div>
-                <p className="max-w-[56ch] text-[14px] leading-[1.75] text-runway-mute">
-                  {serviceArea.detail}
-                </p>
-                <p className="mt-3 max-w-[56ch] text-[13px] leading-[1.7] text-runway-faint">
-                  {serviceArea.outside}
-                </p>
-              </div>
-            </div>
           </Reveal>
         </Inner>
       </Band>
@@ -196,21 +158,13 @@ export default function ForSiteOperators() {
           />
           <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
             {accessLevels.map((level, index) => (
-              <Reveal
-                key={level.step}
-                as="li"
-                delay={index * 0.06}
-                className="bg-runway-panel p-6"
-              >
+              <Reveal key={level.step} as="li" delay={index * 0.06} className="bg-runway-panel p-6">
                 <div>
                   <div className="flex items-center gap-2.5">
                     <span className="runway-num text-[11px] tracking-[0.18em] text-runway-signal">
                       {level.step}
                     </span>
-                    <span
-                      aria-hidden="true"
-                      className="h-px flex-1 bg-runway-line"
-                    />
+                    <span aria-hidden="true" className="h-px flex-1 bg-runway-line" />
                     <LockKeyhole className="h-3.5 w-3.5 text-runway-faint" aria-hidden="true" />
                   </div>
                   <h3 className="mt-5 text-[15px] font-semibold leading-6 tracking-[-0.015em] text-runway-text">
@@ -228,11 +182,11 @@ export default function ForSiteOperators() {
         <Inner className="py-20 lg:py-28">
           <SectionHead
             index="04"
-            eyebrow="Why not do it yourself"
-            title="Stop explaining the same job to every vendor."
+            eyebrow="Why it's worth it"
+            title="The point is not speed. It is not paying for the wrong pilot."
           />
           <div className="mt-14">
-            <StructuralCompareFigure />
+            <AvoidWrongPilotFigure />
           </div>
         </Inner>
       </Band>
@@ -244,18 +198,7 @@ export default function ForSiteOperators() {
             eyebrow="Where Blueprint stops"
             title="The robot provider still owns onsite deployment."
           />
-          <Reveal className="mt-14">
-            <FigureFrame
-              label="Fig. 02"
-              title="Path to scaled deployment"
-              basis="illustrative"
-              sources={[deploymentPipelineMeta.source]}
-              caveat={deploymentPipelineMeta.caveat}
-            >
-              <DeploymentPipelineChart />
-            </FigureFrame>
-          </Reveal>
-          <div className="mt-8">
+          <div className="mt-14">
             <BoundaryPanel items={deploymentBoundary} />
           </div>
         </Inner>
@@ -264,7 +207,7 @@ export default function ForSiteOperators() {
       <RunwayCta
         eyebrow="Start with the job · $0 to submit"
         title="You don't need a robot vendor to begin."
-        body="Describe the workflow, the operating conditions, the success criteria, and the access rules. Blueprint will tell you what can be screened now and what evidence is still missing."
+        body="Describe the workflow, the conditions, what counts as success, and the access rules. We'll tell you what can be screened now and what evidence is still missing."
         primaryHref={submitHref}
         primaryLabel="Submit a job"
         secondaryHref="/pricing"

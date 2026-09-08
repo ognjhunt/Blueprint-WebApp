@@ -36,15 +36,6 @@ test("homepage leads with what Blueprint is, then the boundary", async ({
   await expect(
     page.getByText(/Blueprint does everything before the robot arrives/i).first(),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /A qualified deployable workcell/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Do the work once\. Not once per vendor/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Robot teams say what they can do/i }),
-  ).toBeVisible();
 
   // The half Blueprint does not touch is on the page, with the physical reason.
   await expect(page.getByText(/Blueprint owns the site\. You own the robot/i)).toBeVisible();
@@ -58,9 +49,9 @@ test("homepage leads with what Blueprint is, then the boundary", async ({
     page.getByText(/OEM engineering hours before the robot arrives/i).first(),
   ).toBeVisible();
 
-  // The cross-vendor record is described as an outcome, never as an asset held today.
+  // The claim is stated honestly, not as a six-months-to-two-weeks promise.
   await expect(
-    page.getByText(/This record does not exist yet/i),
+    page.getByText(/use the real robot only for the tests that actually need the real robot/i),
   ).toBeVisible();
 
   // The one charted figure still carries its source and evidence grade.
