@@ -12,7 +12,7 @@ The progress page retries transient reads with bounded backoff, honors Retry-Aft
 
 ## Artifact delivery
 
-1. The result record and caller's owner/team/unlisted-public access are checked.
+1. The result record and caller's owner/team/unlisted-public access are checked. The standard `firebase.tenant` claim and compatible legacy aliases are read only from the verified principal; conflicting tenant claims cannot grant team access.
 2. A listed artifact's digest/size are resolved from the verified publication. Conflicting descriptors are refused.
 3. V4 registry admission probes use a signed, bounded Range read. Every response body is cancelled after probing; redirects cannot forward Pipeline credentials to another host.
 4. A short-lived ticket authorizes the exact result/artifact. The download route rechecks the current publication/registry admission.
@@ -31,7 +31,7 @@ The canary headline, delta, and sign test share unique, mutually interpretable b
 
 Website notification receipts are joined by owner, run, result, and projection/delivery digests. They remain separate from Pipeline's immutable publication-time snapshot. Transport acceptance is not inbox delivery.
 
-`POST /api/task-evaluation-results/:recordId/notification-retries` is an **email mutation**, not a status refresh. It requires Firebase authentication, the outer API CSRF middleware, owner/operations authority, `authorize_email_retry: true`, an idempotency request ID, and the expected result digest. The recipient comes from the original bound run. Total attempts are capped at three; only failed delivery is eligible. Concurrent/ambiguous attempts cannot create a blind resend. Prior and retry receipts are preserved. No execution, preparation, payment, profile publication, or GPU path is called.
+`POST /api/task-evaluation-results/:recordId/notification-retries` is an **email mutation**, not a status refresh. It requires Firebase authentication, current Firebase-account owner/operations authority (not historical profile roles), the outer API CSRF middleware, `authorize_email_retry: true`, an idempotency request ID, and the expected result digest. The recipient comes from the original bound run. Total attempts are capped at three; only failed delivery is eligible. Concurrent/ambiguous attempts cannot create a blind resend. Prior and retry receipts are preserved. No execution, preparation, payment, profile publication, or GPU path is called.
 
 The client reuses its request ID after a lost response. Successful retry means email transport accepted the message; the UI does not claim that it reached the inbox.
 

@@ -1,3 +1,4 @@
+import { taskEvaluationFirebaseTenant } from "../utils/taskEvaluationFirebaseTenant";
 import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import { Router, type NextFunction, type Request, type Response } from "express";
 
@@ -28,8 +29,7 @@ const stateRank = new Map(EVALUATION_READY_RUN_STATES.map((state, index) => [sta
 const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
 
 function firebaseTenantId(res: Response) {
-  const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
-  return String(user?.tenantId || user?.tenant_id || "").trim();
+  return taskEvaluationFirebaseTenant(res.locals.firebaseUser);
 }
 
 function requirePipelineSignature(req: Request, res: Response, next: NextFunction) {

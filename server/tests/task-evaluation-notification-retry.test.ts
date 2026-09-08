@@ -16,6 +16,7 @@ const harness=vi.hoisted(()=>{
 });
 vi.mock('../../client/src/lib/firebaseAdmin',()=>({dbAdmin:harness.db}));
 vi.mock('../utils/transactional-notifications',()=>({dispatchTransactionalEmailNotification:harness.send}));
+vi.mock('../utils/access-control',async original=>({...await original<typeof import('../utils/access-control')>(),resolveExecutionAccessContext:async(res:any)=>({uid:res.locals.firebaseUser?.uid||null,email:null,roles:[],isAdmin:false,isOps:false})}));
 vi.mock('../middleware/verifyFirebaseToken',()=>({default:(_req:unknown,res:any,next:()=>void)=>res.locals.firebaseUser?next():res.status(401).json({error:'fixture authentication required'})}));
 import router from '../routes/task-evaluation-results';
 import { retryTaskEvaluationResultNotification } from '../utils/taskEvaluationNotificationRetry';

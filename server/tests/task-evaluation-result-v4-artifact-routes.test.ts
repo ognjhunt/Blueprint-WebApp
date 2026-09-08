@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
   registry: new Set<string>(),
   uid: "owner-1" as string | null,
   notificationUnavailable: false,
+  nestedTenant: null as string | null,
+  conflictingTenant: null as string | null,
   probes: [] as Array<{ runId: string; artifactId: string }>,
   streams: [] as Array<{ runId: string; artifactId: string }>,
 }));
@@ -88,7 +90,7 @@ async function startServer() {
   app.use(express.json());
   app.use((_req, res, next) => {
     if (state.uid) {
-      res.locals.firebaseUser = { uid: state.uid, tenantId: "team-1" };
+      res.locals.firebaseUser = state.nestedTenant ? { uid: state.uid, firebase: { tenant: state.nestedTenant }, ...(state.conflictingTenant ? { tenantId: state.conflictingTenant } : {}) } : { uid: state.uid, tenantId: "team-1" };
     }
     next();
   });
@@ -124,6 +126,7 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     state.streams = [];
     state.uid = "owner-1";
     state.notificationUnavailable = false;
+    state.nestedTenant = null; state.conflictingTenant = null;
     state.records.set("captureTaskEvaluationRuns:result-1", record());
     ({ server, url } = await startServer());
   });
@@ -297,6 +300,15 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     const response = await fetch(`${url}/api/task-evaluation-results/result-1`);
     expect(response.status).toBe(200);
     expect((await response.json() as any).website_delivery).toEqual({status:"unavailable",notification:null});
+  });
+
+  it("uses Firebase's standard nested tenant claim and refuses conflicting team identities", async () => {
+    state.uid = "member-2"; state.nestedTenant = "team-1";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(200);
+    state.nestedTenant = "team-2";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(404);
+    state.nestedTenant = "team-1"; state.conflictingTenant = "team-2";
+    expect((await fetch(`${url}/api/task-evaluation-results/result-1`)).status).toBe(404);
   });
 
 });

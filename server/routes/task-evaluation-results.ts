@@ -1,3 +1,4 @@
+import { taskEvaluationFirebaseTenant } from "../utils/taskEvaluationFirebaseTenant";
 import { z } from "zod";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { MAX_RESULT_NOTIFICATION_ATTEMPTS, ResultNotificationRetryError, retryTaskEvaluationResultNotification } from "../utils/taskEvaluationNotificationRetry";
@@ -7,7 +8,7 @@ import { resultArtifactMetadata } from "../utils/taskEvaluationArtifactIntegrity
 import { Router, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { resolveAccessContext } from "../utils/access-control";
+import { resolveAccessContext, resolveExecutionAccessContext } from "../utils/access-control";
 import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResultAccess";
 import { taskEvaluationResultArtifactAdmission } from "../utils/taskEvaluationResultArtifactAdmission";
 import {
@@ -37,8 +38,7 @@ type ResultRecord = Record<string, any> & {
 };
 
 function firebaseTenantId(res: Response) {
-  const user = res.locals.firebaseUser as { tenantId?: string; tenant_id?: string } | undefined;
-  return String(user?.tenantId || user?.tenant_id || "").trim();
+  return taskEvaluationFirebaseTenant(res.locals.firebaseUser);
 }
 
 async function accessFor(record: ResultRecord, res: Response) {
@@ -227,7 +227,7 @@ router.post("/:recordId/notification-retries", verifyFirebaseToken, async (req, 
   if (!db) return res.status(503).json({ error: "Result notification store is unavailable" });
   const parsed = notificationRetryRequest.safeParse(req.body);
   if (!parsed.success || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(req.params.recordId)) return res.status(400).json({ error: "Explicit digest-bound email retry authorization is required" });
-  const access = await resolveAccessContext(res);
+  const access = await resolveExecutionAccessContext(res);
   if (!access.uid) return res.status(401).json({ error: "Authentication required" });
   try {
     const receipt = await retryTaskEvaluationResultNotification({ db, recordId: req.params.recordId,

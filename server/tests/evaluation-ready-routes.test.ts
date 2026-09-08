@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
   tenantId: "robot-team-001",
   isOps: false,
+  nestedTenant: false,
   notificationCalls: [] as Record<string, unknown>[],
 }));
 
@@ -123,11 +124,12 @@ describe("Evaluation Ready run routes", () => {
     state.records.clear();
     state.tenantId = "robot-team-001";
     state.isOps = false;
+    state.nestedTenant = false;
     state.notificationCalls = [];
     const app = express();
     app.use(express.json());
     app.use((_req, res, next) => {
-      res.locals.firebaseUser = { uid: "member-001", tenantId: state.tenantId };
+      res.locals.firebaseUser = state.nestedTenant ? { uid: "member-001", firebase: { tenant: state.tenantId } } : { uid: "member-001", tenantId: state.tenantId };
       next();
     });
     app.use(router);
@@ -278,6 +280,13 @@ describe("Evaluation Ready run routes", () => {
     expect((await post({...packet,progress:{completed_episodes:1,total_episodes:28}})).status).toBe(409);
     expect(state.records.get(original.run_id)).toEqual(retained);
     expect((await post(packet)).status).toBe(200);
+  });
+
+  it("reads status for the standard Firebase tenant claim without trusting another tenant", async () => {
+    state.records.set("evaluation-run-001", runRecord()); state.nestedTenant = true;
+    expect((await fetch(`${url}/evaluation-run-001/status`)).status).toBe(200);
+    state.tenantId = "another-team";
+    expect((await fetch(`${url}/evaluation-run-001/status`)).status).toBe(404);
   });
 
 });
