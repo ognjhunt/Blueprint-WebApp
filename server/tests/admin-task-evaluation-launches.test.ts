@@ -574,6 +574,19 @@ it("accepts the exact configured-scene offering shape emitted by Pipeline", () =
   expect(configuredSceneOfferingSchema.safeParse(pipelineConfiguredSceneOffering).success).toBe(true);
 });
 
+it.each([8, 16, 24])("accepts the actual reviewed view count %i", (count) => {
+  const offering = configuredSceneOffering();
+  offering.presentation.selected_from_exact_reviewed_frame_count = count;
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
+});
+it.each([0, 7, 8.5, true])("refuses an invalid accepted review count %s", (count) => {
+  const offering = configuredSceneOffering();
+  offering.presentation.selected_from_exact_reviewed_frame_count = count as number;
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(false);
+});
+
 it("accepts only a visibly ungraded configured-scene offering when review is paused", () => {
   const offering = pausedUngradedConfiguredSceneOffering();
   expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);

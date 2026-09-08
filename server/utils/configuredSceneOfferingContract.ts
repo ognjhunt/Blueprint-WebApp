@@ -109,7 +109,7 @@ export const configuredSceneOfferingSchema = z.object({
       }).strict(),
     }).strict(),
     appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
-    selected_from_exact_reviewed_frame_count: z.union([z.literal(0), z.literal(8)]),
+    selected_from_exact_reviewed_frame_count: z.number().int().nonnegative(),
     warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
     derived_appearance_evidence: z.literal(true),
     capture_or_physical_evidence: z.literal(false),
@@ -176,7 +176,7 @@ export const configuredSceneOfferingSchema = z.object({
       message: "ungraded appearance offering must preserve its warning boundary",
     });
   } else if (
-    offering.presentation.selected_from_exact_reviewed_frame_count !== 8
+    offering.presentation.selected_from_exact_reviewed_frame_count < 8
     || offering.presentation.selection.reviewer.kind !== "ai"
   ) context.addIssue({
     code: z.ZodIssueCode.custom,
