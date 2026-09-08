@@ -1,0 +1,369 @@
+{
+  "camera_calibration_and_timestamps_retained_per_observation": true,
+  "derived_videos_are_human_review_convenience": true,
+  "episode_id": "fixture-episode",
+  "frame_manifest_digest": "sha256:05be006bbf67744381fa0cf90a41c4776c2cb7a51aa925732ffb2d22380b0fcf",
+  "identity": {
+    "fixture_only": true
+  },
+  "lossless_policy_inputs_are_authoritative": true,
+  "policy_input_frame_count": 2,
+  "policy_input_observation_count": 1,
+  "policy_input_observations": [
+    {
+      "camera_ids": [
+        "external",
+        "wrist"
+      ],
+      "kind": "policy-input",
+      "observation_digest": "sha256:67655fb711d8903748f2c71f5baa180b233a26578e75fa9bb4e1025f79fcb269",
+      "observation_index": 0,
+      "simulation_time_s": 0.0,
+      "timestamp_ns": 0,
+      "views": {
+        "external": {
+          "calibration": {
+            "camera_model": "pinhole",
+            "distortion": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "far_m": 20.0,
+            "intrinsic_matrix": [
+              [
+                48.0,
+                0.0,
+                32.0
+              ],
+              [
+                0.0,
+                48.0,
+                16.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "near_m": 0.01,
+            "resolution": [
+              64,
+              32
+            ],
+            "world_from_camera": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "calibration_digest": "sha256:c10aa3b75e3b2711cd273ce2cbcddf10c38285c26253935e0994530a4910c99b",
+          "camera_id": "external",
+          "channels": 3,
+          "dtype": "uint8",
+          "frame_digest": "sha256:028b378a17d13a1edef0e024158a6ed2825577e704ef39b0d3429d35ab55ddc9",
+          "frame_index": 0,
+          "height": 32,
+          "kind": "policy-input",
+          "png_sha256": "sha256:00978b660dc7e2fe10c8d0d40b94092bd46e3e53e254558c424a03d020f8bce4",
+          "raw_rgb_sha256": "sha256:cc801d7db5606c1f24f00be68507b5d6c852a23d974531016373b9cea3e10cf5",
+          "relative_path": "media/fixture-episode/frames/external/000000-policy-input.png",
+          "simulation_time_s": 0.0,
+          "size_bytes": 135,
+          "source_device": "fixture-cpu",
+          "synchronization": {
+            "host_bytes_ready": true
+          },
+          "timestamp_ns": 0,
+          "width": 64
+        },
+        "wrist": {
+          "calibration": {
+            "camera_model": "pinhole",
+            "distortion": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "far_m": 20.0,
+            "intrinsic_matrix": [
+              [
+                48.0,
+                0.0,
+                32.0
+              ],
+              [
+                0.0,
+                48.0,
+                16.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "near_m": 0.01,
+            "resolution": [
+              64,
+              32
+            ],
+            "world_from_camera": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "calibration_digest": "sha256:c10aa3b75e3b2711cd273ce2cbcddf10c38285c26253935e0994530a4910c99b",
+          "camera_id": "wrist",
+          "channels": 3,
+          "dtype": "uint8",
+          "frame_digest": "sha256:31658adc6f850f0b85b163be2aedb1e4381b6657f99eff98452a1eb0c148a1a0",
+          "frame_index": 0,
+          "height": 32,
+          "kind": "policy-input",
+          "png_sha256": "sha256:3c787f4904382f10d88bda0e64087967c2c56a0d4680a6617cd4c3936b2c4f70",
+          "raw_rgb_sha256": "sha256:145258680ea5b63feba938660cc462b265f08f7b31b7d97d79d64777211e4be3",
+          "relative_path": "media/fixture-episode/frames/wrist/000000-policy-input.png",
+          "simulation_time_s": 0.0,
+          "size_bytes": 135,
+          "source_device": "fixture-cpu",
+          "synchronization": {
+            "host_bytes_ready": true
+          },
+          "timestamp_ns": 0,
+          "width": 64
+        }
+      }
+    }
+  ],
+  "required_camera_ids": [
+    "external",
+    "wrist"
+  ],
+  "review_frame_count": 0,
+  "review_observation_count": 0,
+  "review_observations": [],
+  "review_only_camera_ids": [],
+  "schema_version": "adp_multicamera_observation_frame_manifest.v1",
+  "terminal_observation": {
+    "camera_ids": [
+      "external",
+      "wrist"
+    ],
+    "kind": "terminal-observation",
+    "observation_digest": "sha256:3cd3b6238de98bfaf4cc94ea1cb942a301de62c7d20bc9d4d169d441ed40c8af",
+    "observation_index": 1,
+    "simulation_time_s": 1.0,
+    "timestamp_ns": 1000000000,
+    "views": {
+      "external": {
+        "calibration": {
+          "camera_model": "pinhole",
+          "distortion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "far_m": 20.0,
+          "intrinsic_matrix": [
+            [
+              48.0,
+              0.0,
+              32.0
+            ],
+            [
+              0.0,
+              48.0,
+              16.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "near_m": 0.01,
+          "resolution": [
+            64,
+            32
+          ],
+          "world_from_camera": [
+            [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        },
+        "calibration_digest": "sha256:c10aa3b75e3b2711cd273ce2cbcddf10c38285c26253935e0994530a4910c99b",
+        "camera_id": "external",
+        "channels": 3,
+        "dtype": "uint8",
+        "frame_digest": "sha256:bfa1512140d0a3af067b9e29c2e3599c30ffccf7a5d43574f76093a82a93a8fe",
+        "frame_index": 1,
+        "height": 32,
+        "kind": "terminal-observation",
+        "png_sha256": "sha256:3c787f4904382f10d88bda0e64087967c2c56a0d4680a6617cd4c3936b2c4f70",
+        "raw_rgb_sha256": "sha256:145258680ea5b63feba938660cc462b265f08f7b31b7d97d79d64777211e4be3",
+        "relative_path": "media/fixture-episode/frames/external/000001-terminal-observation.png",
+        "simulation_time_s": 1.0,
+        "size_bytes": 135,
+        "source_device": "fixture-cpu",
+        "synchronization": {
+          "host_bytes_ready": true
+        },
+        "timestamp_ns": 1000000000,
+        "width": 64
+      },
+      "wrist": {
+        "calibration": {
+          "camera_model": "pinhole",
+          "distortion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "far_m": 20.0,
+          "intrinsic_matrix": [
+            [
+              48.0,
+              0.0,
+              32.0
+            ],
+            [
+              0.0,
+              48.0,
+              16.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "near_m": 0.01,
+          "resolution": [
+            64,
+            32
+          ],
+          "world_from_camera": [
+            [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        },
+        "calibration_digest": "sha256:c10aa3b75e3b2711cd273ce2cbcddf10c38285c26253935e0994530a4910c99b",
+        "camera_id": "wrist",
+        "channels": 3,
+        "dtype": "uint8",
+        "frame_digest": "sha256:7878acd0547a5cd8bff33d83fbdcfab1ee12949af644de1c8f25c8a4abd16f1b",
+        "frame_index": 1,
+        "height": 32,
+        "kind": "terminal-observation",
+        "png_sha256": "sha256:915442ccf98291f1bd6aad803b5393707ccdd0f2d495ee94d79a9fd0ab229cdd",
+        "raw_rgb_sha256": "sha256:f823d04ffef184f06a7bf2125582e4c77daee40a293f049f0c01cd3d8f5b02ef",
+        "relative_path": "media/fixture-episode/frames/wrist/000001-terminal-observation.png",
+        "simulation_time_s": 1.0,
+        "size_bytes": 135,
+        "source_device": "fixture-cpu",
+        "synchronization": {
+          "host_bytes_ready": true
+        },
+        "timestamp_ns": 1000000000,
+        "width": 64
+      }
+    }
+  }
+}

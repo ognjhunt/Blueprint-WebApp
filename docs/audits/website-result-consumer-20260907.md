@@ -1,5 +1,7 @@
 # Website Task Evaluation Run result consumer audit
 
+**Follow-up:** the remaining implementation/coverage gaps below were addressed in the local continuation described in [the completion matrix](website-result-consumer-completion-20260907.md). The historical snapshot and first-pass verification below are retained for comparison; use that completion matrix and exported check receipts for current local status.
+
 Scope: ADP-007 and ADP-004 supporting ADP-009D, public-scene day 28. Completion artifact is a receipt-faithful Website consumer, local regression evidence, and a reviewable local patch. This work does not produce a qualified policy result.
 
 ## Isolation and authority

@@ -267,4 +267,17 @@ describe("Evaluation Ready run routes", () => {
     expect((await fetch(`${url}/evaluation-run-001/status`)).status).toBe(404);
   });
 
+  it("does not acknowledge changed counts at the same observation timestamp as an exact replay", async () => {
+    const original = runRecord(); state.records.set(original.run_id, original);
+    const packet = {schema_version:"task_evaluation_policy_run_status_projection.v1",run_id:original.run_id,
+      source_launch_id:original.source_launch_id,offering_digest:original.offering_digest,configuration_digest:original.configuration_digest,
+      state:"running",phase:"running",progress:{completed_episodes:5,total_episodes:28},observed_at_iso:"2026-08-30T12:09:00.000Z"};
+    const post = (value:unknown) => fetch(`${url}/${original.run_id}/pipeline-status`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(value)});
+    expect((await post(packet)).status).toBe(200);
+    const retained=structuredClone(state.records.get(original.run_id));
+    expect((await post({...packet,progress:{completed_episodes:1,total_episodes:28}})).status).toBe(409);
+    expect(state.records.get(original.run_id)).toEqual(retained);
+    expect((await post(packet)).status).toBe(200);
+  });
+
 });

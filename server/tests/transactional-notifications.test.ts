@@ -283,4 +283,13 @@ describe("transactional notifications", () => {
       ]),
     );
   });
+  it("keeps an explicit email retry on the email channel only", async () => {
+    process.env.BLUEPRINT_TRANSACTIONAL_PUSH_NOTIFICATIONS_ENABLED = "1";
+    const { dispatchTransactionalEmailNotification } = await import("../utils/transactional-notifications");
+    const email = await dispatchTransactionalEmailNotification({eventType:"evaluation_results_ready",recipientType:"buyer",recipientUserId:"member",recipientEmail:"member@example.com",subjectId:"run",sourceEventId:"explicit-retry"});
+    expect(email?.status).toBe("sent");expect(state.sendEmail).toHaveBeenCalledTimes(1);expect(state.sendPush).not.toHaveBeenCalled();
+    expect(collectionDocs("transactionalNotifications")).toHaveLength(1);
+    expect(collectionDocs("transactionalNotifications")[0].channel).toBe("email");
+  });
+
 });

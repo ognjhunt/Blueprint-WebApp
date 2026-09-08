@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, any>>(),
   registry: new Set<string>(),
   uid: "owner-1" as string | null,
+  notificationUnavailable: false,
   probes: [] as Array<{ runId: string; artifactId: string }>,
   streams: [] as Array<{ runId: string; artifactId: string }>,
 }));
@@ -19,6 +20,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     collection: (collection: string) => ({
       doc: (id: string) => ({
         get: async () => {
+          if (collection === "taskEvaluationPolicyRuns" && state.notificationUnavailable) throw new Error("fixture notification store unavailable");
           const record = state.records.get(`${collection}:${id}`);
           return {
             exists: Boolean(record),
@@ -35,7 +37,7 @@ vi.mock("../utils/taskEvaluationResultArtifactProxy", () => ({
     runId: string;
     artifactId: string;
   }) => {
-    state.probes.push(input);
+    state.probes.push({ runId: input.runId, artifactId: input.artifactId });
     return state.registry.has(`${input.runId}:${input.artifactId}`)
       ? "admitted"
       : "not_found";
@@ -121,6 +123,7 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     state.probes = [];
     state.streams = [];
     state.uid = "owner-1";
+    state.notificationUnavailable = false;
     state.records.set("captureTaskEvaluationRuns:result-1", record());
     ({ server, url } = await startServer());
   });
@@ -268,6 +271,32 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     const current=await issueTicket(url,"review-video");expect(current.status).toBe(201);
     const body=await current.json() as {download_url:string};
     expect((await fetch(`${url}${body.download_url}`)).status).toBe(206);
+  });
+
+  it("joins a current Website notification for its owner without changing the Pipeline snapshot", async () => {
+    const value = state.records.get("captureTaskEvaluationRuns:result-1")!;
+    const publication = value.publication;
+    state.records.set(`taskEvaluationPolicyRuns:${publication.run_id}`, {
+      run_id: publication.run_id, run_kind: "internal_policy_canary", result_record_id: "result-1",
+      owner_user_id: "owner-1", team_namespace: "team-1", request_digest: publication.request_digest,
+      delivery_digest: publication.result_delivery.delivery_digest,
+      notification_delivery: { terminal_state: "blocked", status: "accepted", attempts: 1,
+        run_result_digest: publication.policy_canary_result.projection_digest, accepted_at: "2026-09-07T00:00:00Z", delivered_at: null },
+    });
+    const response = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    const result = await response.json() as any;
+    expect(result.website_delivery.notification).toMatchObject({status:"accepted",delivered_at_iso:null});
+    expect(result.publication.policy_canary_result.notification_delivery.status).toBe("pending");
+    value.access_visibility = "unlisted_public"; state.uid = null;
+    const publicResult = await (await fetch(`${url}/api/task-evaluation-results/result-1`)).json() as any;
+    expect(publicResult.website_delivery).toBeUndefined();
+    expect(publicResult.publication.policy_canary_result.notification_delivery).toBeUndefined();
+  });
+  it("keeps the sealed result available during a notification-store outage", async () => {
+    state.notificationUnavailable = true;
+    const response = await fetch(`${url}/api/task-evaluation-results/result-1`);
+    expect(response.status).toBe(200);
+    expect((await response.json() as any).website_delivery).toEqual({status:"unavailable",notification:null});
   });
 
 });

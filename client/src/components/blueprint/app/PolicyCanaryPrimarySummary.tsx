@@ -12,12 +12,13 @@ import {
 } from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
+  TaskEvaluationArtifactTicketError,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
 
 export function PrimaryDownload(props: Parameters<typeof PrimaryDownloadContent>[0]) {
-  return <PrimaryDownloadContent key={`${props.user?.uid || "anonymous"}:${props.recordId}:${props.artifact?.artifact_id || "missing"}`} {...props} />;
+  return <PrimaryDownloadContent key={`${props.user?.uid || "anonymous"}:${props.user?.tenantId || ""}:${props.recordId}:${props.artifact?.artifact_id || "missing"}`} {...props} />;
 }
 
 function PrimaryDownloadContent({
@@ -33,15 +34,26 @@ function PrimaryDownloadContent({
 }) {
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const request = useRef<AbortController | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryWait, setRetryWait] = useState<number | null>(null);
+  useEffect(() => {
+    if (!retryWait) return;
+    const timer = setTimeout(() => setRetryWait(null), retryWait * 1000);
+    return () => clearTimeout(timer);
+  }, [retryWait]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
   async function download() {
-    if (!artifact) return;
+    if (!artifact || retryWait) return;
+    request.current?.abort(); request.current = new AbortController();
+    setError(null);
     setState("loading");
     try {
       const url = await createTaskEvaluationResultArtifactTicket(
         user,
         recordId,
         artifact.artifact_id,
+        { signal: request.current.signal },
       );
       if (!mounted.current) return;
       const anchor = document.createElement("a");
@@ -49,8 +61,12 @@ function PrimaryDownloadContent({
       anchor.download = String(artifact.relative_path || artifact.artifact_id).split("/").pop() || artifact.role;
       anchor.click();
       setState("idle");
-    } catch {
-      if (mounted.current) setState("failed");
+    } catch (reason) {
+      if (mounted.current) {
+        setState("failed");
+        setError(reason instanceof TaskEvaluationArtifactTicketError ? reason.message : "Artifact authorization failed. Retry the download.");
+        if (reason instanceof TaskEvaluationArtifactTicketError && reason.status === 429) setRetryWait(reason.retryAfterSeconds);
+      }
     }
   }
   const text = !artifact
@@ -60,16 +76,16 @@ function PrimaryDownloadContent({
       : state === "failed"
         ? `Retry ${label}`
         : label;
-  return <Button
+  return <span className="inline-flex max-w-full flex-col items-start gap-1"><Button
     type="button"
     size="sm"
     variant={label === "Full JSON" ? "action" : "secondary"}
     iconLeft={<Download aria-hidden="true" />}
-    disabled={!artifact || state === "loading"}
+    disabled={!artifact || state === "loading" || Boolean(retryWait)}
     onClick={() => void download()}
   >
     {text}
-  </Button>;
+  </Button>{error ? <span role="status" className="max-w-xs text-caption text-runway-red">{error}</span> : null}</span>;
 }
 
 function ciCaption(wilson: { lower: number; upper: number } | null) {

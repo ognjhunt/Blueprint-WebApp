@@ -1,5 +1,6 @@
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {TaskEvaluationArtifactTicketError} from "@/lib/taskEvaluationResults";
 import {PrimaryDownload} from "@/components/blueprint/app/PolicyCanaryPrimarySummary";
 import {EvidenceVideo} from '@/components/blueprint/app/PolicyCanaryEpisodeExplorer';
 const ticket=vi.hoisted(()=>vi.fn());
@@ -34,6 +35,13 @@ describe('media lifecycle isolation',()=>{
   view.rerender(<PrimaryDownload artifact={props.artifact} label="Manifest" user={null} recordId="run-a"/>);
   await act(async()=>finish('/api/local-old-owner'));
   expect(click).not.toHaveBeenCalled();click.mockRestore();
+ });
+
+ it('honors the authorization Retry-After window without automatic retries',async()=>{
+  ticket.mockRejectedValue(new TaskEvaluationArtifactTicketError('Retry in 42 seconds.',{status:429,retryAfterSeconds:42}));
+  render(<EvidenceVideo {...props}/>);fireEvent.click(screen.getByRole('button',{name:'Load External camera video for A'}));await flush();
+  const button=screen.getByRole('button',{name:'Retry External camera video for A'});expect(button).toBeDisabled();
+  await flush(41999);expect(button).toBeDisabled();await flush(1);expect(button).not.toBeDisabled();expect(ticket).toHaveBeenCalledTimes(1);
  });
 
 });

@@ -678,7 +678,7 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
   const internalPolicyCanary = record.run_kind === "internal_policy_canary";
   const terminal = ["results_ready", "abstained", "blocked", "failed", "cancelled"].includes(record.state);
   const pipelineProgress = lifecycleProgress(record);
-  const observedPhase = typeof pipelineProgress?.phase === "string"
+  const observedPhase = !terminal && typeof pipelineProgress?.phase === "string"
     ? pipelineProgress.phase
     : null;
   const resultRecordId = typeof record.result_record_id === "string"

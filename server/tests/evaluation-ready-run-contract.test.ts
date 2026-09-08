@@ -249,4 +249,16 @@ describe("evaluation-ready policy-run contract", () => {
       progress: { completed_episodes: 0, total_episodes: 20 },
     });
   });
+  it("keeps the terminal publication phase authoritative over retained live progress", () => {
+    const projected = projectEvaluationReadyRun({
+      run_id: "fixture-run", run_kind: "internal_policy_canary", source_launch_id: "launch",
+      offering_digest: sha("a"), configuration_digest: sha("b"), owner_user_id: "owner", team_namespace: "team",
+      state: "results_ready", stage: "terminal", phase: "published", result_status: "completed_unqualified",
+      result_record_id: "sealed-result", progress: {completed_episodes:20,total_episodes:20},
+      pipeline_progress: {phase:"policy_a_running",observed_at_iso:"2026-09-07T00:00:00Z"},
+      created_at_iso:"2026-09-07T00:00:00Z",updated_at_iso:"2026-09-07T00:10:00Z",
+    });
+    expect(projected).toMatchObject({state:"results_ready",terminal:true,phase:"published",stage:"terminal",result:{record_id:"sealed-result"}});
+  });
+
 });

@@ -218,4 +218,21 @@ describe("status recovery", () => {
     expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(1);
   });
 
+  it("honors status Retry-After without losing the last verified snapshot", async () => {
+    const { EvaluationRunStatusError } = await import('@/lib/evaluationReadyRuns');
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValueOnce(status()).mockRejectedValueOnce(new EvaluationRunStatusError(429,42)).mockResolvedValueOnce(status("results_ready"));
+    render(<EvaluationRunProgress />); await tick(); await tick(8000);
+    await tick(41999); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("run-one")).toBeInTheDocument();
+    await tick(1); expect(fetchEvaluationReadyRun).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not present retained blocked execution progress as the phase of a ready result", async () => {
+    vi.mocked(fetchEvaluationReadyRun).mockResolvedValue({...status("results_ready"),phase:"blocked"});
+    render(<EvaluationRunProgress />); await tick();
+    expect(screen.getByText("Current phase").parentElement?.textContent).toContain("Results ready");
+    expect(screen.getByText(/Last reported phase:/)).toBeInTheDocument();
+    expect(screen.getByText("Blocked")).toBeInTheDocument();
+  });
+
 });

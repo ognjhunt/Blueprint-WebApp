@@ -195,4 +195,16 @@ describe("policy canary result portal data", () => {
       },
     ]);
   });
+  it("keeps duplicate ambiguity and the other policy visible when filtering outcomes", () => {
+    const rows = buildAlignedCanaryCells([
+      episode("policy-a", "cell-1", 101),
+      episode("policy-a", "cell-1", 101, {episode_id:"duplicate", score:{status:"scored",task_succeeded:false,policy_outcome_interpretable:true,grader_authority:"deterministic_simulator_state"}}),
+      episode("policy-b", "cell-1", 101),
+    ], ["policy-a","policy-b"], {family:"all",seed:"all",outcome:"success",interpretability:"all"});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].duplicateEpisodesByCandidate["policy-a"]).toHaveLength(2);
+    expect(rows[0].episodesByCandidate["policy-a"]).toBeUndefined();
+    expect(rows[0].episodesByCandidate["policy-b"]?.score.task_succeeded).toBe(false);
+  });
+
 });

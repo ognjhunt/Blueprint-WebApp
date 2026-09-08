@@ -9,6 +9,7 @@ vi.mock("@/lib/taskEvaluationResults", async (importOriginal) => ({
 }));
 
 import { applyPolicyCanaryScoreCorrection, pairedCanaryComparison } from "@/lib/policyCanaryResultPortal";
+import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
 import { TaskEvaluationArtifactTicketError } from "@/lib/taskEvaluationResults";
 import type { TaskEvaluationResultSiteRecord } from "@/lib/taskEvaluationResults";
@@ -267,7 +268,7 @@ describe("PolicyCanaryResultPortal", () => {
     const evidence = screen.getByText("Evidence and provenance").closest("details");
     expect(evidence).toBeTruthy();
     expect((evidence as HTMLDetailsElement).open).toBe(false);
-    expect(within(evidence!).getByText("Complete artifact inventory")).toBeTruthy();
+    expect(within(evidence!).getByText("Published artifact inventory")).toBeTruthy();
     expect(within(evidence!).getByText("$0.379")).toBeTruthy();
     expect(within(evidence!).getByText("vast · 49609705")).toBeTruthy();
   });
@@ -327,9 +328,21 @@ describe("PolicyCanaryResultPortal", () => {
       sidecar_digest: sha("s"),
     };
 
+    corrected.publication.policy_canary_result!.projection_digest = sha("p");
+    const display = applyPolicyCanaryScoreCorrection(corrected);
+    expect(display.publication.policy_canary_result!.counts.completed_learned_policy_rollout_count).toBe(12);
+    const blockedBefore = corrected.publication.result_delivery!.episodes.find(episode => episode.score.policy_outcome_interpretable === false)!;
+    const blockedAfter = display.publication.result_delivery!.episodes.find(episode => episode.episode_id === blockedBefore.episode_id)!;
+    expect(blockedAfter.failure).toEqual(blockedBefore.failure);
+    expect(blockedAfter.score.status).toBe(blockedBefore.score.status);
     expect(pairedCanaryComparison(applyPolicyCanaryScoreCorrection(corrected))).toMatchObject({
       comparablePairs: 9, bothSucceeded: 9, bothFailed: 0, deltaPoints: 0, pValue: null,
     });
+    const stale = structuredClone(corrected);
+    stale.score_correction!.source_binding.source_delivery_digest = sha("e");
+    const rejected = applyPolicyCanaryScoreCorrection(stale);
+    expect(rejected.score_correction).toBeUndefined();
+    expect(rejected.publication).toEqual(stale.publication);
     render(<PolicyCanaryResultPortal result={corrected} user={{ uid: "member-1" } as any} />);
 
     expect(screen.getByText("Post-publication adjustments applied")).toBeTruthy();
@@ -339,6 +352,15 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
     expect(screen.getByText("No corrected episode failed a task criterion.")).toBeTruthy();
     expect(screen.getByRole("heading", {name: "Equal observed success on matched pairs"})).toBeTruthy();
+  });
+
+  it("keeps registry criteria inspectable without displaying team confirmation or submission authority", () => {
+    const contract = structuredClone(taskSuccessContract);
+    contract.provenance = { ...contract.provenance, author_source: "compatibility_default", confirmed_by_team_id: null } as any;
+    render(<TaskSuccessContractPanel contract={contract} title="Criteria used for corrected scores" resultReview />);
+    expect(screen.getByText("Registry default · not team-confirmed")).toBeTruthy();
+    expect(screen.getByText(/grants no execution or field-trial authorization/)).toBeTruthy();
+    expect(screen.queryByText(/may be submitted unchanged/)).toBeNull();
   });
 
   it("shows explicit video load, retry, and ready states", async () => {
@@ -362,7 +384,7 @@ describe("PolicyCanaryResultPortal", () => {
       "External camera evidence for Policy A",
     )).toBeTruthy());
     expect(screen.queryByText("Ready")).toBeNull();
-    fireEvent.loadedMetadata(screen.getByLabelText("External camera evidence for Policy A"));
+    fireEvent.loadedData(screen.getByLabelText("External camera evidence for Policy A"));
     expect(screen.getByText("Ready")).toBeTruthy();
   });
 
@@ -375,7 +397,7 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.getByText(/media could not be read or its access expired/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button",{name:"Retry External camera video for Policy A"}));
     await waitFor(() => expect(screen.getByLabelText("External camera evidence for Policy A").getAttribute("src")).toBe("/api/download/fresh"));
-    fireEvent.loadedMetadata(screen.getByLabelText("External camera evidence for Policy A"));
+    fireEvent.loadedData(screen.getByLabelText("External camera evidence for Policy A"));
     expect(screen.getByText("Ready")).toBeTruthy();
     expect(createArtifactTicket).toHaveBeenCalledTimes(2);
   });
@@ -464,7 +486,7 @@ describe("per-cell controls", () => {
     expect(screen.queryByText(/no reference baseline has run/)).toBeNull();
     expect(createArtifactTicket).not.toHaveBeenCalled();
     fireEvent.click(within(section).getByRole("button", { name: "Load External camera video for Zero-action negative" }));
-    await waitFor(() => expect(createArtifactTicket).toHaveBeenCalledWith(null, value.record_id, controls[0].videos.external.artifact_id));
+    await waitFor(() => expect(createArtifactTicket).toHaveBeenCalledWith(null, value.record_id, controls[0].videos.external.artifact_id, { signal: expect.any(AbortSignal) }));
     expect(within(section).getByLabelText("External camera evidence for Zero-action negative").getAttribute("src")).toBe("/api/download/control-video");
     fireEvent.click(within(section).getByRole("button", { name: "Inspect Scripted positive for cell-1" }));
     expect(within(section).getByRole("heading", { name: "Scripted positive · cell-1" })).toBeTruthy();

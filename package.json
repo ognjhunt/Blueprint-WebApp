@@ -114,7 +114,8 @@
     "claims:guard": "tsx scripts/claims/cross-source-claims-guard.ts",
     "render:import-env": "node scripts/render/import-render-env.mjs",
     "gtm:first-send-approval:template": "tsx scripts/gtm/write-first-send-approval-template.ts",
-    "gtm:first-send-approval:apply": "tsx scripts/gtm/apply-first-send-approvals.ts"
+    "gtm:first-send-approval:apply": "tsx scripts/gtm/apply-first-send-approvals.ts",
+    "test:result-consumer:browser": "playwright test --config playwright.result-consumer.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

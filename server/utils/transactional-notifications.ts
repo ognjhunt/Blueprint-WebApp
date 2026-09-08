@@ -520,6 +520,18 @@ async function dispatchPush(input: TransactionalNotificationInput, profile: Reco
   }
 }
 
+/** Explicit email-only recovery must not create push or in-app notifications. */
+export async function dispatchTransactionalEmailNotification(
+  input: TransactionalNotificationInput,
+): Promise<TransactionalNotificationRecord | null> {
+  if (!input.subjectId) return null;
+  try { return await dispatchEmail(input, await readRecipientProfile(input)); }
+  catch {
+    logger.warn({ eventType: input.eventType, code: "transactional_email_dispatch_failed" }, "Transactional email dispatch failed");
+    return null;
+  }
+}
+
 export async function dispatchTransactionalNotification(
   input: TransactionalNotificationInput,
 ): Promise<TransactionalNotificationRecord[]> {
