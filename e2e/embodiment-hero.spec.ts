@@ -40,7 +40,6 @@ test("rotation advances automatically and honors the pause button", async ({ pag
   // Restart the timer under the controllable clock without relying on network timing.
   await page.getByRole("button", { name: "Pause scene rotation" }).click();
   await page.getByRole("button", { name: "Play scene rotation" }).click();
-  await page.getByRole("link", { name: "Blueprint home" }).focus();
   await page.clock.fastForward(7000);
   await expect(page.locator(".ms-rotating-hero")).toHaveAttribute("data-scene", "humanoid");
   await page.getByRole("button", { name: "Pause scene rotation" }).click();

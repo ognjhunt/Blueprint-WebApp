@@ -60,7 +60,7 @@ export function EmbodimentHero({ children }: PropsWithChildren) {
           <div className="ms-scene-label" aria-live="off"><span>{heroScenes[active].label}</span><span aria-hidden="true"> · </span><span>{heroScenes[active].task}</span></div>
           <div className="ms-scene-actions">
             {heroScenes.map((scene, index) => <button type="button" key={scene.id} className="ms-scene-selector" aria-label={`Show ${scene.label.toLowerCase()}`} aria-pressed={active === index} disabled={!loaded.includes(index) && index !== active} onClick={() => { setPaused(true); setActive(index); }}><span /></button>)}
-            {!reducedMotion && <button type="button" className="ms-scene-pause" aria-label={paused ? "Play scene rotation" : "Pause scene rotation"} onClick={() => setPaused(!paused)}>{paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}</button>}
+            {!reducedMotion && <button type="button" className="ms-scene-pause" aria-label={paused ? "Play scene rotation" : "Pause scene rotation"} onClick={() => { setPaused(!paused); setFocused(false); }}>{paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}</button>}
           </div>
           <span className="ms-scene-disclosure">Illustrative scenes</span>
         </div>
