@@ -20,6 +20,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
     });
     for (const [name, path, heading] of [
       ["home", "/", "Your site."],
+      ["how", "/how-it-works", "Find the right fit."],
       ["site", "/contact/site-operator", "Let’s start with your site."],
       ["robot", "/contact/robot-team", "Bring your robot. Find the fit."],
       ["privacy", "/privacy", "Privacy Policy"],
@@ -94,14 +95,16 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
-  await expect(page).toHaveURL(/#how-it-works$/);
+  await expect(page).toHaveURL(/\/how-it-works$/);
+  await expect(page.locator("h1")).toContainText("Find the right fit.");
+  await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByText(/clear reason to pause/)).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
-  for (const [from, to] of [["/pricing", "/contact/site-operator"], ["/for-robot-teams", "/contact/robot-team"], ["/how-it-works", "/"], ["/about", "/"], ["/governance", "/privacy"]]) {
+  for (const [from, to] of [["/pricing", "/contact/site-operator"], ["/for-robot-teams", "/contact/robot-team"], ["/about", "/"], ["/governance", "/privacy"]]) {
     await page.goto(`${from}?source=legacy-review`);
     await expect(page).toHaveURL(new RegExp(`${to.replaceAll("/", "\\/")}\\?source=legacy-review`));
     await expect(page.locator(".minimal-site h1")).toBeVisible();

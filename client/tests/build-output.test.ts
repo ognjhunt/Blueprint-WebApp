@@ -47,6 +47,7 @@ describe("build output", () => {
   it("ships prerendered pages for the simplified public IA and direct access flows", () => {
     [
       "index.html",
+      "how-it-works/index.html",
       "sites/index.html",
       "capture/index.html",
       "contact/robot-team/index.html",
@@ -71,7 +72,6 @@ describe("build output", () => {
       "proof/index.html",
       "for-robot-teams/index.html",
       "for-site-operators/index.html",
-      "how-it-works/index.html",
       "faq/index.html",
       "governance/index.html",
       "capture-visit/index.html",
@@ -122,10 +122,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(5);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(6);
 
     [
       "https://tryblueprint.io/product",
@@ -178,7 +178,7 @@ describe("build output", () => {
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Your site.");
     expect(homeHtml).toContain("A pilot worth running.");
-    expect(homeHtml).toContain("Workcell illustration");
+    expect(homeHtml).toContain("Illustrative scenes");
     expect(homeHtml).toContain("clear reason to pause");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');

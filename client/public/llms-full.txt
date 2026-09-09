@@ -7,6 +7,7 @@ A Task Evaluation Run is a paid engagement scoped to one workcell, a real task, 
 ## Public pages
 
 - [Home](https://tryblueprint.io/)
+- [How it works](https://tryblueprint.io/how-it-works)
 - [Discuss your site](https://tryblueprint.io/contact/site-operator)
 - [Apply as a robot team](https://tryblueprint.io/contact/robot-team)
 - [Privacy](https://tryblueprint.io/privacy)
