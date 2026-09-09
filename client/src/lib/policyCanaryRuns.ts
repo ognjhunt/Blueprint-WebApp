@@ -164,7 +164,7 @@ export const policyCanaryRunProjectionSchema = z.object({
   notification_delivery: z.record(z.string(), z.unknown()).nullable(),
   result: z.object({ record_id: z.string(), href: z.string(), api_href: z.string() }).nullable(),
   error: z.object({ code: z.string(), message: z.string() }).nullable(),
-  warning: z.enum([controlsWarnings.configured_controls_pending, controlsWarnings.controls_failed, controlsWarnings.controls_verified_development_only]),
+  warning: z.enum([controlsWarnings.configured_controls_pending, controlsWarnings.controls_failed, controlsWarnings.controls_verified_development_only, controlsWarnings.controls_omitted_by_user]),
 }).passthrough();
 
 export type PolicyCanaryRunProjection = z.infer<typeof policyCanaryRunProjectionSchema>;
