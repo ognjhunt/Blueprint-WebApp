@@ -1,3 +1,5 @@
+import { appRoutes, matchAppRoute } from "@/app/routes";
+import { minimalMarketingRedirects } from "@/data/minimalPublicSite";
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,16 +12,24 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/"');
     expect(source).toContain('path: "/sites"');
     expect(source).toContain('path: "/sites/:slug"');
-    expect(source).toContain('path: "/pricing"');
-    expect(source).toContain('path: "/proof"');
+    expect(minimalMarketingRedirects["/pricing"]).toBe("/contact/site-operator");
+    expect(minimalMarketingRedirects["/proof"]).toBe("/#how-it-works");
     expect(source).toContain('path: "/contact"');
-    expect(source).toContain('path: "/for-robot-teams"');
-    expect(source).toContain('path: "/robot-team/eval"');
+    expect(minimalMarketingRedirects["/for-robot-teams"]).toBe("/contact/robot-team");
+    expect(minimalMarketingRedirects["/robot-team/eval"]).toBe("/contact/robot-team");
     expect(source).toContain('path: "/privacy"');
     expect(source).toContain('path: "/terms"');
     expect(source).toContain('path: "/sign-in"');
     expect(source).toContain('path: "/signup/robot-team"');
     expect(source).toContain('path: "/signup/site-operator"');
+  });
+
+  it("registers one destination per path and preserves protected results workflows", () => {
+    const paths = appRoutes.map((route) => route.path).filter(Boolean);
+    expect(new Set(paths).size).toBe(paths.length);
+    for (const path of Object.keys(minimalMarketingRedirects)) expect(matchAppRoute(path)?.layout).toBe("public");
+    expect(matchAppRoute("/app/runs")?.layout).toBe("protected");
+    expect(matchAppRoute("/app/results/example")?.shell).toBe("bare");
   });
 
   it("keeps legacy site-world slugs as redirect aliases", () => {
@@ -144,12 +154,8 @@ describe("Route registration", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: ForSiteOperators }');
-    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotTeams }');
-    expect(source).toContain('{ path: "/robot-team/eval", layout: "public", component: RobotTeamEvalRedirect }');
     expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
     expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
-    expect(source).toContain('{ path: "/how-it-works", layout: "public", component: HowItWorks }');
     expect(source).toContain('{ path: "/world-models", layout: "public", component: SitesRedirect }');
     expect(source).toContain('{ path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect }');
     expect(source).toContain('{ path: "/agents", layout: "public", component: ContactRedirect }');

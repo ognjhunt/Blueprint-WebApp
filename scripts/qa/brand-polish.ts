@@ -1,3 +1,5 @@
+import { minimalMarketingRedirects } from "../../client/src/data/minimalPublicSite";
+
 export type QaViewport = {
   name: "desktop" | "mobile";
   width: number;
@@ -22,6 +24,8 @@ export type PublicQaRoute = {
   canonicalPath: string;
   expectedHeading: string;
   requiredCtas: RequiredCta[];
+  /** Compact landing pages are complete with less text than editorial pages. */
+  minVisibleTextLength?: number;
   /**
    * Public-launch-posture pattern labels to ignore on this route, for known
    * false positives — e.g. an honest per-item readiness filter (filter option
@@ -147,184 +151,20 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 // actually lands on today, not the original path's own (often-removed)
 // content — the route stays in this sweep to keep verifying the redirect
 // itself (HTTP status, console health, no broken links) still works.
+const canonicalPublicQaRoutes: PublicQaRoute[] = [
+  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "A pilot worth running.", requiredCtas: [{ label: "Discuss your site", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Let’s start with your site.", requiredCtas: [{ label: "Building robots? Apply here", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Robot team application", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Bring your robot. Find the fit.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
+  { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
+];
+
 export const publicQaRoutes: PublicQaRoute[] = [
-  {
-    label: "Home",
-    path: "/",
-    canonicalPath: "/",
-    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
-    requiredCtas: [
-      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the method", hrefStartsWith: "/how-it-works" },
-    ],
-  },
-  {
-    label: "Product (legacy, redirects to Home)",
-    path: "/product",
-    canonicalPath: "/",
-    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
-    requiredCtas: [
-      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the method", hrefStartsWith: "/how-it-works" },
-    ],
-  },
-  {
-    label: "Sites (legacy /world-models, redirects to /sites)",
-    path: "/world-models",
-    canonicalPath: "/sites",
-    expectedHeading: "Start with the real workflow.",
-    requiredCtas: [
-      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "Capture a workflow", hrefStartsWith: "/signup/capturer" },
-    ],
-  },
-  {
-    label: "Agents (legacy, redirects to Contact)",
-    path: "/agents",
-    canonicalPath: "/contact/robot-team",
-    expectedHeading: "Get evaluated against a job someone is ready to buy.",
-    requiredCtas: [
-      { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
-    ],
-  },
-  {
-    label: "Pricing",
-    path: "/pricing",
-    canonicalPath: "/pricing",
-    expectedHeading: "Two charges. The site pays nothing.",
-    requiredCtas: [
-      { label: "Submit a job", hrefStartsWith: "/signup/business" },
-      { label: "Join as a robot team", hrefStartsWith: "/signup/business" },
-    ],
-  },
-  {
-    label: "Proof",
-    path: "/proof",
-    canonicalPath: "/proof",
-    expectedHeading: "The first two months are real work.",
-    requiredCtas: [
-      { label: "See Blueprint's four steps", hrefStartsWith: "/how-it-works" },
-    ],
-  },
-  {
-    label: "Capture",
-    path: "/capture",
-    canonicalPath: "/capture",
-    expectedHeading: "Capture the job before the robot arrives.",
-    requiredCtas: [
-      { label: "Apply to capture", hrefStartsWith: "/signup/capturer" },
-      { label: "Check city status", hrefStartsWith: "/capture-app/launch-access" },
-    ],
-  },
-  {
-    label: "Contact (redirects to /contact/robot-team)",
-    path: "/contact",
-    canonicalPath: "/contact/robot-team",
-    expectedHeading: "Get evaluated against a job someone is ready to buy.",
-    requiredCtas: [
-      { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
-    ],
-  },
-  {
-    label: "Careers (legacy, redirects to Contact)",
-    path: "/careers",
-    canonicalPath: "/contact/robot-team",
-    expectedHeading: "Get evaluated against a job someone is ready to buy.",
-    requiredCtas: [
-      { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
-      { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
-    ],
-  },
-  {
-    label: "FAQ",
-    path: "/faq",
-    canonicalPath: "/faq",
-    expectedHeading: "We find the robot that can do the job, then help you deploy it.",
-    requiredCtas: [
-      { label: "Submit a job", hrefStartsWith: "/signup/business" },
-    ],
-  },
-  {
-    label: "About",
-    path: "/about",
-    canonicalPath: "/about",
-    expectedHeading: "We evaluate robots for sites that are ready to buy.",
-    requiredCtas: [
-      { label: "See the four steps", hrefStartsWith: "/how-it-works" },
-      { label: "Read the evidence", hrefStartsWith: "/proof" },
-    ],
-  },
-  {
-    label: "How it works",
-    path: "/how-it-works",
-    canonicalPath: "/how-it-works",
-    expectedHeading: "Record the job. Rebuild it. Run the robots. Hand it off.",
-    requiredCtas: [{ label: "Prepare a deployment", hrefStartsWith: "/contact" }],
-  },
-  {
-    label: "For sites",
-    path: "/for-site-operators",
-    canonicalPath: "/for-site-operators",
-    expectedHeading: "Show us the job. We find the robot that can do it.",
-    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
-  },
-  {
-    label: "For robot teams",
-    path: "/for-robot-teams",
-    canonicalPath: "/for-robot-teams",
-    expectedHeading: "Arrive with the robot. Not before it.",
-    requiredCtas: [{ label: "Join the robot network", hrefStartsWith: "/signup/business" }],
-  },
-  {
-    label: "Governance",
-    path: "/governance",
-    canonicalPath: "/governance",
-    expectedHeading: "Robot teams test your site without ever getting your site.",
-    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
-  },
-  {
-    label: "The capture visit",
-    path: "/capture-visit",
-    canonicalPath: "/capture-visit",
-    expectedHeading: "We come to you. One access window. Nothing left behind.",
-    requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/signup/business" }],
-  },
-  {
-    label: "Site-task intake",
-    path: "/site-task",
-    canonicalPath: "/site-task",
-    expectedHeading: "Six questions decide this.",
-    requiredCtas: [{ label: "Start", hrefStartsWith: "#intake" }],
-  },
-  {
-    label: "Robot-team intake",
-    path: "/robot-intake",
-    canonicalPath: "/robot-intake",
-    expectedHeading: "Tell us what you can deploy.",
-    requiredCtas: [{ label: "Start", hrefStartsWith: "#intake" }],
-  },
-  {
-    label: "Vision",
-    path: "/vision",
-    canonicalPath: "/vision",
-    expectedHeading: "The country that deploys fastest wins.",
-    requiredCtas: [
-      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the method", hrefStartsWith: "/how-it-works" },
-    ],
-  },
-  {
-    label: "Updates (legacy, redirects to Home)",
-    path: "/updates",
-    canonicalPath: "/",
-    expectedHeading: "Real jobs, fully specified. Robot teams prove who can do them.",
-    requiredCtas: [
-      { label: "Prepare a deployment", hrefStartsWith: "/contact" },
-      { label: "See the method", hrefStartsWith: "/how-it-works" },
-    ],
-  },
+  ...canonicalPublicQaRoutes,
+  ...Object.entries(minimalMarketingRedirects).map(([path, target]) => {
+    const canonical = canonicalPublicQaRoutes.find((route) => route.path === target.split("#")[0])!;
+    return { ...canonical, label: `${path} (redirect)`, path };
+  }),
 ];
 
 export function artifactSlugForRoute(routePath: string, viewportName: string): string {

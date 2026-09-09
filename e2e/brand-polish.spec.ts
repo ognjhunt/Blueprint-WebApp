@@ -182,7 +182,7 @@ async function auditRouteViewport(
     );
     addCheck(
       checks,
-      metrics.bodyTextLength > 400,
+      metrics.bodyTextLength > (route.minVisibleTextLength ?? 400),
       "Nonblank body",
       `${metrics.bodyTextLength} visible text characters`,
       routeKey,

@@ -1,17 +1,5 @@
-import { Mail, Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
+import { Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
-import {
-  SurfaceBrowserFrame,
-  SurfaceCard,
-  SurfaceMiniLabel,
-  SurfacePage,
-  SurfacePill,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
-
 export const privacyPolicySections = [
   {
     title: "What we collect",
@@ -132,238 +120,42 @@ export const betaResidencyTransferRows = [
   },
 ] as const;
 
-const panelCard = "rounded-none border-runway-line bg-runway-panel";
-const bandCard = "rounded-none border-runway-line bg-runway-black";
-const sectionHeading =
-  "font-display text-[1.35rem] font-semibold uppercase leading-[1.05] tracking-[0.005em] text-runway-text";
-const subHeading =
-  "font-display text-[1.05rem] font-semibold uppercase leading-[1.1] tracking-[0.005em] text-runway-text";
-const prose = "text-[16px] leading-[1.7] text-runway-body";
-const rowGrid = "grid gap-2 p-4 text-[15px] leading-[1.7]";
-const rowLabel = "font-semibold text-runway-text";
-const rowDetail = "text-runway-mute";
-const metaPill =
-  "rounded-none border-runway-line bg-runway-panel font-mono text-[10px] tracking-[0.16em] text-runway-mute";
-
 export default function Privacy() {
-  return (
-    <>
-      <SEO
-        title="Privacy Policy | Blueprint"
-        description="Privacy policy for Blueprint's website, capture workflows, Task Evaluation Runs, evidence artifacts, historical compatibility records, and related services."
-        canonical="/privacy"
-        jsonLd={[
-          webPageJsonLd({
-            path: "/privacy",
-            name: "Blueprint privacy policy",
-            description:
-              "Privacy policy for Blueprint website, capture workflows, Task Evaluation Runs, evidence artifacts, historical compatibility records, and related services.",
-          }),
-          breadcrumbJsonLd([
-            { name: "Home", path: "/" },
-            { name: "Privacy", path: "/privacy" },
-          ]),
-        ]}
-      />
+  return <>
+    <SEO title="Privacy Policy | Blueprint" description="How Blueprint handles information across its website, capture workflows, and Task Evaluation Runs." canonical="/privacy" image="https://tryblueprint.io/images/site-led/workcell.webp" />
+    <article className="ms-legal ms-container">
+      <h1>Privacy Policy</h1>
+      <p>Effective March 23, 2026</p>
+      <p>How we handle information with respect and transparency.</p>
+      {privacyPolicySections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
+      <section><h2>Retention</h2><p>We keep each category only as long as it serves the purpose it was collected for, then delete or anonymize it. Rights and privacy limits stay attached to the relevant product record while it exists. A signed agreement, legal hold, security incident, or active privacy request may require stricter handling.</p>
+        <LegalRows rows={[
+          ["Raw capture & PII in it", "Kept while a capture is being processed into a product record and while rights/consent are in force; deleted or redacted when the linked product record is deleted or on a verified deletion request."],
+          ["Product records & packages", "Retained for the life of the buyer entitlement or hosted-session license, then removed after the license term ends."],
+          ["Account & contact data", "Retained while your account is active and deleted or anonymized after account closure or a verified deletion request."],
+          ["Payment & tax records", "Retained as required by law (US tax records are typically retained for up to 7 years)."],
+        ]} />
+      </section>
+      <section><h2>Your rights &amp; how to exercise them</h2><p>Depending on where you live, you can request access to, correction of, a copy of, or deletion of your personal information, and you can withdraw capture consent. Email <a href="mailto:privacy@tryblueprint.io">privacy@tryblueprint.io</a> from the address on your account (or include enough detail to verify you). We acknowledge requests promptly and respond within 30 days; if we need more time we will tell you why. We do not charge for or retaliate against a request.</p></section>
+      <section><h2>Subprocessors</h2><p>We share personal information only with the service providers that run Blueprint, each under a data-processing agreement and only for the function listed:</p>
+        <LegalRows rows={[
+          ["Google (Firebase / Google Cloud)", "Authentication, database, capture storage, and hosting."],
+          ["Stripe", "Buyer payments and capturer payouts."],
+          ["Render", "Application and API hosting."],
+          ["Managed Redis", "Caching and background job queues."],
+          ["Notion", "Internal operations and support records."],
+        ]} />
+        <LegalRows rows={privacySubprocessorCategories.map((item) => [item.category, item.examples])} />
+      </section>
+      <section><h2>Beta retention schedule</h2><LegalRows rows={betaRetentionSchedule.map((item) => [item.record, item.defaultWindow + ". " + item.notes])} /></section>
+      <section><h2>Privacy rights requests</h2>{privacyRightsRequestSteps.map((step) => <p key={step}>{step}</p>)}</section>
+      <section><h2>Data residency and transfers</h2><LegalRows rows={betaResidencyTransferRows.map((item) => [item.label, item.detail])} /></section>
+      <section><h2>Capture privacy annex</h2><LegalRows rows={capturePrivacyAnnex} />{rolePrivacyAnnex.map((item) => <div key={item.title}><h3>{item.title}</h3><p>{item.body}</p></div>)}</section>
+      <section><h2>Contact</h2><p>Questions or privacy requests? <a href="mailto:privacy@tryblueprint.io">privacy@tryblueprint.io</a></p></section>
+    </article>
+  </>;
+}
 
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Legal Reference Board" rightLabel="Privacy by Design" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
-            <div className="grid gap-0 xl:grid-cols-[0.38fr_0.62fr]">
-              <div className="border-b border-runway-line bg-runway-black p-8 xl:border-b-0 xl:border-r lg:p-10">
-                <SurfaceMiniLabel className="font-mono text-runway-faint">Policy Card</SurfaceMiniLabel>
-                <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-runway-text">
-                  Privacy
-                  <br />
-                  Policy
-                </h1>
-                <p className="mt-5 max-w-[26ch] text-[16px] leading-[1.7] text-runway-body">
-                  How we handle information with respect and transparency.
-                </p>
-                <div className="mt-8 overflow-hidden border border-runway-line bg-runway-panel">
-                  <img
-                    src={privateGeneratedAssets.privacyArchiveBoard}
-                    alt="Blueprint privacy archive board"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill className={metaPill}>Effective March 23, 2026</SurfacePill>
-                  <SurfacePill className={metaPill}>Archive reference</SurfacePill>
-                </div>
-              </div>
-
-              <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="grid gap-5 md:grid-cols-2">
-                  {privacyPolicySections.map((section) => {
-                    const Icon = section.icon;
-                    return (
-                      <SurfaceCard key={section.title} className={`${panelCard} h-full`}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center border border-runway-line bg-runway-black">
-                            <Icon className="h-4.5 w-4.5 text-runway-mute" />
-                          </div>
-                          <h2 className={sectionHeading}>{section.title}</h2>
-                        </div>
-                        <p className={`mt-4 max-w-[68ch] ${prose}`}>{section.body}</p>
-                      </SurfaceCard>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Retention</h2>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      We keep each category only as long as it serves the purpose it was collected
-                      for, then delete or anonymize it. Rights and privacy limits stay attached to
-                      the relevant product record while it exists. A signed agreement, legal hold,
-                      security incident, or active privacy request may require stricter handling.
-                    </p>
-                    <div className="mt-4 divide-y divide-runway-line-soft border border-runway-line">
-                      {[
-                        ["Raw capture & PII in it", "Kept while a capture is being processed into a product record and while rights/consent are in force; deleted or redacted when the linked product record is deleted or on a verified deletion request."],
-                        ["Product records & packages", "Retained for the life of the buyer entitlement or hosted-session license, then removed after the license term ends."],
-                        ["Account & contact data", "Retained while your account is active and deleted or anonymized after account closure or a verified deletion request."],
-                        ["Payment & tax records", "Retained as required by law (US tax records are typically retained for up to 7 years)."],
-                      ].map(([label, detail]) => (
-                        <div key={label} className={rowGrid + " md:grid-cols-[0.4fr_0.6fr]"}>
-                          <span className={rowLabel}>{label}</span>
-                          <span className={rowDetail}>{detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-
-                  <SurfaceCard className={panelCard}>
-                    <h2 className={sectionHeading}>Your rights &amp; how to exercise them</h2>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      Depending on where you live, you can request access to, correction of, a copy of,
-                      or deletion of your personal information, and you can withdraw capture consent.
-                      Email{" "}
-                      <a href="mailto:privacy@tryblueprint.io" className="font-medium text-runway-signal underline underline-offset-2">
-                        privacy@tryblueprint.io
-                      </a>{" "}
-                      from the address on your account (or include enough detail to verify you). We
-                      acknowledge requests promptly and respond within 30 days; if we need more time
-                      we will tell you why. We do not charge for or retaliate against a request.
-                    </p>
-                  </SurfaceCard>
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Subprocessors</h2>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      We share personal information only with the service providers that run Blueprint,
-                      each under a data-processing agreement and only for the function listed:
-                    </p>
-                    <div className="mt-4 divide-y divide-runway-line-soft border border-runway-line">
-                      {[
-                        ["Google (Firebase / Google Cloud)", "Authentication, database, capture storage, and hosting."],
-                        ["Stripe", "Buyer payments and capturer payouts."],
-                        ["Render", "Application and API hosting."],
-                        ["Managed Redis", "Caching and background job queues."],
-                        ["Notion", "Internal operations and support records."],
-                      ].map(([label, detail]) => (
-                        <div key={label} className={rowGrid + " md:grid-cols-[0.4fr_0.6fr]"}>
-                          <span className={rowLabel}>{label}</span>
-                          <span className={rowDetail}>{detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-
-                  <SurfaceCard className={panelCard}>
-                    <h2 className={sectionHeading}>Contact</h2>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>Questions or privacy requests?</p>
-                    <a href="mailto:privacy@tryblueprint.io" className="mt-5 inline-flex items-center gap-3 font-mono text-[13px] text-runway-signal">
-                      <Mail className="h-4 w-4" />
-                      privacy@tryblueprint.io
-                    </a>
-                  </SurfaceCard>
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[0.6fr_0.4fr]">
-                  <SurfaceCard className={panelCard}>
-                    <h2 className={sectionHeading}>Beta retention schedule</h2>
-                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
-                      {betaRetentionSchedule.map((item) => (
-                        <div key={item.record} className={rowGrid + " md:grid-cols-[0.28fr_0.28fr_0.44fr]"}>
-                          <span className={rowLabel}>{item.record}</span>
-                          <span className="runway-num text-[13px] text-runway-body">{item.defaultWindow}</span>
-                          <span className={rowDetail}>{item.notes}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Privacy rights requests</h2>
-                    <div className="mt-5 space-y-4">
-                      {privacyRightsRequestSteps.map((step) => (
-                        <p key={step} className={`max-w-[68ch] ${prose}`}>
-                          {step}
-                        </p>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-2">
-                  <SurfaceCard className={panelCard}>
-                    <h2 className={sectionHeading}>Subprocessors</h2>
-                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
-                      {privacySubprocessorCategories.map((item) => (
-                        <div key={item.category} className={rowGrid + " md:grid-cols-[0.34fr_0.66fr]"}>
-                          <span className={rowLabel}>{item.category}</span>
-                          <span className={rowDetail}>{item.examples}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Data residency and transfers</h2>
-                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
-                      {betaResidencyTransferRows.map((item) => (
-                        <div key={item.label} className={rowGrid + " md:grid-cols-[0.32fr_0.68fr]"}>
-                          <span className={rowLabel}>{item.label}</span>
-                          <span className={rowDetail}>{item.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[0.58fr_0.42fr]">
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Capture privacy annex</h2>
-                    <div className="mt-5 divide-y divide-runway-line-soft border border-runway-line">
-                      {capturePrivacyAnnex.map(([label, detail]) => (
-                        <div key={label} className={rowGrid + " md:grid-cols-[0.34fr_0.66fr]"}>
-                          <span className={rowLabel}>{label}</span>
-                          <span className={rowDetail}>{detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfaceCard>
-
-                  <div className="grid gap-4">
-                    {rolePrivacyAnnex.map((item) => (
-                      <SurfaceCard key={item.title} className={panelCard}>
-                        <h3 className={subHeading}>{item.title}</h3>
-                        <p className={`mt-3 max-w-[68ch] ${prose}`}>{item.body}</p>
-                      </SurfaceCard>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
-    </>
-  );
+function LegalRows({ rows }: { rows: ReadonlyArray<ReadonlyArray<string>> }) {
+  return <dl className="ms-legal-rows">{rows.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>;
 }

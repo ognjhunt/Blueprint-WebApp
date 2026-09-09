@@ -1,17 +1,5 @@
-import { BadgeDollarSign, Briefcase, Gavel, Landmark, Mail, ShieldCheck } from "lucide-react";
+import { BadgeDollarSign, Briefcase, Gavel, ShieldCheck } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
-import {
-  SurfaceBrowserFrame,
-  SurfaceCard,
-  SurfaceMiniLabel,
-  SurfacePage,
-  SurfacePill,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
-
 const sections = [
   {
     title: "Services",
@@ -66,124 +54,15 @@ const roleTerms = [
   },
 ];
 
-const panelCard = "rounded-none border-runway-line bg-runway-panel";
-const bandCard = "rounded-none border-runway-line bg-runway-black";
-const sectionHeading =
-  "font-display text-[1.35rem] font-semibold uppercase leading-[1.05] tracking-[0.005em] text-runway-text";
-const prose = "text-[16px] leading-[1.7] text-runway-body";
-const metaPill =
-  "rounded-none border-runway-line bg-runway-panel font-mono text-[10px] tracking-[0.16em] text-runway-mute";
-
 export default function Terms() {
-  return (
-    <>
-      <SEO
-        title="Terms of Service | Blueprint"
-        description="Terms of service for Blueprint Task Evaluation Runs, hosted evidence review, capture workflows, and related services."
-        canonical="/terms"
-        jsonLd={[
-          webPageJsonLd({
-            path: "/terms",
-            name: "Blueprint terms of service",
-            description:
-              "Terms of service for Blueprint Task Evaluation Runs, hosted evidence review, capture workflows, and related services.",
-          }),
-          breadcrumbJsonLd([
-            { name: "Home", path: "/" },
-            { name: "Terms", path: "/terms" },
-          ]),
-        ]}
-      />
-
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Legal Reference Board" rightLabel="Contract Archive" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
-            <div className="grid gap-0 xl:grid-cols-[0.4fr_0.6fr]">
-              <div className="border-b border-runway-line bg-runway-black p-8 xl:border-b-0 xl:border-r lg:p-10">
-                <SurfaceMiniLabel className="font-mono text-runway-faint">Agreement Card</SurfaceMiniLabel>
-                <h1 className="mt-5 font-display uppercase text-[clamp(3.4rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-runway-text">
-                  Terms of
-                  <br />
-                  Service
-                </h1>
-                <p className="mt-5 max-w-[26ch] text-[16px] leading-[1.7] text-runway-body">
-                  Agreement to use Blueprint services and site products.
-                </p>
-                <div className="mt-8 overflow-hidden border border-runway-line bg-runway-panel">
-                  <img
-                    src={privateGeneratedAssets.termsContractBoard}
-                    alt="Blueprint terms contract board"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill className={metaPill}>Effective March 23, 2026</SurfacePill>
-                  <SurfacePill className={metaPill}>Buyer-facing contract</SurfacePill>
-                </div>
-              </div>
-
-              <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="grid gap-5 md:grid-cols-2">
-                  {sections.map((section) => {
-                    const Icon = section.icon;
-                    return (
-                      <SurfaceCard key={section.title} className={`${panelCard} h-full`}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center border border-runway-line bg-runway-black">
-                            <Icon className="h-4.5 w-4.5 text-runway-mute" />
-                          </div>
-                          <h2 className={sectionHeading}>{section.title}</h2>
-                        </div>
-                        <p className={`mt-4 max-w-[68ch] ${prose}`}>{section.body}</p>
-                      </SurfaceCard>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-                  <SurfaceCard className={bandCard}>
-                    <h2 className={sectionHeading}>Disclaimer</h2>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      Blueprint does not promise that a site package or hosted session is a
-                      deployment guarantee. The product helps teams evaluate a real site earlier and
-                      make better decisions before travel or deployment work.
-                    </p>
-                  </SurfaceCard>
-
-                  <SurfaceCard className={panelCard}>
-                    <div className="flex items-center gap-3">
-                      <Landmark className="h-4.5 w-4.5 text-runway-mute" />
-                      <h2 className={sectionHeading}>Governing law and contact</h2>
-                    </div>
-                    <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      These terms are governed by the laws of the State of North Carolina, without
-                      regard to conflict-of-law rules. Questions can be sent to Blueprint Legal.
-                    </p>
-                    <a href="mailto:legal@tryblueprint.io" className="mt-5 inline-flex items-center gap-3 font-mono text-[13px] text-runway-signal">
-                      <Mail className="h-4 w-4" />
-                      legal@tryblueprint.io
-                    </a>
-                  </SurfaceCard>
-                </div>
-
-                <div className="mt-6 grid gap-5 lg:grid-cols-3">
-                  {roleTerms.map((role) => (
-                    <SurfaceCard key={role.title} className={role.title === "Operator schedule" ? bandCard : panelCard}>
-                      <h2 className={sectionHeading}>{role.title}</h2>
-                      <ul className={`mt-4 max-w-[68ch] space-y-3 ${prose}`}>
-                        {role.items.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </SurfaceCard>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
-    </>
-  );
+  return <>
+    <SEO title="Terms of Service | Blueprint" description="Terms for Blueprint Task Evaluation Runs, capture workflows, and related services." canonical="/terms" image="https://tryblueprint.io/images/site-led/workcell.webp" />
+    <article className="ms-legal ms-container">
+      <h1>Terms of Service</h1><p>Effective March 23, 2026</p><p>Agreement to use Blueprint services and site products.</p>
+      {sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
+      <section><h2>Disclaimer</h2><p>Blueprint does not promise that a site package or hosted session is a deployment guarantee. The product helps teams evaluate a real site earlier and make better decisions before travel or deployment work.</p></section>
+      <section><h2>Governing law and contact</h2><p>These terms are governed by the laws of the State of North Carolina, without regard to conflict-of-law rules. Questions can be sent to Blueprint Legal.</p><p><a href="mailto:legal@tryblueprint.io">legal@tryblueprint.io</a></p></section>
+      {roleTerms.map((role) => <section key={role.title}><h2>{role.title}</h2><ul>{role.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}
+    </article>
+  </>;
 }

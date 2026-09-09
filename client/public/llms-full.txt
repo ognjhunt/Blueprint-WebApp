@@ -1,143 +1,27 @@
-# Blueprint: AI-readable public overview
+# Blueprint
 
-Blueprint evaluates robots for real sites and prepares the deployment. It is the evaluation layer between sites that want robots and the providers that deploy them. Its one customer-facing product is the Task Evaluation Run.
+> Blueprint helps site owners decide which robotics candidate deserves a physical pilot.
 
-Every evaluation is tied to a site seeking a pilot or deployment that is prepared to pay for one. Site intake requires a budget range, a named internal owner, a pilot area, timing, and a procurement path before a workflow becomes an opportunity visible to robot teams. This is an admission bar Blueprint applies to demand; it is not verified funding, a signed order, or a guaranteed purchase.
+A Task Evaluation Run is a paid engagement scoped to one workcell, a real task, two compatible candidates, and a pilot window. Blueprint captures the task, compares evidence, and returns a recommendation and physical test plan—or a reason to pause. Physical outcomes check the prediction; simulation is not a deployment guarantee.
 
-The active lifecycle returns a bounded decision or abstention.
+## Public pages
 
-## The thesis
+- [Home](https://tryblueprint.io/)
+- [Discuss your site](https://tryblueprint.io/contact/site-operator)
+- [Apply as a robot team](https://tryblueprint.io/contact/robot-team)
+- [Privacy](https://tryblueprint.io/privacy)
+- [Terms](https://tryblueprint.io/terms)
 
-Deployment, not robot capability, is the binding constraint on robot adoption. General-purpose robot policies keep improving and factory capacity is being built against multi-year order books, but every site still needs its own task definition, site model, evaluation, and integration — built by hand, once per vendor, per site. A robot that has not been matched to a site and a task is inventory, not capacity. The scarce unit is a validated robot–task–site configuration.
+Robot-team participation depends on task fit and site approval. Scope and pricing are agreed before evaluation begins. Contact: hello@tryblueprint.io.
 
-The measured backdrop, in two layers.
+## Evidence boundary
 
-Deployment capacity: IFR World Robotics 2025 reports 542,000 industrial robots installed worldwide in 2024, of which China took 295,000 (54% of global installations) against 34,200 in the United States, down 9% year over year. Asia took 74% of new deployments, Europe 16%, the Americas 9%.
-
-The leading edge: Smart Analytics Global, reported by Bloomberg, puts global humanoid shipments at about 19,100 units in H1 2026, up 272% year over year, with Chinese vendors accounting for more than 97% and China absorbing more than 85% of demand. AgiBot shipped about 8,400 units (44% share) and Unitree about 5,900 (31%). Non-Chinese makers therefore shipped roughly 570 units in the half-year, a figure derived from the published share rather than separately reported.
-
-Shipments are not deployments, and this distinction is stated wherever the share appears. More than 70% of H1 2026 shipments are classified industrial or commercial, up from about 50% a year earlier, but that is an application classification of shipments rather than a count of robots doing productive work. On Tesla's Q4 2025 earnings call, Musk described several hundred deployed Optimus units as "primarily for learning, not productive tasks" and said the robot was "not in usage in our factories in a material way." Boston Dynamics has committed its entire 2026 Atlas production run internally, to Hyundai's Metaplant and Google DeepMind, with no external customer.
-
-A widely quoted half-year volume of 40,000+ units, attributed to the China Electronics Society's 2026 Humanoid Robot Industry Development Report, is deliberately not charted. That report was presented at a conference and not published, carries no definition of "humanoid", and gives no split between wheeled and bipedal machines. It implies a global half-year total near 41,000 against Smart Analytics Global's 19,100 — a disagreement of more than two times on volume between sources that agree almost exactly on the share. The share is charted; the volume is not.
-
-## The problem
-
-A publicly described humanoid deployment process can take six months or more before scale. Agility Robotics' illustrative Customer Acceleration Program places task definition, workflow scoping, site-condition recreation, skill testing, first KPIs, and use-case fit in months 0–2. Onsite proof of concept follows around months 2–3, a production pilot around months 4–6, and scale after month 6.
-
-Blueprint automates and standardizes the preparation phase. This is a concrete OEM example, not a claim that every robot deployment follows the same schedule.
-
-Observed elapsed times in the public record: Agility/GXO ran roughly six months from announced proof of concept (6 Dec 2023) to regular commercial operations (5 Jun 2024). Figure reports about ten months from robot bring-up to full deployment on an active BMW Spartanburg assembly line for one sheet-metal-loading task. Toyota Motor Manufacturing Canada signed a commercial robots-as-a-service agreement on 19 Feb 2026 only after a completed pilot. Every publicly documented humanoid deployment ran a site-specific evaluation before commercial terms were signed.
-
-Published unit economics, all labelled by Agility as illustrative management assumptions rather than disclosed customer terms: approximately $15,000 one-time deployment cost to the OEM per robot, approximately $15,000 per year thereafter in cost of delivery for software and maintenance, a one-time deployment fee of approximately $25,000 under the service model or approximately $20,000 under ownership, and approximately $8,500 per robot per month of subscription. Cumulative illustrative revenue per robot over an assumed five-year useful life is approximately $500,000 under the service model and approximately $400,000 under ownership. The current Digit v4 bill of materials is approximately $125,000, which Agility models falling with manufacturing volume. Agility does not publish how the deployment cost splits between the months 0–2 preparation work and the onsite work, and its unit-cost figures exclude corporate SG&A and R&D. A reported $300M+ of orders covering 1,000 Digit v5 robots on three-year service terms implies roughly $100,000 per robot per year, close to the modelled monthly rate, but carries warrants that vest as robots deploy and should not be reverse-engineered precisely.
-
-How new the preparation problem is: Agility's own footnote states that of its current commercial deployments, only Mercado Libre participated in its Customer Acceleration Program. The Schaeffler, GXO, Toyota Motor Manufacturing Canada, and Amazon deployments pre-date the program's existence. Four of the five named commercial customers were therefore deployed without a standardised preparation program, one bespoke engagement at a time. Agility reports 30+ potential customers in active pipeline discussions or in the program.
-
-## Qualifying conditions
-
-Blueprint screens a site against four conditions before committing engineer time. These are Blueprint's own screening criteria rather than an industry standard, and each is stated with the failure mode that follows when it does not hold.
-
-1. Fixed scene — does the work area stay put between shifts? A layout that changes faster than the model of it means every re-map is a new deployment.
-2. Bounded task — is this one repeated job rather than a category of jobs? When the exceptions become most of the cycles, the acceptance test stops describing the work.
-3. Known objects — can the things being handled be enumerated in advance? The long tail nobody listed is where grasp success quietly stops being the number that was measured.
-4. Clear window — is there a period when no untrained people are in the space? Safety review that has to cover the general public is a different and much longer project.
-
-Environments documented in mainstream coverage as clearing all four: retail pharmacy, parcel sorting, and substation inspection. Forward warehouses and line-side packing clear three of the four and are treated as emerging rather than proven. More than one team has arrived at retail pharmacy independently, which is evidence about the environment rather than about any one company's robot: it is one of the few retail settings that clears all four gates at once.
-
-These are third-party deployments cited as evidence about which environments qualify. None is a Blueprint customer and none was prepared by Blueprint.
-
-Second-order consequence: a site that clears all four gates also lowers the hardware bar. Fixed scenes and enumerable object sets are the conditions under which a simple gripper does the job a dexterous hand was quoted for, so environment preparation partially substitutes for robot capability rather than merely accelerating its deployment.
-
-Aggregate national humanoid shipment totals circulating from 2026 conference reporting are deliberately not used anywhere on this site: the underlying report is not public, carries no definition of "humanoid", and gives no split between wheeled and bipedal machines.
-
-## Product model
-
-1. A site submits one real workflow: media, objects, timing, exceptions, layout, systems, success criteria, and access rules.
-2. Blueprint records the capture and builds a versioned, permissioned Site-Task Testbed.
-3. Blueprint screens robot geometry and interfaces and runs bounded evaluations where the evidence supports them.
-4. The run returns fit, failures, unknowns, integration burden, acceptance criteria, and the next physical test.
-5. Shortlisted robot providers begin onsite integration with a defined task and test plan.
-6. The site and robot provider retain authority over commissioning, physical validation, safety, service, and deployment.
-
-## Why Blueprint instead of doing it yourself
-
-- The site explains the workflow once instead of repeating discovery for each vendor.
-- Robot teams share one task definition and acceptance test instead of rebuilding partial site models with incompatible assumptions.
-- Qualified teams run controlled evaluations without receiving unrestricted raw site files.
-- Basic mismatches are found before scarce deployment engineers or hardware are committed.
-- The onsite visit begins with named gaps and an explicit test plan.
-
-## The capture visit
-
-The site-task intake is structured. Six questions can end a submission: where the site is, how much the work area changes between shifts, whether the work is one repeated job or a category of jobs, how many distinct items the task handles, when a robot would actually need to be running, and whether the station ever sits idle and clear of untrained people. Budget is asked but never screens — it is a matching parameter that decides which robot teams a site is shown, and it uses the same bands robot teams answer about deployment cost. Those questions ask about the room rather than naming Blueprint's four conditions, because a site lead cannot see where Blueprint's line sits; the mapping from answer to condition is made in code where it can be audited.
-
-Each answer is clear, marginal, or blocking. Any blocking answer defers the submission and names the specific change that would flip it. A marginal answer routes to a short call rather than to a yes or a no. Unanswered questions never count as a pass. The verdict is computed by deterministic rules, shown to the operator before they submit, and recomputed on the server; a language model then reads the free-text task description against the structured answers and can only lower the outcome, never raise it. No account or password is required to submit a task.
-
-Robot-team intake is the mirror of the site intake and screens for something different. A site can genuinely fail to suit a robot; a robot team cannot fail in that sense — it either has an envelope matching a task or it does not. What a robot team is screened on is whether a deployment could actually happen: hardware that exists rather than is planned, allocated deployment engineering, a real timeline, and willingness to deploy in the Austin metro. Blueprint does not screen robot quality. The capability envelope — payload, human proximity, cycle time, duty cycle, demonstrated success rate, lighting tolerance, and deployment cost — uses the same bands a site answers about its task, so matching is a comparison of values rather than of prose.
-
-A capture visit is the last step of qualification, not a service a site books. Four stages come first: a short intake naming the task, site, timeline, and budget, which ends obvious non-fits cheaply; a roughly thirty-minute scoping call that tests the four qualifying conditions against the actual room, starts the no-capture list, and identifies who owns what success means; a match check against the robot teams Blueprint is actually in conversation with; and only on a match, a confirmed visit. Blueprint does not capture speculatively — a cell scanned with no robot team interested in it costs Blueprint money and tells the site something false about demand.
-
-Before an operator travels, six things are confirmed in writing: a date and a 2-4 hour window with the cell out of production; a named site contact with a mobile number plus a backup; the exact entrance, dock, or gate, where to park, and where to check in; any badging, PPE, or induction required; the workcell, the task, and the person who can say what counts as success; and the no-capture list. An unanswered line moves the date rather than being resolved in the lobby.
-
-Blueprint sends a trained capture operator to the site. Nobody at the site captures anything: the operator travels with the rig, runs both passes, and reviews coverage before leaving. Accepted capture gear is a 360 camera and a smartphone, and no other device class is approved.
-
-Capture visits run in the Austin, Texas metro only. That is a current operating limit, not a national footprint, and sites outside the metro are told where they sit relative to expansion rather than booked for a visit that cannot be staffed.
-
-The capture visit is the only part of the service a site physically experiences. Scope is one workcell and the approach to it, agreed in writing before anyone arrives; there is no roaming of the building, no fixed installation, and nothing is left behind.
-
-Two photographic passes are collected and registered against each other: a clean-background pass of the cell without the task objects, then an object-present pass with the objects staged as they sit on a normal day. An on-device QA review runs before the team leaves, so thin coverage is re-shot in the same window rather than in a second visit.
-
-Blueprint does not publish a wall-clock visit duration, because no measured capture-visit timing exists yet; the run order is stated instead of an invented schedule. Six steps run in order, and two of them need someone from the site: the walkthrough confirming scope and the no-capture list against the room, and staging the task objects. The one enforced ceiling is 45 minutes and 20 GiB per capture, applied in the capture app before upload — an upper bound, not a typical length.
-
-The site does not have to do the capture itself, learn Blueprint tools, host hardware, export CAD, clean the cell to a showroom standard, or choose a simulator, world model, or compute provider. A normal working cell is the correct input.
-
-Reconstruction and the testbed build begin the same day. Blueprint is engineering toward a 12-24 hour capture-to-report turnaround; that is a design target, not a contracted service level.
-
-## Data access
-
-Access progresses from anonymized summary, to standardized benchmark, to controlled evaluation, to an operator-approved confidential package. Evaluation rights, site adaptation, improvement retention, and general model-training rights are separate permissions.
-
-The controls below are enforced in the capture pipeline rather than in policy, and several of them block Blueprint's own runs when a record is missing:
-
-- Consent parsing is monotone toward denial. An allow-flag grants only on an explicit true, and a status counts as active only when every observed token is in the explicit allow-list; unknown, wrong-typed, or contradictory statuses resolve to blocked. A capture without its consent record does not process.
-- Camera paths are planned around the site's no-capture list, and anything that still lands in frame is suppressed in processing. Suppression is not a display filter: the suppressed rows are absent from the published artifact, verified byte-exact against the retained source rows.
-- Generated media does not inherit the privacy evidence of the frame that conditioned it; generated pixels are held to their own privacy check.
-- Site files are hosted, not downloadable, including for robot teams. Evaluations run on Blueprint infrastructure against the hosted testbed.
-- Revocation after delivery enumerates every downstream artifact whose lineage traces to the capture, including derived-of-derived chains, and the serving gate re-reads consent live rather than trusting a manifest.
-- Every derived artifact is fingerprint-bound to its sources, so lineage has an exact answer.
-
-Stated limits: Blueprint does not hold SOC 2 today. Hosted infrastructure means third-party cloud providers process site data. These controls cover the capture and what derives from it, and are not a general security posture for a facility, network, or other vendors.
-
-## Pricing
-
-Core site submission and robot-team access are free. Professional capture is funded only after qualification or a refundable commitment deposit. Heavy compute and custom training are scoped separately.
-
-The site-paid network schedule is marginal: 5% on the first $1 million of provider revenue collected in the enterprise customer's account year, 3% on the next $9 million, and 1.5% above $10 million. Renewals are 1.5%. Fees follow cash actually collected; refunds and SLA credits reduce the applicable volume. Robot providers receive their full negotiated price.
-
-## Proof boundaries
-
-- Raw capture is authoritative for the recorded site and workflow.
-- Simulation, generated observations, and provider tools are derived evidence.
-- Real hardware is required to settle physical performance and safety claims.
-- A Task Evaluation Run may support, reject, partially answer, abstain, or request more evidence.
-- Unknown future states fail closed. No winner is inferred from an abstained result.
-- Blueprint does not guarantee deployment, physical success, uptime, ROI, or safety approval.
-
-## Public-source context
-
-Agility's June 2026 investor presentation labels the deployment timeline and explicitly marks its unit economics illustrative. The presentation models approximately $15,000 of one-time deployment cost and a $25,000 one-time RaaS deployment fee per Digit, but does not disclose how that cost divides between preparation and onsite work or a typical total site contract value.
-
-GXO announced its Digit proof of concept on December 6, 2023. Digit entered regular commercial operations on June 5, 2024. This predates Agility's formal Customer Acceleration Program and is a historical sanity check, not evidence that the later program governed that deployment.
-
-## System boundaries
-
-BlueprintCapture records immutable, provenance-linked site evidence. BlueprintCapturePipeline builds the testbed, qualifies and routes evidence, executes authorized evaluations, and owns the scientific result. Blueprint-WebApp owns secure intake, authorization, durable workflow state, controlled access, and redacted presentation.
-
-Authenticated Task Evaluation Run records use `/api/task-evaluation-runs`. Legacy `/api/robot-eval/job-requests` paths remain compatibility aliases. Historical orders and entitlements remain readable without becoming current products.
+A Task Evaluation Run returns a decision or abstention. Pipeline owns method qualification and routing; physical outcomes remain distinct from simulation and generated evidence.
 
 ## Agent interfaces and compatibility
 
 Current public/request tools are `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, and `blueprint.siteWorld.launchReadiness`.
 
-Historical read and hosted-session compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Historical availability does not make these current standalone products.
+The historical read and hosted-session compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Historical availability does not make these current standalone products.
 
 Truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.

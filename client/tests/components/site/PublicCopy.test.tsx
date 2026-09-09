@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Header } from "@/components/site/Header";
-import { Footer } from "@/components/site/Footer";
+import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import Home from "@/pages/Home";
 
 vi.mock("wouter", () => ({
@@ -25,32 +24,22 @@ describe("public real-site evaluation copy", () => {
   it("keeps the buyer path centered on one decision-oriented service", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
-      <>
-        <Header />
-        <Home />
-        <Footer />
-      </>,
+      <MinimalSiteLayout><Home /></MinimalSiteLayout>,
     );
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Real jobs, fully specified/i,
+        name: /Your site/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Prepare a deployment/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Discuss your site/i }).length).toBeGreaterThan(0);
 
-    // One bounded service, and the three-stage transformation that backs it.
-    expect(container).toHaveTextContent(/Capture/i);
-    expect(container).toHaveTextContent(/Recreate/i);
-    expect(container).toHaveTextContent(/Evaluate/i);
-
-    // The result stays decision-oriented and preserves the evidence boundary.
-    expect(container).toHaveTextContent(/Use it to commission\. Not to discover/i);
-    expect(container).toHaveTextContent(/Blueprint owns the site\. You own the robot/i);
-    expect(container).toHaveTextContent(
-      /the gaps and the pass mark — packaged before anyone flies/i,
-    );
+    expect(container).toHaveTextContent(/Define the task/i);
+    expect(container).toHaveTextContent(/Compare candidates/i);
+    expect(container).toHaveTextContent(/Choose the pilot/i);
+    expect(container).toHaveTextContent(/clear reason to pause/i);
+    expect(container).toHaveTextContent(/site and robot team run the physical pilot/i);
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

@@ -16,9 +16,9 @@ test("legacy environments route redirects to proof instead of the removed catalo
 }) => {
   await page.goto("/environments");
 
-  await expect(page).toHaveURL(/\/proof$/);
+  await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
-    page.getByRole("heading", { name: /first two months are real work/i }),
+    page.getByRole("heading", { name: /Your site/i }),
   ).toBeVisible();
 });
 
@@ -56,21 +56,21 @@ test("retired public offer URLs redirect to the single scoped run", async ({
 test("public routes work with trailing slashes", async ({ page }) => {
   await page.goto("/docs/");
 
-  await expect(page).toHaveURL(/\/proof\/?$/);
+  await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /first two months are real work/i,
+      name: /Your site/i,
     }),
   ).toBeVisible();
 });
 
-test("FAQ remains a real public destination", async ({ page }) => {
+test("FAQ redirects to the compact method section", async ({ page }) => {
   await page.goto("/faq");
 
-  await expect(page).toHaveURL(/\/faq$/);
+  await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /We find the robot that can do the job, then help you deploy it/i,
+      name: /Your site/i,
     }),
   ).toBeVisible();
 });
@@ -83,8 +83,8 @@ test("robots and sitemap are publicly reachable", async ({ request }) => {
   expect(await robots.text()).toContain("User-agent: *");
   expect(sitemap.ok()).toBeTruthy();
   const sitemapText = await sitemap.text();
-  expect(sitemapText).toContain("https://tryblueprint.io/sites");
-  expect(sitemapText).toContain("https://tryblueprint.io/pricing");
-  expect(sitemapText).toContain("https://tryblueprint.io/proof");
+  expect(sitemapText).toContain("https://tryblueprint.io/contact/site-operator");
+  expect(sitemapText).toContain("https://tryblueprint.io/contact/robot-team");
+  expect(sitemapText).not.toContain("https://tryblueprint.io/pricing");
   expect(sitemapText).not.toContain("https://tryblueprint.io/world-models");
 });

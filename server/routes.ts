@@ -20,7 +20,7 @@ import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
 import pilotOpportunitiesRouter from "./routes/pilot-opportunities";
 import creatorRouter from "./routes/creator";
-import contactHandler from "./routes/contact";
+import contactTaskMediaHandler from "./routes/contact-task-media";
 import waitlistHandler from "./routes/waitlist";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
@@ -142,7 +142,7 @@ export function registerRoutes(app: Express) {
   );
   app.post("/api/process-waitlist", csrfProtection, processWaitlistHandler);
   // Public endpoints (no Firebase auth required).
-  app.post("/api/contact", csrfProtection, contactHandler);
+  app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.use("/api/help", csrfProtection, helpRouter);
   app.post("/api/voice/webhook", voiceWebhookHandler);

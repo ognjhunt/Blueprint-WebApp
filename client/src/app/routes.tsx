@@ -1,3 +1,4 @@
+import { minimalMarketingRedirects } from "../data/minimalPublicSite";
 import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
@@ -47,13 +48,9 @@ const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow")
 const CapturerSignUpFlow = lazyRoute(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
 // /robot-team/eval merged into /for-robot-teams (#intake); keep the URL as a redirect.
-const RobotTeamEvalRedirect = () => <MarketingRedirect to="/for-robot-teams#intake" />;
 const Sites = lazyRoute(() => import("../pages/Sites"));
 const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
-const Pricing = lazyRoute(() => import("../pages/Pricing"));
 const Contact = lazyRoute(() => import("../pages/Contact"));
-const Proof = lazyRoute(() => import("../pages/Proof"));
-const FAQ = lazyRoute(() => import("../pages/FAQ"));
 const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
@@ -80,15 +77,6 @@ const OpportunityOffer = lazyRoute(() => import("../pages/internal/OpportunityOf
 const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityOffers"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
-const About = lazyRoute(() => import("../pages/About"));
-const Vision = lazyRoute(() => import("../pages/Vision"));
-const Governance = lazyRoute(() => import("../pages/Governance"));
-const CaptureVisit = lazyRoute(() => import("../pages/CaptureVisit"));
-const SiteTaskIntake = lazyRoute(() => import("../pages/SiteTaskIntake"));
-const RobotTeamIntake = lazyRoute(() => import("../pages/RobotTeamIntake"));
-const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
-const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
-const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
@@ -127,7 +115,8 @@ const ContactRedirect = () => {
   const search =
     typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const persona = search?.get("persona") ?? search?.get("buyerType") ?? "";
-  const isSiteOperator = persona === "site-operator" || persona === "site_operator";
+  const isContactRoot = typeof window !== "undefined" && window.location.pathname.replace(/\/$/, "") === "/contact";
+  const isSiteOperator = persona === "site-operator" || persona === "site_operator" || (isContactRoot && persona !== "robot-team" && persona !== "robot_team");
   return (
     <MarketingRedirect
       to={
@@ -229,6 +218,9 @@ const LegacyDocsRedirect = () => (
 );
 
 export const appRoutes: AppRoute[] = [
+  ...Object.entries(minimalMarketingRedirects).map(([path, to]): AppRoute => ({
+    path, layout: "public", component: () => <MarketingRedirect to={to} />,
+  })),
   { path: "/", layout: "public", component: Home },
   { path: "/launch-map", layout: "public", component: CaptureLaunchAccess },
 
@@ -266,9 +258,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteLibraryDetailRedirect },
 
   // Persona pages
-  { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
-  { path: "/for-robot-teams", layout: "public", component: ForRobotTeams },
-  { path: "/robot-team/eval", layout: "public", component: RobotTeamEvalRedirect },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages
@@ -276,7 +265,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/readiness", layout: "public", component: HowItWorksRedirect },
   { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
   { path: "/agents", layout: "public", component: ContactRedirect },
-  { path: "/pricing", layout: "public", component: Pricing },
   { path: "/policy-shortlist", layout: "public", component: LegacyOfferRedirect },
   { path: "/robot-match", layout: "public", component: LegacyOfferRedirect },
   { path: "/policy-improvement-run", layout: "public", component: LegacyOfferRedirect },
@@ -295,15 +283,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/help/article/:articleSlug", layout: "public", component: ContactRedirect },
   { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
-  { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/proof", layout: "public", component: Proof },
-  { path: "/faq", layout: "public", component: FAQ },
-  { path: "/governance", layout: "public", component: Governance },
-  { path: "/capture-visit", layout: "public", component: CaptureVisit },
-  { path: "/site-task", layout: "public", component: SiteTaskIntake },
-  { path: "/robot-intake", layout: "public", component: RobotTeamIntake },
-  { path: "/about", layout: "public", component: About },
-  { path: "/vision", layout: "public", component: Vision },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
   { path: "/updates", layout: "public", component: HomeRedirect },
   { path: "/blog", layout: "public", component: LegacyBlogRedirect },
@@ -333,8 +312,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
-  { path: "/privacy", layout: "public", shell: "bare", component: Privacy },
-  { path: "/terms", layout: "public", shell: "bare", component: Terms },
+  { path: "/privacy", layout: "public", component: Privacy },
+  { path: "/terms", layout: "public", component: Terms },
   { path: "/beta/capturer-guide", layout: "public", shell: "bare", component: BetaCapturerGuide },
   { path: "/beta/buyer-guide", layout: "public", shell: "bare", component: BetaBuyerGuide },
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
@@ -426,7 +405,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/ops/task-evaluation-launches", layout: "public", component: AdminTaskEvaluationLaunches },
 
   // 404
-  { layout: "public", component: NotFound },
+  { layout: "public", shell: "bare", component: NotFound },
 ];
 
 function hasPreload(component: ComponentType<any>): component is PreloadableComponent {

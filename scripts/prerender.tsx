@@ -1,3 +1,4 @@
+import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -15,21 +16,9 @@ import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
-import Pricing from "../client/src/pages/Pricing";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
-import HowItWorks from "../client/src/pages/HowItWorks";
-import About from "../client/src/pages/About";
-import Vision from "../client/src/pages/Vision";
-import Governance from "../client/src/pages/Governance";
-import CaptureVisit from "../client/src/pages/CaptureVisit";
-import SiteTaskIntake from "../client/src/pages/SiteTaskIntake";
-import RobotTeamIntake from "../client/src/pages/RobotTeamIntake";
-import FAQ from "../client/src/pages/FAQ";
-import ForSiteOperators from "../client/src/pages/ForSiteOperators";
-import ForRobotTeams from "../client/src/pages/ForRobotTeams";
-import Proof from "../client/src/pages/Proof";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -252,30 +241,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/capture", component: Capture },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },
-  // Prerender the real pricing page: crawlers, link previews, and no-JS
-  // agents must see the actual tiers and prices, not a summary that omits
-  // them (WSPEC context: the summary shell made /pricing look price-free).
-  { path: "/pricing", component: Pricing },
   { path: "/sites", component: Sites },
-  // /proof states the claim boundaries the rest of the site depends on, so
-  // crawlers and no-JS agents must see the real page rather than a summary that
-  // paraphrases them.
-  { path: "/proof", component: Proof },
-  { path: "/faq", component: FAQ },
-  // /for-robot-teams is the canonical citation target advertised in the
-  // sitemap and llms.txt, so crawlers must see the real page, not a summary
-  // shell whose canonical points elsewhere.
-  { path: "/for-robot-teams", component: ForRobotTeams },
-  // Live public pages (also advertised in the sitemap) prerender as their
-  // real components so crawlers and no-JS agents see the actual content.
-  { path: "/for-site-operators", component: ForSiteOperators },
-  { path: "/how-it-works", component: HowItWorks },
-  { path: "/about", component: About },
-  { path: "/vision", component: Vision },
-  { path: "/governance", component: Governance },
-  { path: "/capture-visit", component: CaptureVisit },
-  { path: "/site-task", component: SiteTaskIntake },
-  { path: "/robot-intake", component: RobotTeamIntake },
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },
@@ -285,8 +251,8 @@ const staticRoutes: StaticRoute[] = [
   { path: "/signup/site-operator", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/capturer", component: PrerenderCapturerSignup, shell: "bare" },
   { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
-  { path: "/privacy", component: Privacy, shell: "bare" },
-  { path: "/terms", component: Terms, shell: "bare" },
+  { path: "/privacy", component: Privacy },
+  { path: "/terms", component: Terms },
   { path: "/__blueprint-performance-fallback__", component: PrerenderFallbackSummary, shell: "bare" },
 ];
 
@@ -413,7 +379,7 @@ async function main() {
     "utf8",
   );
 
-  for (const route of staticRoutes) {
+  for (const route of staticRoutes.filter((route) => !minimalMarketingRedirects[route.path])) {
     const { markup, helmet } = renderRoute(route);
     const html = deferImageLoading(
       injectHelmet(

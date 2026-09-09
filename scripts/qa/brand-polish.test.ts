@@ -28,42 +28,14 @@ describe("brand polish QA harness contract", () => {
         "Live availability, rights, and fulfillment are confirmed per site/request.",
       ),
     ).toEqual([]);
-    expect(harness.publicQaRoutes.map((route: { path: string }) => route.path)).toEqual([
-      "/",
-      "/product",
-      "/world-models",
-      "/agents",
-      "/pricing",
-      "/proof",
-      "/capture",
-      "/contact",
-      "/careers",
-      "/faq",
-      "/about",
-      "/how-it-works",
-      "/for-site-operators",
-      "/for-robot-teams",
-      "/governance",
-      "/capture-visit",
-      "/site-task",
-      "/robot-intake",
-      "/vision",
-      "/updates",
-    ]);
-
-    const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
-    expect(agentsRoute).toMatchObject({
-      expectedHeading: "Get evaluated against a job someone is ready to buy.",
-      requiredCtas: expect.arrayContaining([
-        { label: "Test a captured site task.", hrefStartsWith: "/contact/robot-team" },
-        { label: "Operate a site? Submit one workflow for screening.", hrefStartsWith: "/contact/site-operator" },
-      ]),
+    const canonicalPaths = ["/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
+    expect(harness.publicQaRoutes.slice(0, 5).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
+    for (const route of harness.publicQaRoutes) expect(canonicalPaths).toContain(route.canonicalPath);
+    expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
+      canonicalPath: "/contact/robot-team", expectedHeading: "Bring your robot. Find the fit.",
     });
-
-    const faqRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq");
-    expect(faqRoute).toMatchObject({
-      canonicalPath: "/faq",
-      expectedHeading: "We find the robot that can do the job, then help you deploy it.",
+    expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
+      canonicalPath: "/", expectedHeading: "A pilot worth running.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({
