@@ -12,7 +12,12 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
   test(`all public pages share the approved theme at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => {
+      // Existing Express/Vite middleware emits an invalid dev-only HMR fallback
+      // URL. The standalone preview and production build have no such fallback.
+      if (/Failed to construct 'WebSocket': The URL 'ws:\/\/localhost:undefined\//.test(error.message)) return;
+      errors.push(error.message);
+    });
     for (const [name, path, heading] of [
       ["home", "/", "Your site."],
       ["site", "/contact/site-operator", "Let’s start with your site."],
@@ -27,8 +32,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCSS("color", "rgb(34, 37, 30)");
       await expect(page.locator(".ms-footer")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const broken = await page.locator("img").evaluateAll((images) => images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.src));
-      expect(broken).toEqual([]);
+      await expect.poll(() => page.locator("img").evaluateAll((images) => images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.src))).toEqual([]);
       await page.screenshot({ path: `output/site-led-review/${name}-${viewport.width}.png`, fullPage: true });
     }
     expect(errors).toEqual([]);
@@ -104,4 +108,33 @@ test("old marketing links resolve to the minimal website without losing source c
   }
   await page.goto("/contact");
   await expect(page).toHaveURL(/\/contact\/site-operator/);
+});
+
+test("site owners can include links and upload more than one task clip", async ({ page }) => {
+  await page.goto("/contact/site-operator");
+  await page.getByLabel("Your name").fill("Video Reviewer");
+  await page.getByLabel("Work email").fill("video@example.com");
+  await page.getByLabel("Company", { exact: true }).fill("Test Site");
+  await page.getByLabel("What task do you want to automate?", { exact: true }).fill("Two related pick-and-place tasks.");
+  await page.getByLabel("Evaluation budget").selectOption("Approved");
+  await page.getByLabel("Video links", { exact: true }).fill("https://example.com/task-demo");
+  await page.getByLabel("Upload task videos").setInputFiles([
+    { name: "task-one.mp4", mimeType: "video/mp4", buffer: Buffer.from("0000ftypisom0000test-one") },
+    { name: "task-two.mov", mimeType: "video/quicktime", buffer: Buffer.from("0000ftypqt  0000test-two") },
+  ]);
+  await expect(page.getByRole("list", { name: "Selected task videos" }).getByRole("listitem")).toHaveCount(2);
+  let receivedMultipart = false;
+  await page.route("**/api/contact", async (route) => {
+    expect(route.request().headers()["content-type"]).toContain("multipart/form-data; boundary=");
+    expect(route.request().headers()["x-csrf-token"]).toBe("local-review-token");
+    const content = route.request().postDataBuffer()!.toString();
+    expect(content).toContain('filename="task-one.mp4"');
+    expect(content).toContain('filename="task-two.mov"');
+    expect(content).toContain("https://example.com/task-demo");
+    receivedMultipart = true;
+    await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ success: true }) });
+  });
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+  await expect(page.getByRole("heading", { name: "Your inquiry is in." })).toBeVisible();
+  expect(receivedMultipart).toBe(true);
 });

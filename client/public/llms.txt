@@ -13,3 +13,15 @@ A Task Evaluation Run is a paid engagement scoped to one workcell, a real task, 
 - [Terms](https://tryblueprint.io/terms)
 
 Robot-team participation depends on task fit and site approval. Scope and pricing are agreed before evaluation begins. Contact: hello@tryblueprint.io.
+
+## Evidence boundary
+
+A Task Evaluation Run returns a decision or abstention. Pipeline owns method qualification and routing; physical outcomes remain distinct from simulation and generated evidence.
+
+## Agent interfaces and compatibility
+
+Current public/request tools are `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.ask`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, and `blueprint.siteWorld.launchReadiness`.
+
+The historical read and hosted-session compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Historical availability does not make these current standalone products.
+
+Truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.

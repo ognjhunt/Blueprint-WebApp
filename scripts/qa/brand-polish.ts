@@ -24,6 +24,8 @@ export type PublicQaRoute = {
   canonicalPath: string;
   expectedHeading: string;
   requiredCtas: RequiredCta[];
+  /** Compact landing pages are complete with less text than editorial pages. */
+  minVisibleTextLength?: number;
   /**
    * Public-launch-posture pattern labels to ignore on this route, for known
    * false positives — e.g. an honest per-item readiness filter (filter option
@@ -150,7 +152,7 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 // content — the route stays in this sweep to keep verifying the redirect
 // itself (HTTP status, console health, no broken links) still works.
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
-  { label: "Home", path: "/", canonicalPath: "/", expectedHeading: "A pilot worth running.", requiredCtas: [{ label: "Discuss your site", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "A pilot worth running.", requiredCtas: [{ label: "Discuss your site", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Let’s start with your site.", requiredCtas: [{ label: "Building robots? Apply here", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Robot team application", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Bring your robot. Find the fit.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },

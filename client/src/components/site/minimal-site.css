@@ -155,3 +155,19 @@
 .ms-not-found { padding-block: 100px 150px; min-height: calc(100vh - 170px); }
 .ms-not-found h1 { font-size: clamp(40px, 5vw, 72px); line-height: 1.1; letter-spacing: -.05em; margin-block: 20px; }
 .ms-not-found > p:not(.ms-eyebrow) { color: var(--ms-muted); margin-bottom: 32px; }
+.ms-task-videos { border-top: 1px solid #d7dbd0; padding-top: 17px; min-width: 0; }
+.ms-task-videos legend { padding-right: 10px; font-size: 13px; font-weight: 500; }
+.ms-task-videos .ms-field-hint { color: var(--ms-muted); font-size: 12px; line-height: 1.6; }
+.ms-video-links { margin-top: 15px; }
+.ms-video-links textarea { min-height: 80px; }
+.ms-video-links + p { margin-top: 7px; }
+.ms-upload-control { position: relative; margin-top: 17px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ms-upload-control input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; overflow: hidden; }
+.ms-upload-control label { cursor: pointer; display: inline-flex; flex-direction: row; align-items: center; gap: 9px; border: 1px solid #bac0b2; padding: 11px 14px; border-radius: 2px; font-weight: 500; }
+.ms-upload-control input:focus-visible + label { outline: 2px solid var(--ms-green); outline-offset: 3px; }
+.ms-upload-control label:hover { background: #eaece3; }
+.ms-upload-control > span { color: var(--ms-muted); font-size: 11px; }
+.ms-video-files { list-style: none; padding: 0; margin-top: 12px; }
+.ms-video-files li { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid #d7dbd0; padding-block: 7px; font-size: 12px; overflow-wrap: anywhere; }
+.ms-video-files small { color: var(--ms-muted); white-space: nowrap; padding-left: 8px; }
+.ms-video-files button { width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }

@@ -36,3 +36,9 @@ Hero edit prompt: Extract the architectural workcell as standalone hero artwork.
 Review artifacts: `output/site-led-review/` (ignored). The isolated worktree preserves the user's primary checkout. No production deployment was performed.
 
 Architecture refresh was attempted with both the default Python and the installed graphify launcher’s interpreter. Both lack the `graphify` package (`graphifyy` distribution), so the required AST refresh could not complete; no refreshed graph is claimed. This tooling limitation does not affect the website build or browser tests.
+
+## Video inquiry and release follow-through
+
+The owner requested optional task-video links and uploads before merge. The site form now accepts up to five HTTP(S) links and three MP4/MOV/WebM files (50 MB each), including multiple tasks. Multipart uploads pass CSRF first, have rate/concurrency/file limits, use temporary disk rather than whole-file memory buffers, and validate container signatures. Server-generated Cloud Storage metadata is persisted with the inquiry. Staff email includes private seven-day review links and durable storage URIs; failed inquiry writes clean up uploaded objects. No video is fetched from a submitted external link.
+
+Hosted CI revealed stale public-copy/browser expectations and required agent compatibility notes removed from crawler files. Those were corrected while keeping the five-page UI. The production dependency audit also required multer 2.3.0 and nodemailer 9.1.1; the lock and minimum compatible versions were updated. The existing contact persistence/CSRF contract remains in force.

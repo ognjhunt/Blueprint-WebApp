@@ -23,26 +23,26 @@ const mockContactSubmission = async (page: import("@playwright/test").Page) => {
   return submissions;
 };
 
-test("contact page leads with the robot-team Task Evaluation Run flow", async ({
+test("robot-team contact page offers supplier participation", async ({
   page,
 }) => {
   await page.goto("/contact/robot-team", { waitUntil: "domcontentloaded" });
 
   await expect(
     page.getByRole("heading", {
-      name: /Get evaluated against a job someone is ready to buy\./i,
+      name: /Bring your robot. Find the fit/i,
     }),
   ).toBeVisible();
-  await expect(page.getByText(/Tell us what your robot can do/i)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /^Name$/i })).toBeVisible();
+  await expect(page.getByText(/Tell us what your system can do/i)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: /^Your name$/i })).toBeVisible();
   await expect(
     page.getByRole("textbox", { name: /Work email/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("textbox", { name: /Robot team \/ company/i }),
+    page.getByRole("textbox", { name: /^Company$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Request evaluation/i }),
+    page.getByRole("button", { name: /Send application/i }),
   ).toBeVisible();
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
@@ -54,18 +54,18 @@ test("site-operator contact path presents the same Task Evaluation Run", async (
 
   await expect(
     page.getByRole("heading", {
-      name: /Show us the job\. We find the robot that can do it\./i,
+      name: /Let’s start with your site/i,
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/short workflow description, phone video/i),
+    page.getByText(/paid evaluation/i),
   ).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /^Name$/i })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: /^Your name$/i })).toBeVisible();
   await expect(
-    page.getByRole("textbox", { name: /Organization/i }),
+    page.getByRole("textbox", { name: /^Company$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Request evaluation/i }),
+    page.getByRole("button", { name: /Send inquiry/i }),
   ).toBeVisible();
   await expect(page.getByText(/Robot Match/i)).toHaveCount(0);
 });
@@ -77,27 +77,27 @@ test("robot-team contact form submits a Task Evaluation Run payload through a mo
 
   await page.goto("/contact/robot-team", { waitUntil: "domcontentloaded" });
 
-  await page.getByRole("textbox", { name: /^Name$/i }).fill("Ada Lovelace");
+  await page.getByRole("textbox", { name: /^Your name$/i }).fill("Ada Lovelace");
   await page
     .getByRole("textbox", { name: /Work email/i })
     .fill("ada@example.com");
   await page
-    .getByRole("textbox", { name: /Robot team \/ company/i })
+    .getByRole("textbox", { name: /^Company$/i })
     .fill("Analytical Engines");
   await page
-    .getByRole("textbox", { name: /About the workflow/i })
+    .getByRole("textbox", { name: /What does your system do/i })
     .fill(
       "Tote transfer at a Chicago warehouse. Need to decide whether field time is justified.",
     );
 
-  await page.getByRole("button", { name: /Request evaluation/i }).click();
+  await page.getByRole("button", { name: /Send application/i }).click();
 
   await expect(
-    page.getByRole("heading", { name: /Message received\./i }),
+    page.getByRole("heading", { name: /Your application is in/i }),
   ).toBeVisible();
   await expect(
     page.getByText(
-      /We will check the task, decision, thresholds, evidence, and constraints/i,
+      /review your system and follow up/i,
     ),
   ).toBeVisible();
 
@@ -131,20 +131,21 @@ test("contact form surfaces a retryable error when intake submission fails", asy
 
   await page.goto("/contact/robot-team", { waitUntil: "domcontentloaded" });
 
-  await page.getByRole("textbox", { name: /^Name$/i }).fill("Ada Lovelace");
+  await page.getByRole("textbox", { name: /^Your name$/i }).fill("Ada Lovelace");
   await page
     .getByRole("textbox", { name: /Work email/i })
     .fill("ada@example.com");
   await page
-    .getByRole("textbox", { name: /Robot team \/ company/i })
+    .getByRole("textbox", { name: /^Company$/i })
     .fill("Analytical Engines");
-  await page.getByRole("button", { name: /Request evaluation/i }).click();
+  await page.getByRole("textbox", { name: /What does your system do/i }).fill("Fixed-arm pick-and-place system.");
+  await page.getByRole("button", { name: /Send application/i }).click();
 
   await expect(page.getByRole("alert")).toContainText(
     /Service temporarily unavailable/i,
   );
   // The form stays visible so the visitor can retry without losing input.
   await expect(
-    page.getByRole("button", { name: /Request evaluation/i }),
+    page.getByRole("button", { name: /Send application/i }),
   ).toBeVisible();
 });

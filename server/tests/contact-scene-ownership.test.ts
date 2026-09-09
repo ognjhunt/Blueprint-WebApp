@@ -88,6 +88,8 @@ describe("contact request persistence", () => {
       path: "/api/contact",
     } as unknown as Request;
     const res = makeResponse();
+    const taskMedia = { links: ["https://example.com/task"], uploads: [{ name: "task.mp4", storageUri: "gs://private-test-bucket/contact-task-videos/example/task.mp4", reviewUrl: "https://storage.example/review", reviewUrlExpiresAt: "2026-09-16T00:00:00.000Z", contentType: "video/mp4", sizeBytes: 1024 }] };
+    res.locals.contactTaskMedia = taskMedia;
 
     await contactHandler(req, res);
 
@@ -98,8 +100,11 @@ describe("contact request persistence", () => {
       email: "ada@example.com",
       company: "Analytical Engines",
       requestSource: "website-contact-form",
+      taskVideoLinks: taskMedia.links,
+      taskVideos: taskMedia.uploads,
       ops_automation: expect.objectContaining({ status: "pending" }),
     });
     expect(res.body).toEqual({ success: true, sent: true });
+    expect(res.locals.contactRequestPersisted).toBe(true);
   });
 });

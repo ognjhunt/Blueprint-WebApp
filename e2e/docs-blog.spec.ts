@@ -3,10 +3,10 @@ import { expect, test } from "@playwright/test";
 test("docs page is publicly reachable", async ({ page }) => {
   await page.goto("/docs", { waitUntil: "domcontentloaded" });
 
-  await expect(page).toHaveURL(/\/proof\/?$/);
+  await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /first two months are real work/i,
+      name: /Your site/i,
     }),
   ).toBeVisible();
 });
@@ -17,7 +17,7 @@ test("blog alias redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Real jobs, fully specified/i,
+      name: /Your site/i,
     }),
   ).toBeVisible();
 });

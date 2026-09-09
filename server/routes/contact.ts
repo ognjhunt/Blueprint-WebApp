@@ -360,6 +360,8 @@ export default async function contactHandler(req: Request, res: Response) {
         message: typeof message === "string" ? message : "",
         companyWebsite: typeof companyWebsite === "string" ? companyWebsite : "",
         requestSource,
+        taskVideoLinks: res.locals.contactTaskMedia?.links || [],
+        taskVideos: res.locals.contactTaskMedia?.uploads || [],
         ops_automation: {
           status: "pending",
           queue: "support_triage",
@@ -383,6 +385,7 @@ export default async function contactHandler(req: Request, res: Response) {
         createdAt: timestamp,
       });
 
+      res.locals.contactRequestPersisted = true;
       logger.info(
         {
           ...logContext,

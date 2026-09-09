@@ -85,4 +85,35 @@ describe("Minimal public inquiries", () => {
     resolve({ ok: true } as Response);
     await screen.findByRole("status");
   });
+  it("includes task video links in a site inquiry", async () => {
+    render(<Contact />); fillForm();
+    fireEvent.change(screen.getByLabelText("Video links"), { target: { value: "https://example.com/task-one\nhttps://example.com/task-two" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("status");
+    expect(sentBody().taskVideoLinks).toEqual(["https://example.com/task-one", "https://example.com/task-two"]);
+  });
+  it("rejects invalid video links before submission", () => {
+    render(<Contact />); fillForm();
+    fireEvent.change(screen.getByLabelText("Video links"), { target: { value: "javascript:alert(1)" } });
+    fireEvent.submit(screen.getByRole("form"));
+    expect(screen.getByRole("alert")).toHaveTextContent("http:// or https://");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("uploads selected clips as multipart and permits removing a clip", async () => {
+    render(<Contact />); fillForm();
+    const first = new File(["test-video-one"], "task-one.mp4", { type: "video/mp4" });
+    const second = new File(["test-video-two"], "task-two.mov", { type: "video/quicktime" });
+    fireEvent.change(screen.getByLabelText("Upload task videos"), { target: { files: [first, second] } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove task-one.mp4" }));
+    expect(screen.queryByText("task-one.mp4")).not.toBeInTheDocument();
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("status");
+    const options = vi.mocked(fetch).mock.calls[0][1]!;
+    expect(options.body).toBeInstanceOf(FormData);
+    expect((options.body as FormData).getAll("taskVideos")).toHaveLength(1);
+    expect((options.body as FormData).get("requestSource")).toBe("website-contact-form");
+    expect(options.headers).not.toHaveProperty("Content-Type");
+    expect(options.headers).toHaveProperty("X-CSRF-Token", "test-token");
+  });
+
 });
