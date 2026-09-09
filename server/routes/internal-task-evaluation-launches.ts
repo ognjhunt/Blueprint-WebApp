@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { parseConfiguredSceneOfferingFromLaunchReceipt } from "../utils/configuredSceneOfferingContract";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { parseOpenAIInferenceUsagePacket } from "../utils/openaiInferenceUsageContract";
 import {
   parseTaskEvaluationLaunchProgress,
@@ -542,6 +543,11 @@ router.post(
           ...progressUpdate,
           progress_updated_at_iso: new Date().toISOString(),
         }, { merge: true });
+        // Keep accepted lifecycle observations for reconnecting cloud operators.
+        // The digest makes retries idempotent; terminal state remains untouched.
+        transaction.set(ref.collection("progressEvents").doc(
+          canonicalArtifactDigest(progress, "event_digest").replace("sha256:", ""),
+        ), progress);
         return "recorded";
       });
     } catch {

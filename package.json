@@ -123,6 +123,7 @@
     "@google/generative-ai": "^0.21.0",
     "@googlemaps/js-api-loader": "^1.16.8",
     "@heroicons/react": "^2.2.0",
+    "@modelcontextprotocol/sdk": "1.28.0",
     "@notionhq/client": "^5.16.0",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -171,7 +172,7 @@
     "tailwind-merge": "^2.5.4",
     "validator": "^13.15.26",
     "wouter": "^3.3.5",
-    "zod": "^3.24.2"
+    "zod": "3.25.76"
   },
   "overrides": {
     "d3-color": "^3.1.0",
