@@ -79,6 +79,9 @@ describe("Blueprint Work real OAuth and MCP HTTP transport", () => {
     const base = await start();
     const discovery = await fetch(base + "/.well-known/oauth-protected-resource/api/blueprint-work/mcp");
     expect((await discovery.json()).resource).toBe("https://tryblueprint.io/api/blueprint-work/mcp");
+    const unsupported = await fetch(base + "/api/blueprint-work/oauth/.well-known/openid-configuration");
+    expect(unsupported.status).toBe(404);
+    expect(unsupported.headers.get("content-type")).toContain("application/json");
     const denied = await fetch(base + "/api/blueprint-work/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     expect(denied.status).toBe(401); expect(denied.headers.get("www-authenticate")).toContain("resource_metadata");
     const tokens = await connect(base);

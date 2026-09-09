@@ -59,7 +59,10 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
         if (client.token_endpoint_auth_method !== "none" || client.client_secret
           || !client.redirect_uris.length || client.redirect_uris.length > 3
           || !client.redirect_uris.every(admittedWorkRedirect)) throw new InvalidClientError("Only ChatGPT public PKCE clients are supported");
-        const registered = { ...client, client_id: opaque(), client_id_issued_at: this.now(),
+        // SDK public-client registration includes client_secret: undefined and
+        // client_secret_expires_at: undefined. Firestore rejects undefined even
+        // though JSON HTTP responses omit it. Persist only admitted metadata.
+        const registered = { redirect_uris: [...client.redirect_uris], client_id: opaque(), client_id_issued_at: this.now(),
           client_name: "ChatGPT Blueprint Work", grant_types: ["authorization_code", "refresh_token"],
           response_types: ["code"], token_endpoint_auth_method: "none", scope: WORK_SCOPES.join(" ") };
         await store.set(key("client", registered.client_id), registered);
