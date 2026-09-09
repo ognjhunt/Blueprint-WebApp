@@ -126,7 +126,7 @@ export default function Contact() {
   const [location] = useLocation();
   const isSite = location !== "/contact/robot-team";
   const title = isSite ? "Let’s start with your site." : "Bring your robot. Find the fit.";
-  const description = isSite ? "Tell us about one workcell, a task worth automating, and your pilot plans. We’ll scope a paid evaluation with you." : "Tell us what your system can do. We consider compatible teams for scoped, site-funded evaluations with a defined task and pilot path.";
+  const description = isSite ? "Tell us about a manipulation task worth automating and your pilot plans. We’ll scope a paid evaluation with you." : "Tell us what your system can do. All robotics teams can apply for site-funded manipulation evaluations—arms, humanoids, mobile manipulators, and their policies.";
   return <>
     <SEO title={`${isSite ? "Discuss your site" : "Robot teams"} | Blueprint`} description={description} canonical={isSite ? "/contact/site-operator" : "/contact/robot-team"} image="https://tryblueprint.io/images/site-led/workcell.webp" />
     <section className="ms-inquiry ms-container">
@@ -134,7 +134,7 @@ export default function Contact() {
         <a className="ms-back" href="/"><ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint</a>
         <p className="ms-eyebrow">{isSite ? "For site owners" : "For robot teams"}</p>
         <h1>{title}</h1><p className="ms-inquiry-description">{description}</p>
-        <p className="ms-inquiry-aside">{isSite ? "Best fit: a bounded workcell, a named task owner, and time set aside for a physical pilot. Scope and pricing are agreed before evaluation begins." : "Applications are reviewed for task fit. Evaluation access and physical pilots require site approval; applying does not guarantee either."}</p>
+        <p className="ms-inquiry-aside">{isSite ? "Best fit: a defined manipulation task, a named task owner, and time set aside for a physical pilot. Scope and pricing are agreed before evaluation begins." : "Applications are reviewed for task fit. Evaluation access and physical pilots require site approval; applying does not guarantee either."}</p>
         <a className="ms-text-link" href={isSite ? "/contact/robot-team" : "/contact/site-operator"}>{isSite ? "Building robots? Apply here" : "Operate a site? Start here"}<ArrowUpRight size={16} aria-hidden="true" /></a>
       </div>
       <InquiryForm key={isSite ? "site" : "robot"} isSite={isSite} />

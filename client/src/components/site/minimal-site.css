@@ -171,3 +171,57 @@
 .ms-video-files li { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid #d7dbd0; padding-block: 7px; font-size: 12px; overflow-wrap: anywhere; }
 .ms-video-files small { color: var(--ms-muted); white-space: nowrap; padding-left: 8px; }
 .ms-video-files button { width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+/* One calm hero transition; copy never moves and the scene frame never resizes. */
+.ms-scene-art { opacity: 0; transform: translate3d(12px, 0, 0) scale(1.018); transition: opacity 1100ms cubic-bezier(.22,1,.36,1), transform 1800ms cubic-bezier(.22,1,.36,1); pointer-events: none; }
+.ms-scene-art.is-active { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+.ms-scene-controls { position: absolute; right: 0; bottom: 16px; display: flex; align-items: center; column-gap: 16px; row-gap: 2px; flex-wrap: wrap; justify-content: flex-end; max-width: 580px; color: var(--ms-ink); }
+.ms-scene-label { font-size: 12px; letter-spacing: -.015em; }
+.ms-scene-actions { display: flex; align-items: center; gap: 3px; }
+.ms-scene-selector, .ms-scene-pause { display: inline-flex; justify-content: center; align-items: center; width: 32px; height: 36px; }
+.ms-scene-selector span { display: block; width: 15px; height: 2px; background: #92998b; transition: background 180ms ease, transform 180ms ease; }
+.ms-scene-selector[aria-pressed="true"] span { background: var(--ms-green); transform: scaleX(1.45); }
+.ms-scene-selector:hover span { background: var(--ms-green); }
+.ms-scene-selector:disabled { opacity: .35; cursor: wait; }
+.ms-scene-pause { border-left: 1px solid #c5cabc; margin-left: 6px; padding-left: 7px; width: 38px; }
+.ms-scene-disclosure { width: 100%; text-align: right; font-size: 9px; letter-spacing: .03em; color: var(--ms-muted); }
+.ms-method-link { display: inline-flex; align-items: center; gap: 9px; margin-top: 19px; font-size: 12px; color: var(--ms-muted); text-underline-offset: 4px; }
+.ms-method-link:hover { text-decoration: underline; }
+.ms-how { max-width: 1140px; padding-block: 65px 85px; }
+.ms-how-intro { max-width: 760px; margin-bottom: 60px; }
+.ms-how-intro h1 { margin-top: 21px; font-size: clamp(48px,5.6vw,78px); line-height: 1.04; letter-spacing: -.055em; }
+.ms-how-intro > p:last-child { max-width: 46ch; margin-top: 26px; font-size: 20px; line-height: 1.6; color: var(--ms-muted); }
+.ms-how-steps section { display: grid; grid-template-columns: 110px 1fr; gap: 30px; padding-block: 32px; border-top: 1px solid var(--ms-rule); }
+.ms-how-number { font-size: 33px; letter-spacing: -.05em; color: #757c6d; }
+.ms-how-steps h2 { font-size: 29px; letter-spacing: -.04em; margin-bottom: 13px; }
+.ms-how-steps p { max-width: 66ch; color: var(--ms-muted); font-size: 16px; line-height: 1.8; }
+.ms-how-result { display: inline-block; margin-top: 18px; font-size: 13px; color: var(--ms-green); }
+.ms-how-open { display: grid; grid-template-columns: 1fr 1.4fr; gap: 60px; padding-block: 38px; margin-top: 12px; border-block: 1px solid var(--ms-rule); }
+.ms-how-open h2 { font-size: 27px; line-height: 1.25; letter-spacing: -.035em; }
+.ms-how-open p { font-size: 15px; line-height: 1.8; color: var(--ms-muted); }
+.ms-how-cta { display: flex; align-items: center; gap: 35px; margin-top: 36px; }
+@media (max-width: 700px) {
+  .ms-rotating-hero .ms-hero-inner { padding-bottom: 390px; min-height: 795px; }
+  .ms-rotating-hero .ms-hero-art { bottom: 22px; }
+  .ms-scene-controls { left: 0; right: 0; bottom: 9px; justify-content: space-between; max-width: none; gap: 0; }
+  .ms-scene-label { font-size: 11px; }
+  .ms-scene-selector { width: 25px; }
+  .ms-scene-disclosure { margin-top: -2px; }
+  .ms-how { padding-block: 34px 50px; }
+  .ms-how-intro { margin-bottom: 35px; }
+  .ms-how-intro h1 { font-size: 47px; }
+  .ms-how-intro > p:last-child { font-size: 17px; }
+  .ms-how-steps section { grid-template-columns: 36px 1fr; gap: 17px; padding-block: 27px; }
+  .ms-how-number { font-size: 26px; }
+  .ms-how-steps h2 { font-size: 24px; }
+  .ms-how-steps p { font-size: 15px; }
+  .ms-how-open { grid-template-columns: 1fr; gap: 18px; padding-block: 29px; }
+  .ms-how-cta { align-items: start; flex-direction: column; gap: 25px; }
+}
+@media (prefers-reduced-motion: reduce) { .ms-scene-art { transition: none; transform: none; } }
+.ms-cookie-consent { font-family: "DM Sans", "Helvetica Neue", sans-serif; color-scheme: light; }
+.ms-cookie-panel { background: #f6f5ef; color: #22251e; border: 1px solid #c5cabc; box-shadow: 0 8px 40px rgb(32 61 46 / .1); }
+.ms-cookie-consent h3, .ms-cookie-consent button { font-family: inherit; }
+.ms-cookie-panel { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; border-radius: 3px; }
+.ms-cookie-consent h2 { font-family: inherit; }
+.ms-cookie-consent button { border-radius: 3px; }
+.ms-cookie-consent :focus-visible { outline: 2px solid #203d2e; outline-offset: 3px; }

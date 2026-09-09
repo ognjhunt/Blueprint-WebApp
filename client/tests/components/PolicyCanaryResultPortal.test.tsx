@@ -487,7 +487,7 @@ describe("per-cell controls", () => {
     expect(createArtifactTicket).not.toHaveBeenCalled();
     fireEvent.click(within(section).getByRole("button", { name: "Load External camera video for Zero-action negative" }));
     await waitFor(() => expect(createArtifactTicket).toHaveBeenCalledWith(null, value.record_id, controls[0].videos.external.artifact_id, { signal: expect.any(AbortSignal) }));
-    expect(within(section).getByLabelText("External camera evidence for Zero-action negative").getAttribute("src")).toBe("/api/download/control-video");
+    expect((await within(section).findByLabelText("External camera evidence for Zero-action negative")).getAttribute("src")).toBe("/api/download/control-video");
     fireEvent.click(within(section).getByRole("button", { name: "Inspect Scripted positive for cell-1" }));
     expect(within(section).getByRole("heading", { name: "Scripted positive · cell-1" })).toBeTruthy();
     expect(within(section).getByRole("button", { name: "Cell evidence ZIP" })).toBeTruthy();

@@ -1,0 +1,32 @@
+{
+  "generationMode": "Codex built-in image generation",
+  "requestedModel": "gpt-image-2.5-sunburst",
+  "verifiedModel": null,
+  "modelIdentityNote": "The available tool does not expose a model selector or return model identity.",
+  "assets": [
+    {
+      "id": "arm",
+      "prompt": "Create variation 1 of a cohesive five-image Blueprint website hero series, using this supplied workcell illustration as the EXACT art-direction and layout reference. 1536x1024 landscape. Replace the bulky industrial arm with a recognizable slender Franka Emika Panda 7-axis cobot: white curved link shells, black joints, black two-finger gripper, mounted to a dark forest-green pedestal. The arm handles a small machined part beside a precision-parts conveyor. Preserve the warm ivory #f6f5ef, stone/olive palette, soft daylight, highly realistic architectural miniature/cutaway feeling, fine physical detail and elegant restraint of the reference. Entire working scene concentrated in RIGHT TWO THIRDS, hero robot around 72% of image width; LEFT THIRD must be almost empty warm ivory fading naturally from the floor for text overlay. Match the reference camera's elevated three-quarter perspective and scale, task zone floor, ordinary tables and safety screen. No writing, logos, numbers, UI, captions, border, watermark or diagram overlay. Not a real customer or capability proof; illustrative brand art. Premium photorealistic rendering, no science-fiction glow. Preserve negative space and reference atmosphere above all.",
+      "path": "client/public/images/site-led/embodiments/arm.webp",
+      "sourceFile": "exec-5e6e9e56-fb42-485e-897e-82757090ce84.png"
+    },
+    {
+      "id": "humanoid",
+      "prompt": "Create a matching Blueprint website hero illustration. First reference is the EXACT artistic style, camera angle, lighting, palette and composition to match. Second reference supplies the Figure 03-inspired robot appearance: slim human proportions, white/light-gray soft shells, black joint gaps, a glossy black elongated face visor, dexterous hands; no logos or lettering. Scene: this bipedal humanoid standing on TWO LEGS with TWO FEET, sorting small neutral cardboard cartons into a dark forest-green tote at a warehouse packing bench. Show the robot full-body clearly, with both feet grounded, torso and face visible in three-quarter view, hands actually holding a carton above the tote. A short roller conveyor, packing bench, restrained storage shelves, ordinary warehouse structural column; sophisticated architectural miniature realism, warm ivory/stone/olive palette, soft morning daylight, fine physical detail, premium editorial restraint. Landscape 1536x1024. Main robot centered around 72% image width, full working scene in RIGHT TWO THIRDS; LEFT THIRD nearly empty warm ivory #f6f5ef with a natural soft fade from the floor for text overlay. Match the reference perspective and visual scale so this can crossfade smoothly with it. No words, labels, logos, captions, UI, watermarks, diagram lines, neon, futuristic glow or humans. This is illustrative brand imagery, not a real deployment.",
+      "path": "client/public/images/site-led/embodiments/humanoid.webp",
+      "sourceFile": "exec-c053eb90-edf2-4077-b822-9cad31d495a0.png"
+    },
+    {
+      "id": "wheeled-humanoid",
+      "prompt": "Create another matching Blueprint website hero artwork using reference 1 for EXACT art direction, composition, elevated three-quarter camera, lighting and warm ivory/stone/olive palette. Reference 2 is ONLY a design-language reference for a white soft-shell humanoid torso, black face visor and dexterous hands. This scene must be a WHEELED HUMANOID: a humanlike torso, head and TWO anthropomorphic arms mounted directly onto a compact dark forest-green wheeled base, NO LEGS and NO FEET. Wheels must be clearly visible; a realistic industrial mobile dual-arm manipulator, not a biped standing on a cart. Show it transferring a small gray component tray from waist-high shelving to a white assembly bench in a tidy manufacturing kitting area. Realistic grounded object handling, hands gripping tray edges, no floating items. Main robot centered around 72% image width, full working scene in RIGHT TWO THIRDS; LEFT THIRD almost empty warm ivory #f6f5ef softly fading from the floor for website text. Architectural miniature/cutaway realism, softly lit ordinary industrial space, forest-green totes and restrained gray shelves, beautiful precise physical detail, quiet premium editorial style. 1536x1024 landscape. Match reference scale for smooth crossfades. No writing, labels, logos, numbers, captions, UI, border, watermarks, neon, holograms or people. Illustrative brand art, not real deployment proof.",
+      "path": "client/public/images/site-led/embodiments/wheeled-humanoid.webp",
+      "sourceFile": "exec-956b9247-d288-4dca-82da-b009ddc09acd.png"
+    },
+    {
+      "id": "mobile-manipulator",
+      "prompt": "Create the fourth matching Blueprint website hero illustration. Use this reference for EXACT art direction, warm ivory #f6f5ef floor and background, muted stone and forest-green palette, soft daylight, elevated three-quarter camera and realistic architectural miniature feeling. The hero subject is a MOBILE MANIPULATOR: a slim white Franka Emika Panda seven-axis robotic arm with black joints and two-finger gripper, mounted on a compact dark forest-green low rectangular autonomous wheeled base with clearly visible wheels and a short rigid mounting column. NOT a humanoid, no face, no torso, no legs. Show the mobile base parked beside waist-high gray shelving; the Panda gripper is picking up a small metal component from a tray on the shelf, with a second staging table and green bins nearby. Fully show the arm and mobile base as one coherent plausible machine. Robot centered near 72% of image width; all meaningful site/task geometry in RIGHT TWO THIRDS, LEFT THIRD mostly EMPTY warm ivory fading naturally from floor for real HTML headline. 1536x1024 landscape, same camera scale and peaceful premium style as reference, tactile fine details, clear arm silhouette and credible task contact. No typography, captions, logos, numbers, UI, borders, watermark, neon or holograms. Illustrative artwork, not actual customer evidence.",
+      "path": "client/public/images/site-led/embodiments/mobile-manipulator.webp",
+      "sourceFile": "exec-0e9ecd83-d46b-4f5e-b9f1-83c86d8fe698.png"
+    }
+  ]
+}
