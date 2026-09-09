@@ -183,6 +183,9 @@ describe("build output", () => {
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
+    for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
+      expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
+    }
     expect(siteHtml).toContain("Let’s start with your site.");
     expect(siteHtml).toContain("paid evaluation");
     expect(siteHtml).toContain('name="budget"');

@@ -2,7 +2,7 @@
 
 > Blueprint helps site owners decide which robotics candidate deserves a physical pilot.
 
-A Task Evaluation Run is a paid engagement scoped to one workcell, a real task, two compatible candidates, and a pilot window. Blueprint captures the task, compares evidence, and returns a recommendation and physical test plan—or a reason to pause. Physical outcomes check the prediction; simulation is not a deployment guarantee.
+A Task Evaluation Run is a paid engagement around a qualified site opportunity. With site approval, Blueprint brings the listing to relevant robot teams, who can evaluate multiple embodiments, policies, configurations, and checkpoints against the same task and success criteria. A single team may submit several checkpoints. Evaluation breadth is agreed around the task, available candidates, budget, and pilot window. Blueprint coordinates the comparison and returns a practical shortlist, pilot recommendation, and physical test plan—or a reason to pause. Physical outcomes check the prediction; simulation is not a deployment guarantee.
 
 ## Public pages
 

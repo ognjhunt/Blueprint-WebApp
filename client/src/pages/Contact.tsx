@@ -85,7 +85,7 @@ function InquiryForm({ isSite }: { isSite: boolean }) {
       </div>
       <label>Company<input name="company" autoComplete="organization" required maxLength={200} /></label>
       <label><span>{isSite ? "What task do you want to automate?" : "What does your system do?"}</span>
-        <span className="ms-field-hint" id="details-hint">{isSite ? "Include your site location, the workcell, and what a successful pilot would show." : "Include your robot or configuration, supported tasks, and a website or demo link."}</span>
+        <span className="ms-field-hint" id="details-hint">{isSite ? "Include your site location, the workcell, and what a successful pilot would show." : "Include your embodiments, supported tasks, policies or checkpoints, and a website or demo link."}</span>
         <textarea name="message" rows={4} required maxLength={4000} aria-label={isSite ? "What task do you want to automate?" : "What does your system do?"} aria-describedby="details-hint" />
       </label>
       {isSite && <fieldset className="ms-task-videos" disabled={status === "sending"}>
@@ -134,7 +134,7 @@ export default function Contact() {
         <a className="ms-back" href="/"><ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint</a>
         <p className="ms-eyebrow">{isSite ? "For site owners" : "For robot teams"}</p>
         <h1>{title}</h1><p className="ms-inquiry-description">{description}</p>
-        <p className="ms-inquiry-aside">{isSite ? "Best fit: a defined manipulation task, a named task owner, and time set aside for a physical pilot. Scope and pricing are agreed before evaluation begins." : "Applications are reviewed for task fit. Evaluation access and physical pilots require site approval; applying does not guarantee either."}</p>
+        <p className="ms-inquiry-aside">{isSite ? "Best fit: a defined manipulation task, a named task owner, and time set aside for a physical pilot. Scope and pricing are agreed before evaluation begins." : "Bring one system or several policy checkpoints. We match applications to qualified site tasks and agree the evaluation scope. Evaluation access and physical pilots require site approval; applying does not guarantee either."}</p>
         <a className="ms-text-link" href={isSite ? "/contact/robot-team" : "/contact/site-operator"}>{isSite ? "Building robots? Apply here" : "Operate a site? Start here"}<ArrowUpRight size={16} aria-hidden="true" /></a>
       </div>
       <InquiryForm key={isSite ? "site" : "robot"} isSite={isSite} />
