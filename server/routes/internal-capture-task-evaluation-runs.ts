@@ -21,6 +21,7 @@ import {
   publicationFromResultRecord,
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
+import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
   policyCanaryScoreCorrectionTransition,
@@ -239,24 +240,30 @@ async function handlePolicyCanaryPublication(
   let transactionResult: { outcome: Outcome; policyRun: Record<string, any> | null };
   try {
     transactionResult = await db.runTransaction(async (transaction) => {
-      const [offeringSnapshot, policyRunSnapshot, runSnapshot] = await Promise.all([
-        transaction.get(offeringRef), transaction.get(policyRunRef), transaction.get(runRef),
+      const [policyRunSnapshot, runSnapshot] = await Promise.all([
+        transaction.get(policyRunRef), transaction.get(runRef),
       ]);
-      if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
-      const offeringRecord = offeringSnapshot.data() as Record<string, any>;
-      const offering = configuredOfferingForTerminalSync(offeringRecord);
-      if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
-      if (offering.configuration_run_id !== publication.intake_id) {
-        return { outcome: "configuration_run_mismatch" as const, policyRun: null };
-      }
-      if (!policyRunBelongsToOffering(
-        policyRun,
-        offering,
-        publication.capture_session_id,
-      )) {
-        return { outcome: "owner_team_mismatch" as const, policyRun: null };
+      let scope;
+      if (policyRun.operator_registration !== undefined) {
+        scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
+        if (!scope) return { outcome: "owner_team_mismatch" as const, policyRun: null };
+      } else {
+        if (publication.operator_registration_digest || publication.policy_canary_result.control_omission) {
+          return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        }
+        const offeringSnapshot = await transaction.get(offeringRef);
+        if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };
+        const offering = configuredOfferingForTerminalSync(offeringSnapshot.data() as Record<string, any>);
+        if (!offering) return { outcome: "offering_invalid" as const, policyRun: null };
+        if (offering.configuration_run_id !== publication.intake_id) {
+          return { outcome: "configuration_run_mismatch" as const, policyRun: null };
+        }
+        if (!policyRunBelongsToOffering(policyRun, offering, publication.capture_session_id)) {
+          return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        }
+        scope = offeringScope(policyRun, offering);
       }
       if (
         policyRun.run_kind !== "internal_policy_canary"
@@ -268,7 +275,6 @@ async function handlePolicyCanaryPublication(
             !== publication.policy_canary_result.task_success_contract?.contract_digest)
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
-      const scope = offeringScope(policyRun, offering);
       if (runSnapshot.exists) {
         const retained = runSnapshot.data() as Record<string, any>;
         if (retained.owner_user_id !== scope.ownerUserId
@@ -356,7 +362,7 @@ async function handlePolicyCanaryPublication(
         } : { error: null }),
       };
       transaction.set(policyRunRef, update, { merge: true });
-      transaction.set(offeringRef, {
+      if (policyRun.operator_registration === undefined) transaction.set(offeringRef, {
         policy_canary_terminal_sync: {
           record_id: recordId,
           run_id: publication.run_id,

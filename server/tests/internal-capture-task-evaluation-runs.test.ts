@@ -11,6 +11,12 @@ import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
 import canaryBlockedFixture from "./fixtures/pipeline-policy-canary-preprovider-blocked.v1.json";
 import configuredOfferingFixture from "./fixtures/pipeline-configured-scene-offering.v1.json";
+import { sealRigidTaskSuccessContract } from "../utils/rigidTaskSuccessContract";
+import {
+  operatorPolicyCanaryRegistrationSchema,
+  registerOperatorPolicyCanary,
+} from "../utils/operatorPolicyCanaryRegistration";
+import type { Response } from "express";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, any>>>(),
@@ -128,6 +134,74 @@ function configuredOfferingRecord(params: {
     configured_scene_offering_team_namespace: offering.team_namespace,
     configured_scene_offering: offering,
   };
+}
+
+function operatorRegistration(body: Record<string, any>, parent: Record<string, any>) {
+  const contract = sealRigidTaskSuccessContract({
+    siteId: "operator-scene", taskId: "operator-relocation", authorSource: "task_owner",
+    authorId: "operator", confirmationStatus: "confirmed", confirmedByTeamId: "team-1",
+    criteria: {
+      destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0, 0, 0], maximum: [1, 1, 1] } },
+      orientation: { mode: "ignored", reference_xyzw: [0, 0, 0, 1], tolerance_rad: 0.1 },
+      support: { height_mode: "required", height_interval_m: [0, 1], contact_mode: "required" },
+      terminal_task_contact: { mode: "cleared" }, gripper_state: { mode: "ignored", threshold_m: null },
+      settling: { mode: "required", window_samples: 8, position_tolerance_m: 0.01, orientation_tolerance_rad: 0.08 },
+      safety: { mode: "required" }, motion: { movement_epsilon_m: 0.002, minimum_translation_m: 0.08, minimum_lift_m: null },
+      temporal_invariants: { schema_version: "rigid_task_event_ledger_expectation.v1",
+        no_drop: { mode: "ignored", minimum_fall_m: 0.02 }, maximum_task_contact_force_n: null,
+        forbidden_contact_classes: [], containment_excursions: "forbidden", workspace_excursions: "ignored",
+        maximum_retries: null, maximum_regrasps: null },
+    },
+  });
+  body.policy_canary_result.task_success_contract = contract;
+  body.policy_canary_result.task_success_contract_digest = contract.contract_digest;
+  body.policy_canary_result.projection_digest = canonicalArtifactDigest(body.policy_canary_result, "projection_digest");
+  const value: Record<string, any> = {
+    schema_version: "task_evaluation_operator_policy_canary_registration.v1",
+    run_kind: "internal_policy_canary", claim_ceiling: "diagnostic_policy_execution",
+    run_id: body.run_id, source_launch_id: "parent-scene-launch",
+    source_offering_digest: parent.configured_scene_offering_digest,
+    capture_session_id: body.capture_session_id, intake_id: body.intake_id, team_namespace: "team-1",
+    scene_revision_digest: parent.configured_scene_offering.evaluation_preparation_binding.configured_scene_revision_digest,
+    request_digest: body.request_digest, configuration_digest: body.configuration_digest,
+    plan_digest: sha("1"), activation_digest: sha("2"), runtime_inputs_digest: sha("3"), setup_digest: sha("4"),
+    source_commit: "5".repeat(40), operator_authorization_digest: sha("6"), control_omission_authority_digest: sha("7"),
+    task_success_contract: contract,
+    policy_candidates: [
+      { candidate_id: "pi05_droid", display_name: "PI 0.5 DROID", checkpoint_digest: sha("8") },
+      { candidate_id: "groot_n17_droid", display_name: "GR00T N1.7 DROID", checkpoint_digest: sha("9") },
+    ],
+    notification: { email: "ohstnhunt@gmail.com" },
+  };
+  value.registration_digest = canonicalArtifactDigest(value, "registration_digest");
+  body.plan_digest = value.plan_digest;
+  body.operator_registration_digest = value.registration_digest;
+  const omission = { authority_digest: value.control_omission_authority_digest,
+    task_success_contract_digest: contract.contract_digest, qualified_comparison_permitted: false,
+    artifact: { artifact_id: "control-omission", digest: sha("a"), size_bytes: 100 } };
+  const addition = { scene_controls_status: "controls_omitted_by_user",
+    warning: "Controls omitted at the user's request — diagnostic results remain unqualified.", control_omission: omission };
+  Object.assign(body.policy_canary_result, addition);
+  Object.assign(body.result_delivery, addition);
+  body.scene_controls_status = addition.scene_controls_status;
+  body.warning = addition.warning;
+  body.result_delivery.artifacts = [...(body.result_delivery.artifacts || []), omission.artifact];
+  body.policy_canary_result.counts.diagnostic_control_rollout_count = 0;
+  body.result_delivery.delivery_digest = canonicalArtifactDigest(body.result_delivery, "delivery_digest");
+  body.policy_canary_result.result_delivery_digest = body.result_delivery.delivery_digest;
+  body.policy_canary_result.projection_digest = canonicalArtifactDigest(body.policy_canary_result, "projection_digest");
+  return operatorPolicyCanaryRegistrationSchema.parse(value);
+}
+
+async function registerOperator(registration: ReturnType<typeof operatorRegistration>, actorId = "blueprint-production-runner") {
+  process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL = "ohstnhunt@gmail.com";
+  const result = { status: 0, body: {} as Record<string, any> };
+  const res = {
+    status(code: number) { result.status = code; return this; },
+    json(body: Record<string, any>) { result.body = body; return this; },
+  } as Response;
+  await registerOperatorPolicyCanary({ registration, actorId, res });
+  return result;
 }
 
 function publication() {
@@ -338,10 +412,16 @@ function signedBody(body: Record<string, unknown>) {
   };
 }
 
-async function startServer() {
-  const { default: router } = await import("../routes/internal-capture-task-evaluation-runs");
+async function startServer(registration = false) {
+  const { default: router } = registration
+    ? await import("../routes/internal-task-evaluation-launch-submissions")
+    : await import("../routes/internal-capture-task-evaluation-runs");
   const app = express();
-  app.use(express.json());
+  // Unix-domain test sockets have no remote IP; production uses TCP.
+  app.use((req, _res, next) => { Object.defineProperty(req, "ip", { value: "127.0.0.1" }); next(); });
+  app.use(express.json({ verify: (req, _res, buffer) => {
+    (req as express.Request & { rawBody?: string }).rawBody = buffer.toString("utf8");
+  } }));
   app.use("/internal", router);
   const server = createServer(app);
   const socketPath = join(tmpdir(), `blueprint-task-run-${randomUUID()}.sock`);
@@ -380,9 +460,102 @@ afterEach(() => {
   state.sendEmail.mockReset();
   delete process.env.PIPELINE_SYNC_TOKEN;
   delete process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED;
+  delete process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL;
+  delete process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET;
 });
 
 describe("internal Pipeline Task Evaluation Run publication", () => {
+  it("requires the production runner signature and matching idempotency key at the operator registration route", async () => {
+    const secret = "operator-test-launch-submission-secret-0123456789";
+    process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET = secret;
+    process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL = "ohstnhunt@gmail.com";
+    const parent = configuredOfferingRecord({ configurationRunId: "original-configuration" });
+    const registration = operatorRegistration(policyCanaryPublication(), parent);
+    state.collections.set("taskEvaluationLaunches", new Map([[registration.source_launch_id, parent]]));
+    const { server, socketPath } = await startServer(true);
+    const rawBody = JSON.stringify(registration);
+    const post = (mode: string) => new Promise<number>((resolve, reject) => {
+      const timestamp = new Date().toISOString();
+      const nonce = randomUUID();
+      const client = "blueprint-production-runner";
+      const signature = createHmac("sha256", secret).update(`${timestamp}.${client}.${nonce}.${rawBody}`).digest("hex");
+      const request = httpRequest({ socketPath, path: "/internal/operator-policy-canary-registrations", method: "POST",
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(rawBody),
+          "Idempotency-Key": mode === "wrong-key" ? "another-run" : registration.run_id,
+          ...(mode === "unsigned" ? {} : { "X-Blueprint-Launch-Timestamp": timestamp,
+            "X-Blueprint-Launch-Client-Id": client, "X-Blueprint-Launch-Nonce": nonce,
+            "X-Blueprint-Launch-Signature": `sha256=${signature}` }) } }, (response) => {
+        response.resume(); response.on("end", () => resolve(response.statusCode || 0));
+      });
+      request.on("error", reject); request.end(rawBody);
+    });
+    try {
+      expect(await post("unsigned")).toBe(401);
+      expect(await post("wrong-key")).toBe(409);
+      expect(state.collections.get("taskEvaluationPolicyRuns")?.size || 0).toBe(0);
+      expect(await post("valid")).toBe(201);
+      expect(await post("replay")).toBe(200);
+      expect(state.collections.get("taskEvaluationPolicyRuns")?.size).toBe(1);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+    } finally { await stopServer(server, socketPath); }
+  });
+  it("registers an existing operator run without forwarding or rewriting its source offering, then delivers once", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
+    state.sendEmail.mockResolvedValue({ sent: true, provider: "sendgrid", messageId: "operator-email-1" });
+    const body = policyCanaryPublication();
+    const parent = configuredOfferingRecord({ configurationRunId: "original-configuration" });
+    const registration = operatorRegistration(body, parent);
+    state.collections.set("taskEvaluationLaunches", new Map([[registration.source_launch_id, parent]]));
+    expect((await registerOperator(registration)).status).toBe(201);
+    expect((await registerOperator(registration)).body).toMatchObject({ already_exists: true, execution_queued: false, provider_mutation_performed: false });
+    const stored = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+    expect(stored).toMatchObject({ owner_user_id: "blueprint-production-runner", state: "running", retryable: false, forward_attempt_count: 0 });
+    expect(state.collections.get("taskEvaluationLaunches")!.size).toBe(1);
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, body)).status).toBe(201);
+      expect((await postSigned(socketPath, body)).status).toBe(200);
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+      expect(state.collections.get("taskEvaluationLaunches")!.get(registration.source_launch_id)).toEqual(parent);
+      expect(state.collections.get("taskEvaluationLaunches")!.has(body.capture_session_id)).toBe(false);
+      const result = [...state.collections.get("captureTaskEvaluationRuns")!.values()][0];
+      expect(result).toMatchObject({ owner_user_id: "blueprint-production-runner", organization_id: "team-1" });
+      for (const field of ["plan_digest", "operator_registration_digest", "capture_session_id", "intake_id"]) {
+        const changed = { ...body, [field]: field.endsWith("digest") ? sha("f") : "different-run" };
+        expect((await postSigned(socketPath, changed)).status).toBe(409);
+      }
+      stored.owner_user_id = "other-owner";
+      // The transaction updates the stored record, so mutate that retained value.
+      state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!.owner_user_id = "other-owner";
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      expect(state.sendEmail).toHaveBeenCalledTimes(1);
+    } finally {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("refuses missing source evidence, cross-team registration, altered identity, and an unadmitted actor", async () => {
+    const body = policyCanaryPublication();
+    const parent = configuredOfferingRecord({ configurationRunId: "original-configuration" });
+    const value = operatorRegistration(body, parent);
+    expect((await registerOperator(value, "other-client")).status).toBe(403);
+    expect((await registerOperator(value)).status).toBe(404);
+    state.collections.set("taskEvaluationLaunches", new Map([[value.source_launch_id, configuredOfferingRecord({ configurationRunId: "original-configuration", teamNamespace: "other-team" })]]));
+    expect((await registerOperator(value)).status).toBe(409);
+    expect(state.collections.has("taskEvaluationPolicyRuns")).toBe(false);
+    state.collections.get("taskEvaluationLaunches")!.set(value.source_launch_id, parent);
+    expect((await registerOperator(value)).status).toBe(201);
+    const changed = { ...value, configuration_digest: sha("f") };
+    changed.registration_digest = canonicalArtifactDigest(changed, "registration_digest");
+    expect((await registerOperator(operatorPolicyCanaryRegistrationSchema.parse(changed))).status).toBe(409);
+    expect(operatorPolicyCanaryRegistrationSchema.safeParse({ ...value, team_namespace: "other-team" }).success).toBe(false);
+    const duplicate = structuredClone(value);
+    duplicate.policy_candidates[1] = duplicate.policy_candidates[0];
+    duplicate.registration_digest = canonicalArtifactDigest(duplicate, "registration_digest");
+    expect(operatorPolicyCanaryRegistrationSchema.safeParse(duplicate).success).toBe(false);
+  });
+
   it("retains a failed terminal email receipt on exact replay", async () => {
     const { retainedNotification } = await import(
       "../routes/internal-capture-task-evaluation-runs"

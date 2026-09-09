@@ -1,13 +1,14 @@
 import { z } from "zod";
 
-export const controlsStatuses = ["configured_controls_pending", "controls_failed", "controls_verified_development_only"] as const;
+export const controlsStatuses = ["configured_controls_pending", "controls_failed", "controls_verified_development_only", "controls_omitted_by_user"] as const;
 export const controlsWarnings = {
+  controls_omitted_by_user: "Controls omitted at the user's request — diagnostic results remain unqualified.",
   configured_controls_pending: "Controls pending — results are unqualified.",
   controls_failed: "Required controls failed — results are unqualified.",
   controls_verified_development_only: "Controls verified for this simulation matrix — development-only results remain unqualified.",
 } as const;
 export const controlsStatusSchema = z.enum(controlsStatuses);
-export const controlsWarningSchema = z.enum([controlsWarnings.configured_controls_pending, controlsWarnings.controls_failed, controlsWarnings.controls_verified_development_only]);
+export const controlsWarningSchema = z.enum([controlsWarnings.configured_controls_pending, controlsWarnings.controls_failed, controlsWarnings.controls_verified_development_only, controlsWarnings.controls_omitted_by_user]);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const artifact = z.object({ artifact_id: identifier, digest, size_bytes: z.number().int().positive() }).strict();
@@ -26,6 +27,8 @@ export const policyCanaryControlSchema = z.object({
   evidence_gaps: z.array(z.string().max(256)).max(64),
 }).strict();
 export const policyCanaryControlFields = {
+  control_omission: z.object({ authority_digest: digest, task_success_contract_digest: digest,
+    qualified_comparison_permitted: z.literal(false), artifact }).strict().optional(),
   controls: z.array(policyCanaryControlSchema).max(20).optional(),
   controls_summary: z.object({ expected_count: z.literal(20), recorded_count: z.number().int().min(0).max(20),
     completed_count: z.number().int().min(0).max(20), passed_count: z.number().int().min(0).max(20),
@@ -48,7 +51,9 @@ type Projection = {
   scene_controls_status?: string; warning?: string; controls?: Controls[];
   controls_summary?: { expected_count: number; recorded_count: number; completed_count: number; passed_count: number; verified_cell_count: number };
   controls_gate?: { status: string; required_control_episode_count: number; candidate_policies_loaded_during_controls: boolean };
-  counts?: { completed_diagnostic_control_rollout_count: number };
+  counts?: { diagnostic_control_rollout_count: number; completed_diagnostic_control_rollout_count: number };
+  control_omission?: { task_success_contract_digest: string };
+  task_success_contract?: { contract_digest: string; criteria: { controls?: { mode: string } } };
   episodes?: Array<{ cell_id: string; candidate_id: string; seed: number }>;
   result_status?: string;
 };
@@ -58,6 +63,15 @@ export function controlsProjectionBlockers(value: Projection): string[] {
   const blockers: string[] = [];
   if (value.warning !== undefined && value.warning !== controlsWarnings[status as keyof typeof controlsWarnings]) blockers.push("controls_warning_mismatch");
   const rows = value.controls;
+  if (status === "controls_omitted_by_user") {
+    if (!value.control_omission || rows !== undefined
+      || value.control_omission.task_success_contract_digest !== value.task_success_contract?.contract_digest
+      || value.task_success_contract?.criteria.controls?.mode === "required_per_cell"
+      || value.counts?.diagnostic_control_rollout_count !== 0
+      || value.counts?.completed_diagnostic_control_rollout_count !== 0) blockers.push("controls_omission_invalid");
+    return blockers;
+  }
+  if (value.control_omission) blockers.push("controls_omission_conflict");
   if (!rows) return status === "configured_controls_pending" ? blockers : [...blockers, "controls_evidence_missing"];
   const pairs = new Set(rows.map((row) => `${row.cell_id}/${row.control_id}`));
   if (pairs.size !== rows.length) blockers.push("controls_duplicate_pair");
