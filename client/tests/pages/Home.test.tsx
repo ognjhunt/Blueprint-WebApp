@@ -1,47 +1,23 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
-describe("Home", () => {
-  it("leads with what Blueprint is: real demand, made deployment-ready", () => {
-    const { container } = render(<Home />);
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: /Real jobs, fully specified/i,
-      }),
-    ).toBeInTheDocument();
-    expect(container).toHaveTextContent(/Robot teams prove who can do them/i);
+describe("Site-led homepage", () => {
+  it("offers a site inquiry first and a separate robot-team application", () => {
+    render(<Home />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your site.The right robot.A pilot worth running.");
+    expect(screen.getByRole("link", { name: "Discuss your site" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("link", { name: "Apply as a robot team" })).toHaveAttribute("href", "/contact/robot-team");
+    expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
+    expect(screen.queryByText(/Free\.|~0|months 0–2/i)).not.toBeInTheDocument();
   });
-
-  it("keeps the pitch to robot teams one level below the identity", () => {
+  it("lets a reader inspect the task, comparison, and physical-pilot boundaries", () => {
     const { container } = render(<Home />);
-    expect(
-      screen.getByRole("heading", { name: /Don.t send engineers to scope a deployment/i }),
-    ).toBeInTheDocument();
-    expect(container).toHaveTextContent(/Blueprint does everything before the robot arrives/i);
-  });
-
-  it("draws the boundary on the page: Blueprint owns the site, the OEM owns the robot", () => {
-    const { container } = render(<Home />);
-    expect(container).toHaveTextContent(/Blueprint owns the site\. You own the robot/i);
-    // The half Blueprint does not touch has to be as explicit as the half it does,
-    // and the reason has to be the physical one rather than a disclaimer.
-    expect(container).toHaveTextContent(/Stays with the robot company/i);
-    expect(container).toHaveTextContent(/cannot be finished until the hardware is in the building/i);
-    expect(container).toHaveTextContent(/Operator training, safety sign-off, and production integration/i);
-  });
-
-  it("commits to the measurable version of the promise", () => {
-    const { container } = render(<Home />);
-    expect(container).toHaveTextContent(/OEM engineering hours before the robot arrives/i);
-    expect(container).toHaveTextContent(/~0/);
-  });
-
-  it("states the honest claim, not a six-months-to-two-weeks promise", () => {
-    const { container } = render(<Home />);
-    expect(container).toHaveTextContent(
-      /use the real robot only for the tests that actually need the real robot/i,
-    );
+    const steps = container.querySelectorAll("details");
+    expect(steps).toHaveLength(3);
+    fireEvent.click(screen.getByText("Choose the pilot"));
+    expect(steps[2]).toHaveAttribute("open");
+    expect(steps[2]).toHaveTextContent(/clear reason to pause/);
+    expect(steps[2]).toHaveTextContent(/site and robot team run the physical pilot/);
   });
 });

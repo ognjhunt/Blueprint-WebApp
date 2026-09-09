@@ -1,3 +1,4 @@
+import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
 import express, { type Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
@@ -396,12 +397,13 @@ app.use((req, res, next) => {
     from: string;
     to: string | ((req: Request) => string);
   }> = [
+    ...Object.entries(minimalMarketingRedirects).map(([from, to]) => ({ from, to })),
     { from: "/product", to: "/" },
     { from: "/readiness", to: "/" },
     { from: "/readiness-pack", to: "/" },
     { from: "/quality-standard", to: "/" },
     { from: "/for-robot-integrators", to: "/" },
-    { from: "/contact", to: "/contact/robot-team" },
+    { from: "/contact", to: (req) => ["robot_team", "robot-team"].includes(String(req.query.persona || req.query.buyerType || "")) ? "/contact/robot-team" : "/contact/site-operator" },
     { from: "/world-models", to: "/sites" },
     { from: "/world-models/:slug", to: "/sites" },
     { from: "/agents", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
@@ -455,8 +457,9 @@ app.use((req, res, next) => {
       const queryStart = req.originalUrl.indexOf("?");
       const query = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : "";
       const target = typeof to === "function" ? to(req) : to;
-      const separator = query ? (target.includes("?") ? "&" : "?") : "";
-      return res.redirect(301, `${target}${separator}${query}`);
+      const [targetPath, targetHash] = target.split("#");
+      const separator = query ? (targetPath.includes("?") ? "&" : "?") : "";
+      return res.redirect(301, `${targetPath}${separator}${query}${targetHash ? `#${targetHash}` : ""}`);
     });
   });
 

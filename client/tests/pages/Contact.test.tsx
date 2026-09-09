@@ -2,184 +2,87 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
-let mockSearch = "";
-let mockLocation = "/contact";
-const setLocationMock = vi.hoisted(() => vi.fn());
-const analyticsEventsMock = vi.hoisted(() => ({
-  contactRequestStarted: vi.fn(),
-  contactRequestSubmitted: vi.fn(),
-  contactRequestCompleted: vi.fn(),
-  contactRequestFailed: vi.fn(),
-  contactPageCtaClicked: vi.fn(),
-}));
-
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    currentUser: null,
-    userData: null,
-  }),
-}));
-
-vi.mock("wouter", async () => {
-  const actual = await vi.importActual<typeof import("wouter")>("wouter");
-  return {
-    ...actual,
-    useSearch: () => mockSearch,
-    useLocation: () => [mockLocation, setLocationMock],
-  };
-});
-
-vi.mock("@/lib/analytics", () => ({
-  analyticsEvents: analyticsEventsMock,
-  getSafeErrorType: vi.fn(() => "unknown"),
-}));
-
-vi.mock("@/lib/client-env", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/client-env")>(
-    "@/lib/client-env",
-  );
-  return {
-    ...actual,
-    getGoogleMapsApiKey: () => null,
-  };
-});
+let mockLocation = "/contact/site-operator";
+vi.mock("wouter", () => ({ useLocation: () => [mockLocation, vi.fn()] }));
+vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "test-token" }) }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mockSearch = "";
-  mockLocation = "/contact";
-  global.fetch = vi.fn().mockImplementation((input: RequestInfo, init?: RequestInit) => {
-    if (input === "/api/csrf") {
-      return Promise.resolve({
-        ok: true,
-        json: async () => ({ csrfToken: "test-token" }),
-      });
-    }
-
-    return Promise.resolve({
-      ok: true,
-      json: async () => ({
-        ok: true,
-        requestId: "req-123",
-        siteSubmissionId: "req-123",
-        status: "submitted",
-        echoedBody: init?.body,
-      }),
-    });
-  }) as typeof fetch;
+  mockLocation = "/contact/site-operator";
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 });
 
-function submittedBody() {
-  const submitCall = vi.mocked(global.fetch).mock.calls.find(
-    ([input]) => input === "/api/inbound-request",
-  );
-  return JSON.parse(String(submitCall?.[1]?.body));
+function fillForm() {
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "  Test Person  " } });
+  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "person@example.com" } });
+  fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Example Company" } });
+  fireEvent.change(screen.getByRole("textbox", { name: /What (task|does)/ }), { target: { value: "A bounded pick-and-place workcell in Raleigh." } });
 }
 
-describe("Contact page", () => {
-  it("renders the robot-team Task Evaluation Run flow", () => {
-    render(<Contact />);
+function sentBody() {
+  return JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+}
 
-    expect(
-      screen.getByRole("heading", { name: /Get evaluated against a job someone is ready to buy\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Tell us what your robot can do/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Test a captured site task\./i })).toHaveAttribute(
-      "href",
-      "/contact/robot-team#contact-intake",
-    );
-    expect(
-      screen.getByRole("link", { name: /Operate a site\? Submit one workflow for screening/i }),
-    ).toHaveAttribute("href", "/contact/site-operator#contact-intake");
-    expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
+describe("Minimal public inquiries", () => {
+  it("submits site persona and pilot context through the durable contact API with CSRF", async () => {
+    render(<Contact />);
+    fillForm();
+    fireEvent.change(screen.getByLabelText("Evaluation budget"), { target: { value: "Approved" } });
+    fireEvent.change(screen.getByLabelText(/Pilot window/), { target: { value: "Q1 2027" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
+    await screen.findByRole("heading", { name: "Your inquiry is in." });
+    expect(fetch).toHaveBeenCalledWith("/api/contact", expect.objectContaining({ method: "POST", credentials: "include", headers: expect.objectContaining({ "X-CSRF-Token": "test-token" }) }));
+    expect(sentBody()).toMatchObject({ name: "Test Person", engagementScope: "site_operator", requestSource: "website-contact-form", projectType: "Site-funded Task Evaluation Run" });
+    expect(sentBody().message).toContain("Evaluation budget: Approved");
+    expect(sentBody().message).toContain("Pilot window: Q1 2027");
   });
-
-  it("maps old world-model query params to the same Task Evaluation Run form", () => {
-    mockSearch =
-      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
-
+  it("keeps robot participation distinct from a paid buyer inquiry", async () => {
+    mockLocation = "/contact/robot-team";
     render(<Contact />);
-
-    expect(
-      screen.getByRole("heading", { name: /Get evaluated against a job someone is ready to buy\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/missing months 0–2 inputs/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Policy Improvement Run/i)).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Harborview Grocery Distribution Annex")).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Unitree G1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Evaluation budget")).not.toBeInTheDocument();
+    expect(screen.getByText(/does not guarantee either/)).toBeInTheDocument();
+    fillForm();
+    fireEvent.click(screen.getByRole("button", { name: "Send application" }));
+    await screen.findByRole("heading", { name: "Your application is in." });
+    expect(sentBody()).toMatchObject({ engagementScope: "robot_team", projectType: "Robot team participation" });
+    expect(sentBody().message).toContain("Robot team application");
+    expect(sentBody().message).not.toContain("Evaluation budget");
   });
-
-  it("submits a robot-team Task Evaluation Run contact request", async () => {
+  it("retains input and permits retry after a server failure", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
     render(<Contact />);
-
-    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
-      target: { value: "Ada" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Robot team \/ company/i }), {
-      target: { value: "Analytical Engines" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
-      target: { value: "ada@example.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /About the workflow/i }), {
-      target: { value: "Tote transfer. Decide whether field time is justified." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
-
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
-      "/api/contact",
-      expect.objectContaining({ method: "POST" }),
-    ));
-
-    expect(
-      await screen.findByText(/Message received\./i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/We will check the task, decision, thresholds, evidence, and constraints/i),
-    ).toBeInTheDocument();
+    fillForm();
+    fireEvent.change(screen.getByLabelText("Evaluation budget"), { target: { value: "Seeking approval" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
+    await screen.findByRole("alert");
+    expect(screen.getByLabelText("Company")).toHaveValue("Example Company");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
+    await screen.findByRole("status");
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
-
-  it("site-operator contact path uses the same Task Evaluation Run", () => {
-    mockLocation = "/contact/site-operator";
-
-    render(<Contact />);
-
-    expect(
-      screen.getByRole("heading", { name: /Show us the job\. We find the robot that can do it\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/short workflow description, phone video/i)).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Submit one workflow for screening/i)[0]).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Robot Match/i)).not.toBeInTheDocument();
+  it("does not acknowledge a network failure as success", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<Contact />); fillForm();
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: "Send inquiry" })).toBeEnabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
-
-  it("routes the site-operator pilot option into the secure structured dossier", () => {
-    mockLocation = "/contact/site-operator";
-    mockSearch = "?intent=pilot-opportunity";
-
-    render(<Contact />);
-    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
-      target: { value: "Jordan Lee" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
-      target: { value: "jordan@siteco.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Organization/i }), {
-      target: { value: "SiteCo" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Continue to secure dossier/i }));
-
-    expect(setLocationMock).toHaveBeenCalledWith(
-      "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=site-operator-contact",
-    );
-    expect(global.fetch).not.toHaveBeenCalledWith(
-      "/api/contact",
-      expect.objectContaining({ method: "POST" }),
-    );
+  it("blocks whitespace-only required fields", async () => {
+    render(<Contact />); fillForm();
+    fireEvent.change(screen.getByLabelText("Company"), { target: { value: "   " } });
+    fireEvent.submit(screen.getByRole("form"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Please complete all required fields.");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("prevents duplicate requests while one is pending", async () => {
+    let resolve!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementation(() => new Promise((done) => { resolve = done; }));
+    render(<Contact />); fillForm();
+    fireEvent.submit(screen.getByRole("form")); fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();
+    resolve({ ok: true } as Response);
+    await screen.findByRole("status");
   });
 });
