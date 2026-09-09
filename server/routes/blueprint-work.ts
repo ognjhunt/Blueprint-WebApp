@@ -257,4 +257,6 @@ export function registerBlueprintWorkRoutes(app: Express) {
     catch { if (!res.headersSent) res.status(500).json({ error: "MCP transport unavailable" }); }
   });
   app.all(WORK_MCP_PATH, (_req, res) => res.status(405).set("Allow", "POST").json({ error: "Use stateless Streamable HTTP POST" }));
+  // Unsupported OIDC discovery must return 404 JSON, never the SPA's 200 HTML.
+  app.use(PREFIX, (_req, res) => res.status(404).json({ error: "Blueprint Work endpoint not found" }));
 }
