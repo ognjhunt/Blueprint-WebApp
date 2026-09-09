@@ -7,6 +7,7 @@ import { projectEvaluationReadyRun } from "../utils/evaluationReadyRunContract";
 import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
 import { controlsWarnings } from "../utils/policyCanaryControls";
 import { controlsWarnings as clientWarnings } from "../../client/src/lib/policyCanaryControls";
+import { policyCanaryRunProjectionSchema } from "../../client/src/lib/policyCanaryRuns";
 
 const sha = `sha256:${"a".repeat(64)}`;
 const artifact = (id: string) => ({ artifact_id: id, digest: sha, size_bytes: 12 });
@@ -54,6 +55,22 @@ function reseal(value: any) {
 }
 
 describe("per-cell control result contract", () => {
+  it.each(["running", "blocked", "results_ready"] as const)("keeps omitted-control %s status readable by the client", (state) => {
+    const record = {
+      schema_version: "task_evaluation_policy_run_web_record.v1" as const,
+      run_id: "operator-run", source_launch_id: "source-launch", offering_digest: sha,
+      owner_user_id: "production-runner", team_namespace: "scene-team", configuration_digest: sha,
+      run_kind: "internal_policy_canary", state,
+      submission_channel: "production_webapp_operator_registration",
+      scene_controls_status_at_submission: "controls_omitted_by_user",
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      created_at_iso: "2026-09-09T20:00:00Z", updated_at_iso: "2026-09-09T21:00:00Z",
+    };
+    const status = policyCanaryRunProjectionSchema.parse(projectEvaluationReadyRun(record));
+    expect(status.scene_controls_status).toBe("controls_omitted_by_user");
+    expect(status.warning).toBe(controlsWarnings.controls_omitted_by_user);
+    expect(status.claim_ceiling).toBe("diagnostic_policy_execution");
+  });
   it.each(["valid", "missing-authority", "required-controls", "missing-artifact", "wrong-count", "missing-registration"])("keeps explicit omitted controls diagnostic: %s", (fault) => {
     const value: any = structuredClone(fixture);
     const p = value.policy_canary_result;
