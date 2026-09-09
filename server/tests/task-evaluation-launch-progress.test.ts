@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const reference = (collection: string, id: string) => ({
     id,
+    collection: (child: string) => ({ doc: (childId: string) => reference(`${collection}/${id}/${child}`, childId) }),
     key: collection === "taskEvaluationLaunches" ? id : `${collection}:${id}`,
     get: async () => {
       const key = collection === "taskEvaluationLaunches" ? id : `${collection}:${id}`;
@@ -232,6 +233,17 @@ describe("internal Task Evaluation launch progress route", () => {
       elapsed_seconds: 1_204,
     });
     expect(state.records.get("launch-001")?.state).toBe("queued_in_pipeline");
+    const history = [...state.records.entries()].filter(([key]) => key.startsWith("taskEvaluationLaunches/launch-001/progressEvents:"));
+    expect(history.map(([, value]) => value.phase).sort()).toEqual(["dependency_closure", "scene_build"]);
+  });
+
+  it("retains one immutable lifecycle event when the same signed observation is retried", async () => {
+    state.records.set("launch-001", queuedRecord());
+    await withServer(async url => {
+      expect((await postProgress(url, progressPayload())).status).toBe(200);
+      expect((await postProgress(url, progressPayload())).status).toBe(200);
+    });
+    expect([...state.records.keys()].filter(key => key.includes("/progressEvents:"))).toHaveLength(1);
   });
 
   it("404s for a launch the website never authorized", async () => {

@@ -83,6 +83,7 @@ const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityO
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
+const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
 const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
 const AppEvaluationRunSetup = lazyRoute(() => import("../pages/app/EvaluationRunSetup"));
@@ -382,6 +383,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
+  { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
   { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },

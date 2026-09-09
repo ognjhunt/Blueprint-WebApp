@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 
 import { registerRoutes } from "./routes";
+import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { stripeWebhookHandler } from "./routes/stripe-webhooks";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
@@ -289,21 +290,21 @@ app.use((req, res, next) => {
         traceId,
         requestId: traceId,
         method: req.method,
-        path: req.originalUrl || req.path,
+        path: privateWorkLogPath(req.originalUrl || req.path),
         statusCode: res.statusCode,
         durationMs: Number.isFinite(durationMs) ? Math.round(durationMs) : undefined,
         contentLength: req.headers["content-length"],
         userAgent: req.headers["user-agent"],
         ip: req.ip || req.socket.remoteAddress,
       }),
-      `${req.method} ${req.originalUrl || req.path} ${res.statusCode} - ${durationMs.toFixed(2)}ms`,
+      `${req.method} ${privateWorkLogPath(req.originalUrl || req.path)} ${res.statusCode} - ${durationMs.toFixed(2)}ms`,
     );
 
     // Log slow requests
     if (durationMs > 5000) {
       logger.warn(
-        { traceId, path: req.path, durationMs },
-        `Slow request detected: ${req.path} took ${durationMs.toFixed(2)}ms`
+        { traceId, path: privateWorkLogPath(req.path), durationMs },
+        `Slow request detected: ${privateWorkLogPath(req.path)} took ${durationMs.toFixed(2)}ms`
       );
     }
   });
@@ -335,7 +336,7 @@ app.use((req, res, next) => {
         ...attachRequestMeta({
           requestId: res.locals?.requestId,
           method: req.method,
-          path: req.originalUrl || req.path,
+          path: privateWorkLogPath(req.originalUrl || req.path),
           status,
         }),
         err,
