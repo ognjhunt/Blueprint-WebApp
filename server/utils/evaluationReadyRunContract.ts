@@ -756,7 +756,10 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
         total_episodes: 20,
       };
   const controlProjection = pipelinePolicyCanaryResultProjectionSchema.safeParse(record.policy_run_result_projection);
-  const controlsStatus = controlProjection.success ? controlProjection.data.scene_controls_status : "configured_controls_pending";
+  const controlsStatus = controlProjection.success ? controlProjection.data.scene_controls_status
+    : record.submission_channel === "production_webapp_operator_registration"
+      && record.scene_controls_status_at_submission === "controls_omitted_by_user"
+      ? "controls_omitted_by_user" : "configured_controls_pending";
   return {
     ...projection,
     state,

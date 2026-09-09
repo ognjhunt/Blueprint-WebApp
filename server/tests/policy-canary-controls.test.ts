@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
+import diagnosticTaskContract from "./fixtures/pipeline-diagnostic-task-contract.v1.json";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { parsePipelinePolicyCanaryPublication } from "../utils/policyCanaryWebappSyncContract";
 import { projectEvaluationReadyRun } from "../utils/evaluationReadyRunContract";
@@ -53,6 +54,33 @@ function reseal(value: any) {
 }
 
 describe("per-cell control result contract", () => {
+  it.each(["valid", "missing-authority", "required-controls", "missing-artifact", "wrong-count", "missing-registration"])("keeps explicit omitted controls diagnostic: %s", (fault) => {
+    const value: any = structuredClone(fixture);
+    const p = value.policy_canary_result;
+    const contract: any = structuredClone(diagnosticTaskContract);
+    p.task_success_contract = contract;
+    p.task_success_contract_digest = contract.contract_digest;
+    if (fault === "required-controls") {
+      contract.criteria.controls = { mode: "required_per_cell", control_ids: ["zero_action_negative", "deterministic_scripted_positive"] };
+      contract.contract_digest = canonicalArtifactDigest(contract, "contract_digest");
+      p.task_success_contract_digest = contract.contract_digest;
+    }
+    const omission = { authority_digest: sha, task_success_contract_digest: contract.contract_digest,
+      qualified_comparison_permitted: false, artifact: artifact("omission-authority") };
+    const addition = { control_omission: omission, scene_controls_status: "controls_omitted_by_user", warning: controlsWarnings.controls_omitted_by_user };
+    Object.assign(p, addition);
+    Object.assign(value.result_delivery, addition);
+    value.scene_controls_status = addition.scene_controls_status;
+    value.warning = addition.warning;
+    value.plan_digest = value.operator_registration_digest = sha;
+    value.result_delivery.artifacts = [omission.artifact];
+    p.counts.diagnostic_control_rollout_count = 0;
+    if (fault === "missing-authority") delete p.control_omission;
+    if (fault === "missing-artifact") value.result_delivery.artifacts = [];
+    if (fault === "wrong-count") p.counts.diagnostic_control_rollout_count = 20;
+    if (fault === "missing-registration") delete value.operator_registration_digest;
+    expect(parsePipelinePolicyCanaryPublication(reseal(value)).ok).toBe(fault === "valid");
+  });
   it("accepts 20 delivered controls without upgrading diagnostic result claims", () => {
     const result = parsePipelinePolicyCanaryPublication(publication());
     expect(result.ok).toBe(true);

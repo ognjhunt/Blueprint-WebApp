@@ -1,0 +1,84 @@
+{
+  "schema_version": "rigid_task_success_contract.v1",
+  "scope": {
+    "site_id": "interiorgs-839873",
+    "task_id": "scene-839873-mug-planar-push"
+  },
+  "provenance": {
+    "author_source": "compatibility_default",
+    "author_id": "blueprint:manipulation_strategy_defaults.v1",
+    "confirmation_status": "confirmed",
+    "confirmed_by_team_id": null,
+    "proposal_digest": null
+  },
+  "criteria": {
+    "destination_containment": {
+      "mode": "required",
+      "position_bounds_world_m": {
+        "minimum": [
+          1.14,
+          1.99,
+          0.79
+        ],
+        "maximum": [
+          1.16,
+          2.01,
+          0.81
+        ]
+      }
+    },
+    "orientation": {
+      "mode": "ignored",
+      "reference_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tolerance_rad": 0.1
+    },
+    "support": {
+      "height_mode": "required",
+      "height_interval_m": [
+        0.79,
+        0.81
+      ],
+      "contact_mode": "required"
+    },
+    "terminal_task_contact": {
+      "mode": "cleared"
+    },
+    "gripper_state": {
+      "mode": "ignored",
+      "threshold_m": null
+    },
+    "settling": {
+      "mode": "required",
+      "window_samples": 3,
+      "position_tolerance_m": 0.002,
+      "orientation_tolerance_rad": 0.01
+    },
+    "safety": {
+      "mode": "required"
+    },
+    "motion": {
+      "movement_epsilon_m": 0.001,
+      "minimum_translation_m": 0.14,
+      "minimum_lift_m": null
+    },
+    "temporal_invariants": {
+      "schema_version": "rigid_task_event_ledger_expectation.v1",
+      "no_drop": {
+        "mode": "ignored",
+        "minimum_fall_m": 0.02
+      },
+      "maximum_task_contact_force_n": null,
+      "forbidden_contact_classes": [],
+      "containment_excursions": "forbidden",
+      "workspace_excursions": "ignored",
+      "maximum_retries": null,
+      "maximum_regrasps": null
+    }
+  },
+  "contract_digest": "sha256:b1921cb11e235831ba0e765e5b04fb60b9952e1bb86519a776b08906ca566d03"
+}

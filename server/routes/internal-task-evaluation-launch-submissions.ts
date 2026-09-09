@@ -16,6 +16,10 @@ import {
   loadConfiguredSceneOffering,
   submitPolicyCanaryRun,
 } from "../utils/policyCanaryRunSubmission";
+import {
+  operatorPolicyCanaryRegistrationSchema,
+  registerOperatorPolicyCanary,
+} from "../utils/operatorPolicyCanaryRegistration";
 
 const router = Router();
 const rateLimiter = createTaskEvaluationLaunchSubmissionRateLimiter();
@@ -31,6 +35,23 @@ function requireLaunchSubmissionSignature(req: Request, res: Response, next: () 
   res.locals.taskEvaluationLaunchSubmissionClientId = result.clientId;
   next();
 }
+
+router.post("/operator-policy-canary-registrations", rateLimiter,
+  requireLaunchSubmissionSignature, async (req, res) => {
+    const parsed = operatorPolicyCanaryRegistrationSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(422).json({
+      error: "Operator policy registration is invalid",
+      violations: parsed.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+    });
+    if (req.header("Idempotency-Key") !== parsed.data.run_id) return res.status(409).json({
+      error: "Idempotency-Key must equal the immutable run_id",
+    });
+    return registerOperatorPolicyCanary({
+      registration: parsed.data,
+      actorId: String(res.locals.taskEvaluationLaunchSubmissionClientId),
+      res,
+    });
+  });
 
 router.post("/", rateLimiter, requireLaunchSubmissionSignature, async (req, res) => {
   const idempotencyKey = String(req.header("Idempotency-Key") || "").trim();

@@ -28,21 +28,22 @@ export function PolicyCanaryControls({ result, user }: { result: TaskEvaluationR
     ? inventory.find((artifact) => artifact.artifact_id === reference.artifact_id) || normalizedArtifact(reference)
     : null;
   const csv = inventory.find((artifact) => artifact.role === "controls_csv") || null;
-  const warning = controlsWarnings[verified ? "controls_verified_development_only" : status === "controls_failed" ? "controls_failed" : "configured_controls_pending"];
+  const omitted = status === "controls_omitted_by_user";
+  const warning = controlsWarnings[verified ? "controls_verified_development_only" : omitted ? "controls_omitted_by_user" : status === "controls_failed" ? "controls_failed" : "configured_controls_pending"];
 
   return <section className="runway-panel min-w-0 p-5" aria-labelledby="canary-controls-title">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><p className="runway-meta">Independent reference controls</p>
         <h2 id="canary-controls-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Per-cell controls</h2>
       </div>
-      <StatusChip tone={verified ? "proof" : "warn"} square>{verified ? "20 / 20 controls verified" : `${summary?.passed_count ?? 0} / 20 controls passed`}</StatusChip>
+      <StatusChip tone={verified ? "proof" : "warn"} square>{omitted ? "Controls omitted" : verified ? "20 / 20 controls verified" : `${summary?.passed_count ?? 0} / 20 controls passed`}</StatusChip>
     </div>
     <p className="mt-3 text-body-s text-ink-700">{warning}</p>
     <p className="mt-2 text-caption text-ink-500">The zero-action control should leave the task incomplete. The scripted positive control should complete it. These episodes are reported separately from the learned policies.</p>
-    <div className="mt-4 flex flex-wrap items-center gap-3">
+    {!omitted && <div className="mt-4 flex flex-wrap items-center gap-3">
       <span className="runway-num text-caption text-ink-500">{summary?.recorded_count ?? controls.length} / 20 records · {summary?.completed_count ?? 0} completed · {summary?.verified_cell_count ?? 0} / 10 matched cells verified</span>
       <PrimaryDownload artifact={csv} label="Controls CSV" recordId={result.record_id} user={user} />
-    </div>
+    </div>}
     {controls.length ? <>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[36rem] border-collapse text-left text-caption">
         <caption className="sr-only">Reference control outcomes for each scenario cell</caption>

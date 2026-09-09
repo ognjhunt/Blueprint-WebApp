@@ -1,6 +1,7 @@
-export const controlsStatuses = ["configured_controls_pending", "controls_failed", "controls_verified_development_only"] as const;
+export const controlsStatuses = ["configured_controls_pending", "controls_failed", "controls_verified_development_only", "controls_omitted_by_user"] as const;
 export type ControlsStatus = typeof controlsStatuses[number];
 export const controlsWarnings: Record<ControlsStatus, string> = {
+  controls_omitted_by_user: "Controls omitted at the user's request — diagnostic results remain unqualified.",
   configured_controls_pending: "Controls pending — results are unqualified.",
   controls_failed: "Required controls failed — results are unqualified.",
   controls_verified_development_only: "Controls verified for this simulation matrix — development-only results remain unqualified.",
