@@ -8,7 +8,9 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
+import mixedCaseCanaryPublicationFixture from "./fixtures/pipeline-policy-canary-mixed-case-publication.v4.json";
 import canaryBlockedFixture from "./fixtures/pipeline-policy-canary-preprovider-blocked.v1.json";
 import configuredOfferingFixture from "./fixtures/pipeline-configured-scene-offering.v1.json";
 import { sealRigidTaskSuccessContract } from "../utils/rigidTaskSuccessContract";
@@ -711,7 +713,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     }
   });
 
-  it("stores a v4 canary publication and returns one exactly-once accepted notification receipt", async () => {
+  it.each(["legacy-compatible", "mixed-case"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
     state.sendEmail.mockResolvedValue({
@@ -719,7 +721,9 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       provider: "sendgrid",
       messageId: "message-canary-1",
     });
-    const body = policyCanaryPublication();
+    const body = variant === "mixed-case"
+      ? structuredClone(mixedCaseCanaryPublicationFixture) as Record<string, any>
+      : policyCanaryPublication();
     const offeringRecord = configuredOfferingRecord({
       configurationRunId: body.intake_id,
     });
@@ -796,6 +800,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
           state: "blocked",
           result_record_id: expect.stringMatching(/^capture-run-/),
           delivery_digest: body.result_delivery.delivery_digest,
+          policy_run_result_projection: body.policy_canary_result,
           notification_delivery: { status: "accepted", attempts: 1 },
         });
 
@@ -815,7 +820,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
 
       const conflict = structuredClone(body);
       conflict.policy_canary_result.blockers.push("different_terminal_fact");
-      conflict.policy_canary_result.projection_digest = canonicalArtifactDigest(
+      conflict.policy_canary_result.projection_digest = crossRuntimeArtifactDigest(
         conflict.policy_canary_result,
         "projection_digest",
       );
