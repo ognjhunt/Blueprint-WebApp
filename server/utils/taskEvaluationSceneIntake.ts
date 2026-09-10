@@ -1,9 +1,12 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { crossRuntimeCanonicalJson as sceneCanonicalJson, crossRuntimeDigest as sceneDigest } from "./crossRuntimeCanonical";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
+
+export { sceneCanonicalJson, sceneDigest };
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -167,31 +170,6 @@ function storedCloseoutPollCount(record: Record<string, any>): number {
   const value = record.closeout_poll_count;
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
-// RFC 8785: ECMAScript number serialization and UTF-16 key ordering. Never
-// locale-sort cross-runtime signed packets or hash Python's 20.0 spelling.
-export function sceneCanonicalJson(value: unknown): string {
-  if (Array.isArray(value))
-    return `[${value.map(sceneCanonicalJson).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.keys(value)
-      .sort()
-      .map(
-        (key) =>
-          `${JSON.stringify(key)}:${sceneCanonicalJson((value as Record<string, unknown>)[key])}`,
-      )
-      .join(",")}}`;
-  if (
-    typeof value === "number" &&
-    (!Number.isFinite(value) ||
-      (Number.isInteger(value) && !Number.isSafeInteger(value)))
-  )
-    throw new Error("unsafe_json_number");
-  const serialized = JSON.stringify(value);
-  if (serialized === undefined) throw new Error("invalid_json_value");
-  return serialized;
-}
-export const sceneDigest = (value: unknown) =>
-  `sha256:${createHash("sha256").update(sceneCanonicalJson(value)).digest("hex")}`;
 const sealedDigest = (value: Record<string, unknown>, field: string) =>
   sceneDigest(
     Object.fromEntries(Object.entries(value).filter(([key]) => key !== field)),

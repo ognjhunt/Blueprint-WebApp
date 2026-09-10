@@ -253,6 +253,8 @@ export type PipelineTaskDecisionProcessingResult = z.infer<
   typeof pipelineTaskDecisionProcessingResultSchema
 >;
 
+// Legacy Website-owned digest and persistence bytes. Do not change ordering here;
+// Pipeline-owned cross-language artifacts use crossRuntimeCanonical instead.
 export function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {

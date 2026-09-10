@@ -2,6 +2,7 @@ import { z } from "zod";
 import { controlsStatusSchema, controlsWarningSchema, policyCanaryControlFields, controlsProjectionBlockers } from "./policyCanaryControls";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/);
@@ -261,10 +262,10 @@ export function parsePipelinePolicyCanaryPublication(value: unknown) {
   const projection = publication.policy_canary_result;
   const delivery = publication.result_delivery;
   const blockers: string[] = [];
-  if (canonicalArtifactDigest(delivery, "delivery_digest") !== delivery.delivery_digest) {
+  if (!matchesCrossRuntimeArtifactDigest(delivery, "delivery_digest")) {
     blockers.push("policy_canary_delivery_digest_mismatch");
   }
-  if (canonicalArtifactDigest(projection, "projection_digest") !== projection.projection_digest) {
+  if (!matchesCrossRuntimeArtifactDigest(projection, "projection_digest")) {
     blockers.push("policy_canary_projection_digest_mismatch");
   }
   if (
