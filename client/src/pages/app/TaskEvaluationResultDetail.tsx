@@ -129,11 +129,14 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
   const canaryReproducibility = delivery?.reproducibility;
+  const canaryScope = result.publication.policy_canary_result?.task_success_contract?.scope;
   const canaryScene = result.publication.scene?.id
     || canaryReproducibility?.scene_id
-    || "Scene 839873";
+    || canaryScope?.site_id
+    || "Scene not specified";
   const canaryTask = result.publication.task?.label
     || canaryReproducibility?.task_id
+    || canaryScope?.task_id
     || "Policy canary";
   const packages = delivery?.artifacts.filter((artifact) => artifact.content_type === "application/zip") || [];
   return (
