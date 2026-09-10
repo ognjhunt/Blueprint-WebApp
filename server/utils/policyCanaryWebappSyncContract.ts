@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { controlsStatusSchema, controlsWarningSchema, policyCanaryControlFields, controlsProjectionBlockers } from "./policyCanaryControls";
 
@@ -244,6 +245,66 @@ export const pipelinePolicyCanaryPreproviderBlockedSchema = z.object({
   payload_digest: digest,
 }).strict();
 
+// Preserve the original producer receipt bytes: its native Python digest can
+// distinguish 0.0 from 0, whereas this transport uses cross-runtime canonical JSON.
+const operatorNoAllocationCloseoutSchema = z.object({
+  schema_version: z.literal("operator_policy_no_allocation_closeout.v1"),
+  run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  status: z.literal("blocked_without_provider_allocation"),
+  provider_allocation_performed: z.literal(false),
+  provider_instance_charge_usd: z.literal(0),
+  provider_instance_charge_not_applicable: z.literal(true),
+  inner_adapter_sha256: digest,
+  provider_create_attempted: z.literal(false),
+  vast_side_effects_may_have_occurred: z.literal(false),
+  vast_instance_ids: z.array(z.never()).length(0),
+  provider_attempt_classification: z.object({
+    schema_version: z.literal("provider_attempt_classification.v1"),
+    classification: z.literal("pre_execution_provider_null"),
+    provider_bundle_started: z.literal(false),
+    provider_entrypoint_started: z.literal(false),
+    provider_output_returned: z.literal(false),
+    scientific_attempt_consumed: z.literal(false),
+    pre_execution_requeue_eligible_in_principle: z.boolean(),
+    automatic_requeue_authorized: z.literal(false),
+    automatic_requeue_executed: z.literal(false),
+    maximum_automatic_requeues: z.literal(0),
+    authority_required_for_next_provider_mutation: z.literal(true),
+    blockers: z.array(nonEmpty).min(1).max(128),
+  }).strict(),
+  all_staged_objects_absent: z.literal(true),
+  continuing_spend_from_this_run: z.literal(false),
+  watchdog_status: z.literal("cancelled_no_allocation"),
+  provider_zero_verified: z.literal(true),
+  legacy_no_allocation_predicate_passed: z.literal(false),
+  legacy_predicate_gap: nonEmpty,
+  receipt_digest: digest,
+}).strict();
+
+export const pipelineOperatorPolicyCanaryPreproviderBlockedSchema = z.object({
+  schema_version: z.literal("task_evaluation_operator_policy_canary_preprovider_blocked.v1"),
+  run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  capture_session_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  intake_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  operator_registration_digest: digest,
+  request_digest: digest,
+  configuration_digest: digest,
+  team_namespace: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  firebase_tenant_id: z.null(),
+  run_kind: z.literal("internal_policy_canary"),
+  claim_ceiling: z.literal("diagnostic_policy_execution"),
+  result_status: z.literal("blocked"),
+  provider_allocation_performed: z.literal(false),
+  automatic_retry_performed: z.literal(false),
+  blockers: z.array(nonEmpty).min(1).max(128),
+  no_allocation_closeout: z.object({
+    raw_json: z.string().min(1).max(64 * 1024),
+    sha256: digest,
+    size_bytes: z.number().int().positive().max(64 * 1024),
+  }).strict(),
+  payload_digest: digest,
+}).strict();
+
 function sensitivePaths(value: unknown, prefix = ""): string[] {
   if (Array.isArray(value)) return value.flatMap((child, index) => sensitivePaths(child, `${prefix}[${index}]`));
   if (!value || typeof value !== "object") return [];
@@ -324,5 +385,32 @@ export function parsePipelinePolicyCanaryPreproviderBlocked(value: unknown) {
     : { ok: true as const, payload };
 }
 
+export function parsePipelineOperatorPolicyCanaryPreproviderBlocked(value: unknown) {
+  const parsed = pipelineOperatorPolicyCanaryPreproviderBlockedSchema.safeParse(value);
+  if (!parsed.success) return { ok: false as const, blockers: ["operator_policy_canary_preprovider_schema_invalid"] };
+  const payload = parsed.data;
+  const source = payload.no_allocation_closeout;
+  const blockers: string[] = [];
+  if (!matchesCrossRuntimeArtifactDigest(payload, "payload_digest")) {
+    blockers.push("operator_policy_canary_preprovider_digest_mismatch");
+  }
+  if (Buffer.byteLength(source.raw_json, "utf8") !== source.size_bytes
+    || `sha256:${createHash("sha256").update(source.raw_json, "utf8").digest("hex")}` !== source.sha256) {
+    blockers.push("operator_policy_canary_no_allocation_source_mismatch");
+  }
+  let receipt;
+  try { receipt = operatorNoAllocationCloseoutSchema.safeParse(JSON.parse(source.raw_json)); }
+  catch { receipt = null; }
+  if (!receipt?.success) blockers.push("operator_policy_canary_no_allocation_proof_invalid");
+  else if (receipt.data.run_id !== payload.run_id
+    || receipt.data.provider_attempt_classification.blockers.length !== payload.blockers.length
+    || receipt.data.provider_attempt_classification.blockers.some((code, index) => code !== payload.blockers[index])) {
+    blockers.push("operator_policy_canary_no_allocation_binding_mismatch");
+  }
+  return blockers.length ? { ok: false as const, blockers }
+    : { ok: true as const, payload };
+}
+
 export type PipelinePolicyCanaryPublication = z.infer<typeof pipelinePolicyCanaryPublicationSchema>;
 export type PipelinePolicyCanaryPreproviderBlocked = z.infer<typeof pipelinePolicyCanaryPreproviderBlockedSchema>;
+export type PipelineOperatorPolicyCanaryPreproviderBlocked = z.infer<typeof pipelineOperatorPolicyCanaryPreproviderBlockedSchema>;

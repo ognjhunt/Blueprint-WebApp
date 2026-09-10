@@ -14,6 +14,7 @@ import mixedCaseCanaryPublicationFixture from "./fixtures/pipeline-policy-canary
 import canaryBlockedFixture from "./fixtures/pipeline-policy-canary-preprovider-blocked.v1.json";
 import configuredOfferingFixture from "./fixtures/pipeline-configured-scene-offering.v1.json";
 import { sealRigidTaskSuccessContract } from "../utils/rigidTaskSuccessContract";
+import { bindNoAllocationSource, operatorPreproviderBlocked } from "./fixtures/operator-policy-canary-preprovider-blocked";
 import {
   operatorPolicyCanaryRegistrationSchema,
   registerOperatorPolicyCanary,
@@ -436,14 +437,14 @@ async function stopServer(server: Server, socketPath: string) {
   try { unlinkSync(socketPath); } catch { /* Node may remove it. */ }
 }
 
-async function postSigned(socketPath: string, body: Record<string, unknown>) {
+async function postSigned(socketPath: string, body: Record<string, unknown>, authenticated = true) {
   const signed = signedBody(body);
   return new Promise<{ status: number; body: Record<string, any> }>((resolve, reject) => {
     const request = httpRequest({
       socketPath,
       path: "/internal/capture-task-evaluation-runs",
       method: "POST",
-      headers: { ...signed.headers, "content-length": Buffer.byteLength(signed.rawBody) },
+      headers: { ...(authenticated ? signed.headers : { "content-type": "application/json" }), "content-length": Buffer.byteLength(signed.rawBody) },
     }, (response) => {
       const chunks: Buffer[] = [];
       response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
@@ -467,6 +468,131 @@ afterEach(() => {
 });
 
 describe("internal Pipeline Task Evaluation Run publication", () => {
+  async function registeredOperatorNullAttempt() {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "0";
+    const publication = policyCanaryPublication();
+    const parent = configuredOfferingRecord({ configurationRunId: "original-configuration" });
+    const registration = operatorRegistration(publication, parent);
+    state.collections.set("taskEvaluationLaunches", new Map([[registration.source_launch_id, parent]]));
+    expect((await registerOperator(registration)).status).toBe(201);
+    return { publication, parent, registration, body: operatorPreproviderBlocked(registration) };
+  }
+
+  it("closes an operator pre-provider refusal once without fabricating results or changing the source offering", async () => {
+    const { publication, parent, registration, body } = await registeredOperatorNullAttempt();
+    const unrelated = { run_id: "unrelated-run", request_digest: body.request_digest, state: "running" };
+    state.collections.get("taskEvaluationPolicyRuns")!.set("unrelated-run", unrelated);
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, body, false)).status).toBe(401);
+      expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+      const first = await postSigned(socketPath, body);
+      expect(first.status).toBe(201);
+      expect(first.body).toMatchObject({
+        schema_version: "capture_task_evaluation_operator_policy_canary_blocked_receipt.v1",
+        status: "blocked", already_exists: false, run_id: registration.run_id,
+        operator_registration_digest: registration.registration_digest,
+        configuration_digest: registration.configuration_digest,
+        provider_allocation_performed: false, payload_digest: body.payload_digest,
+      });
+      expect(first.body).not.toHaveProperty("activation_id");
+      const run = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+      expect(run).toMatchObject({ state: "blocked", phase: "pre_provider_blocked", stage: "terminal",
+        result_status: "blocked", progress: { completed_episodes: 0, total_episodes: 20 },
+        completed_learned_episode_count: 0, completed_control_episode_count: 0,
+        result_record_id: null, delivery_digest: null, retryable: false,
+        notification: registration.notification, operator_registration: registration });
+      expect(run).not.toHaveProperty("policy_run_result_projection");
+      const blocked = structuredClone(state.collections.get("captureTaskEvaluationRuns")!.get(first.body.blocked_record_id)!);
+      expect(blocked.preprovider_blocked.no_allocation_closeout.raw_json).toBe(body.no_allocation_closeout.raw_json);
+      expect(blocked).not.toHaveProperty("publication_storage");
+      expect(blocked).not.toHaveProperty("result_delivery");
+      expect((await postSigned(socketPath, body)).body).toMatchObject({ already_exists: true });
+      expect(state.collections.get("captureTaskEvaluationRuns")!.get(first.body.blocked_record_id)).toEqual(blocked);
+      expect(state.collections.get("captureTaskEvaluationRuns")!.size).toBe(1);
+      const beforeConflict = structuredClone(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id));
+      const conflict = structuredClone(body);
+      conflict.blockers = ["a_different_offer_refusal"];
+      const source = JSON.parse(conflict.no_allocation_closeout.raw_json);
+      source.provider_attempt_classification.blockers = conflict.blockers;
+      bindNoAllocationSource(conflict, source);
+      expect((await postSigned(socketPath, conflict)).status).toBe(409);
+      expect((await postSigned(socketPath, publication)).status).toBe(409);
+      expect(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)).toEqual(beforeConflict);
+      expect(state.collections.get("taskEvaluationLaunches")!.get(registration.source_launch_id)).toEqual(parent);
+      expect(state.collections.get("taskEvaluationLaunches")!.size).toBe(1);
+      expect(state.collections.get("taskEvaluationPolicyRuns")!.get("unrelated-run")).toEqual(unrelated);
+    } finally { await stopServer(server, socketPath); }
+  });
+
+  it.each(["capture_session_id", "intake_id", "request_digest", "configuration_digest",
+    "operator_registration_digest", "team_namespace"])(
+    "rejects an operator pre-provider publication with a different %s", async (field) => {
+      const { body } = await registeredOperatorNullAttempt();
+      const before = structuredClone(state.collections);
+      body[field] = field.endsWith("digest") ? sha("f") : "another-identity";
+      body.payload_digest = crossRuntimeArtifactDigest(body, "payload_digest");
+      const { server, socketPath } = await startServer();
+      try {
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        expect(state.collections).toEqual(before);
+      } finally { await stopServer(server, socketPath); }
+    },
+  );
+
+  it.each(["owner_user_id", "team_namespace", "firebase_tenant_id", "source_launch_id",
+    "request_digest", "configuration_digest", "pipeline_configuration_digest", "offering_digest",
+    "setup_digest", "scene_revision_digest", "notification_recipient_user_id"])(
+    "refuses a changed persisted operator pre-provider binding: %s", async (field) => {
+      const { body } = await registeredOperatorNullAttempt();
+      state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)![field] = "other-owner-or-identity";
+      const before = structuredClone(state.collections);
+      const { server, socketPath } = await startServer();
+      try {
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        expect(state.collections).toEqual(before);
+      } finally { await stopServer(server, socketPath); }
+    },
+  );
+
+  it("requires an existing operator pre-provider registration and never resolves by request digest", async () => {
+    const { body } = await registeredOperatorNullAttempt();
+    const retained = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+    state.collections.get("taskEvaluationPolicyRuns")!.delete(body.run_id);
+    state.collections.get("taskEvaluationPolicyRuns")!.set("same-request-another-run", retained);
+    const before = structuredClone(state.collections);
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, body)).status).toBe(404);
+      expect(state.collections).toEqual(before);
+    } finally { await stopServer(server, socketPath); }
+  });
+
+  it.each(["results_ready", "cancelled", "failed", "blocked"])(
+    "cannot replace an existing %s operator outcome with a pre-provider refusal", async (terminalState) => {
+      const { body } = await registeredOperatorNullAttempt();
+      state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!.state = terminalState;
+      const before = structuredClone(state.collections);
+      const { server, socketPath } = await startServer();
+      try {
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        expect(state.collections).toEqual(before);
+      } finally { await stopServer(server, socketPath); }
+    },
+  );
+
+  it("cannot replace a delivered operator result with a pre-provider refusal", async () => {
+    const { body, publication } = await registeredOperatorNullAttempt();
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, publication)).status).toBe(201);
+      const before = structuredClone(state.collections);
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      expect(state.collections).toEqual(before);
+    } finally { await stopServer(server, socketPath); }
+  });
+
   it("requires the production runner signature and matching idempotency key at the operator registration route", async () => {
     const secret = "operator-test-launch-submission-secret-0123456789";
     process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_SUBMIT_SECRET = secret;
