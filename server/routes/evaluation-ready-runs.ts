@@ -1,3 +1,4 @@
+import { taskEvaluationPolicyRunAccessAllowed } from "../utils/taskEvaluationPolicyRunAccess";
 import { taskEvaluationFirebaseTenant } from "../utils/taskEvaluationFirebaseTenant";
 import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import { Router, type NextFunction, type Request, type Response } from "express";
@@ -57,9 +58,7 @@ async function readForTeam(runId: string, res: Response) {
   const access = await resolveAccessContext(res);
   if (!access.uid) return null;
   const tenantId = firebaseTenantId(res);
-  const personalOwner = record.owner_user_id === access.uid
-    && record.team_namespace === `user:${access.uid}`;
-  if (!access.isOps && !personalOwner && (!tenantId || tenantId !== record.team_namespace)) return null;
+  if (!taskEvaluationPolicyRunAccessAllowed(record, { uid: access.uid, tenantId, isOps: access.isOps })) return null;
   return record;
 }
 

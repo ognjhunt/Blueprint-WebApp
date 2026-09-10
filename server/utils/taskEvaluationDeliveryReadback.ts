@@ -3,6 +3,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import { evaluationResultWebsiteUrl } from "./evaluationReadyRunContract";
+import { configuredOfferingForTerminalSync, offeringScope, policyRunBelongsToOffering } from "./taskEvaluationPublicationScope";
 import { operatorPolicyCanaryPublicationScope } from "./operatorPolicyCanaryRegistration";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { resultArtifactMetadata } from "./taskEvaluationArtifactIntegrity";
@@ -17,7 +18,7 @@ import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStora
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 
-export const taskEvaluationDeliveryReadbackRequestSchema = z.object({
+const operatorReadbackRequestSchema = z.object({
   schema_version: z.literal("task_evaluation_delivery_readback_request.v1"),
   capture_session_id: identifier,
   run_id: identifier,
@@ -26,6 +27,23 @@ export const taskEvaluationDeliveryReadbackRequestSchema = z.object({
   policy_canary_projection_digest: digest,
   artifact_ids: z.array(identifier).min(1).max(12).refine((ids) => new Set(ids).size === ids.length),
 }).strict();
+
+const ownerReadbackRequestSchema = z.object({
+  schema_version: z.literal("task_evaluation_delivery_readback_request.v2"),
+  capture_session_id: identifier,
+  run_id: identifier,
+  request_digest: digest,
+  configuration_digest: digest,
+  owner_user_id: identifier,
+  team_namespace: identifier,
+  result_delivery_digest: digest,
+  policy_canary_projection_digest: digest,
+  artifact_ids: z.array(identifier).min(1).max(12).refine((ids) => new Set(ids).size === ids.length),
+}).strict();
+
+export const taskEvaluationDeliveryReadbackRequestSchema = z.discriminatedUnion("schema_version", [
+  operatorReadbackRequestSchema, ownerReadbackRequestSchema,
+]);
 
 type ReadbackRequest = z.infer<typeof taskEvaluationDeliveryReadbackRequestSchema>;
 
@@ -37,7 +55,11 @@ function publicationMatches(publication: Record<string, any>, expected: Readback
   return publication.schema_version === "task_evaluation_run_publication.v4"
     && publication.capture_session_id === expected.capture_session_id
     && publication.run_id === expected.run_id
-    && publication.operator_registration_digest === expected.operator_registration_digest
+    && (expected.schema_version === "task_evaluation_delivery_readback_request.v1"
+      ? publication.operator_registration_digest === expected.operator_registration_digest
+      : !publication.operator_registration_digest
+        && publication.request_digest === expected.request_digest
+        && publication.configuration_digest === expected.configuration_digest)
     && publication.result_delivery?.delivery_digest === expected.result_delivery_digest
     && publication.policy_canary_result?.projection_digest === expected.policy_canary_projection_digest;
 }
@@ -60,15 +82,35 @@ export async function readTaskEvaluationDelivery(db: Firestore, expected: Readba
     throw new TaskEvaluationDeliveryReadbackError(409, "delivery_readback_publication_mismatch");
   }
   const publication = verified.publication as PipelinePolicyCanaryPublication;
-  const scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
+  const normalOwner = expected.schema_version === "task_evaluation_delivery_readback_request.v2";
+  let scope;
+  if (normalOwner) {
+    if (policyRun.operator_registration !== undefined || publication.policy_canary_result.control_omission) {
+      throw new TaskEvaluationDeliveryReadbackError(409, "delivery_readback_normal_owner_required");
+    }
+    const offeringSnapshot = await db.collection("taskEvaluationLaunches").doc(publication.capture_session_id).get();
+    const offering = offeringSnapshot.exists
+      ? configuredOfferingForTerminalSync(offeringSnapshot.data() as Record<string, any>) : null;
+    if (!offering || offering.configuration_run_id !== publication.intake_id
+      || !policyRunBelongsToOffering(policyRun, offering, publication.capture_session_id)) {
+      throw new TaskEvaluationDeliveryReadbackError(404, "delivery_readback_owner_unavailable");
+    }
+    scope = offeringScope(policyRun, offering);
+    if (scope.ownerUserId !== expected.owner_user_id || scope.organizationId !== expected.team_namespace) {
+      throw new TaskEvaluationDeliveryReadbackError(404, "delivery_readback_owner_unavailable");
+    }
+  } else {
+    scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
+  }
   if (!scope || record.record_id !== recordId || record.owner_user_id !== scope.ownerUserId
     || record.organization_id !== scope.organizationId || record.access_visibility !== scope.accessVisibility) {
     throw new TaskEvaluationDeliveryReadbackError(404, "delivery_readback_owner_unavailable");
   }
-  if (policyRun.run_id !== expected.run_id || policyRun.result_record_id !== recordId
+  if (policyRun.run_kind !== "internal_policy_canary" || policyRun.run_id !== expected.run_id || policyRun.result_record_id !== recordId
     || policyRun.request_digest !== publication.request_digest
     || policyRun.pipeline_configuration_digest !== publication.configuration_digest
-    || policyRun.task_success_contract_digest !== publication.policy_canary_result.task_success_contract?.contract_digest
+    || ((!normalOwner || policyRun.task_success_contract_digest)
+      && policyRun.task_success_contract_digest !== publication.policy_canary_result.task_success_contract?.contract_digest)
     || policyRun.phase !== "published" || policyRun.stage !== "terminal"
     || policyRun.result_status !== publication.result_status
     || policyRun.delivery_digest !== expected.result_delivery_digest
@@ -118,12 +160,15 @@ export async function readTaskEvaluationDelivery(db: Firestore, expected: Readba
   return {
     schema_version: "task_evaluation_delivery_readback.v1", status: "verified", run_id: publication.run_id,
     record_id: recordId, result_url: evaluationResultWebsiteUrl(recordId),
-    operator_registration_digest: publication.operator_registration_digest,
+    ...(normalOwner ? {
+      request_digest: publication.request_digest, configuration_digest: publication.configuration_digest,
+      owner_user_id: scope.ownerUserId, team_namespace: scope.organizationId,
+    } : { operator_registration_digest: publication.operator_registration_digest }),
     result_delivery_digest: publication.result_delivery.delivery_digest,
     policy_canary_projection_digest: publication.policy_canary_result.projection_digest,
     inbox: { status: "verified", scope: "owner", run_id: listed.publication.run_id,
       projection_digest: listed.publication.policy_canary_result.projection_digest,
-      team_namespace: scope.organizationId, source: "website_owner_run_index_readback" },
+      team_namespace: scope.organizationId, ...(normalOwner ? { owner_user_id: scope.ownerUserId } : {}), source: "website_owner_run_index_readback" },
     ephemeral_downloads: downloads,
   };
 }

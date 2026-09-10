@@ -234,7 +234,7 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
 export default function TaskEvaluationResultDetail() {
   const params = useParams<{ recordId: string }>();
   const recordId = params.recordId || "";
-  const { result, currentUser, notFound, isLoading, error } = useTaskEvaluationResult(recordId);
+  const { result, pending, currentUser, notFound, isLoading, error } = useTaskEvaluationResult(recordId);
   return (
     <AppShell active="runs" breadcrumb={`results / ${recordId || "unknown"}`} publicView={!currentUser}>
       <Helmet><title>Sealed Task Evaluation Result · Blueprint</title><meta name="description" content="Unlisted sealed Task Evaluation Run result, media, and evidence downloads." /><meta name="robots" content="noindex,nofollow,noarchive" /></Helmet>
@@ -246,7 +246,18 @@ export default function TaskEvaluationResultDetail() {
           {error ? <p role="status" className="text-body-s text-ink-600">The result could not be refreshed. Showing the last loaded result.</p> : null}
           <ResultContent result={result} user={currentUser} />
         </> : null}
-        {!isLoading && !error && notFound ? <ProofBoundary level="block" title="Result not available">No public result or result in your owner or verified-team scope matched this identifier.</ProofBoundary> : null}
+        {!isLoading && pending ? <section className="runway-panel p-6" aria-labelledby="pending-result-title">
+          <h1 id="pending-result-title" className="font-display text-title-s text-ink-900">{pending.run.terminal ? "Run ended · results pending" : "Run registered · results pending"}</h1>
+          <p className="mt-3 text-body-s text-ink-600">{pending.run.terminal
+            ? "The recorded run has ended. A sealed result has not been published yet. Open run progress for the recorded outcome."
+            : "This run is registered. Its sealed result and evidence downloads will appear here after publication. This page checks for updates while you keep it open."}</p>
+          <p role="status" className="mt-4 text-body-s text-ink-800">Last recorded status: {pending.run.state.replaceAll("_", " ")}{pending.run.phase ? ` · ${pending.run.phase.replaceAll("_", " ")}` : ""}.</p>
+          {pending.run.progress ? <p className="mt-2 text-body-s text-ink-600">{pending.run.progress.completed_episodes} of {pending.run.progress.total_episodes} episodes recorded complete.</p> : null}
+          {pending.run.error ? <p className="mt-2 text-body-s text-ink-600">{pending.run.error.message}</p> : null}
+          <p className="mt-3 text-body-s text-ink-600">Diagnostic policy execution only. This does not establish physical success or a qualified policy comparison.</p>
+          <Link href={pending.run.href} className="mt-5 inline-flex text-body-s font-semibold text-ink-800 underline">View run progress</Link>
+        </section> : null}
+        {!isLoading && !error && notFound ? <ProofBoundary level="block" title="Result not available">No public result or result in your owner or verified-team scope matched this identifier.{!currentUser ? <> <Link href="/sign-in" className="underline">Sign in</Link> to check for private results or pending runs.</> : null}</ProofBoundary> : null}
       </div>
     </AppShell>
   );

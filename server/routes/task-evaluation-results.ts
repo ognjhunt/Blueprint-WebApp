@@ -18,6 +18,7 @@ import {
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
+import { readTaskEvaluationPendingResult } from "../utils/taskEvaluationPendingResult";
 import { readTaskEvaluationResultInbox } from "../utils/taskEvaluationResultInbox";
 import {
   publicPolicyCanaryScoreCorrectionAudit,
@@ -166,6 +167,16 @@ router.get("/:recordId", async (req, res) => {
   let record: ResultRecord | null;
   try {
     record = await readResultRecord(req.params.recordId);
+    if (!record && db) {
+      const access = await resolveAccessContext(res);
+      const pending = await readTaskEvaluationPendingResult(db, req.params.recordId, {
+        uid: access.uid, tenantId: firebaseTenantId(res), isOps: access.isOps,
+      });
+      if (pending) {
+        res.set("Cache-Control", "private, no-store");
+        return res.status(202).json(pending);
+      }
+    }
   } catch {
     return res.status(503).json({ error: "Task Evaluation Result store is unavailable" });
   }

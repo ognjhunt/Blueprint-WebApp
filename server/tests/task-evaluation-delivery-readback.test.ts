@@ -1,4 +1,5 @@
 // @vitest-environment node
+import configuredOfferingFixture from "./fixtures/pipeline-configured-scene-offering.v1.json";
 import { createHash, createHmac } from "node:crypto";
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -286,5 +287,167 @@ describe("authenticated Task Evaluation delivery readback", () => {
     const signature = createHmac("sha256", "download-secret").update(`${seeded.recordId}\0full-report\0${expires}`).digest("hex");
     const response = await fetch(`${url}/api/task-evaluation-result-downloads/${seeded.recordId}/full-report?expires=${expires}&signature=${signature}`);
     expect(response.status).toBe(404); expect(state.streams).not.toHaveBeenCalled();
+  });
+});
+
+describe("private unpublished operator result links", () => {
+  function pendingRun() {
+    state.records.get("captureTaskEvaluationRuns")!.delete(seeded.recordId);
+    Object.assign(seeded.policyRun, {
+      claim_ceiling: "diagnostic_policy_execution", state: "running", phase: "awaiting_operator_results",
+      configuration_digest: seeded.publication.configuration_digest, result_record_id: null,
+      progress: { completed_episodes: 4, total_episodes: 20 }, updated_at_iso: "2026-09-10T21:00:00.000Z",
+    });
+    delete seeded.policyRun.stage;
+    state.uid = "team-member"; state.tenant = "team-1";
+  }
+  const getResult = () => fetch(`${url}/api/task-evaluation-results/${seeded.recordId}`);
+
+  it("shows verified-team recorded progress, then serves the sealed publication at the same URL", async () => {
+    pendingRun();
+    const response = await getResult();
+    expect(response.status).toBe(202);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.json();
+    expect(body).toMatchObject({ schema_version: "task_evaluation_result_pending.v1", record_id: seeded.recordId,
+      status: "publication_pending", run: { phase: "awaiting_operator_results", progress: { completed_episodes: 4, total_episodes: 20 } } });
+    expect(body.publication).toBeUndefined();
+    expect(JSON.stringify(body)).not.toMatch(/owner@example|operator_registration|download_url/);
+    state.records.get("captureTaskEvaluationRuns")!.set(seeded.recordId, seeded.record);
+    const published = await getResult();
+    expect(published.status).toBe(200);
+    expect((await published.json()).publication.run_id).toBe(seeded.publication.run_id);
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "stranger", "blueprint-production-runner"])("does not reveal a pending team run to %s without team membership", async (uid) => {
+    pendingRun(); state.uid = uid; state.tenant = "";
+    const response = await getResult();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Task Evaluation Result not found" });
+  });
+
+  it("allows a verified operations reader", async () => {
+    pendingRun(); state.uid = "ops-reader"; state.tenant = "";
+    state.records.set("users", new Map([["ops-reader", { roles: ["ops"] }]]));
+    expect((await getResult()).status).toBe(202);
+  });
+
+  it.each(["registration", "run_id", "team_namespace", "configuration_digest", "task_success_contract_digest", "result_record_id"])("fails closed for a conflicting %s", async (field) => {
+    pendingRun();
+    if (field === "registration") seeded.policyRun.operator_registration.registration_digest = sha("0");
+    else seeded.policyRun[field] = "conflicting";
+    expect((await getResult()).status).toBe(404);
+  });
+
+  it("does not replace a corrupt published record with pending progress", async () => {
+    pendingRun();
+    state.records.get("captureTaskEvaluationRuns")!.set(seeded.recordId, { publication: { run_id: "invalid" } });
+    expect((await getResult()).status).toBe(404);
+  });
+
+  it("retains a terminal failure without claiming publication or retrying execution", async () => {
+    pendingRun(); seeded.policyRun.state = "failed"; seeded.policyRun.phase = "collection_failed";
+    const response = await getResult();
+    expect(response.status).toBe(202);
+    expect((await response.json()).run).toMatchObject({ state: "failed", terminal: true, phase: "collection_failed" });
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+});
+
+describe("normal owner delivery readback", () => {
+  function normalOwnerRun(teamNamespace = "team-1") {
+    const publication = structuredClone(fixture) as Record<string, any>;
+    publication.policy_canary_result.report.machine_readable_report.digest = artifactDigest;
+    publication.result_delivery.delivery_digest = canonicalArtifactDigest(publication.result_delivery, "delivery_digest");
+    publication.policy_canary_result.result_delivery_digest = publication.result_delivery.delivery_digest;
+    publication.policy_canary_result.projection_digest = canonicalArtifactDigest(publication.policy_canary_result, "projection_digest");
+    expect(parseVerifiedTaskEvaluationRunPublication(publication).ok).toBe(true);
+    const offering = structuredClone(configuredOfferingFixture) as Record<string, any>;
+    offering.status = "configured_controls_pending";
+    offering.configuration_run_id = publication.intake_id;
+    offering.team_namespace = teamNamespace;
+    offering.evaluation_admission = { zero_action_required: true, scripted_positive_required: true, learned_policy_evaluation_admitted: false };
+    offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+    const parent = { configured_scene_offering: offering, configured_scene_offering_digest: offering.offering_digest };
+    state.records.set("taskEvaluationLaunches", new Map([[publication.capture_session_id, parent]]));
+    seeded.record.owner_user_id = "buyer-1";
+    seeded.record.organization_id = teamNamespace;
+    seeded.record.access_visibility = teamNamespace === "user:buyer-1" ? "owner_only" : "organization_members";
+    seeded.record.publication_storage = encodeTaskEvaluationRunPublication(publication);
+    Object.assign(seeded.policyRun, {
+      owner_user_id: "buyer-1", team_namespace: teamNamespace, source_launch_id: publication.capture_session_id,
+      offering_digest: offering.offering_digest, scene_controls_status_at_submission: "configured_controls_pending",
+      result_status: publication.result_status, delivery_digest: publication.result_delivery.delivery_digest,
+      policy_run_result_projection: publication.policy_canary_result,
+    });
+    delete seeded.policyRun.operator_registration;
+    delete seeded.policyRun.task_success_contract_digest;
+    delete seeded.policyRun.submission_channel;
+    return { parent, publication, body: {
+      schema_version: "task_evaluation_delivery_readback_request.v2", capture_session_id: publication.capture_session_id,
+      run_id: publication.run_id, request_digest: publication.request_digest, configuration_digest: publication.configuration_digest,
+      owner_user_id: "buyer-1", team_namespace: teamNamespace,
+      result_delivery_digest: publication.result_delivery.delivery_digest,
+      policy_canary_projection_digest: publication.policy_canary_result.projection_digest, artifact_ids: ["full-report"],
+    } };
+  }
+
+  it("verifies the actual owner inbox and fresh download capability", async () => {
+    const team = "team-1";
+    const { body } = normalOwnerRun(team);
+    const response = await readback(body);
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    expect(value).toMatchObject({ schema_version: "task_evaluation_delivery_readback.v1", status: "verified",
+      owner_user_id: body.owner_user_id, team_namespace: team, request_digest: body.request_digest,
+      configuration_digest: body.configuration_digest,
+      inbox: { scope: "owner", owner_user_id: body.owner_user_id, team_namespace: team, source: "website_owner_run_index_readback" } });
+    expect(value.operator_registration_digest).toBeUndefined();
+    expect(state.queries).toContainEqual({ field: "owner_user_id", value: "buyer-1", limit: 250 });
+    state.uid = null;
+    const download = await fetch(`${url}${value.ephemeral_downloads[0].download_url}`);
+    expect(download.status).toBe(200);
+    expect(Buffer.from(await download.arrayBuffer())).toEqual(payload);
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+
+  it.each(["owner_user_id", "team_namespace", "request_digest", "configuration_digest"])("refuses a mismatched requested %s", async (field) => {
+    const { body } = normalOwnerRun();
+    const response = await readback({ ...body, [field]: field.endsWith("digest") ? sha("0") : "another" });
+    expect([404, 409]).toContain(response.status);
+    expect(state.probes).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "digest", "team", "configuration_run_id"])("refuses %s offering authority", async (variant) => {
+    const { body, parent } = normalOwnerRun();
+    if (variant === "missing") state.records.get("taskEvaluationLaunches")!.clear();
+    else if (variant === "digest") parent.configured_scene_offering_digest = sha("0");
+    else {
+      parent.configured_scene_offering[variant === "team" ? "team_namespace" : variant] = "another";
+      parent.configured_scene_offering.offering_digest = canonicalArtifactDigest(parent.configured_scene_offering, "offering_digest");
+      parent.configured_scene_offering_digest = parent.configured_scene_offering.offering_digest;
+    }
+    expect((await readback(body)).status).toBe(404);
+  });
+
+  it.each([null, {}])("refuses any operator registration field in v2, including %s", async (registration) => {
+    const { body } = normalOwnerRun(); seeded.policyRun.operator_registration = registration;
+    expect((await readback(body)).status).toBe(409);
+  });
+
+  it("requires actual owner index membership after normal publication", async () => {
+    const { body } = normalOwnerRun(); state.omitFromInbox.add(seeded.recordId);
+    const response = await readback(body);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("delivery_readback_owner_inbox_unverified");
+    expect(state.probes).not.toHaveBeenCalled();
+  });
+
+  it("requires v2 identity instead of accepting an operator digest substitute", async () => {
+    const { body } = normalOwnerRun();
+    expect((await readback({ ...body, operator_registration_digest: sha("0") })).status).toBe(400);
+    const { owner_user_id: _owner, ...missingOwner } = body;
+    expect((await readback(missingOwner)).status).toBe(400);
   });
 });
