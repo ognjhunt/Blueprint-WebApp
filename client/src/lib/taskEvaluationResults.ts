@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ControlsStatus, PolicyCanaryControl, ControlsSummary } from "./policyCanaryControls";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -416,6 +417,25 @@ type TaskEvaluationResultList = {
   results: TaskEvaluationResultSiteRecord[];
 };
 
+const pendingResultSchema = z.object({
+  schema_version: z.literal("task_evaluation_result_pending.v1"),
+  record_id: z.string(),
+  status: z.literal("publication_pending"),
+  run: z.object({
+    run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+    run_kind: z.literal("internal_policy_canary"),
+    claim_ceiling: z.literal("diagnostic_policy_execution"),
+    state: z.string(), phase: z.string().nullable(), terminal: z.boolean(),
+    progress: z.object({ completed_episodes: z.number().int().nonnegative(), total_episodes: z.number().int().nonnegative() }).nullable(),
+    error: z.object({ code: z.string(), message: z.string() }).nullable(),
+    updated_at_iso: z.string().optional(), href: z.string(),
+  }),
+});
+export type TaskEvaluationPendingResult = z.infer<typeof pendingResultSchema>;
+function isPendingResult(value: TaskEvaluationPendingResult | TaskEvaluationResultSiteRecord | null | undefined): value is TaskEvaluationPendingResult {
+  return value?.schema_version === "task_evaluation_result_pending.v1";
+}
+
 export class TaskEvaluationResultReadError extends Error {
   constructor(public readonly status: number) {
     super(status === 401 ? "Sign in again to read this result."
@@ -452,6 +472,14 @@ async function fetchResult(currentUser: FirebaseUser | null, recordId: string, s
     const response = await authenticatedFetch(currentUser, `/api/task-evaluation-results/${encodeURIComponent(recordId)}`, requestSignal);
     if (response.status === 404) return null;
     if (!response.ok) throw new TaskEvaluationResultReadError(response.status);
+    if (response.status === 202) {
+      const pending = pendingResultSchema.safeParse(await response.json());
+      if (!pending.success || pending.data.record_id !== recordId
+        || pending.data.run.href !== `/app/evaluation-runs/${encodeURIComponent(pending.data.run.run_id)}`) {
+        throw new TaskEvaluationResultReadError(409);
+      }
+      return pending.data;
+    }
     const result = await response.json() as TaskEvaluationResultSiteRecord;
     if (result?.record_id !== recordId || !result.publication?.run_id) throw new TaskEvaluationResultReadError(409);
     return result;
@@ -523,13 +551,15 @@ export function useTaskEvaluationResult(recordId: string) {
     retry: taskEvaluationResultRetry,
     refetchInterval: (query) => {
       if (query.state.error || Date.now() - deliveryObservationStarted >= 15 * 60_000) return false;
+      if (isPendingResult(query.state.data)) return 15_000;
       const status = query.state.data?.website_delivery?.notification?.status;
       return status === "pending" || status === "accepted" || query.state.data?.website_delivery?.retry_state === "dispatching" ? 30_000 : false;
     },
     staleTime: 30_000,
   });
   return {
-    result: resultAccessRefused(query.error) ? null : query.data || null,
+    result: resultAccessRefused(query.error) || isPendingResult(query.data) ? null : query.data || null,
+    pending: !resultAccessRefused(query.error) && isPendingResult(query.data) ? query.data : null,
     notFound: query.isFetched && query.data === null,
     isLoading: loading || query.isLoading,
     error: query.error instanceof Error ? query.error : null,

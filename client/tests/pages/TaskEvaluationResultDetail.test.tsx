@@ -87,3 +87,19 @@ describe("Task Evaluation Result bound scene label", () => {
     expect(screen.queryByText(/Scene 839873/)).not.toBeInTheDocument();
   });
 });
+
+it("shows pending recorded progress without result evidence and links to the private run", () => {
+  useResult.mockReturnValue({ result: null, pending: { run: { run_id: "operator-run", state: "running", phase: "awaiting_operator_results", terminal: false, progress: { completed_episodes: 4, total_episodes: 20 }, href: "/app/evaluation-runs/operator-run" } }, currentUser: { uid: "owner" }, notFound: false, isLoading: false, error: null });
+  render(<TaskEvaluationResultDetail />);
+  expect(screen.getByRole("heading", { name: "Run registered · results pending" })).toBeInTheDocument();
+  expect(screen.getByText("4 of 20 episodes recorded complete.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "View run progress" })).toHaveAttribute("href", "/app/evaluation-runs/operator-run");
+  expect(screen.queryByText("Policy episode evidence")).not.toBeInTheDocument();
+});
+
+it("offers anonymous sign-in without revealing a private pending run", () => {
+  useResult.mockReturnValue({ result: null, pending: null, currentUser: null, notFound: true, isLoading: false, error: null });
+  render(<TaskEvaluationResultDetail />);
+  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
+  expect(screen.queryByText("Run registered · results pending")).not.toBeInTheDocument();
+});

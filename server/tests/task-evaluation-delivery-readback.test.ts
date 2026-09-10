@@ -288,3 +288,68 @@ describe("authenticated Task Evaluation delivery readback", () => {
     expect(response.status).toBe(404); expect(state.streams).not.toHaveBeenCalled();
   });
 });
+
+describe("private unpublished operator result links", () => {
+  function pendingRun() {
+    state.records.get("captureTaskEvaluationRuns")!.delete(seeded.recordId);
+    Object.assign(seeded.policyRun, {
+      claim_ceiling: "diagnostic_policy_execution", state: "running", phase: "awaiting_operator_results",
+      configuration_digest: seeded.publication.configuration_digest, result_record_id: null,
+      progress: { completed_episodes: 4, total_episodes: 20 }, updated_at_iso: "2026-09-10T21:00:00.000Z",
+    });
+    delete seeded.policyRun.stage;
+    state.uid = "team-member"; state.tenant = "team-1";
+  }
+  const getResult = () => fetch(`${url}/api/task-evaluation-results/${seeded.recordId}`);
+
+  it("shows verified-team recorded progress, then serves the sealed publication at the same URL", async () => {
+    pendingRun();
+    const response = await getResult();
+    expect(response.status).toBe(202);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.json();
+    expect(body).toMatchObject({ schema_version: "task_evaluation_result_pending.v1", record_id: seeded.recordId,
+      status: "publication_pending", run: { phase: "awaiting_operator_results", progress: { completed_episodes: 4, total_episodes: 20 } } });
+    expect(body.publication).toBeUndefined();
+    expect(JSON.stringify(body)).not.toMatch(/owner@example|operator_registration|download_url/);
+    state.records.get("captureTaskEvaluationRuns")!.set(seeded.recordId, seeded.record);
+    const published = await getResult();
+    expect(published.status).toBe(200);
+    expect((await published.json()).publication.run_id).toBe(seeded.publication.run_id);
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "stranger", "blueprint-production-runner"])("does not reveal a pending team run to %s without team membership", async (uid) => {
+    pendingRun(); state.uid = uid; state.tenant = "";
+    const response = await getResult();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Task Evaluation Result not found" });
+  });
+
+  it("allows a verified operations reader", async () => {
+    pendingRun(); state.uid = "ops-reader"; state.tenant = "";
+    state.records.set("users", new Map([["ops-reader", { roles: ["ops"] }]]));
+    expect((await getResult()).status).toBe(202);
+  });
+
+  it.each(["registration", "run_id", "team_namespace", "configuration_digest", "task_success_contract_digest", "result_record_id"])("fails closed for a conflicting %s", async (field) => {
+    pendingRun();
+    if (field === "registration") seeded.policyRun.operator_registration.registration_digest = sha("0");
+    else seeded.policyRun[field] = "conflicting";
+    expect((await getResult()).status).toBe(404);
+  });
+
+  it("does not replace a corrupt published record with pending progress", async () => {
+    pendingRun();
+    state.records.get("captureTaskEvaluationRuns")!.set(seeded.recordId, { publication: { run_id: "invalid" } });
+    expect((await getResult()).status).toBe(404);
+  });
+
+  it("retains a terminal failure without claiming publication or retrying execution", async () => {
+    pendingRun(); seeded.policyRun.state = "failed"; seeded.policyRun.phase = "collection_failed";
+    const response = await getResult();
+    expect(response.status).toBe(202);
+    expect((await response.json()).run).toMatchObject({ state: "failed", terminal: true, phase: "collection_failed" });
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+});
