@@ -58,15 +58,19 @@ export function signedPipelineHeaders(body = "") {
   };
 }
 
-export async function probeTaskEvaluationResultArtifact(params: {
+type ArtifactProbeParameters = {
   runId: string;
   artifactId: string;
   expected?: ResultArtifactMetadata;
   signal?: AbortSignal;
-}): Promise<"admitted" | "not_found" | "unavailable"> {
+};
+type ArtifactProbeResult = { status: "admitted"; metadata: ResultArtifactMetadata | null }
+  | { status: "not_found" | "unavailable" };
+
+export async function probeTaskEvaluationResultArtifactMetadata(params: ArtifactProbeParameters): Promise<ArtifactProbeResult> {
   const endpoint = configuredArtifactEndpoint(params.runId, params.artifactId);
   const signed = signedPipelineHeaders();
-  if (!endpoint || !signed) return "unavailable";
+  if (!endpoint || !signed) return { status: "unavailable" };
   const controller = new AbortController();
   const abort = () => controller.abort();
   const timer = setTimeout(abort, ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS);
@@ -78,16 +82,21 @@ export async function probeTaskEvaluationResultArtifact(params: {
       method: "GET", redirect: "error", signal: controller.signal,
       headers: { ...signed, range: "bytes=0-0", "accept-encoding": "identity" },
     });
-    if (response.status === 404) return "not_found";
-    if (!response.ok || !response.body
-      || !artifactResponseIntegrity(response, "bytes=0-0", params.expected)) return "unavailable";
-    return "admitted";
-  } catch { return "unavailable"; }
+    if (response.status === 404) return { status: "not_found" };
+    const integrity = artifactResponseIntegrity(response, "bytes=0-0", params.expected);
+    if (!response.ok || !response.body || !integrity) return { status: "unavailable" };
+    return { status: "admitted", metadata: integrity.totalSize !== null
+      ? { sha256: integrity.sourceDigest, size_bytes: integrity.totalSize } : null };
+  } catch { return { status: "unavailable" }; }
   finally {
     if (response) await cancelBody(response);
     clearTimeout(timer);
     params.signal?.removeEventListener("abort", abort);
   }
+}
+
+export async function probeTaskEvaluationResultArtifact(params: ArtifactProbeParameters): Promise<"admitted" | "not_found" | "unavailable"> {
+  return (await probeTaskEvaluationResultArtifactMetadata(params)).status;
 }
 
 export async function streamTaskEvaluationResultArtifact(params: {
