@@ -10,18 +10,18 @@ import {
   resolvedPolicyRunConfigurationSchema,
 } from "./evaluationReadyRunContract";
 import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
+import {
+  sceneConfigurationBudgetProfile,
+  sceneConfigurationBudgetProfiles,
+} from "./taskEvaluationSceneConfigurationBudgetProfiles";
 
 // One first ArtiFixer pass plus one bounded selective repair pass. The
 // pipeline sizes this from GPU_STAGE_TIMEOUT_SECONDS; a run whose repair
 // round was funded but not timed was killed mid-retrain at the old value.
-const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = 27_000;
-const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = 4.8;
-const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = 0.64;
-const SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD = 0.2;
-const SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD = 5.64;
-const SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD = 6;
-const SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD = 6;
-const SCENE_CONFIGURATION_ATTEMPT_SPEND_USD = 12;
+const SCENE_CONFIGURATION_PARENT_TTL_SECONDS = sceneConfigurationBudgetProfiles.parent_ttl_seconds;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD = sceneConfigurationBudgetProfiles.semantic_teacher_minimum;
+const SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD = sceneConfigurationBudgetProfiles.visual_review_minimum;
+const SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD = sceneConfigurationBudgetProfiles.provider_compute_cap;
 const EPISODE_EVALUATION_MAX_ATTEMPT_SPEND_USD = 5;
 const EPISODE_EVALUATION_MAX_TTL_SECONDS = 9_000;
 
@@ -281,12 +281,12 @@ const runtimeMountSchema = z.object({
 
 const externalServiceCapsSchema = z.object({
   openai: z.object({
-    maximum_cost_usd: z.number().nonnegative().max(6),
+    maximum_cost_usd: z.number().nonnegative().max(sceneConfigurationBudgetProfile("astra_cad_blender_v1").external_maximum),
     maximum_requests: z.number().int().nonnegative().max(100),
     stage_max_cost_usd: z.object({
       artifixer_semantic_teacher: z.number().nonnegative().max(5),
       artifixer_visual_review: z.number().nonnegative().max(5),
-      content_agents: z.number().nonnegative().max(5),
+      content_agents: z.number().nonnegative().max(sceneConfigurationBudgetProfile("astra_cad_blender_v1").authoring_maximum),
     }).strict(),
   }).strict(),
 }).strict();
@@ -294,6 +294,7 @@ const externalServiceCapsSchema = z.object({
 export const taskEvaluationLaunchPreparationInputSchema = z.object({
   schema_version: z.literal("task_evaluation_launch_preparation_request.v1"),
   scene_intent_digest: digest.optional(),
+  replacement_authoring_backend: z.enum(["content_agents", "astra_cad_blender_v1"]).optional(),
   run_mode: z.enum(["scene_configuration", "destination_qualification", "episode_evaluation"]),
   expected_production_commit: z.string().regex(/^[0-9a-f]{40}$/),
   preparation_id: identifier,
@@ -355,7 +356,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
   }).strict(),
   spend: z.object({
     maximum_hourly_rate_usd: z.number().positive().max(0.8),
-    hard_cap_usd: z.number().positive().max(12),
+    hard_cap_usd: z.number().positive().max(sceneConfigurationBudgetProfile("astra_cad_blender_v1").attempt_maximum),
     hard_ttl_seconds: z.number().int().min(1).max(27_000),
     provider_compute_spend_cap_usd: z.number().positive().max(6).optional(),
     external_service_caps: externalServiceCapsSchema.optional(),
@@ -443,24 +444,30 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     } else {
       const openai = externalCaps.openai;
       const stageCaps = openai.stage_max_cost_usd;
+      const budgetProfile = sceneConfigurationBudgetProfile(value.replacement_authoring_backend);
+      const minimumExternal = SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD
+        + SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD + budgetProfile.authoring_minimum;
       const stageTotal = Object.values(openai.stage_max_cost_usd)
         .reduce((total, amount) => total + amount, 0);
       if (
         value.spend.hard_ttl_seconds !== SCENE_CONFIGURATION_PARENT_TTL_SECONDS
-        || value.spend.hard_cap_usd !== SCENE_CONFIGURATION_ATTEMPT_SPEND_USD
+        || (value.replacement_authoring_backend !== "astra_cad_blender_v1"
+          && value.spend.hard_cap_usd !== budgetProfile.attempt_maximum)
+        || value.spend.hard_cap_usd > budgetProfile.attempt_maximum
         || providerComputeCap !== SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
         || providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
         || providerComputeCap + 1e-9 < value.spend.maximum_hourly_rate_usd
           * SCENE_CONFIGURATION_PARENT_TTL_SECONDS / 3_600
         || openai.maximum_cost_usd + 1e-9
-          < SCENE_CONFIGURATION_MIN_EXTERNAL_SERVICE_SPEND_USD
-        || openai.maximum_cost_usd > SCENE_CONFIGURATION_MAX_EXTERNAL_SERVICE_SPEND_USD
+          < minimumExternal
+        || openai.maximum_cost_usd > budgetProfile.external_maximum
         || stageCaps.artifixer_semantic_teacher + 1e-9
           < SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD
         || stageCaps.artifixer_visual_review + 1e-9
           < SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD
         || stageCaps.content_agents + 1e-9
-          < SCENE_CONFIGURATION_MIN_CONTENT_AGENTS_SPEND_USD
+          < budgetProfile.authoring_minimum
+        || stageCaps.content_agents > budgetProfile.authoring_maximum
         || stageTotal > openai.maximum_cost_usd + 1e-9
         || (openai.maximum_cost_usd === 0) !== (openai.maximum_requests === 0)
       ) context.addIssue({
@@ -469,6 +476,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       });
     }
   } else {
+    if (value.replacement_authoring_backend !== undefined) context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "episode evaluation cannot select a replacement authoring budget profile",
+    });
     if (value.construction.mode !== "reuse_configured_scene") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation must reuse the configured scene revision",

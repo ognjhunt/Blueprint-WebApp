@@ -682,7 +682,7 @@ function preparationInput() {
           maximum_requests: 32,
           stage_max_cost_usd: {
             artifixer_semantic_teacher: 4.8,
-            artifixer_visual_review: 0.64,
+            artifixer_visual_review: 0.96,
             content_agents: 0.2,
           },
         },
