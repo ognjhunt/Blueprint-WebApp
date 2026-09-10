@@ -10,6 +10,7 @@ import { dispatchTransactionalNotification } from "../utils/transactional-notifi
 import { evaluationResultWebsiteUrl } from "../utils/evaluationReadyRunContract";
 import {
   parsePipelinePolicyCanaryPreproviderBlocked,
+  parsePipelineOperatorPolicyCanaryPreproviderBlocked,
   parsePipelinePolicyCanaryPublication,
   type PipelinePolicyCanaryPreproviderBlocked,
   type PipelinePolicyCanaryPublication,
@@ -22,6 +23,7 @@ import {
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
+import { persistOperatorPolicyCanaryPreproviderBlocked } from "../utils/operatorPolicyCanaryPreproviderBlocked";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
   policyCanaryScoreCorrectionTransition,
@@ -859,6 +861,38 @@ router.post(
 
 router.post("/capture-task-evaluation-runs", rateLimiter, requirePipelineSignature, async (req, res) => {
   if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  if (req.body?.schema_version === "task_evaluation_operator_policy_canary_preprovider_blocked.v1") {
+    const parsed = parsePipelineOperatorPolicyCanaryPreproviderBlocked(req.body);
+    if (!parsed.ok) return res.status(400).json({
+      error: "Operator policy canary pre-provider blocker is invalid", blockers: parsed.blockers,
+    });
+    const { payload } = parsed;
+    const stored = await persistOperatorPolicyCanaryPreproviderBlocked(payload);
+    if (!stored.ok) return res.status(stored.status).json({
+      error: "Operator policy canary terminal publication refused", code: stored.code,
+    });
+    let notification: NotificationDelivery;
+    try {
+      notification = await dispatchCanaryTerminalNotification({
+        policyRun: stored.policyRun, policyRunRef: stored.policyRunRef,
+        resultStatus: "blocked", runResultDigest: payload.payload_digest,
+        resultUrl: authenticatedRunUrl(payload.run_id),
+      });
+    } catch {
+      return res.status(503).json({ error: "Policy canary notification receipt store is unavailable" });
+    }
+    res.set("Cache-Control", "no-store");
+    return res.status(stored.alreadyExists ? 200 : 201).json({
+      schema_version: "capture_task_evaluation_operator_policy_canary_blocked_receipt.v1",
+      status: "blocked", already_exists: stored.alreadyExists,
+      blocked_record_id: stored.recordId, run_id: payload.run_id,
+      capture_session_id: payload.capture_session_id, intake_id: payload.intake_id,
+      operator_registration_digest: payload.operator_registration_digest,
+      request_digest: payload.request_digest, configuration_digest: payload.configuration_digest,
+      provider_allocation_performed: false, payload_digest: payload.payload_digest,
+      notification_delivery: notification,
+    });
+  }
   if (req.body?.schema_version === "task_evaluation_policy_canary_preprovider_blocked.v1") {
     const blocked = parsePipelinePolicyCanaryPreproviderBlocked(req.body);
     if (!blocked.ok) return res.status(400).json({
