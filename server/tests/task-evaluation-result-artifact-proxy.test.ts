@@ -5,6 +5,7 @@ import {
   ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS,
   configuredArtifactEndpoint,
   probeTaskEvaluationResultArtifact,
+  probeTaskEvaluationResultArtifactMetadata,
   signedPipelineHeaders,
 } from "../utils/taskEvaluationResultArtifactProxy";
 
@@ -25,6 +26,20 @@ afterEach(() => {
 });
 
 describe("Task Evaluation Result artifact origin", () => {
+  it("exposes digest and total size for registry-only artifacts without buffering their bodies", async () => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/runs/{run_id}/artifacts/{artifact_id}";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-token";
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 206, ok: true, body: { cancel },
+      headers: new Headers({ "content-length": "1", "content-range": "bytes 0-0/8192",
+        "x-blueprint-artifact-sha256": `sha256:${"a".repeat(64)}` }) }));
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run-1", artifactId: "registry-only" }))
+      .resolves.toEqual({ status: "admitted", metadata: { sha256: `sha256:${"a".repeat(64)}`, size_bytes: 8192 } });
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run-1", artifactId: "registry-only",
+      expected: { sha256: `sha256:${"b".repeat(64)}`, size_bytes: 8192 } })).resolves.toEqual({ status: "unavailable" });
+    expect(cancel).toHaveBeenCalledTimes(2);
+  });
+
   it("derives the artifact route from the canonical production launch URL", () => {
     process.env.TASK_EVALUATION_LAUNCH_URL =
       "https://pipeline.example/api/live-pipeline/task-evaluation-launches";

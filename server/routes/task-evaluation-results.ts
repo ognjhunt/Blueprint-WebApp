@@ -18,6 +18,7 @@ import {
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { parseVerifiedTaskEvaluationRunPublication } from "../utils/taskEvaluationRunContract";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
+import { readTaskEvaluationResultInbox } from "../utils/taskEvaluationResultInbox";
 import {
   publicPolicyCanaryScoreCorrectionAudit,
   verifiedPolicyCanaryScoreCorrectionSidecar,
@@ -146,35 +147,13 @@ router.get("/", async (_req, res) => {
   if (!access.uid) return res.status(401).json({ error: "Authentication required" });
   const tenantId = firebaseTenantId(res);
   try {
-    let snapshot;
-    if (access.isOps) {
-      snapshot = await db.collection("captureTaskEvaluationRuns").limit(250).get();
-    } else if (tenantId) {
-      snapshot = await db.collection("captureTaskEvaluationRuns")
-        .where("organization_id", "==", tenantId).limit(250).get();
-    } else {
-      snapshot = await db.collection("captureTaskEvaluationRuns")
-        .where("owner_user_id", "==", access.uid).limit(250).get();
-    }
-    const records: ReturnType<typeof publicRecord>[] = [];
-    for (const document of snapshot.docs) {
-      const raw = { ...document.data(), record_id: document.id } as ResultRecord;
-      const publication = publicationFromResultRecord(raw);
-      const verified = parseVerifiedTaskEvaluationRunPublication(publication);
-      const allowed = taskEvaluationResultAccessAllowed(raw, {
-        uid: access.uid,
-        tenantId,
-        isOps: access.isOps,
-      });
-      if (allowed && verified.ok) {
-        records.push(publicRecord({ ...raw, publication: verified.publication }));
-      }
-    }
+    const inbox = await readTaskEvaluationResultInbox(db, { uid: access.uid, tenantId, isOps: access.isOps });
+    const records = inbox.records.map((record) => publicRecord(record));
     records.sort((left, right) => String(right.updated_at_iso || "").localeCompare(String(left.updated_at_iso || "")));
     res.set("Cache-Control", "private, no-store");
     return res.status(200).json({
       schema_version: "task_evaluation_result_site_list.v1",
-      scope: access.isOps ? "blueprint_operations" : tenantId ? "organization" : "owner",
+      scope: inbox.scope,
       public_leaderboard: false,
       results: records,
     });

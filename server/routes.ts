@@ -46,6 +46,7 @@ import internalPipelineRouter from "./routes/internal-pipeline";
 import internalCaptureTaskControlPlaneRouter from "./routes/internal-capture-task-control-plane";
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalCaptureTaskEvaluationRunsRouter from "./routes/internal-capture-task-evaluation-runs";
+import internalTaskEvaluationDeliveryReadbackRouter from "./routes/internal-task-evaluation-delivery-readback";
 import internalCaptureQaRouter from "./routes/internal-capture-qa";
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
@@ -99,6 +100,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureTaskControlPlaneRouter);
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
   app.use("/api/internal/pipeline", internalCaptureTaskEvaluationRunsRouter);
+  app.use("/api/internal/pipeline", internalTaskEvaluationDeliveryReadbackRouter);
   app.use("/api/internal/pipeline", internalCaptureQaRouter);
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
