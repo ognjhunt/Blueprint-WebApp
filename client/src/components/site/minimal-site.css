@@ -11,9 +11,16 @@
   font-family: "DM Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.minimal-site h1, .minimal-site h2, .minimal-site h3 { font-family: inherit; color: inherit; font-weight: 400; }
-.minimal-site a { color: inherit; }
-.minimal-site .ms-button, .minimal-site .ms-skip { color: #f6f5ef; }
+/* The scope selector is wrapped in `:where()` so these resets weigh exactly as
+   much as the element rules they replace, and no more. The ivory surface now
+   hosts product screens built from utility classes; at `.minimal-site a`
+   specificity the reset tied with every `text-*` colour and — loading later —
+   won, so a green CTA silently took ink-on-ink. At element weight it still
+   beats the base `a` rules for the marketing markup and loses to anything
+   explicit. */
+:where(.minimal-site) :is(h1, h2, h3) { font-family: inherit; color: inherit; font-weight: 400; }
+:where(.minimal-site) a { color: inherit; }
+.minimal-site :where(.ms-button, .ms-skip) { color: #f6f5ef; }
 .minimal-site a, .minimal-site button { -webkit-tap-highlight-color: transparent; }
 .minimal-site :focus-visible { outline: 2px solid var(--ms-green); outline-offset: 5px; }
 .ms-container { width: min(100% - 116px, 1420px); margin-inline: auto; }
@@ -225,3 +232,100 @@
 .ms-cookie-consent h2 { font-family: inherit; }
 .ms-cookie-consent button { border-radius: 3px; }
 .ms-cookie-consent :focus-visible { outline: 2px solid #203d2e; outline-offset: 3px; }
+
+/* ---------------------------------------------------------------------------
+   Account surfaces — sign in, reset, signup.
+
+   These reuse the inquiry layout (editorial column + form column) rather than
+   inventing a second form language: an account screen is the same act as a
+   contact form, and the ivory page should not change voice because a password
+   field appeared. Only the controls the marketing forms never needed live here.
+   --------------------------------------------------------------------------- */
+.ms-auth { grid-template-columns: 1fr 0.86fr; align-items: start; }
+.ms-auth-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.ms-auth-header > .ms-text-link { font-size: 13px; color: var(--ms-muted); }
+.ms-auth-header > .ms-text-link:hover { color: var(--ms-ink); }
+.ms-field-control { position: relative; display: block; }
+.ms-field-control > input { padding-right: 48px; }
+.ms-field-reveal { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--ms-muted); }
+.ms-field-reveal:hover { color: var(--ms-ink); }
+.ms-button-ghost { display: inline-flex; justify-content: center; align-items: center; gap: 11px; min-height: 49px; padding: 12px 18px; border: 1px solid #bac0b2; border-radius: 3px; background: transparent; color: var(--ms-ink); font-size: 14px; font-weight: 500; line-height: 1.3; transition: border-color 160ms ease, background 160ms ease; }
+.ms-button-ghost:hover { border-color: var(--ms-green); background: #eeece3; }
+.ms-button-ghost:disabled { opacity: .6; cursor: wait; }
+.ms-divider { display: flex; align-items: center; gap: 16px; color: var(--ms-muted); font-size: 12px; }
+.ms-divider::before, .ms-divider::after { content: ""; flex: 1; height: 1px; background: var(--ms-rule); }
+.ms-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; color: var(--ms-muted); }
+.ms-form-foot a { text-underline-offset: 4px; }
+.ms-form-foot a:hover { color: var(--ms-ink); text-decoration: underline; }
+.ms-auth-alt { margin-top: 38px; }
+.ms-auth-alt > p:first-child { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.ms-link-list { display: flex; flex-direction: column; }
+.ms-link-list > a { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 50px; border-bottom: 1px solid #d7dbd0; font-size: 14px; transition: color 160ms ease; }
+.ms-link-list > a:first-child { border-top: 1px solid #d7dbd0; }
+.ms-link-list > a:hover { color: #46705a; }
+.ms-link-list svg { flex-shrink: 0; color: var(--ms-muted); }
+.ms-notice { display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; border: 1px solid #d3b6b2; border-radius: 2px; background: #f7ece9; color: #9c352d; font-size: 14px; line-height: 1.55; }
+.ms-notice svg { flex-shrink: 0; margin-top: 2px; }
+/* Progress rail for the multi-step signup flows. */
+.ms-progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ms-muted); }
+.ms-progress-track { flex: 1; height: 2px; background: #dcdfd4; }
+.ms-progress-fill { display: block; height: 100%; background: var(--ms-green); transition: width 320ms cubic-bezier(.22,1,.36,1); }
+.ms-choice-grid { display: grid; gap: 14px; }
+.ms-choice { display: flex; flex-direction: column; gap: 6px; padding: 20px 22px; border: 1px solid #bac0b2; border-radius: 3px; background: #fcfcf8; text-align: left; transition: border-color 160ms ease, background 160ms ease; }
+.ms-choice:hover { border-color: var(--ms-green); background: #f1f0e7; }
+.ms-choice[aria-pressed="true"] { border-color: var(--ms-green); box-shadow: inset 0 0 0 1px var(--ms-green); }
+.ms-choice > span:first-child { font-size: 17px; letter-spacing: -.02em; }
+.ms-choice > span:last-child { font-size: 13px; line-height: 1.6; color: var(--ms-muted); }
+.ms-step-head { border-top: 1px solid var(--ms-rule); padding-top: 22px; }
+.ms-step-head h2 { font-size: 27px; letter-spacing: -.04em; }
+.ms-step-head p { margin-top: 9px; font-size: 15px; line-height: 1.65; color: var(--ms-muted); max-width: 52ch; }
+.ms-form-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ms-checkbox { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 11px; font-size: 13px; font-weight: 400; line-height: 1.6; color: var(--ms-muted); }
+.ms-checkbox input { width: 17px; height: 17px; min-height: 0; margin-top: 2px; accent-color: var(--ms-green); }
+@media (max-width: 1100px) { .ms-auth { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) {
+  .ms-auth { grid-template-columns: 1fr; }
+  .ms-auth-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .ms-button-ghost { width: 100%; }
+  .ms-choice { padding: 17px 18px; }
+  .ms-step-head h2 { font-size: 23px; }
+  .ms-form-actions > .ms-button { width: 100%; }
+}
+.ms-auth-panel { align-self: start; display: flex; flex-direction: column; gap: 24px; padding-top: 8px; }
+.ms-auth-panel > .ms-form { padding-top: 0; align-self: stretch; }
+/* Multi-step signup: editorial header, form column, quiet rail of context. */
+.ms-signup { padding-block: 42px 90px; display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: clamp(40px, 5vw, 84px); align-items: start; }
+.ms-signup-main { min-width: 0; max-width: 46rem; }
+.ms-signup-head h1 { font-size: clamp(34px, 3.6vw, 52px); line-height: 1.06; letter-spacing: -.05em; margin-top: 18px; }
+.ms-signup-head > p { margin-top: 18px; font-size: 17px; line-height: 1.65; color: var(--ms-muted); max-width: 46ch; }
+.ms-signup-note { margin-top: 26px; padding-top: 20px; border-top: 1px solid #d7dbd0; font-size: 13px; line-height: 1.75; color: var(--ms-muted); }
+.ms-signup-note a { text-decoration: underline; text-underline-offset: 3px; }
+.ms-signup-note a:hover { color: var(--ms-green); }
+.ms-signup-body { margin-top: 34px; }
+.ms-signup-rail { position: sticky; top: 28px; display: flex; flex-direction: column; gap: 22px; border-left: 1px solid var(--ms-rule); padding-left: 28px; }
+.ms-signup-rail h2 { font-size: 15px; letter-spacing: -.02em; }
+.ms-signup-rail p { font-size: 13px; line-height: 1.7; color: var(--ms-muted); margin-top: 5px; }
+@media (max-width: 1100px) {
+  .ms-signup { grid-template-columns: 1fr; gap: 44px; }
+  .ms-signup-rail { position: static; border-left: 0; border-top: 1px solid var(--ms-rule); padding-left: 0; padding-top: 26px; }
+}
+@media (max-width: 700px) {
+  .ms-signup { padding-block: 22px 55px; }
+  .ms-signup-head h1 { font-size: 34px; }
+  .ms-signup-head > p { font-size: 16px; }
+  .ms-signup-body { margin-top: 26px; }
+}
+.ms-signup-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 30px; }
+.ms-signup-steps ol { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; margin: 0; border-top: 1px solid var(--ms-rule); }
+.ms-signup-steps li { display: flex; align-items: center; gap: 13px; padding: 15px 20px 15px 0; border-left: 1px solid var(--ms-rule); padding-left: 20px; font-size: 14px; letter-spacing: -.02em; color: var(--ms-muted); }
+.ms-signup-steps li:first-child { border-left: 0; padding-left: 0; }
+.ms-signup-steps li[data-state="active"] { color: var(--ms-ink); }
+.ms-signup-steps li[data-state="complete"] { color: #46705a; }
+.ms-signup-step-number { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; font-size: 20px; letter-spacing: -.06em; color: inherit; }
+.ms-signup-card { border-top: 1px solid var(--ms-rule); padding-top: 28px; }
+@media (max-width: 700px) {
+  .ms-signup-steps ol { grid-template-columns: 1fr; }
+  .ms-signup-steps li, .ms-signup-steps li:first-child { border-left: 0; border-top: 1px solid #e4e3d9; padding: 11px 0; }
+  .ms-signup-steps ol > li:first-child { border-top: 0; }
+  .ms-signup-card { padding-top: 22px; }
+}

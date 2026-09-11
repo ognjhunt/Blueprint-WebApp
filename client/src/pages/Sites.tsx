@@ -329,7 +329,7 @@ export default function Sites() {
                     Clear search
                   </button>
                 ) : null}
-                <a href={requestHref()} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-runway-panel px-4 text-sm font-semibold text-runway-text">
+                <a href={requestHref()} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-runway-line-strong bg-runway-panel px-4 text-sm font-semibold text-runway-text">
                   Request exact-site access
                 </a>
               </div>

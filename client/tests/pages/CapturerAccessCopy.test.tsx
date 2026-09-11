@@ -140,6 +140,6 @@ describe("Capturer access copy", () => {
     render(<Login />);
 
     expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
-    expect(screen.getByText(/Review captured workflows, controlled evaluations, access rights, and onsite handoffs/i)).toBeInTheDocument();
+    expect(screen.getByText(/compare candidates on your task, and open the results that decide a pilot/i)).toBeInTheDocument();
   });
 });

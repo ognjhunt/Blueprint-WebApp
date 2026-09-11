@@ -1,18 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Loader2, Mail } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import {
-  SurfaceBrowserFrame,
-  SurfaceDivider,
-  SurfaceMiniLabel,
-  SurfacePage,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
+import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 
 interface ValidationErrors {
   email?: string;
@@ -31,7 +23,7 @@ function validatePassword(password: string): string | undefined {
 
 function GoogleMark() {
   return (
-    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24">
       <path d="M21.8 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.5c-.2 1.2-.9 2.2-2 3l3.2 2.5c1.9-1.7 3.1-4.2 3.1-7.2Z" fill="currentColor" />
       <path d="M12 22c2.7 0 5-.9 6.7-2.5l-3.2-2.5c-.9.6-2.1 1-3.5 1-2.6 0-4.8-1.8-5.6-4.2l-3.4 2.6C4.6 19.6 8 22 12 22Z" fill="currentColor" />
       <path d="M6.4 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8L3 7.6C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.4l3.4-2.6Z" fill="currentColor" />
@@ -39,6 +31,17 @@ function GoogleMark() {
     </svg>
   );
 }
+
+/** Every way into Blueprint that is not "I already have an account". */
+const startPaths = [
+  { href: "/signup/business?buyerType=robot_team&source=login", label: "Robot team: Create evaluation account" },
+  { href: "/signup/business?buyerType=site_operator&source=login", label: "Site operator: Start site review" },
+  {
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
+    label: "Robot team: Scope before signup",
+  },
+  { href: "/capture-app", label: "Capturer: Access the capture app" },
+];
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -105,164 +108,117 @@ export default function Login() {
   return (
     <>
       <SEO
-        title="Sign In"
-        description="Sign in to the Blueprint web portal for robot teams and site operators."
+        title="Sign in | Blueprint"
+        description="Sign in to Blueprint to follow your captures, task evaluation runs, and results."
         canonical="/sign-in"
         noIndex
       />
 
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Access Control Suite" rightLabel="Secure Access Portal" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
-            <div className="grid min-h-[46rem] xl:grid-cols-[0.54fr_0.46fr]">
-              <div className="relative overflow-hidden bg-runway-black text-runway-text">
-                <img
-                  src={privateGeneratedAssets.signInReviewRoom}
-                  alt="Blueprint review room"
-                  className="absolute inset-0 h-full w-full object-cover"
+      <MinimalAccountLayout action={{ href: "/contact/site-operator", label: "Discuss your site" }}>
+        <section className="ms-inquiry ms-auth ms-container">
+          <div className="ms-inquiry-intro">
+            <a className="ms-back" href="/">
+              <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
+            </a>
+            <p className="ms-eyebrow">Account access</p>
+            <h1>Sign in to Blueprint.</h1>
+            <p className="ms-inquiry-description">
+              Follow your captures, compare candidates on your task, and open the results that decide a pilot.
+            </p>
+            <p className="ms-inquiry-aside">
+              Runs, evidence, and results stay scoped to your team. Nothing you upload is published across teams,
+              and a result link is only shareable when you make it so.
+            </p>
+          </div>
+
+          <div className="ms-auth-panel">
+            <button
+              type="button"
+              className="ms-button-ghost"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              <GoogleMark />
+              Continue with Google
+            </button>
+
+            <p className="ms-divider">or</p>
+
+            <form className="ms-form" onSubmit={handleSubmit} aria-label="Sign in" aria-busy={isLoading}>
+              {authError ? (
+                <p className="ms-notice" role="alert">
+                  <AlertCircle size={17} aria-hidden="true" />
+                  {authError}
+                </p>
+              ) : null}
+
+              <label>
+                Email
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  inputMode="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  placeholder="you@company.com"
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.18),rgba(0,0,0,0.5)_64%,rgba(0,0,0,0.3))]" />
-                <div className="relative flex h-full items-end p-8 lg:p-10">
-                  <div className="max-w-[14rem] border border-runway-line bg-runway-black/70 p-5 backdrop-blur">
-                    <SurfaceMiniLabel className="text-runway-faint">Exact-site context</SurfaceMiniLabel>
-                    <p className="mt-3 text-xl font-semibold text-runway-text">The evaluation, done before the robot arrives.</p>
-                    <p className="mt-3 text-sm leading-7 text-runway-mute">
-                      Review captured workflows, controlled evaluations, access rights, and onsite handoffs.
-                    </p>
-                  </div>
-                </div>
-              </div>
+                {errors.email && touched.email ? <span className="ms-error">{errors.email}</span> : null}
+              </label>
 
-              <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="mx-auto flex h-full max-w-[26rem] flex-col justify-center">
-                  <div>
-                    <h1 className="font-display uppercase text-[3rem] font-semibold tracking-[0.005em] text-runway-text">Sign In</h1>
-                    <p className="mt-3 max-w-[18rem] text-sm leading-7 text-runway-mute">Access the Blueprint portal.</p>
-                  </div>
-
+              <label>
+                Password
+                <span className="ms-field-control">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    placeholder="Enter your password"
+                  />
                   <button
                     type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={isLoading}
-                    className="runway-cta-ghost mt-8 w-full disabled:opacity-70"
+                    className="ms-field-reveal"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    <GoogleMark />
-                    Continue with Google
+                    {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
                   </button>
+                </span>
+                {errors.password && touched.password ? <span className="ms-error">{errors.password}</span> : null}
+              </label>
 
-                  <div className="my-6 flex items-center gap-4 runway-meta">
-                    <div className="h-px flex-1 bg-runway-line" />
-                    <span>or</span>
-                    <div className="h-px flex-1 bg-runway-line" />
-                  </div>
+              <div className="ms-form-foot">
+                <span />
+                <a href="/forgot-password">Forgot password?</a>
+              </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    {authError ? (
-                      <div className="flex items-start gap-3 border border-runway-red-dim bg-runway-panel px-4 py-3 text-sm text-runway-red">
-                        <AlertCircle className="mt-0.5 h-4 w-4 text-runway-red" />
-                        <span>{authError}</span>
-                      </div>
-                    ) : null}
+              <button className="ms-button" type="submit" disabled={isLoading}>
+                {isLoading ? "Signing in…" : "Sign in"}
+                <ArrowRight size={20} aria-hidden="true" />
+              </button>
+            </form>
 
-                    <label className="block">
-                      <span className="runway-label">Email</span>
-                      <div className="relative">
-                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
-                        <input
-                          id="email"
-                          name="email"
-                          type="email"
-                          autoComplete="email"
-                          autoCapitalize="none"
-                          inputMode="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          onBlur={handleBlur}
-                          placeholder="you@company.com"
-                          className="runway-input h-12 pl-11 pr-4"
-                        />
-                      </div>
-                      {errors.email && touched.email ? <p className="mt-2 text-sm text-runway-red">{errors.email}</p> : null}
-                    </label>
-
-                    <label className="block">
-                      <span className="runway-label">Password</span>
-                      <div className="relative">
-                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />
-                        <input
-                          id="password"
-                          name="password"
-                          type={showPassword ? "text" : "password"}
-                          autoComplete="current-password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          onBlur={handleBlur}
-                          placeholder="Enter your password"
-                          className="runway-input h-12 pl-11 pr-12"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((current) => !current)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-runway-mute transition hover:text-runway-text"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      {errors.password && touched.password ? <p className="mt-2 text-sm text-runway-red">{errors.password}</p> : null}
-                    </label>
-
-                    <div className="flex justify-end">
-                      <a href="/forgot-password" className="text-sm text-runway-mute transition hover:text-runway-text">
-                        Forgot password?
-                      </a>
-                    </div>
-
-                    <button type="submit" className="runway-cta w-full gap-2">
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Signing in
-                        </>
-                      ) : (
-                        <>
-                          Sign In
-                          <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  <SurfaceDivider className="my-8 bg-runway-line" />
-
-                  <div className="space-y-4">
-                    <SurfaceMiniLabel className="text-runway-faint">New to Blueprint?</SurfaceMiniLabel>
-                    <div className="space-y-3 text-sm">
-                      <a href="/signup/business?buyerType=robot_team&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
-                        <span>Robot team: Create evaluation account</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                      <a href="/signup/business?buyerType=site_operator&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
-                        <span>Site operator: Start site review</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                      <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
-                        <span>Robot team: Scope before signup</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                      <a href="/capture-app" className="flex items-center justify-between text-runway-body transition hover:text-runway-text">
-                        <span>Capturer: Access the capture app</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
+            <div className="ms-auth-alt">
+              <p>New to Blueprint?</p>
+              <div className="ms-link-list">
+                {startPaths.map((path) => (
+                  <a key={path.href} href={path.href}>
+                    <span>{path.label}</span>
+                    <ArrowRight size={17} aria-hidden="true" />
+                  </a>
+                ))}
               </div>
             </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+          </div>
+        </section>
+      </MinimalAccountLayout>
     </>
   );
 }

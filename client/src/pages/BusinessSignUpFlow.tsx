@@ -20,13 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import {
-  SurfaceBrowserFrame,
-  SurfaceMiniLabel,
-  SurfacePage,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
+import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
 import {
   PlaceAutocompleteInput,
   resolvePlaceLocationMetadata,
@@ -56,7 +50,6 @@ import {
   REQUESTED_LANE_LABELS,
   REQUESTED_LANES as SHARED_REQUESTED_LANES,
 } from "@/lib/requestTaxonomy";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import { PilotOpportunityFields } from "@/components/site/PilotOpportunityFields";
 import type {
   PilotOpportunityVisibility,
@@ -146,8 +139,7 @@ const COMMERCIALIZATION_BOUNDARY_OPTIONS = [
 
 type CommercializationBoundary = typeof COMMERCIALIZATION_BOUNDARY_OPTIONS[number];
 
-const RUNWAY_LABEL_CLASS =
-  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
+const FIELD_LABEL_CLASS = "ms-eyebrow mb-2 block";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -212,54 +204,31 @@ function StepIndicator({
   totalSteps: number;
 }) {
   return (
-    <div className="mb-8 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-      <div className="grid grid-cols-3 gap-3">
+    <div className="ms-signup-steps" aria-label={`Step ${currentStep} of ${totalSteps}`}>
+      <ol>
         {Array.from({ length: totalSteps }, (_, index) => index + 1).map((stepNumber) => {
           const isComplete = stepNumber < currentStep;
           const isActive = stepNumber === currentStep;
           return (
-            <div
+            <li
               key={stepNumber}
-              className={`border px-4 py-3 ${
-                isActive
-                  ? "border-runway-signal-dim bg-runway-panel"
-                  : isComplete
-                    ? "border-runway-green-dim bg-runway-panel"
-                    : "border-runway-line bg-runway-deep"
-              }`}
+              aria-current={isActive ? "step" : undefined}
+              data-state={isActive ? "active" : isComplete ? "complete" : "upcoming"}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold ${
-                    isActive
-                      ? "border-runway-signal text-runway-signal"
-                      : isComplete
-                        ? "border-runway-green-dim text-runway-green"
-                        : "border-runway-line-strong text-runway-faint"
-                  }`}
-                >
-                  {isComplete ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
-                </div>
-                <div>
-                  <p
-                    className={`runway-meta ${
-                      isActive
-                        ? "text-runway-signal"
-                        : isComplete
-                          ? "text-runway-green"
-                          : "text-runway-faint"
-                    }`}
-                  >
-                    Step {stepNumber}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-runway-text">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
-                </div>
-              </div>
-            </div>
+              <span className="ms-signup-step-number">
+                {isComplete ? <CheckCircle2 size={17} aria-hidden="true" /> : `0${stepNumber}`}
+              </span>
+              <span>{BUYER_STEP_LABELS[stepNumber - 1]}</span>
+            </li>
           );
         })}
-      </div>
-      <p className="runway-meta">Step {currentStep} of {totalSteps}</p>
+      </ol>
+      <p className="ms-progress">
+        Step {currentStep} of {totalSteps}
+        <span className="ms-progress-track">
+          <span className="ms-progress-fill" style={{ width: `${(currentStep / totalSteps) * 100}%` }} />
+        </span>
+      </p>
     </div>
   );
 }
@@ -995,50 +964,34 @@ export default function BusinessSignUpFlow() {
         noIndex
       />
 
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Secure Intake" rightLabel={accessLabel} />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="rounded-none shadow-none">
-            <div className="grid xl:grid-cols-[0.64fr_0.36fr]">
-              <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="mx-auto max-w-[42rem]">
-                  <SurfaceMiniLabel className="text-runway-faint">{accessLabel}</SurfaceMiniLabel>
-                  <h1 className="mt-4 font-display uppercase text-[clamp(2.8rem,4vw,4.5rem)] font-semibold tracking-[0.005em] leading-[0.92] text-runway-text">
-                    {stepTitle}
-                  </h1>
-                  <p className="mt-3 max-w-[34rem] text-sm leading-7 text-runway-mute">
-                    {stepLead}
-                  </p>
+      <MinimalAccountLayout action={{ href: "/sign-in", label: "Sign in" }}>
+        <section className="ms-signup ms-container">
+              <div className="ms-signup-main">
+                <div className="ms-signup-head">
+                  <p className="ms-eyebrow">{accessLabel}</p>
+                  <h1>{stepTitle}</h1>
+                  <p>{stepLead}</p>
 
-                  <div className="mt-6 border border-runway-line bg-runway-panel px-5 py-4 text-sm leading-7 text-runway-mute">
-                    Existing portal users should use sign in instead of creating a second path. If
-                    the exact facility and workflow are already known, you can also{" "}
+                  <p className="ms-signup-note">
+                    Already have an account? <a href="/sign-in">Sign in</a> instead of starting a
+                    second path. If the facility and the task are already settled, you can{" "}
                     <a
                       href={
                         isSiteOperatorSignup
                           ? "/contact/site-operator?source=signup-business"
                           : "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business"
                       }
-                      className="font-semibold text-runway-text underline-offset-4 hover:underline"
                     >
-                      {isSiteOperatorSignup ? "submit the site first" : "request site review"}
-                    </a>
-                    .
-                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                      <a href="/proof" className="font-semibold text-runway-text underline-offset-4 hover:underline">
-                        Inspect proof
-                      </a>
-                      <a href="/sites" className="font-semibold text-runway-text underline-offset-4 hover:underline">
-                        Browse sites
-                      </a>
-                    </div>
-                  </div>
+                      {isSiteOperatorSignup ? "submit the site first" : "request a site review"}
+                    </a>{" "}
+                    or read <a href="/how-it-works">how the evaluation works</a>.
+                  </p>
+                </div>
 
-                  <div className="mt-8">
-                    <StepIndicator currentStep={step} totalSteps={3} />
-                  </div>
+                <div className="ms-signup-body">
+                  <StepIndicator currentStep={step} totalSteps={3} />
 
-                  <div className="runway-panel p-6 sm:p-7">
+                  <div className="ms-signup-card">
                     <AnimatePresence mode="wait">
                       {step === 1 ? (
                         <motion.div
@@ -1052,7 +1005,7 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div className="md:col-span-2">
-                              <Label htmlFor="organizationName" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="organizationName" className={FIELD_LABEL_CLASS}>
                                 Organization name
                               </Label>
                               <div className="relative mt-2">
@@ -1067,7 +1020,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="email" className={FIELD_LABEL_CLASS}>
                                 Work email
                               </Label>
                               <div className="relative mt-2">
@@ -1083,7 +1036,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="password" className={FIELD_LABEL_CLASS}>
                                 Password
                               </Label>
                               <div className="relative mt-2">
@@ -1106,7 +1059,7 @@ export default function BusinessSignUpFlow() {
                               </button>
                             </div>
                             <div>
-                              <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="confirmPassword" className={FIELD_LABEL_CLASS}>
                                 Confirm password
                               </Label>
                               <Input
@@ -1149,7 +1102,7 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="contactName" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="contactName" className={FIELD_LABEL_CLASS}>
                                 Your name
                               </Label>
                               <div className="relative mt-2">
@@ -1164,7 +1117,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="jobTitle" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="jobTitle" className={FIELD_LABEL_CLASS}>
                                 Title
                               </Label>
                               <Input
@@ -1176,7 +1129,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="phoneNumber" className={FIELD_LABEL_CLASS}>
                                 Phone number
                               </Label>
                               <Input
@@ -1188,7 +1141,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="companySize" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="companySize" className={FIELD_LABEL_CLASS}>
                                 Company size
                               </Label>
                               <select
@@ -1208,7 +1161,7 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className={RUNWAY_LABEL_CLASS}>
+                            <Label className={FIELD_LABEL_CLASS}>
                               Account path
                             </Label>
                             <RadioGroup value={buyerType} onValueChange={handleBuyerTypeChange} className="grid gap-3">
@@ -1228,7 +1181,7 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className={RUNWAY_LABEL_CLASS}>
+                            <Label className={FIELD_LABEL_CLASS}>
                               {isSiteOperatorSignup ? "Site review lane" : "Requested lane"}
                             </Label>
                             <div className="grid gap-3">
@@ -1264,7 +1217,7 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="siteName" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="siteName" className={FIELD_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Facility name" : "Site name"}
                               </Label>
                               <div className="relative mt-2">
@@ -1281,7 +1234,7 @@ export default function BusinessSignUpFlow() {
                             <PlaceAutocompleteInput
                               id="siteLocation"
                               label="Site location"
-                              labelClassName={RUNWAY_LABEL_CLASS}
+                              labelClassName={FIELD_LABEL_CLASS}
                               inputWrapperClassName="relative mt-2"
                               inputClassName="runway-input h-12 pl-11"
                               icon={<MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-runway-faint" />}
@@ -1292,7 +1245,7 @@ export default function BusinessSignUpFlow() {
                             />
                             {buyerType === "robot_team" ? (
                               <div className="md:col-span-2">
-                                <Label htmlFor="targetSiteType" className={RUNWAY_LABEL_CLASS}>
+                                <Label htmlFor="targetSiteType" className={FIELD_LABEL_CLASS}>
                                   Target site class
                                 </Label>
                                 <Input
@@ -1305,7 +1258,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             ) : null}
                             <div className="md:col-span-2">
-                              <Label htmlFor="taskStatement" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="taskStatement" className={FIELD_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Operator intent" : "Task statement"}
                               </Label>
                               <div className="relative mt-2">
@@ -1320,7 +1273,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="workflowContext" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="workflowContext" className={FIELD_LABEL_CLASS}>
                                 Workflow context
                               </Label>
                               <div className="relative mt-2">
@@ -1335,7 +1288,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="operatingConstraints" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="operatingConstraints" className={FIELD_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Access rules" : "Operating constraints"}
                               </Label>
                               <Textarea
@@ -1347,7 +1300,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="privacySecurityConstraints" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="privacySecurityConstraints" className={FIELD_LABEL_CLASS}>
                                 Privacy and security constraints
                               </Label>
                               <Textarea
@@ -1359,7 +1312,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="knownBlockers" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="knownBlockers" className={FIELD_LABEL_CLASS}>
                                 Known blockers
                               </Label>
                               <Textarea
@@ -1371,7 +1324,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="targetRobotTeam" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="targetRobotTeam" className={FIELD_LABEL_CLASS}>
                                 {buyerType === "site_operator" ? "Relevant robot teams" : "Target robot team or embodiment"}
                               </Label>
                               <div className="relative mt-2">
@@ -1386,7 +1339,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="proofPathPreference" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="proofPathPreference" className={FIELD_LABEL_CLASS}>
                                 Proof path
                               </Label>
                               <select
@@ -1403,7 +1356,7 @@ export default function BusinessSignUpFlow() {
                               </select>
                             </div>
                             <div>
-                              <Label htmlFor="timeline" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="timeline" className={FIELD_LABEL_CLASS}>
                                 Timing
                               </Label>
                               <Input
@@ -1445,7 +1398,7 @@ export default function BusinessSignUpFlow() {
                             {isSiteOperatorSignup ? (
                               <>
                                 <div>
-                                  <Label htmlFor="commercializationPreference" className={RUNWAY_LABEL_CLASS}>
+                                  <Label htmlFor="commercializationPreference" className={FIELD_LABEL_CLASS}>
                                     Commercialization boundary
                                   </Label>
                                   <select
@@ -1474,7 +1427,7 @@ export default function BusinessSignUpFlow() {
                               </>
                             ) : (
                               <div>
-                                <Label htmlFor="budgetRange" className={RUNWAY_LABEL_CLASS}>
+                                <Label htmlFor="budgetRange" className={FIELD_LABEL_CLASS}>
                                   Budget range
                                 </Label>
                                 <select
@@ -1493,7 +1446,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             )}
                             <div className="md:col-span-2">
-                              <Label htmlFor="referralSource" className={RUNWAY_LABEL_CLASS}>
+                              <Label htmlFor="referralSource" className={FIELD_LABEL_CLASS}>
                                 How did you hear about Blueprint?
                               </Label>
                               <select
@@ -1602,46 +1555,33 @@ export default function BusinessSignUpFlow() {
                 </div>
               </div>
 
-              <aside className="border-t border-runway-line bg-runway-deep p-8 lg:p-10 xl:border-l xl:border-t-0">
-                <SurfaceMiniLabel className="text-runway-faint">Why Exact-Site Context Matters</SurfaceMiniLabel>
-                <div className="mt-5 overflow-hidden border border-runway-line bg-runway-panel">
-                  <img
-                    src={privateGeneratedAssets.facilityPlanBoard}
-                    alt="Blueprint site plan board"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                <div className="mt-6 space-y-5">
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Robots perform in the real world.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Site-specific scans reveal the nuance that drives access, route design, and
-                      buyer trust.
-                    </p>
-                  </div>
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Better data. Fewer unknowns.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Exact-site packages reduce rework and de-risk evaluations before travel or
-                      deployment.
-                    </p>
-                  </div>
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Private by default.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Every access request is reviewed to maintain truthful product routing,
-                      entitlement boundaries, and buyer-side privacy expectations.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 border border-runway-line bg-runway-panel p-5">
-                  <SurfaceMiniLabel className="text-runway-faint">Current Path</SurfaceMiniLabel>
-                  <p className="mt-4 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">
-                    {step === 1 ? "Organization" : step === 2 ? "Team" : "Site & workflow"}
+              <aside className="ms-signup-rail" aria-label="Why exact-site context matters">
+                <p className="ms-eyebrow">Why exact-site context matters</p>
+                <div>
+                  <h2>Robots perform in the real world.</h2>
+                  <p>
+                    A capture of the actual workcell carries the clearances, clutter, lighting, and
+                    reach that a generic scene cannot.
                   </p>
-                  <p className="mt-3 text-sm leading-7 text-runway-mute">
+                </div>
+                <div>
+                  <h2>Fewer unknowns before travel.</h2>
+                  <p>
+                    Comparing candidates on your real task is what tells you which one is worth the
+                    cost of a physical pilot.
+                  </p>
+                </div>
+                <div>
+                  <h2>Private by default.</h2>
+                  <p>
+                    Every access request is reviewed. Captures, runs, and results stay scoped to
+                    your team unless you decide otherwise.
+                  </p>
+                </div>
+                <div>
+                  <p className="ms-eyebrow">Current step</p>
+                  <h2>{step === 1 ? "Organization" : step === 2 ? "Team" : "Site & task"}</h2>
+                  <p>
                     {step === 1
                       ? "Open the request with company and account details."
                       : step === 2
@@ -1650,14 +1590,12 @@ export default function BusinessSignUpFlow() {
                           : "Define who is evaluating the site and which lane should open first."
                         : isSiteOperatorSignup
                           ? "Anchor the free submission in one facility and a clear access boundary."
-                          : "Anchor the request in one real facility and one workflow question."}
+                          : "Anchor the request in one real facility and one task question."}
                   </p>
                 </div>
               </aside>
-            </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+        </section>
+      </MinimalAccountLayout>
     </>
   );
 }

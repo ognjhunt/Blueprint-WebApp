@@ -14,4 +14,19 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/robot-intake": "/contact/robot-team",
 };
 
-export const minimalPublicPaths = ["/", "/how-it-works", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"] as const;
+export const minimalPublicPaths = ["/", "/how-it-works", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/sites", "/capture", "/launch-map", "/capture-app/launch-access"] as const;
+
+/**
+ * Public routes with a dynamic segment that still belong to the ivory site.
+ * Kept separate from the exact list so an internal route can never match by
+ * accident: admin, ops and the buyer app carry their own chrome.
+ */
+const minimalPublicPrefixes = ["/sites/"] as const;
+
+export function isMinimalPublicPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return (
+    (minimalPublicPaths as readonly string[]).includes(normalized)
+    || minimalPublicPrefixes.some((prefix) => normalized.startsWith(prefix))
+  );
+}

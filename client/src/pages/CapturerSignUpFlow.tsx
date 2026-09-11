@@ -23,12 +23,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
 import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
-import {
-  SurfaceBrowserFrame,
-  SurfacePage,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
+import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -80,8 +75,7 @@ type EquipmentValue = (typeof EQUIPMENT_OPTIONS)[number]["value"];
 type AvailabilityValue = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 type ReferralValue = (typeof REFERRAL_OPTIONS)[number]["value"];
 
-const RUNWAY_LABEL_CLASS =
-  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
+const FIELD_LABEL_CLASS = "ms-eyebrow mb-2 block";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -221,8 +215,8 @@ export default function CapturerSignUpFlow() {
           width: 320,
           margin: 1,
           color: {
-            dark: "#0c0f0e",
-            light: "#e8e6dd",
+            dark: "#22251e",
+            light: "#f6f5ef",
           },
         });
         if (active) {
@@ -469,11 +463,8 @@ export default function CapturerSignUpFlow() {
         canonical="/signup/capturer"
         noIndex={true}
       />
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Invite-Gated Capture" rightLabel="Field Ops Access" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="overflow-hidden rounded-none border-runway-line bg-runway-deep shadow-none">
-            <main className="bg-runway-deep px-6 py-8 text-runway-text lg:px-8">
+      <MinimalAccountLayout action={{ href: "/sign-in", label: "Sign in" }}>
+        <div className="ms-container" style={{ paddingBlock: "34px 80px" }}>
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <section className="runway-panel relative overflow-hidden p-7 sm:p-8">
           <div className="relative space-y-8">
@@ -483,7 +474,7 @@ export default function CapturerSignUpFlow() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-md font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text sm:text-5xl">
+              <h1 className="max-w-md font-display text-4xl font-semibold text-runway-text sm:text-5xl">
                 Apply to get paid for approved field capture.
               </h1>
               <p className="max-w-lg text-base leading-7 text-runway-body">
@@ -523,21 +514,21 @@ export default function CapturerSignUpFlow() {
                 <p className="runway-meta">
                   Field task
                 </p>
-                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">One route</p>
+                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">One route</p>
                 <p className="mt-1 text-sm text-runway-mute">Walk, upload, review.</p>
               </div>
               <div className="border border-runway-line bg-runway-deep p-4">
                 <p className="runway-meta">
                   Gear
                 </p>
-                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Phone + 360</p>
+                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">Phone + 360</p>
                 <p className="mt-1 text-sm text-runway-mute">No other device class is approved.</p>
               </div>
               <div className="border border-runway-line bg-runway-deep p-4">
                 <p className="runway-meta">
                   Web role
                 </p>
-                <p className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">Apply + review</p>
+                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">Apply + review</p>
                 <p className="mt-1 text-sm text-runway-mute">No guaranteed assignments.</p>
               </div>
             </div>
@@ -600,7 +591,7 @@ export default function CapturerSignUpFlow() {
               <div className="flex flex-col gap-4 border-b border-runway-line pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="runway-eyebrow">Capturer application</p>
-              <h2 className="mt-1 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
+              <h2 className="mt-1 font-display text-3xl font-semibold text-runway-text">
                 {step === 1 ? "Create your account" : "Tell us where you can work"}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-runway-body">
@@ -617,7 +608,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="fullName" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="fullName" className={FIELD_LABEL_CLASS}>
                           Full name
                         </Label>
                         <div className="relative mt-2">
@@ -633,7 +624,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="email" className={FIELD_LABEL_CLASS}>
                           Email
                         </Label>
                         <div className="relative mt-2">
@@ -650,7 +641,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="password" className={FIELD_LABEL_CLASS}>
                           Password
                         </Label>
                         <Input
@@ -664,7 +655,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="confirmPassword" className={FIELD_LABEL_CLASS}>
                           Confirm password
                         </Label>
                         <Input
@@ -703,7 +694,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="market" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="market" className={FIELD_LABEL_CLASS}>
                           Capture city
                         </Label>
                         <p className="mt-2 text-sm leading-6 text-runway-body">
@@ -754,7 +745,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
+                        <Label htmlFor="phoneNumber" className={FIELD_LABEL_CLASS}>
                           Phone number
                         </Label>
                         <Input
@@ -780,7 +771,7 @@ export default function CapturerSignUpFlow() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <Label htmlFor="accessCode" className={RUNWAY_LABEL_CLASS}>
+                      <Label htmlFor="accessCode" className={FIELD_LABEL_CLASS}>
                         Access or invite code <span className="text-runway-mute">(if you have one)</span>
                       </Label>
                       <div className="relative mt-2">
@@ -960,7 +951,7 @@ export default function CapturerSignUpFlow() {
                 <div className="inline-flex h-14 w-14 items-center justify-center border border-runway-green-dim text-runway-green">
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
-                <h2 className="mt-6 font-display uppercase text-3xl font-semibold tracking-[0.005em] text-runway-text">
+                <h2 className="mt-6 font-display text-3xl font-semibold text-runway-text">
                   Application submitted.
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-runway-body">
@@ -1093,10 +1084,8 @@ export default function CapturerSignUpFlow() {
           )}
         </section>
       </div>
-            </main>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+        </div>
+      </MinimalAccountLayout>
     </>
   );
 }

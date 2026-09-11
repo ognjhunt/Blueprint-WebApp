@@ -5,6 +5,104 @@
 @layer base {
   :root {
     /* ============================================================
+       Layer 0 — themeable palette channels.
+
+       Every Blueprint colour token in `tailwind.config.ts` resolves to
+       `rgb(var(--bpt-*) / <alpha-value>)`, so the whole product palette is one
+       set of RGB channel triplets rather than literal hex. The values here are
+       the Runway instrument defaults (dark ground, amber signal) — nothing
+       renders differently because a surface opts out.
+
+       The `--bpt-` prefix is deliberate: `--bp-*` is already taken by the
+       Layer 1 raw brand scales below, which are hex, not channels. Reusing
+       that prefix would have the later Layer 1 declaration win and turn every
+       utility into an invalid colour.
+
+       `.paper-theme` (bottom of this file) redefines the same channels for the
+       ivory public surface, so a buyer-facing screen inherits the marketing
+       palette without rewriting a single utility class.
+       ============================================================ */
+    --bpt-rw-black: 12 15 14;
+    --bpt-rw-deep: 16 19 18;
+    --bpt-rw-panel: 20 24 22;
+    --bpt-rw-raised: 26 31 28;
+    --bpt-rw-line: 42 48 45;
+    --bpt-rw-line-soft: 35 41 38;
+    --bpt-rw-line-strong: 58 66 62;
+    --bpt-rw-text: 232 230 221;
+    --bpt-rw-body: 201 205 196;
+    --bpt-rw-mute: 155 161 154;
+    --bpt-rw-faint: 130 137 129;
+    --bpt-rw-signal: 255 176 0;
+    --bpt-rw-signal-deep: 224 154 0;
+    --bpt-rw-signal-lit: 255 198 61;
+    --bpt-rw-signal-dim: 92 74 18;
+    --bpt-rw-signal-ink: 23 18 0;
+    --bpt-rw-cyan: 111 195 212;
+    --bpt-rw-sky: 159 185 207;
+    --bpt-rw-sky-dim: 51 67 78;
+    --bpt-rw-green: 70 185 108;
+    --bpt-rw-green-dim: 34 81 58;
+    --bpt-rw-amber: 255 176 0;
+    --bpt-rw-red: 255 92 69;
+    --bpt-rw-red-dim: 89 38 30;
+    --bpt-rw-paper: 245 244 239;
+    --bpt-rw-paper-2: 233 231 223;
+    --bpt-rw-paper-line: 213 210 200;
+    --bpt-ink-900: 232 230 221;
+    --bpt-ink-800: 220 218 208;
+    --bpt-ink-700: 201 205 196;
+    --bpt-ink-600: 179 184 174;
+    --bpt-ink-500: 155 161 154;
+    --bpt-ink-400: 129 136 128;
+    --bpt-ink-300: 130 137 129;
+    --bpt-ink-200: 74 82 77;
+    --bpt-ink-100: 58 66 62;
+    --bpt-ink-50: 42 48 45;
+    --bpt-pa-0: 20 24 22;
+    --bpt-pa-1: 16 19 18;
+    --bpt-pa-2: 26 31 28;
+    --bpt-pa-3: 35 41 38;
+    --bpt-pa-4: 42 48 45;
+    --bpt-graphite: 20 24 22;
+    --bpt-bone: 232 230 221;
+    --bpt-brass: 255 176 0;
+    --bpt-brass-deep: 224 154 0;
+    --bpt-brass-lit: 255 198 61;
+    --bpt-canvas: 16 19 18;
+    --bpt-inset: 26 31 28;
+    --bpt-sunken: 35 41 38;
+    --bpt-line: 42 48 45;
+    --bpt-line-soft: 35 41 38;
+    --bpt-line-strong: 58 66 62;
+    --bpt-action: 255 176 0;
+    --bpt-action-hover: 255 198 61;
+    --bpt-proof-fg: 70 185 108;
+    --bpt-proof-bg: 18 33 26;
+    --bpt-proof-bd: 34 81 58;
+    --bpt-proof-700: 88 201 123;
+    --bpt-proof-600: 70 185 108;
+    --bpt-proof-500: 57 163 93;
+    --bpt-warn-fg: 255 176 0;
+    --bpt-warn-bg: 36 28 7;
+    --bpt-warn-bd: 92 74 18;
+    --bpt-warn-700: 255 198 61;
+    --bpt-warn-600: 255 176 0;
+    --bpt-warn-500: 224 154 0;
+    --bpt-block-fg: 255 92 69;
+    --bpt-block-bg: 42 18 14;
+    --bpt-block-bd: 89 38 30;
+    --bpt-block-700: 255 122 102;
+    --bpt-block-600: 255 92 69;
+    --bpt-block-500: 224 69 48;
+    --bpt-info-fg: 159 185 207;
+    --bpt-info-bg: 21 29 36;
+    --bpt-info-bd: 51 67 78;
+    --bpt-info-700: 184 204 221;
+    --bpt-info-600: 159 185 207;
+    --bpt-info-500: 127 157 182;
+
+    /* ============================================================
        shadcn/ui HSL role vars — REMAPPED to the Runway instrument
        surface, so every primitive built on these roles (inputs,
        selects, dialogs, toasts, the admin and product surfaces)
@@ -596,4 +694,205 @@
   .pr-safe {
     padding-right: env(safe-area-inset-right, 0px);
   }
+}
+
+
+/* ============================================================
+   Paper theme — the ivory public surface.
+
+   The public site reads as a printed document: warm ivory ground, one deep
+   green action, hairline rules instead of panels, DM Sans set at normal case
+   with tight tracking. Buyer-facing screens that were built on the Runway
+   instrument palette opt in by adding `paper-theme`, which redefines the
+   Layer 0 channels (and the shadcn role vars, so Radix primitives follow)
+   rather than rewriting their utility classes one at a time.
+
+   Anything that stays on the instrument surface — admin, ops, internal
+   consoles — simply does not add the class and is untouched.
+   ============================================================ */
+
+.paper-theme {
+  --bpt-rw-black: 236 235 227;
+  --bpt-rw-deep: 246 245 239;
+  --bpt-rw-panel: 252 252 248;
+  --bpt-rw-raised: 238 236 227;
+  --bpt-rw-line: 215 219 208;
+  --bpt-rw-line-soft: 228 227 217;
+  --bpt-rw-line-strong: 186 192 178;
+  --bpt-rw-text: 34 37 30;
+  --bpt-rw-body: 59 63 55;
+  --bpt-rw-mute: 98 100 93;
+  --bpt-rw-faint: 98 104 89;
+  --bpt-rw-signal: 32 61 46;
+  --bpt-rw-signal-deep: 24 48 36;
+  --bpt-rw-signal-lit: 49 84 64;
+  --bpt-rw-signal-dim: 164 179 168;
+  --bpt-rw-signal-ink: 246 245 239;
+  --bpt-rw-cyan: 44 107 120;
+  --bpt-rw-sky: 63 96 121;
+  --bpt-rw-sky-dim: 178 192 203;
+  --bpt-rw-green: 42 112 70;
+  --bpt-rw-green-dim: 165 198 178;
+  --bpt-rw-amber: 138 106 18;
+  --bpt-rw-red: 156 53 45;
+  --bpt-rw-red-dim: 212 176 171;
+  --bpt-rw-paper: 236 235 227;
+  --bpt-rw-paper-2: 227 225 214;
+  --bpt-rw-paper-line: 200 200 188;
+  --bpt-ink-900: 34 37 30;
+  --bpt-ink-800: 44 48 40;
+  --bpt-ink-700: 59 63 55;
+  --bpt-ink-600: 76 80 71;
+  --bpt-ink-500: 98 100 93;
+  --bpt-ink-400: 98 104 89;
+  --bpt-ink-300: 101 107 94;
+  --bpt-ink-200: 164 170 156;
+  --bpt-ink-100: 186 192 178;
+  --bpt-ink-50: 215 219 208;
+  --bpt-pa-0: 252 252 248;
+  --bpt-pa-1: 246 245 239;
+  --bpt-pa-2: 238 236 227;
+  --bpt-pa-3: 230 228 217;
+  --bpt-pa-4: 219 217 204;
+  --bpt-graphite: 252 252 248;
+  --bpt-bone: 34 37 30;
+  --bpt-brass: 32 61 46;
+  --bpt-brass-deep: 24 48 36;
+  --bpt-brass-lit: 49 84 64;
+  --bpt-canvas: 246 245 239;
+  --bpt-inset: 238 236 227;
+  --bpt-sunken: 230 228 217;
+  --bpt-line: 215 219 208;
+  --bpt-line-soft: 228 227 217;
+  --bpt-line-strong: 186 192 178;
+  --bpt-action: 32 61 46;
+  --bpt-action-hover: 49 84 64;
+  --bpt-proof-fg: 42 112 73;
+  --bpt-proof-bg: 231 239 233;
+  --bpt-proof-bd: 165 198 178;
+  --bpt-proof-700: 36 96 61;
+  --bpt-proof-600: 42 112 73;
+  --bpt-proof-500: 52 135 89;
+  --bpt-warn-fg: 125 95 16;
+  --bpt-warn-bg: 243 238 222;
+  --bpt-warn-bd: 206 192 141;
+  --bpt-warn-700: 106 80 13;
+  --bpt-warn-600: 125 95 16;
+  --bpt-warn-500: 154 119 28;
+  --bpt-block-fg: 156 53 45;
+  --bpt-block-bg: 244 231 228;
+  --bpt-block-bd: 212 176 171;
+  --bpt-block-700: 131 41 31;
+  --bpt-block-600: 156 53 45;
+  --bpt-block-500: 179 72 60;
+  --bpt-info-fg: 58 92 118;
+  --bpt-info-bg: 231 236 241;
+  --bpt-info-bd: 178 192 203;
+  --bpt-info-700: 47 77 100;
+  --bpt-info-600: 58 92 118;
+  --bpt-info-500: 76 114 144;
+
+  /* shadcn role vars, so dialogs, sheets, selects and toasts follow. */
+  --background: 51 28% 95%; /* #f6f5ef ms paper */
+  --foreground: 86 10% 13%; /* #22251e ms ink */
+  --card: 60 40% 98%; /* #fcfcf8 panel */
+  --card-foreground: 86 10% 13%; /* #22251e */
+  --popover: 60 40% 98%; /* #fcfcf8 */
+  --popover-foreground: 86 10% 13%; /* #22251e */
+  --primary: 149 31% 18%; /* #203d2e ms green */
+  --primary-foreground: 51 28% 95%; /* #f6f5ef */
+  --secondary: 49 24% 91%; /* #eeece3 */
+  --secondary-foreground: 86 10% 13%; /* #22251e */
+  --muted: 49 24% 91%; /* #eeece3 */
+  --muted-foreground: 77 4% 38%; /* #62645d ms muted */
+  --accent: 49 24% 91%; /* #eeece3 */
+  --accent-foreground: 149 31% 18%; /* #203d2e */
+  --destructive: 4 55% 39%; /* #9c352d ms error */
+  --destructive-foreground: 51 28% 95%; /* #f6f5ef */
+  --border: 82 13% 84%; /* #d7dbd0 */
+  --input: 86 10% 73%; /* #bac0b2 */
+  --ring: 149 31% 18%; /* #203d2e */
+  --heading: 86 10% 13%; /* #22251e */
+
+  color-scheme: light;
+  background-color: rgb(var(--bpt-rw-deep));
+  color: rgb(var(--bpt-rw-text));
+  font-family: "DM Sans", "Helvetica Neue", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Editorial voice. The instrument surface sets display type in Barlow
+   Condensed uppercase; on paper the same headings are DM Sans at normal case
+   with the negative tracking the marketing pages use. Targeting the
+   font-family utility catches `.runway-display`, `.runway-display-sm` and
+   every direct `font-display` call site at once, and outranks a later
+   `uppercase` utility on the same element. */
+.paper-theme .font-display,
+.paper-theme .font-editorial {
+  font-family: "DM Sans", "Helvetica Neue", system-ui, sans-serif;
+  text-transform: none;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+}
+
+.paper-theme .runway-display,
+.paper-theme .runway-display-sm {
+  font-weight: 500;
+  line-height: 1.06;
+}
+
+/* Condensed display sizes are drawn for a narrow face; DM Sans at the same
+   size runs ~20% wider, so the two largest steps come down a notch. */
+.paper-theme .text-display-xl { font-size: 4.6rem; line-height: 1.02; }
+.paper-theme .text-display-l { font-size: 3.4rem; line-height: 1.04; }
+.paper-theme .text-display-m { font-size: 2.5rem; line-height: 1.06; }
+
+/* Controls keep their square chrome but lose the shouting: the marketing CTA
+   is sentence case at 14px, not tracked-out uppercase. `bp-button` is a stable
+   marker on the Button cva base so this does not have to chase generated
+   utility classes. */
+.paper-theme .runway-cta,
+.paper-theme .runway-cta-ghost,
+.paper-theme .runway-cta-onlight,
+.paper-theme .bp-button {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  border-radius: 3px;
+}
+
+/* `runway-black` is the deepest ground on the instrument surface and the ink
+   on a light band; on paper it can only be one of them. It stays a ground, so
+   the on-light CTA is re-pointed at the normal ink and hairline instead of
+   rendering ivory on ivory. */
+.paper-theme .runway-cta-onlight {
+  color: rgb(var(--bpt-rw-text));
+  border-color: rgb(var(--bpt-rw-line-strong));
+}
+
+.paper-theme .runway-panel {
+  border-radius: 3px;
+}
+
+.paper-theme .runway-chip {
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+}
+
+/* Mono meta labels stay uppercase — that is the eyebrow voice on the marketing
+   pages too — but take the marketing face and tracking. */
+.paper-theme .runway-meta,
+.paper-theme .runway-eyebrow,
+.paper-theme .runway-eyebrow-muted {
+  letter-spacing: 0.12em;
+  font-family: "DM Sans", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.paper-theme .runway-num {
+  font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.paper-theme :focus-visible {
+  outline: 2px solid rgb(var(--bpt-rw-signal));
+  outline-offset: 3px;
 }

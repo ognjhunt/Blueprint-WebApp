@@ -5,7 +5,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   return (
-    <div className="minimal-site">
+    <div className="minimal-site paper-theme">
       <a className="ms-skip" href="#main-content">Skip to content</a>
       <header className="ms-header ms-container">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>

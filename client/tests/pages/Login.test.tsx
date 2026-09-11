@@ -25,11 +25,14 @@ describe("Login", () => {
     expect(screen.getByText(/Password is required/i)).toBeInTheDocument();
   });
 
-  it("renders the Google sign-in CTA", () => {
-    render(<Login />);
+  it("renders the Google sign-in CTA on the ivory account surface", () => {
+    const { container } = render(<Login />);
 
     expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
-    expect(screen.getByText(/Secure Access Portal/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sign in to Blueprint/i })).toBeInTheDocument();
+    // The account screens share the public site's ivory surface rather than
+    // the dark instrument chrome the product app uses.
+    expect(container.querySelector(".minimal-site")).not.toBeNull();
   });
 
   it("keeps capturer help as a secondary utility path", () => {

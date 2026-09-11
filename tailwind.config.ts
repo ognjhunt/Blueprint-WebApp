@@ -82,29 +82,33 @@ export default {
         // "faint" — so every existing `text-ink-500` keeps its intent and
         // simply resolves to the dark-ground equivalent.
         ink: {
-          DEFAULT: "#e8e6dd",
-          900: "#e8e6dd", // strongest text
-          800: "#dcdad0",
-          700: "#c9cdc4", // body copy
-          600: "#b3b8ae",
-          500: "#9ba19a", // muted
-          400: "#818880",
-          300: "#828981", // faint / meta
-          200: "#4a524d",
-          100: "#3a423e",
-          50: "#2a302d",
+          DEFAULT: "rgb(var(--bpt-ink-900) / <alpha-value>)",
+          900: "rgb(var(--bpt-ink-900) / <alpha-value>)", // strongest text
+          800: "rgb(var(--bpt-ink-800) / <alpha-value>)",
+          700: "rgb(var(--bpt-ink-700) / <alpha-value>)", // body copy
+          600: "rgb(var(--bpt-ink-600) / <alpha-value>)",
+          500: "rgb(var(--bpt-ink-500) / <alpha-value>)", // muted
+          400: "rgb(var(--bpt-ink-400) / <alpha-value>)",
+          300: "rgb(var(--bpt-ink-300) / <alpha-value>)", // faint / meta
+          200: "rgb(var(--bpt-ink-200) / <alpha-value>)",
+          100: "rgb(var(--bpt-ink-100) / <alpha-value>)",
+          50: "rgb(var(--bpt-ink-50) / <alpha-value>)",
         },
-        graphite: "#141816",
+        graphite: "rgb(var(--bpt-graphite) / <alpha-value>)",
         paper: {
-          DEFAULT: "#101312",
-          0: "#141816", // card / panel
-          1: "#101312", // page canvas
-          2: "#1a1f1c", // inset
-          3: "#232926", // sunken
-          4: "#2a302d",
+          DEFAULT: "rgb(var(--bpt-pa-1) / <alpha-value>)",
+          0: "rgb(var(--bpt-pa-0) / <alpha-value>)", // card / panel
+          1: "rgb(var(--bpt-pa-1) / <alpha-value>)", // page canvas
+          2: "rgb(var(--bpt-pa-2) / <alpha-value>)", // inset
+          3: "rgb(var(--bpt-pa-3) / <alpha-value>)", // sunken
+          4: "rgb(var(--bpt-pa-4) / <alpha-value>)",
         },
-        bone: "#e8e6dd",
-        brass: { DEFAULT: "#ffb000", deep: "#e09a00", lit: "#ffc63d" },
+        bone: "rgb(var(--bpt-bone) / <alpha-value>)",
+        brass: {
+          DEFAULT: "rgb(var(--bpt-brass) / <alpha-value>)",
+          deep: "rgb(var(--bpt-brass-deep) / <alpha-value>)",
+          lit: "rgb(var(--bpt-brass-lit) / <alpha-value>)",
+        },
 
 
         // ---- Runway: the deployment-operations palette for the whole product.
@@ -130,80 +134,87 @@ export default {
         // compete with a filled signal control in the same view. Each pairs a
         // legible foreground with a `-dim` border tuned for the dark ground.
         runway: {
-          black: "#0c0f0e", // deepest ground: section bands, table heads
-          deep: "#101312", // page base
-          panel: "#141816", // cards, panels
-          raised: "#1a1f1c", // hover, raised rows
-          line: "#2a302d", // default hairline
-          "line-soft": "#232926", // row dividers inside a panel
-          "line-strong": "#3a423e", // emphasised edge, input borders
-          text: "#e8e6dd", // primary bone
-          body: "#c9cdc4", // secondary body copy
-          mute: "#9ba19a", // supporting copy
-          faint: "#828981", // meta, labels, disabled
-          signal: "#ffb000", // brand + primary action
-          "signal-deep": "#e09a00", // pressed, and amber on light ground
-          "signal-lit": "#ffc63d", // hover on dark
-          "signal-dim": "#5c4a12", // chip borders on dark
-          "signal-soft": "#5c4a12", // legacy alias of signal-dim
-          "signal-ink": "#171200", // text on a signal fill
-          cyan: "#6fc3d4", // "after Blueprint" data series
-          sky: "#9fb9cf", // site-reported provenance, neutral state
-          "sky-dim": "#33434e",
-          green: "#46b96c", // pass, measured, live
-          "green-dim": "#22513a",
-          amber: "#ffb000", // open, attention (same hue as signal)
-          red: "#ff5c45", // fail, did-not-qualify
-          "red-dim": "#59261e",
-          paper: "#f5f4ef", // light ground, print + inverted blocks
-          "paper-2": "#e9e7df",
-          "paper-line": "#d5d2c8",
+          black: "rgb(var(--bpt-rw-black) / <alpha-value>)", // deepest ground: section bands, table heads
+          deep: "rgb(var(--bpt-rw-deep) / <alpha-value>)", // page base
+          panel: "rgb(var(--bpt-rw-panel) / <alpha-value>)", // cards, panels
+          raised: "rgb(var(--bpt-rw-raised) / <alpha-value>)", // hover, raised rows
+          line: "rgb(var(--bpt-rw-line) / <alpha-value>)", // default hairline
+          "line-soft": "rgb(var(--bpt-rw-line-soft) / <alpha-value>)", // row dividers inside a panel
+          "line-strong": "rgb(var(--bpt-rw-line-strong) / <alpha-value>)", // emphasised edge, input borders
+          text: "rgb(var(--bpt-rw-text) / <alpha-value>)", // primary bone
+          body: "rgb(var(--bpt-rw-body) / <alpha-value>)", // secondary body copy
+          mute: "rgb(var(--bpt-rw-mute) / <alpha-value>)", // supporting copy
+          faint: "rgb(var(--bpt-rw-faint) / <alpha-value>)", // meta, labels, disabled
+          signal: "rgb(var(--bpt-rw-signal) / <alpha-value>)", // brand + primary action
+          "signal-deep": "rgb(var(--bpt-rw-signal-deep) / <alpha-value>)", // pressed, and amber on light ground
+          "signal-lit": "rgb(var(--bpt-rw-signal-lit) / <alpha-value>)", // hover on dark
+          "signal-dim": "rgb(var(--bpt-rw-signal-dim) / <alpha-value>)", // chip borders on dark
+          "signal-soft": "rgb(var(--bpt-rw-signal-dim) / <alpha-value>)", // legacy alias of signal-dim
+          "signal-ink": "rgb(var(--bpt-rw-signal-ink) / <alpha-value>)", // text on a signal fill
+          cyan: "rgb(var(--bpt-rw-cyan) / <alpha-value>)", // "after Blueprint" data series
+          sky: "rgb(var(--bpt-rw-sky) / <alpha-value>)", // site-reported provenance, neutral state
+          "sky-dim": "rgb(var(--bpt-rw-sky-dim) / <alpha-value>)",
+          green: "rgb(var(--bpt-rw-green) / <alpha-value>)", // pass, measured, live
+          "green-dim": "rgb(var(--bpt-rw-green-dim) / <alpha-value>)",
+          amber: "rgb(var(--bpt-rw-amber) / <alpha-value>)", // open, attention (same hue as signal)
+          red: "rgb(var(--bpt-rw-red) / <alpha-value>)", // fail, did-not-qualify
+          "red-dim": "rgb(var(--bpt-rw-red-dim) / <alpha-value>)",
+          paper: "rgb(var(--bpt-rw-paper) / <alpha-value>)", // light ground, print + inverted blocks
+          "paper-2": "rgb(var(--bpt-rw-paper-2) / <alpha-value>)",
+          "paper-line": "rgb(var(--bpt-rw-paper-line) / <alpha-value>)",
         },
 
         // semantic surfaces
-        canvas: "#101312",
-        inset: "#1a1f1c",
-        sunken: "#232926",
-        line: { DEFAULT: "#2a302d", soft: "#232926", strong: "#3a423e" },
+        canvas: "rgb(var(--bpt-canvas) / <alpha-value>)",
+        inset: "rgb(var(--bpt-inset) / <alpha-value>)",
+        sunken: "rgb(var(--bpt-sunken) / <alpha-value>)",
+        line: {
+          DEFAULT: "rgb(var(--bpt-line) / <alpha-value>)",
+          soft: "rgb(var(--bpt-line-soft) / <alpha-value>)",
+          strong: "rgb(var(--bpt-line-strong) / <alpha-value>)",
+        },
 
         // action / focus
-        action: { DEFAULT: "#ffb000", hover: "#ffc63d" },
+        action: {
+          DEFAULT: "rgb(var(--bpt-action) / <alpha-value>)",
+          hover: "rgb(var(--bpt-action-hover) / <alpha-value>)",
+        },
 
         // Signal families — fg / bg / bd. Re-cut for the dark ground: the
         // foreground is the legible tint, `bg` a barely-there wash, `bd` the
         // chip border. Same three-part contract as before, so every existing
         // `bg-proof-bg text-proof-fg border-proof-bd` chip keeps working.
         proof: {
-          fg: "#46b96c",
-          bg: "#12211a",
-          bd: "#22513a",
-          700: "#58c97b",
-          600: "#46b96c",
-          500: "#39a35d",
+          fg: "rgb(var(--bpt-proof-fg) / <alpha-value>)",
+          bg: "rgb(var(--bpt-proof-bg) / <alpha-value>)",
+          bd: "rgb(var(--bpt-proof-bd) / <alpha-value>)",
+          700: "rgb(var(--bpt-proof-700) / <alpha-value>)",
+          600: "rgb(var(--bpt-proof-600) / <alpha-value>)",
+          500: "rgb(var(--bpt-proof-500) / <alpha-value>)",
         },
         warn: {
-          fg: "#ffb000",
-          bg: "#241c07",
-          bd: "#5c4a12",
-          700: "#ffc63d",
-          600: "#ffb000",
-          500: "#e09a00",
+          fg: "rgb(var(--bpt-warn-fg) / <alpha-value>)",
+          bg: "rgb(var(--bpt-warn-bg) / <alpha-value>)",
+          bd: "rgb(var(--bpt-warn-bd) / <alpha-value>)",
+          700: "rgb(var(--bpt-warn-700) / <alpha-value>)",
+          600: "rgb(var(--bpt-warn-600) / <alpha-value>)",
+          500: "rgb(var(--bpt-warn-500) / <alpha-value>)",
         },
         block: {
-          fg: "#ff5c45",
-          bg: "#2a120e",
-          bd: "#59261e",
-          700: "#ff7a66",
-          600: "#ff5c45",
-          500: "#e04530",
+          fg: "rgb(var(--bpt-block-fg) / <alpha-value>)",
+          bg: "rgb(var(--bpt-block-bg) / <alpha-value>)",
+          bd: "rgb(var(--bpt-block-bd) / <alpha-value>)",
+          700: "rgb(var(--bpt-block-700) / <alpha-value>)",
+          600: "rgb(var(--bpt-block-600) / <alpha-value>)",
+          500: "rgb(var(--bpt-block-500) / <alpha-value>)",
         },
         info: {
-          fg: "#9fb9cf",
-          bg: "#151d24",
-          bd: "#33434e",
-          700: "#b8ccdd",
-          600: "#9fb9cf",
-          500: "#7f9db6",
+          fg: "rgb(var(--bpt-info-fg) / <alpha-value>)",
+          bg: "rgb(var(--bpt-info-bg) / <alpha-value>)",
+          bd: "rgb(var(--bpt-info-bd) / <alpha-value>)",
+          700: "rgb(var(--bpt-info-700) / <alpha-value>)",
+          600: "rgb(var(--bpt-info-600) / <alpha-value>)",
+          500: "rgb(var(--bpt-info-500) / <alpha-value>)",
         },
       },
 

@@ -13,7 +13,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { BrandMark } from "@/components/site/BrandMark";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* -------------------------------------------------------------------------- */
@@ -67,13 +66,11 @@ function SidebarBrand() {
   return (
     <Link
       href="/app"
-      className="flex items-center gap-2.5 px-5 py-5 text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
+      className="flex items-center gap-3 px-5 py-6 text-[1.3rem] font-medium leading-none tracking-[-0.05em] text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
       aria-label="Blueprint — buyer app home"
     >
-      <BrandMark tone="ink" className="h-7 w-7" />
-      <span className="font-display uppercase text-[1.15rem] font-semibold leading-none tracking-[0.005em]">
-        Blueprint
-      </span>
+      <span className="block h-[1.35rem] w-[1.35rem] border-2 border-current" aria-hidden="true" />
+      Blueprint
     </Link>
   );
 }
@@ -93,7 +90,7 @@ function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
             onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-none px-3 py-2.5 text-[0.85rem] font-semibold leading-none transition-colors duration-150",
+              "flex items-center gap-3 rounded-[3px] px-3 py-2.5 text-[0.85rem] font-medium leading-none transition-colors duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal",
               isActive
                 ? "bg-runway-signal text-runway-signal-ink"
@@ -143,7 +140,7 @@ function SidebarPlanCard() {
 
 function SidebarBody({ active, onNavigate }: SidebarBodyProps) {
   return (
-    <div className="flex h-full flex-col bg-runway-deep text-runway-text">
+    <div className="flex h-full flex-col bg-runway-black text-runway-text">
       <SidebarBrand />
       <div className="pt-1">
         <SidebarNav active={active} onNavigate={onNavigate} />
@@ -218,7 +215,7 @@ function Topbar({ breadcrumb, onOpenMenu, publicView = false }: TopbarProps) {
 
       {publicView ? <Link
         href="/sign-in"
-        className="text-[0.78rem] font-semibold uppercase tracking-[0.04em] text-runway-sky hover:text-runway-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
+        className="text-[0.85rem] font-medium text-runway-mute underline-offset-4 hover:text-runway-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal"
       >
         Sign in
       </Link> : <div className="flex items-center gap-3">
@@ -278,7 +275,7 @@ export function AppShell({
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-canvas">
+    <div className="paper-theme flex h-screen w-full overflow-hidden bg-canvas">
       {/* Fixed sidebar — desktop */}
       {!publicView ? <aside className="hidden w-[15.5rem] shrink-0 border-r border-runway-line lg:block">
         <SidebarBody active={active} />
@@ -288,7 +285,7 @@ export function AppShell({
       {!publicView ? <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
           side="left"
-          className="w-[15.5rem] border-0 bg-runway-deep p-0 text-runway-text sm:max-w-[15.5rem]"
+          className="w-[15.5rem] border-0 bg-runway-black p-0 text-runway-text sm:max-w-[15.5rem]"
         >
           <SheetTitle className="sr-only">Buyer app navigation</SheetTitle>
           <SidebarBody active={active} onNavigate={() => setDrawerOpen(false)} />

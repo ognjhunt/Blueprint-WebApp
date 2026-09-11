@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
+import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ChecklistItem {
@@ -470,11 +471,14 @@ export default function OnboardingChecklist() {
     { label: "Task", value: userData?.taskStatement || "Not set yet" },
   ];
 
+  // Onboarding is the screen signup hands people to, so it carries the same
+  // account chrome the signup flow does rather than the marketing nav.
   return (
-    <main className="min-h-screen bg-runway-deep px-4 py-12">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-semibold uppercase tracking-[0.005em] text-runway-text">Intake review hub</h1>
+    <MinimalAccountLayout action={{ href: "/app", label: "Go to workspace" }}>
+      <div className="ms-container py-12">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-8 text-center">
+          <h1 className="font-display text-3xl font-semibold text-runway-text">Intake review hub</h1>
           <p className="mt-2 text-runway-mute">
             Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
           </p>
@@ -549,7 +553,8 @@ export default function OnboardingChecklist() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </main>
+    </MinimalAccountLayout>
   );
 }

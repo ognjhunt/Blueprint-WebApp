@@ -86,7 +86,7 @@ describe("BusinessSignUpFlow analytics", () => {
       requestedLaneCount: 1,
     });
     expect(screen.getAllByText(/Robot team access request/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Existing portal users should use sign in instead of creating a second path/i)).toBeInTheDocument();
+    expect(screen.getByText(/Already have an account\?/i)).toBeInTheDocument();
   });
 
   it("preselects the site-operator lane from signup query params", () => {
