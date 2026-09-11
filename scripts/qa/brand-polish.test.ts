@@ -32,7 +32,7 @@ describe("brand polish QA harness contract", () => {
     expect(harness.publicQaRoutes.slice(0, 6).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
     for (const route of harness.publicQaRoutes) expect(canonicalPaths).toContain(route.canonicalPath);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
-      canonicalPath: "/contact/robot-team", expectedHeading: "Bring your robot. Find the fit.",
+      canonicalPath: "/contact/robot-team", expectedHeading: "Tell us what you can deploy.",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
       canonicalPath: "/", expectedHeading: "A pilot worth running.",
