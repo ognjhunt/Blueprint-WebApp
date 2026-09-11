@@ -26,7 +26,8 @@ export type AgentTaskKind =
   | "operator_thread"
   | "adp_run_operator"
   | "external_harness_thread"
-  | "site_video_evidence";
+  | "site_video_evidence"
+  | "robot_capability_extraction";
 
 export type AgentRunStatus =
   | "queued"

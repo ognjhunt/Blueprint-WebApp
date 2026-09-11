@@ -29,6 +29,8 @@ import type {
 } from "./types";
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
 import { buildQualificationEmail } from "../utils/qualificationEmails";
+import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
+import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import {
   measureVideoEvidenceEffect,
   runSiteVideoEvidenceForRequest,
@@ -678,6 +680,8 @@ export function clampRecommendationToGates(
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
+  /** Absent when the match has not run — a different thing from "no matches". */
+  matches?: MatchSummary | null,
 ) {
   const { qualificationState, requiresHumanReview } = clampRecommendationToGates(
     request.site_task_triage,
@@ -718,6 +722,7 @@ function buildInboundActionSpecs(
     firstName: request.contact.firstName,
     siteName: request.request.siteName,
     triage: request.site_task_triage,
+    matches,
   });
 
   if (request.contact.email && (screenedEmail || result.buyer_follow_up)) {
@@ -1250,6 +1255,24 @@ export async function runInboundQualificationForRequest(
     request = { ...request, site_video_evidence: videoEvidence };
   }
 
+  // A site that cleared the screen is matched against the registry before the
+  // reply is built, so the qualified branch has a count it can stand behind
+  // rather than a sentence that means nothing.
+  const matchSummary = await runSiteMatch(request).catch((error) => {
+    logger.warn(
+      { err: error, requestId: request.requestId },
+      "Site match run failed; continuing without it",
+    );
+    return null;
+  });
+
+  if (matchSummary) {
+    await docRef.set(
+      { site_match: summariseForStorage(matchSummary) },
+      { merge: true },
+    );
+  }
+
   const result = await runAgentTask<
     ReturnType<typeof extractInboundQualificationInput>,
     InboundQualificationOutput
@@ -1286,7 +1309,7 @@ export async function runInboundQualificationForRequest(
   const automationStatus = normalizeAutomationStatus(
     output.automation_status,
   );
-  const { routingStatus, specs } = buildInboundActionSpecs(request, output);
+  const { routingStatus, specs } = buildInboundActionSpecs(request, output, matchSummary);
   const phase2DraftPatch = makeWorkflowDraftStatePatch({
     existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
     lane: "inbound",

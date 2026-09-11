@@ -207,3 +207,93 @@ describe("storage round trip", () => {
     expect(restored.request.taskVideoUrl).toBeNull();
   });
 });
+
+/* ------------------------------------------------- the match branch */
+
+import { buildMatchEmail } from "../utils/qualificationEmails";
+import type { MatchSummary, MatchResult } from "../../client/src/lib/robotMatch";
+
+function matchResult(id: string, outcome: MatchResult["outcome"]): MatchResult {
+  return {
+    robotTeamId: id,
+    outcome,
+    score: 3,
+    scored: 4,
+    findings: [],
+    ruledOutBy: [],
+    unknownHardConstraints: [],
+  };
+}
+
+function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
+  return {
+    matched: [],
+    provisional: [],
+    ruledOut: [],
+    commonBlockers: [],
+    ...overrides,
+  };
+}
+
+describe("the match reply", () => {
+  it("counts only confirmed matches, never provisional ones", () => {
+    const email = buildMatchEmail({
+      firstName: "Dana",
+      siteName: "Riverside DC",
+      summary: summary({
+        matched: [matchResult("a", "matched"), matchResult("b", "matched")],
+        provisional: [matchResult("c", "provisional")],
+      }),
+    });
+
+    expect(email.variant).toBe("match_found");
+    expect(email.body).toContain("2 robot teams on our list clear");
+    // The provisional team is mentioned as a maybe, never counted as a clear.
+    expect(email.body).toMatch(/One further team/i);
+    expect(email.body).toContain(CALENDLY_URL);
+  });
+
+  it("does not promise an introduction it has not secured", () => {
+    const email = buildMatchEmail({
+      firstName: "Dana",
+      summary: summary({ matched: [matchResult("a", "matched")] }),
+    });
+    expect(email.body).toMatch(/confirm interest on their side/i);
+    expect(email.body).toMatch(/not a recommendation yet/i);
+  });
+
+  it("names the constraint that eliminated everyone when nothing matches", () => {
+    const email = buildMatchEmail({
+      firstName: "Dana",
+      siteName: "Riverside DC",
+      summary: summary({
+        ruledOut: [matchResult("a", "ruled_out"), matchResult("b", "ruled_out")],
+        commonBlockers: [{ scaleId: "payload", label: "payload", count: 2 }],
+      }),
+    });
+
+    expect(email.variant).toBe("no_match_yet");
+    expect(email.body).toContain("payload — 2 teams ruled out on this");
+    // A no about today's list, not a judgement about the site.
+    expect(email.body).toMatch(/statement about today's list, not about your task/i);
+    expect(email.body).not.toContain(CALENDLY_URL);
+  });
+
+  it("stays silent on a clean screen when no match has been run", () => {
+    expect(
+      buildQualificationEmail({
+        firstName: "Dana",
+        triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
+      }),
+    ).toBeNull();
+  });
+
+  it("speaks on a clean screen once a match has been run", () => {
+    const email = buildQualificationEmail({
+      firstName: "Dana",
+      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
+      matches: summary({ matched: [matchResult("a", "matched")] }),
+    });
+    expect(email?.variant).toBe("match_found");
+  });
+});

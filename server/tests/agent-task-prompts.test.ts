@@ -60,6 +60,13 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     harness: "codex",
     context: { issue: "BLU-2" },
   },
+  robot_capability_extraction: {
+    robotTeamId: "team-1",
+    teamName: "Example Robotics",
+    currentCapability: { payloadCapacity: "two_to_ten" },
+    sources: [{ url: "https://example.com/specs", title: "Specs", text: "Payload: 18 kg." }],
+    allowedValues: { payloadCapacity: ["under_2kg", "two_to_ten", "ten_to_twentyfive"] },
+  },
   site_video_evidence: {
     requestId: "req-1",
     taskVideoUrl: "https://example.com/clip.mp4",

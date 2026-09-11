@@ -35,6 +35,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   operator_thread: "OPERATOR_THREAD_MODEL",
   external_harness_thread: "EXTERNAL_HARNESS_MODEL",
   site_video_evidence: "SITE_VIDEO_EVIDENCE_MODEL",
+  robot_capability_extraction: "ROBOT_CAPABILITY_EXTRACTION_MODEL",
 };
 
 /**

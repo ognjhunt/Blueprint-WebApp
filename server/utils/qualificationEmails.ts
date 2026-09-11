@@ -25,6 +25,7 @@
  * that condition is engineered into place, which is itself a piece of work
  * someone can decide to fund" — so the email says that, plainly.
  */
+import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 
 export const CALENDLY_URL = "https://calendly.com/blueprintar/30min";
@@ -33,7 +34,7 @@ export type QualificationEmail = {
   subject: string;
   body: string;
   /** Which branch produced this, for the action ledger and for tests. */
-  variant: "not_yet" | "lets_talk";
+  variant: "not_yet" | "lets_talk" | "match_found" | "no_match_yet";
 };
 
 function firstNameOf(fullOrFirst: string): string {
@@ -143,18 +144,118 @@ export function buildLetsTalkEmail(params: {
 }
 
 /**
+ * The reply a site earns by clearing the screen.
+ *
+ * This branch returned null until there was a matcher, and that was the honest
+ * answer: a clean screen is not an offer, and "we will be in touch" is the kind
+ * of sentence that means nothing. What makes it sayable is a count somebody can
+ * check.
+ *
+ * Two shapes, and the second is not a failure:
+ *
+ * - Teams cleared the constraints → say how many and on what.
+ * - Nobody cleared them → say which constraint did the eliminating and what
+ *   would change it. That is the same not-yet discipline as a failed gate, one
+ *   level up, and it is more useful to a site than silence.
+ *
+ * Only confirmed matches are counted. A team with an unanswered payload figure
+ * is provisional and is deliberately excluded from "three teams clear your
+ * payload" — see `MatchOutcome`. Counting it would make a claim nobody made.
+ */
+export function buildMatchEmail(params: {
+  firstName: string;
+  siteName?: string | null;
+  summary: MatchSummary;
+  calendlyUrl?: string;
+}): QualificationEmail {
+  const { firstName, siteName, summary } = params;
+  const calendly = params.calendlyUrl || CALENDLY_URL;
+  const site = siteName?.trim();
+  const matched = summary.matched.length;
+  const provisional = summary.provisional.length;
+
+  if (matched > 0) {
+    const body = [
+      `Hi ${firstNameOf(firstName)},`,
+      "",
+      site
+        ? `${site} clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints your task sets.`
+        : `Your task clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints it sets.`,
+      "",
+      "That is a mechanical check against what each team has told us or demonstrated — payload, the safety envelope your access window implies, and the budget band you gave us. It is not a recommendation yet, and it is not an introduction: we confirm interest on their side before putting anyone in front of you.",
+      provisional > 0
+        ? `\n${provisional === 1 ? "One further team" : `${provisional} further teams`} might also fit, but we are missing a figure we would need to say so. We will ask them rather than guess.`
+        : "",
+      "",
+      `The next step is a short call to agree scope: ${calendly}`,
+      "",
+      "— The Blueprint team",
+    ]
+      .filter(Boolean)
+      .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
+      .join("\n");
+
+    return { subject: site ? `${site}: who clears your constraints` : "Who clears your constraints", body, variant: "match_found" };
+  }
+
+  const blockers = summary.commonBlockers.slice(0, 2);
+  const body = [
+    `Hi ${firstNameOf(firstName)},`,
+    "",
+    site
+      ? `${site} clears our screening conditions — the site is workable. What it does not yet have is a robot team on our list that clears the constraints your task sets.`
+      : "Your task clears our screening conditions. What it does not yet have is a robot team on our list that clears the constraints it sets.",
+    "",
+    blockers.length ? "Where it comes apart:" : "",
+    blockers.length ? "" : "",
+    blockers.length
+      ? bulletList(
+          blockers.map((blocker) =>
+            blocker.count === 1
+              ? `${blocker.label} — one team ruled out on this`
+              : `${blocker.label} — ${blocker.count} teams ruled out on this`,
+          ),
+        )
+      : "",
+    "",
+    "That is a statement about today's list, not about your task. The list grows, and a change on your side — a slower acceptable cycle, a different acceptance threshold — can also change the answer. Tell us if either moves and we will re-run it.",
+    "",
+    "We keep the task on file either way.",
+    "",
+    "— The Blueprint team",
+  ]
+    .filter(Boolean)
+    .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
+    .join("\n");
+
+  return {
+    subject: site ? `${site}: no match on today's list` : "No match on today's list",
+    body,
+    variant: "no_match_yet",
+  };
+}
+
+/**
  * Pick the reply for a verdict, or none.
  *
- * `qualified` deliberately gets nothing here. A site that clears the screen is
- * not owed an automated congratulation — the next real step is a match against
- * robot teams, which is a human's call and often a no. `INBOUND_POLICY` already
- * refuses to auto-send on the good outcomes; this returning `null` is the same
- * judgement made one layer earlier.
+ * A clean screen still gets nothing when no match has been run: there is
+ * genuinely nothing to say yet, and "we will be in touch" is worse than
+ * silence. Pass `matches` and the branch can speak — see `buildMatchEmail`.
+ *
+ * `INBOUND_POLICY` is unchanged either way. Both match variants describe a
+ * qualified site, which that policy always routes to a human, so a match email
+ * is drafted and queued rather than sent automatically.
  */
 export function buildQualificationEmail(params: {
   firstName: string;
   siteName?: string | null;
   triage: SiteTaskTriageSummary | null | undefined;
+  /**
+   * Present once the site has been matched against the registry. Absent means
+   * the match has not run, which is different from "no teams matched" and is
+   * why a clean screen still returns null without it.
+   */
+  matches?: MatchSummary | null;
 }): QualificationEmail | null {
   const { triage } = params;
   if (!triage) return null;
@@ -172,6 +273,16 @@ export function buildQualificationEmail(params: {
       firstName: params.firstName,
       siteName: params.siteName,
       triage,
+    });
+  }
+
+  // A clean screen with a match run behind it can finally say something. With
+  // no match run, it still says nothing rather than something vague.
+  if (triage.disposition === "qualified" && params.matches) {
+    return buildMatchEmail({
+      firstName: params.firstName,
+      siteName: params.siteName,
+      summary: params.matches,
     });
   }
 

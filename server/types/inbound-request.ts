@@ -5,6 +5,7 @@ import type {
 } from "../../client/src/lib/demandAttribution";
 import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 import type { LegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+import type { SiteMatchSummaryRecord } from "../utils/siteMatchRun";
 
 // R047: server-derived Terms of Service / Privacy Policy acceptance record.
 // `accepted_at` is a Firestore server timestamp on the real write path and an
@@ -913,6 +914,8 @@ export interface InboundRequest {
   structured_intake?: StructuredIntakeSummary;
   site_task_triage?: SiteTaskTriageSummary | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
+  /** The last match run against the robot-team registry. Derived, like the triage. */
+  site_match?: SiteMatchSummaryRecord | null;
   human_review_required?: boolean | null;
   automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
@@ -1246,6 +1249,8 @@ export interface InboundRequestListItem {
   structured_intake?: StructuredIntakeSummary;
   site_task_triage?: SiteTaskTriageSummary | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
+  /** The last match run against the robot-team registry. Derived, like the triage. */
+  site_match?: SiteMatchSummaryRecord | null;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;

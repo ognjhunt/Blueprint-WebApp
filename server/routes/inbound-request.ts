@@ -30,6 +30,7 @@ import {
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
 import { robotGateFields } from "../../client/src/data/robotTeamQualification";
 
 /**
@@ -1929,6 +1930,32 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
         }
       })()
     );
+
+    // Trigger 1 of the registry's three: a robot team telling us about its own
+    // system is authoritative for anything it answered, and arrives already in
+    // the enums the matcher speaks.
+    if (buyerType === "robot_team") {
+      automationPromises.push(
+        (async () => {
+          try {
+            await upsertRobotTeamFromIntake({
+              requestId: payload.requestId,
+              company: payload.company.trim(),
+              contactEmail: emailLower,
+              gates: siteTaskGates,
+              spec: (normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string>) || {},
+              capabilityDescription: payload.taskDescription?.trim() || null,
+              evidenceBar: payload.whatGoesWrong?.trim() || null,
+            });
+          } catch (error) {
+            logger.error(
+              { error, requestId: payload.requestId },
+              "Failed to update the robot-team registry from intake",
+            );
+          }
+        })(),
+      );
+    }
 
     Promise.all(automationPromises).catch((error) => {
       logger.error({ error }, "Error in automation promises");
