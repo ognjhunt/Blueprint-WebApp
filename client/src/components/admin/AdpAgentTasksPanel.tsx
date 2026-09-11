@@ -9,7 +9,11 @@ const rowsSchema = z.object({ tasks: z.array(z.object({
     enabled: z.boolean(), expires_at: z.number().finite() }),
   run: z.object({ status: text, cancel_requested: z.boolean(), cleanup_requested: z.boolean(),
     reconciliation_error: text.nullish(),
-    output: z.object({ disposition: text, summary: text, next_actions: z.array(text), uncertainty: z.array(text), evidence_references: z.array(text) }).nullish(),
+    output: z.object({ disposition: text, summary: text, next_actions: z.array(text), uncertainty: z.array(text), evidence_references: z.array(text),
+      kind: z.literal("episode_interpretation").optional(),
+      events: z.array(z.object({ time_seconds: z.number().finite(), description: text })).optional(),
+      interpretation_receipt_digest: text.nullable().optional(),
+    }).nullish(),
     artifacts: z.object({ agent_execution: z.object({ cleanup_state: text, state: text, updated_at: z.number() }).optional() }).optional(),
   }).nullable(),
 })) });
@@ -79,13 +83,21 @@ export default function AdpAgentTasksPanel() {
               {run?.reconciliation_error ? <p className="mt-3 text-sm text-runway-mute">Waiting for a verified worker update. The recorded task is retained.</p> : null}
               {run?.output ? <div className="mt-3 space-y-2 text-sm text-runway-body">
                 <p className="whitespace-pre-wrap">{run.output.summary}</p>
+                {run.output.kind === "episode_interpretation" ? <>
+                  <p className="text-xs text-runway-mute">Interpretation: {run.output.disposition.replaceAll("_", " ")}</p>
+                  <ol className="space-y-1">{run.output.events?.map((event, i) => <li key={i}>
+                    <span className="font-mono text-xs text-runway-faint">{event.time_seconds.toFixed(2)}s</span> {event.description}
+                  </li>)}</ol>
+                </> : null}
                 {run.output.next_actions.length ? <ul className="list-disc space-y-1 pl-5">{run.output.next_actions.map((text, i) => <li key={i}>{text}</li>)}</ul> : null}
                 {run.output.uncertainty.length ? <p className="text-runway-mute">Uncertainty: {run.output.uncertainty.join(" ")}</p> : null}
                 <details><summary className="cursor-pointer text-runway-mute">Evidence references</summary>
                   <ul className="mt-2 space-y-1 break-all font-mono text-xs">{run.output.evidence_references.map((text, i) => <li key={i}>{text}</li>)}</ul>
                   <p className="mt-2 break-all text-xs">Source release: {admission.source_commit}</p>
                 </details>
-                <p className="text-xs text-runway-faint">This is an operational diagnosis. Execution, scoring, billing, resource release and delivery keep their own receipts.</p>
+                <p className="text-xs text-runway-faint">{run.output.kind === "episode_interpretation"
+                  ? "This interpretation does not change the original task score or policy decision."
+                  : "This is an operational diagnosis. Execution, scoring, billing, resource release and delivery keep their own receipts."}</p>
               </div> : null}
             </article>
           );

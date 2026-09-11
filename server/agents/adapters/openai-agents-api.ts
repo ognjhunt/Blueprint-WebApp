@@ -6,6 +6,7 @@ import {
   type AdpTaskAction, type AdpTaskAdmission, type AdpTaskStatus,
 } from "../adp-contract";
 import type { AgentResult } from "../types";
+import { crossRuntimeDigest } from "../../utils/crossRuntimeCanonical";
 
 function asciiJson(value: unknown): string {
   return JSON.stringify(value).replace(/[\u007f-\uffff]/g, (letter) => `\\u${letter.charCodeAt(0).toString(16).padStart(4, "0")}`);
@@ -22,6 +23,15 @@ function canonical(value: unknown): string {
 
 function verifyResultDigests(status: AdpTaskStatus) {
   if (!status.result) return;
+  if ("episode_outcome" in status.result.output) {
+    if (!status.output_cross_runtime_digest || crossRuntimeDigest(status.result.output) !== status.output_cross_runtime_digest) {
+      throw new Error("adp_agent_result_digest_mismatch");
+    }
+    if (!status.interpretation || (status.interpretation.task_digest && status.interpretation.task_digest !== status.task_digest)) {
+      throw new Error("adp_agent_interpretation_binding_missing");
+    }
+    return;
+  }
   const hash = (value: unknown) => `sha256:${createHash("sha256").update(canonical(value)).digest("hex")}`;
   // The diagnosis contract contains strings and arrays only, so its canonical
   // digest survives a JSON round trip. Retain the producer's full receipt
@@ -94,12 +104,26 @@ export function adpStatusToAgentResult(admission: AdpTaskAdmission, state: AdpTa
   assertAdpTaskIdentity(admission, state);
   verifyResultDigests(state);
   const terminal = ["completed", "failed", "cancelled"].includes(state.state);
+  const rawOutput = state.result?.output;
+  const episode = rawOutput && "episode_outcome" in rawOutput ? rawOutput : null;
+  const interpretation = state.interpretation;
+  const interpretationPending = episode && interpretation?.status === "pending_validation";
+  const interpretationRefused = episode && interpretation?.status === "refused";
+  const output = episode ? {
+    kind: "episode_interpretation", disposition: interpretation?.status ?? "pending_validation",
+    summary: episode.summary, next_actions: [],
+    uncertainty: episode.possible_missed_events.map((event) => `${event.description} ${event.reason}`),
+    evidence_references: [...new Set(episode.events.flatMap((event) => event.evidence_refs.map((ref) => ref.artifact_digest)))],
+    events: episode.events.map((event) => ({ time_seconds: event.start_time_seconds, description: event.description })),
+    interpretation_receipt_digest: interpretation?.receipt_digest ?? null,
+  } : rawOutput;
   return {
     provider: admission.runtime, runtime: admission.runtime, model: admission.model, tool_mode: "api",
-    status: terminal ? state.state as "completed" | "failed" | "cancelled" : "running",
-    output: state.result?.output,
-    error: state.error_code,
-    requires_human_review: state.result?.output.disposition === "awaiting_input",
+    status: interpretationRefused ? "failed" : interpretationPending ? "running"
+      : terminal ? state.state as "completed" | "failed" | "cancelled" : "running",
+    output,
+    error: interpretationRefused ? interpretation?.error_code ?? "episode_interpretation_refused" : state.error_code,
+    requires_human_review: rawOutput && "disposition" in rawOutput ? rawOutput.disposition === "awaiting_input" : false,
     requires_approval: false,
     artifacts: { agent_execution: state, scientific_acceptance_granted: false },
     continuation_state: { pipeline_task_id: admission.task_id, task_digest: admission.task_digest },
