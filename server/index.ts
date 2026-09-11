@@ -47,6 +47,23 @@ if (firehoseConfig) {
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * Render terminates TLS at its own proxy, so every request arrives from
+ * loopback with the real client address in `X-Forwarded-For`. Without this,
+ * `req.ip` is `127.0.0.1` for everybody — which does not merely make the logs
+ * useless, it collapses every per-IP rate limit into a single shared bucket:
+ * `hashIp(req.ip)` in the inbound route, the global limiter, and the upload
+ * limiter all key on the same value for every visitor on the internet.
+ * express-rate-limit says so out loud on boot (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+ *
+ * One hop, not `true`. `X-Forwarded-For` is client-supplied and trusting the
+ * whole chain would let anyone present whatever address gets them their own
+ * fresh quota; trusting exactly the one proxy in front of us does not.
+ */
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 const disableOpsAutomationScheduler =
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === "1" ||
   process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === "1";
