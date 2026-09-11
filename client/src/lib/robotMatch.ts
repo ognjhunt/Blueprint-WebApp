@@ -116,19 +116,49 @@ function valueOrNull(value: unknown): string | null {
 }
 
 /**
- * Geography is a hard constraint with its own shape.
+ * The two sides ask about geography in different shapes, on purpose.
  *
- * It is not a band — a team either deploys where the site is or it does not —
- * so it is compared by equality against the site's metro, and an unstated
- * geography is unknown rather than a pass.
+ * A site is asked *where it is* — `austin_metro`, `texas_other`,
+ * `outside_texas`. A robot team is asked *whether they would come here*:
+ * "Would you deploy in the Austin metro?", answered `yes`,
+ * `right_opportunity`, `size_dependent` or `no`. Those vocabularies do not
+ * overlap, and comparing them with `===` ruled out every team that said yes —
+ * precisely the population that can produce a confirmed match.
+ *
+ * The asymmetry is not a modelling mistake, it is the right question on each
+ * side, so the comparison translates rather than the intake being bent to fit.
+ *
+ * Note that matching only ever runs for a site whose gates cleared, and
+ * `serviceArea` is one of those gates: `texas_other` is marginal and
+ * `outside_texas` is blocking, so a site that reaches here is always in the
+ * metro. The site's own answer is therefore checked rather than assumed, but it
+ * has exactly one passing value.
  */
+const ROBOT_WILL_DEPLOY_HERE = new Set(["yes", "right_opportunity", "size_dependent"]);
+const ROBOT_WILL_NOT_DEPLOY_HERE = new Set(["no"]);
+
 function compareGeography(site: SiteRequirement, candidate: RobotCandidate): MatchFinding {
   const required = valueOrNull(site.serviceArea);
   const capability = valueOrNull(candidate.deploymentGeography);
+
   let comparison: BandComparison = "unknown";
   if (required && capability) {
-    comparison = capability === required || capability === "anywhere" ? "clears" : "short";
+    if (required !== "austin_metro") {
+      // A site outside the served metro cannot be matched to anyone, whatever
+      // the team says. It should not have reached here, so this fails closed
+      // rather than quietly clearing.
+      comparison = "short";
+    } else if (ROBOT_WILL_DEPLOY_HERE.has(capability)) {
+      // "Only above a certain contract size" still means they would come. What
+      // that threshold is belongs to the budget comparison, not to this one.
+      comparison = "clears";
+    } else if (ROBOT_WILL_NOT_DEPLOY_HERE.has(capability)) {
+      comparison = "short";
+    }
+    // Any other value is a vocabulary we do not recognise, and stays unknown
+    // rather than being read as either answer.
   }
+
   return {
     scaleId: "geography",
     label: "deployment geography",

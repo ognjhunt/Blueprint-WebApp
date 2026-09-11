@@ -44,7 +44,7 @@ function team(overrides: Partial<RobotCandidate["capability"]> = {}, id = "team-
       lighting: "mixed",
       ...overrides,
     },
-    deploymentGeography: "austin_metro",
+    deploymentGeography: "yes",
     taskFamily: "pick_place",
   };
 }
@@ -99,11 +99,33 @@ describe("hard constraints eliminate", () => {
     expect(result.ruledOutBy.map((finding) => finding.scaleId)).toContain("budget");
   });
 
-  it("rules out a team that does not deploy in the site's metro", () => {
-    const candidate = { ...team(), deploymentGeography: "elsewhere" };
+  it("rules out a team that says it will not deploy here", () => {
+    const candidate = { ...team(), deploymentGeography: "no" };
     const result = matchRobotTeam(site, candidate);
     expect(result.outcome).toBe("ruled_out");
     expect(result.ruledOutBy.map((finding) => finding.scaleId)).toContain("geography");
+  });
+
+  it("translates between the two sides' geography vocabularies", () => {
+    // The site stores where it is; the robot intake stores whether they would
+    // come here. Comparing those with === ruled out every team that said yes,
+    // which is the only population that can produce a confirmed match.
+    for (const answer of ["yes", "right_opportunity", "size_dependent"]) {
+      const result = matchRobotTeam(site, { ...team(), deploymentGeography: answer });
+      expect(result.outcome, `robot answered ${answer}`).toBe("matched");
+    }
+  });
+
+  it("treats an unrecognised geography answer as unknown, not as a yes", () => {
+    const result = matchRobotTeam(site, { ...team(), deploymentGeography: "elsewhere" });
+    expect(result.outcome).toBe("provisional");
+  });
+
+  it("fails closed for a site outside the served metro", () => {
+    // Such a site should never reach matching -- its service-area gate blocks
+    // first -- so this must not quietly clear if it ever does.
+    const outside = { ...site, serviceArea: "outside_texas" };
+    expect(matchRobotTeam(outside, team()).outcome).toBe("ruled_out");
   });
 
   it("names the requirement and the capability so a person can check it", () => {
