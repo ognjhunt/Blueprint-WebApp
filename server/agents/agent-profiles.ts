@@ -346,6 +346,16 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     created_at: BUILT_IN_TIMESTAMP,
     updated_at: BUILT_IN_TIMESTAMP,
   },
+  {
+    id: "built-in-adp-run-operator", key: "adp-run-operator", name: "Task Evaluation Operator",
+    description: "Investigates and supervises admitted Task Evaluation tasks through the durable Pipeline worker. Use the Task Evaluation tasks panel to select a task.",
+    task_kind: "adp_run_operator", default_provider: "openai_agents_api", default_runtime: "openai_agents_api",
+    default_model: "gpt-5.6-terra", lane: "adp", default_environment_profile_id: null,
+    capabilities: ["admitted task status", "retained failure investigation", "durable cancellation", "session cleanup"],
+    human_gates: ["new authority or evidence outside the admitted task"], allowed_subagent_profile_ids: [],
+    tool_policy: { mode: "api", allowed_actions: ["inspect_admitted_task", "enqueue_admitted_task", "cancel_admitted_task", "cleanup_admitted_task"] },
+    built_in: true, created_at: BUILT_IN_TIMESTAMP, updated_at: BUILT_IN_TIMESTAMP,
+  },
 ];
 
 function normalizeProfileRecord(

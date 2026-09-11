@@ -661,6 +661,8 @@ function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
     case "codex_local":
     case "deepseek_chat":
     case "openai_responses":
+    case "openai_agents_api":
+    case "openai_agents_sdk":
     case "anthropic_agent_sdk":
     case "acp_harness":
     case "openclaw":
@@ -678,6 +680,9 @@ function defaultModelForProvider(provider: AgentProvider) {
       return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-pro";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
+    case "openai_agents_api":
+    case "openai_agents_sdk":
+      return "server-admitted-model";
     case "anthropic_agent_sdk":
       return process.env.ANTHROPIC_DEFAULT_MODEL?.trim() || "claude-sonnet-4-5";
     case "acp_harness":
@@ -1443,6 +1448,11 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     dispatchQueuedOnFinish?: boolean;
   },
 ): Promise<AgentResult<TOutput>> {
+  // Durable ADP tasks use the task controller and its worker. A chat message
+  // cannot turn an admitted task reference into a new free-form model call.
+  if (task.kind === "adp_run_operator" || task.provider === "openai_agents_api" || task.provider === "openai_agents_sdk") {
+    throw new Error("adp_agent_use_admitted_task_controller");
+  }
   const normalizedTask = normalizeTask<TInput, TOutput>(task);
   const normalizedTaskForLogs = normalizedTask as unknown as NormalizedAgentTask<
     unknown,

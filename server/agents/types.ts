@@ -4,6 +4,8 @@ export type AgentProvider =
   | "deepseek_chat"
   | "openclaw"
   | "openai_responses"
+  | "openai_agents_api"
+  | "openai_agents_sdk"
   | "anthropic_agent_sdk"
   | "acp_harness"
   | "codex_local";
@@ -18,6 +20,7 @@ export type AgentTaskKind =
   | "payout_exception_triage"
   | "preview_diagnosis"
   | "operator_thread"
+  | "adp_run_operator"
   | "external_harness_thread";
 
 export type AgentRunStatus =

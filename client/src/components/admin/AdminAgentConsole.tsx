@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import AdpAgentTasksPanel from "./AdpAgentTasksPanel";
 import type {
   AgentCheckpointRecord,
   AgentCompactionRecord,
@@ -947,7 +948,7 @@ export default function AdminAgentConsole() {
   const availableBlueprints = contextOptionsQuery.data?.blueprints || [];
   const availableOpsDocuments = contextOptionsQuery.data?.opsDocuments || [];
   const availableStartupPacks = contextOptionsQuery.data?.startupPacks || [];
-  const availableProfiles = contextOptionsQuery.data?.profiles || [];
+  const availableProfiles = (contextOptionsQuery.data?.profiles || []).filter((profile) => profile.task_kind !== "adp_run_operator");
   const availableEnvironments = contextOptionsQuery.data?.environments || [];
   const availableCreativeRuns = contextOptionsQuery.data?.recentCreativeRuns || [];
   const runs = runsQuery.data?.runs || [];
@@ -1153,6 +1154,7 @@ export default function AdminAgentConsole() {
 
   return (
     <div className="space-y-6">
+      <AdpAgentTasksPanel />
       <div className="grid gap-4 md:grid-cols-4">
         <div className="runway-panel p-5">
           <p className="runway-meta">Sessions</p>
