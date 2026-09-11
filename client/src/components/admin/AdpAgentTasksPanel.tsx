@@ -10,7 +10,8 @@ const rowsSchema = z.object({ tasks: z.array(z.object({
   run: z.object({ status: text, cancel_requested: z.boolean(), cleanup_requested: z.boolean(),
     reconciliation_error: text.nullish(),
     output: z.object({ disposition: text, summary: text, next_actions: z.array(text), uncertainty: z.array(text), evidence_references: z.array(text),
-      kind: z.literal("episode_interpretation").optional(),
+      kind: z.enum(["episode_interpretation", "visual_investigation"]).optional(),
+      findings: z.array(text).optional(),
       events: z.array(z.object({ time_seconds: z.number().finite(), description: text })).optional(),
       interpretation_receipt_digest: text.nullable().optional(),
     }).nullish(),
@@ -83,6 +84,7 @@ export default function AdpAgentTasksPanel() {
               {run?.reconciliation_error ? <p className="mt-3 text-sm text-runway-mute">Waiting for a verified worker update. The recorded task is retained.</p> : null}
               {run?.output ? <div className="mt-3 space-y-2 text-sm text-runway-body">
                 <p className="whitespace-pre-wrap">{run.output.summary}</p>
+                {run.output.findings?.length ? <ul className="list-disc space-y-1 pl-5">{run.output.findings.map((finding, i) => <li key={i}>{finding}</li>)}</ul> : null}
                 {run.output.kind === "episode_interpretation" ? <>
                   <p className="text-xs text-runway-mute">Interpretation: {run.output.disposition.replaceAll("_", " ")}</p>
                   <ol className="space-y-1">{run.output.events?.map((event, i) => <li key={i}>
@@ -97,6 +99,7 @@ export default function AdpAgentTasksPanel() {
                 </details>
                 <p className="text-xs text-runway-faint">{run.output.kind === "episode_interpretation"
                   ? "This interpretation does not change the original task score or policy decision."
+                  : run.output.kind === "visual_investigation" ? "These findings do not grant acceptance. The independent final review remains required."
                   : "This is an operational diagnosis. Execution, scoring, billing, resource release and delivery keep their own receipts."}</p>
               </div> : null}
             </article>

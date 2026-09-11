@@ -49,6 +49,11 @@ export const adpEpisodeOutputSchema = z.object({
     evidence_refs: z.array(episodeRef).max(20) }).strict()).max(100),
   contract_considerations: z.array(z.string()).max(100),
 }).strict();
+const visualOutputSchema = z.object({ status: z.enum(["inspected", "insufficient_evidence"]),
+  summary: z.string().max(8000), evidence_gaps: z.array(z.string()).max(100), final_acceptance_granted: z.literal(false),
+  findings: z.array(z.object({ view_id: id, source_sha256: digest, finding: z.string().max(2000),
+    related_view_ids: z.array(id).max(32) }).strict()).max(100),
+}).strict();
 const usageSchema = z.object({
   input_tokens: tokenCount, output_tokens: tokenCount, total_tokens: tokenCount,
   cached_tokens: tokenCount, cache_write_tokens: tokenCount, reasoning_tokens: tokenCount,
@@ -71,7 +76,7 @@ const resultSchema = z.object({
   cost_usd: z.number().finite().nonnegative().nullable().optional(),
   cost_status: z.enum(["official_reconciliation_required", "model_pricing_estimate_not_official_billing", "unavailable", "unknown"]).optional(),
   model: z.string(),
-  output: z.union([adpDiagnosisSchema, adpEpisodeOutputSchema]),
+  output: z.union([adpDiagnosisSchema, adpEpisodeOutputSchema, visualOutputSchema]),
   output_digest: digest,
   result_digest: digest,
   scientific_acceptance_granted: z.literal(false),
@@ -99,6 +104,10 @@ export const adpTaskStatusSchema = z.object({
     task_id: id.optional(), task_digest: digest.optional(), receipt_digest: digest.optional(),
     input_bundle_digest: digest.optional(), error_code: z.string().max(192).optional(),
     proof_effect: z.literal("none").optional(),
+  }).strict().optional(),
+  visual_review: z.object({ status: z.enum(["pending_validation", "inspected", "insufficient_evidence", "refused"]),
+    task_id: id.optional(), receipt_digest: digest.optional(), error_code: z.string().max(192).optional(),
+    independent_final_review_required: z.literal(true).optional(), proof_effect: z.literal("none").optional(),
   }).strict().optional(),
 }).strict();
 

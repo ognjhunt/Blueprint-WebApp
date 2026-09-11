@@ -23,13 +23,15 @@ function canonical(value: unknown): string {
 
 function verifyResultDigests(status: AdpTaskStatus) {
   if (!status.result) return;
-  if ("episode_outcome" in status.result.output) {
+  if ("episode_outcome" in status.result.output || "final_acceptance_granted" in status.result.output) {
     if (!status.output_cross_runtime_digest || crossRuntimeDigest(status.result.output) !== status.output_cross_runtime_digest) {
       throw new Error("adp_agent_result_digest_mismatch");
     }
-    if (!status.interpretation || (status.interpretation.task_digest && status.interpretation.task_digest !== status.task_digest)) {
+    if ("episode_outcome" in status.result.output && (!status.interpretation
+        || (status.interpretation.task_digest && status.interpretation.task_digest !== status.task_digest))) {
       throw new Error("adp_agent_interpretation_binding_missing");
     }
+    if ("final_acceptance_granted" in status.result.output && !status.visual_review) throw new Error("adp_agent_visual_review_binding_missing");
     return;
   }
   const hash = (value: unknown) => `sha256:${createHash("sha256").update(canonical(value)).digest("hex")}`;
@@ -106,9 +108,10 @@ export function adpStatusToAgentResult(admission: AdpTaskAdmission, state: AdpTa
   const terminal = ["completed", "failed", "cancelled"].includes(state.state);
   const rawOutput = state.result?.output;
   const episode = rawOutput && "episode_outcome" in rawOutput ? rawOutput : null;
+  const visual = rawOutput && "final_acceptance_granted" in rawOutput ? rawOutput : null;
   const interpretation = state.interpretation;
-  const interpretationPending = episode && interpretation?.status === "pending_validation";
-  const interpretationRefused = episode && interpretation?.status === "refused";
+  const interpretationPending = episode && interpretation?.status === "pending_validation" || visual && state.visual_review?.status === "pending_validation";
+  const interpretationRefused = episode && interpretation?.status === "refused" || visual && state.visual_review?.status === "refused";
   const output = episode ? {
     kind: "episode_interpretation", disposition: interpretation?.status ?? "pending_validation",
     summary: episode.summary, next_actions: [],
@@ -116,13 +119,17 @@ export function adpStatusToAgentResult(admission: AdpTaskAdmission, state: AdpTa
     evidence_references: [...new Set(episode.events.flatMap((event) => event.evidence_refs.map((ref) => ref.artifact_digest)))],
     events: episode.events.map((event) => ({ time_seconds: event.start_time_seconds, description: event.description })),
     interpretation_receipt_digest: interpretation?.receipt_digest ?? null,
+  } : visual ? { kind: "visual_investigation", disposition: state.visual_review?.status ?? "pending_validation",
+    summary: visual.summary, next_actions: ["Complete the independent final review using its unchanged mandatory views."],
+    uncertainty: visual.evidence_gaps, evidence_references: visual.findings.map((finding) => finding.source_sha256),
+    findings: visual.findings.map((finding) => `${finding.view_id}: ${finding.finding}`),
   } : rawOutput;
   return {
     provider: admission.runtime, runtime: admission.runtime, model: admission.model, tool_mode: "api",
     status: interpretationRefused ? "failed" : interpretationPending ? "running"
       : terminal ? state.state as "completed" | "failed" | "cancelled" : "running",
     output,
-    error: interpretationRefused ? interpretation?.error_code ?? "episode_interpretation_refused" : state.error_code,
+    error: interpretationRefused ? interpretation?.error_code ?? state.visual_review?.error_code ?? "specialist_collection_refused" : state.error_code,
     requires_human_review: rawOutput && "disposition" in rawOutput ? rawOutput.disposition === "awaiting_input" : false,
     requires_approval: false,
     artifacts: { agent_execution: state, scientific_acceptance_granted: false },
