@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { runAdpExecutionTool } from "../../ops/paperclip/plugins/blueprint-automation/src/adp-execution";
+import { resolveAdpExecutionSettings, runAdpExecutionTool } from "../../ops/paperclip/plugins/blueprint-automation/src/adp-execution";
 
 const context = { agentId: "selected-worker", runId: "paperclip-run" };
 const observation = { schema_version: "blueprint_paperclip_adp_execution.v1", task_id: "admitted-task",
@@ -48,4 +48,28 @@ it("preserves the requested execution after an uncertain transport outcome", asy
   const deps = dependencies(); deps.fetcher.mockRejectedValueOnce(new Error("lost response"));
   await expect(runAdpExecutionTool({ action: "start" }, context, deps)).rejects.toThrow("lost response");
   expect(deps.retain).toHaveBeenCalledExactlyOnceWith("company", context.runId, expect.objectContaining({ state: "requested" }));
+});
+
+it("uses the selected plugin configuration and current secret reference without host environment", async () => {
+  const deps = dependencies();
+  const raw = { adpExecution: { enabled: true, agentId: context.agentId, companyId: "company",
+    webappUrl: "https://www.tryblueprint.io", bridgeTokenRef: "adp-secret-ref" } };
+  const resolveSecret = vi.fn(async () => "rotated-token");
+  const settings = await resolveAdpExecutionSettings(raw, context.agentId, resolveSecret);
+  await runAdpExecutionTool({ action: "inspect" }, context, { ...deps, settings });
+  expect(resolveSecret).toHaveBeenCalledExactlyOnceWith("adp-secret-ref");
+  expect(deps.fetcher.mock.calls[0][0].toString()).toBe("https://www.tryblueprint.io/api/internal/paperclip/adp-execution");
+  expect(deps.fetcher.mock.calls[0][1]?.headers).toMatchObject({ authorization: "Bearer rotated-token" });
+  expect(JSON.stringify(deps.retain.mock.calls)).not.toContain("rotated-token");
+  resolveSecret.mockResolvedValueOnce("second-token");
+  expect((await resolveAdpExecutionSettings(raw, context.agentId, resolveSecret))?.token).toBe("second-token");
+});
+
+it("revokes environment fallback when plugin configuration is disabled and hides secrets from other workers", async () => {
+  const deps = dependencies(); const secret = vi.fn(async () => "unused");
+  const settings = await resolveAdpExecutionSettings({ adpExecution: { enabled: false } }, context.agentId, secret);
+  await expect(runAdpExecutionTool({ action: "start" }, context, { ...deps, settings })).rejects.toThrow("not_selected");
+  expect(await resolveAdpExecutionSettings({ adpExecution: { enabled: true, agentId: "other-worker",
+    companyId: "company", webappUrl: "https://www.tryblueprint.io", bridgeTokenRef: "secret-ref" } }, context.agentId, secret)).toBeNull();
+  expect(secret).not.toHaveBeenCalled(); expect(deps.fetcher).not.toHaveBeenCalled();
 });

@@ -74,6 +74,19 @@ const manifest: PaperclipPluginManifestV1 = {
   instanceConfigSchema: {
     type: "object",
     properties: {
+      adpExecution: {
+        type: "object",
+        title: "Selected Arm Decision Proof worker",
+        additionalProperties: false,
+        properties: {
+          enabled: { type: "boolean", default: false },
+          agentId: { type: "string", title: "Selected agent ID" },
+          companyId: { type: "string", title: "Company ID" },
+          webappUrl: { type: "string", title: "Website HTTPS origin" },
+          bridgeTokenRef: { type: "string", format: "secret-ref", title: "ADP bridge token reference" },
+        },
+        required: ["enabled"],
+      },
       companyName: {
         type: "string",
         title: "Target Company Name",

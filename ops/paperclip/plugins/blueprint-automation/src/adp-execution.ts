@@ -1,17 +1,41 @@
 /** One selected ADP worker operates the task bound to its current Paperclip issue. */
 export type AdpRunContext = { agentId: string; runId: string };
 type RecordValue = Record<string, any>;
+export type AdpExecutionSettings = { agentId: string; companyId: string; token: string; origin: string };
+
+export async function resolveAdpExecutionSettings(raw: Record<string, unknown>, agentId: string,
+  resolveSecret: (reference: string) => Promise<string | null>): Promise<AdpExecutionSettings | null | undefined> {
+  if (!("adpExecution" in raw)) return undefined;
+  const value = raw.adpExecution;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("paperclip_adp_configuration_invalid");
+  const config = value as Record<string, unknown>;
+  if (config.enabled === false) return null;
+  if (config.enabled !== true || ["agentId", "companyId", "webappUrl", "bridgeTokenRef"].some(
+    (key) => typeof config[key] !== "string" || !(config[key] as string).trim())) {
+    throw new Error("paperclip_adp_configuration_invalid");
+  }
+  if (config.agentId !== agentId) return null;
+  // Resolve each action through the host secret store so rotation/revocation
+  // takes effect without restarting the plugin or granting the tool a key.
+  const token = await resolveSecret(config.bridgeTokenRef as string);
+  if (!token?.trim()) throw new Error("paperclip_adp_bridge_secret_unavailable");
+  return { agentId, companyId: config.companyId as string, origin: config.webappUrl as string, token: token.trim() };
+}
 
 export async function runAdpExecutionTool(params: RecordValue, context: AdpRunContext, deps: {
   loadRun: (runId: string) => Promise<RecordValue | null>;
   loadIssue: (companyId: string, issueId: string) => Promise<RecordValue | null>;
   retain: (companyId: string, runId: string, record: RecordValue) => Promise<void>;
   fetcher?: typeof fetch;
+  settings?: AdpExecutionSettings | null;
 }) {
-  const agentId = process.env.BLUEPRINT_PAPERCLIP_ADP_AGENT_ID?.trim();
-  const companyId = process.env.BLUEPRINT_PAPERCLIP_ADP_COMPANY_ID?.trim();
-  const token = process.env.BLUEPRINT_PAPERCLIP_ADP_BRIDGE_TOKEN?.trim();
-  const origin = process.env.BLUEPRINT_PAPERCLIP_ADP_WEBAPP_URL?.trim();
+  const settings = deps.settings === undefined ? {
+    agentId: process.env.BLUEPRINT_PAPERCLIP_ADP_AGENT_ID?.trim(),
+    companyId: process.env.BLUEPRINT_PAPERCLIP_ADP_COMPANY_ID?.trim(),
+    token: process.env.BLUEPRINT_PAPERCLIP_ADP_BRIDGE_TOKEN?.trim(),
+    origin: process.env.BLUEPRINT_PAPERCLIP_ADP_WEBAPP_URL?.trim(),
+  } : deps.settings;
+  const { agentId, companyId, token, origin } = settings ?? {};
   if (!agentId || !companyId || !token || !origin || agentId !== context.agentId) throw new Error("paperclip_adp_worker_not_selected");
   if (Object.keys(params).some((key) => key !== "action") || !["inspect", "start", "cancel", "cleanup"].includes(params.action)) {
     throw new Error("paperclip_adp_action_invalid");
