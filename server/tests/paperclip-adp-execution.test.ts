@@ -10,8 +10,7 @@ const observation = { schema_version: "blueprint_paperclip_adp_execution.v1", ta
 function dependencies() {
   return {
     loadRun: vi.fn(async () => ({ id: context.runId, agentId: context.agentId, companyId: "company", contextSnapshot: { issueId: "issue" } })),
-    loadIssue: vi.fn(async () => ({ id: "issue", companyId: "company", assigneeAgentId: context.agentId,
-      metadata: { blueprintAdpExecution: { program: "arm-decision-proof-v1", taskId: "admitted-task" } } })),
+    loadIssue: vi.fn(async () => ({ id: "issue", companyId: "company", assigneeAgentId: context.agentId })),
     retain: vi.fn(async () => undefined),
     fetcher: vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify(observation))),
   };
@@ -32,7 +31,7 @@ it("uses only the selected worker's authoritative run and issue task binding", a
   expect(result.data).toEqual(observation);
   expect(deps.retain.mock.invocationCallOrder[0]).toBeLessThan(deps.fetcher.mock.invocationCallOrder[0]);
   const options = deps.fetcher.mock.calls[0][1] as RequestInit;
-  expect(JSON.parse(options.body as string)).toEqual({ task_id: "admitted-task", company_id: "company",
+  expect(JSON.parse(options.body as string)).toEqual({ company_id: "company",
     agent_id: context.agentId, issue_id: "issue", run_id: context.runId, action: "start" });
   expect(deps.retain).toHaveBeenLastCalledWith("company", context.runId, expect.objectContaining({ state: "observed" }));
 });

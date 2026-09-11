@@ -6,7 +6,7 @@ import { z } from "zod";
 import { configuredAdpManagedRuns } from "../agents/adp-managed-runs";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
-const requestSchema = z.object({ task_id: id, company_id: id, agent_id: id, issue_id: id, run_id: id,
+const requestSchema = z.object({ task_id: id.optional(), company_id: id, agent_id: id, issue_id: id, run_id: id,
   action: z.enum(["inspect", "start", "cancel", "cleanup"]) }).strict();
 const router = Router();
 router.post("/adp-execution", async (req, res) => {
@@ -28,10 +28,17 @@ router.post("/adp-execution", async (req, res) => {
   }
   try {
     const service = configuredAdpManagedRuns();
-    const admission = await service.admission(input.task_id);
+    const binding = (await service.store.collection("agentExecutionPaperclipIssueBindings").doc(input.issue_id).get()).data();
+    if (!binding || binding.company_id !== company || binding.agent_id !== agent
+        || binding.issue_id !== input.issue_id || (input.task_id && input.task_id !== binding.task_id)) {
+      return res.status(403).json({ code: "paperclip_adp_issue_not_admitted" });
+    }
+    const taskId = binding.task_id;
+    const admission = await service.admission(taskId);
+    if (binding.task_digest !== admission.task_digest) return res.status(409).json({ code: "paperclip_adp_task_binding_changed" });
     const owner = { company_id: input.company_id, agent_id: input.agent_id, issue_id: input.issue_id,
-      task_id: input.task_id, task_digest: admission.task_digest };
-    const bindingRef = service.store.collection("agentExecutionPaperclipOwners").doc(input.task_id);
+      task_id: taskId, task_digest: admission.task_digest };
+    const bindingRef = service.store.collection("agentExecutionPaperclipOwners").doc(taskId);
     const executionRef = service.store.collection("agentExecutionPaperclipRuns").doc(input.run_id);
     await service.store.runTransaction(async (transaction) => {
       const [bound, execution] = await Promise.all([transaction.get(bindingRef), transaction.get(executionRef)]);
@@ -42,9 +49,9 @@ router.post("/adp-execution", async (req, res) => {
         execution_owner: "blueprint_pipeline", last_requested_action: input.action }, { merge: true });
     });
     const actor = `paperclip:${input.company_id}:${input.agent_id}:${input.run_id}`;
-    if (input.action === "start") await service.start(input.task_id, actor);
-    if (input.action === "cancel" || input.action === "cleanup") await service.requestAction(input.task_id, input.action, actor);
-    const { run } = await service.status(input.task_id);
+    if (input.action === "start") await service.start(taskId, actor);
+    if (input.action === "cancel" || input.action === "cleanup") await service.requestAction(taskId, input.action, actor);
+    const { run } = await service.status(taskId);
     const execution = run?.artifacts?.agent_execution;
     const result = { schema_version: "blueprint_paperclip_adp_execution.v1", ...owner,
       paperclip_run_id: input.run_id, blueprint_agent_run_id: run?.id ?? null,

@@ -50,12 +50,12 @@ export async function runAdpExecutionTool(params: RecordValue, context: AdpRunCo
     throw new Error("paperclip_adp_run_binding_missing");
   }
   const issue = await deps.loadIssue(companyId, issueId);
-  const binding = issue?.metadata?.blueprintAdpExecution;
-  if (!issue || issue.companyId !== companyId || issue.assigneeAgentId !== agentId
-      || binding?.program !== "arm-decision-proof-v1" || typeof binding.taskId !== "string") {
+  if (!issue || issue.id !== issueId || issue.companyId !== companyId || issue.assigneeAgentId !== agentId) {
     throw new Error("paperclip_adp_issue_binding_missing");
   }
-  const body = { task_id: binding.taskId, company_id: companyId, agent_id: agentId,
+  // Paperclip's issue API has no general metadata field. The trusted Website
+  // binding selects the task; neither issue prose nor tool arguments do so.
+  const body = { company_id: companyId, agent_id: agentId,
     issue_id: issueId, run_id: context.runId, action: params.action };
   // The action intent lives in Paperclip even if the HTTP response is lost.
   await deps.retain(companyId, context.runId, { ...body, state: "requested", provider_owner: "blueprint_pipeline" });
@@ -67,11 +67,12 @@ export async function runAdpExecutionTool(params: RecordValue, context: AdpRunCo
   if (!response.ok || text.length > 64000) throw new Error("paperclip_adp_request_unresolved");
   const result = JSON.parse(text);
   if (result.schema_version !== "blueprint_paperclip_adp_execution.v1"
-      || result.task_id !== binding.taskId || result.paperclip_run_id !== context.runId
+      || typeof result.task_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(result.task_id)
+      || result.paperclip_run_id !== context.runId
       || result.company_id !== companyId || result.agent_id !== agentId || result.issue_id !== issueId
       || result.scientific_acceptance_granted !== false || result.product_completion_inferred !== false) {
     throw new Error("paperclip_adp_result_identity_mismatch");
   }
   await deps.retain(companyId, context.runId, { ...body, state: "observed", observation: result });
-  return { content: `ADP task ${binding.taskId}: ${result.status}. Product completion requires its own evidence closeout.`, data: result };
+  return { content: `ADP task ${result.task_id}: ${result.status}. Product completion requires its own evidence closeout.`, data: result };
 }

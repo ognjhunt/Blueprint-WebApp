@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const text = z.string();
 const rowsSchema = z.object({ tasks: z.array(z.object({
+  engineering_handoff: z.object({ handoff_id: text, state: text, issue_id: text.nullable(),
+    engineering_complete: z.literal(false) }).nullish(),
   admission: z.object({ task_id: text, run_id: text, title: text, runtime: text, source_commit: text,
     enabled: z.boolean(), expires_at: z.number().finite() }),
   run: z.object({ status: text, cancel_requested: z.boolean(), cleanup_requested: z.boolean(),
@@ -62,7 +64,7 @@ export default function AdpAgentTasksPanel() {
       {action.error ? <p className="mt-4 text-sm text-runway-red" role="alert">{action.error.message}</p> : null}
       {tasks.data?.tasks.length === 0 ? <p className="mt-4 text-sm text-runway-mute">No admitted tasks are available.</p> : null}
       <div className="mt-4 divide-y divide-runway-line">
-        {tasks.data?.tasks.map(({ admission, run }) => {
+        {tasks.data?.tasks.map(({ admission, run, engineering_handoff }) => {
           const done = run && ["completed", "failed", "cancelled"].includes(run.status);
           const cleanup = run?.artifacts?.agent_execution?.cleanup_state;
           const expired = admission.expires_at <= Date.now() / 1000;
@@ -89,6 +91,11 @@ export default function AdpAgentTasksPanel() {
                 </div>
               </div>
               {run?.reconciliation_error ? <p className="mt-3 text-sm text-runway-mute">Waiting for a verified worker update. The recorded task is retained.</p> : null}
+              {engineering_handoff ? <div className="mt-3 text-sm text-runway-body">
+                <p>Engineering follow-up: {engineering_handoff.state.replaceAll("_", " ")}</p>
+                {engineering_handoff.issue_id ? <p className="break-all text-xs">Paperclip issue: {engineering_handoff.issue_id}</p> : null}
+                <p className="text-xs text-runway-mute">A reviewed release is still required before the original workflow can resume.</p>
+              </div> : null}
               {run?.output ? <div className="mt-3 space-y-2 text-sm text-runway-body">
                 <p className="whitespace-pre-wrap">{run.output.summary}</p>
                 {run.output.findings?.length ? <ul className="list-disc space-y-1 pl-5">{run.output.findings.map((finding, i) => <li key={i}>{finding}</li>)}</ul> : null}

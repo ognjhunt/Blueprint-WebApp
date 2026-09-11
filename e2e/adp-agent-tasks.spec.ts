@@ -6,7 +6,8 @@ test("admitted agent cancellation and cleanup retain honest status and diagnosis
   const admission = (taskId: string, title: string) => ({ task_id: taskId, run_id: `run-${taskId}`, title,
     runtime: "openai_agents_api", source_commit: "a".repeat(40), enabled: true, expires_at: Date.now() / 1000 + 600 });
   const rows = [
-    { admission: admission("completed-task", "Saved failure investigation"), run: {
+    { admission: admission("completed-task", "Saved failure investigation"),
+      engineering_handoff: { handoff_id: "repair-fixture", state: "handed_off", issue_id: "issue-fixture", engineering_complete: false }, run: {
       status: "completed", cancel_requested: false, cleanup_requested: false,
       output: { disposition: "investigate", summary: "The retained job names an ambiguous parent.",
         next_actions: ["Resolve the parent binding before resubmission."], uncertainty: [], evidence_references: [`sha256:${"b".repeat(64)}`] },
@@ -62,6 +63,8 @@ test("admitted agent cancellation and cleanup retain honest status and diagnosis
   const pending = page.getByRole("article", { name: "Pending investigation" });
   const completed = page.getByRole("article", { name: "Saved failure investigation" });
   await expect(completed.getByText("The retained job names an ambiguous parent.")).toBeVisible();
+  await expect(completed.getByText("Engineering follow-up: handed off")).toBeVisible();
+  await expect(completed.getByText("A reviewed release is still required before the original workflow can resume.")).toBeVisible();
   await pending.getByRole("button", { name: "Cancel task" }).click();
   await expect(pending.getByRole("status")).toContainText("running · Cancellation requested");
   await expect(pending.getByRole("button", { name: "Cancel task" })).toBeDisabled();
