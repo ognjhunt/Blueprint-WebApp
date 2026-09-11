@@ -9,6 +9,7 @@ export const ADP_ADMISSIONS = "agentExecutionAdmissions";
 export const ADP_PENDING = "agentExecutionPending";
 const RUNS = "agentRuns";
 const POLL_MS = 5000;
+const RETAINED_SESSION_POLL_MS = 60_000;
 const LEASE_MS = 60_000;
 const terminal = (state: string) => ["completed", "failed", "cancelled"].includes(state);
 const runIdFor = (admission: AdpTaskAdmission) => `adp_${createHash("sha256")
@@ -41,15 +42,19 @@ export class AdpManagedRuns {
       }
       transaction.set(ref, admission);
     });
-    if (admission.enabled && admission.autostart && admission.expires_at > this.now() / 1000) {
-      await this.start(admission.task_id, "blueprint-pipeline-controller");
+    if (admission.autostart) {
+      // Outage-delayed result collection remains valid after inference authority
+      // expires or is revoked. It never authorizes another provider execution.
+      await this.start(admission.task_id, "blueprint-pipeline-controller", {
+        collectionOnly: !admission.enabled || admission.expires_at <= this.now() / 1000,
+      });
     }
     return { schema_version: "blueprint_webapp_agent_admission_receipt.v1", admission, proof_effect: "none" };
   }
 
-  async start(taskId: string, actorId: string) {
+  async start(taskId: string, actorId: string, options: { collectionOnly?: boolean } = {}) {
     const admission = await this.admission(taskId);
-    if (!admission.enabled || admission.expires_at <= this.now() / 1000) {
+    if (!options.collectionOnly && (!admission.enabled || admission.expires_at <= this.now() / 1000)) {
       throw new Error("adp_agent_admission_expired_or_disabled");
     }
     const runId = runIdFor(admission);
@@ -71,7 +76,7 @@ export class AdpManagedRuns {
         input: { kind: "adp_run_operator", input: { pipeline_task_id: taskId },
           provider: admission.runtime, runtime: admission.runtime, model: admission.model },
         created_at: timestamp, updated_at: timestamp, requires_human_review: false,
-        cancel_requested: false, cleanup_requested: false,
+        cancel_requested: false, cleanup_requested: false, collection_only: Boolean(options.collectionOnly),
         metadata: { actor_id: actorId, source_commit: admission.source_commit, blueprint_run_id: admission.run_id,
           proof_effect: "none", remote_owner: "blueprint-pipeline", agent_profile_id: "built-in-adp-run-operator" },
       });
@@ -158,6 +163,7 @@ export class AdpManagedRuns {
         state = await this.forward(admission, "inspect");
       } catch (error) {
         if (!(error instanceof AdpPipelineRequestError) || error.code !== "agent_task_missing") throw error;
+        if (claimed.run.collection_only || !admission.enabled || admission.expires_at <= this.now() / 1000) throw error;
         // A lost enqueue response can safely select the same immutable task
         // again. The Pipeline journal is the only provider-creation owner.
         state = await mutate(admission, "enqueue");
@@ -194,9 +200,13 @@ export class AdpManagedRuns {
             ...(terminal(result.status) ? { completed_at: timestamp } : {}),
           });
         }
-        const needsCleanup = (existing.cleanup_requested || state.cleanup_when_terminal) && state.cleanup_state !== "deleted";
-        if (terminal(result.status) && !needsCleanup) transaction.delete(pendingRef);
-        else transaction.update(pendingRef, { next_poll_at_ms: this.now() + POLL_MS,
+        // A terminal reasoning turn may retain its session for a later run
+        // revision. Keep observing until the owning controller confirms cleanup;
+        // this readback must never request deletion of a retained session.
+        const cleanupUnobserved = state.cleanup_state !== "deleted";
+        const retainedSession = terminal(result.status) && !existing.cleanup_requested && !state.cleanup_when_terminal;
+        if (terminal(result.status) && !cleanupUnobserved) transaction.delete(pendingRef);
+        else transaction.update(pendingRef, { next_poll_at_ms: this.now() + (retainedSession ? RETAINED_SESSION_POLL_MS : POLL_MS),
           lease_owner: null, lease_until_ms: 0, last_error: null });
       });
       return { performed: true, run_id: runId, state: result.status };
@@ -207,7 +217,9 @@ export class AdpManagedRuns {
       await this.store.runTransaction(async (transaction) => {
         const pending = await transaction.get(pendingRef);
         if (!pending.exists || pending.data()!.lease_owner !== owner) return;
-        transaction.update(pendingRef, { next_poll_at_ms: this.now() + POLL_MS,
+        const retainedSession = claimed.run.collection_only || (terminal(claimed.run.status) && !claimed.run.cleanup_requested
+          && !claimed.run.artifacts?.agent_execution?.cleanup_when_terminal);
+        transaction.update(pendingRef, { next_poll_at_ms: this.now() + (retainedSession ? RETAINED_SESSION_POLL_MS : POLL_MS),
           lease_owner: null, lease_until_ms: 0, last_error: code });
         transaction.update(runRef, { reconciliation_error: code, updated_at: new Date(this.now()).toISOString() });
       });

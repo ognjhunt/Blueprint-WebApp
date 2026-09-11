@@ -53,7 +53,7 @@ function setup(forward = vi.fn(async (record: AdpTaskAdmission) => status(record
   } as unknown as FirebaseFirestore.Firestore;
   let now = Date.now();
   const service = new AdpManagedRuns(store, forward, () => now);
-  return { service, state, forward, advance: () => { now += 6000; } };
+  return { service, state, forward, advance: (milliseconds = 6000) => { now += milliseconds; } };
 }
 
 beforeEach(() => {
@@ -63,6 +63,72 @@ beforeEach(() => {
 afterEach(() => { delete process.env.BLUEPRINT_AGENT_PIPELINE_BASE_URL; delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN; });
 
 describe("admitted asynchronous runtime", () => {
+  it.each(["expired", "revoked"])("collects a delayed %s admission without restarting inference", async (reason) => {
+    const record = { ...admission(), autostart: true, ...(reason === "expired" ? { expires_at: 1 } : { enabled: false }) };
+    const forward = vi.fn(async (value: AdpTaskAdmission) => ({ ...status(value, "completed"), cleanup_state: "deleted" as const }));
+    const { service } = setup(forward);
+    await service.admit(record);
+    expect((await service.status(record.task_id)).run!.collection_only).toBe(true);
+    await service.tick();
+    expect((await service.status(record.task_id)).run!.status).toBe("completed");
+    expect(forward).toHaveBeenCalledWith(record, "inspect");
+    expect(forward).toHaveBeenCalledOnce();
+    await expect(service.start(record.task_id, "operator")).rejects.toThrow("expired_or_disabled");
+  });
+
+  it("does not turn a missing late task into a new execution", async () => {
+    const record = { ...admission(), autostart: true, expires_at: 1 };
+    const forward = vi.fn().mockRejectedValue(new AdpPipelineRequestError(409, "agent_task_missing"));
+    const { service, advance } = setup(forward);
+    await service.admit(record); await service.tick();
+    expect((await service.status(record.task_id)).run!.reconciliation_error).toBe("agent_task_missing");
+    advance(); await service.tick();
+    expect(forward).toHaveBeenCalledOnce();
+    expect(forward.mock.calls[0][1]).toBe("inspect");
+  });
+
+  it.each(["completed", "failed", "cancelled"] as const)("observes deferred cleanup after %s without deleting a retained session", async (terminalState) => {
+    const record = admission();
+    let current = { ...status(record, terminalState), cleanup_when_terminal: false };
+    const forward = vi.fn(async (_record: AdpTaskAdmission, _action?: string) => current);
+    const { service, state, advance } = setup(forward);
+    await service.admit(record);
+    const { run } = await service.start(record.task_id, "operator");
+    await service.tick();
+    const original = (await service.status(record.task_id)).run!;
+    expect(state.docs.has(`${ADP_PENDING}/${run!.id}`)).toBe(true);
+    advance(); await service.tick();
+    expect(forward).toHaveBeenCalledOnce();
+    current = { ...current, cleanup_state: "deleted", updated_at: 101 };
+    advance(60_000);
+    const restarted = new AdpManagedRuns(service.store, forward, service.now);
+    await restarted.tick();
+    const finished = (await restarted.status(record.task_id)).run!;
+    expect(finished.status).toBe(terminalState);
+    expect(finished.output).toEqual(original.output);
+    expect(finished.completed_at).toEqual(original.completed_at);
+    expect(finished.artifacts.agent_execution.cleanup_state).toBe("deleted");
+    expect(state.docs.has(`${ADP_PENDING}/${run!.id}`)).toBe(false);
+    expect(forward.mock.calls.map((call) => call[1])).toEqual(["inspect", "inspect"]);
+  });
+
+  it("retains deferred cleanup across an outage without rapid terminal polling", async () => {
+    const record = admission();
+    const current = { ...status(record, "completed"), cleanup_when_terminal: false };
+    const forward = vi.fn().mockResolvedValueOnce(current)
+      .mockRejectedValueOnce(new AdpPipelineRequestError(null, "adp_agent_pipeline_request_unresolved"))
+      .mockResolvedValueOnce({ ...current, cleanup_state: "deleted", updated_at: 101 });
+    const { service, advance } = setup(forward);
+    await service.admit(record); await service.start(record.task_id, "operator"); await service.tick();
+    advance(60_000); await service.tick();
+    expect((await service.status(record.task_id)).run!.status).toBe("completed");
+    advance(); await service.tick();
+    expect(forward).toHaveBeenCalledTimes(2);
+    advance(60_000); await service.tick();
+    expect((await service.status(record.task_id)).run!.artifacts.agent_execution.cleanup_state).toBe("deleted");
+    expect(forward.mock.calls.map((call) => call[1])).toEqual(["inspect", "inspect", "inspect"]);
+  });
+
   it("keeps reading back controller-owned automatic cleanup after completion", async () => {
     const record = admission();
     let current = { ...status(record, "completed"), cleanup_when_terminal: true };
@@ -130,7 +196,7 @@ describe("admitted asynchronous runtime", () => {
     advance(); await service.tick();
     expect(forward.mock.calls.map((call) => call[1])).toEqual(["inspect", "enqueue", "inspect"]);
     expect((await service.status(record.task_id)).run!.status).toBe("completed");
-    expect([...state.docs.keys()].some((key) => key.startsWith(`${ADP_PENDING}/`))).toBe(false);
+    expect([...state.docs.keys()].some((key) => key.startsWith(`${ADP_PENDING}/`))).toBe(true);
   });
 
   it("keeps cancellation pending across an outage and accepts only observed terminal cancellation", async () => {
