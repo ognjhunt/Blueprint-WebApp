@@ -66,9 +66,56 @@ export function isGeminiVideoConfigured(): boolean {
   );
 }
 
+/**
+ * How hard the OpenAI models think, per lane.
+ *
+ * `reasoning.effort` is a request parameter, not part of the model id, so
+ * picking a model and picking an effort are two separate decisions. The adapter
+ * used to hardcode "medium" for everything, which meant a lane could not be
+ * tuned without editing it.
+ *
+ * `inbound_qualification` defaults to "max" deliberately. It is the lane that
+ * reads a real operator's description against their own dropdown answers and
+ * decides whether a site moves forward, and the cost of getting that wrong is a
+ * wasted visit or a company told no for the wrong reason. Luna is the
+ * cheapest 5.6 variant, so buying the most thinking on the most consequential
+ * lane is an easy trade.
+ *
+ * Everything else stays at "medium" — the default the adapter already used, so
+ * no other lane changes behaviour.
+ */
+const REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
+export type OpenAiReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort>> = {
+  inbound_qualification: "max",
+};
+
+function normalizeEffort(value: string | undefined | null): OpenAiReasoningEffort | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  return (REASONING_EFFORTS as readonly string[]).includes(normalized)
+    ? (normalized as OpenAiReasoningEffort)
+    : null;
+}
+
+export function getOpenAiReasoningEffort(
+  taskKind: AgentTaskKind | undefined,
+): OpenAiReasoningEffort {
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  const perTask = suffix
+    ? normalizeEffort(process.env[`OPENAI_${suffix.replace(/_MODEL$/, "")}_REASONING_EFFORT`])
+    : null;
+  return (
+    perTask ||
+    normalizeEffort(process.env.OPENAI_REASONING_EFFORT) ||
+    (taskKind ? TASK_REASONING_EFFORT[taskKind] : null) ||
+    "medium"
+  );
+}
+
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
   deepseek_chat: "deepseek-v4-pro",
-  openai_responses: "gpt-5.4",
+  openai_responses: "gpt-5.6-luna",
   anthropic_agent_sdk: "claude-sonnet-4-5",
   acp_harness: "codex",
   openclaw: "gpt-5.4",
