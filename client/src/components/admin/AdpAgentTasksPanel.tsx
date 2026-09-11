@@ -68,11 +68,11 @@ export default function AdpAgentTasksPanel() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {!run && admission.enabled && !expired ? <button className="runway-btn-secondary" disabled={action.isPending}
+                  {!run && admission.enabled && !expired ? <button className="runway-button-secondary" disabled={action.isPending}
                     onClick={() => action.mutate({ taskId: admission.task_id, operation: "start" })}>Start investigation</button> : null}
-                  {run && !done ? <button className="runway-btn-secondary" disabled={action.isPending || run.cancel_requested}
+                  {run && !done ? <button className="runway-button-secondary" disabled={action.isPending || run.cancel_requested}
                     onClick={() => action.mutate({ taskId: admission.task_id, operation: "cancel" })}>Cancel task</button> : null}
-                  {done && cleanup !== "deleted" ? <button className="runway-btn-secondary" disabled={action.isPending || run?.cleanup_requested}
+                  {done && cleanup !== "deleted" ? <button className="runway-button-secondary" disabled={action.isPending || run?.cleanup_requested}
                     onClick={() => action.mutate({ taskId: admission.task_id, operation: "cleanup" })}>Clean up session</button> : null}
                 </div>
               </div>

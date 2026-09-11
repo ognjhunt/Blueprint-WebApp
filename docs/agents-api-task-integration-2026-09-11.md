@@ -49,5 +49,6 @@ reference because numeric JSON serialization differs between Python and JS.
 
 Focused checks cover signed admission, actor scope, rejected caller arguments,
 lost replies, competing workers, cancellation races, terminal immutability and
-cleanup retention. Browser and live production verification remain required
-before claiming the end-to-end integration is complete.
+cleanup retention. A focused browser fixture verifies pending cancellation, terminal updates and
+cleanup without losing the diagnosis. Live production verification remains
+required before claiming the end-to-end integration is complete.
