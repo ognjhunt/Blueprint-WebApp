@@ -189,7 +189,7 @@ export class AdpManagedRuns {
             ...(terminal(result.status) ? { completed_at: timestamp } : {}),
           });
         }
-        const needsCleanup = existing.cleanup_requested && state.cleanup_state !== "deleted";
+        const needsCleanup = (existing.cleanup_requested || state.cleanup_when_terminal) && state.cleanup_state !== "deleted";
         if (terminal(result.status) && !needsCleanup) transaction.delete(pendingRef);
         else transaction.update(pendingRef, { next_poll_at_ms: this.now() + POLL_MS,
           lease_owner: null, lease_until_ms: 0, last_error: null });

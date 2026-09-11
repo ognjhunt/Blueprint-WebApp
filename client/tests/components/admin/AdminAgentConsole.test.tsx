@@ -8,6 +8,10 @@ vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: async (headers: Record<string, string>) => headers,
 }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ currentUser: { uid: "test-admin", getIdToken: async () => "fixture-admin-token" } }),
+}));
+
 function renderConsole() {
   const client = new QueryClient({
     defaultOptions: {

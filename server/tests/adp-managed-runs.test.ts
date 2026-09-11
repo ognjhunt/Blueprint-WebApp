@@ -63,6 +63,24 @@ beforeEach(() => {
 afterEach(() => { delete process.env.BLUEPRINT_AGENT_PIPELINE_BASE_URL; delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN; });
 
 describe("admitted asynchronous runtime", () => {
+  it("keeps reading back controller-owned automatic cleanup after completion", async () => {
+    const record = admission();
+    let current = { ...status(record, "completed"), cleanup_when_terminal: true };
+    const forward = vi.fn(async () => current);
+    const { service, state, advance } = setup(forward);
+    await service.admit(record);
+    const { run } = await service.start(record.task_id, "operator");
+    await service.tick();
+    expect((await service.status(record.task_id)).run!.status).toBe("completed");
+    expect(state.docs.has(`${ADP_PENDING}/${run!.id}`)).toBe(true);
+    current = { ...current, cleanup_state: "deleted", updated_at: 101 };
+    advance(); await service.tick();
+    const saved = (await service.status(record.task_id)).run!;
+    expect(saved.artifacts.agent_execution.cleanup_state).toBe("deleted");
+    expect(saved.output).toEqual(diagnosis);
+    expect(state.docs.has(`${ADP_PENDING}/${run!.id}`)).toBe(false);
+    expect(forward.mock.calls).toHaveLength(2);
+  });
   it("keeps an episode pending until independent collection and retains numeric evidence digests", async () => {
     const record = admission();
     const current = status(record, "completed");
