@@ -118,8 +118,24 @@ export type InboundQualificationTaskInput = {
   taskDescription?: string | null;
   /** What goes wrong today, where the useful edge cases live. */
   whatGoesWrong?: string | null;
-  /** Optional link to task footage. Presence is a signal; we do not watch it here. */
+  /** Optional link to task footage. Still not watched *here* — see below. */
   taskVideoUrl?: string | null;
+  /**
+   * What the `site_video_evidence` task found, when footage was attached and
+   * the lane is on. Arrives already settled, exactly like the gate verdict: a
+   * separate model with the actual video watched it, and
+   * `clampRecommendationToGates` enforces the consequences regardless of what
+   * this model concludes. Supplied so the summary and missing_information can
+   * reflect it, not so it can be re-litigated.
+   */
+  videoEvidence?: {
+    footage_status: string | null;
+    contradictions: Array<{ field_id: string; observation: string; confidence: number }>;
+    corroborations: Array<{ field_id: string; observation: string; confidence: number }>;
+    not_evidenced: string[];
+    measured_cycle_seconds: number | null;
+    measured_cycle_band: string | null;
+  } | null;
 };
 
 export const inboundQualificationTask: StructuredTaskDefinition<
@@ -168,7 +184,15 @@ narrative_review — the one judgement asked of you:
 - finding="contradicts_structured" when the prose describes something the dropdowns deny. The common case is several distinct jobs described under "one task, done the same way"; another is arbitrary items described where the operator said the item list was short and enumerable. Quote the specific conflict in note.
 - finding="needs_detail" when the description is too thin to tell whether the task is genuinely one bounded job.
 - finding="consistent" when prose and dropdowns agree. Say so plainly rather than manufacturing a concern.
-- If taskVideoUrl is present, note it in internal_summary as evidence available for review. You cannot watch it; do not infer anything about its contents, and do not treat its presence as raising confidence.
+- You cannot watch taskVideoUrl. Do not infer anything about its contents, and do not treat its presence as raising confidence.
+
+videoEvidence — footage already read by another model:
+- When videoEvidence is present, a separate reader with the actual video produced it. Treat it exactly as you treat gateDisposition: settled, and not yours to re-score.
+- videoEvidence.contradictions are fields where the footage disagreed with the site's own answer. Put each in missing_information and reflect it in internal_summary. It is already being enforced downstream; your job is to describe it, not to act on it.
+- videoEvidence.corroborations confirm what the site said. They deliberately change nothing — never raise confidence or recommend a faster path because footage agreed.
+- videoEvidence.not_evidenced is what the reader looked for and could not see. Absence of evidence is not evidence; do not read it either way.
+- measured_cycle_seconds is timed off the footage rather than self-reported. Prefer it over the cycleTime dropdown when the two differ, and say so in internal_summary.
+- When videoEvidence is absent, say nothing about footage at all.
 - Set narrative_review to null when siteTaskGates is absent — there is nothing to compare against.
 - narrative_review can only lead to more human scrutiny, never less. Do not use finding="consistent" as a reason to raise confidence or to recommend a faster path.`,
       returnShape: {

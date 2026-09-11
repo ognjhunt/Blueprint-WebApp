@@ -926,6 +926,11 @@ async function executeTask<TInput, TOutput>(
     return runAcpHarnessTask(task);
   }
 
+  if (task.provider === "gemini_video") {
+    const { runGeminiVideoTask } = await import("./adapters/gemini-video");
+    return runGeminiVideoTask(task);
+  }
+
   const taskForPolicy = task as unknown as NormalizedAgentTask<unknown, unknown>;
   const inputRecord =
     task.input && typeof task.input === "object"

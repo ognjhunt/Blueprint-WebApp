@@ -29,6 +29,7 @@ import agentAccessRouter from "./routes/agent-access";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import capturerApplicationsRouter from "./routes/capturer-applications";
 import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
@@ -162,6 +163,15 @@ export function registerRoutes(app: Express) {
   // Inbound request (lead pipeline) - public submission endpoint
   app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
   app.use("/api/requests", csrfProtection, requestsRouter);
+  // The robot-team registry and its review queue. Operator-only: accepting a
+  // proposal is the one action that turns an inferred figure into a registry
+  // value, and it records who did it.
+  app.use(
+    "/api/admin/robot-teams",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminRobotTeamsRouter,
+  );
   // Admin leads management - requires Firebase auth
   app.use(
     "/api/admin/leads",

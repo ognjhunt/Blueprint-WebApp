@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { clampRecommendationToGates } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
@@ -136,5 +136,113 @@ describe("clampRecommendationToGates", () => {
       requires_human_review: true,
     });
     expect(clamped.requiresHumanReview).toBe(true);
+  });
+});
+
+/* ------------------------------------------------- footage, through the clamp */
+
+function evidence(
+  overrides: Partial<NonNullable<InboundRequest["site_video_evidence"]>> = {},
+): InboundRequest["site_video_evidence"] {
+  return {
+    status: "analysed",
+    footage_status: "usable",
+    contradictions: [],
+    corroborations: [],
+    not_evidenced: [],
+    measured_cycle_seconds: null,
+    measured_cycle_band: null,
+    people_relationship_to_work: "none_visible",
+    privacy_flag: false,
+    summary: null,
+    error_code: null,
+    model: "gemini-3.8-flash",
+    evaluated_at: "2026-08-24T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+const recommendation = {
+  qualification_state_recommendation: "qualified_ready" as const,
+  requires_human_review: false,
+};
+
+describe("clampRecommendationToGates with footage", () => {
+  const APPLY = "BLUEPRINT_SITE_VIDEO_EVIDENCE_APPLY";
+
+  afterEach(() => {
+    delete process.env[APPLY];
+  });
+
+  it("leaves the recommendation alone while the apply flag is off", () => {
+    process.env[APPLY] = "";
+    const result = clampRecommendationToGates(
+      triage("qualified"),
+      recommendation,
+      evidence({
+        contradictions: [{ field_id: "taskShape", observation: "Three jobs", confidence: 0.9 }],
+      }),
+    );
+    // Shadow mode: the finding is recorded elsewhere, but nothing moves.
+    expect(result.qualificationState).toBe("qualified_ready");
+  });
+
+  it("downgrades a forward state once footage is trusted", () => {
+    process.env[APPLY] = "1";
+    const result = clampRecommendationToGates(
+      triage("qualified"),
+      recommendation,
+      evidence({
+        contradictions: [{ field_id: "taskShape", observation: "Three jobs", confidence: 0.9 }],
+      }),
+    );
+    expect(result.qualificationState).toBe("in_review");
+    expect(result.requiresHumanReview).toBe(true);
+  });
+
+  it("ignores a contradiction it is not confident about", () => {
+    process.env[APPLY] = "1";
+    const result = clampRecommendationToGates(
+      triage("qualified"),
+      recommendation,
+      evidence({
+        contradictions: [{ field_id: "taskShape", observation: "Maybe", confidence: 0.3 }],
+      }),
+    );
+    expect(result.qualificationState).toBe("qualified_ready");
+  });
+
+  it("never raises anything on corroboration, flag on or off", () => {
+    for (const flag of ["", "1"]) {
+      process.env[APPLY] = flag;
+      const result = clampRecommendationToGates(
+        triage("not_now"),
+        recommendation,
+        evidence({
+          corroborations: [
+            { field_id: "sceneStability", observation: "Rock solid", confidence: 1 },
+          ],
+        }),
+      );
+      // The site failed a gate. A flattering clip cannot undo that.
+      expect(result.qualificationState).toBe("not_ready_yet");
+    }
+  });
+
+  it("routes a privacy flag to a human even in shadow mode", () => {
+    process.env[APPLY] = "";
+    const result = clampRecommendationToGates(
+      triage("qualified"),
+      recommendation,
+      evidence({ privacy_flag: true }),
+    );
+    // Consent is not a shadowed concern.
+    expect(result.requiresHumanReview).toBe(true);
+  });
+
+  it("is a no-op when there is no footage", () => {
+    const result = clampRecommendationToGates(triage("qualified"), recommendation, null);
+    expect(result.qualificationState).toBe("qualified_ready");
+    expect(result.requiresHumanReview).toBe(false);
   });
 });

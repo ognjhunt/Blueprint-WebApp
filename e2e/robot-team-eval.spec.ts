@@ -11,11 +11,14 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   await page.goto("/for-robot-teams");
   await expect(page.getByText(/site-funded manipulation evaluations/)).toBeVisible();
   await expect(page.getByText(/applying does not guarantee either/)).toBeVisible();
-  await expect(page.getByLabel("Evaluation budget")).toHaveCount(0);
+  // The robot side screens on whether a team would deploy, not on whether a
+  // room works, so it must never show the site gates.
+  await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  await expect(page.locator("#gate-hardwareMaturity")).toBeVisible();
   await page.goto("/for-site-operators");
   await expect(page).toHaveURL(/\/contact\/site-operator/);
   await expect(page.getByText(/paid evaluation/)).toBeVisible();
-  await expect(page.getByLabel("Evaluation budget")).toBeVisible();
+  await expect(page.locator("#gate-serviceArea")).toBeVisible();
 });
 
 test("both persona destinations are usable on mobile", async ({ page }) => {

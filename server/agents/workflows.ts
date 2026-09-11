@@ -27,7 +27,15 @@ import type {
   AgentResult,
   AgentTaskKind,
 } from "./types";
-import { isPhase2LaneEnabled } from "../config/env";
+import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
+import { buildQualificationEmail } from "../utils/qualificationEmails";
+import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
+import type { MatchSummary } from "../../client/src/lib/robotMatch";
+import {
+  measureVideoEvidenceEffect,
+  runSiteVideoEvidenceForRequest,
+} from "../utils/siteVideoEvidence";
+import { VIDEO_CONTRADICTION_CONFIDENCE_FLOOR } from "../../client/src/lib/gateTriage";
 import {
   dispatchWorkflowHumanReviewBlocker,
   safelyDispatchHumanBlocker,
@@ -608,6 +616,13 @@ export function clampRecommendationToGates(
     InboundQualificationOutput,
     "qualification_state_recommendation" | "requires_human_review"
   > & { narrative_review?: { finding: string; note: string } | null },
+  /**
+   * What the footage reader found, when there was footage. Folded here rather
+   * than upstream so the guarantee is the same one the gates already get: this
+   * function is the only place a recommendation is allowed to move, and it only
+   * ever moves it downward.
+   */
+  videoEvidence?: InboundRequest["site_video_evidence"],
 ): { qualificationState: QualificationState; requiresHumanReview: boolean } {
   let qualificationState = result.qualification_state_recommendation;
   let requiresHumanReview = result.requires_human_review;
@@ -633,16 +648,45 @@ export function clampRecommendationToGates(
     }
   }
 
+  if (videoEvidence) {
+    // Footage centred on identifiable people is a consent question, and consent
+    // fails closed. This is deliberately outside the apply flag: it routes to a
+    // person whether or not footage is yet trusted to move a verdict, because
+    // what it flags is not a qualification finding at all.
+    if (videoEvidence.privacy_flag) {
+      requiresHumanReview = true;
+    }
+
+    // Footage and form disagreeing is the same shape of problem as prose and
+    // dropdowns disagreeing, so it gets the same answer: a person, not a
+    // refusal. Note there is no branch that moves anything upward — a glowing
+    // clip of a site that failed a gate changes nothing, by construction.
+    const credibleContradictions = isSiteVideoEvidenceApplied()
+      ? videoEvidence.contradictions.filter(
+          (item) => item.confidence >= VIDEO_CONTRADICTION_CONFIDENCE_FLOOR,
+        )
+      : [];
+    if (credibleContradictions.length) {
+      requiresHumanReview = true;
+      if (FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+        qualificationState = "in_review";
+      }
+    }
+  }
+
   return { qualificationState, requiresHumanReview };
 }
 
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
+  /** Absent when the match has not run — a different thing from "no matches". */
+  matches?: MatchSummary | null,
 ) {
   const { qualificationState, requiresHumanReview } = clampRecommendationToGates(
     request.site_task_triage,
     result,
+    request.site_video_evidence,
   );
 
   const routingStatus =
@@ -670,18 +714,28 @@ function buildInboundActionSpecs(
     },
   ];
 
-  if (
-    request.contact.email &&
-    result.buyer_follow_up
-  ) {
+  // A screened submission gets the deterministic reply built from its own gate
+  // answers. The model's `buyer_follow_up` is the fallback for submissions that
+  // carried no gates — legacy rows and the non-intake paths — where there are no
+  // `unblocks` strings to build a reply out of.
+  const screenedEmail = buildQualificationEmail({
+    firstName: request.contact.firstName,
+    siteName: request.request.siteName,
+    triage: request.site_task_triage,
+    matches,
+  });
+
+  if (request.contact.email && (screenedEmail || result.buyer_follow_up)) {
     specs.push({
-      actionKey: "inbound_follow_up_email",
+      actionKey: screenedEmail
+        ? `inbound_${screenedEmail.variant}_email`
+        : "inbound_follow_up_email",
       actionType: "send_email" as const,
       actionPayload: {
         type: "send_email" as const,
         to: request.contact.email,
-        subject: result.buyer_follow_up.subject,
-        body: result.buyer_follow_up.body,
+        subject: screenedEmail?.subject ?? result.buyer_follow_up.subject,
+        body: screenedEmail?.body ?? result.buyer_follow_up.body,
       },
       policy: createInboundEmailPolicy(),
     });
@@ -1123,6 +1177,18 @@ function extractInboundQualificationInput(request: InboundRequest) {
     taskDescription: request.request.taskDescription || null,
     whatGoesWrong: request.request.whatGoesWrong || null,
     taskVideoUrl: request.request.taskVideoUrl || null,
+    // Only the findings, never the raw reader output: the model is given what
+    // was settled, in the same shape and with the same authority as the gates.
+    videoEvidence: request.site_video_evidence
+      ? {
+          footage_status: request.site_video_evidence.footage_status,
+          contradictions: request.site_video_evidence.contradictions,
+          corroborations: request.site_video_evidence.corroborations,
+          not_evidenced: request.site_video_evidence.not_evidenced,
+          measured_cycle_seconds: request.site_video_evidence.measured_cycle_seconds,
+          measured_cycle_band: request.site_video_evidence.measured_cycle_band,
+        }
+      : null,
   };
 }
 
@@ -1155,6 +1221,57 @@ export async function runInboundQualificationForRequest(
     },
     { merge: true },
   );
+
+  // Footage is read before qualification so the text model sees a settled
+  // finding rather than a link it is forbidden to open. Failures here never
+  // fail the request: a site that shared an unreadable link still gets screened
+  // on what it told us.
+  const videoEvidence = await runSiteVideoEvidenceForRequest(request).catch((error) => {
+    logger.warn(
+      { err: error, requestId: request.requestId },
+      "Site video evidence failed; continuing without it",
+    );
+    return null;
+  });
+
+  if (videoEvidence) {
+    const shadow = measureVideoEvidenceEffect(
+      request.site_task_triage?.disposition,
+      videoEvidence,
+    );
+    await docRef.set(
+      {
+        site_video_evidence: {
+          ...videoEvidence,
+          // The agreement measurement. In shadow mode this is the only thing
+          // the footage produces, and it is the number that decides whether the
+          // apply flag is ever justified.
+          shadow_applied: shadow.applied,
+          shadow_would_have_changed_disposition: shadow.wouldHaveChangedDisposition,
+        },
+      },
+      { merge: true },
+    );
+    request = { ...request, site_video_evidence: videoEvidence };
+  }
+
+  // A site that cleared the screen is matched against the registry before the
+  // reply is built, so the qualified branch has a count it can stand behind
+  // rather than a sentence that means nothing.
+  const matchSummary = await runSiteMatch(request).catch((error) => {
+    logger.warn(
+      { err: error, requestId: request.requestId },
+      "Site match run failed; continuing without it",
+    );
+    return null;
+  });
+
+  if (matchSummary) {
+    await docRef.set(
+      { site_match: summariseForStorage(matchSummary) },
+      { merge: true },
+    );
+  }
 
   const result = await runAgentTask<
     ReturnType<typeof extractInboundQualificationInput>,
@@ -1192,7 +1309,7 @@ export async function runInboundQualificationForRequest(
   const automationStatus = normalizeAutomationStatus(
     output.automation_status,
   );
-  const { routingStatus, specs } = buildInboundActionSpecs(request, output);
+  const { routingStatus, specs } = buildInboundActionSpecs(request, output, matchSummary);
   const phase2DraftPatch = makeWorkflowDraftStatePatch({
     existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
     lane: "inbound",

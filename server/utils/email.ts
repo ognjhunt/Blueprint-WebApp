@@ -332,18 +332,66 @@ async function sendViaSendGrid({
   }
 }
 
-export async function sendEmail({
-  to,
-  subject,
-  text,
-  html,
-  replyTo,
-  fromEmail,
-  fromName,
-  sendGridCategories,
-  sendGridCustomArgs,
-  attachments,
-}: SendEmailOptions): Promise<SendEmailResult> {
+/**
+ * Send everything to one inbox instead of to real people.
+ *
+ * For exercising a live pipeline end to end without mailing the leads in it.
+ * `BLUEPRINT_EMAIL_TEST_REDIRECT=you@example.com` routes every outbound message
+ * to that address, whatever the pipeline addressed it to, and stamps the
+ * intended recipient into the subject so a full run is still legible in one
+ * inbox.
+ *
+ * Deliberately a redirect rather than a suppression list: a filter that blocks
+ * known-internal addresses still sends to everybody it does not recognise,
+ * which is the wrong default when the thing being tested is who gets mail.
+ *
+ * Refuses to engage in production. A redirect that survived a deploy would
+ * silently stop every real buyer, capturer and payout email, and it would look
+ * exactly like a working system while doing it.
+ */
+export function resolveTestRedirect(to: string): { to: string; redirectedFrom?: string } {
+  const target = process.env.BLUEPRINT_EMAIL_TEST_REDIRECT?.trim();
+  if (!target) return { to };
+
+  if (process.env.NODE_ENV === "production") {
+    logger.error(
+      { event: "email_test_redirect_refused_in_production" },
+      "BLUEPRINT_EMAIL_TEST_REDIRECT is set in production and was ignored",
+    );
+    return { to };
+  }
+
+  if (target === to) return { to };
+  logger.info(
+    { event: "email_test_redirected", originalDomain: to.split("@").pop() ?? null },
+    "Outbound email redirected to the test inbox",
+  );
+  return { to: target, redirectedFrom: to };
+}
+
+export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+  const redirect = resolveTestRedirect(options.to);
+  const {
+    to,
+    subject,
+    text,
+    html,
+    replyTo,
+    fromEmail,
+    fromName,
+    sendGridCategories,
+    sendGridCustomArgs,
+    attachments,
+  } = redirect.redirectedFrom
+    ? {
+        ...options,
+        to: redirect.to,
+        // The intended recipient belongs where a tester will see it, not only
+        // in a log line they would have to go looking for.
+        subject: `[test → ${redirect.redirectedFrom}] ${options.subject}`,
+      }
+    : options;
+
   const sendGridResult = await sendViaSendGrid({
     to,
     subject,
