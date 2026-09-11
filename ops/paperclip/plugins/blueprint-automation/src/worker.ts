@@ -1,4 +1,5 @@
 import "../../../../../server/config/bootstrap-env";
+import { runAdpExecutionTool } from "./adp-execution.js";
 
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
@@ -13598,6 +13599,17 @@ async function registerActionHandlers(ctx: PluginContext) {
 }
 
 async function registerToolHandlers(ctx: PluginContext) {
+  ctx.tools.register(TOOL_NAMES.adpExecution, {
+    displayName: "Blueprint ADP execution",
+    description: "Operate the admitted Pipeline task bound to this issue; retain its execution link in Paperclip.",
+    parametersSchema: { type: "object", properties: { action: { type: "string", enum: ["inspect", "start", "cancel", "cleanup"] } },
+      required: ["action"], additionalProperties: false },
+  }, async (params, runContext: ToolRunContext): Promise<ToolResult> => runAdpExecutionTool(params as Record<string, unknown>,
+    { agentId: runContext.agentId, runId: runContext.runId }, {
+      loadRun: (runId) => fetchPaperclipApiJson<HeartbeatRunDetail>(`/api/heartbeat-runs/${encodeURIComponent(runId)}`),
+      loadIssue: (companyId, issueId) => fetchIssueByIdWithFallback(ctx, companyId, issueId),
+      retain: (companyId, runId, record) => writeState(ctx, companyId, `adp-execution:${runId}`, record),
+    }));
   ctx.tools.register(
     TOOL_NAMES.scanWork,
     {

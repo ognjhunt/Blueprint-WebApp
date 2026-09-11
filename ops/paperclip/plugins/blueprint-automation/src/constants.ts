@@ -23,6 +23,7 @@ export const WEBHOOK_KEYS = {
   opsSupport: "ops-support",
 } as const;
 export const TOOL_NAMES = {
+  adpExecution: "blueprint-adp-execution",
   scanWork: "blueprint-scan-work",
   managerState: "blueprint-manager-state",
   upsertWorkItem: "blueprint-upsert-work-item",

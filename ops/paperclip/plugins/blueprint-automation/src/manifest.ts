@@ -327,6 +327,13 @@ const manifest: PaperclipPluginManifestV1 = {
   ],
   tools: [
     {
+      name: TOOL_NAMES.adpExecution,
+      displayName: "Blueprint ADP execution",
+      description: "Operate the admitted Task Evaluation task bound to the selected worker's current issue.",
+      parametersSchema: { type: "object", properties: { action: { type: "string", enum: ["inspect", "start", "cancel", "cleanup"] } },
+        required: ["action"], additionalProperties: false },
+    },
+    {
       name: TOOL_NAMES.scanWork,
       displayName: "Blueprint Scan Work",
       description:
