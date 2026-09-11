@@ -244,3 +244,37 @@ describe("scene task intake UI", () => {
     ).toEqual([retained, retained]);
   });
 });
+
+it("submits a registered public task and both required providers without an upload", async () => {
+  const fixedTask = {
+    task_id: "task-public-scene-one", strategy: "pick_and_place",
+    subject: { description: "small dark object", source_instance_id: "12" },
+    support: { description: "wooden tabletop", source_instance_id: "13" },
+    destination: { kind: "green_region", relation: "on", visible_label: "green spot", radius_m: .07,
+      position_world_m: [.4, .2, .75], orientation_xyzw: [0, 0, 0, 1] },
+    success: { control_frequency_hz: 15, maximum_episode_seconds: 24, minimum_lift_m: .05,
+      pregrasp_clearance_m: .1, minimum_planar_displacement_m: .1, maximum_final_planar_target_error_m: .03,
+      maximum_retries: 0, maximum_regrasps: 0 },
+  };
+  state.api.mockImplementation(async (_user, path, init) => init?.method === "POST" ? { id: "accepted" }
+    : path.endsWith("/options") ? { ...options, provider_terms: { ...options.provider_terms, openai: options.provider_terms.vast },
+        policy_pairs: [[{ id: "pi05_droid", artifact_digest: `sha256:${"a".repeat(64)}` },
+                       { id: "groot_n17_droid", artifact_digest: `sha256:${"b".repeat(64)}` }]] }
+    : path.endsWith("/sources") ? { sources: [{ id: "public-scene-one", label: "InteriorGS fixture", kind: "public_scene",
+        selectable: true, validation_status: "publisher_bytes_pending_controller_verification",
+        task_proposal: fixedTask, required_providers: ["vast", "openai"] }] } : { intakes: [] });
+  render(<SceneIntakeForm currentUser={user} sessions={[]} />);
+  await screen.findByRole("option", { name: /InteriorGS fixture/ });
+  fireEvent.change(screen.getByLabelText("Source"), { target: { value: "public-scene-one" } });
+  expect(screen.getByLabelText("Object to move")).toHaveValue("small dark object");
+  expect(screen.getByLabelText("Target X (m)")).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Total spending ceiling (USD)"), { target: { value: "50" } });
+  fireEvent.click(screen.getByLabelText(/I confirm this task/));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm task and submit run" }));
+  await waitFor(() => expect(state.api.mock.calls.some((call) => call[2]?.method === "POST")).toBe(true));
+  const submitted = JSON.parse(state.api.mock.calls.find((call) => call[2]?.method === "POST")![2].body);
+  expect(submitted.task).toEqual(fixedTask);
+  expect(submitted.execution.allowed_providers).toEqual(["vast", "openai"]);
+  expect(submitted.execution.max_total_spend_usd).toBe(50);
+  expect(submitted).not.toHaveProperty("owner");
+});

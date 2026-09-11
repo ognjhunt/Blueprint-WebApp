@@ -9,6 +9,7 @@ import {
   sceneProviderTerms,
   validateSceneProviderTerms,
   nativeSourceInOrganization,
+  scenePublicSourceCatalog,
   SCENE_INTAKE_COLLECTION,
 } from "../utils/taskEvaluationSceneIntake";
 import { resolvePublishedLaunchProfileCatalog } from "../utils/taskEvaluationLaunchContract";
@@ -52,6 +53,17 @@ router.post("/", async (req, res) => {
     const id = `scene-${sceneDigest({ owner, submission_id: parsed.data.submission_id }).slice(7)}`;
     const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
     const commandDigest = sceneDigest(parsed.data);
+    const existing = await storeTimeout(ref.get());
+    if (existing.exists) {
+      const retained = existing.data()!;
+      if (retained.command_digest !== commandDigest) throw new Error("idempotency_conflict");
+      return res.status(202).json(projection(id, retained));
+    }
+    const publicChoice = parsed.data.source_session_id.startsWith("public-")
+      ? (await scenePublicSourceCatalog()).find((row) => row.binding_id === parsed.data.source_session_id)
+      : undefined;
+    if (parsed.data.source_session_id.startsWith("public-") && !publicChoice)
+      throw new Error("source_validation_required");
     const result = await storeTimeout(
       db.runTransaction(async (transaction) => {
         const previous = await transaction.get(ref);
@@ -63,15 +75,14 @@ router.post("/", async (req, res) => {
         }
         const sourceRef = sceneSourceReference(parsed.data.source_session_id);
         validateSceneProviderTerms(parsed.data);
-        const source = await transaction.get(
-          db!.collection(sourceRef.collection).doc(sourceRef.id),
-        );
+        const source = publicChoice ? undefined : await transaction.get(
+          db!.collection(sourceRef.collection).doc(sourceRef.id));
         const collisionRef = parsed.data.collision_source_session_id ? sceneSourceReference(parsed.data.collision_source_session_id) : null;
         const collision = collisionRef ? await transaction.get(db!.collection(collisionRef.collection).doc(collisionRef.id)) : null;
         const request = buildSceneIntake(
           parsed.data,
           owner,
-          source.data() || {},
+          publicChoice || source?.data() || {},
           Date.now() / 1000,
           collision?.data(),
         );
@@ -100,6 +111,8 @@ router.post("/", async (req, res) => {
       "source_not_owned",
       "source_validation_required",
       "source_rights_binding_required",
+      "public_scene_task_selection_changed",
+      "public_scene_required_provider_missing",
       "collision_source_binding_required",
       "collision_source_mesh_required",
       "source_revoked",
@@ -149,7 +162,7 @@ router.get("/sources", async (_req, res) => {
   if (!db) return res.status(503).json({ error: "Source store unavailable" });
   try {
     const owner = sceneOwner(res.locals.firebaseUser || {});
-    const [captures, submissions] = await Promise.all([
+    const [captures, publicSources, submissions] = await Promise.all([
       storeTimeout(
         db
           .collection("creatorCaptures")
@@ -157,6 +170,7 @@ router.get("/sources", async (_req, res) => {
           .limit(100)
           .get(),
       ),
+      scenePublicSourceCatalog().catch(() => []),
       storeTimeout(
         db
           .collection("capture_submissions")
@@ -186,7 +200,7 @@ router.get("/sources", async (_req, res) => {
       if (!sources.some((source) => source.id === `native-${id}`))
         sources.push({ id: `native-${id}`, label: id, record });
     return res.json({
-      sources: sources.map((source) => ({
+      sources: [...sources.map((source) => ({
         id: source.id,
         label: source.label,
         kind: "capture_bundle",
@@ -199,7 +213,12 @@ router.get("/sources", async (_req, res) => {
             source.record?.immutable_upload_identity?.raw_bundle_digest,
           ) &&
           source.record?.capture_access?.future_processing_allowed !== false,
-      })),
+      })), ...publicSources.map((source) => ({
+        id: source.binding_id, label: source.label || `InteriorGS ${source.publisher_scene_id}`,
+        kind: "public_scene", source_type: "publisher_scene", validation_status: "publisher_bytes_pending_controller_verification",
+        selectable: true, task_proposal: source.task_proposal, task_proposal_digest: source.task_proposal_digest,
+        required_providers: source.required_providers,
+      }))],
     });
   } catch {
     return res.status(503).json({ error: "Native sources unavailable" });
