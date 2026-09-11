@@ -20,13 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import {
-  SurfaceBrowserFrame,
-  SurfaceMiniLabel,
-  SurfacePage,
-  SurfaceSection,
-  SurfaceTopBar,
-} from "@/components/site/privateSurface";
+import { AuthLayout, AuthSteps } from "@/components/auth/AuthLayout";
 import {
   PlaceAutocompleteInput,
   resolvePlaceLocationMetadata,
@@ -56,7 +50,6 @@ import {
   REQUESTED_LANE_LABELS,
   REQUESTED_LANES as SHARED_REQUESTED_LANES,
 } from "@/lib/requestTaxonomy";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import { PilotOpportunityFields } from "@/components/site/PilotOpportunityFields";
 import type {
   PilotOpportunityVisibility,
@@ -202,66 +195,6 @@ function splitName(value: string): { firstName: string; lastName: string } {
     firstName: parts[0] || "Unknown",
     lastName: parts.slice(1).join(" ") || "Contact",
   };
-}
-
-function StepIndicator({
-  currentStep,
-  totalSteps,
-}: {
-  currentStep: number;
-  totalSteps: number;
-}) {
-  return (
-    <div className="mb-8 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-      <div className="grid grid-cols-3 gap-3">
-        {Array.from({ length: totalSteps }, (_, index) => index + 1).map((stepNumber) => {
-          const isComplete = stepNumber < currentStep;
-          const isActive = stepNumber === currentStep;
-          return (
-            <div
-              key={stepNumber}
-              className={`border px-4 py-3 ${
-                isActive
-                  ? "border-runway-signal-dim bg-runway-panel"
-                  : isComplete
-                    ? "border-runway-green-dim bg-runway-panel"
-                    : "border-runway-line bg-runway-deep"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold ${
-                    isActive
-                      ? "border-runway-signal text-runway-signal"
-                      : isComplete
-                        ? "border-runway-green-dim text-runway-green"
-                        : "border-runway-line-strong text-runway-faint"
-                  }`}
-                >
-                  {isComplete ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
-                </div>
-                <div>
-                  <p
-                    className={`runway-meta ${
-                      isActive
-                        ? "text-runway-signal"
-                        : isComplete
-                          ? "text-runway-green"
-                          : "text-runway-faint"
-                    }`}
-                  >
-                    Step {stepNumber}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-runway-text">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="runway-meta">Step {currentStep} of {totalSteps}</p>
-    </div>
-  );
 }
 
 export default function BusinessSignUpFlow() {
@@ -947,9 +880,9 @@ export default function BusinessSignUpFlow() {
   ]);
 
   const slideVariants = {
-    enter: { opacity: 0, x: 36 },
+    enter: { opacity: 0, x: 0 },
     center: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -36 },
+    exit: { opacity: 0, x: 0 },
   };
 
   const isSiteOperatorSignup = buyerType === "site_operator";
@@ -958,26 +891,18 @@ export default function BusinessSignUpFlow() {
     : "Robot Team Access Request";
   const stepTitle =
     step === 1
-      ? "Organization details"
+      ? "Create an account"
       : step === 2
         ? isSiteOperatorSignup
-          ? "Role and site lane"
-          : "Team and requested lane"
+          ? "About your role"
+          : "About your team"
         : isSiteOperatorSignup
-          ? "Site boundary intake"
-          : "Site and workflow intake";
-  const stepLead =
-    step === 1
-      ? isSiteOperatorSignup
-        ? "Submit one workflow for the task discovery, site recreation, and robot-fit work that happens before onsite deployment."
-        : "Join to discover captured workflows and test robot fit before committing deployment engineers or hardware."
-      : step === 2
-        ? isSiteOperatorSignup
-          ? "Tell Blueprint who owns the facility context and whether the first path is private review, listing, or robot-team access review."
-          : "Tell Blueprint who is evaluating the site and which lane should open first."
-        : isSiteOperatorSignup
-          ? "Describe one real workflow, its operating numbers, and the access boundary you control."
-          : "Describe the robot, the target workflow, and what the onsite proof of concept would need to settle.";
+          ? "Your site and task"
+          : "Your site and task";
+  const stepLead = step === 1
+    ? "Start with your organization and account details."
+    : step === 2 ? "Tell us who you are and what you need."
+      : "Share the task and the access you can provide.";
   const visibleRequestedLanes = isSiteOperatorSignup
     ? REQUESTED_LANES.filter((lane) => lane.value === "qualification")
     : REQUESTED_LANES;
@@ -985,7 +910,7 @@ export default function BusinessSignUpFlow() {
   return (
     <>
       <SEO
-        title={`${accessLabel} | Blueprint`}
+        title="Create an account | Blueprint"
         description={
           isSiteOperatorSignup
             ? "Create a site-operator account to submit one workflow, control access, and review robot-team fit before onsite work."
@@ -995,50 +920,11 @@ export default function BusinessSignUpFlow() {
         noIndex
       />
 
-      <SurfacePage>
-        <SurfaceTopBar eyebrow="Secure Intake" rightLabel={accessLabel} />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame className="rounded-none shadow-none">
-            <div className="grid xl:grid-cols-[0.64fr_0.36fr]">
-              <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="mx-auto max-w-[42rem]">
-                  <SurfaceMiniLabel className="text-runway-faint">{accessLabel}</SurfaceMiniLabel>
-                  <h1 className="mt-4 font-display uppercase text-[clamp(2.8rem,4vw,4.5rem)] font-semibold tracking-[0.005em] leading-[0.92] text-runway-text">
-                    {stepTitle}
-                  </h1>
-                  <p className="mt-3 max-w-[34rem] text-sm leading-7 text-runway-mute">
-                    {stepLead}
-                  </p>
-
-                  <div className="mt-6 border border-runway-line bg-runway-panel px-5 py-4 text-sm leading-7 text-runway-mute">
-                    Existing portal users should use sign in instead of creating a second path. If
-                    the exact facility and workflow are already known, you can also{" "}
-                    <a
-                      href={
-                        isSiteOperatorSignup
-                          ? "/contact/site-operator?source=signup-business"
-                          : "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business"
-                      }
-                      className="font-semibold text-runway-text underline-offset-4 hover:underline"
-                    >
-                      {isSiteOperatorSignup ? "submit the site first" : "request site review"}
-                    </a>
-                    .
-                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                      <a href="/proof" className="font-semibold text-runway-text underline-offset-4 hover:underline">
-                        Inspect proof
-                      </a>
-                      <a href="/sites" className="font-semibold text-runway-text underline-offset-4 hover:underline">
-                        Browse sites
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="mt-8">
-                    <StepIndicator currentStep={step} totalSteps={3} />
-                  </div>
-
-                  <div className="runway-panel p-6 sm:p-7">
+      <AuthLayout wide>
+        <h1>{stepTitle}</h1>
+        <p className="auth-description">{stepLead}</p>
+        <AuthSteps currentStep={step} labels={BUYER_STEP_LABELS} />
+                  <div className="auth-signup-fields">
                     <AnimatePresence mode="wait">
                       {step === 1 ? (
                         <motion.div
@@ -1120,14 +1006,11 @@ export default function BusinessSignUpFlow() {
                             </div>
                           </div>
 
-                          <div className="border border-runway-line bg-runway-deep p-5">
-                            <p className="text-sm leading-7 text-runway-mute">
-                              Prefer Google? Authenticate now, then finish the intake details on
-                              the next step.
-                            </p>
+                          <div className="auth-signup-google">
+                            <div className="auth-divider"><span>or</span></div>
                             <button
                               type="button"
-                              className="runway-cta-ghost mt-4 disabled:opacity-50"
+                              className="auth-google disabled:opacity-50"
                               onClick={handleGoogleSignUp}
                               disabled={isSubmitting}
                             >
@@ -1465,7 +1348,7 @@ export default function BusinessSignUpFlow() {
                                   </select>
                                 </div>
                                 <div className="border border-runway-line bg-runway-deep p-4 text-sm leading-6 text-runway-mute">
-                                  <p className="font-semibold text-runway-text">Site submission is free.</p>
+                                  <p className="font-semibold text-runway-text">Evaluation scope and pricing are agreed separately.</p>
                                   <p className="mt-2">
                                     Blueprint reviews access, privacy, and commercialization boundaries
                                     before changing public listing or robot-team access.
@@ -1566,8 +1449,8 @@ export default function BusinessSignUpFlow() {
                       </div>
                     ) : null}
 
-                    <div className="mt-6 flex flex-col gap-3 border-t border-runway-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-                      <button
+                    <div className="auth-step-actions mt-6 flex flex-col gap-3 border-t border-runway-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+                      {step > 1 && <button
                         type="button"
                         onClick={handleBack}
                         disabled={step === 1 || isSubmitting}
@@ -1575,7 +1458,7 @@ export default function BusinessSignUpFlow() {
                       >
                         <ChevronLeft className="mr-2 h-4 w-4" />
                         Back
-                      </button>
+                      </button>}
 
                       {step < 3 ? (
                         <button
@@ -1599,65 +1482,8 @@ export default function BusinessSignUpFlow() {
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <aside className="border-t border-runway-line bg-runway-deep p-8 lg:p-10 xl:border-l xl:border-t-0">
-                <SurfaceMiniLabel className="text-runway-faint">Why Exact-Site Context Matters</SurfaceMiniLabel>
-                <div className="mt-5 overflow-hidden border border-runway-line bg-runway-panel">
-                  <img
-                    src={privateGeneratedAssets.facilityPlanBoard}
-                    alt="Blueprint site plan board"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                <div className="mt-6 space-y-5">
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Robots perform in the real world.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Site-specific scans reveal the nuance that drives access, route design, and
-                      buyer trust.
-                    </p>
-                  </div>
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Better data. Fewer unknowns.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Exact-site packages reduce rework and de-risk evaluations before travel or
-                      deployment.
-                    </p>
-                  </div>
-                  <div className="runway-panel p-5">
-                    <p className="text-sm font-semibold text-runway-text">Private by default.</p>
-                    <p className="mt-2 text-sm leading-7 text-runway-mute">
-                      Every access request is reviewed to maintain truthful product routing,
-                      entitlement boundaries, and buyer-side privacy expectations.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 border border-runway-line bg-runway-panel p-5">
-                  <SurfaceMiniLabel className="text-runway-faint">Current Path</SurfaceMiniLabel>
-                  <p className="mt-4 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">
-                    {step === 1 ? "Organization" : step === 2 ? "Team" : "Site & workflow"}
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-runway-mute">
-                    {step === 1
-                      ? "Open the request with company and account details."
-                      : step === 2
-                        ? isSiteOperatorSignup
-                          ? "Confirm the site-owner lane before Blueprint reviews access."
-                          : "Define who is evaluating the site and which lane should open first."
-                        : isSiteOperatorSignup
-                          ? "Anchor the free submission in one facility and a clear access boundary."
-                          : "Anchor the request in one real facility and one workflow question."}
-                  </p>
-                </div>
-              </aside>
-            </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+        <p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p>
+      </AuthLayout>
     </>
   );
 }

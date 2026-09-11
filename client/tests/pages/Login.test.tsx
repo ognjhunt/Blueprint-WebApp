@@ -1,56 +1,62 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Login from "@/pages/Login";
 
-const useAuthMock = vi.hoisted(() => vi.fn());
+const signIn = vi.hoisted(() => vi.fn());
+const signInWithGoogle = vi.hoisted(() => vi.fn());
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle }) }));
+beforeEach(() => { signIn.mockReset().mockResolvedValue(undefined); signInWithGoogle.mockReset().mockResolvedValue(undefined); });
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => useAuthMock(),
-}));
+function fillCredentials() {
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "person@example.com" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "test-password" } });
+}
 
-describe("Login", () => {
-  beforeEach(() => {
-    useAuthMock.mockReturnValue({
-      signIn: vi.fn(),
-      signInWithGoogle: vi.fn(),
-    });
-  });
-
-  it("shows validation errors when submitting an empty form", () => {
+describe("Minimal sign in", () => {
+  it("validates empty fields without calling authentication", () => {
     render(<Login />);
-
     fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
-
-    expect(screen.getByText(/Email is required/i)).toBeInTheDocument();
-    expect(screen.getByText(/Password is required/i)).toBeInTheDocument();
+    expect(screen.getByText("Email is required")).toBeInTheDocument();
+    expect(screen.getByText("Password is required")).toBeInTheDocument();
+    expect(signIn).not.toHaveBeenCalled();
   });
-
-  it("renders the Google sign-in CTA", () => {
+  it("retains the essential account and recovery links", () => {
     render(<Login />);
-
-    expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
-    expect(screen.getByText(/Secure Access Portal/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup/business");
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+    expect(screen.getByRole("link", { name: "Capture app access" })).toHaveAttribute("href", "/capture-app");
+    expect(screen.queryByText(/Secure Access Portal|Scope before signup/)).not.toBeInTheDocument();
   });
-
-  it("keeps capturer help as a secondary utility path", () => {
+  it("signs in with the entered credentials and retains password visibility control", async () => {
+    render(<Login />); fillCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
+    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => expect(signIn).toHaveBeenCalledWith("person@example.com", "test-password"));
+  });
+  it("keeps Google authentication connected", async () => {
     render(<Login />);
-
-    expect(screen.getByText(/New to Blueprint\?/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Capturer: Access the capture app/i })).toHaveAttribute(
-      "href",
-      "/capture-app",
-    );
-    expect(screen.getByRole("link", { name: /Robot team: Create evaluation account/i })).toHaveAttribute(
-      "href",
-      "/signup/business?buyerType=robot_team&source=login",
-    );
-    expect(screen.getByRole("link", { name: /Site operator: Start site review/i })).toHaveAttribute(
-      "href",
-      "/signup/business?buyerType=site_operator&source=login",
-    );
-    expect(screen.getByRole("link", { name: /Robot team: Scope before signup/i })).toHaveAttribute(
-      "href",
-      "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledTimes(1));
+  });
+  it("shows an accessible generic error after credential rejection and retains input", async () => {
+    signIn.mockRejectedValueOnce(new Error("auth/user-not-found"));
+    render(<Login />); fillCredentials();
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
+    expect(screen.getByLabelText("Email")).toHaveValue("person@example.com");
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
+  });
+  it("disables both authentication actions while a request is pending", async () => {
+    let finish!: () => void;
+    signIn.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    render(<Login />); fillCredentials();
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    expect(screen.getByRole("button", { name: /Signing in/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+    finish();
+    await waitFor(() => expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled());
   });
 });

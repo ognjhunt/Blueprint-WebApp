@@ -5,7 +5,7 @@ test('business signup flow loads first step', async ({ page }) => {
 
   // Step 1 heading should be visible
   await expect(
-    page.getByRole('heading', { name: /Organization details/i }),
+    page.getByRole('heading', { name: /Create an account/i }),
   ).toBeVisible();
 });
 
@@ -22,12 +22,12 @@ test('site-operator pilot path reaches the private dossier and permission contro
   await page.getByLabel(/Confirm password/i).fill('strongpass123');
   await page.getByRole('button', { name: /^Continue$/i }).click();
 
-  await expect(page.getByRole('heading', { name: /Role and site lane/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /About your role/i })).toBeVisible();
   await page.getByLabel(/Your name/i).fill('Jordan Lee');
   await page.getByLabel(/Company size/i).selectOption('51-200');
   await page.getByRole('button', { name: /^Continue$/i }).click();
 
-  await expect(page.getByRole('heading', { name: /Site boundary intake/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Your site and task/i })).toBeVisible();
   await expect(
     page.getByRole('checkbox', { name: /Prepare this workflow as a pilot opportunity/i }),
   ).toBeChecked();

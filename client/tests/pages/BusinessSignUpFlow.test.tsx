@@ -85,8 +85,8 @@ describe("BusinessSignUpFlow analytics", () => {
       defaultRequestedLane: "deeper_evaluation",
       requestedLaneCount: 1,
     });
-    expect(screen.getAllByText(/Robot team access request/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Existing portal users should use sign in instead of creating a second path/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Create an account" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/sign-in");
   });
 
   it("preselects the site-operator lane from signup query params", () => {
@@ -98,7 +98,7 @@ describe("BusinessSignUpFlow analytics", () => {
       defaultRequestedLane: "qualification",
       requestedLaneCount: 1,
     });
-    expect(screen.getAllByText(/Site operator access request/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1, name: "Create an account" })).toBeInTheDocument();
   });
 
   it("tracks Austin demand-city context on funnel start when present in the URL", () => {
@@ -157,7 +157,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
     await screen.findByText(
-      /Team and requested lane/i,
+      /About your team/i,
       undefined,
       { timeout: ANIMATED_STEP_TIMEOUT_MS },
     );
@@ -348,7 +348,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
     await screen.findByText(
-      /Role and site lane/i,
+      /About your role/i,
       undefined,
       { timeout: ANIMATED_STEP_TIMEOUT_MS },
     );
@@ -409,7 +409,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/Owner and rollout readiness/i), {
       target: { value: "Facilities lead owns a separated pilot area; four similar sites." },
     });
-    expect(screen.getByText(/Site submission is free/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evaluation scope and pricing are agreed separately/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Budget range/i)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
       target: { value: "partner_referral" },
@@ -502,7 +502,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
     await screen.findByText(
-      /Team and requested lane/i,
+      /About your team/i,
       undefined,
       { timeout: ANIMATED_STEP_TIMEOUT_MS },
     );

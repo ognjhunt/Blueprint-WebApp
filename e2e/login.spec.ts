@@ -7,7 +7,7 @@ test('login page renders core auth UI', async ({ page }) => {
     page.getByRole('heading', { name: /Sign In/i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Access the Blueprint portal\./i),
+    page.getByText(/Welcome back to Blueprint\./i),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: /Continue with Google/i }),
