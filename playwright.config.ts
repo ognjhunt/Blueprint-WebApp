@@ -30,6 +30,7 @@ export default defineConfig({
         '**/operator-surfaces.spec.ts',
         '**/task-evaluation-run.spec.ts',
         '**/capture-task-review.spec.ts',
+        '**/adp-agent-tasks.spec.ts',
       ],
   timeout: 60_000,
   expect: {

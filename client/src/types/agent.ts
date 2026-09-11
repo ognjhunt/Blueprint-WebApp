@@ -1,6 +1,8 @@
 export type AgentProvider =
   | "openclaw"
   | "openai_responses"
+  | "openai_agents_api"
+  | "openai_agents_sdk"
   | "anthropic_agent_sdk"
   | "acp_harness"
   | "codex_local";
@@ -10,6 +12,7 @@ export type AgentThreadPhase = "investigation" | "implementation" | "review_qa";
 
 export type AgentTaskKind =
   | "operator_thread"
+  | "adp_run_operator"
   | "external_harness_thread"
   | "support_triage";
 

@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const startOpsAutomationScheduler = vi.hoisted(() => vi.fn());
 const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
+const startAdpManagedRunWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
@@ -23,6 +24,7 @@ vi.mock("../utils/stripeWebhookQueue", () => ({ startStripeWebhookQueueProcessor
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
 }));
+vi.mock("../agents/adp-managed-runs", () => ({ startAdpManagedRunWorker }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },

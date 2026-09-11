@@ -54,6 +54,7 @@ import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 import { dispatchHumanBlocker } from "../utils/human-blocker-dispatch";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import adpAgentTasksRouter from "./adp-agent-tasks";
 import {
   summarizeAgentCostTelemetry,
   summarizeAgentCostWaste,
@@ -61,6 +62,7 @@ import {
 } from "../utils/agentCostTelemetry";
 
 const router = Router();
+router.use("/adp/tasks", adpAgentTasksRouter);
 
 router.get("/cache-efficiency", requireAdminRole, async (req: Request, res: Response) => {
   if (!db) return res.status(503).json({

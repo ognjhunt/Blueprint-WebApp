@@ -5,6 +5,7 @@ import { taskDefinitions } from "../agents/tasks";
 import type { AgentTaskKind } from "../agents/types";
 
 const sampleInputs: Record<AgentTaskKind, unknown> = {
+  adp_run_operator: { pipeline_task_id: "task-admitted-1" },
   waitlist_triage: {
     submission: {
       id: "waitlist-1",
