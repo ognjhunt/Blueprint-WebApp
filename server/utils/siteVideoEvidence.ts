@@ -21,11 +21,9 @@
  * vocabulary for the same idea.
  */
 import {
-  applyVideoEvidence,
   lowerToCeiling,
   videoEvidenceCeiling,
   type TriageDisposition,
-  type TriageResult,
   type VideoEvidenceReview,
 } from "../../client/src/lib/gateTriage";
 import { gateFields, specFields } from "../../client/src/data/siteTaskQualification";
@@ -120,27 +118,6 @@ export function toVideoEvidenceReview(
       confidence: item.confidence,
     })),
   };
-}
-
-/**
- * Fold footage into a full gate verdict, honouring the shadow flag.
- *
- * When shadowing, the returned triage is the untouched original and the caller
- * still learns — via `wouldHaveChangedDisposition` — what applying it would
- * have done.
- */
-export function foldVideoEvidenceIntoTriage(
-  triage: TriageResult,
-  summary: SiteVideoEvidenceSummary | null | undefined,
-): { triage: TriageResult; applied: boolean; wouldHaveChangedDisposition: boolean } {
-  const review = toVideoEvidenceReview(summary);
-  const proposed = applyVideoEvidence(triage, review);
-  const wouldHaveChangedDisposition = proposed.disposition !== triage.disposition;
-
-  if (!isSiteVideoEvidenceApplied()) {
-    return { triage, applied: false, wouldHaveChangedDisposition };
-  }
-  return { triage: proposed, applied: true, wouldHaveChangedDisposition };
 }
 
 /**
