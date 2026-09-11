@@ -332,6 +332,57 @@ async function sendViaSendGrid({
   }
 }
 
+/** The longest a production redirect may be armed for. */
+const MAX_TEST_REDIRECT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+type RedirectWindow =
+  | { armed: true; expiresAt: string }
+  | { armed: false; reason: string };
+
+/**
+ * Decide whether a production redirect is armed, and say why when it is not.
+ *
+ * Production is where the redirect is both most useful and most dangerous: it
+ * is the only place the real pipeline runs, and it is the only place a forgotten
+ * redirect silently swallows a real buyer's mail. So arming it there takes a
+ * second variable that carries its own deadline.
+ *
+ * A deadline is a stronger guard than a second boolean would be. A flag depends
+ * on someone remembering to unset it, and forgetting is the entire failure mode.
+ * A window closes whether or not anyone remembers, and the 14-day ceiling stops
+ * the obvious way around it — a date far enough out to be a flag again.
+ */
+function productionRedirectWindow(now: number): RedirectWindow {
+  const raw = process.env.BLUEPRINT_EMAIL_TEST_REDIRECT_UNTIL?.trim();
+  if (!raw) {
+    return { armed: false, reason: "BLUEPRINT_EMAIL_TEST_REDIRECT_UNTIL is not set" };
+  }
+
+  const expiresAt = Date.parse(raw);
+  if (Number.isNaN(expiresAt)) {
+    return {
+      armed: false,
+      reason: `BLUEPRINT_EMAIL_TEST_REDIRECT_UNTIL is not a parseable timestamp (${raw})`,
+    };
+  }
+
+  if (expiresAt <= now) {
+    return {
+      armed: false,
+      reason: `the redirect window closed at ${new Date(expiresAt).toISOString()}`,
+    };
+  }
+
+  if (expiresAt - now > MAX_TEST_REDIRECT_WINDOW_MS) {
+    return {
+      armed: false,
+      reason: `the redirect window ends ${new Date(expiresAt).toISOString()}, more than 14 days out`,
+    };
+  }
+
+  return { armed: true, expiresAt: new Date(expiresAt).toISOString() };
+}
+
 /**
  * Send everything to one inbox instead of to real people.
  *
@@ -345,27 +396,48 @@ async function sendViaSendGrid({
  * known-internal addresses still sends to everybody it does not recognise,
  * which is the wrong default when the thing being tested is who gets mail.
  *
- * Refuses to engage in production. A redirect that survived a deploy would
- * silently stop every real buyer, capturer and payout email, and it would look
- * exactly like a working system while doing it.
+ * Outside production the target address is enough. In production it must also
+ * be armed with an expiry — see `productionRedirectWindow`. An unarmed redirect
+ * does not hold mail back; it lets it through to its real recipients and says
+ * so loudly, because sending is the system's job and the redirect is the
+ * exception. Every send that is redirected in production logs at `warn`, so the
+ * one condition under which real recipients are not being reached is visible in
+ * a log scan rather than inferable only from an absence.
  */
 export function resolveTestRedirect(to: string): { to: string; redirectedFrom?: string } {
   const target = process.env.BLUEPRINT_EMAIL_TEST_REDIRECT?.trim();
   if (!target) return { to };
 
-  if (process.env.NODE_ENV === "production") {
-    logger.error(
-      { event: "email_test_redirect_refused_in_production" },
-      "BLUEPRINT_EMAIL_TEST_REDIRECT is set in production and was ignored",
-    );
-    return { to };
+  const isProduction = process.env.NODE_ENV === "production";
+  let redirectWindow: RedirectWindow | null = null;
+
+  if (isProduction) {
+    redirectWindow = productionRedirectWindow(Date.now());
+    if (!redirectWindow.armed) {
+      logger.error(
+        { event: "email_test_redirect_not_armed", reason: redirectWindow.reason },
+        "BLUEPRINT_EMAIL_TEST_REDIRECT is set in production but not armed; mail is going to its real recipients",
+      );
+      return { to };
+    }
   }
 
   if (target === to) return { to };
-  logger.info(
-    { event: "email_test_redirected", originalDomain: to.split("@").pop() ?? null },
-    "Outbound email redirected to the test inbox",
-  );
+
+  const context = {
+    event: "email_test_redirected",
+    originalDomain: to.split("@").pop() ?? null,
+  };
+
+  if (redirectWindow?.armed) {
+    logger.warn(
+      { ...context, redirectExpiresAt: redirectWindow.expiresAt },
+      "Outbound production email redirected to the test inbox",
+    );
+  } else {
+    logger.info(context, "Outbound email redirected to the test inbox");
+  }
+
   return { to: target, redirectedFrom: to };
 }
 
@@ -430,7 +502,15 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   }
 
   try {
-    const smtpFrom = process.env.SMTP_FROM?.trim() || fromEmail || "";
+    // Gmail, and most authenticated relays, reject or silently rewrite a From
+    // that is not the authenticated mailbox. Falling back to the SMTP user is
+    // both what those servers will accept and better than the alternative here,
+    // which is a message with no From header at all.
+    const smtpFrom =
+      process.env.SMTP_FROM?.trim()
+      || fromEmail
+      || process.env.SMTP_USER?.trim()
+      || "";
     const info = await transporter.sendMail({
       from: smtpFrom
         ? fromName

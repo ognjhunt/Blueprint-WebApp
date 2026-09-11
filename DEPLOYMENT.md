@@ -515,6 +515,8 @@ Post-signup automation also requires:
 - `SMTP_PORT`
 - `SMTP_USER`
 - `SMTP_PASS`
+- `SMTP_SECURE` (optional; `true` only for port 465)
+- `SMTP_FROM` (optional; defaults to the caller's sender, then `SMTP_USER`)
 
 ## Notes
 
