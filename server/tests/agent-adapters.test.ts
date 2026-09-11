@@ -473,7 +473,7 @@ describe("agent adapters", () => {
       prompt_cache_hit_tokens: 80,
       prompt_cache_miss_tokens: 20,
       prompt_cache_hit_ratio: 0.8,
-      max_tokens: 2000,
+      max_tokens: 16000,
     });
   });
 

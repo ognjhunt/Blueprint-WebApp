@@ -7,7 +7,20 @@ import type { AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
 const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const OPENROUTER_BASE_URL_PATTERN = /openrouter\.ai/i;
 const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro";
-const DEFAULT_DEEPSEEK_MAX_TOKENS = 2000;
+/**
+ * Enough room for the answer and the thinking that produces it.
+ *
+ * This was 2000, which is below what the largest task can legitimately emit:
+ * `inbound_qualification`'s schema declares maxima summing to 8,573 characters
+ * (~2,150 tokens) of JSON before a single reasoning token is spent, and
+ * reasoning comes out of the same budget. The model therefore spent the ceiling
+ * thinking and returned an empty answer, every time, for that lane.
+ *
+ * 16000 leaves the largest schema its full output plus real headroom to reason.
+ * Unused budget is not billed, so the cost of being generous here is nothing
+ * and the cost of being tight is a lane that never completes.
+ */
+const DEFAULT_DEEPSEEK_MAX_TOKENS = 16000;
 const DEFAULT_OPENROUTER_PROVIDER_ORDER = [
   "deepseek",
   "atlas-cloud/fp8",
@@ -42,10 +55,40 @@ const client = deepSeekApiKey
     })
   : null;
 
-function extractJsonPayload(rawText: string) {
+/**
+ * Why an empty response happened, not just that it did.
+ *
+ * `deepseek-v4-pro` is asked to think (`thinking` + `reasoning_effort` are sent
+ * below), and reasoning tokens are spent from the same `max_tokens` budget as
+ * the answer. When that budget runs out mid-thought the API returns a complete,
+ * successful response whose `content` is an empty string and whose
+ * `finish_reason` is "length" — which reads as "empty response" and sends
+ * whoever is debugging it looking at the key, the model name and the network
+ * before they look at the one field that says what happened.
+ *
+ * So the cause travels with the error.
+ */
+function describeEmptyResponse(choice: unknown, usage: unknown): string {
+  const finishReason = (choice as { finish_reason?: unknown } | null)?.finish_reason;
+  const reasoningTokens = usageNumberOrNull(
+    (usage as { completion_tokens_details?: { reasoning_tokens?: unknown } } | null)
+      ?.completion_tokens_details?.reasoning_tokens,
+  );
+
+  if (finishReason === "length") {
+    return `DeepSeek hit its token ceiling before writing any answer (finish_reason=length${
+      reasoningTokens ? `, ${reasoningTokens} reasoning tokens spent` : ""
+    }). Raise DEEPSEEK_MAX_TOKENS — reasoning and the answer share one budget.`;
+  }
+  return `DeepSeek returned an empty response (finish_reason=${
+    String(finishReason ?? "unknown")
+  })`;
+}
+
+function extractJsonPayload(rawText: string, emptyReason?: string) {
   const trimmed = rawText.trim();
   if (!trimmed) {
-    throw new Error("DeepSeek returned an empty response");
+    throw new Error(emptyReason || "DeepSeek returned an empty response");
   }
 
   try {
@@ -466,7 +509,10 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     summary: "Extracted DeepSeek response text",
     chars: rawText.length,
   });
-  const payload = extractJsonPayload(rawText);
+  const payload = extractJsonPayload(
+    rawText,
+    describeEmptyResponse(response.choices?.[0], (response as any).usage),
+  );
   traceLogs.push({
     event_type: "provider.response.parsed",
     status: "success",
