@@ -389,3 +389,21 @@ One additional portability quirk showed up during validation:
 - re-applying a company package onto an already-existing Paperclip company can duplicate routines, projects, and agents rather than merging cleanly
 
 The bootstrap script now avoids repeated re-import once the new CTO routine marker exists, but if a host already accumulated duplicates from older imports, manual cleanup inside Paperclip is still required.
+
+
+## Selected Arm Decision Proof execution
+
+The optional `adpExecution` plugin configuration selects one existing ADP worker
+and company. Set `enabled`, `agentId`, `companyId`, `webappUrl` (the Website HTTPS
+origin), and `bridgeTokenRef` (an existing Paperclip secret reference). The
+Website must have matching `BLUEPRINT_PAPERCLIP_ADP_AGENT_ID`,
+`BLUEPRINT_PAPERCLIP_ADP_COMPANY_ID`, and `BLUEPRINT_PAPERCLIP_ADP_BRIDGE_TOKEN`.
+
+Each action resolves the current secret through Paperclip, reads the worker's
+current run and assigned issue, and operates only the task in
+`issue.metadata.blueprintAdpExecution` with program `arm-decision-proof-v1`.
+The tool accepts only `inspect`, `start`, `cancel`, or `cleanup`; Pipeline remains
+the provider-session and operation owner. Setting `enabled: false` revokes this
+bridge even if legacy environment settings remain. Omitting the configuration
+preserves the previous environment-based installation path. No organization
+restart or additional worker is required to apply these settings.
