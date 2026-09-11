@@ -93,6 +93,7 @@ export const adpTaskStatusSchema = z.object({
   error_code: z.string().nullable(),
   cancel_requested: z.boolean(),
   cleanup_state: z.enum(["not_requested", "pending", "deleted", "failed"]),
+  cleanup_when_terminal: z.boolean().optional(),
   updated_at: z.number().finite(),
   result: resultSchema.nullable(),
   usage: usageSchema.nullable(),
