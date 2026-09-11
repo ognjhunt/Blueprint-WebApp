@@ -274,3 +274,30 @@ describe("evidence summary", () => {
     expect(result.error_code).toBe("Too dark to see the station.");
   });
 });
+
+describe("operator answers shown to the reader", () => {
+  it("resolves enum tokens to the words the operator chose", async () => {
+    const { resolveOperatorAnswerLabels } = await import("../utils/siteVideoEvidence");
+    const resolved = resolveOperatorAnswerLabels({
+      objectVariety: "under_10",
+      sceneStability: "stable",
+      lighting: "mixed",
+    });
+
+    // A contradiction has to be judged against the answer a person clicked,
+    // not against the database value behind it.
+    expect(resolved.objectVariety).toBe("Fewer than ten");
+    expect(resolved.sceneStability).toBe("Fixtures and stations stay where they are");
+    expect(resolved.lighting).toBe("Mixed artificial and daylight");
+  });
+
+  it("passes through anything it cannot resolve rather than dropping it", async () => {
+    const { resolveOperatorAnswerLabels } = await import("../utils/siteVideoEvidence");
+    const resolved = resolveOperatorAnswerLabels({
+      unknownField: "some_value",
+      sceneStability: "not_a_real_option",
+    });
+    expect(resolved.unknownField).toBe("some_value");
+    expect(resolved.sceneStability).toBe("not_a_real_option");
+  });
+});

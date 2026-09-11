@@ -28,6 +28,7 @@ import {
   type TriageResult,
   type VideoEvidenceReview,
 } from "../../client/src/lib/gateTriage";
+import { gateFields, specFields } from "../../client/src/data/siteTaskQualification";
 import { runAgentTask } from "../agents/runtime";
 import { isGeminiVideoConfigured, getGeminiVideoModel } from "../agents/provider-config";
 import type {
@@ -161,6 +162,31 @@ export function measureVideoEvidenceEffect(
 }
 
 /**
+ * Turn stored enum tokens back into the words the operator actually chose.
+ *
+ * The model is asked whether the footage contradicts what the site said, so it
+ * has to be shown what the site said. `objectVariety: "under_10"` is a database
+ * value; "Fewer than ten" is the answer a person clicked, and it is the thing a
+ * contradiction has to be judged against. Unknown ids and values pass through
+ * as-is rather than being dropped — a value we cannot resolve is still evidence
+ * the model should weigh, and silently discarding it would read as the question
+ * never having been asked.
+ */
+export function resolveOperatorAnswerLabels(
+  answers: Record<string, string>,
+): Record<string, string> {
+  const resolved: Record<string, string> = {};
+  for (const [fieldId, value] of Object.entries(answers)) {
+    const field =
+      gateFields.find((candidate) => candidate.id === fieldId) ??
+      specFields.find((candidate) => candidate.id === fieldId);
+    const option = field?.options.find((candidate) => candidate.value === value);
+    resolved[fieldId] = option?.label ?? value;
+  }
+  return resolved;
+}
+
+/**
  * Read the footage attached to a request, if there is any and we are allowed to.
  *
  * Returns `null` when there is nothing to do — no link, lane off, no API key —
@@ -182,12 +208,10 @@ export async function runSiteVideoEvidenceForRequest(
     return emptySummary("skipped", "gemini_video_not_configured");
   }
 
-  // The operator's own answers, as labels rather than enum tokens, so the model
-  // compares against what a person actually said.
-  const operatorAnswers: Record<string, string> = {
+  const operatorAnswers = resolveOperatorAnswerLabels({
     ...(request.request.siteTaskGates || {}),
     ...(request.request.siteTaskSpec || {}),
-  };
+  });
 
   const input: SiteVideoEvidenceInput = {
     requestId: request.requestId,
