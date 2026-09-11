@@ -19,7 +19,7 @@ function packet() {
   const value = { schema_version: "blueprint_agent_engineering_handoff.v1", program: "arm-decision-proof-v1",
     task_id: "task-1", task_digest: hash("a"), run_id: "scene-fixture", source_commit: "a".repeat(40),
     diagnosis_result_digest: hash("b"), child_id: "sam31-fixture", job_sha256: hash("c"),
-    replay_report_digest: hash("d"), replay_status: "job_refused", blocker_code: "sam31_phase_file_reference_invalid",
+    replay_report_digest: hash("d"), replay_status: "refused", blocker_code: "sam31_phase_file_reference_invalid",
     policy, policy_digest: crossRuntimeDigest(policy), paid_resubmission_authorized: false,
     scientific_acceptance_granted: false, independent_review_required: true };
   const handoff_id = `repair-${crossRuntimeDigest({ task_digest: value.task_digest,
