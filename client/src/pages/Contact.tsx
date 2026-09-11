@@ -396,7 +396,7 @@ export default function Contact() {
           <p className="ms-inquiry-description">{description}</p>
           <p className="ms-inquiry-aside">
             {isSite
-              ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. Scope and pricing are agreed before evaluation begins."
+              ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
               : "Bring one system or several policy checkpoints. We match applications to qualified site tasks and agree the evaluation scope. Evaluation access and physical pilots require site approval; applying does not guarantee either."}
           </p>
           <a

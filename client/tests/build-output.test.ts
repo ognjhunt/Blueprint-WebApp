@@ -203,10 +203,14 @@ describe("build output", () => {
     }
     expect(siteHtml).toContain("Let’s start with your site.");
     expect(siteHtml).toContain("paid evaluation");
-    expect(siteHtml).toContain('name="budget"');
+    // Budget moved into the spec tier behind the gates -- it is a matching
+    // parameter, not a screen. The persona distinction in prerendered HTML is
+    // now the gate set itself.
+    expect(siteHtml).toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Bring your robot. Find the fit.");
     expect(robotHtml).toContain("applying does not guarantee either");
-    expect(robotHtml).not.toContain('name="budget"');
+    expect(robotHtml).not.toContain('id="gate-serviceArea"');
+    expect(robotHtml).toContain('id="gate-hardwareMaturity"');
     for (const route of ["index.html", "contact/site-operator/index.html", "contact/robot-team/index.html", "privacy/index.html", "terms/index.html"]) {
       const html = fs.readFileSync(distPath(route), "utf8");
       expect(html).toContain('class="minimal-site"');
