@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import type { ZodType } from "zod";
 
 import { openAiResponsesOperatorTools, runOperatorTool } from "../operator-tools";
+import { getOpenAiReasoningEffort } from "../provider-config";
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import {
   buildExplicitOpenAIRequest,
@@ -222,6 +223,8 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       requires_approval: false,
     };
   }
+  // Resolved per lane rather than hardcoded: see getOpenAiReasoningEffort.
+  const reasoningEffort = getOpenAiReasoningEffort(task.kind);
   let conversationInput: any[] = Array.isArray(initialInput)
     ? [...initialInput]
     : [{ role: "user", content: initialInput }];
@@ -229,7 +232,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     model: task.model,
     previous_response_id: replayInput ? undefined : previousResponseId,
     reasoning: {
-      effort: "medium",
+      effort: reasoningEffort,
     },
     tools,
     parallel_tool_calls: true,
@@ -333,7 +336,9 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       model: task.model,
       input: conversationInput as any,
       reasoning: {
-        effort: "medium",
+        // The same effort the first call used. A follow-up turn that thought
+        // less than the turn it continues would be a strange thing to ship.
+        effort: reasoningEffort,
       },
       tools,
       parallel_tool_calls: true,
