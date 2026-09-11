@@ -643,6 +643,7 @@ function canaryStageForPhase(phase: string | null): PolicyCanaryStage | null {
     return phase as PolicyCanaryStage;
   }
   if (phase === "intake_webapp_record_binding" || phase === "starting") return "queued";
+  if (phase === "awaiting_episode_interpretation") return "artifacts_syncing";
   if (phase.startsWith("policy_pi05_droid")) return "policy_a_running";
   if (phase.startsWith("policy_groot_n17_droid")) return "policy_b_running";
   if (phase.startsWith("vast_instance_teardown") || phase.startsWith("awaiting_official_billing")) {
