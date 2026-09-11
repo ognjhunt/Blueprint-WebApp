@@ -52,10 +52,6 @@ const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist
 const Sites = lazyRoute(() => import("../pages/Sites"));
 const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
 const Contact = lazyRoute(() => import("../pages/Contact"));
-// The structured intakes. Built, unit-tested, and until now not routed — so the
-// gate answers everything downstream screens on had no way to reach the server.
-const SiteTaskIntake = lazyRoute(() => import("../pages/SiteTaskIntake"));
-const RobotTeamIntake = lazyRoute(() => import("../pages/RobotTeamIntake"));
 const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
@@ -282,13 +278,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/sample-deliverables", layout: "public", component: ProofRedirect },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: ContactRedirect },
-  // The screening intakes, not the old free-text inquiry form. These post gate
-  // answers to /api/inbound-request, which is what makes a submission
-  // qualifiable at all; `Contact` remains reachable at /contact/general for the
-  // conversations that are not a site task or a robot team.
-  { path: "/contact/robot-team", layout: "public", component: RobotTeamIntake },
-  { path: "/contact/site-operator", layout: "public", component: SiteTaskIntake },
-  { path: "/contact/general", layout: "public", component: Contact },
+  { path: "/contact/robot-team", layout: "public", component: Contact },
+  { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: ContactRedirect },
   { path: "/help/contact", layout: "public", component: ContactRedirect },
   { path: "/help/category/:categorySlug", layout: "public", component: ContactRedirect },

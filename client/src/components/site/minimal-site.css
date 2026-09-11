@@ -77,6 +77,16 @@
 .ms-form .ms-button { align-self: start; font-size: 16px; min-height: 58px; }
 .ms-form-note { color: var(--ms-muted); font-size: 11px; line-height: 1.6; max-width: 55ch; }
 .ms-form-note a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* The live screening verdict. Shown before submitting, because a blocked site
+   learning which condition failed and what would flip it is more useful to them
+   than a form that swallows the answer and emails a no three days later. */
+.ms-verdict { border: 1px solid #bac0b2; border-left: 3px solid var(--ms-green); background: #fcfcf8; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.ms-verdict h2 { font-size: 16px; font-weight: 600; line-height: 1.4; letter-spacing: -.01em; }
+.ms-verdict p { font-size: 13.5px; line-height: 1.65; color: var(--ms-ink); }
+.ms-verdict ul { display: flex; flex-direction: column; gap: 9px; padding-left: 18px; list-style: disc; }
+.ms-verdict li { font-size: 13px; line-height: 1.6; color: var(--ms-muted); }
+.ms-verdict li strong { color: var(--ms-ink); font-weight: 500; }
 .ms-error { color: #9c352d; font-size: 14px; line-height: 1.6; }
 .ms-success { align-self: start; padding: 50px 0; border-top: 1px solid var(--ms-rule); margin-top: 30px; }
 .ms-success > svg { color: var(--ms-green); }
