@@ -35,6 +35,8 @@ const taskDestination = z
     visible_label: z.string().trim().min(1).max(200),
     position_world_m: vector3,
     orientation_xyzw: unitQuaternion,
+    kind: z.literal("green_region").optional(),
+    radius_m: z.number().finite().positive().max(0.5).optional(),
   })
   .strict();
 const positiveMeasure = z.number().finite().positive();
@@ -228,7 +230,7 @@ type SceneIntakeRequest = {
   schema_version: "task_evaluation_scene_intake_request.v1";
   submission_id: string;
   owner: ReturnType<typeof sceneOwner>;
-  source: { kind: "mesh" | "gaussian_splat" | "capture_bundle"; binding_id: string; content_digest: string;
+  source: { kind: "mesh" | "gaussian_splat" | "capture_bundle" | "public_scene"; binding_id: string; content_digest: string;
     collision_mesh?: { binding_id: string; content_digest: string; rights_reference: string; frame_relation: "owner_declared_common_frame" } };
   task: z.infer<typeof sceneIntakeCommand>["task"];
   execution: z.infer<typeof sceneIntakeCommand>["execution"];
@@ -242,6 +244,27 @@ export function buildSceneIntake(
   now = Date.now() / 1000,
   collisionSource?: Record<string, any>,
 ): SceneIntakeRequest {
+  if (command.source_session_id.startsWith("public-")) {
+    if (source.schema_version !== "task_evaluation_public_scene_source_choice.v1" ||
+        source.source_kind !== "public_scene" || source.binding_id !== command.source_session_id ||
+        source.choice_digest !== sealedDigest(source, "choice_digest") ||
+        !digest.safeParse(source.source_content_digest).success ||
+        !digest.safeParse(source.rights_reference).success || source.claim_scope !== "development_only")
+      throw new Error("source_validation_required");
+    if (command.collision_source_session_id || sceneDigest(command.task) !== source.task_proposal_digest ||
+        sceneDigest(source.task_proposal) !== source.task_proposal_digest)
+      throw new Error("public_scene_task_selection_changed");
+    if (sceneCanonicalJson(source.required_providers) !== sceneCanonicalJson(["vast", "openai"]) ||
+        !source.required_providers.every((p: string) => command.execution.allowed_providers.includes(p as "vast" | "openai")))
+      throw new Error("public_scene_required_provider_missing");
+    if (command.execution.expires_at_epoch <= now || command.execution.expires_at_epoch > now + 7 * 86400)
+      throw new Error("consent_expiry_invalid");
+    return { schema_version: "task_evaluation_scene_intake_request.v1", submission_id: command.submission_id,
+      owner, source: { kind: "public_scene", binding_id: source.binding_id, content_digest: source.source_content_digest },
+      task: command.task, execution: command.execution,
+      consent: { ...command.consent, rights_reference: source.rights_reference,
+        accepted_by: owner.user_id, accepted_at_epoch: now } };
+  }
   const native = command.source_session_id.startsWith("native-");
   if (
     (native ? source.creator_id : source.owner_user_id) !== owner.user_id ||
@@ -351,6 +374,30 @@ export function sceneSourceReference(sourceId: string) {
   return sourceId.startsWith("native-")
     ? { collection: "creatorCaptures", id: sourceId.slice(7) }
     : { collection: "captureUploadSessions", id: sourceId };
+}
+
+/** Read registered publisher choices from the owning Pipeline; no fabricated capture receipt. */
+export async function scenePublicSourceCatalog(): Promise<Array<Record<string, any>>> {
+  const configured = process.env.TASK_EVALUATION_LAUNCH_URL || process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL;
+  const token = process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
+  if (!configured || !token) return [];
+  const url = new URL(configured);
+  url.pathname = "/api/live-pipeline/task-evaluation-public-scene-sources";
+  url.search = ""; url.hash = "";
+  const timestamp = new Date().toISOString(), nonce = randomUUID(), client = "blueprint-webapp";
+  const signature = createHmac("sha256", token).update(`${timestamp}.${client}.${nonce}.`).digest("hex");
+  const response = await fetch(url, { method: "GET", headers: {
+    "x-blueprint-pipeline-timestamp": timestamp, "x-blueprint-pipeline-client-id": client,
+    "x-blueprint-pipeline-nonce": nonce, "x-blueprint-pipeline-signature": `sha256=${signature}`,
+  }, signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error("public_scene_catalog_unavailable");
+  const value = await response.json();
+  if (value.schema_version !== "task_evaluation_public_scene_catalog.v1" ||
+      value.provider_mutation_performed !== false || !Array.isArray(value.sources) || value.sources.length > 32 ||
+      value.catalog_digest !== sealedDigest(value, "catalog_digest") ||
+      value.sources.some((row: Record<string, any>) => row.choice_digest !== sealedDigest(row, "choice_digest")))
+    throw new Error("public_scene_catalog_invalid");
+  return value.sources;
 }
 
 export async function scenePipelineRequest(
@@ -594,7 +641,12 @@ export async function processSceneIntakeQueue(limit = 10) {
             };
           } else {
             const sourceRef = sceneSourceReference(record.source_session_id);
-            const source = await storeTimeout(
+            const publicChoice = record.source_session_id.startsWith("public-")
+              ? (await scenePublicSourceCatalog()).find((row) => row.binding_id === record.source_session_id)
+              : undefined;
+            if (record.source_session_id.startsWith("public-") && !publicChoice)
+              throw new Error("source_validation_required");
+            const source = publicChoice ? undefined : await storeTimeout(
               db.collection(sourceRef.collection).doc(sourceRef.id).get(),
             );
             const collisionRef = record.command.collision_source_session_id ? sceneSourceReference(record.command.collision_source_session_id) : null;
@@ -602,7 +654,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             const rebuilt = buildSceneIntake(
               sceneIntakeCommand.parse(record.command),
               record.request.owner,
-              source.data() || {},
+              publicChoice || source?.data() || {},
               record.request.consent.accepted_at_epoch,
               collision?.data(),
             );
