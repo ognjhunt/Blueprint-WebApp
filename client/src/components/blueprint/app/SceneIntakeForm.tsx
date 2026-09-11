@@ -73,8 +73,11 @@ export function SceneIntakeForm({
       validation_status: string;
       selectable: boolean;
       kind?: string;
+      task_proposal?: Record<string, any>;
+      required_providers?: string[];
     }>
   >([]);
+  const publicChoice = nativeSources.find((row) => row.id === source && row.kind === "public_scene");
   const refresh = async () => {
     const result = await apiRequest<{ intakes: Array<Record<string, any>> }>(
       currentUser,
@@ -209,7 +212,7 @@ export function SceneIntakeForm({
       submission_id: `scene-${crypto.randomUUID()}`,
       source_session_id: source,
       ...(collisionSource ? { collision_source_session_id: collisionSource, collision_same_frame_confirmed: collisionFrameConfirmed } : {}),
-      task: {
+      task: publicChoice?.task_proposal || {
         task_id: `task-${source}`,
         strategy: "pick_and_place",
         subject: { description: task.subject, authority: "owner_confirmed" },
@@ -264,6 +267,8 @@ export function SceneIntakeForm({
               "consent_expiry_invalid",
               "provider_terms_not_configured_or_changed",
               "source_rights_binding_required",
+              "public_scene_task_selection_changed",
+              "public_scene_required_provider_missing",
             ].includes(reason.code || "")))
       ) {
         setPendingCommand(null);
@@ -298,7 +303,7 @@ export function SceneIntakeForm({
         Start a Task Evaluation Run
       </h2>
       <p className="my-3 text-body-s text-ink-600">
-        Choose a completed 3DGS or mesh result, confirm one pick-and-place task, and bound
+        Choose a completed scene or registered public scene, confirm one pick-and-place task, and bound
         processing. Supplied geometry stays distinct from observed capture.
         Results remain development-only simulation evidence.
       </p>
@@ -325,12 +330,24 @@ export function SceneIntakeForm({
               className={field}
               required
               value={source}
-              onChange={(e) => { setSource(e.target.value); setCollisionSource(""); setCollisionFrameConfirmed(false); }}
+              onChange={(e) => {
+                setSource(e.target.value); setCollisionSource(""); setCollisionFrameConfirmed(false);
+                const choice = nativeSources.find((row) => row.id === e.target.value && row.kind === "public_scene");
+                const proposal = choice?.task_proposal;
+                if (proposal) {
+                  setTask({ subject: proposal.subject.description, support: proposal.support.description });
+                  setDestination({ relation: proposal.destination.relation, visible_label: proposal.destination.visible_label,
+                    x: proposal.destination.position_world_m[0], y: proposal.destination.position_world_m[1], z: proposal.destination.position_world_m[2] });
+                  setSuccess(proposal.success as typeof SUCCESS_DEFAULTS);
+                  setProvider(choice.required_providers?.[0] || "vast");
+                  setAdditionalProviders(choice.required_providers?.slice(1) || ["openai"]);
+                }
+              }}
             >
-              <option value="">Choose a completed 3DGS or mesh</option>
-              {nativeSources.filter((s) => ["mesh", "gaussian_splat"].includes(s.kind || "")).map((s) => (
+              <option value="">Choose a completed or public scene</option>
+              {nativeSources.filter((s) => ["mesh", "gaussian_splat", "public_scene"].includes(s.kind || "")).map((s) => (
                 <option key={s.id} value={s.id} disabled={!s.selectable}>
-                  {s.label} · Completed scene ·{" "}
+                  {s.label} · {s.kind === "public_scene" ? "Public scene" : "Completed scene"} ·{" "}
                   {s.validation_status.replace(/_/g, " ")}
                 </option>
               ))}
@@ -370,6 +387,7 @@ export function SceneIntakeForm({
               className={field}
               required
               value={task.subject}
+              readOnly={Boolean(publicChoice)}
               onChange={(e) => setTask({ ...task, subject: e.target.value })}
             />
           </label>
@@ -379,10 +397,11 @@ export function SceneIntakeForm({
               className={field}
               required
               value={task.support}
+              readOnly={Boolean(publicChoice)}
               onChange={(e) => setTask({ ...task, support: e.target.value })}
             />
           </label>
-          <fieldset className="space-y-2 md:col-span-2">
+          <fieldset className="space-y-2 md:col-span-2" disabled={Boolean(publicChoice)}>
             <legend className="font-medium text-ink-800">
               Destination placement
             </legend>
@@ -476,7 +495,7 @@ export function SceneIntakeForm({
               (0, 0, 0) is a placeholder — set the real drop point.
             </p>
           </fieldset>
-          <fieldset className="space-y-2 md:col-span-2">
+          <fieldset className="space-y-2 md:col-span-2" disabled={Boolean(publicChoice)}>
             <legend className="font-medium text-ink-800">
               Success criteria
             </legend>

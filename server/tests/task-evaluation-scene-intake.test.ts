@@ -1037,3 +1037,67 @@ describe("structured task destination and success contract", () => {
     expect(withSuccess({ control_frequency_hz: 20 })).toBe(true);
   });
 });
+
+describe("registered public scene intake", () => {
+  it("uses the authenticated owner and publisher binding without a capture record", async () => {
+    const request = command();
+    request.source_session_id = "public-source-one";
+    request.execution.allowed_providers = ["vast", "openai"];
+    const task = { ...request.task,
+      subject: { description: "small rigid object", source_instance_id: "12" },
+      support: { description: "table", source_instance_id: "13" },
+      destination: { relation: "on", visible_label: "green spot", position_world_m: [.4, .2, .75],
+        orientation_xyzw: [0, 0, 0, 1], kind: "green_region", radius_m: .07 } };
+    Object.assign(request, { task });
+    const item: Record<string, any> = {
+      schema_version: "task_evaluation_public_scene_source_choice.v1", source_kind: "public_scene",
+      binding_id: request.source_session_id, source_content_digest: sha("c"), rights_reference: sha("f"),
+      claim_scope: "development_only", task_proposal: task, task_proposal_digest: sceneDigest(task),
+      required_providers: ["vast", "openai"],
+    };
+    item.choice_digest = sceneDigest(item);
+    const catalog: Record<string, any> = { schema_version: "task_evaluation_public_scene_catalog.v1",
+      provider_mutation_performed: false, sources: [item] };
+    catalog.catalog_digest = sceneDigest(catalog);
+    process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
+      vast: { digest: sha("e"), label: "Private processing", url: "https://vast.ai/terms" },
+      openai: { digest: sha("e"), label: "Private processing", url: "https://openai.com/policies/services-agreement/" },
+    });
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
+      calls.push(String(url));
+      if (String(url).endsWith("task-evaluation-public-scene-sources"))
+        return new Response(JSON.stringify(catalog), { status: 200 });
+      return new Response(JSON.stringify(accepted(JSON.parse(init.body))), { status: 202 });
+    }));
+    const base = await app();
+    const post = () => realFetch(base, { method: "POST", headers: { "content-type": "application/json", "x-user": "owner" },
+      body: JSON.stringify(request) });
+    const response = await post();
+    expect(response.status).toBe(202);
+    expect(stored()[1].request.source).toEqual({ kind: "public_scene", binding_id: "public-source-one", content_digest: sha("c") });
+    expect(stored()[1].request.owner).toEqual({ user_id: "owner", organization_id: "user:owner" });
+    expect(stored()[1].request.consent.rights_reference).toBe(sha("f"));
+    expect(store.rows.has("captureUploadSessions/public-source-one")).toBe(false);
+    expect(stored()[1].request.task.destination.kind).toBe("green_region");
+    const before = calls.length;
+    expect((await post()).status).toBe(202);
+    expect(calls.length).toBe(before);
+    await processSceneIntakeQueue();
+    expect(calls.some((url) => url.endsWith("task-evaluation-scene-intents"))).toBe(true);
+  });
+
+  it("refuses changed tasks and missing image-processing authority before forwarding", () => {
+    const raw = command(); raw.source_session_id = "public-source-one";
+    const parsed = sceneIntakeCommand.parse(raw);
+    const choice: Record<string, any> = { schema_version: "task_evaluation_public_scene_source_choice.v1",
+      source_kind: "public_scene", binding_id: raw.source_session_id, source_content_digest: sha("c"),
+      rights_reference: sha("f"), claim_scope: "development_only", task_proposal: parsed.task,
+      task_proposal_digest: sceneDigest(parsed.task), required_providers: ["vast", "openai"] };
+    choice.choice_digest = sceneDigest(choice);
+    expect(() => buildSceneIntake(parsed, sceneOwner({ uid: "owner" }), choice)).toThrow("public_scene_required_provider_missing");
+    parsed.execution.allowed_providers.push("openai");
+    parsed.task.subject.description = "different object";
+    expect(() => buildSceneIntake(parsed, sceneOwner({ uid: "owner" }), choice)).toThrow();
+  });
+});

@@ -147,3 +147,20 @@ grants for ordinary customers remain outside the existing authority model;
 per-scene operator-authored root files are not a substitute.
 
 Small-upload API reference: [Backblaze upload-file](https://www.backblaze.com/apidocs/b2-upload-file).
+
+## Registered publisher scenes
+
+The existing source selector also reads Pipeline's signed public-scene catalog.
+A registered choice carries a publisher content identity and a fixed reviewed
+task proposal. It is not an owner capture or a completed/qualified source. The
+browser displays that distinction, preserves its structured one-object task,
+and includes both required processing providers in the bounded consent.
+
+The authenticated server derives the owner from Firebase and issues
+`source.kind=public_scene` directly. It does not create a fake capture upload or
+capture-validation receipt. The durable outbox reopens the current publisher
+choice and checks task, source, rights, provider scope and current operator
+privilege before signing delivery. Retrying an already retained command returns
+the original record without depending on catalog availability or refreshing its
+consent. Publisher installation and source preparation belong to the existing
+Pipeline controller after intake; catalog availability is not execution proof.
