@@ -33,7 +33,7 @@ export const pipelineEpisodeInterpretationSchema = z.object({
   ranking_or_promotion_effect: z.literal("none"),
 }).strict();
 
-export const pipelineEpisodeInterpretationSummarySchema = z.object({
+const pipelineEpisodeInterpretationSummaryV1Schema = z.object({
   schema_version: z.literal("policy_canary_episode_interpretation_closeout.v1"),
   status: z.enum(["completed", "partial", "abstained"]),
   episode_count: z.number().int().min(0).max(20),
@@ -54,6 +54,20 @@ export const pipelineEpisodeInterpretationSummarySchema = z.object({
   ranking_or_promotion_effect: z.literal("none"),
   summary_digest: digest,
 }).strict();
+
+export const pipelineEpisodeInterpretationSummarySchema = z.union([
+  pipelineEpisodeInterpretationSummaryV1Schema,
+  pipelineEpisodeInterpretationSummaryV1Schema.extend({
+    schema_version: z.literal("policy_canary_episode_interpretation_closeout.v2"),
+    status: z.enum(["completed", "partial", "abstained", "pending"]),
+    runtime: z.literal("openai_agents_api"),
+    pending_count: z.number().int().min(0).max(20),
+    provider_call_count: z.number().int().min(0).nullable(),
+    provider_invocation_attempt_count: z.number().int().min(0).nullable(),
+    batch_authority_digest: digest,
+    official_cost_reconciliation: z.literal("required"),
+  }).strict(),
+]);
 
 const pipelineNotificationSchema = z.object({
   terminal_state: z.enum(["completed", "blocked", "cancelled"]),

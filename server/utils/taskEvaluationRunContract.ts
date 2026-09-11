@@ -112,7 +112,7 @@ const episodeInterpretationSchema = z.object({
   ranking_or_promotion_effect: z.literal("none"),
 }).strict();
 
-const episodeInterpretationSummarySchema = z.object({
+const episodeInterpretationSummaryV1Schema = z.object({
   schema_version: z.literal("policy_canary_episode_interpretation_closeout.v1"),
   status: z.enum(["completed", "partial", "abstained"]),
   episode_count: z.number().int().min(0).max(20),
@@ -133,6 +133,20 @@ const episodeInterpretationSummarySchema = z.object({
   ranking_or_promotion_effect: z.literal("none"),
   summary_digest: digest,
 }).strict();
+
+const episodeInterpretationSummarySchema = z.union([
+  episodeInterpretationSummaryV1Schema,
+  episodeInterpretationSummaryV1Schema.extend({
+    schema_version: z.literal("policy_canary_episode_interpretation_closeout.v2"),
+    status: z.enum(["completed", "partial", "abstained", "pending"]),
+    runtime: z.literal("openai_agents_api"),
+    pending_count: z.number().int().min(0).max(20),
+    provider_call_count: z.number().int().min(0).nullable(),
+    provider_invocation_attempt_count: z.number().int().min(0).nullable(),
+    batch_authority_digest: digest,
+    official_cost_reconciliation: z.literal("required"),
+  }).strict(),
+]);
 
 export const taskEvaluationResultDeliverySchema = z.object({
   schema_version: z.literal("task_evaluation_result_delivery.v1"),
