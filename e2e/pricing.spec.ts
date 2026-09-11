@@ -5,7 +5,9 @@ test("retired pricing leads to a scoped paid site evaluation", async ({ page }) 
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Let’s start with your site.");
   await expect(page.getByText(/Scope and pricing are agreed before evaluation begins/)).toBeVisible();
-  await expect(page.getByLabel("Evaluation budget")).toBeVisible();
+  // Budget is a matching parameter rather than a screen, so it now sits in the
+  // spec tier behind the gates. The site screen itself is what must be here.
+  await expect(page.locator("#gate-serviceArea")).toBeVisible();
   await expect(page.getByText(/site pays nothing|\$0 for sites/)).toHaveCount(0);
 });
 

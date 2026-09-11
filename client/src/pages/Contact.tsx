@@ -376,7 +376,7 @@ export default function Contact() {
   const isSite = location !== "/contact/robot-team";
   const title = isSite ? "Let’s start with your site." : "Bring your robot. Find the fit.";
   const description = isSite
-    ? "Six questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you."
+    ? "Six questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — then we scope a paid evaluation together."
     : "Tell us what your system can do. All robotics teams can apply for site-funded manipulation evaluations—arms, humanoids, mobile manipulators, and their policies.";
   return (
     <>
@@ -396,7 +396,7 @@ export default function Contact() {
           <p className="ms-inquiry-description">{description}</p>
           <p className="ms-inquiry-aside">
             {isSite
-              ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it."
+              ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. Scope and pricing are agreed before evaluation begins."
               : "Bring one system or several policy checkpoints. We match applications to qualified site tasks and agree the evaluation scope. Evaluation access and physical pilots require site approval; applying does not guarantee either."}
           </p>
           <a
