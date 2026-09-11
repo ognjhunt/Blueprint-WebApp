@@ -13,7 +13,7 @@ function dependencies() {
     loadIssue: vi.fn(async () => ({ id: "issue", companyId: "company", assigneeAgentId: context.agentId,
       metadata: { blueprintAdpExecution: { program: "arm-decision-proof-v1", taskId: "admitted-task" } } })),
     retain: vi.fn(async () => undefined),
-    fetcher: vi.fn(async () => new Response(JSON.stringify(observation))),
+    fetcher: vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify(observation))),
   };
 }
 beforeEach(() => {

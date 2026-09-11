@@ -35,8 +35,8 @@ router.post("/adp-execution", async (req, res) => {
     const executionRef = service.store.collection("agentExecutionPaperclipRuns").doc(input.run_id);
     await service.store.runTransaction(async (transaction) => {
       const [bound, execution] = await Promise.all([transaction.get(bindingRef), transaction.get(executionRef)]);
-      if (bound.exists && JSON.stringify(bound.data()) !== JSON.stringify(owner)) throw new Error("paperclip_adp_owner_conflict");
-      if (execution.exists && execution.data()!.task_digest !== admission.task_digest) throw new Error("paperclip_adp_owner_conflict");
+      if (bound.exists && Object.entries(owner).some(([key, value]) => bound.data()![key] !== value)) throw new Error("paperclip_adp_owner_conflict");
+      if (execution.exists && Object.entries(owner).some(([key, value]) => execution.data()![key] !== value)) throw new Error("paperclip_adp_owner_conflict");
       transaction.set(bindingRef, owner);
       transaction.set(executionRef, { ...owner, paperclip_run_id: input.run_id,
         execution_owner: "blueprint_pipeline", last_requested_action: input.action }, { merge: true });
