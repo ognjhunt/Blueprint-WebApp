@@ -57,3 +57,83 @@ describe("seeded prospects", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+/* ------------------------------- the seed, through the real matcher */
+
+import { matchRobotTeam, summariseMatches } from "../../client/src/lib/robotMatch";
+import {
+  payloadKgToBand,
+  poundsToKg,
+} from "../utils/capabilityFigures";
+
+/** Build match candidates the way the seed loader would, quotable fields only. */
+function seededCandidates() {
+  return robotTeamSeed.map((team) => {
+    const capability: Record<string, string | number | null> = {};
+    for (const figure of team.figures) {
+      if (figure.grade === "inferred") continue; // stripped before matching
+      if (figure.unit === "kg") capability[figure.field] = payloadKgToBand(Number(figure.value));
+      else if (figure.unit === "lb")
+        capability[figure.field] = payloadKgToBand(poundsToKg(Number(figure.value)));
+      else if (figure.unit === "metres") capability[figure.field] = Number(figure.value);
+      else capability[figure.field] = String(figure.value);
+    }
+    return {
+      id: team.id,
+      capability,
+      deploymentGeography: null,
+      taskFamily: (capability.taskFamily as string) ?? null,
+    };
+  });
+}
+
+describe("the seed through the matcher", () => {
+  const site = {
+    serviceArea: "austin_metro",
+    spec: {
+      payloadWeight: "ten_to_twentyfive",
+      humanProximity: "shared",
+      budgetBand: "fifty_to_250k",
+      cycleTime: "thirty_to_two_min",
+    },
+    taskFamily: null,
+  };
+
+  it("returns no confirmed match from research alone", () => {
+    const summary = summariseMatches(
+      seededCandidates().map((candidate) => matchRobotTeam(site, candidate)),
+    );
+    // Nothing researched can be counted in an email. A confirmed match needs a
+    // team to tell us or Blueprint to measure it.
+    expect(summary.matched).toHaveLength(0);
+    expect(summary.provisional.length + summary.ruledOut.length).toBe(robotTeamSeed.length);
+  });
+
+  it("still rules out a team whose published payload is short", () => {
+    // Franka's 3 kg and the UR5e's 5 kg cannot lift a 10-25 kg task, and that is
+    // decidable from a published figure even without a geography.
+    const results = seededCandidates().map((candidate) => matchRobotTeam(site, candidate));
+    const ruledOut = results
+      .filter((result) => result.outcome === "ruled_out")
+      .map((result) => result.robotTeamId);
+    expect(ruledOut).toContain("team-franka-robotics");
+    expect(ruledOut).toContain("team-universal-robots-ur5e");
+  });
+
+  it("does not rule out a team that simply has not published a payload", () => {
+    // Locus Array publishes no load figure. Unknown is not short.
+    const array = seededCandidates().find((c) => c.id === "team-locus-array")!;
+    expect(matchRobotTeam(site, array).outcome).toBe("provisional");
+  });
+
+  it("strips inferred figures before matching", () => {
+    // Both UR arms carry an inferred humanProximity. It must not reach the
+    // matcher, so proximity reads as unknown rather than as a cleared constraint.
+    const ur20 = seededCandidates().find((c) => c.id === "team-universal-robots-ur20")!;
+    expect(ur20.capability.humanProximity).toBeUndefined();
+    const finding = matchRobotTeam(site, ur20).findings.find(
+      (f) => f.scaleId === "humanProximity",
+    );
+    expect(finding?.comparison).toBe("unknown");
+  });
+});
