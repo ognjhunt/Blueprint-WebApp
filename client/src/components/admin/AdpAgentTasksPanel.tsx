@@ -1,15 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 
 import { withCsrfHeader } from "@/lib/csrf";
 
-type TaskRow = {
-  admission: { task_id: string; run_id: string; title: string; runtime: string; source_commit: string; enabled: boolean; expires_at: number };
-  run: null | {
-    status: string; cancel_requested: boolean; cleanup_requested: boolean; reconciliation_error?: string;
-    output?: { disposition: string; summary: string; next_actions: string[]; uncertainty: string[]; evidence_references: string[] };
-    artifacts?: { agent_execution?: { cleanup_state: string; state: string; updated_at: number } };
-  };
-};
+const text = z.string();
+const rowsSchema = z.object({ tasks: z.array(z.object({
+  admission: z.object({ task_id: text, run_id: text, title: text, runtime: text, source_commit: text,
+    enabled: z.boolean(), expires_at: z.number().finite() }),
+  run: z.object({ status: text, cancel_requested: z.boolean(), cleanup_requested: z.boolean(),
+    reconciliation_error: text.nullish(),
+    output: z.object({ disposition: text, summary: text, next_actions: z.array(text), uncertainty: z.array(text), evidence_references: z.array(text) }).nullish(),
+    artifacts: z.object({ agent_execution: z.object({ cleanup_state: text, state: text, updated_at: z.number() }).optional() }).optional(),
+  }).nullable(),
+})) });
+type TaskRow = z.infer<typeof rowsSchema>["tasks"][number];
 
 export default function AdpAgentTasksPanel() {
   const client = useQueryClient();
@@ -19,8 +23,11 @@ export default function AdpAgentTasksPanel() {
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/adp/tasks", { headers: await withCsrfHeader({}) });
       if (!response.ok) throw new Error("Task records are unavailable. Verified execution access is required.");
-      return response.json();
+      const parsed = rowsSchema.safeParse(await response.json());
+      if (!parsed.success) throw new Error("Task records returned an invalid response.");
+      return parsed.data;
     },
+    retry: false,
     refetchInterval: 5000,
   });
   const action = useMutation({

@@ -19,10 +19,11 @@ async function getAvailablePort() {
 }
 
 const port = await getAvailablePort();
+const spec = process.argv.includes("--adp-agents") ? "e2e/adp-agent-tasks.spec.ts" : "e2e/operator-surfaces.spec.ts";
 
 const child = spawn(
   "npx",
-  ["playwright", "test", "e2e/operator-surfaces.spec.ts", "--reporter=line"],
+  ["playwright", "test", spec, "--reporter=line"],
   {
     stdio: "inherit",
     env: {
