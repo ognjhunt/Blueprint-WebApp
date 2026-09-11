@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ValidationErrors {
@@ -23,7 +23,7 @@ function validatePassword(password: string): string | undefined {
 
 function GoogleMark() {
   return (
-    <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
       <path d="M21.8 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.5c-.2 1.2-.9 2.2-2 3l3.2 2.5c1.9-1.7 3.1-4.2 3.1-7.2Z" fill="currentColor" />
       <path d="M12 22c2.7 0 5-.9 6.7-2.5l-3.2-2.5c-.9.6-2.1 1-3.5 1-2.6 0-4.8-1.8-5.6-4.2l-3.4 2.6C4.6 19.6 8 22 12 22Z" fill="currentColor" />
       <path d="M6.4 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8L3 7.6C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.4l3.4-2.6Z" fill="currentColor" />
@@ -31,17 +31,6 @@ function GoogleMark() {
     </svg>
   );
 }
-
-/** Every way into Blueprint that is not "I already have an account". */
-const startPaths = [
-  { href: "/signup/business?buyerType=robot_team&source=login", label: "Robot team: Create evaluation account" },
-  { href: "/signup/business?buyerType=site_operator&source=login", label: "Site operator: Start site review" },
-  {
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
-    label: "Robot team: Scope before signup",
-  },
-  { href: "/capture-app", label: "Capturer: Access the capture app" },
-];
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -81,7 +70,7 @@ export default function Login() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!validateForm()) return;
+    if (isLoading || !validateForm()) return;
     setIsLoading(true);
     setAuthError(null);
     try {
@@ -94,6 +83,7 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     setAuthError(null);
     try {
@@ -106,119 +96,21 @@ export default function Login() {
   };
 
   return (
-    <>
-      <SEO
-        title="Sign in | Blueprint"
-        description="Sign in to Blueprint to follow your captures, task evaluation runs, and results."
-        canonical="/sign-in"
-        noIndex
-      />
-
-      <MinimalAccountLayout action={{ href: "/contact/site-operator", label: "Discuss your site" }}>
-        <section className="ms-inquiry ms-auth ms-container">
-          <div className="ms-inquiry-intro">
-            <a className="ms-back" href="/">
-              <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
-            </a>
-            <p className="ms-eyebrow">Account access</p>
-            <h1>Sign in to Blueprint.</h1>
-            <p className="ms-inquiry-description">
-              Follow your captures, compare candidates on your task, and open the results that decide a pilot.
-            </p>
-            <p className="ms-inquiry-aside">
-              Runs, evidence, and results stay scoped to your team. Nothing you upload is published across teams,
-              and a result link is only shareable when you make it so.
-            </p>
-          </div>
-
-          <div className="ms-auth-panel">
-            <button
-              type="button"
-              className="ms-button-ghost"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-            >
-              <GoogleMark />
-              Continue with Google
-            </button>
-
-            <p className="ms-divider">or</p>
-
-            <form className="ms-form" onSubmit={handleSubmit} aria-label="Sign in" aria-busy={isLoading}>
-              {authError ? (
-                <p className="ms-notice" role="alert">
-                  <AlertCircle size={17} aria-hidden="true" />
-                  {authError}
-                </p>
-              ) : null}
-
-              <label>
-                Email
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  inputMode="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
-                  placeholder="you@company.com"
-                />
-                {errors.email && touched.email ? <span className="ms-error">{errors.email}</span> : null}
-              </label>
-
-              <label>
-                Password
-                <span className="ms-field-control">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    className="ms-field-reveal"
-                    onClick={() => setShowPassword((current) => !current)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                  </button>
-                </span>
-                {errors.password && touched.password ? <span className="ms-error">{errors.password}</span> : null}
-              </label>
-
-              <div className="ms-form-foot">
-                <span />
-                <a href="/forgot-password">Forgot password?</a>
-              </div>
-
-              <button className="ms-button" type="submit" disabled={isLoading}>
-                {isLoading ? "Signing in…" : "Sign in"}
-                <ArrowRight size={20} aria-hidden="true" />
-              </button>
-            </form>
-
-            <div className="ms-auth-alt">
-              <p>New to Blueprint?</p>
-              <div className="ms-link-list">
-                {startPaths.map((path) => (
-                  <a key={path.href} href={path.href}>
-                    <span>{path.label}</span>
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      </MinimalAccountLayout>
-    </>
+    <AuthLayout>
+      <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
+      <h1>Sign in</h1>
+      <p className="auth-description">Welcome back to Blueprint.</p>
+      <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading}><GoogleMark />Continue with Google</button>
+      <div className="auth-divider"><span>or</span></div>
+      <form method="post" onSubmit={handleSubmit} className="auth-form" noValidate aria-label="Sign in" aria-busy={isLoading}>
+        {authError && <p className="auth-error" role="alert">{authError}</p>}
+        <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" inputMode="email" value={formData.email} onChange={handleInputChange} onBlur={handleBlur} placeholder="you@company.com" disabled={isLoading} aria-invalid={Boolean(errors.email && touched.email)} aria-describedby={errors.email && touched.email ? "email-error" : undefined} />{errors.email && touched.email && <p id="email-error" className="auth-field-error">{errors.email}</p>}</div>
+        <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={formData.password} onChange={handleInputChange} onBlur={handleBlur} disabled={isLoading} aria-invalid={Boolean(errors.password && touched.password)} aria-describedby={errors.password && touched.password ? "password-error" : undefined} /><button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button></div>{errors.password && touched.password && <p id="password-error" className="auth-field-error">{errors.password}</p>}</div>
+        <a className="auth-forgot" href="/forgot-password">Forgot password?</a>
+        <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
+      </form>
+      <p className="auth-account-link">New to Blueprint? <a href="/signup/business">Create an account</a></p>
+      <a className="auth-utility" href="/capture-app">Capture app access</a>
+    </AuthLayout>
   );
 }

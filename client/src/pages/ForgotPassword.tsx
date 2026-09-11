@@ -1,98 +1,33 @@
-"use client";
-
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     try {
       const { auth, sendPasswordResetEmail } = await import("@/lib/firebase");
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, email.trim());
     } catch {
-      // Use the same response for all outcomes to avoid account enumeration.
-    } finally {
-      setIsSubmitted(true);
-      setIsLoading(false);
-    }
-  };
+      // Keep the same response for every outcome to avoid account enumeration.
+    } finally { setIsSubmitted(true); setIsLoading(false); }
+  }
 
-  return (
-    <>
-      <SEO
-        title="Reset password | Blueprint"
-        description="Reset your Blueprint account password. Enter your email to receive a password reset link."
-        canonical="/forgot-password"
-        noIndex
-      />
-
-      <MinimalAccountLayout action={{ href: "/sign-in", label: "Sign in" }}>
-        <section className="ms-inquiry ms-auth ms-container">
-          <div className="ms-inquiry-intro">
-            <a className="ms-back" href="/sign-in">
-              <ArrowLeft size={16} aria-hidden="true" /> Back to sign in
-            </a>
-            <p className="ms-eyebrow">Account access</p>
-            <h1>Reset your password.</h1>
-            <p className="ms-inquiry-description">
-              Enter the email on your account and we&apos;ll send a reset link.
-            </p>
-            <p className="ms-inquiry-aside">
-              This screen answers the same way whether or not an account exists, so it never reveals who has one.
-              If nothing arrives, check the address and try again, or email hello@tryblueprint.io.
-            </p>
-          </div>
-
-          {isSubmitted ? (
-            <div className="ms-success" role="status" aria-live="polite">
-              <Check size={30} aria-hidden="true" />
-              <h2>Check your email</h2>
-              <p>
-                If an account exists for <strong>{email}</strong>, the reset link is now in that inbox.
-              </p>
-              <a className="ms-text-link" href="/sign-in">
-                Return to sign in <ArrowRight size={18} aria-hidden="true" />
-              </a>
-            </div>
-          ) : (
-            <form className="ms-form" onSubmit={handleSubmit} aria-label="Reset password" aria-busy={isLoading}>
-              <label>
-                Email
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  inputMode="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@company.com"
-                  required
-                  disabled={isLoading}
-                  maxLength={254}
-                />
-              </label>
-
-              <button className="ms-button" type="submit" disabled={isLoading}>
-                {isLoading ? "Sending…" : "Send reset link"}
-                <ArrowRight size={20} aria-hidden="true" />
-              </button>
-
-              <p className="ms-form-note">
-                Read our <a href="/privacy">privacy policy</a> for how we handle your information.
-              </p>
-            </form>
-          )}
-        </section>
-      </MinimalAccountLayout>
-    </>
-  );
+  return <AuthLayout>
+    <SEO title="Reset password | Blueprint" description="Request a password reset link for your Blueprint account." canonical="/forgot-password" noIndex />
+    {isSubmitted ? <div role="status"><h1>Check your email</h1><p className="auth-description">If an account exists for <strong>{email}</strong>, you’ll receive a password reset link.</p><a className="auth-primary auth-reset-return" href="/sign-in">Return to sign in<ArrowRight size={18} aria-hidden="true" /></a></div> : <>
+      <h1>Reset your password</h1><p className="auth-description">Enter your email to request a reset link.</p>
+      <form method="post" className="auth-form auth-reset-form" onSubmit={handleSubmit} aria-label="Reset password" aria-busy={isLoading}>
+        <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required disabled={isLoading} /></div>
+        <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Sending…</> : <>Send reset link<ArrowRight size={18} aria-hidden="true" /></>}</button>
+      </form><a className="auth-back" href="/sign-in"><ArrowLeft size={16} aria-hidden="true" />Back to sign in</a>
+    </>}
+  </AuthLayout>;
 }

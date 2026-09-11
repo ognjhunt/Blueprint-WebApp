@@ -20,6 +20,9 @@ import Sites from "../client/src/pages/Sites";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
+import BusinessSignUpFlow from "../client/src/pages/BusinessSignUpFlow";
+import CapturerSignUpFlow from "../client/src/pages/CapturerSignUpFlow";
+import ForgotPassword from "../client/src/pages/ForgotPassword";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,88 +33,6 @@ type StaticRoute = {
   props?: Record<string, unknown>;
   shell?: "site" | "bare";
 };
-
-function BareStaticPage({
-  title,
-  description,
-  eyebrow,
-  heading,
-  body,
-  primaryHref,
-  primaryLabel,
-  secondaryHref,
-  secondaryLabel,
-  rows,
-  canonical,
-  noIndex = false,
-}: {
-  title: string;
-  description: string;
-  eyebrow: string;
-  heading: string;
-  body: string;
-  primaryHref: string;
-  primaryLabel: string;
-  secondaryHref?: string;
-  secondaryLabel?: string;
-  rows: string[];
-  canonical?: string;
-  noIndex?: boolean;
-}) {
-  return (
-    <>
-      <Helmet>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        {canonical ? <link rel="canonical" href={`https://tryblueprint.io${canonical}`} /> : null}
-        {noIndex ? <meta name="robots" content="noindex, nofollow" /> : null}
-      </Helmet>
-      <main className="min-h-screen bg-[#f8f4ec] px-6 py-8 text-[#111110]">
-        <section className="mx-auto max-w-[72rem] overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-[0_30px_90px_-70px_rgba(17,17,16,0.5)]">
-          <div className="border-b border-black/10 bg-[#111110] px-6 py-4 text-white">
-            <a href="/" className="font-serif text-3xl tracking-[-0.05em]">
-              Blueprint
-            </a>
-          </div>
-          <div className="grid gap-8 p-7 lg:grid-cols-[0.6fr_0.4fr] lg:p-10">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-black/46">
-                {eyebrow}
-              </p>
-              <h1 className="mt-5 max-w-[12ch] text-[clamp(3rem,6vw,5.4rem)] font-semibold leading-[0.88] tracking-[-0.08em]">
-                {heading}
-              </h1>
-              <p className="mt-6 max-w-[34rem] text-base leading-8 text-black/62">{body}</p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href={primaryHref}
-                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#111110] px-6 text-sm font-semibold text-white"
-                >
-                  {primaryLabel}
-                </a>
-                {secondaryHref && secondaryLabel ? (
-                  <a
-                    href={secondaryHref}
-                    className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/10 px-6 text-sm font-semibold text-[#111110]"
-                  >
-                    {secondaryLabel}
-                  </a>
-                ) : null}
-              </div>
-            </div>
-            <div className="space-y-3">
-              {rows.map((row) => (
-                <div key={row} className="rounded-[1.25rem] border border-black/10 bg-[#faf7f1] p-5 text-sm leading-7 text-black/62">
-                  {row}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      </main>
-    </>
-  );
-}
 
 function MinimalStaticPage({
   title,
@@ -150,69 +71,6 @@ function MinimalStaticPage({
   );
 }
 
-const PrerenderBusinessSignup = () => (
-  <BareStaticPage
-    title="Buyer Access Request | Blueprint"
-    description="Request authenticated access to Blueprint Task Evaluation Runs."
-    eyebrow="Buyer Access Request"
-    heading="Request exact-site access"
-    body="Use this path when your team needs a private Task Evaluation Run workspace grounded in one real site-task."
-    primaryHref="/signup/business"
-    primaryLabel="Open buyer request"
-    secondaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=signup-prerender"
-    secondaryLabel="Request a Task Evaluation Run"
-    rows={[
-      "Blueprint reviews organization, site, robot, workflow, and requested lane before opening access.",
-      "Run and historical hosted-review access stays tied to capture provenance, rights, privacy, and artifact scope.",
-      "Existing portal users should sign in instead of creating a second account path.",
-    ]}
-    canonical="/signup/business"
-    noIndex
-  />
-);
-
-const PrerenderCapturerSignup = () => (
-  <BareStaticPage
-    title="Capturer Access | Blueprint"
-    description="Apply for capturer access and complete the Blueprint mobile capture handoff."
-    eyebrow="Capturer Access"
-    heading="Apply to capture real places"
-    body="Capturer access is review-based by market. Apply on web, then use Blueprint Capture only for lawful public-facing routes with privacy and restricted-zone rules visible."
-    primaryHref="/signup/capturer"
-    primaryLabel="Open capturer application"
-    secondaryHref="/capture-app/launch-access"
-    secondaryLabel="Request city access"
-    rows={[
-      "Accepted captures focus on everyday public-facing spaces, not private or restricted areas.",
-      "Blueprint reviews coverage, privacy, usefulness, and market fit before a capture becomes downstream output.",
-      "Approval and payout eligibility are not automatic; each submission remains review-gated.",
-    ]}
-    canonical="/signup/capturer"
-    noIndex
-  />
-);
-
-const PrerenderForgotPassword = () => (
-  <BareStaticPage
-    title="Reset Password | Blueprint"
-    description="Reset your Blueprint account password."
-    eyebrow="Secure Access Recovery"
-    heading="Reset your password"
-    body="Use the secure reset flow if you already have a Blueprint account. The live form sends a reset link without exposing whether an account exists."
-    primaryHref="/forgot-password"
-    primaryLabel="Open reset flow"
-    secondaryHref="/sign-in"
-    secondaryLabel="Back to sign in"
-    rows={[
-      "Password reset is for existing Blueprint portal users.",
-      "New robot teams should request buyer access; capturers should use the capturer application.",
-      "If the reset link does not arrive, contact Blueprint from the same work email.",
-    ]}
-    canonical="/forgot-password"
-    noIndex
-  />
-);
-
 const PrerenderCaptureLaunchAccessSummary = () => (
   <MinimalStaticPage
     title="Capture Launch Access | Blueprint"
@@ -246,13 +104,13 @@ const staticRoutes: StaticRoute[] = [
   { path: "/sites", component: Sites },
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
-  { path: "/sign-in", component: Login },
-  { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
-  { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
-  { path: "/signup/robot-team", component: PrerenderBusinessSignup, shell: "bare" },
-  { path: "/signup/site-operator", component: PrerenderBusinessSignup, shell: "bare" },
-  { path: "/signup/capturer", component: PrerenderCapturerSignup, shell: "bare" },
-  { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
+  { path: "/sign-in", component: Login, shell: "bare" },
+  { path: "/signup", component: BusinessSignUpFlow, shell: "bare" },
+  { path: "/signup/business", component: BusinessSignUpFlow, shell: "bare" },
+  { path: "/signup/robot-team", component: BusinessSignUpFlow, shell: "bare" },
+  { path: "/signup/site-operator", component: BusinessSignUpFlow, shell: "bare" },
+  { path: "/signup/capturer", component: CapturerSignUpFlow, shell: "bare" },
+  { path: "/forgot-password", component: ForgotPassword, shell: "bare" },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },
   { path: "/__blueprint-performance-fallback__", component: PrerenderFallbackSummary, shell: "bare" },

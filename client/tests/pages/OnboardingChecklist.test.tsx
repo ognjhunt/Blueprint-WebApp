@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import OnboardingChecklist from "@/pages/OnboardingChecklist";
 
@@ -62,17 +62,15 @@ vi.mock("firebase/firestore", () => ({
 describe("OnboardingChecklist", () => {
   it("shows site-operator rights, privacy, access, and commercial control status", () => {
     render(<OnboardingChecklist />);
-    // Scoped to the page body: the account chrome's footer also links "Privacy".
-    const page = within(screen.getByRole("main"));
 
-    expect(page.getByText(/Operator control map/i)).toBeInTheDocument();
-    expect(page.getByText(/^Rights$/i)).toBeInTheDocument();
-    expect(page.getByText(/Rights note captured/i)).toBeInTheDocument();
-    expect(page.getByText(/^Privacy$/i)).toBeInTheDocument();
-    expect(page.getByText(/Privacy boundary captured/i)).toBeInTheDocument();
-    expect(page.getByText(/^Access$/i)).toBeInTheDocument();
-    expect(page.getByText(/Access rules defined/i)).toBeInTheDocument();
-    expect(page.getByText(/^Commercial control$/i)).toBeInTheDocument();
-    expect(page.getByText(/Commercial posture captured/i)).toBeInTheDocument();
+    expect(screen.getByText(/Operator control map/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Rights$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rights note captured/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Privacy$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Privacy boundary captured/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Access$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Access rules defined/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Commercial control$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Commercial posture captured/i)).toBeInTheDocument();
   });
 });

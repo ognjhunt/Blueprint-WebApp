@@ -313,7 +313,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/signup/robot-team", layout: "public", shell: "bare", component: RobotTeamSignupRedirect },
   { path: "/signup/site-operator", layout: "public", shell: "bare", component: SiteOperatorSignupRedirect },
   { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
-  { path: "/onboarding", layout: "protected", shell: "bare", component: OnboardingChecklist },
+  { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },

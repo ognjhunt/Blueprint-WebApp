@@ -23,14 +23,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
 import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
-import { MinimalAccountLayout } from "@/components/site/MinimalAccountLayout";
+import { AuthLayout, AuthSteps } from "@/components/auth/AuthLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 import { filterToServedCities } from "@/data/serviceArea";
 
@@ -75,7 +74,8 @@ type EquipmentValue = (typeof EQUIPMENT_OPTIONS)[number]["value"];
 type AvailabilityValue = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 type ReferralValue = (typeof REFERRAL_OPTIONS)[number]["value"];
 
-const FIELD_LABEL_CLASS = "ms-eyebrow mb-2 block";
+const RUNWAY_LABEL_CLASS =
+  "mb-2 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-runway-faint";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -95,33 +95,7 @@ function normalizeCityToken(value: string) {
 }
 
 function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
-  return (
-    <div className="flex items-center gap-3">
-      {[1, 2].map((step) => (
-        <React.Fragment key={step}>
-          <div
-            className={`runway-num flex h-9 w-9 items-center justify-center border text-sm font-semibold transition ${
-              step < currentStep
-                ? "border-runway-green-dim text-runway-green"
-                : step === currentStep
-                  ? "border-runway-signal text-runway-signal"
-                  : "border-runway-line-strong text-runway-faint"
-            }`}
-          >
-            {step}
-          </div>
-          {step < 2 ? (
-            <div
-              className={`h-px w-12 ${
-                step < currentStep ? "bg-runway-green" : "bg-runway-line"
-              }`}
-            />
-          ) : null}
-        </React.Fragment>
-      ))}
-      <span className="runway-meta">Step {currentStep} of 2</span>
-    </div>
-  );
+  return <AuthSteps currentStep={currentStep} labels={["Account", "Capture details"]} />;
 }
 
 export default function CapturerSignUpFlow() {
@@ -215,8 +189,8 @@ export default function CapturerSignUpFlow() {
           width: 320,
           margin: 1,
           color: {
-            dark: "#22251e",
-            light: "#f6f5ef",
+            dark: "#0c0f0e",
+            light: "#e8e6dd",
           },
         });
         if (active) {
@@ -463,123 +437,8 @@ export default function CapturerSignUpFlow() {
         canonical="/signup/capturer"
         noIndex={true}
       />
-      <MinimalAccountLayout action={{ href: "/sign-in", label: "Sign in" }}>
-        <div className="ms-container" style={{ paddingBlock: "34px 80px" }}>
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-        <section className="runway-panel relative overflow-hidden p-7 sm:p-8">
-          <div className="relative space-y-8">
-            <div className="runway-chip runway-chip-open">
-              <Compass className="h-3.5 w-3.5" />
-              Capturer access application
-            </div>
-
-            <div className="space-y-4">
-              <h1 className="max-w-md font-display text-4xl font-semibold text-runway-text sm:text-5xl">
-                Apply to get paid for approved field capture.
-              </h1>
-              <p className="max-w-lg text-base leading-7 text-runway-body">
-                Capturer access is public to request and review-based by market. This page creates
-                the account and routes the application for phone-first walkthrough work; actual
-                capture assignments happen in Blueprint Capture, not the operator dashboard.
-              </p>
-              <p className="max-w-lg text-sm leading-6 text-runway-body">
-                Review is required before any assignment or payout eligibility. The assignment
-                payout is shown before you start, and only an accepted capture can move forward.
-                Accepted capture gear is a 360 camera and a smartphone. No other device class
-                is approved for assignments.
-              </p>
-              <p className="max-w-lg text-sm leading-6 text-runway-body">
-                Robot teams and site operators use the{" "}
-                <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/signup/business">
-                  Buyer access request
-                </a>
-                {" "}or the{" "}
-                <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/book-exact-site-review">
-                  exact-site scoping request
-                </a>
-                {" "}instead of this capturer path.
-              </p>
-            </div>
-
-            <div className="overflow-hidden border border-runway-line bg-runway-deep">
-              <img
-                src={publicCaptureGeneratedAssets.captureAppHero}
-                alt="Blueprint public-facing capture walkthrough"
-                className="h-[15rem] w-full object-cover"
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="border border-runway-line bg-runway-deep p-4">
-                <p className="runway-meta">
-                  Field task
-                </p>
-                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">One route</p>
-                <p className="mt-1 text-sm text-runway-mute">Walk, upload, review.</p>
-              </div>
-              <div className="border border-runway-line bg-runway-deep p-4">
-                <p className="runway-meta">
-                  Gear
-                </p>
-                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">Phone + 360</p>
-                <p className="mt-1 text-sm text-runway-mute">No other device class is approved.</p>
-              </div>
-              <div className="border border-runway-line bg-runway-deep p-4">
-                <p className="runway-meta">
-                  Web role
-                </p>
-                <p className="mt-3 font-display text-2xl font-semibold text-runway-text">Apply + review</p>
-                <p className="mt-1 text-sm text-runway-mute">No guaranteed assignments.</p>
-              </div>
-            </div>
-
-            <LaunchCityAvailability
-              tone="dark"
-              className="p-5"
-              title="Current capture rollout is city-limited."
-              description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until Blueprint opens them."
-              primaryCta={{ href: "/capture", label: "Capture overview" }}
-            />
-
-              <div className="border border-runway-line-strong bg-runway-deep p-5">
-                <p className="runway-meta">
-                  What happens next
-                </p>
-                <ol className="mt-4 space-y-4 text-sm leading-6 text-runway-body">
-                  <li className="flex gap-3">
-                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
-                      1
-                    </span>
-                    Create your account and tell us where you can capture. If you have an access or invite code, include it so your application routes correctly.
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-signal-dim text-xs font-semibold text-runway-signal">
-                      2
-                    </span>
-                    Your application enters review. We confirm market fit, device availability, and cohort capacity before approval.
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="runway-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-runway-line-strong text-xs font-semibold text-runway-mute">
-                      3
-                    </span>
-                    Approved capturers receive mobile access instructions, see assignment payout
-                    before starting, and complete public-area-only sessions in Blueprint Capture.
-                  </li>
-                </ol>
-              </div>
-
-            <div className="border border-dashed border-runway-line-strong px-4 py-3 text-sm text-runway-body">
-              For site operators or robot teams, use{" "}
-              <a className="font-semibold text-runway-signal underline-offset-4 hover:underline" href="/signup/business">
-                business signup
-              </a>
-              .
-            </div>
-          </div>
-        </section>
-
-        <section className="runway-panel relative overflow-hidden p-6 sm:p-8">
-          <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(232,171,58,0.28),_transparent_70%)]" />
+      <AuthLayout wide>
+        <section className="auth-signup-fields">
           {!isComplete ? (
             <motion.div
               key={`step-${step}`}
@@ -588,16 +447,16 @@ export default function CapturerSignUpFlow() {
               transition={{ duration: 0.22 }}
               className="relative"
             >
-              <div className="flex flex-col gap-4 border-b border-runway-line pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="auth-capturer-heading">
                 <div>
                   <p className="runway-eyebrow">Capturer application</p>
-              <h2 className="mt-1 font-display text-3xl font-semibold text-runway-text">
-                {step === 1 ? "Create your account" : "Tell us where you can work"}
-              </h2>
+              <h1>
+                {step === 1 ? "Create your account" : "Your capture details"}
+              </h1>
               <p className="mt-2 max-w-xl text-sm leading-6 text-runway-body">
                 {step === 1
-                  ? "Keep the web form short. We only need enough to open your account and move you into the right market."
-                  : "This is a capturer application, not a buyer site intake. Keep it focused on where you can capture, your device fit, and the review path for approved assignments."}
+                  ? "Create an account to apply for capture work."
+                  : "Add your location, equipment, and availability."}
                   </p>
                 </div>
                 <StepDots currentStep={step} />
@@ -608,7 +467,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="fullName" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="fullName" className={RUNWAY_LABEL_CLASS}>
                           Full name
                         </Label>
                         <div className="relative mt-2">
@@ -624,7 +483,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="email" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="email" className={RUNWAY_LABEL_CLASS}>
                           Email
                         </Label>
                         <div className="relative mt-2">
@@ -641,7 +500,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <Label htmlFor="password" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="password" className={RUNWAY_LABEL_CLASS}>
                           Password
                         </Label>
                         <Input
@@ -655,7 +514,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <Label htmlFor="confirmPassword" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="confirmPassword" className={RUNWAY_LABEL_CLASS}>
                           Confirm password
                         </Label>
                         <Input
@@ -694,7 +553,7 @@ export default function CapturerSignUpFlow() {
                   <>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="market" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="market" className={RUNWAY_LABEL_CLASS}>
                           Capture city
                         </Label>
                         <p className="mt-2 text-sm leading-6 text-runway-body">
@@ -745,7 +604,7 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <Label htmlFor="phoneNumber" className={FIELD_LABEL_CLASS}>
+                        <Label htmlFor="phoneNumber" className={RUNWAY_LABEL_CLASS}>
                           Phone number
                         </Label>
                         <Input
@@ -771,7 +630,7 @@ export default function CapturerSignUpFlow() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <Label htmlFor="accessCode" className={FIELD_LABEL_CLASS}>
+                      <Label htmlFor="accessCode" className={RUNWAY_LABEL_CLASS}>
                         Access or invite code <span className="text-runway-mute">(if you have one)</span>
                       </Label>
                       <div className="relative mt-2">
@@ -951,9 +810,7 @@ export default function CapturerSignUpFlow() {
                 <div className="inline-flex h-14 w-14 items-center justify-center border border-runway-green-dim text-runway-green">
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
-                <h2 className="mt-6 font-display text-3xl font-semibold text-runway-text">
-                  Application submitted.
-                </h2>
+                <h1>Application submitted.</h1>
                 <p className="mt-3 max-w-xl text-base leading-7 text-runway-body">
                   {successSummary
                     ? successSummary.isSupportedLaunchCity
@@ -1083,9 +940,8 @@ export default function CapturerSignUpFlow() {
             </motion.div>
           )}
         </section>
-      </div>
-        </div>
-      </MinimalAccountLayout>
+        {!isComplete && <><p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p><a className="auth-utility" href="/signup/business">Business account</a></>}
+      </AuthLayout>
     </>
   );
 }

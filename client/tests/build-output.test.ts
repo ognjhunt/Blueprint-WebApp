@@ -66,6 +66,21 @@ describe("build output", () => {
     });
   });
 
+  it("prerenders the real auth forms in the shared minimal shell", () => {
+    for (const route of ["sign-in", "signup/business", "signup/capturer", "forgot-password"]) {
+      const html = fs.readFileSync(distPath(route, "index.html"), "utf8");
+      expect(html).toContain("auth-shell");
+      expect(html).toContain("/images/site-led/auth/packing.webp");
+      expect((html.match(/id="main-content"/g) || []).length).toBe(1);
+      expect(html).not.toContain("Access Control Suite");
+      expect(html).not.toContain("Why Exact-Site Context Matters");
+    }
+    for (const route of ["sign-in", "forgot-password"]) {
+      expect(fs.readFileSync(distPath(route, "index.html"), "utf8")).toContain('method="post"');
+    }
+    expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="organizationName"');
+  });
+
   it("does not prerender retired aliases or protected operations routes", () => {
     [
       "pricing/index.html",

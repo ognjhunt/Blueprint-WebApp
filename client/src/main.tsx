@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Route, Switch } from "wouter";
 import "./index.css";
 import "./components/site/minimal-site.css";
+import "./components/auth/auth.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "@/lib/helmet";
 import { queryClient } from "./lib/queryClient";
