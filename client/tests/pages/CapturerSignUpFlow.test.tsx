@@ -85,8 +85,8 @@ describe("CapturerSignUpFlow analytics", () => {
       1,
       "account_basics",
     );
-    expect(screen.getByText(/Capturer access application/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Buyer access request/i })).toHaveAttribute(
+    expect(screen.getByText(/Capturer application/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Business account$/i })).toHaveAttribute(
       "href",
       "/signup/business",
     );
