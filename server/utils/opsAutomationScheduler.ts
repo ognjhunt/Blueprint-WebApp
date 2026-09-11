@@ -26,6 +26,7 @@ import { runLifecycleCadenceWorker } from "./lifecycle-cadence";
 import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
+import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
@@ -346,6 +347,22 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 100,
     defaultStartupDelayMs: 100 * 1000,
     run: ({ limit }) => runHumanReplyEmailWatcher({ limit }),
+  },
+  {
+    // Trigger 3 of the robot-team registry. Proposals only; a person applies
+    // them. Hourly is generous -- public capability pages do not change often,
+    // and a reviewer queue that fills faster than it empties trains people to
+    // click through it.
+    key: "robot_capability_refresh",
+    enabledEnv: "BLUEPRINT_ROBOT_CAPABILITY_REFRESH_ENABLED",
+    intervalEnv: "BLUEPRINT_ROBOT_CAPABILITY_REFRESH_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_ROBOT_CAPABILITY_REFRESH_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_ROBOT_CAPABILITY_REFRESH_STARTUP_DELAY_MS",
+    defaultIntervalMs: 60 * 60 * 1000,
+    defaultBatchSize: 5,
+    maxBatchSize: 25,
+    defaultStartupDelayMs: 120 * 1000,
+    run: ({ limit }) => runRobotCapabilityRefreshLoop({ limit }),
   },
   {
     key: "operating_graph_projection",
