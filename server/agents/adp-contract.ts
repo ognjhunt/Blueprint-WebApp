@@ -31,6 +31,29 @@ export const adpDiagnosisSchema = z.object({
 }).strict();
 
 const tokenCount = z.number().finite().int().nonnegative().optional();
+const episodeRef = z.object({
+  artifact_role: z.enum(["task_success_contract", "deterministic_score", "state_trace", "contact_force_trace", "frame_manifest", "lossless_frame", "review_video"]),
+  artifact_digest: digest, step_index: z.number().int().nonnegative().nullable(),
+  timestamp_seconds: z.number().finite().nonnegative().nullable(), note: z.string().max(500).nullable(),
+}).strict();
+export const adpEpisodeOutputSchema = z.object({
+  episode_outcome: z.enum(["appears_complete", "appears_incomplete", "unclear"]),
+  summary: z.string().max(8000), confidence: z.number().finite().min(0).max(1),
+  events: z.array(z.object({ event_type: z.string().max(100),
+    start_step: z.number().int().nonnegative().nullable(), end_step: z.number().int().nonnegative().nullable(),
+    start_time_seconds: z.number().finite().nonnegative(), end_time_seconds: z.number().finite().nonnegative().nullable(),
+    description: z.string().max(2000), evidence_refs: z.array(episodeRef).max(20),
+    confidence: z.number().finite().min(0).max(1),
+  }).strict()).max(200),
+  possible_missed_events: z.array(z.object({ description: z.string().max(1000), reason: z.string().max(500),
+    evidence_refs: z.array(episodeRef).max(20) }).strict()).max(100),
+  contract_considerations: z.array(z.string()).max(100),
+}).strict();
+const visualOutputSchema = z.object({ status: z.enum(["inspected", "insufficient_evidence"]),
+  summary: z.string().max(8000), evidence_gaps: z.array(z.string()).max(100), final_acceptance_granted: z.literal(false),
+  findings: z.array(z.object({ view_id: id, source_sha256: digest, finding: z.string().max(2000),
+    related_view_ids: z.array(id).max(32) }).strict()).max(100),
+}).strict();
 const usageSchema = z.object({
   input_tokens: tokenCount, output_tokens: tokenCount, total_tokens: tokenCount,
   cached_tokens: tokenCount, cache_write_tokens: tokenCount, reasoning_tokens: tokenCount,
@@ -53,7 +76,7 @@ const resultSchema = z.object({
   cost_usd: z.number().finite().nonnegative().nullable().optional(),
   cost_status: z.enum(["official_reconciliation_required", "model_pricing_estimate_not_official_billing", "unavailable", "unknown"]).optional(),
   model: z.string(),
-  output: adpDiagnosisSchema,
+  output: z.union([adpDiagnosisSchema, adpEpisodeOutputSchema, visualOutputSchema]),
   output_digest: digest,
   result_digest: digest,
   scientific_acceptance_granted: z.literal(false),
@@ -75,6 +98,17 @@ export const adpTaskStatusSchema = z.object({
   usage: usageSchema.nullable(),
   resource_closeout: z.literal("not_established_by_agent_completion"),
   proof_effect: z.literal("none"),
+  output_cross_runtime_digest: digest.nullable().optional(),
+  interpretation: z.object({
+    status: z.enum(["pending_validation", "completed", "abstained", "refused"]),
+    task_id: id.optional(), task_digest: digest.optional(), receipt_digest: digest.optional(),
+    input_bundle_digest: digest.optional(), error_code: z.string().max(192).optional(),
+    proof_effect: z.literal("none").optional(),
+  }).strict().optional(),
+  visual_review: z.object({ status: z.enum(["pending_validation", "inspected", "insufficient_evidence", "refused"]),
+    task_id: id.optional(), receipt_digest: digest.optional(), error_code: z.string().max(192).optional(),
+    independent_final_review_required: z.literal(true).optional(), proof_effect: z.literal("none").optional(),
+  }).strict().optional(),
 }).strict();
 
 export type AdpTaskAdmission = z.infer<typeof adpTaskAdmissionSchema>;

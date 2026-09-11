@@ -9,6 +9,7 @@ import { AdpManagedRuns, ADP_ADMISSIONS, ADP_PENDING } from "../agents/adp-manag
 import { adpTaskAdmissionSchema, type AdpTaskAdmission, type AdpTaskStatus } from "../agents/adp-contract";
 import { AdpPipelineRequestError, requestAdpTask } from "../agents/adapters/openai-agents-api";
 import { createFakeFirestore, createFakeFirestoreState } from "./helpers/fake-firestore";
+import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const hash = (value: unknown) => `sha256:${createHash("sha256").update(JSON.stringify(value, Object.keys(value as object).sort())).digest("hex")}`;
 const admission = (): AdpTaskAdmission => ({
@@ -62,6 +63,30 @@ beforeEach(() => {
 afterEach(() => { delete process.env.BLUEPRINT_AGENT_PIPELINE_BASE_URL; delete process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN; });
 
 describe("admitted asynchronous runtime", () => {
+  it("keeps an episode pending until independent collection and retains numeric evidence digests", async () => {
+    const record = admission();
+    const current = status(record, "completed");
+    const episode = { episode_outcome: "unclear" as const, summary: "A camera interval is missing.",
+      confidence: 1.0, events: [], possible_missed_events: [], contract_considerations: [] };
+    current.result!.output = episode;
+    current.output_cross_runtime_digest = crossRuntimeDigest(episode);
+    current.interpretation = { status: "pending_validation" };
+    const { service, advance } = setup(vi.fn(async () => structuredClone(current)));
+    await service.admit(record); await service.start(record.task_id, "operator"); await service.tick();
+    expect((await service.status(record.task_id)).run!.status).toBe("running");
+    current.interpretation = { status: "abstained", task_id: record.task_id, task_digest: record.task_digest,
+      receipt_digest: `sha256:${"f".repeat(64)}`, input_bundle_digest: `sha256:${"e".repeat(64)}`, proof_effect: "none" };
+    advance(); await service.tick();
+    const completed = (await service.status(record.task_id)).run!;
+    expect(completed.status).toBe("completed");
+    expect(completed.output).toMatchObject({ kind: "episode_interpretation", disposition: "abstained",
+      interpretation_receipt_digest: current.interpretation.receipt_digest });
+    const tampered = structuredClone(current);
+    tampered.result!.output.summary = "Different output";
+    await expect(requestAdpTask(record, "inspect", vi.fn(async () => new Response(JSON.stringify(tampered))) as any))
+      .rejects.toThrow("digest_mismatch");
+  });
+
   it("deduplicates repeated admission and start, while only the worker contacts Pipeline", async () => {
     const { service, state, forward } = setup();
     const record = admission();

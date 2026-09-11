@@ -52,3 +52,31 @@ lost replies, competing workers, cancellation races, terminal immutability and
 cleanup retention. A focused browser fixture verifies pending cancellation, terminal updates and
 cleanup without losing the diagnosis. Live production verification remains
 required before claiming the end-to-end integration is complete.
+# Adaptive interpretation and selected Paperclip worker
+
+Episode tasks retain the original Python result digest and add an RFC 8785
+digest for their numeric output across the Website boundary. The operator
+shows a timeline and missing evidence. A completed model answer remains pending
+until the Pipeline worker's independent collection succeeds or refuses it;
+interpretation never changes the task score.
+
+The `blueprint-adp-execution` Paperclip tool accepts only an action. It resolves
+the current heartbeat run and assigned issue from Paperclip, then selects the
+task in `issue.metadata.blueprintAdpExecution`:
+
+```json
+{"program":"arm-decision-proof-v1","taskId":"server-admitted-task-id"}
+```
+
+Configure the same `BLUEPRINT_PAPERCLIP_ADP_AGENT_ID`,
+`BLUEPRINT_PAPERCLIP_ADP_COMPANY_ID`, and private
+`BLUEPRINT_PAPERCLIP_ADP_BRIDGE_TOKEN` on the trusted plugin host and WebApp.
+The plugin additionally uses `BLUEPRINT_PAPERCLIP_ADP_WEBAPP_URL` (HTTPS origin).
+These settings select one ADP worker; they do not change the other employee
+runtimes. The bridge persists one task owner and the heartbeat-run linkage in
+Firestore, and the plugin retains request/observation state in Paperclip.
+Repeated requests select the same durable task. Neither a model answer nor a
+successful tool call closes the Paperclip issue or proves product completion.
+
+This integration is inactive until those server settings and an issue binding
+are admitted. Its code/tests do not establish a live Paperclip execution.
