@@ -42,7 +42,7 @@ export const previewDiagnosisTask: StructuredTaskDefinition<
   z.infer<typeof previewDiagnosisOutputSchema>
 > = {
   kind: "preview_diagnosis",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("preview_diagnosis"),
   model_by_provider: getTaskModelByProvider("preview_diagnosis"),
   output_schema: previewDiagnosisOutputSchema,
   tool_policy: {

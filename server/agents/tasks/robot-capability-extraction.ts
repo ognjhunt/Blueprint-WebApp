@@ -104,7 +104,7 @@ export const robotCapabilityExtractionTask: StructuredTaskDefinition<
   RobotCapabilityExtractionOutput
 > = {
   kind: "robot_capability_extraction",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("robot_capability_extraction"),
   model_by_provider: getTaskModelByProvider("robot_capability_extraction"),
   output_schema: robotCapabilityExtractionOutputSchema,
   tool_policy: { mode: "api", prefer_direct_api: true },

@@ -47,7 +47,7 @@ export const supportTriageTask: StructuredTaskDefinition<
   z.infer<typeof supportTriageOutputSchema>
 > = {
   kind: "support_triage",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("support_triage"),
   model_by_provider: getTaskModelByProvider("support_triage"),
   output_schema: supportTriageOutputSchema,
   tool_policy: {

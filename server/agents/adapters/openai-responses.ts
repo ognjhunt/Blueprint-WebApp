@@ -4,7 +4,11 @@ import OpenAI from "openai";
 import type { ZodType } from "zod";
 
 import { openAiResponsesOperatorTools, runOperatorTool } from "../operator-tools";
-import { getOpenAiReasoningEffort } from "../provider-config";
+import {
+  getOpenAiMaxOutputTokens,
+  getOpenAiReasoningEffort,
+  getOpenAiTimeoutMs,
+} from "../provider-config";
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import {
   buildExplicitOpenAIRequest,
@@ -42,7 +46,7 @@ function replayInputMatchesPolicy(input: unknown[], taskKind: string, enabled: b
 }
 
 const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
-const openAiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS ?? 20_000);
+const openAiTimeoutMs = getOpenAiTimeoutMs();
 
 function boundedPositiveNumber(value: string | undefined, fallback: number, maximum: number) {
   const parsed = Number(value ?? fallback);
@@ -54,11 +58,7 @@ const openAiMaxInputTokens = Math.floor(boundedPositiveNumber(
   100_000,
   1_000_000,
 ));
-const openAiMaxOutputTokens = Math.floor(boundedPositiveNumber(
-  process.env.BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS,
-  4_000,
-  128_000,
-));
+const openAiMaxOutputTokens = getOpenAiMaxOutputTokens();
 const openAiMaxInferenceCostUsd = boundedPositiveNumber(
   process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD,
   5,

@@ -1,31 +1,68 @@
 import { runAgentTask } from "./runtime";
+import type { AgentTaskKind } from "./types";
 import {
+  describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
+  getOpenAiTimeoutMs,
   getStructuredAutomationProvider,
   getTaskModelByProvider,
   isProviderConfigured,
+  type StructuredProvider,
 } from "./provider-config";
 
+/**
+ * The lanes this metadata speaks for.
+ *
+ * Provider is now resolved per lane, so reporting one global provider and
+ * pairing every lane's model with it would describe a routing that does not
+ * exist. Each lane is resolved on its own and reported with the provider that
+ * will actually serve it.
+ */
+const CONNECTIVITY_TASK_KINDS = [
+  "waitlist_triage",
+  "inbound_qualification",
+  "post_signup_scheduling",
+  "operator_thread",
+  "support_triage",
+  "payout_exception_triage",
+  "preview_diagnosis",
+] as const satisfies readonly AgentTaskKind[];
+
+type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
+
 function runtimeDefaultModel() {
-  const provider = getStructuredAutomationProvider();
+  const provider = getStructuredAutomationProvider("operator_thread");
   return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
 }
 
 export function getAgentRuntimeConnectionMetadata() {
   const provider = getStructuredAutomationProvider();
   const fallbackProvider = getStructuredAutomationFallbackProvider();
-  const taskModels = {
-    waitlist_triage: getTaskModelByProvider("waitlist_triage")[provider] || null,
-    inbound_qualification:
-      getTaskModelByProvider("inbound_qualification")[provider] || null,
-    post_signup_scheduling:
-      getTaskModelByProvider("post_signup_scheduling")[provider] || null,
-    operator_thread: getTaskModelByProvider("operator_thread")[provider] || null,
-    support_triage: getTaskModelByProvider("support_triage")[provider] || null,
-    payout_exception_triage:
-      getTaskModelByProvider("payout_exception_triage")[provider] || null,
-    preview_diagnosis: getTaskModelByProvider("preview_diagnosis")[provider] || null,
-  };
+
+  const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider>;
+  const taskModels = {} as Record<ConnectivityTaskKind, string | null>;
+  const unhonoredLaneProviders: Array<{
+    task_kind: ConnectivityTaskKind;
+    env_key: string;
+    requested: string;
+    using: StructuredProvider;
+    reason: string;
+  }> = [];
+
+  for (const taskKind of CONNECTIVITY_TASK_KINDS) {
+    const resolution = describeStructuredAutomationProvider(taskKind);
+    taskProviders[taskKind] = resolution.provider;
+    taskModels[taskKind] = getTaskModelByProvider(taskKind)[resolution.provider] || null;
+    if (!resolution.lane_request_honored && resolution.lane_env_key && resolution.lane_request) {
+      unhonoredLaneProviders.push({
+        task_kind: taskKind,
+        env_key: resolution.lane_env_key,
+        requested: resolution.lane_request,
+        using: resolution.provider,
+        reason: resolution.reason,
+      });
+    }
+  }
 
   return {
     provider,
@@ -41,10 +78,12 @@ export function getAgentRuntimeConnectionMetadata() {
           ? process.env.CODEX_TIMEOUT_MS ?? 120_000
         : provider === "openclaw"
           ? process.env.OPENCLAW_TIMEOUT_MS ?? 20_000
-          : process.env.OPENAI_TIMEOUT_MS ?? 20_000,
+          : getOpenAiTimeoutMs(),
     ),
     default_model: runtimeDefaultModel(),
+    task_providers: taskProviders,
     task_models: taskModels,
+    unhonored_lane_providers: unhonoredLaneProviders,
   };
 }
 

@@ -143,7 +143,7 @@ export const inboundQualificationTask: StructuredTaskDefinition<
   InboundQualificationOutput
 > = {
   kind: "inbound_qualification",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("inbound_qualification"),
   model_by_provider: getTaskModelByProvider("inbound_qualification"),
   output_schema: inboundQualificationOutputSchema,
   tool_policy: {

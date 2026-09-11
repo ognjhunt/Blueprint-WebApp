@@ -62,7 +62,7 @@ export const postSignupSchedulingTask: StructuredTaskDefinition<
   PostSignupSchedulingOutput
 > = {
   kind: "post_signup_scheduling",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("post_signup_scheduling"),
   model_by_provider: getTaskModelByProvider("post_signup_scheduling"),
   output_schema: postSignupSchedulingOutputSchema,
   tool_policy: {

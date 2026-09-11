@@ -40,7 +40,7 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
   z.infer<typeof payoutExceptionOutputSchema>
 > = {
   kind: "payout_exception_triage",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("payout_exception_triage"),
   model_by_provider: getTaskModelByProvider("payout_exception_triage"),
   output_schema: payoutExceptionOutputSchema,
   tool_policy: {

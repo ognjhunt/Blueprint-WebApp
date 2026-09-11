@@ -18,6 +18,7 @@
     "rules:parity": "npm run rules:firestore-parity && npm run rules:storage-parity",
     "perf:pages": "tsx scripts/measure-page-load-performance.ts",
     "smoke:agent": "tsx scripts/agent-runtime-smoke.ts",
+    "agent:routing": "tsx scripts/agent-lane-routing.ts",
     "agent:contract": "tsx scripts/agent-access/generate-agent-openapi.ts",
     "agent:cli": "tsx scripts/agent-access/blueprint-agent-cli.ts",
     "agent:mcp": "tsx scripts/agent-access/blueprint-mcp-server.ts",

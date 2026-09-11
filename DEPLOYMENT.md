@@ -144,13 +144,38 @@ Launch-critical note:
   - `ANTHROPIC_API_KEY`
   - `ACP_HARNESS_URL`
 - Optional provider selection:
-  - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER`
+  - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER` — global; moves every structured lane at once
   - `BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER`
+- Optional per-lane provider selection (overrides the global provider for one lane):
+  - `BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER`
+  - `BLUEPRINT_WAITLIST_AUTOMATION_PROVIDER`
+  - `BLUEPRINT_POST_SIGNUP_PROVIDER`
+  - `BLUEPRINT_SUPPORT_TRIAGE_PROVIDER`
+  - `BLUEPRINT_PAYOUT_EXCEPTION_PROVIDER`
+  - `BLUEPRINT_PREVIEW_DIAGNOSIS_PROVIDER`
+  - `BLUEPRINT_OPERATOR_THREAD_PROVIDER`
+  - `BLUEPRINT_ROBOT_CAPABILITY_EXTRACTION_PROVIDER`
+
+  A lane override needs that provider's own key. Without it the lane falls back
+  to the global provider rather than going offline, and the fall-through is
+  reported as `unhonored_lane_providers` in the agent runtime connectivity
+  metadata (`GET` the admin agent runtime status, or run
+  `tsx scripts/agent-runtime-smoke.ts`). Check there before concluding a lane is
+  on the model you set — `task_providers` and `task_models` name what each lane
+  will actually use.
 - Optional: `DEEPSEEK_BASE_URL`, `DEEPSEEK_DEFAULT_MODEL`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_THINKING`
+  - `DEEPSEEK_MAX_TOKENS` defaults to `16000` and should not be set below it.
+    Reasoning and the answer share this budget; the old `2000` made
+    `inbound_qualification` return successful, empty responses. Setting it
+    explicitly overrides the fix.
   - Default structured-agent model: `deepseek-v4-pro` through the official DeepSeek API.
 - Optional for Anthropic-compatible DeepSeek clients: `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_EFFORT_LEVEL=max`
   - Default Hermes model: `deepseek-v4-pro[1m]` with `deepseek-v4-flash` as the next ladder fallback.
 - Optional: `OPENAI_DEFAULT_MODEL`
+- Optional OpenAI budget and deadline: `BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS`
+  (default `16000`), `OPENAI_TIMEOUT_MS` (default `120000`). Reasoning tokens
+  come out of `max_output_tokens` on the Responses API, so a lane at reasoning
+  effort `max` needs both. Default OpenAI model: `gpt-5.6-luna`.
 - Optional: `ANTHROPIC_DEFAULT_MODEL`
 - Optional: `ACP_DEFAULT_HARNESS`
 - Optional managed-runtime spend guardrails:

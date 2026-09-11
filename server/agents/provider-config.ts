@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 
 import type { AgentProvider, AgentTaskKind } from "./types";
 
-type StructuredProvider = Extract<
+export type StructuredProvider = Extract<
   AgentProvider,
   | "deepseek_chat"
   | "openai_responses"
@@ -63,6 +63,62 @@ export function isGeminiVideoConfigured(): boolean {
     process.env.GEMINI_API_KEY?.trim() ||
       process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
       process.env.GOOGLE_AI_STUDIO_API_KEY?.trim(),
+  );
+}
+
+/**
+ * How much room an OpenAI lane gets, and how long it gets to use it.
+ *
+ * Shared with the adapter rather than declared inside it, because
+ * `getAgentRuntimeConnectionMetadata` reports the timeout to ops and a number
+ * that disagrees with the client's is worse than no number.
+ *
+ * Both defaults were sized for a short chat turn — 4,000 output tokens and a
+ * 20-second deadline — and neither survives a lane running at reasoning effort
+ * "max". On the Responses API reasoning tokens come out of `max_output_tokens`,
+ * the same arithmetic that made DeepSeek return successful, empty responses
+ * until its ceiling moved from 2,000 to 16,000: `inbound_qualification`'s schema
+ * declares maxima summing to 8,573 characters (~2,150 tokens) of JSON before a
+ * single reasoning token is spent. 4,000 leaves max-effort reasoning almost no
+ * room, and 20 seconds is not long enough for it to finish thinking.
+ *
+ * 16,000 tokens and 120 seconds match what the DeepSeek lane already runs with
+ * and works. Both are ceilings, not reservations: unused output tokens are not
+ * billed, and a request that returns in two seconds still returns in two
+ * seconds. The cost of being generous is nothing; the cost of being tight is a
+ * lane that never completes.
+ */
+const DEFAULT_OPENAI_MAX_OUTPUT_TOKENS = 16_000;
+const OPENAI_MAX_OUTPUT_TOKENS_CEILING = 128_000;
+const DEFAULT_OPENAI_TIMEOUT_MS = 120_000;
+const OPENAI_TIMEOUT_CEILING_MS = 600_000;
+
+function boundedPositiveNumber(
+  value: string | undefined,
+  fallback: number,
+  maximum: number,
+) {
+  const parsed = Number(value ?? fallback);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
+}
+
+export function getOpenAiMaxOutputTokens(): number {
+  return Math.floor(
+    boundedPositiveNumber(
+      process.env.BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS,
+      DEFAULT_OPENAI_MAX_OUTPUT_TOKENS,
+      OPENAI_MAX_OUTPUT_TOKENS_CEILING,
+    ),
+  );
+}
+
+export function getOpenAiTimeoutMs(): number {
+  return Math.floor(
+    boundedPositiveNumber(
+      process.env.OPENAI_TIMEOUT_MS,
+      DEFAULT_OPENAI_TIMEOUT_MS,
+      OPENAI_TIMEOUT_CEILING_MS,
+    ),
   );
 }
 
@@ -176,7 +232,100 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
   }
 }
 
-export function getStructuredAutomationProvider(): StructuredProvider {
+/**
+ * Which env var moves a single lane, and why one exists at all.
+ *
+ * The model was already per-lane (`OPENAI_INBOUND_QUALIFICATION_MODEL` and
+ * friends); the provider was not. Every structured task called
+ * `getStructuredAutomationProvider()` with no argument, so
+ * `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER` was the only lever and it moved
+ * all seven lanes together. That is how `openai_responses: "gpt-5.6-luna"`
+ * could ship and still never run: the lane it was meant for was routed to
+ * DeepSeek along with everything else.
+ *
+ * The key mirrors the model override it sits beside, so
+ * `OPENAI_INBOUND_QUALIFICATION_MODEL` picks the model and
+ * `BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER` picks who serves it. Lanes with no
+ * model suffix registered have no per-lane provider either — there is nothing
+ * to name them with.
+ */
+export function getLaneProviderEnvKey(
+  taskKind: AgentTaskKind | undefined,
+): string | null {
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  return suffix ? `BLUEPRINT_${suffix.replace(/_MODEL$/, "")}_PROVIDER` : null;
+}
+
+export type StructuredProviderResolution = {
+  provider: StructuredProvider;
+  lane_env_key: string | null;
+  lane_request: string | null;
+  lane_request_honored: boolean;
+  reason:
+    | "lane_override"
+    | "lane_request_not_configured"
+    | "lane_request_unrecognized"
+    | "global_selection";
+};
+
+/**
+ * The resolution, not just the answer.
+ *
+ * A lane override that names an unkeyed provider falls through to the global
+ * chain rather than taking the lane offline — the qualification lane going
+ * quiet is worse than it running on the cheaper model. But falling through
+ * silently is how you end up reading `provider: "deepseek_chat"` in the logs
+ * while the config says OpenAI, so the fall-through is reported instead of
+ * swallowed. `getAgentRuntimeConnectionMetadata` surfaces it.
+ */
+export function describeStructuredAutomationProvider(
+  taskKind?: AgentTaskKind,
+): StructuredProviderResolution {
+  const laneEnvKey = getLaneProviderEnvKey(taskKind);
+  const laneRequest = laneEnvKey
+    ? process.env[laneEnvKey]?.trim() || null
+    : null;
+  const laneProvider = laneRequest ? normalizeProvider(laneRequest) : null;
+  const globalProvider = selectGlobalStructuredProvider();
+
+  if (laneProvider && isProviderConfigured(laneProvider)) {
+    return {
+      provider: laneProvider,
+      lane_env_key: laneEnvKey,
+      lane_request: laneRequest,
+      lane_request_honored: true,
+      reason: "lane_override",
+    };
+  }
+
+  if (laneRequest) {
+    return {
+      provider: globalProvider,
+      lane_env_key: laneEnvKey,
+      lane_request: laneRequest,
+      lane_request_honored: false,
+      reason: laneProvider
+        ? "lane_request_not_configured"
+        : "lane_request_unrecognized",
+    };
+  }
+
+  return {
+    provider: globalProvider,
+    lane_env_key: laneEnvKey,
+    lane_request: null,
+    lane_request_honored: true,
+    reason: "global_selection",
+  };
+}
+
+export function getStructuredAutomationProvider(
+  taskKind?: AgentTaskKind,
+): StructuredProvider {
+  return describeStructuredAutomationProvider(taskKind).provider;
+}
+
+function selectGlobalStructuredProvider(): StructuredProvider {
   const preferred = normalizeProvider(
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER,
   );
@@ -201,10 +350,10 @@ export function getStructuredAutomationProvider(): StructuredProvider {
   return candidates.find(isProviderConfigured) || candidates[0];
 }
 
-export function getStructuredAutomationFallbackProvider():
-  | StructuredProvider
-  | null {
-  const selected = getStructuredAutomationProvider();
+export function getStructuredAutomationFallbackProvider(
+  taskKind?: AgentTaskKind,
+): StructuredProvider | null {
+  const selected = getStructuredAutomationProvider(taskKind);
   const preferredFallback = normalizeProvider(
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER,
   );

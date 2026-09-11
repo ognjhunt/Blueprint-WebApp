@@ -21,7 +21,7 @@ export const operatorThreadTask: StructuredTaskDefinition<
   z.infer<typeof operatorThreadOutputSchema>
 > = {
   kind: "operator_thread",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("operator_thread"),
   model_by_provider: getTaskModelByProvider("operator_thread"),
   output_schema: operatorThreadOutputSchema,
   tool_policy: {

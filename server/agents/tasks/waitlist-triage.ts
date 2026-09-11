@@ -71,7 +71,7 @@ export const waitlistTriageTask: StructuredTaskDefinition<
   WaitlistTriageOutput
 > = {
   kind: "waitlist_triage",
-  default_provider: getStructuredAutomationProvider(),
+  default_provider: getStructuredAutomationProvider("waitlist_triage"),
   model_by_provider: getTaskModelByProvider("waitlist_triage"),
   output_schema: waitlistTriageOutputSchema,
   tool_policy: {
