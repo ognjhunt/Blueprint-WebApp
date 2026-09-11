@@ -343,6 +343,22 @@ export function isAutomationLaneEnabled(laneEnvKey: string): boolean {
   return isEnvFlagEnabled("BLUEPRINT_ALL_AUTOMATION_ENABLED");
 }
 
+/** Whether the footage reader runs at all. */
+export function isSiteVideoEvidenceEnabled(): boolean {
+  return isEnvFlagEnabled("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED");
+}
+
+/**
+ * Whether what the footage reader finds may move a verdict.
+ *
+ * Deliberately a second flag. With this off the evidence is still gathered and
+ * still written to the request — it just decides nothing, which is how the
+ * agreement rate against human operators gets measured before it is trusted.
+ */
+export function isSiteVideoEvidenceApplied(): boolean {
+  return isEnvFlagEnabled("BLUEPRINT_SITE_VIDEO_EVIDENCE_APPLY");
+}
+
 export function isPhase2LaneEnabled(lane: "waitlist" | "inbound" | "support" | "payout"): boolean {
   const laneKey = `BLUEPRINT_PHASE2_${lane.toUpperCase()}_ENABLED`;
   return isTruthyEnvValue(process.env[laneKey]);

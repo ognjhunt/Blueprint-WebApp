@@ -8,6 +8,7 @@ import { postSignupSchedulingTask } from "./post-signup-scheduling";
 import { supportTriageTask } from "./support-triage";
 import { waitlistTriageTask } from "./waitlist-triage";
 import { adpRunOperatorTask } from "./adp-run-operator";
+import { siteVideoEvidenceTask } from "./site-video-evidence";
 
 export const taskDefinitions = {
   waitlist_triage: waitlistTriageTask,
@@ -19,6 +20,7 @@ export const taskDefinitions = {
   operator_thread: operatorThreadTask,
   external_harness_thread: externalHarnessThreadTask,
   adp_run_operator: adpRunOperatorTask,
+  site_video_evidence: siteVideoEvidenceTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 
 export function getTaskDefinition<TInput = unknown, TOutput = unknown>(

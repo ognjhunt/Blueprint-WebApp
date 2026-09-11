@@ -8,7 +8,11 @@ export type AgentProvider =
   | "openai_agents_sdk"
   | "anthropic_agent_sdk"
   | "acp_harness"
-  | "codex_local";
+  | "codex_local"
+  // Native video understanding. Gemini is the only provider in the stack whose
+  // API takes a video directly rather than pre-extracted frames, which is the
+  // whole reason this lane exists.
+  | "gemini_video";
 
 export type AgentRuntime = AgentProvider;
 
@@ -21,7 +25,8 @@ export type AgentTaskKind =
   | "preview_diagnosis"
   | "operator_thread"
   | "adp_run_operator"
-  | "external_harness_thread";
+  | "external_harness_thread"
+  | "site_video_evidence";
 
 export type AgentRunStatus =
   | "queued"

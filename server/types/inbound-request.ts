@@ -860,6 +860,37 @@ export interface SiteTaskTriageSummary {
   evaluated_at: string;
 }
 
+/**
+ * What the footage reader found, kept beside the gate verdict it bears on.
+ *
+ * Top-level rather than inside `request` for the same reason
+ * `site_task_triage` is: these are derived findings about a submission, not
+ * things the submitter told us, and the encryption boundary spreads the top
+ * level so derived state survives a round trip intact.
+ */
+export interface SiteVideoEvidenceSummary {
+  status: "analysed" | "unreadable" | "skipped" | "failed";
+  /** Null unless status is "analysed". */
+  footage_status: "usable" | "partially_usable" | "unusable" | null;
+  /** Fields where footage disagreed with the operator. The only part that moves a verdict. */
+  contradictions: Array<{ field_id: string; observation: string; confidence: number }>;
+  /** Fields where footage agreed. Recorded for the reviewer; changes nothing. */
+  corroborations: Array<{ field_id: string; observation: string; confidence: number }>;
+  /** What the reader looked for and could not see. */
+  not_evidenced: string[];
+  /** Cycle time measured off timestamps, not self-reported. */
+  measured_cycle_seconds: number | null;
+  measured_cycle_band: string | null;
+  people_relationship_to_work: string | null;
+  /** Footage centred on identifiable people. Routes to a human; never changes a verdict. */
+  privacy_flag: boolean;
+  summary: string | null;
+  /** Populated when status is "unreadable" or "failed" — e.g. a share page rather than a file. */
+  error_code: string | null;
+  model: string | null;
+  evaluated_at: string;
+}
+
 export interface InboundRequest {
   requestId: string;
   site_submission_id: string;
@@ -881,6 +912,7 @@ export interface InboundRequest {
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
   site_task_triage?: SiteTaskTriageSummary | null;
+  site_video_evidence?: SiteVideoEvidenceSummary | null;
   human_review_required?: boolean | null;
   automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
@@ -988,6 +1020,19 @@ export interface RequestDetailsStored {
   siteLocation: EncryptableString;
   siteLocationMetadata?: PlaceLocationMetadataStored | null;
   taskStatement: EncryptableString;
+  /**
+   * Enum tokens only (`austin_metro`, `stable`, …), so they are stored in the
+   * clear: they carry no personal data, and a queryable gate answer is what
+   * makes a re-run reproduce the same verdict. Losing these on write was why a
+   * retried lead silently dropped its narrative review.
+   */
+  siteTaskGates?: Record<string, string> | null;
+  siteTaskSpec?: Record<string, string> | null;
+  /** Operator prose. Encrypted: a task description can name people and process. */
+  taskDescription?: EncryptableString | null;
+  whatGoesWrong?: EncryptableString | null;
+  /** Encrypted — a footage link identifies the site and is shared in confidence. */
+  taskVideoUrl?: EncryptableString | null;
   targetSiteType?: EncryptableString | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: EncryptableString | null;
@@ -1200,6 +1245,7 @@ export interface InboundRequestListItem {
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
   site_task_triage?: SiteTaskTriageSummary | null;
+  site_video_evidence?: SiteVideoEvidenceSummary | null;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;

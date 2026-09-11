@@ -166,17 +166,17 @@ export default function RobotTeamIntake() {
       <SEO
         title="Tell us what you can deploy | Blueprint"
         description="Four questions about whether a deployment could actually happen, then your capability envelope. We match it against captured site tasks — we are not screening your robot."
-        canonical="/robot-intake"
+        canonical="/contact/robot-team"
         jsonLd={[
           webPageJsonLd({
-            path: "/robot-intake",
+            path: "/contact/robot-team",
             name: "Blueprint robot-team intake",
             description:
               "The structured robot-team intake: deployment-readiness gates, a capability envelope that mirrors the site task spec, and the evidence bar for committing an engineer-week.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Robot-team intake", path: "/robot-intake" },
+            { name: "Robot-team intake", path: "/contact/robot-team" },
           ]),
         ]}
       />
@@ -203,6 +203,14 @@ export default function RobotTeamIntake() {
             title={robotIntakeNote.claim}
             lede={robotIntakeNote.detail}
           />
+
+          {/* And the reverse: a site operator who followed a robot-team link. */}
+          <a
+            href="/contact/site-operator"
+            className="mt-6 inline-flex items-center gap-2 text-[13px] uppercase tracking-[0.14em] text-runway-signal underline-offset-4 hover:underline"
+          >
+            Operate a site? Start here
+          </a>
 
           {submitted ? (
             <Reveal className="mt-14 border border-runway-line bg-runway-panel p-8 lg:p-10">

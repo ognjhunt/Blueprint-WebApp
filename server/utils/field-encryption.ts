@@ -520,6 +520,19 @@ export async function encryptInboundRequestForStorage<
       taskStatement: await encryptFieldValue(
         request.request.taskStatement || "Task statement pending"
       ),
+      // Enum tokens, stored in the clear so a re-run can recompute the same
+      // deterministic verdict from the same answers.
+      siteTaskGates: request.request.siteTaskGates ?? null,
+      siteTaskSpec: request.request.siteTaskSpec ?? null,
+      taskDescription: await encryptOptionalField(
+        request.request.taskDescription ?? null
+      ),
+      whatGoesWrong: await encryptOptionalField(
+        request.request.whatGoesWrong ?? null
+      ),
+      taskVideoUrl: await encryptOptionalField(
+        request.request.taskVideoUrl ?? null
+      ),
       targetSiteType: await encryptOptionalField(
         request.request.targetSiteType ?? null
       ),
@@ -609,6 +622,17 @@ export async function decryptInboundRequestForAdmin<
       taskStatement: request.request.taskStatement
         ? await decryptFieldValue(request.request.taskStatement)
         : "Legacy submission requires manual scoping",
+      siteTaskGates: request.request.siteTaskGates ?? null,
+      siteTaskSpec: request.request.siteTaskSpec ?? null,
+      taskDescription: await decryptOptionalField(
+        request.request.taskDescription ?? null
+      ),
+      whatGoesWrong: await decryptOptionalField(
+        request.request.whatGoesWrong ?? null
+      ),
+      taskVideoUrl: await decryptOptionalField(
+        request.request.taskVideoUrl ?? null
+      ),
       targetSiteType: await decryptOptionalField(
         request.request.targetSiteType ?? null
       ),

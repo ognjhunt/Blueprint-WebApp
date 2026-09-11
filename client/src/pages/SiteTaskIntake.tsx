@@ -158,17 +158,17 @@ export default function SiteTaskIntake() {
       <SEO
         title="Submit a job | Blueprint"
         description="Five questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — no account, no password."
-        canonical="/site-task"
+        canonical="/contact/site-operator"
         jsonLd={[
           webPageJsonLd({
-            path: "/site-task",
+            path: "/contact/site-operator",
             name: "Submit a job to Blueprint",
             description:
               "The structured site-task intake: five screening questions, the task specification, and an immediate verdict.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Submit a job", path: "/site-task" },
+            { name: "Submit a job", path: "/contact/site-operator" },
           ]),
         ]}
       />
@@ -195,6 +195,15 @@ export default function SiteTaskIntake() {
             title={qualifyingIntakeNote.claim}
             lede={qualifyingIntakeNote.detail}
           />
+
+          {/* A robot team that landed on the site screen should not have to go
+              back to the nav to find its own. */}
+          <a
+            href="/contact/robot-team"
+            className="mt-6 inline-flex items-center gap-2 text-[13px] uppercase tracking-[0.14em] text-runway-signal underline-offset-4 hover:underline"
+          >
+            Building robots? Apply here
+          </a>
 
           {submitted ? (
             <Reveal className="mt-14 border border-runway-line bg-runway-panel p-8 lg:p-10">

@@ -154,8 +154,8 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "Find the right fit.", requiredCtas: [{ label: "Discuss your site", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "A pilot worth running.", requiredCtas: [{ label: "Discuss your site", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Let’s start with your site.", requiredCtas: [{ label: "Building robots? Apply here", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Robot team application", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Bring your robot. Find the fit.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Site task intake", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Six questions decide this.", requiredCtas: [{ label: "Building robots? Apply here", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Robot team intake", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Tell us what you can deploy.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
 ];

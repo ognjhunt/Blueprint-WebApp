@@ -217,6 +217,114 @@ export function applyNarrativeReview(
   };
 }
 
+/* ------------------------------------------ the same door, for footage */
+
+/**
+ * What the footage reader is allowed to report back.
+ *
+ * Deliberately narrower than what `site_video_evidence` produces. That task
+ * emits corroborations, non-observations, cycle measurements and timestamps —
+ * all useful to a human reading the record, none of it allowed to move a
+ * verdict. Only contradictions cross this boundary, because only a
+ * contradiction is a reason to talk to someone.
+ */
+export interface VideoEvidenceReview {
+  footageStatus: "usable" | "partially_usable" | "unusable";
+  /** Gate/spec fields where the footage plainly disagreed with the operator. */
+  contradictions: readonly {
+    fieldId: string;
+    observation: string;
+    confidence: number;
+  }[];
+}
+
+/**
+ * How sure the reader has to be before a contradiction costs someone a call.
+ *
+ * A model watching a thirty-second clip through a 1 FPS sampler is guessing
+ * more often than it admits. Below this bar the observation is still written to
+ * the record for a human to read; it just does not move the verdict on its own.
+ */
+export const VIDEO_CONTRADICTION_CONFIDENCE_FLOOR = 0.6;
+
+/**
+ * Fold footage observations into a rules-derived result.
+ *
+ * Same one-way door as `applyNarrativeReview`, for the same reason and with the
+ * same `min()`: footage can lower a disposition and can never raise one. A clip
+ * that makes a blocked site look wonderful changes nothing, because the
+ * operator's own answer that it is outside the service area is not a thing a
+ * camera can overturn.
+ *
+ * The ceiling is `needs_conversation` rather than `not_now` on purpose. A
+ * contradiction means the form and the footage disagree, and which of the two
+ * is wrong is exactly what a person is for. Letting a model push a site to a
+ * refusal on its own reading of a clip would be the one failure mode this
+ * module exists to prevent.
+ */
+export function credibleVideoContradictions(
+  review: VideoEvidenceReview | null | undefined,
+): VideoEvidenceReview["contradictions"] {
+  // Footage we could not read tells us nothing. It is not evidence of a
+  // problem, and must not be treated as one.
+  if (!review || review.footageStatus === "unusable") return [];
+  return review.contradictions.filter(
+    (item) => item.confidence >= VIDEO_CONTRADICTION_CONFIDENCE_FLOOR,
+  );
+}
+
+/**
+ * The highest disposition footage is willing to allow, or null for "no opinion".
+ *
+ * Factored out so the rule lives in exactly one place: `applyVideoEvidence`
+ * uses it to rewrite a full triage result, and the server uses it to answer the
+ * narrower question of whether the verdict would have moved, without having to
+ * rebuild a `TriageResult` it does not have.
+ */
+export function videoEvidenceCeiling(
+  review: VideoEvidenceReview | null | undefined,
+): TriageDisposition | null {
+  return credibleVideoContradictions(review).length ? "needs_conversation" : null;
+}
+
+/** Apply a ceiling without ever raising. The one-way door, as a function. */
+export function lowerToCeiling(
+  current: TriageDisposition,
+  ceiling: TriageDisposition | null,
+): TriageDisposition {
+  if (!ceiling) return current;
+  return RANK[ceiling] < RANK[current] ? ceiling : current;
+}
+
+export function applyVideoEvidence(
+  base: TriageResult,
+  review: VideoEvidenceReview | null | undefined,
+): TriageResult {
+  const credible = credibleVideoContradictions(review);
+  if (!credible.length) {
+    return base;
+  }
+
+  const disposition = lowerToCeiling(base.disposition, videoEvidenceCeiling(review));
+
+  // Even when the disposition does not move — an already-blocked site, say —
+  // the observations still belong on the record a human reads.
+  return {
+    ...base,
+    disposition,
+    openQuestions: [
+      ...base.openQuestions,
+      ...credible.map((item) => ({
+        fieldId: item.fieldId,
+        question: "Does the footage match the answer given?",
+        answer: "The video and the form disagree",
+        verdict: "marginal" as const,
+        detail: item.observation,
+      })),
+    ],
+  };
+}
+
 /* ------------------------------------------------------ what we say back */
 
 /**

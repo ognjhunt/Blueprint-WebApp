@@ -34,7 +34,36 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   preview_diagnosis: "PREVIEW_DIAGNOSIS_MODEL",
   operator_thread: "OPERATOR_THREAD_MODEL",
   external_harness_thread: "EXTERNAL_HARNESS_MODEL",
+  site_video_evidence: "SITE_VIDEO_EVIDENCE_MODEL",
 };
+
+/**
+ * Video understanding is pinned, not selected.
+ *
+ * `getStructuredAutomationProvider` rotates across whichever text provider is
+ * keyed, which is the right behaviour for a lane where the providers are
+ * interchangeable. They are not interchangeable here: the other adapters take
+ * text. So `gemini_video` stays out of `StructuredProvider` and is resolved on
+ * its own, and a task that needs footage fails closed rather than silently
+ * falling back to a model that cannot see.
+ */
+const GEMINI_VIDEO_DEFAULT_MODEL = "gemini-3.8-flash";
+
+export function getGeminiVideoModel(): string {
+  return (
+    process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_MODEL?.trim() ||
+    process.env.GEMINI_VIDEO_MODEL?.trim() ||
+    GEMINI_VIDEO_DEFAULT_MODEL
+  );
+}
+
+export function isGeminiVideoConfigured(): boolean {
+  return Boolean(
+    process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+      process.env.GOOGLE_AI_STUDIO_API_KEY?.trim(),
+  );
+}
 
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
   deepseek_chat: "deepseek-v4-pro",
