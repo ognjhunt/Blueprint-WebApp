@@ -126,13 +126,22 @@ describe("Capturer access copy", () => {
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the capturer application simple and honest about review", () => {
+  it("keeps the capturer application simple and honest about review", async () => {
     render(<CapturerSignUpFlow />);
 
-    expect(screen.getByRole("heading", { name: /Apply to get paid for approved field capture/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jordan Lee" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jordan@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "TestPassword123!" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "TestPassword123!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByRole("heading", { name: "Your capture details" })).toBeInTheDocument();
     expect(screen.getByText(/phone-first walkthrough work/i)).toBeInTheDocument();
-    expect(screen.getByText(/review is required before any assignment or payout eligibility/i)).toBeInTheDocument();
-    expect(screen.getByText(/Accepted capture gear is a 360 camera and a smartphone/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submitting this application does not guarantee approval/i)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /payout eligibility requires an accepted capture after review/i })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Smartphone/i })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /360 camera/i })).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
   });
 
@@ -140,6 +149,6 @@ describe("Capturer access copy", () => {
     render(<Login />);
 
     expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
-    expect(screen.getByText(/Review captured workflows, controlled evaluations, access rights, and onsite handoffs/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Capture app access" })).toHaveAttribute("href", "/capture-app");
   });
 });
