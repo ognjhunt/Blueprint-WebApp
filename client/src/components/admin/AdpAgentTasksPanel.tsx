@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 
 const text = z.string();
 const rowsSchema = z.object({ tasks: z.array(z.object({
@@ -21,12 +23,16 @@ const rowsSchema = z.object({ tasks: z.array(z.object({
 type TaskRow = z.infer<typeof rowsSchema>["tasks"][number];
 
 export default function AdpAgentTasksPanel() {
+  const { currentUser } = useAuth();
   const client = useQueryClient();
-  const key = ["adp-agent-tasks"];
+  const key = ["adp-agent-tasks", currentUser?.uid];
   const tasks = useQuery<{ tasks: TaskRow[] }>({
     queryKey: key,
+    enabled: Boolean(currentUser),
     queryFn: async () => {
-      const response = await fetch("/api/admin/agent/adp/tasks", { headers: await withCsrfHeader({}) });
+      const response = await fetch("/api/admin/agent/adp/tasks", {
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser)),
+      });
       if (!response.ok) throw new Error("Task records are unavailable. Verified execution access is required.");
       const parsed = rowsSchema.safeParse(await response.json());
       if (!parsed.success) throw new Error("Task records returned an invalid response.");
@@ -38,7 +44,8 @@ export default function AdpAgentTasksPanel() {
   const action = useMutation({
     mutationFn: async ({ taskId, operation }: { taskId: string; operation: "start" | "cancel" | "cleanup" }) => {
       const response = await fetch(`/api/admin/agent/adp/tasks/${encodeURIComponent(taskId)}/${operation}`, {
-        method: "POST", headers: await withCsrfHeader({ "content-type": "application/json" }), body: "{}",
+        method: "POST", headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser,
+          { "content-type": "application/json" })), body: "{}",
       });
       if (!response.ok) throw new Error("This task does not allow that action in its current state.");
       return response.json();

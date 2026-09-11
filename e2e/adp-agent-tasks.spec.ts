@@ -34,6 +34,7 @@ test("admitted agent cancellation and cleanup retain honest status and diagnosis
     }
     if (!url.pathname.startsWith("/api/")) return route.continue();
     if (url.pathname.startsWith("/api/admin/agent/adp/tasks")) {
+      expect(request.headers().authorization).toBe("Bearer operator-qa-local-token");
       if (request.method() === "POST") {
         expect(request.postData()).toBe("{}");
         actions.push(url.pathname);
