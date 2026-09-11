@@ -84,7 +84,12 @@ export class AdpManagedRuns {
   async status(taskId: string) {
     const admission = await this.admission(taskId);
     const run = await this.store.collection(RUNS).doc(runIdFor(admission)).get();
-    return { admission, run: run.exists ? run.data() : null, proof_effect: "none" };
+    const bound = (await this.store.collection("agentEngineeringTaskBindings").doc(taskId).get()).data();
+    const followup = bound?.handoff_id
+      ? (await this.store.collection("agentEngineeringHandoffs").doc(bound.handoff_id).get()).data() : null;
+    const engineering_handoff = followup ? { handoff_id: bound!.handoff_id, state: followup.state,
+      issue_id: followup.issue_id ?? null, engineering_complete: false } : null;
+    return { admission, run: run.exists ? run.data() : null, engineering_handoff, proof_effect: "none" };
   }
 
   async list(limit = 100) {
@@ -230,6 +235,12 @@ export function startAdpManagedRunWorker() {
   const tick = async () => {
     if (stopped) return;
     try { if (db) await configuredAdpManagedRuns().tick(); } catch { /* Durable queue retries next tick. */ }
+    if (db && process.env.BLUEPRINT_ADP_ENGINEERING_ENABLED === "1") {
+      try {
+        const { configuredEngineeringHandoffs } = await import("./adp-engineering");
+        await configuredEngineeringHandoffs().tick();
+      } catch { /* An unavailable engineering lane never blocks task reconciliation. */ }
+    }
     if (!stopped) timer = setTimeout(() => void tick(), POLL_MS);
   };
   void tick();

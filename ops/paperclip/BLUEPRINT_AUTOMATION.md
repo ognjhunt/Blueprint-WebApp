@@ -400,10 +400,38 @@ Website must have matching `BLUEPRINT_PAPERCLIP_ADP_AGENT_ID`,
 `BLUEPRINT_PAPERCLIP_ADP_COMPANY_ID`, and `BLUEPRINT_PAPERCLIP_ADP_BRIDGE_TOKEN`.
 
 Each action resolves the current secret through Paperclip, reads the worker's
-current run and assigned issue, and operates only the task in
-`issue.metadata.blueprintAdpExecution` with program `arm-decision-proof-v1`.
+current run and assigned issue, and operates only the task in the Website's
+server-owned `agentExecutionPaperclipIssueBindings` record. Paperclip's current
+issue API has no general `metadata` field. A trusted Pipeline controller can
+bind an existing issue using `python -m blueprint_pipeline.agent_execution.engineering
+bind-issue --task-id <id> --issue-id <uuid>`; the Website verifies the actual
+company, project and assignee before storing the immutable association.
 The tool accepts only `inspect`, `start`, `cancel`, or `cleanup`; Pipeline remains
 the provider-session and operation owner. Setting `enabled: false` revokes this
 bridge even if legacy environment settings remain. Omitting the configuration
 preserves the previous environment-based installation path. No organization
 restart or additional worker is required to apply these settings.
+
+## Bounded ADP engineering handoff
+
+The optional signed `/api/internal/pipeline/agent-execution/engineering` receiver
+accepts one policy-bound handoff from a completed diagnosis and failed offline
+replay. Configure `BLUEPRINT_ADP_ENGINEERING_ENABLED=1`,
+`BLUEPRINT_ADP_ENGINEERING_POLICY_DIGEST`, `BLUEPRINT_ADP_ENGINEERING_PROJECT_ID`,
+and `BLUEPRINT_ADP_ENGINEERING_REVIEWER_ID`, plus the selected ADP company/agent
+and existing `PAPERCLIP_API_URL`/`PAPERCLIP_API_KEY`. These are controller
+settings; no model can select the worker, repo, budget or writable paths.
+
+The existing worker must have a finite positive run timeout and remaining
+monthly budget. The exact Pipeline repo workspace is selected, the issue uses
+an isolated Git worktree at the diagnosed commit, and a different agent owns
+its review stage. Only supported Paperclip issue fields are sent. A durable
+creation intent precedes the single POST; after an uncertain response, the
+dispatcher searches for the exact billing code and packet digest rather than
+creating another issue. Unknown creation remains explicitly unresolved.
+
+Handoff completion means the issue was assigned and read back. It never means
+the repair, tests, review, deployment or original Task Evaluation Run succeeded.
+The independent reviewer must use the Pipeline `verify-candidate` command to
+check the committed patch against the frozen path/size limits and protected
+baseline tests, then follow the existing validation and release process.
