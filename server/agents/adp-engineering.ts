@@ -26,7 +26,7 @@ export const engineeringHandoffSchema = z.object({
   handoff_id: z.string().regex(/^repair-[a-f0-9]{64}$/), handoff_digest: digest, policy_digest: digest,
   task_id: id, task_digest: digest, run_id: id, source_commit: z.string().regex(/^[a-f0-9]{40}$/),
   diagnosis_result_digest: digest, child_id: z.string().regex(/^sam31-[A-Za-z0-9_-]{1,160}$/), job_sha256: digest,
-  replay_report_digest: digest, replay_status: z.enum(["failed", "job_refused"]), blocker_code: z.string().regex(/^[a-z][a-z0-9_]{0,159}$/),
+  replay_report_digest: digest, replay_status: z.literal("refused"), blocker_code: z.string().regex(/^[a-z][a-z0-9_]{0,159}$/),
   policy: engineeringPolicySchema, paid_resubmission_authorized: z.literal(false),
   scientific_acceptance_granted: z.literal(false), independent_review_required: z.literal(true),
 }).strict();
