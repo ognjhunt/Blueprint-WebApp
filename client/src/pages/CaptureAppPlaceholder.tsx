@@ -251,13 +251,19 @@ export default function CaptureAppPlaceholder() {
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame className="overflow-hidden rounded-none shadow-none">
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">
-              <div className="relative min-h-[42rem] overflow-hidden bg-runway-black text-runway-text">
+              {/*
+                The hero scrim is ivory rather than near-black, and the photo is
+                multiplied into it the way the marketing hero is: the copy reads
+                as ink on paper with the scene resolving to the right, instead of
+                bone on a dark plate.
+              */}
+              <div className="relative min-h-[42rem] overflow-hidden bg-runway-deep text-runway-text">
                 <img
                   src={publicCaptureGeneratedAssets.captureAppHero}
                   alt="Blueprint public-facing capture app walkthrough"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-cover mix-blend-multiply"
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(12,15,14,0.86),rgba(12,15,14,0.55)_58%,rgba(12,15,14,0.3))]" />
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(246,245,239,0.96),rgba(246,245,239,0.86)_46%,rgba(246,245,239,0.42))]" />
                 <div className="runway-meta pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 border-b border-runway-line px-6 py-4">
                   <span>Capture App</span>
 	                  <span>Paid Field Capture</span>
@@ -266,7 +272,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
 	                    <SurfaceMiniLabel className="text-runway-faint">Approved Capture Assignments</SurfaceMiniLabel>
-	                    <h1 className="mt-5 font-display uppercase text-[clamp(3.5rem,7vw,6rem)] font-semibold leading-[0.86] tracking-[0.005em] text-runway-text">
+	                    <h1 className="mt-5 font-display text-[clamp(3rem,5.6vw,4.6rem)] font-semibold leading-[1.02] text-runway-text">
 	                      Get paid to capture the job before the robot arrives.
 	                      <br />
 	                      Phone first.

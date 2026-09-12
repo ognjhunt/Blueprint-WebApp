@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
  * Transition: background 200ms + transform 120ms (ease-standard).
  */
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none font-semibold tracking-[-0.01em] select-none cursor-pointer transition-[background-color,transform] duration-200 ease-standard active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "bp-button inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none font-semibold tracking-[-0.01em] select-none cursor-pointer transition-[background-color,transform] duration-200 ease-standard active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-runway-signal focus-visible:ring-offset-2 focus-visible:ring-offset-runway-deep disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {

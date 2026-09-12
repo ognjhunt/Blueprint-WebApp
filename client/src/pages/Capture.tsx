@@ -158,7 +158,7 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="border-b border-runway-line bg-runway-panel text-white">
+        <section className="border-b border-runway-line bg-runway-panel text-runway-text">
           <div className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6 lg:px-10">
             <div className="grid gap-5 lg:grid-cols-[0.34fr_0.66fr]">
               <div>
@@ -168,7 +168,7 @@ export default function Capture() {
                 <h2 className="mt-3 font-display uppercase tracking-[0.005em] text-3xl font-semibold leading-tight">
                   Use the device named in the assignment.
                 </h2>
-                <p className="mt-4 text-sm leading-7 text-white/70">
+                <p className="mt-4 text-sm leading-7 text-runway-mute">
                   Device eligibility is route-specific. Owning a device does not imply approval or an open assignment.
                 </p>
               </div>
@@ -177,15 +177,15 @@ export default function Capture() {
                 {captureMethods.map((method) => {
                   const Icon = method.icon;
                   return (
-                    <article key={method.title} className="border border-white/15 bg-white/5 p-5">
-                      <div className="flex h-10 w-10 items-center justify-center border border-white/15 text-runway-green">
+                    <article key={method.title} className="border border-runway-line bg-runway-raised p-5">
+                      <div className="flex h-10 w-10 items-center justify-center border border-runway-line text-runway-green">
                         <Icon className="h-5 w-5" />
                       </div>
                       <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-runway-green">
                         {method.label}
                       </p>
                       <h3 className="mt-2 text-2xl font-semibold">{method.title}</h3>
-                      <p className="mt-3 text-sm leading-6 text-white/70">{method.body}</p>
+                      <p className="mt-3 text-sm leading-6 text-runway-mute">{method.body}</p>
                     </article>
                   );
                 })}
@@ -225,7 +225,7 @@ export default function Capture() {
         <section className="border-b border-runway-line bg-runway-raised">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-10">
             <article className="border border-runway-line bg-runway-panel p-6">
-              <div className="flex h-11 w-11 items-center justify-center bg-runway-panel text-white">
+              <div className="flex h-11 w-11 items-center justify-center border border-runway-line bg-runway-raised text-runway-text">
                 <ClipboardCheck className="h-5 w-5" />
               </div>
               <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">
@@ -242,7 +242,7 @@ export default function Capture() {
             </article>
 
             <article className="border border-runway-line bg-runway-panel p-6">
-              <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
+              <div className="flex h-11 w-11 items-center justify-center bg-runway-signal text-runway-signal-ink">
                 <WalletCards className="h-5 w-5" />
               </div>
               <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">
@@ -264,7 +264,7 @@ export default function Capture() {
         <section className="border-b border-runway-line bg-runway-panel">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[0.42fr_0.58fr] lg:px-10">
             <div>
-              <div className="flex h-11 w-11 items-center justify-center bg-runway-green text-white">
+              <div className="flex h-11 w-11 items-center justify-center bg-runway-signal text-runway-signal-ink">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <h2 className="mt-5 font-display uppercase tracking-[0.005em] text-3xl font-semibold text-runway-text">Safety and QA rules</h2>
@@ -284,7 +284,7 @@ export default function Capture() {
           </div>
         </section>
 
-        <section className="bg-runway-panel text-white">
+        <section className="bg-runway-panel text-runway-text">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-runway-green">
@@ -293,7 +293,7 @@ export default function Capture() {
               <h2 className="mt-3 font-display uppercase tracking-[0.005em] text-4xl font-semibold leading-tight">
                 Apply for review or leave a city signal.
               </h2>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70">
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-runway-mute">
                 If no public capture market is open in your city, the launch-access path records demand without inventing an assignment.
               </p>
             </div>
@@ -307,7 +307,7 @@ export default function Capture() {
               </a>
               <a
                 href={cityStatusHref}
-                className="inline-flex min-h-12 items-center justify-center border border-white/30 px-6 text-sm font-semibold text-white transition hover:border-white"
+                className="inline-flex min-h-12 items-center justify-center border border-runway-line-strong px-6 text-sm font-semibold text-runway-text transition hover:border-runway-signal hover:text-runway-signal"
               >
                 <MapPinned className="mr-2 h-4 w-4" />
                 Check city status

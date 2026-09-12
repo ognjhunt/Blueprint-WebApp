@@ -40,7 +40,8 @@
 .auth-shell-wide h1 { font-size: clamp(38px, 3.5vw, 53px); }
 .auth-eyebrow { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ms-muted); margin-bottom: 17px; }
 .auth-progress { list-style: none; padding: 0; display: flex; gap: 25px; margin-block: 30px; border-bottom: 1px solid #d7dbd0; }
-.auth-progress li { display: flex; gap: 8px; align-items: center; padding-block: 0 14px; font-size: 12px; color: #727969; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+/* #727969 measured 4.13:1 on the ivory ground; 12px labels need 4.5:1. */
+.auth-progress li { display: flex; gap: 8px; align-items: center; padding-block: 0 14px; font-size: 12px; color: #656b5e; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .auth-progress li[aria-current="step"] { border-color: var(--ms-green); color: var(--ms-green); }
 .auth-progress li[data-complete="true"] { color: var(--ms-green); }
 .auth-progress li span { font-size: 11px; }

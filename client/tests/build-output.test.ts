@@ -213,7 +213,9 @@ describe("build output", () => {
     expect(robotHtml).toContain('id="gate-hardwareMaturity"');
     for (const route of ["index.html", "contact/site-operator/index.html", "contact/robot-team/index.html", "privacy/index.html", "terms/index.html"]) {
       const html = fs.readFileSync(distPath(route), "utf8");
-      expect(html).toContain('class="minimal-site"');
+      // The ivory shell also declares the Tailwind paper theme, so product
+      // components dropped onto a public route inherit the same palette.
+      expect(html).toContain('class="minimal-site paper-theme"');
       expect(html).toContain('class="ms-footer ms-container"');
     }
   });

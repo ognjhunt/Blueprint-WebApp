@@ -6,14 +6,18 @@ type SurfacePageProps = PropsWithChildren<{
   className?: string;
 }>;
 
+/**
+ * Every surface built on this chrome — the capture-app landing, the request
+ * console, the beta guides, account settings — is buyer-facing, so the page
+ * renders on the ivory `paper-theme` the public site uses. `tone="ink"` keeps
+ * its meaning as the deeper of the two grounds rather than a dark page.
+ */
 export function SurfacePage({ children, tone = "paper", className }: SurfacePageProps) {
   return (
     <div
       className={cn(
-        "min-h-screen",
-        tone === "ink"
-          ? "bg-runway-black text-runway-text"
-          : "bg-[radial-gradient(circle_at_top,#171b19,#101312_54%,#0c0f0e)] text-runway-text",
+        "paper-theme min-h-screen",
+        tone === "ink" ? "bg-runway-black text-runway-text" : "bg-runway-deep text-runway-text",
         className,
       )}
     >
@@ -30,7 +34,12 @@ export function SurfaceTopBar(props: {
   return (
     <div className="border-b border-runway-line">
       <div className="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-6 py-5 lg:px-10">
-        <a href="/" className="font-editorial font-display uppercase text-[2.2rem] tracking-[0.005em] text-runway-text">
+        <a
+          href="/"
+          className="flex items-center gap-3 text-[1.5rem] font-medium leading-none tracking-[-0.05em] text-runway-text"
+          aria-label="Blueprint home"
+        >
+          <span className="block h-[1.4rem] w-[1.4rem] border-2 border-current" aria-hidden="true" />
           Blueprint
         </a>
         {props.eyebrow ? (
@@ -210,7 +219,7 @@ export function SurfaceStatusList(props: {
       {props.items.map((item) => (
         <div
           key={item.label}
-          className="flex items-center justify-between gap-4 border border-runway-line bg-runway-black px-4 py-3 text-sm text-runway-text"
+          className="flex items-center justify-between gap-4 border border-runway-line bg-runway-panel px-4 py-3 text-sm text-runway-text"
         >
           <span className="text-runway-mute">{item.label}</span>
           <span className="text-right font-semibold">{item.value}</span>
