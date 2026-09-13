@@ -58,7 +58,7 @@ const Privacy = lazyRoute(() => import("../pages/Privacy"));
 const Terms = lazyRoute(() => import("../pages/Terms"));
 const BetaCapturerGuide = lazyRoute(() => import("../pages/BetaCapturerGuide"));
 const BetaBuyerGuide = lazyRoute(() => import("../pages/BetaBuyerGuide"));
-const Settings = lazyRoute(() => import("../pages/Settings"));
+const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
 const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsScorecard"));
 const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
@@ -80,7 +80,14 @@ const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityO
 // Redesign — public pages (distinct surfaces per SCREENS.md)
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
-const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
+const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
+const WorkspaceRequestStart = lazyRoute(() => import("../pages/workspace/RequestStart"));
+const WorkspaceTasks = lazyRoute(() => import("../pages/workspace/Tasks"));
+const WorkspaceTaskRequest = lazyRoute(() => import("../pages/workspace/TaskRequest"));
+const WorkspaceTaskDetail = lazyRoute(() => import("../pages/workspace/TaskDetail"));
+const WorkspaceHistory = lazyRoute(() => import("../pages/workspace/History"));
+const WorkspaceOpeningDetail = lazyRoute(() => import("../pages/workspace/OpeningDetail"));
+const WorkspaceEvaluation = lazyRoute(() => import("../pages/workspace/Evaluation"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
@@ -97,7 +104,7 @@ const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
 const AppPolicies = lazyRoute(() => import("../pages/app/Policies"));
 const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
 const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
-const AppPilotOpportunities = lazyRoute(() => import("../pages/app/PilotOpportunities"));
+const AppPilotOpportunities = lazyRoute(() => import("../pages/workspace/Openings"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -313,7 +320,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/signup/robot-team", layout: "public", shell: "bare", component: RobotTeamSignupRedirect },
   { path: "/signup/site-operator", layout: "public", shell: "bare", component: SiteOperatorSignupRedirect },
   { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
-  { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
+  { path: "/onboarding", layout: "protected", shell: "bare", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },
@@ -381,11 +388,18 @@ export const appRoutes: AppRoute[] = [
 
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
+  { path: "/app/tasks", layout: "protected", shell: "bare", component: WorkspaceTasks },
+  { path: "/app/tasks/new", layout: "protected", shell: "bare", component: WorkspaceTaskRequest },
+  { path: "/app/tasks/:taskId", layout: "protected", shell: "bare", component: WorkspaceTaskDetail },
+  { path: "/app/history", layout: "protected", shell: "bare", component: WorkspaceHistory },
+  { path: "/app/opportunities/:opportunityId", layout: "protected", shell: "bare", component: WorkspaceOpeningDetail },
+  { path: "/app/evaluations/:evaluationId", layout: "protected", shell: "bare", component: WorkspaceEvaluation },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
   { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
   { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
-  { path: "/app/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
+  { path: "/app/runs/new", layout: "protected", shell: "bare", component: WorkspaceRequestStart },
+  { path: "/app/advanced/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },

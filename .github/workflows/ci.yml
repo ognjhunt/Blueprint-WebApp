@@ -205,6 +205,9 @@ jobs:
       - name: Run operator-surfaces QA (fake-auth bypass)
         run: npm run qa:operator
 
+      - name: Verify minimal site and robot-team workspaces
+        run: npm run test:workspace:browser
+
       - name: Upload Playwright report
         if: ${{ always() && hashFiles('playwright-report/**') != '' }}
         uses: actions/upload-artifact@v4

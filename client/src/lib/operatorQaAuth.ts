@@ -84,6 +84,9 @@ export function resolveOperatorQaAuth(env: ViteEnvLike): OperatorQaAuthSnapshot 
     };
   }
 
+  const workspaceRole = typeof window !== "undefined" ? window.localStorage.getItem("blueprint_workspace_qa_role") : null;
+  const userData = buildOperatorQaUserData();
+  if (workspaceRole === "site_operator" || workspaceRole === "robot_team") userData.buyerType = workspaceRole;
   const claims = {
     email: operatorQaFakeAuthEmail,
     admin: true,
@@ -98,10 +101,11 @@ export function resolveOperatorQaAuth(env: ViteEnvLike): OperatorQaAuthSnapshot 
       email: operatorQaFakeAuthEmail,
       displayName: "Operator QA",
       isAnonymous: false,
+      emailVerified: true,
       getIdToken: async () => "operator-qa-local-token",
       getIdTokenResult: async () => ({ claims }),
     },
-    userData: buildOperatorQaUserData(),
+    userData,
     tokenClaims: claims,
   };
 }

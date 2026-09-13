@@ -147,6 +147,21 @@ beforeEach(() => {
 });
 
 describe("field ops automation", () => {
+  it("keeps distinct custom capturer messages separate while deduplicating retries", async () => {
+    stores.capture_jobs.set("custom-job", { title: "Site", field_ops: { capturer_assignment: { creator_id: "creator-1" } } });
+    stores.users.set("creator-1", { email: "capturer@example.com", name: "Casey" });
+    executeAction.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "ledger-1" });
+    const { sendCapturerCommunication } = await import("../utils/field-ops-automation");
+    const request = { captureJobId: "custom-job", communicationType: "custom" as const, subject: "Site message", body: "Use the east entrance" };
+    await sendCapturerCommunication(request);
+    await sendCapturerCommunication({ ...request, body: "Use the west entrance instead" });
+    await sendCapturerCommunication(request);
+    const keys = executeAction.mock.calls.map(([value]) => value.idempotencyKey);
+    expect(keys[0]).not.toBe(keys[1]);
+    expect(keys[0]).toBe(keys[2]);
+    expect(executeAction.mock.calls[0][0].draftOutput.requires_human_review).toBe(true);
+  });
+
   it("sends capturer confirmations and schedules the next reminder", async () => {
     stores.capture_jobs.set("job-1", {
       title: "Durham Facility",

@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RequestConsole from "@/pages/RequestConsole";
 
+vi.mock("@/components/blueprint/app/AppShell", () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
+}));
+
 vi.mock("wouter", () => ({
   useLocation: () => ["/requests/req-1", vi.fn()],
   useSearch: () => "",

@@ -1,0 +1,594 @@
+// @vitest-environment node
+import express from "express";
+import { createServer, type Server } from "node:http";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const state = vi.hoisted(() => ({
+  records: new Map<string, any>(),
+  messages: vi.fn(),
+  intakes: [] as any[],
+}));
+function ref(path: string): any {
+  return {
+    id: path.split("/").at(-1),
+    path,
+    get: async () => ({
+      exists: state.records.has(path),
+      id: path.split("/").at(-1),
+      data: () => state.records.get(path),
+      ref: ref(path),
+    }),
+    set: async (data: any) => state.records.set(path, data),
+    update: async (data: any) => {
+      const current = structuredClone(state.records.get(path) || {});
+      for (const [key, value] of Object.entries(data)) {
+        const parts = key.split(".");
+        let target = current;
+        for (const part of parts.slice(0, -1)) target = target[part] ??= {};
+        target[parts.at(-1)!] = value;
+      }
+      state.records.set(path, current);
+    },
+    delete: async () => state.records.delete(path),
+    collection: (name: string) => collection(`${path}/${name}`),
+  };
+}
+function collection(
+  path: string,
+  filters: Array<[string, unknown]> = [],
+  limit = Infinity,
+): any {
+  return {
+    doc: (id = `note-${state.records.size}`) => ref(`${path}/${id}`),
+    where: (key: string, _op: string, value: unknown) =>
+      collection(path, [...filters, [key, value]], limit),
+    limit: (n: number) => collection(path, filters, n),
+    get: async () => ({
+      docs: [...state.records.entries()]
+        .filter(
+          ([key, data]) =>
+            key.startsWith(`${path}/`) &&
+            key.split("/").length === path.split("/").length + 1 &&
+            filters.every(
+              ([field, value]) =>
+                field.split(".").reduce((data, key) => data?.[key], data) ===
+                value,
+            ),
+        )
+        .slice(0, limit)
+        .map(([key, data]) => ({
+          id: key.split("/").at(-1),
+          data: () => data,
+          ref: ref(key),
+        })),
+    }),
+    add: async (data: any) => {
+      const key = `${path}/note-${state.records.size}`;
+      state.records.set(key, data);
+      return ref(key);
+    },
+  };
+}
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: {
+    firestore: {
+      FieldValue: { serverTimestamp: () => new Date().toISOString() },
+    },
+  },
+  dbAdmin: {
+    collection: (name: string) => collection(name),
+    runTransaction: async (fn: any) =>
+      fn({
+        get: (r: any) => r.get(),
+        update: (r: any, data: any) => r.update(data),
+        set: (r: any, data: any) => r.set(data),
+      }),
+  },
+}));
+vi.mock("../utils/field-encryption", () => ({
+  decryptInboundRequestForAdmin: async (value: any) => {
+    const decoded = structuredClone(value);
+    if (typeof decoded.request?.taskDescription === "string")
+      decoded.request.taskDescription = decoded.request.taskDescription.replace(
+        /^encrypted:/,
+        "",
+      );
+    return decoded;
+  },
+  encryptFieldValue: async (value: string) => `encrypted:${value}`,
+  decryptFieldValue: async (value: string) => value.replace(/^encrypted:/, ""),
+}));
+vi.mock("../utils/field-ops-automation", () => ({
+  sendCapturerCommunication: state.messages,
+}));
+vi.mock("../routes/inbound-request", () => ({
+  submitInboundRequest: async (req: any, res: any) => {
+    state.intakes.push({
+      body: req.body,
+      metadata: res.locals.workspaceIntake,
+    });
+    state.records.set(`inboundRequests/${req.body.requestId}`, {
+      ...res.locals.workspaceIntake,
+      request: { ...req.body },
+      contact: { email: req.body.email },
+      createdAt: new Date().toISOString(),
+    });
+    return res.status(201).json({ requestId: req.body.requestId, ok: true });
+  },
+}));
+const terms = {
+  successRate: 95,
+  cycleTimeSeconds: 30,
+  pilotBudgetUsd: 25000,
+  deploymentBudgetUsd: null,
+  targetDate: null,
+  successDefinition: "Complete a pack without drops",
+};
+function task(owner = "site-1") {
+  return {
+    requestId: "task-1",
+    account_owner_uid: owner,
+    createdAt: "2026-09-13T10:00:00Z",
+    request: {
+      buyerType: "site_operator",
+      siteName: "Confidential Site",
+      siteLocation: "123 Private Rd",
+      taskStatement: "Pack cartons",
+      targetSiteType: "Fulfillment",
+      pilotOpportunity: {
+        requested: true,
+        visibility: "anonymized",
+        anonymizedSummary: "Pack cartons into totes",
+        benchmarkProfile: "40 trials",
+        objectProfile: "Cartons",
+        operationalProfile: "One shift",
+        integrationEnvironment: "Conveyor",
+        rolloutReadiness: "Owner ready",
+        dataUsePermissions: {
+          evaluateExistingPolicy: "granted",
+          siteSpecificAdaptation: "not_granted",
+          retainImprovements: "not_granted",
+          generalModelTraining: "not_granted",
+        },
+      },
+    },
+    workspace_task: { terms },
+    qualification_state: "qualified_ready",
+    opportunity_state: "handoff_ready",
+    structured_intake: {
+      site_operator_claim_outcome: "site_claim_access_boundary_ready",
+      access_boundary_outcome: "access_boundary_defined",
+      pilot_opportunity_outcome: "evaluation_candidate",
+      missing_pilot_opportunity_fields: [],
+    },
+    ops: { rights_status: "verified", capture_status: "approved" },
+  };
+}
+function run(uid = "robot-1") {
+  return {
+    buyer_user_id: uid,
+    site_submission_id: "application-1",
+    status: "decided",
+    updated_at_iso: "2026-09-13T11:00:00Z",
+    benchmark_projection: {
+      status: "complete",
+      policy_aggregates: [
+        {
+          policy_id: "SECRET-POLICY",
+          checkpoint_sha256: "SECRET-CHECKPOINT",
+          metrics: {
+            full_task_success: { estimate: 0.96, sample_count: 40 },
+            efficiency: { estimate: 27 },
+          },
+        },
+      ],
+    },
+    pipeline_result: { cycle_time_seconds: { estimate: 27, unit: "seconds" } },
+    private_endpoint: "https://secret.example.com",
+  };
+}
+const setup = {
+  id: "setup-1",
+  name: "Atlas",
+  embodiment: "Mobile manipulator",
+  policyName: "Packing",
+  version: "v4",
+  delivery: "container",
+  reference: "https://registry.example.com/team/policy",
+  notes: "",
+};
+let server: Server, base: string;
+beforeEach(async () => {
+  state.records.clear();
+  state.intakes.length = 0;
+  state.messages.mockReset().mockResolvedValue({ state: "pending_approval" });
+  state.records.set("users/site-1", {
+    buyerType: "site_operator",
+    name: "Site Owner",
+  });
+  state.records.set("users/site-2", {
+    buyerType: "site_operator",
+    name: "Other Site",
+  });
+  state.records.set("users/robot-1", {
+    buyerType: "robot_team",
+    name: "Robot Owner",
+  });
+  state.records.set("users/robot-2", {
+    buyerType: "robot_team",
+    name: "Other Robot",
+  });
+  const { default: router } = await import("../routes/workspace");
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => {
+    res.locals.firebaseUser = {
+      uid: req.headers["x-user"] || "",
+      email: `${req.headers["x-user"]}@example.com`,
+      email_verified: req.headers["x-unverified"] !== "1",
+    };
+    next();
+  });
+  app.use(router);
+  server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  base = `http://127.0.0.1:${(server.address() as any).port}`;
+});
+afterEach(async () => {
+  server.closeAllConnections();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+});
+async function api(
+  path: string,
+  uid: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+) {
+  return fetch(`${base}${path}`, {
+    method,
+    headers: { "x-user": uid, "Content-Type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+describe("workspace access and projections", () => {
+  it("requires authentication and a supported account role", async () => {
+    expect((await api("/", "")).status).toBe(401);
+    state.records.set("users/admin", { role: "admin" });
+    expect((await api("/", "admin")).status).toBe(403);
+  });
+  it("does not expose or mutate another site's task", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-2", {
+          action: "close",
+          resultId: null,
+          notes: "close",
+        })
+      ).status,
+    ).toBe(404);
+    expect((await (await api("/", "site-2")).json()).tasks).toEqual([]);
+  });
+  it("rejects a forged legacy intake link without a verified matching contact", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      account_owner_uid: undefined,
+      contact: { email: "site-1@example.com" },
+    });
+    state.records.set("users/site-2", {
+      buyerType: "site_operator",
+      structuredIntakeRequestId: "task-1",
+    });
+    expect((await (await api("/", "site-2")).json()).tasks).toEqual([]);
+  });
+  it("gives sites anonymous metrics while excluding team identity and policy secrets", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
+    });
+    state.records.set("robotEvalJobRequests/run-1", run());
+    const response = await (await api("/tasks/task-1", "site-1")).json();
+    expect(response.results[0]).toMatchObject({
+      successRate: 96,
+      cycleTimeSeconds: 27,
+      targetsMet: true,
+    });
+    expect(JSON.stringify(response)).not.toMatch(
+      /SECRET|secret\.example|robot-1/,
+    );
+  });
+  it("shows robot teams only their own evaluations and never confidential source identity", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: {
+        opportunityId: "task-1",
+        targetSnapshot: terms,
+        setupName: "Atlas",
+      },
+      request: { taskStatement: "Anonymous packing task" },
+    });
+    state.records.set("robotEvalJobRequests/run-1", run());
+    state.records.set("robotEvalJobRequests/other", run("robot-2"));
+    const response = await (await api("/", "robot-1")).json();
+    expect(response.evaluations).toHaveLength(1);
+    expect(JSON.stringify(response)).not.toMatch(
+      /Confidential Site|123 Private|robot-2|SECRET/,
+    );
+  });
+  it("does not interpret efficiency as seconds or unknown scores as zero", async () => {
+    state.records.set("robotEvalJobRequests/run-1", {
+      ...run(),
+      pipeline_result: {},
+    });
+    const response = await (await api("/", "robot-1")).json();
+    expect(response.evaluations[0].cycleTimeSeconds).toBeNull();
+    expect(response.evaluations[0].targetsMet).toBeNull();
+  });
+});
+describe("workspace requests and lifecycle", () => {
+  it("can record a decision when the source task prose is encrypted", async () => {
+    const source: any = task();
+    source.workspace_task.terms.successDefinition = "";
+    source.request.taskDescription = "encrypted:Pack cartons without drops";
+    state.records.set("inboundRequests/task-1", source);
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
+    });
+    state.records.set("robotEvalJobRequests/run-1", run());
+    const response = await api("/tasks/task-1/pilot", "site-1", {
+      action: "invite",
+      resultId: "application-1",
+      notes: "Review terms",
+    });
+    expect(response.status).toBe(200);
+    expect(
+      state.records.get("inboundRequests/task-1").workspace_task.pilot.notes,
+    ).toMatch(/^encrypted:/);
+    expect(
+      [...state.records.keys()].some((key) =>
+        key.startsWith("inboundRequests/task-1/notes/"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not turn a provisional capturer assignment into a confirmed appointment", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("capture_jobs/capture-1", {
+      buyer_request_id: "task-1",
+      status: "scheduled",
+      availabilityStartsAt: "2026-09-16T15:00:00Z",
+      field_ops: { dispatch_review: { manual_confirmation_required: true } },
+    });
+    const response = await (await api("/tasks/task-1", "site-1")).json();
+    expect(response.capture.status).toBe("awaiting_confirmation");
+  });
+  it("does not apply current targets retroactively to an older evaluation", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: {
+        opportunityId: "task-1",
+        targetSnapshot: { ...terms, successRate: 90 },
+      },
+    });
+    state.records.set("robotEvalJobRequests/run-1", run());
+    const response = await (await api("/tasks/task-1", "site-1")).json();
+    expect(response.results[0].status).toBe("criteria_changed");
+    expect(response.results[0].targetsMet).toBeNull();
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-1", {
+          action: "invite",
+          resultId: "application-1",
+          notes: "Select",
+        })
+      ).status,
+    ).toBe(409);
+  });
+  it("does not promote failed or zero-sample runs into scored results", async () => {
+    const failed = run();
+    failed.status = "failed";
+    state.records.set("robotEvalJobRequests/failed", failed);
+    const empty = run();
+    empty.benchmark_projection.policy_aggregates[0].metrics.full_task_success.sample_count = 0;
+    state.records.set("robotEvalJobRequests/empty", empty);
+    const response = await (await api("/", "robot-1")).json();
+    expect(
+      response.evaluations.every(
+        (item: any) =>
+          item.successRate === null && item.cycleTimeSeconds === null,
+      ),
+    ).toBe(true);
+  });
+
+  it("uses the existing intake handler with server-owned identity and private defaults", async () => {
+    const response = await api("/tasks", "site-1", {
+      id: "task-new",
+      title: "Pack",
+      siteName: "Site",
+      location: "Austin",
+      siteType: "Fulfillment",
+      terms,
+      visibility: "private",
+      notes: "",
+    });
+    expect(response.status).toBe(201);
+    expect(state.intakes[0].metadata.account_owner_uid).toBe("site-1");
+    expect(state.intakes[0].body.email).toBe("site-1@example.com");
+    expect(state.intakes[0].body.pilotOpportunity.visibility).toBe("private");
+    expect(state.intakes[0].metadata.workspace_task).not.toHaveProperty(
+      "published",
+    );
+  });
+  it("rejects role escalation, arbitrary owner fields and invalid thresholds", async () => {
+    const body = {
+      id: "task-new",
+      title: "Pack",
+      siteName: "Site",
+      location: "Austin",
+      siteType: "Fulfillment",
+      terms,
+      visibility: "private",
+      notes: "",
+    };
+    expect((await api("/tasks", "robot-1", body)).status).toBe(403);
+    expect(
+      (await api("/tasks", "site-1", { ...body, account_owner_uid: "site-2" }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await api("/tasks", "site-1", {
+          ...body,
+          terms: { ...terms, successRate: 101 },
+        })
+      ).status,
+    ).toBe(400);
+  });
+  it("encrypts private setups and prevents reading or deleting another team's setup", async () => {
+    expect((await api("/setups", "robot-1", setup)).status).toBe(200);
+    expect(
+      state.records.get("users/robot-1/robotSetups/setup-1").payload,
+    ).toMatch(/^encrypted:/);
+    expect((await (await api("/", "robot-2")).json()).setups).toEqual([]);
+    await api("/setups/setup-1", "robot-2", undefined, "DELETE");
+    expect(state.records.has("users/robot-1/robotSetups/setup-1")).toBe(true);
+  });
+  it("rejects credential-bearing and executable references", async () => {
+    for (const reference of [
+      "javascript:alert(1)",
+      "https://user:password@example.com/policy",
+      "https://example.com/policy?token=secret",
+    ]) {
+      expect(
+        (await api("/setups", "robot-1", { ...setup, reference })).status,
+      ).toBe(400);
+    }
+  });
+  it("rechecks opportunity rights before accepting a setup-backed evaluation request", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    await api("/setups", "robot-1", setup);
+    expect(
+      (
+        await api("/evaluations", "robot-1", {
+          id: "application-1",
+          opportunityId: "task-1",
+          setupId: "setup-1",
+          notes: "",
+        })
+      ).status,
+    ).toBe(201);
+    expect(state.intakes[0].body.taskStatement).toBe("Pack cartons into totes");
+    expect(state.intakes[0].body).not.toMatchObject({
+      siteName: "Confidential Site",
+    });
+    const source = task();
+    source.ops.rights_status = "pending";
+    state.records.set("inboundRequests/task-1", source);
+    expect(
+      (
+        await api("/evaluations", "robot-1", {
+          id: "application-2",
+          opportunityId: "task-1",
+          setupId: "setup-1",
+          notes: "",
+        })
+      ).status,
+    ).toBe(404);
+  });
+  it("records cancellation as pending without falsifying the actual schedule", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("capture_jobs/capture-1", {
+      buyer_request_id: "task-1",
+      status: "scheduled",
+      availabilityStartsAt: "2026-09-16T15:00:00Z",
+    });
+    const response = await (
+      await api("/tasks/task-1/capture", "site-1", {
+        action: "cancel",
+        message: "Site closed",
+      })
+    ).json();
+    expect(response.status).toBe("pending_review");
+    expect(state.records.get("capture_jobs/capture-1").status).toBe(
+      "scheduled",
+    );
+    expect(state.records.get("inboundRequests/task-1").ops.next_step).toContain(
+      "cancel",
+    );
+  });
+  it("routes a capturer message through the existing communication boundary", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("capture_jobs/capture-1", {
+      buyer_request_id: "task-1",
+      status: "scheduled",
+      field_ops: {
+        capturer_assignment: { creator_id: "capturer-1", name: "Jordan" },
+      },
+    });
+    const response = await (
+      await api("/tasks/task-1/capture", "site-1", {
+        action: "message",
+        message: "Use the east entrance",
+      })
+    ).json();
+    expect(state.messages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        captureJobId: "capture-1",
+        communicationType: "custom",
+        body: "Use the east entrance",
+      }),
+    );
+    expect(response.message).toContain("queued");
+  });
+  it("requires an actual result for selection and a pilot before deployment", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-1", {
+          action: "invite",
+          resultId: "invented",
+          notes: "Pick",
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-1", {
+          action: "deploy",
+          resultId: null,
+          notes: "Deploy",
+        })
+      ).status,
+    ).toBe(409);
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
+    });
+    state.records.set("robotEvalJobRequests/run-1", run());
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-1", {
+          action: "invite",
+          resultId: "application-1",
+          notes: "Review pilot terms",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      state.records.get("inboundRequests/task-1").workspace_task.pilot.state,
+    ).toBe("selected");
+    expect(
+      (
+        await api("/tasks/task-1/pilot", "site-1", {
+          action: "invite",
+          resultId: "application-1",
+          notes: "Again",
+        })
+      ).status,
+    ).toBe(409);
+  });
+});

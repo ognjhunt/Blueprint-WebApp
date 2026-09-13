@@ -926,7 +926,7 @@ function generateConfirmationEmailHtml(
  * POST /api/inbound-request
  * Submit a new site submission for capture, evaluation, or policy-improvement scoping
  */
-router.post("/", async (req: Request, res: Response) => {
+export async function submitInboundRequest(req: Request, res: Response) {
   const startTime = Date.now();
   const clientIp = req.ip || req.socket.remoteAddress || "unknown";
   const ipHash = hashIp(clientIp);
@@ -1439,6 +1439,10 @@ router.post("/", async (req: Request, res: Response) => {
         "Duplicate request - returning existing"
       );
       const existingData = existingDoc.data() as InboundRequest;
+      const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
+      if (requestedOwner && (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner) {
+        return res.status(409).json({ ok: false, message: "This request identifier is already in use." });
+      }
       return res.status(HTTP_STATUS.OK).json({
         ok: true,
         requestId: payload.requestId,
@@ -1455,6 +1459,7 @@ router.post("/", async (req: Request, res: Response) => {
       createdAt: FirebaseFirestore.FieldValue;
     } = {
       requestId: payload.requestId,
+      ...(res.locals.workspaceIntake || {}),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,
       growth_wedge: routing.growthWedge,
@@ -1980,6 +1985,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       message: "An error occurred processing your request. Please try again.",
     } satisfies SubmitInboundRequestResponse);
   }
-});
+}
 
+router.post("/", submitInboundRequest);
 export default router;

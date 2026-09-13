@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ShieldCheck, type LucideIcon } from "lucide-react";
 
+import { WorkspaceContext } from "@/components/workspace/WorkspaceContext";
 import { cn } from "@/lib/utils";
 
 type ProofBoundaryLevel = "info" | "proof" | "warn" | "block";
@@ -61,7 +62,9 @@ export interface ProofBoundaryProps
  */
 const ProofBoundary = React.forwardRef<HTMLDivElement, ProofBoundaryProps>(
   ({ className, level = "info", title, children, icon, ...props }, ref) => {
+    const minimalWorkspace = React.useContext(WorkspaceContext);
     const tokens = levelTokens[level];
+    if (minimalWorkspace && level === "info") return <div ref={ref} className={className} {...props}><details><summary>{title}</summary><div className="ws-note">{children}</div></details></div>;
     const Icon = icon ?? ShieldCheck;
 
     return (
