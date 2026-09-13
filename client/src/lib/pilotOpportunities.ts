@@ -10,6 +10,10 @@ import type {
 } from "@/types/inbound-request";
 
 export type PilotOpportunityRecord = {
+  task_targets?: { successRate: number | null; cycleTimeSeconds: number | null };
+  pilot_budget_usd?: number | null;
+  deployment_budget_usd?: number | null;
+  target_date?: string | null;
   opportunity_id: string;
   access_level: "anonymized" | "shortlisted_confidential";
   visibility: PilotOpportunityVisibility;

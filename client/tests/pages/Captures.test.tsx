@@ -204,7 +204,7 @@ describe("app/Captures", () => {
     render(<Captures />);
 
     expect(screen.getByRole("heading", { level: 1, name: "New Capture" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Captures" })).toHaveAttribute("href", "/app/captures");
+    expect(screen.getByRole("link", { name: "Tasks", exact: true })).toHaveAttribute("href", "/app/tasks");
     expect(screen.getByText("What upload completion means")).toBeInTheDocument();
     expect(screen.getByText(/Upload completion is not capture acceptance/i)).toBeInTheDocument();
     expect(screen.getByText(/advisory hints, not reconstruction or task-success claims/i)).toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
   CAPTURER_COMMS_POLICY,
@@ -713,7 +714,7 @@ export async function sendCapturerCommunication(params: {
         },
         safetyPolicy: CAPTURER_COMMS_POLICY,
         draftOutput,
-        idempotencyKey: `capturer_comm:${params.captureJobId}:${params.communicationType}:${contactEmail}`,
+        idempotencyKey: `capturer_comm:${params.captureJobId}:${params.communicationType}:${contactEmail}${params.communicationType === "custom" ? `:${createHash("sha256").update(`${communication.subject}\n${communication.body}`).digest("hex").slice(0, 24)}` : ""}`,
       })
     : {
         state: "pending_approval" as const,

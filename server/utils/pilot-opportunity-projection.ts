@@ -7,6 +7,10 @@ import type {
 export type PilotOpportunityAccessLevel = "anonymized" | "shortlisted_confidential";
 
 export type PilotOpportunityProjection = {
+  task_targets?: { successRate: number | null; cycleTimeSeconds: number | null };
+  pilot_budget_usd?: number | null;
+  deployment_budget_usd?: number | null;
+  target_date?: string | null;
   opportunity_id: string;
   access_level: PilotOpportunityAccessLevel;
   visibility: PilotOpportunityVisibility;
@@ -93,6 +97,11 @@ export function projectPilotOpportunityForRobotTeam(
   if (!pilotOpportunityPassedGates(record)) return null;
 
   const opportunity = record.request.pilotOpportunity!;
+  const workspace = (record as unknown as Record<string, any>).workspace_task || {};
+  if (workspace.archived === true || workspace.paused === true) return null;
+  const terms = workspace.terms || {};
+  const finite = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
+  const taskFields = { task_targets: { successRate: finite(terms.successRate), cycleTimeSeconds: finite(terms.cycleTimeSeconds) }, pilot_budget_usd: finite(terms.pilotBudgetUsd), deployment_budget_usd: finite(terms.deploymentBudgetUsd), target_date: typeof terms.targetDate === "string" ? terms.targetDate : null };
   if (opportunity.visibility === "approved_robot_teams") {
     const allowedEmails = new Set(
       (opportunity.approvedRobotTeamEmails || []).map(normalizedEmail).filter(Boolean),
@@ -100,7 +109,8 @@ export function projectPilotOpportunityForRobotTeam(
     if (!allowedEmails.has(normalizedEmail(robotTeamEmail))) return null;
 
     return {
-      opportunity_id: record.requestId,
+      ...taskFields,
+    opportunity_id: record.requestId,
       access_level: "shortlisted_confidential",
       visibility: opportunity.visibility,
       site_name: record.request.siteName,
@@ -129,6 +139,7 @@ export function projectPilotOpportunityForRobotTeam(
   if (opportunity.visibility !== "anonymized") return null;
 
   return {
+    ...taskFields,
     opportunity_id: record.requestId,
     access_level: "anonymized",
     visibility: opportunity.visibility,

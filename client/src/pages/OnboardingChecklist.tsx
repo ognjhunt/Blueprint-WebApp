@@ -17,7 +17,8 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { AppShell } from "@/components/blueprint/app/AppShell";
+import { Tag, Feedback } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ChecklistItem {
@@ -72,15 +73,17 @@ function ChecklistCard({
               : "border-runway-line-strong text-runway-faint"
           }`}
         >
-          {item.completed ? <CheckCircle2 className="h-5 w-5" /> : <span>{index}</span>}
+          {item.completed ? (
+            <CheckCircle2 className="h-5 w-5" />
+          ) : (
+            <span>{index}</span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-runway-text">{item.title}</h3>
             {item.optional ? (
-              <span className="runway-chip runway-chip-quiet">
-                Optional
-              </span>
+              <span className="runway-chip runway-chip-quiet">Optional</span>
             ) : null}
           </div>
           <p className="mt-1 text-sm text-runway-mute">{item.description}</p>
@@ -97,7 +100,9 @@ function ChecklistCard({
             </button>
           ) : null}
         </div>
-        <Icon className={`h-5 w-5 ${item.completed ? "text-runway-green" : "text-runway-faint"}`} />
+        <Icon
+          className={`h-5 w-5 ${item.completed ? "text-runway-green" : "text-runway-faint"}`}
+        />
       </div>
     </motion.div>
   );
@@ -106,10 +111,15 @@ function ChecklistCard({
 export default function OnboardingChecklist() {
   const { userData, currentUser } = useAuth();
   const [, setLocation] = useLocation();
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [notice, setNotice] = React.useState("");
 
   const progress = userData?.onboardingProgress || {
     profileComplete: true,
-    defineSiteSubmission: Boolean(userData?.siteName && userData?.taskStatement),
+    defineSiteSubmission: Boolean(
+      userData?.siteName && userData?.taskStatement,
+    ),
     completeIntakeReview: false,
     reviewQualifiedOpportunities: false,
     inviteTeam: false,
@@ -117,44 +127,58 @@ export default function OnboardingChecklist() {
   const isRobotTeam = userData?.buyerType !== "site_operator";
   const calendarDisposition = userData?.calendarDisposition || "not_needed_yet";
   const calendarIsRecommended =
-    calendarDisposition === "recommended" || calendarDisposition === "required_before_next_step";
+    calendarDisposition === "recommended" ||
+    calendarDisposition === "required_before_next_step";
   const proofReadyOutcome =
-    userData?.proofReadyOutcome || (isRobotTeam ? "needs_clarification" : "operator_handoff");
+    userData?.proofReadyOutcome ||
+    (isRobotTeam ? "needs_clarification" : "operator_handoff");
   const proofPathOutcome =
-    userData?.proofPathOutcome || (isRobotTeam ? "scoped_follow_up" : "operator_handoff");
+    userData?.proofPathOutcome ||
+    (isRobotTeam ? "scoped_follow_up" : "operator_handoff");
   const proofReadinessScore =
-    typeof userData?.proofReadinessScore === "number" ? userData.proofReadinessScore : null;
+    typeof userData?.proofReadinessScore === "number"
+      ? userData.proofReadinessScore
+      : null;
   const missingProofReadyFields = userData?.missingProofReadyFields || [];
   const proofReadyIntakeComplete =
-    Boolean(progress.proofReadyIntake) || proofReadyOutcome === "proof_ready_intake";
+    Boolean(progress.proofReadyIntake) ||
+    proofReadyOutcome === "proof_ready_intake";
   const siteOperatorClaimOutcome =
-    userData?.siteOperatorClaimOutcome || (isRobotTeam ? "not_site_operator" : "site_claim_needs_detail");
+    userData?.siteOperatorClaimOutcome ||
+    (isRobotTeam ? "not_site_operator" : "site_claim_needs_detail");
   const accessBoundaryOutcome =
-    userData?.accessBoundaryOutcome || (isRobotTeam ? "not_applicable" : "needs_access_rules");
+    userData?.accessBoundaryOutcome ||
+    (isRobotTeam ? "not_applicable" : "needs_access_rules");
   const siteClaimReadinessScore =
-    typeof userData?.siteClaimReadinessScore === "number" ? userData.siteClaimReadinessScore : null;
+    typeof userData?.siteClaimReadinessScore === "number"
+      ? userData.siteClaimReadinessScore
+      : null;
   const siteClaimCriteria = userData?.siteClaimCriteria || [];
   const missingSiteClaimFields = userData?.missingSiteClaimFields || [];
   const rightsControlDefined = hasText(userData?.captureRights);
   const privacyControlDefined =
-    Boolean(progress.privacyRulesConfirmed)
-    || siteClaimCriteria.includes("privacy_security_boundary")
-    || hasText(userData?.privacySecurityConstraints);
+    Boolean(progress.privacyRulesConfirmed) ||
+    siteClaimCriteria.includes("privacy_security_boundary") ||
+    hasText(userData?.privacySecurityConstraints);
   const commercialControlDefined =
-    Boolean(progress.commercializationPreferenceSet)
-    || hasText(userData?.derivedScenePermission)
-    || hasText(userData?.datasetLicensingPermission);
+    Boolean(progress.commercializationPreferenceSet) ||
+    hasText(userData?.derivedScenePermission) ||
+    hasText(userData?.datasetLicensingPermission);
   const operatorControlRows = [
     {
       label: "Rights",
-      value: rightsControlDefined ? "Rights note captured" : "Needs owner or release context",
+      value: rightsControlDefined
+        ? "Rights note captured"
+        : "Needs owner or release context",
       detail: rightsControlDefined
         ? "Approval and rights context stay attached to the site claim."
         : "Add who can approve capture, release, or downstream use before this moves.",
     },
     {
       label: "Privacy",
-      value: privacyControlDefined ? "Privacy boundary captured" : "Needs privacy boundary",
+      value: privacyControlDefined
+        ? "Privacy boundary captured"
+        : "Needs privacy boundary",
       detail: privacyControlDefined
         ? "Private areas, redaction, or security limits are visible for review."
         : "Add camera limits, restricted areas, redaction needs, or security rules.",
@@ -172,159 +196,170 @@ export default function OnboardingChecklist() {
     },
     {
       label: "Commercial control",
-      value: commercialControlDefined ? "Commercial posture captured" : "Needs commercial preference",
+      value: commercialControlDefined
+        ? "Commercial posture captured"
+        : "Needs commercial preference",
       detail: commercialControlDefined
         ? "Private, claim-only, or listable use is visible before buyer-facing motion."
         : "Choose whether the site stays private, claim-only, or potentially listable.",
     },
   ];
 
-  const checklistItems: ChecklistItem[] = useMemo(
-    () => {
-      const baseItems: ChecklistItem[] = [{
+  const checklistItems: ChecklistItem[] = useMemo(() => {
+    const baseItems: ChecklistItem[] = [
+      {
         id: "profile",
         title: "Account profile complete",
         description: "Your account exists and the intake owner is identified.",
         completed: progress.profileComplete,
         icon: Shield,
-      }];
+      },
+    ];
 
-      const roleItems: ChecklistItem[] = isRobotTeam
-        ? [
-            {
-              id: "buyer-workflow",
-              title: "Confirm robot workflow",
-              description:
-                "Keep the buyer path anchored to one task, robot stack, site, or site class.",
-              completed: Boolean(progress.buyerWorkflowConfirmed || progress.defineSiteSubmission),
-              icon: Route,
-              action: {
-                label: "Review intake",
-                href: "/contact/robot-team?persona=robot-team",
-                updateField: "onboardingProgress.buyerWorkflowConfirmed",
-              },
+    const roleItems: ChecklistItem[] = isRobotTeam
+      ? [
+          {
+            id: "buyer-workflow",
+            title: "Confirm robot workflow",
+            description:
+              "Keep the buyer path anchored to one task, robot stack, site, or site class.",
+            completed: Boolean(
+              progress.buyerWorkflowConfirmed || progress.defineSiteSubmission,
+            ),
+            icon: Route,
+            action: {
+              label: "Review intake",
+              href: "/contact/robot-team?persona=robot-team",
+              updateField: "onboardingProgress.buyerWorkflowConfirmed",
             },
-            {
-              id: "package-path",
-              title: "Define the evaluation decision",
-              description:
-                "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, budget, deadline, evidence, and restrictions.",
-              completed: Boolean(progress.packageOrHostedPathSelected || progress.defineSiteSubmission),
-              icon: FileSearch,
-              action: {
-                label: "Start run intake",
-                href: "/app/runs/new",
-                updateField: "onboardingProgress.packageOrHostedPathSelected",
-              },
+          },
+          {
+            id: "package-path",
+            title: "Define the evaluation decision",
+            description:
+              "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, budget, deadline, evidence, and restrictions.",
+            completed: Boolean(
+              progress.packageOrHostedPathSelected ||
+              progress.defineSiteSubmission,
+            ),
+            icon: FileSearch,
+            action: {
+              label: "Start run intake",
+              href: "/app/runs/new",
+              updateField: "onboardingProgress.packageOrHostedPathSelected",
             },
-            {
-              id: "proof-ready-intake",
-              title: proofReadyIntakeComplete
-                ? "Proof-ready intake measured"
-                : "Complete proof-ready intake",
-              description: proofReadyIntakeComplete
-                ? "The request has enough structured buyer, workflow, site, robot, and proof-path context for a first proof-path decision."
-                : missingProofReadyFields.length > 0
-                  ? `Add ${missingProofReadyFields.map(formatIntakeLabel).join(", ")} so intake can route the proof path without guessing.`
-                  : "Add enough structured proof-path context so the next step is a measured intake outcome, not another generic discovery loop.",
-              completed: proofReadyIntakeComplete,
-              icon: Target,
-              action: {
-                label: "Update proof details",
-                href: "/contact/robot-team?persona=robot-team",
-                updateField: "onboardingProgress.proofReadyIntake",
-              },
+          },
+          {
+            id: "proof-ready-intake",
+            title: proofReadyIntakeComplete
+              ? "Proof-ready intake measured"
+              : "Complete proof-ready intake",
+            description: proofReadyIntakeComplete
+              ? "The request has enough structured buyer, workflow, site, robot, and proof-path context for a first proof-path decision."
+              : missingProofReadyFields.length > 0
+                ? `Add ${missingProofReadyFields.map(formatIntakeLabel).join(", ")} so intake can route the proof path without guessing.`
+                : "Add enough structured proof-path context so the next step is a measured intake outcome, not another generic discovery loop.",
+            completed: proofReadyIntakeComplete,
+            icon: Target,
+            action: {
+              label: "Update proof details",
+              href: "/contact/robot-team?persona=robot-team",
+              updateField: "onboardingProgress.proofReadyIntake",
             },
-            {
-              id: "procurement",
-              title: "Add procurement context",
-              description:
-                "Budget range, timing, and blockers help Blueprint decide whether a call accelerates the request.",
-              completed: Boolean(progress.procurementReviewed),
-              icon: CreditCard,
-              action: {
-                label: "Update intake",
-                href: "/contact/robot-team?persona=robot-team",
-                updateField: "onboardingProgress.procurementReviewed",
-              },
-              optional: true,
+          },
+          {
+            id: "procurement",
+            title: "Add procurement context",
+            description:
+              "Budget range, timing, and blockers help Blueprint decide whether a call accelerates the request.",
+            completed: Boolean(progress.procurementReviewed),
+            icon: CreditCard,
+            action: {
+              label: "Update intake",
+              href: "/contact/robot-team?persona=robot-team",
+              updateField: "onboardingProgress.procurementReviewed",
             },
-          ]
-        : [
-            {
-              id: "site-claim",
-              title:
-                siteOperatorClaimOutcome === "site_claim_access_boundary_ready"
-                  ? "Site claim measured"
-                  : "Confirm the site claim",
-              description:
-                missingSiteClaimFields.length > 0
-                  ? `Add ${missingSiteClaimFields.map(formatIntakeLabel).join(", ")} so the site claim can be routed without guessing.`
-                  : "Name the facility, operator, location, and why the site should enter the review queue.",
-              completed: Boolean(
-                progress.siteClaimConfirmed
-                || siteOperatorClaimOutcome === "site_claim_access_boundary_ready"
-                || siteOperatorClaimOutcome === "site_claim_needs_access_boundary",
-              ),
-              icon: Building2,
-              action: {
-                label: "Review site claim",
-                href: "/contact/site-operator",
-                updateField: "onboardingProgress.siteClaimConfirmed",
-              },
+            optional: true,
+          },
+        ]
+      : [
+          {
+            id: "site-claim",
+            title:
+              siteOperatorClaimOutcome === "site_claim_access_boundary_ready"
+                ? "Site claim measured"
+                : "Confirm the site claim",
+            description:
+              missingSiteClaimFields.length > 0
+                ? `Add ${missingSiteClaimFields.map(formatIntakeLabel).join(", ")} so the site claim can be routed without guessing.`
+                : "Name the facility, operator, location, and why the site should enter the review queue.",
+            completed: Boolean(
+              progress.siteClaimConfirmed ||
+              siteOperatorClaimOutcome === "site_claim_access_boundary_ready" ||
+              siteOperatorClaimOutcome === "site_claim_needs_access_boundary",
+            ),
+            icon: Building2,
+            action: {
+              label: "Review site claim",
+              href: "/contact/site-operator",
+              updateField: "onboardingProgress.siteClaimConfirmed",
             },
-            {
-              id: "access-boundaries",
-              title:
-                accessBoundaryOutcome === "access_boundary_defined"
-                  ? "Access boundary measured"
-                  : "Define access boundaries",
-              description:
-                accessBoundaryOutcome === "needs_privacy_security_boundary"
-                  ? "Add privacy, security, or restricted-zone boundaries before treating the site claim as ready."
-                  : "Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.",
-              completed: Boolean(progress.accessBoundariesDefined || accessBoundaryOutcome === "access_boundary_defined"),
-              icon: ClipboardCheck,
-              action: {
-                label: "Update access rules",
-                href: "/contact/site-operator",
-                updateField: "onboardingProgress.accessBoundariesDefined",
-              },
+          },
+          {
+            id: "access-boundaries",
+            title:
+              accessBoundaryOutcome === "access_boundary_defined"
+                ? "Access boundary measured"
+                : "Define access boundaries",
+            description:
+              accessBoundaryOutcome === "needs_privacy_security_boundary"
+                ? "Add privacy, security, or restricted-zone boundaries before treating the site claim as ready."
+                : "Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.",
+            completed: Boolean(
+              progress.accessBoundariesDefined ||
+              accessBoundaryOutcome === "access_boundary_defined",
+            ),
+            icon: ClipboardCheck,
+            action: {
+              label: "Update access rules",
+              href: "/contact/site-operator",
+              updateField: "onboardingProgress.accessBoundariesDefined",
             },
-            {
-              id: "privacy-rules",
-              title: "Confirm privacy rules",
-              description:
-                "Camera limits, redaction needs, private areas, and security concerns decide whether human scoping is required.",
-              completed: Boolean(
-                progress.privacyRulesConfirmed
-                || siteClaimCriteria.includes("privacy_security_boundary"),
-              ),
-              icon: Shield,
-              action: {
-                label: "Update privacy notes",
-                href: "/contact/site-operator",
-                updateField: "onboardingProgress.privacyRulesConfirmed",
-              },
+          },
+          {
+            id: "privacy-rules",
+            title: "Confirm privacy rules",
+            description:
+              "Camera limits, redaction needs, private areas, and security concerns decide whether human scoping is required.",
+            completed: Boolean(
+              progress.privacyRulesConfirmed ||
+              siteClaimCriteria.includes("privacy_security_boundary"),
+            ),
+            icon: Shield,
+            action: {
+              label: "Update privacy notes",
+              href: "/contact/site-operator",
+              updateField: "onboardingProgress.privacyRulesConfirmed",
             },
-            {
-              id: "commercialization",
-              title: "Set commercialization preference",
-              description:
-                "Choose whether the site is private, claim-only, or potentially listable for robot-team evaluation.",
-              completed: Boolean(progress.commercializationPreferenceSet),
-              icon: FileSearch,
-              action: {
-                label: "Update preference",
-                href: "/contact/site-operator",
-                updateField: "onboardingProgress.commercializationPreferenceSet",
-              },
-              optional: true,
+          },
+          {
+            id: "commercialization",
+            title: "Set commercialization preference",
+            description:
+              "Choose whether the site is private, claim-only, or potentially listable for robot-team evaluation.",
+            completed: Boolean(progress.commercializationPreferenceSet),
+            icon: FileSearch,
+            action: {
+              label: "Update preference",
+              href: "/contact/site-operator",
+              updateField: "onboardingProgress.commercializationPreferenceSet",
             },
-          ];
+            optional: true,
+          },
+        ];
 
-      const routingItems: ChecklistItem[] = [
-        {
+    const routingItems: ChecklistItem[] = [
+      {
         id: "submission",
         title: "Structured intake captured",
         description:
@@ -333,7 +368,9 @@ export default function OnboardingChecklist() {
         icon: Building2,
         action: {
           label: "Review intake",
-          href: isRobotTeam ? "/contact/robot-team?persona=robot-team" : "/contact/site-operator",
+          href: isRobotTeam
+            ? "/contact/robot-team?persona=robot-team"
+            : "/contact/site-operator",
           updateField: "onboardingProgress.defineSiteSubmission",
         },
       },
@@ -346,17 +383,22 @@ export default function OnboardingChecklist() {
         icon: ClipboardCheck,
         action: {
           label: "Open submission form",
-          href: isRobotTeam ? "/contact/robot-team?persona=robot-team" : "/contact/site-operator",
+          href: isRobotTeam
+            ? "/contact/robot-team?persona=robot-team"
+            : "/contact/site-operator",
           updateField: "onboardingProgress.completeIntakeReview",
         },
       },
       {
         id: "review-session",
-        title: calendarIsRecommended ? "Scope the human call" : "Keep calendar secondary",
+        title: calendarIsRecommended
+          ? "Scope the human call"
+          : "Keep calendar secondary",
         description: calendarIsRecommended
           ? "The intake is specific enough that a scoped meeting can accelerate the next decision."
           : "A meeting is optional until the structured intake shows a concrete site, workflow, buyer, or rights question.",
-        completed: Boolean(progress.reviewSessionScoped) || !calendarIsRecommended,
+        completed:
+          Boolean(progress.reviewSessionScoped) || !calendarIsRecommended,
         icon: CalendarClock,
         action: calendarIsRecommended
           ? {
@@ -387,7 +429,9 @@ export default function OnboardingChecklist() {
         description: isRobotTeam
           ? "Bring in teammates after the intake path is set."
           : "Identify the facility contact who can answer access, privacy, and scheduling questions.",
-        completed: Boolean(progress.teamContactConfirmed || progress.inviteTeam),
+        completed: Boolean(
+          progress.teamContactConfirmed || progress.inviteTeam,
+        ),
         icon: Users,
         action: {
           label: "Open settings",
@@ -396,28 +440,25 @@ export default function OnboardingChecklist() {
         },
         optional: true,
       },
-      ];
+    ];
 
-      return [...baseItems, ...roleItems, ...routingItems];
-    },
-    [
-      calendarIsRecommended,
-      isRobotTeam,
-      missingProofReadyFields,
-      missingSiteClaimFields,
-      progress,
-      accessBoundaryOutcome,
-      proofReadyIntakeComplete,
-      siteClaimCriteria,
-      siteOperatorClaimOutcome,
-    ]
-  );
-
-  const completedCount = checklistItems.filter((item) => item.completed).length;
+    return [...baseItems, ...roleItems, ...routingItems];
+  }, [
+    calendarIsRecommended,
+    isRobotTeam,
+    missingProofReadyFields,
+    missingSiteClaimFields,
+    progress,
+    accessBoundaryOutcome,
+    proofReadyIntakeComplete,
+    siteClaimCriteria,
+    siteOperatorClaimOutcome,
+  ]);
 
   const handleAction = useCallback(
     async (item: ChecklistItem) => {
       if (currentUser?.uid && item.action?.updateField) {
+        const { db } = await import("@/lib/firebase");
         await updateDoc(doc(db, "users", currentUser.uid), {
           [item.action.updateField]: true,
         });
@@ -427,41 +468,69 @@ export default function OnboardingChecklist() {
         setLocation(item.action.href);
       }
     },
-    [currentUser?.uid, setLocation]
+    [currentUser?.uid, setLocation],
   );
 
   const handleFinish = useCallback(async () => {
-    if (currentUser?.uid) {
+    if (!currentUser?.uid || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { db } = await import("@/lib/firebase");
       await updateDoc(doc(db, "users", currentUser.uid), {
         finishedOnboarding: true,
         onboardingStep: "completed",
         "onboardingProgress.completedAt": serverTimestamp(),
       });
+      setLocation("/app");
+    } catch {
+      setError("Could not finish setup. Please try again.");
+    } finally {
+      setBusy(false);
     }
-
-    // The app overview routes robot teams to buyer records and site operators
-    // to the request-backed operator status surface.
-    setLocation("/app");
-  }, [currentUser?.uid, setLocation, userData?.buyerType]);
+  }, [currentUser?.uid, busy, setLocation]);
 
   const intakeSummary = [
-    { label: "Buyer type", value: userData?.buyerType === "robot_team" ? "Robot team" : "Site operator" },
-    { label: "Primary path", value: userData?.structuredIntakeRecommendedPath || "Structured intake review" },
+    {
+      label: "Buyer type",
+      value:
+        userData?.buyerType === "robot_team" ? "Robot team" : "Site operator",
+    },
+    {
+      label: "Primary path",
+      value:
+        userData?.structuredIntakeRecommendedPath || "Structured intake review",
+    },
     ...(isRobotTeam
       ? [
-          { label: "Proof outcome", value: formatIntakeLabel(proofReadyOutcome) },
+          {
+            label: "Proof outcome",
+            value: formatIntakeLabel(proofReadyOutcome),
+          },
           { label: "Proof path", value: formatIntakeLabel(proofPathOutcome) },
           {
             label: "Proof readiness",
-            value: proofReadinessScore === null ? "Not measured yet" : `${proofReadinessScore}%`,
+            value:
+              proofReadinessScore === null
+                ? "Not measured yet"
+                : `${proofReadinessScore}%`,
           },
         ]
       : [
-          { label: "Site claim", value: formatIntakeLabel(siteOperatorClaimOutcome) },
-          { label: "Access boundary", value: formatIntakeLabel(accessBoundaryOutcome) },
+          {
+            label: "Site claim",
+            value: formatIntakeLabel(siteOperatorClaimOutcome),
+          },
+          {
+            label: "Access boundary",
+            value: formatIntakeLabel(accessBoundaryOutcome),
+          },
           {
             label: "Claim readiness",
-            value: siteClaimReadinessScore === null ? "Not measured yet" : `${siteClaimReadinessScore}%`,
+            value:
+              siteClaimReadinessScore === null
+                ? "Not measured yet"
+                : `${siteClaimReadinessScore}%`,
           },
         ]),
     { label: "Calendar", value: calendarDisposition.replaceAll("_", " ") },
@@ -471,85 +540,135 @@ export default function OnboardingChecklist() {
   ];
 
   return (
-    <main className="min-h-screen bg-runway-deep px-4 py-12">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-semibold uppercase tracking-[0.005em] text-runway-text">Intake review hub</h1>
-          <p className="mt-2 text-runway-mute">
-            Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
-          </p>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <AppShell active="overview" breadcrumb="Finish setup">
+      <div className="ws-form">
+        <header className="ws-heading">
+          <div>
+            <p>{userData?.company || userData?.name || "Your workspace"}</p>
+            <h1>Finish setup</h1>
+          </div>
+        </header>
+        <p className="ws-muted">
+          Your account is ready. Review your details, then open your workspace.
+        </p>
+        <Feedback error={error} notice={notice} />
+        <section className="ws-section">
+          <div className="ws-task-row">
+            <div className="ws-task-copy">
+              <h3>Account details</h3>
+              <p className="ws-muted">
+                Name, organization, and sign-in details
+              </p>
+            </div>
+            <Tag tone="green">Saved</Tag>
+          </div>
+          {!currentUser?.emailVerified && (
+            <div className="ws-task-row">
+              <div className="ws-task-copy">
+                <h3>Verify your email</h3>
+                <p className="ws-muted">
+                  Confirm your email before requesting captures or evaluations.
+                </p>
+              </div>
+              <button
+                className="ws-link"
+                disabled={busy}
+                onClick={async () => {
+                  if (!currentUser || busy) return;
+                  setBusy(true);
+                  setError("");
+                  try {
+                    const { sendEmailVerification } =
+                      await import("firebase/auth");
+                    await sendEmailVerification(currentUser);
+                    setNotice(
+                      "Verification email sent. Follow the link, then sign in again.",
+                    );
+                  } catch {
+                    setError("Could not send verification. Please try again.");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Send verification email
+              </button>
+            </div>
+          )}
+          <div className="ws-task-row">
+            <div className="ws-task-copy">
+              <h3>{isRobotTeam ? "Robot & policy" : "Site & task"}</h3>
+              <p className="ws-muted">
+                {isRobotTeam
+                  ? "Set up the robot and policy you want to evaluate."
+                  : "Review the intake submitted for your site."}
+              </p>
+            </div>
+            <button
+              className="ws-link"
+              onClick={() =>
+                setLocation(isRobotTeam ? "/settings?tab=robots" : "/app/tasks")
+              }
+            >
+              Review details →
+            </button>
+          </div>
+        </section>
+        <details className="ws-section">
+          <summary>Intake summary & next steps</summary>
           <div className="space-y-4">
             {checklistItems.map((item, index) => (
               <ChecklistCard
                 key={item.id}
                 item={item}
                 index={index + 1}
-                onAction={handleAction}
+                onAction={(item) => {
+                  void handleAction(item).catch(() =>
+                    setError("Could not open this step. Please try again."),
+                  );
+                }}
               />
             ))}
           </div>
-
-          <div className="space-y-6">
-            <div className="runway-panel p-6">
-              <p className="runway-meta">
-                Submission summary
-              </p>
-              <div className="mt-4 space-y-3">
-                {intakeSummary.map((item) => (
+          <dl className="ws-facts">
+            {intakeSummary.map((item) => (
+              <div key={item.label}>
+                <dt>{item.label}</dt>
+                <dd>{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {!isRobotTeam && (
+            <details>
+              <summary>Site access & review</summary>
+              <dl className="ws-facts">
+                {operatorControlRows.map((item) => (
                   <div key={item.label}>
-                    <p className="runway-meta">
-                      {item.label}
-                    </p>
-                    <p className="text-sm text-runway-text">{item.value}</p>
+                    <dt>{item.label}</dt>
+                    <dd>
+                      <p>{item.value}</p>
+                      <small>{item.detail}</small>
+                    </dd>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <div className="runway-panel p-6">
-              {!isRobotTeam ? (
-                <div className="mb-6 border-b border-runway-line pb-6">
-                  <p className="runway-meta">
-                    Operator control map
-                  </p>
-                  <div className="mt-4 grid gap-3">
-                    {operatorControlRows.map((item) => (
-                      <div key={item.label} className="border border-runway-line bg-runway-raised p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-runway-text">{item.label}</p>
-                          <p className="text-xs font-medium text-runway-mute">{item.value}</p>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-runway-mute">{item.detail}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className="mb-4 flex items-center justify-between text-sm text-runway-mute">
-                <span>Checklist progress</span>
-                <span className="runway-num text-runway-text">
-                  {completedCount} / {checklistItems.length}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden bg-runway-line">
-                <div
-                  className="h-full bg-runway-signal"
-                  style={{ width: `${(completedCount / checklistItems.length) * 100}%` }}
-                />
-              </div>
-              <p className="mt-4 text-sm text-runway-mute">
-                Finish onboarding once the intake path is clear. You can still return here later.
-              </p>
-              <button type="button" className="runway-cta mt-4 w-full" onClick={handleFinish}>
-                Finish onboarding
-              </button>
-            </div>
-          </div>
+              </dl>
+            </details>
+          )}
+        </details>
+        <div className="ws-form-actions">
+          <button
+            type="button"
+            className="ws-primary"
+            onClick={handleFinish}
+            disabled={busy}
+          >
+            {busy ? "Saving…" : "Open workspace →"}
+          </button>
         </div>
+        <p className="ws-note">
+          You can return to your task and settings at any time.
+        </p>
       </div>
-    </main>
+    </AppShell>
   );
 }

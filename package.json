@@ -49,6 +49,7 @@
     "deploy:rollback": "node scripts/deploy-rollback.mjs",
     "doctrine:verify": "tsx scripts/doctrine/verify-shared-doctrine.ts",
     "test": "vitest run",
+    "test:workspace:browser": "playwright test --config playwright.workspace.config.ts",
     "test:rules": "npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage --project blueprint-rules-test \"npx vitest run --config vitest.rules.config.ts\"",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",

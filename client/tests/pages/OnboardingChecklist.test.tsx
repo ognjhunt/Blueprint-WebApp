@@ -1,6 +1,12 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import OnboardingChecklist from "@/pages/OnboardingChecklist";
+
+vi.mock("@/components/blueprint/app/AppShell", () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
 
 const setLocationMock = vi.hoisted(() => vi.fn());
 const mockUserData = vi.hoisted(() => ({
@@ -60,10 +66,40 @@ vi.mock("firebase/firestore", () => ({
 }));
 
 describe("OnboardingChecklist", () => {
+  beforeEach(() => {
+    setLocationMock.mockReset();
+  });
+  it("opens the workspace only after account setup is durably saved", async () => {
+    const { updateDoc } = await import("firebase/firestore");
+    vi.mocked(updateDoc).mockResolvedValueOnce(undefined);
+    render(<OnboardingChecklist />);
+    fireEvent.click(screen.getByRole("button", { name: "Open workspace →" }));
+    await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/app"));
+    expect(updateDoc).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        finishedOnboarding: true,
+        onboardingStep: "completed",
+      }),
+    );
+  });
+  it("shows a failed save without claiming setup is complete", async () => {
+    const { updateDoc } = await import("firebase/firestore");
+    vi.mocked(updateDoc).mockRejectedValueOnce(new Error("write failed"));
+    render(<OnboardingChecklist />);
+    fireEvent.click(screen.getByRole("button", { name: "Open workspace →" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Could not finish setup",
+      ),
+    );
+    expect(setLocationMock).not.toHaveBeenCalled();
+  });
+
   it("shows site-operator rights, privacy, access, and commercial control status", () => {
     render(<OnboardingChecklist />);
 
-    expect(screen.getByText(/Operator control map/i)).toBeInTheDocument();
+    expect(screen.getByText(/Site access & review/i)).toBeInTheDocument();
     expect(screen.getByText(/^Rights$/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights note captured/i)).toBeInTheDocument();
     expect(screen.getByText(/^Privacy$/i)).toBeInTheDocument();
@@ -71,6 +107,8 @@ describe("OnboardingChecklist", () => {
     expect(screen.getByText(/^Access$/i)).toBeInTheDocument();
     expect(screen.getByText(/Access rules defined/i)).toBeInTheDocument();
     expect(screen.getByText(/^Commercial control$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Commercial posture captured/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Commercial posture captured/i),
+    ).toBeInTheDocument();
   });
 });

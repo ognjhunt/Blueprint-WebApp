@@ -237,7 +237,7 @@ export function DecisionResult({ envelope }: { envelope: DecisionEnvelope }) {
   );
 }
 
-function RunRecord({ run }: { run: BuyerRunDetail }) {
+export function RunRecord({ run }: { run: BuyerRunDetail }) {
   const projection = run.decision_projection;
   return (
     <>
