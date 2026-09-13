@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 import { Pause, Play } from "lucide-react";
+import { HeroMotion } from "./HeroMotion";
+
+const motionSources = {
+  arm: "/images/site-led/embodiments/motion/arm.mp4",
+  humanoid: "/images/site-led/embodiments/motion/humanoid.mp4",
+  "wheeled-humanoid": "/images/site-led/embodiments/motion/wheeled-humanoid.mp4",
+  "mobile-manipulator": "/images/site-led/embodiments/motion/mobile-manipulator.mp4",
+};
 
 export const heroScenes = [
   { id: "arm", src: "/images/site-led/embodiments/arm.webp", label: "Fixed arm", task: "Parts handling", alt: "Illustration of a Franka Panda-style fixed arm handling a machined part at a conveyor" },
@@ -18,6 +26,7 @@ export function EmbodimentHero({ children }: PropsWithChildren) {
   const [reducedMotion, setReducedMotion] = useState(true);
   const [visible, setVisible] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
+  const [saveData, setSaveData] = useState(true);
   const region = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -25,6 +34,8 @@ export function EmbodimentHero({ children }: PropsWithChildren) {
     const updatePreference = () => setReducedMotion(preference.matches);
     const updateVisibility = () => setPageVisible(document.visibilityState !== "hidden");
     updatePreference(); updateVisibility();
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    setSaveData(connection?.saveData === true);
     preference.addEventListener("change", updatePreference);
     document.addEventListener("visibilitychange", updateVisibility);
     const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 });
@@ -47,11 +58,16 @@ export function EmbodimentHero({ children }: PropsWithChildren) {
     return () => window.clearTimeout(timer);
   }, [active, loaded, paused, focused, reducedMotion, visible, pageVisible]);
 
+  const playing = !paused && !focused && !reducedMotion && visible && pageVisible;
+
   return (
     <section ref={region} className="ms-hero ms-rotating-hero" aria-labelledby="hero-title" data-scene={heroScenes[active].id}>
       <div className="ms-scene-artwork">
         {heroScenes.map((scene, index) => (
-          <img key={scene.id} className={`ms-hero-art ms-scene-art ${active === index ? "is-active" : ""}`} src={scene.src} width="1536" height="1024" alt={scene.alt} aria-hidden={active !== index} loading={index === 0 ? "eager" : "lazy"} {...(index === 0 ? { fetchpriority: "high" } : {})} onLoad={() => setLoaded((current) => current.includes(index) ? current : [...current, index])} />
+          <div key={scene.id} className={`ms-hero-art ms-scene-art ${active === index ? "is-active" : ""}`} aria-hidden={active !== index}>
+            <img className="ms-scene-poster" src={scene.src} width="1536" height="1024" alt={scene.alt} loading={index === 0 ? "eager" : "lazy"} {...(index === 0 ? { fetchpriority: "high" } : {})} onLoad={() => setLoaded((current) => current.includes(index) ? current : [...current, index])} />
+            <HeroMotion src={motionSources[scene.id]} active={active === index} playing={playing} enabled={!reducedMotion && !saveData && loaded.includes(index)} />
+          </div>
         ))}
       </div>
       <div className="ms-container ms-hero-inner">
