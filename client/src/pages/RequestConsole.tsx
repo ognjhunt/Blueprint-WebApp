@@ -213,7 +213,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
               <div className="bg-runway-deep p-8 lg:p-10">
-                
+
                 <div className="mt-6 border border-runway-red-dim bg-runway-panel p-5 text-sm text-runway-red">
                   Review links are request-scoped and expire when the protected workspace changes.
                 </div>
@@ -267,7 +267,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
               <div className="bg-runway-deep p-8 lg:p-10">
-                
+
                 <div className="mt-6 border border-runway-line bg-runway-panel p-5 text-sm leading-[1.6] text-runway-body">
                   Buyer review links only open once the protected request room has a valid record
                   behind it.
@@ -312,7 +312,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
           <div className="bg-runway-deep p-6 lg:p-7">
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.22fr] xl:items-start">
               <div className="flex gap-5">
-                
+
                 <div className="min-w-0">
                   <SurfaceMiniLabel>Buyer Review {request.site_submission_id}</SurfaceMiniLabel>
                   <h1 className="mt-3 font-display uppercase text-[clamp(2.2rem,4vw,3.5rem)] font-semibold tracking-[0.005em] leading-[0.94] text-runway-text">
@@ -503,7 +503,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                   {section === "preview" ? (
                     <div className="mt-5 grid gap-4">
-                      
+
                       <div className="space-y-4">
                         <ValueChip
                           label="Preview status"

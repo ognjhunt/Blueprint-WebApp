@@ -25,6 +25,8 @@ Implementation uses DM Sans, ivory `#f6f5ef`, forest green `#203d2e`, ink `#2225
 | Embodiments, policies, checkpoints/containers/endpoints | `/settings?tab=robots` | robot-settings.png |
 | Existing capture, testbed, run/progress/result, access, connection pages | existing `/app/*` routes | shared shell, forms and evidence disclosures |
 
+Private request-review links also use the light shell, with decorative fake facility imagery removed. Non-buyer capture/operations accounts retain their basic account settings without being granted a customer role.
+
 The existing full scientific request form remains at `/app/advanced/runs/new`. Ordinary `/app/runs/new` sends a site to task intake and a robot team to openings. The main navigation has exactly four destinations per role.
 
 ## Data and action boundaries
