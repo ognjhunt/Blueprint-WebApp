@@ -1,61 +1,84 @@
-# Homepage motion frames — 2026-09-12
+# Homepage motion
 
-Owner-requested continuation of the existing illustrative homepage artwork,
-including fixed arm, humanoid, wheeled humanoid, and mobile manipulator.
-These are generated marketing illustrations, not robot execution evidence.
+The current version replaces the original two-pose-per-second playback with
+locally interpolated motion. Each of the four 6.5-second clips is encoded at
+30 fps. The room stays on the approved original image; softly feathered task
+regions carry the moving robot, cargo, and nearby contact shadows.
 
-Each scene has nine full-resolution 1536 × 1024 WebP source frames in `frames/`:
-the original approved still plus eight selected edits. `manifest.json` records
-the exact prompts and native output paths. Repaired and reordered frames are
-selected for complete objects and readable pose progression. The original
-homepage stills remain the loading, reduced-motion, and media-error fallback.
+All scenes remain generated marketing illustrations, not robot execution
+records or evidence of physical performance.
 
-Generation used the Codex built-in `image_gen` tool. No API key, API credit,
-paid video service, model download, or cloud interpolation was used. The user
-requested GPT-Image-2.5-Sunburst; the built-in tool exposes neither a model
-selector nor verified model identity, so `verifiedModel` is null.
+## Sources and motion
 
-## Research and frame-count decision
+The original 36 full-resolution 1536 × 1024 source frames remain in `frames/`.
+`manifest.json` records their native Codex generation prompts, paths, and hashes.
+`motion-v2.json` selects three to six coherent anchors per scene, avoiding
+unnecessary pose reversals and a larger arm retraction that deformed during
+interpolation. RIFE v4.6 creates 166 intermediate-sequence frames locally.
+Initial/final holds bring each encoded clip to 195 frames and 6.5 seconds.
 
-- [A creator's frame-grid workflow](https://www.reddit.com/r/aivideos/comments/1wcdj2w/ten_seconds_of_fight_animation_from_one_gpt_image/)
-  describes generating sequential frames together, locking camera/background,
-  then setting timing during assembly. This is a creator report, not a guarantee
-  of consistent robotics animation.
-- [A 16-frame GPT Image 2.5 example](https://www.reddit.com/r/aigamedev/comments/1wbmvnm/gpt_image_25_nailed_a_16_frame_combat_sprite_sheet/)
-  demonstrates sprite sequences but also discusses timing and consistency limits.
-- [The author's Codex sprite workflow](https://github.com/0x0funky/agent-sprite-forge)
-  separates native image generation from local extraction/alignment/assembly.
-  Used as a reference; no third-party skill or code was installed.
-- [Google's GIF-to-video guidance](https://web.dev/articles/codelab-replace-gifs-with-video)
-  supports muted inline video for the same visual role with better delivery.
+The approved room, floor, shelving, parked bases, and other static details are
+composited from the first source frame outside the configured task regions.
+This limits the background movement caused by independent image generations.
+The regions include the robot and interacted objects, including conveyor cargo.
 
-Nine is an editorial starting point, not a universal smoothness threshold. A
-generated 3 × 3 contact sheet was rejected because its cells lost resolution
-and alignment. Individual full-size edits preserve more detail. FFmpeg optical
-flow was also tried and rejected after inspection found ghosted arm joints.
-Final clips repeat the selected source frames exactly, giving a deliberate
-stop-motion appearance with small pose and background variation between edits.
-They do not claim continuous, mechanically verified motion.
+The original stills remain the loading, reduced-motion, data-saving, and media
+failure fallback. Existing pause, visibility, focus, and scene controls also
+control the new clips. Versioned `*-smooth-v2.mp4` URLs keep browser caches from
+serving the previous stop-motion clips after deployment. The original MP4s are
+retained in `baseline/` for visual comparison, outside the public asset bundle.
 
-## Local assembly and playback
+## Local assembly
 
-With FFmpeg installed, run from the repository root:
+The website serves baked MP4s. It runs no model or interpolation in the browser,
+server, CI, or Render build. To deliberately rebuild media offline, install the
+[portable RIFE ncnn Vulkan release](https://github.com/nihui/rife-ncnn-vulkan/releases/tag/20221029)
+and FFmpeg, then run:
 
 ```sh
+RIFE_BIN=/path/to/rife-ncnn-vulkan \
+RIFE_MODEL_DIR=/path/to/rife-v4.6 \
 node scripts/creative/build-hero-motion.mjs
+
+node scripts/creative/verify-hero-motion.mjs
 ```
 
-The encoder reads committed WebP frames only. It does not regenerate artwork.
-It writes 6.5-second H.264 MP4s to
-`client/public/images/site-led/embodiments/motion/`, with nine poses at two poses
-per second, a short initial hold, and a final hold. The 24 fps video container
-repeats poses; it does not invent additional poses. Each action then crossfades
-to the next scene and restarts on its next turn, avoiding reverse playback.
+The builder never downloads anything or reads API credentials. It checks the
+source-frame and model hashes, writes a fresh staging directory, and publishes
+an MP4 only after encoding and format checks. Rebuild receipts are written to
+`output/smooth-hero-build/`. RIFE weights and binaries are not distributed with
+the website. The model file hashes and release are recorded in `motion-v2.json`.
 
-The homepage downloads a clip only when its scene is active and motion is
-enabled. Pause, focused scene controls, hidden tabs, and offscreen visibility
-freeze playback. Reduced-motion and data-saving preferences use original
-stills. Original images remain underneath failed/blocked media.
+The verifier compares old and new media at the same 30 fps cadence. It measures
+consecutive-frame luma differences in the same task crop, checks for a material
+reduction in the largest jump, verifies movement spans many frames, and checks
+a static shelf/wall crop for jitter. It also verifies resolution, duration,
+codec, and frame count. Its report is `output/smooth-hero-review/motion-quality.json`.
+These measurements support visual QA; they do not prove physical correctness.
 
-The frame-level artifacts and prompts are retained for further visual review
-or additional in-between generations. This change does not deploy itself.
+## Generation and research history
+
+Source artwork used Codex's built-in `image_gen` tool, without API-key calls.
+The user requested GPT-Image-2.5-Sunburst, but the built-in tool exposed no model
+selector or verified model identity; `verifiedModel` therefore remains null.
+The smoothing pass uses the downloaded local RIFE model and no paid API calls.
+
+- [A creator's frame-grid workflow](https://www.reddit.com/r/aivideos/comments/1wcdj2w/ten_seconds_of_fight_animation_from_one_gpt_image/)
+  and [a 16-frame sprite example](https://www.reddit.com/r/aigamedev/comments/1wbmvnm/gpt_image_25_nailed_a_16_frame_combat_sprite_sheet/)
+  informed the initial frame-sequence experiment. They are creator reports, not
+  robotics-animation quality guarantees.
+- [The author's Codex sprite workflow](https://github.com/0x0funky/agent-sprite-forge)
+  separates image generation from local assembly. No third-party skill was installed.
+- [RIFE's author implementation](https://github.com/hzwer/ECCV2022-RIFE) and
+  [the ncnn implementation](https://github.com/nihui/rife-ncnn-vulkan) document
+  learned frame interpolation, including local macOS execution.
+- [Google's GIF-to-video guidance](https://web.dev/articles/codelab-replace-gifs-with-video)
+  supports muted inline video for this delivery role.
+
+The first contact sheet was rejected for low resolution and alignment drift.
+The first FFmpeg optical-flow attempt was rejected for ghosted joints. The
+initial shipped version consequently used crisp stop motion; user review found
+it too jittery. The current pass uses neural interpolation, fewer coherent
+anchors, and a stationary background. Slight synthesized edge/shape changes
+can remain in moving regions; this is illustrative motion, not a rigged 3D
+robot simulation.

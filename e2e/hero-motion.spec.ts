@@ -11,6 +11,7 @@ test("all four action clips decode, advance, and freeze with the shared pause co
     await page.getByRole("button", { name: `Show ${label}`, exact: true }).click();
     await page.getByRole("button", { name: "Play scene rotation" }).click();
     const clip = page.locator(".ms-scene-art.is-active video");
+    await expect(clip).toHaveAttribute("src", `/images/site-led/embodiments/motion/${id}-smooth-v2.mp4`);
     await expect(clip).toHaveClass(/is-ready/);
     await expect.poll(() => clip.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeGreaterThan(1);
     expect(await clip.evaluate((video: HTMLVideoElement) => ({ width: video.videoWidth, muted: video.muted, inline: video.playsInline }))).toEqual({ width: 1536, muted: true, inline: true });

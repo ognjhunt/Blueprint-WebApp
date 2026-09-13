@@ -1,0 +1,112 @@
+{
+  "version": 2,
+  "durationSeconds": 6.5,
+  "fps": 30,
+  "interpolatedFrames": 166,
+  "initialHoldSeconds": 0.4,
+  "maskFeatherPixels": 8,
+  "interpolator": {
+    "name": "rife-ncnn-vulkan",
+    "release": "20221029",
+    "source": "https://github.com/nihui/rife-ncnn-vulkan",
+    "model": "rife-v4.6",
+    "modelFiles": {
+      "flownet.bin": "f334ed2260149ce0188a6dcf049844e8b0cdd912e01cbcfb63553157d2508958",
+      "flownet.param": "724569596bcd1e7b9fa50455c604777ebed99746d2ef40aa86e31b5725f1053c"
+    }
+  },
+  "scenes": [
+    {
+      "id": "arm",
+      "keyframes": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "motionRegions": [
+        [
+          850,
+          195,
+          300,
+          315
+        ],
+        [
+          795,
+          425,
+          360,
+          165
+        ],
+        [
+          600,
+          620,
+          390,
+          260
+        ]
+      ]
+    },
+    {
+      "id": "humanoid",
+      "keyframes": [
+        1,
+        4,
+        5,
+        9
+      ],
+      "motionRegions": [
+        [
+          925,
+          115,
+          290,
+          320
+        ],
+        [
+          595,
+          525,
+          355,
+          175
+        ]
+      ]
+    },
+    {
+      "id": "wheeled-humanoid",
+      "keyframes": [
+        1,
+        3,
+        9
+      ],
+      "motionRegions": [
+        [
+          935,
+          145,
+          195,
+          305
+        ],
+        [
+          1020,
+          275,
+          300,
+          270
+        ]
+      ]
+    },
+    {
+      "id": "mobile-manipulator",
+      "keyframes": [
+        1,
+        3,
+        9
+      ],
+      "motionRegions": [
+        [
+          975,
+          150,
+          395,
+          385
+        ]
+      ]
+    }
+  ]
+}

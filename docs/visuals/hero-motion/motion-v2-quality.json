@@ -1,0 +1,99 @@
+{
+  "checkedAt": "2026-09-13T02:37:48.497Z",
+  "configSha256": "027f755caa626d4ec9d6bb0e3147853f0c6b255d9580cb868dcf2a7a74d77988",
+  "method": "Mean absolute luma change between consecutive decoded frames at 30 fps; 0-255 scale",
+  "scenes": [
+    {
+      "id": "arm",
+      "beforeSha256": "35c40a3c5d6c11c673dac93ef59f93f1709619c51e7205245bb58511d3a2a7c2",
+      "afterSha256": "17e7285179a19894aacfc8514767a1de91f47c80a1c514e3e344be8de49713f5",
+      "bytes": 624814,
+      "original": {
+        "peak": 9.64652,
+        "mean": 0.24826504245840217,
+        "changingFrames": 8
+      },
+      "smoothed": {
+        "peak": 1.35676,
+        "mean": 0.30402357870072166,
+        "changingFrames": 139
+      },
+      "background": {
+        "peak": 0.00746094,
+        "mean": 0.0001254429510309275,
+        "changingFrames": 0
+      },
+      "peakReductionPercent": 85.93523882187566,
+      "passed": true
+    },
+    {
+      "id": "humanoid",
+      "beforeSha256": "2b043f348b39cfdef7acf9fadff51617c997a40a1ad4ec05c00290cb42ca3817",
+      "afterSha256": "a784cb9074e8bdd921c71ced90ffab5cc0dfb9307b764533fa28a28ed9f80eee",
+      "bytes": 359328,
+      "original": {
+        "peak": 7.96774,
+        "mean": 0.22901430116077315,
+        "changingFrames": 9
+      },
+      "smoothed": {
+        "peak": 0.814255,
+        "mean": 0.13504170176804128,
+        "changingFrames": 125
+      },
+      "background": {
+        "peak": 0.0075,
+        "mean": 0.00007772231701030926,
+        "changingFrames": 0
+      },
+      "peakReductionPercent": 89.78060278071322,
+      "passed": true
+    },
+    {
+      "id": "wheeled-humanoid",
+      "beforeSha256": "a282b9a49ae385f073762aa337b30a0816d60bbb07dcac6cabceb53802e52125",
+      "afterSha256": "6d571a447a2beb9a853af154b39bd9dc37dd78c0c22edd2480b1eee315ea56b6",
+      "bytes": 335382,
+      "original": {
+        "peak": 7.96483,
+        "mean": 0.26012308735788653,
+        "changingFrames": 8
+      },
+      "smoothed": {
+        "peak": 1.68262,
+        "mean": 0.17905749197958756,
+        "changingFrames": 111
+      },
+      "background": {
+        "peak": 0.000078125,
+        "mean": 8.054123711340207e-7,
+        "changingFrames": 0
+      },
+      "peakReductionPercent": 78.8743764775896,
+      "passed": true
+    },
+    {
+      "id": "mobile-manipulator",
+      "beforeSha256": "38b53f6011436b09392840bb9ae8319a064154f88208e64a94a40eaabc74860f",
+      "afterSha256": "88c3de853a6c5f0d62ba3116ae487f7ebc23b8103701c379337607c6d6fa191e",
+      "bytes": 323244,
+      "original": {
+        "peak": 7.85785,
+        "mean": 0.262644094423969,
+        "changingFrames": 8
+      },
+      "smoothed": {
+        "peak": 0.945046,
+        "mean": 0.12771574759793813,
+        "changingFrames": 111
+      },
+      "background": {
+        "peak": 0.00679687,
+        "mean": 0.00008919935567010308,
+        "changingFrames": 0
+      },
+      "peakReductionPercent": 87.9732242280013,
+      "passed": true
+    }
+  ]
+}

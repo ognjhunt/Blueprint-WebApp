@@ -1,0 +1,194 @@
+[
+  {
+    "scene": "arm",
+    "sources": [
+      {
+        "number": 1,
+        "sha256": "7413ba62da5c6543fc6821aea7fa26a5df15764b687aba6a595509be219cdb5c"
+      },
+      {
+        "number": 3,
+        "sha256": "e09b383cacfa5ca9789cb4fbfd605585021e9a13cf6d19d843d97526c9820a22"
+      },
+      {
+        "number": 4,
+        "sha256": "6c7d1f8d17a2b3a77bb8a4310f23e0d91b77866a6c8e75e8186df9d6f0d2bea0"
+      },
+      {
+        "number": 5,
+        "sha256": "8d74b4866502acefd9e76a7f89ad7b48072ebd0560b7a10b2ff35fb1928071fb"
+      },
+      {
+        "number": 6,
+        "sha256": "497ce9577a5b2354eb1770b55eac2752d03516cfef8f6fad0180c94d09c10df0"
+      },
+      {
+        "number": 7,
+        "sha256": "5095d3580005d4154f4ca1a8f009cf8c9bba6df4a55d230b250ba1e463482fc6"
+      }
+    ],
+    "model": {
+      "name": "rife-ncnn-vulkan",
+      "release": "20221029",
+      "source": "https://github.com/nihui/rife-ncnn-vulkan",
+      "model": "rife-v4.6",
+      "modelFiles": {
+        "flownet.bin": "f334ed2260149ce0188a6dcf049844e8b0cdd912e01cbcfb63553157d2508958",
+        "flownet.param": "724569596bcd1e7b9fa50455c604777ebed99746d2ef40aa86e31b5725f1053c"
+      }
+    },
+    "executableSha256": "d11429c72f0cddfb170fd131ee9373dc5329a5729c4382c0acfd40092e5ed19a",
+    "interpolatedFrames": 166,
+    "outputSha256": "17e7285179a19894aacfc8514767a1de91f47c80a1c514e3e344be8de49713f5",
+    "bytes": 624814,
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1536,
+        "height": 1024,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "6.500000"
+    }
+  },
+  {
+    "scene": "humanoid",
+    "sources": [
+      {
+        "number": 1,
+        "sha256": "fa85acbec613959dd260248d288a8529aedb806d209f889fbf17136efb32b507"
+      },
+      {
+        "number": 4,
+        "sha256": "680020c54311a65869a42e94d4881bbaf831e2796625e4ed8b8ca30eb94dec8e"
+      },
+      {
+        "number": 5,
+        "sha256": "fd4320f7e1d885b80acc08c7d9a36e764b17d14b02d191d8f68264c5908696ca"
+      },
+      {
+        "number": 9,
+        "sha256": "225254ed7d7e7f74526889d6dd986b58742972cad77f796ab8c0d2abbc8df771"
+      }
+    ],
+    "model": {
+      "name": "rife-ncnn-vulkan",
+      "release": "20221029",
+      "source": "https://github.com/nihui/rife-ncnn-vulkan",
+      "model": "rife-v4.6",
+      "modelFiles": {
+        "flownet.bin": "f334ed2260149ce0188a6dcf049844e8b0cdd912e01cbcfb63553157d2508958",
+        "flownet.param": "724569596bcd1e7b9fa50455c604777ebed99746d2ef40aa86e31b5725f1053c"
+      }
+    },
+    "executableSha256": "d11429c72f0cddfb170fd131ee9373dc5329a5729c4382c0acfd40092e5ed19a",
+    "interpolatedFrames": 166,
+    "outputSha256": "a784cb9074e8bdd921c71ced90ffab5cc0dfb9307b764533fa28a28ed9f80eee",
+    "bytes": 359328,
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1536,
+        "height": 1024,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "6.500000"
+    }
+  },
+  {
+    "scene": "wheeled-humanoid",
+    "sources": [
+      {
+        "number": 1,
+        "sha256": "6671fe7302f457227cb0c1fa5bc207be9452cfffc26f307665439d5a048d8f7e"
+      },
+      {
+        "number": 3,
+        "sha256": "1bdf0f1227d13ca8f5bef6f1622c18bc444f8e81b2f4f0eed2189d5dcfea7d25"
+      },
+      {
+        "number": 9,
+        "sha256": "3d370ae303f58906aba5282ac33ef78a8c5bf3d311f5a84b601a49d5c40055e9"
+      }
+    ],
+    "model": {
+      "name": "rife-ncnn-vulkan",
+      "release": "20221029",
+      "source": "https://github.com/nihui/rife-ncnn-vulkan",
+      "model": "rife-v4.6",
+      "modelFiles": {
+        "flownet.bin": "f334ed2260149ce0188a6dcf049844e8b0cdd912e01cbcfb63553157d2508958",
+        "flownet.param": "724569596bcd1e7b9fa50455c604777ebed99746d2ef40aa86e31b5725f1053c"
+      }
+    },
+    "executableSha256": "d11429c72f0cddfb170fd131ee9373dc5329a5729c4382c0acfd40092e5ed19a",
+    "interpolatedFrames": 166,
+    "outputSha256": "6d571a447a2beb9a853af154b39bd9dc37dd78c0c22edd2480b1eee315ea56b6",
+    "bytes": 335382,
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1536,
+        "height": 1024,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "6.500000"
+    }
+  },
+  {
+    "scene": "mobile-manipulator",
+    "sources": [
+      {
+        "number": 1,
+        "sha256": "c090d4951b107b4aeb071793cc88854243b60a0eace7e82843c6b6596b834b4b"
+      },
+      {
+        "number": 3,
+        "sha256": "94d542a9d70a87bec22e817390dc51d959304f8636b36dee20b8e610cdf0570f"
+      },
+      {
+        "number": 9,
+        "sha256": "546f68ce0333b674ca0f72784947e23c7ccb967eddd8e0710f106819cf3bca49"
+      }
+    ],
+    "model": {
+      "name": "rife-ncnn-vulkan",
+      "release": "20221029",
+      "source": "https://github.com/nihui/rife-ncnn-vulkan",
+      "model": "rife-v4.6",
+      "modelFiles": {
+        "flownet.bin": "f334ed2260149ce0188a6dcf049844e8b0cdd912e01cbcfb63553157d2508958",
+        "flownet.param": "724569596bcd1e7b9fa50455c604777ebed99746d2ef40aa86e31b5725f1053c"
+      }
+    },
+    "executableSha256": "d11429c72f0cddfb170fd131ee9373dc5329a5729c4382c0acfd40092e5ed19a",
+    "interpolatedFrames": 166,
+    "outputSha256": "88c3de853a6c5f0d62ba3116ae487f7ebc23b8103701c379337607c6d6fa191e",
+    "bytes": 323244,
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1536,
+        "height": 1024,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "6.500000"
+    }
+  }
+]
