@@ -1008,3 +1008,19 @@
 .workspace-shell a {
   font-family: inherit;
 }
+.ws-account-setup .ws-form {
+  max-width: 720px;
+}
+.ws-setup-existing {
+  margin-top: 36px;
+  border-top: 1px solid var(--ws-line);
+  padding-top: 4px;
+}
+.ws-setup-existing .ws-link {
+  margin: 12px 24px 0 0;
+}
+.ws-account-setup .ws-check a {
+  color: var(--ws-green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

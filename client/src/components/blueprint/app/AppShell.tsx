@@ -64,7 +64,10 @@ export function AppShell({
   const { currentUser, userData, logout } = useAuth();
   const [open, setOpen] = useState(false),
     [error, setError] = useState("");
-  const isSite = (role || userData?.buyerType) === "site_operator";
+  const workspaceType = role || userData?.buyerType;
+  const configured =
+    workspaceType === "site_operator" || workspaceType === "robot_team";
+  const isSite = workspaceType === "site_operator";
   const account =
     organization ||
     String(
@@ -74,19 +77,24 @@ export function AppShell({
         currentUser?.displayName ||
         "Your workspace",
     );
-  const items = isSite
+  const items = !configured
     ? [
         ["overview", "Overview", "/app"],
-        ["tasks", "Tasks", "/app/tasks"],
-        ["history", "History", "/app/history"],
         ["settings", "Settings", "/settings"],
       ]
-    : [
-        ["overview", "Overview", "/app"],
-        ["opportunities", "Openings", "/app/opportunities"],
-        ["history", "History", "/app/history"],
-        ["settings", "Settings", "/settings"],
-      ];
+    : isSite
+      ? [
+          ["overview", "Overview", "/app"],
+          ["tasks", "Tasks", "/app/tasks"],
+          ["history", "History", "/app/history"],
+          ["settings", "Settings", "/settings"],
+        ]
+      : [
+          ["overview", "Overview", "/app"],
+          ["opportunities", "Openings", "/app/opportunities"],
+          ["history", "History", "/app/history"],
+          ["settings", "Settings", "/settings"],
+        ];
   const selected = ["captures", "packs"].includes(active)
     ? isSite
       ? "tasks"
@@ -136,7 +144,13 @@ export function AppShell({
             <div className="ws-desktop-brand">{brand}</div>
             <nav
               id="workspace-navigation"
-              aria-label={isSite ? "Site workspace" : "Robot-team workspace"}
+              aria-label={
+                !configured
+                  ? "Workspace setup"
+                  : isSite
+                    ? "Site workspace"
+                    : "Robot-team workspace"
+              }
             >
               {items.map(([key, label, href]) => (
                 <Link
@@ -152,7 +166,11 @@ export function AppShell({
             <div className="ws-account">
               <span>{account}</span>
               <small>
-                {isSite ? "Site workspace" : "Robot-team workspace"}
+                {!configured
+                  ? "Workspace setup"
+                  : isSite
+                    ? "Site workspace"
+                    : "Robot-team workspace"}
               </small>
               <button
                 type="button"

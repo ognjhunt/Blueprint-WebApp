@@ -81,3 +81,10 @@ export type WorkspaceSnapshot = {
   evaluations: WorkspaceEvaluation[];
   setups: RobotSetup[];
 };
+
+export type WorkspaceAccountSetup = {
+  workspaceType: WorkspaceRole | null;
+  profile: { name: string; organization: string; email: string };
+  termsRequired: boolean;
+  access: { operations: boolean; capture: boolean };
+};

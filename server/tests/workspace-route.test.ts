@@ -223,6 +223,7 @@ beforeEach(async () => {
   app.use((req, res, next) => {
     res.locals.firebaseUser = {
       uid: req.headers["x-user"] || "",
+      admin: req.headers["x-test-admin"] === "1",
       email: `${req.headers["x-user"]}@example.com`,
       email_verified: req.headers["x-unverified"] !== "1",
     };
@@ -590,5 +591,168 @@ describe("workspace requests and lifecycle", () => {
         })
       ).status,
     ).toBe(409);
+  });
+});
+
+describe("account workspace setup", () => {
+  it("keeps operations access visible from authenticated claims as well as the profile", async () => {
+    state.records.set("users/operator", { name: "Ops User" });
+    const response = await fetch(`${base}/setup`, {
+      headers: { "x-user": "operator", "x-test-admin": "1" },
+    });
+    expect(await response.json()).toMatchObject({
+      workspaceType: null,
+      access: { operations: true },
+    });
+  });
+
+  it("offers setup to legacy operations accounts without granting a workspace by default", async () => {
+    state.records.set("users/operator", {
+      name: "Ops User",
+      organizationName: "Existing Company",
+      role: "admin",
+      roles: ["admin", "ops"],
+      admin: true,
+      ops: true,
+    });
+    const blocked = await api("/", "operator");
+    expect(blocked.status).toBe(403);
+    expect(await blocked.json()).toMatchObject({
+      code: "workspace_setup_required",
+    });
+    const response = await api("/setup", "operator");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      workspaceType: null,
+      profile: {
+        name: "Ops User",
+        organization: "Existing Company",
+        email: "operator@example.com",
+      },
+      termsRequired: true,
+      access: { operations: true },
+    });
+    expect(state.records.get("users/operator")).not.toHaveProperty("buyerType");
+  });
+  it("sets up the chosen workspace and keeps operations permissions and saved data", async () => {
+    state.records.set("users/operator", {
+      name: "Ops User",
+      role: "admin",
+      roles: ["admin", "ops"],
+      admin: true,
+      ops: true,
+      structuredIntakeRequestId: "older-request",
+      finishedOnboarding: true,
+    });
+    state.records.set("users/other", { name: "Other User", role: "capturer" });
+    const response = await api("/setup", "operator", {
+      name: "Updated Name",
+      organization: "Robotics Company",
+      workspaceType: "robot_team",
+      acceptedTerms: true,
+    });
+    expect(response.status).toBe(200);
+    expect(state.records.get("users/operator")).toMatchObject({
+      buyerType: "robot_team",
+      name: "Updated Name",
+      organizationName: "Robotics Company",
+      company: "Robotics Company",
+      role: "admin",
+      roles: ["admin", "ops"],
+      admin: true,
+      ops: true,
+      structuredIntakeRequestId: "older-request",
+      finishedOnboarding: true,
+      termsAcceptance: {
+        accepted_terms: true,
+        terms_version: "2026-07-09",
+        privacy_version: "2026-07-09",
+      },
+    });
+    expect(state.records.get("users/other")).toEqual({
+      name: "Other User",
+      role: "capturer",
+    });
+    expect((await api("/", "operator")).status).toBe(200);
+  });
+  it("lets existing customers change workspace type without deleting prior records", async () => {
+    state.records.set("users/site-1", {
+      buyerType: "site_operator",
+      name: "Site Owner",
+      acceptedTerms: true,
+      termsVersion: "2026-07-09",
+      privacyVersion: "2026-07-09",
+    });
+    const existing = task();
+    state.records.set("inboundRequests/task-1", existing);
+    const response = await api("/setup", "site-1", {
+      name: "Site Owner",
+      organization: "Company",
+      workspaceType: "robot_team",
+    });
+    expect(response.status).toBe(200);
+    expect(state.records.get("inboundRequests/task-1")).toEqual(existing);
+    expect(state.records.get("users/site-1").buyerType).toBe("robot_team");
+  });
+  it("requires legal acceptance when missing and never accepts privileged fields", async () => {
+    state.records.set("users/operator", { role: "admin" });
+    const payload = {
+      name: "Ops User",
+      organization: "Company",
+      workspaceType: "site_operator",
+      acceptedTerms: true,
+    };
+    const missingTerms = await api("/setup", "operator", {
+      ...payload,
+      acceptedTerms: false,
+    });
+    expect(missingTerms.status).toBe(400);
+    expect(await missingTerms.json()).toMatchObject({
+      code: "workspace_terms_required",
+    });
+    for (const extra of [
+      { admin: true },
+      { role: "admin" },
+      { uid: "other" },
+      { email: "other@example.com" },
+    ])
+      expect(
+        (await api("/setup", "operator", { ...payload, ...extra })).status,
+      ).toBe(400);
+    expect(
+      (await api("/setup", "operator", { ...payload, workspaceType: "admin" }))
+        .status,
+    ).toBe(400);
+    expect(state.records.get("users/operator")).toEqual({ role: "admin" });
+  });
+  it("requires authentication for setup and derives any missing profile identity from the token", async () => {
+    expect((await api("/setup", "")).status).toBe(401);
+    expect(
+      (
+        await api("/setup", "", {
+          name: "Test",
+          organization: "Company",
+          workspaceType: "robot_team",
+          acceptedTerms: true,
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await api("/setup", "new-user", {
+          name: "New User",
+          organization: "Company",
+          workspaceType: "site_operator",
+          acceptedTerms: true,
+        })
+      ).status,
+    ).toBe(200);
+    expect(state.records.get("users/new-user")).toMatchObject({
+      uid: "new-user",
+      email: "new-user@example.com",
+      buyerType: "site_operator",
+    });
+    expect(state.records.get("users/new-user")).not.toHaveProperty("admin");
+    expect(state.records.get("users/new-user")).not.toHaveProperty("role");
   });
 });
