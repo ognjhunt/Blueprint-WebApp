@@ -3,10 +3,10 @@ import { Pause, Play } from "lucide-react";
 import { HeroMotion } from "./HeroMotion";
 
 const motionSources = {
-  arm: "/images/site-led/embodiments/motion/arm.mp4",
-  humanoid: "/images/site-led/embodiments/motion/humanoid.mp4",
-  "wheeled-humanoid": "/images/site-led/embodiments/motion/wheeled-humanoid.mp4",
-  "mobile-manipulator": "/images/site-led/embodiments/motion/mobile-manipulator.mp4",
+  arm: "/images/site-led/embodiments/motion/arm-smooth-v2.mp4",
+  humanoid: "/images/site-led/embodiments/motion/humanoid-smooth-v2.mp4",
+  "wheeled-humanoid": "/images/site-led/embodiments/motion/wheeled-humanoid-smooth-v2.mp4",
+  "mobile-manipulator": "/images/site-led/embodiments/motion/mobile-manipulator-smooth-v2.mp4",
 };
 
 export const heroScenes = [
