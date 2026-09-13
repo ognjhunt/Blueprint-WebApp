@@ -5,6 +5,11 @@ import {
   type NextFunction,
 } from "express";
 import { z } from "zod";
+import {
+  buildLegalAcceptanceRecord,
+  TERMS_VERSION,
+  PRIVACY_VERSION,
+} from "../../client/src/lib/legalAcceptance";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
   decryptInboundRequestForAdmin,
@@ -114,11 +119,14 @@ const handle =
           status < 500
             ? error.message
             : "The workspace could not be updated. Please try again.",
+        ...(status < 500 && typeof error?.code === "string"
+          ? { code: error.code }
+          : {}),
       });
     });
   };
-function refuse(status: number, message: string): never {
-  throw Object.assign(new Error(message), { status });
+function refuse(status: number, message: string, code?: string): never {
+  throw Object.assign(new Error(message), { status, code });
 }
 function identity(res: Response) {
   return res.locals.workspaceIdentity as {
@@ -137,18 +145,129 @@ function requireRole(res: Response, role: "site_operator" | "robot_team") {
     );
 }
 
+// Workspace setup is available to every authenticated account, including legacy
+// operations/capture accounts. It only changes customer profile fields; existing
+// roles, claims, rights, assignments and records are never inferred or replaced.
+const accountSetupSchema = z
+  .object({
+    workspaceType: z.enum(["site_operator", "robot_team"]),
+    name: short,
+    organization: short,
+    acceptedTerms: z.boolean().optional(),
+  })
+  .strict();
+function currentTermsAccepted(user: Record<string, any>) {
+  const accepted = object(user.termsAcceptance);
+  return (
+    (accepted.accepted_terms === true &&
+      accepted.terms_version === TERMS_VERSION &&
+      accepted.privacy_version === PRIVACY_VERSION) ||
+    (user.acceptedTerms === true &&
+      user.termsVersion === TERMS_VERSION &&
+      user.privacyVersion === PRIVACY_VERSION)
+  );
+}
+function accountProjection(
+  user: Record<string, any>,
+  auth: Record<string, any>,
+) {
+  const roles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    ...(Array.isArray(auth.roles) ? auth.roles : []),
+  ];
+  return {
+    workspaceType: ["site_operator", "robot_team"].includes(user.buyerType)
+      ? user.buyerType
+      : null,
+    profile: {
+      name: text(user.name || user.displayName || auth.name),
+      organization: text(
+        user.company || user.organizationName || user.organization,
+      ),
+      email: text(auth.email),
+    },
+    termsRequired: !currentTermsAccepted(user),
+    access: {
+      operations:
+        auth.admin === true ||
+        auth.ops === true ||
+        user.admin === true ||
+        user.ops === true ||
+        ["admin", "ops"].includes(user.role) ||
+        roles.some((role) => ["admin", "ops"].includes(role)),
+      capture: user.role === "capturer" || roles.includes("capturer"),
+    },
+  };
+}
 router.use(
   handle(async (_req, res, next) => {
+    const auth = object(res.locals.firebaseUser);
+    if (!text(auth.uid)) refuse(401, "Sign in to continue.");
     if (!db) refuse(503, "Workspace storage is unavailable. Please try again.");
-    const auth = object(res.locals.firebaseUser),
-      uid = text(auth.uid);
-    if (!uid) refuse(401, "Sign in to continue.");
-    const snapshot = await db!.collection("users").doc(uid).get();
-    const user = object(snapshot.data());
+    const snapshot = await db!.collection("users").doc(auth.uid).get();
+    res.locals.workspaceAccount = { auth, user: object(snapshot.data()) };
+    next();
+  }),
+);
+router.get(
+  "/setup",
+  handle(async (_req, res) => {
+    const { user, auth } = res.locals.workspaceAccount;
+    return res.json(accountProjection(user, auth));
+  }),
+);
+router.post(
+  "/setup",
+  handle(async (req, res) => {
+    const input = accountSetupSchema.parse(req.body);
+    const { auth } = res.locals.workspaceAccount;
+    const profileRef = db!.collection("users").doc(auth.uid);
+    await db!.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(profileRef),
+        user = object(snapshot.data());
+      const needsTerms = !currentTermsAccepted(user);
+      if (needsTerms && input.acceptedTerms !== true)
+        refuse(
+          400,
+          "Accept the Terms and Privacy Policy to set up your workspace.",
+          "workspace_terms_required",
+        );
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const patch = {
+        name: input.name,
+        organizationName: input.organization,
+        company: input.organization,
+        buyerType: input.workspaceType,
+        workspaceSetupCompletedAt: now,
+        ...(!snapshot.exists
+          ? { uid: auth.uid, email: text(auth.email), createdDate: now }
+          : {}),
+        ...(needsTerms
+          ? {
+              acceptedTerms: true,
+              termsVersion: TERMS_VERSION,
+              privacyVersion: PRIVACY_VERSION,
+              termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now }),
+            }
+          : {}),
+      };
+      if (snapshot.exists) transaction.update(profileRef, patch);
+      else transaction.set(profileRef, patch);
+    });
+    return res.json({ ok: true, workspaceType: input.workspaceType });
+  }),
+);
+router.use(
+  handle(async (_req, res, next) => {
+    const { user, auth } = res.locals.workspaceAccount;
     if (!["site_operator", "robot_team"].includes(user.buyerType))
-      refuse(403, "A site or robot-team account is required.");
+      refuse(
+        403,
+        "Choose a workspace type to get started.",
+        "workspace_setup_required",
+      );
     res.locals.workspaceIdentity = {
-      uid,
+      uid: auth.uid,
       email: text(auth.email).toLowerCase(),
       verified: auth.email_verified === true,
       role: user.buyerType,

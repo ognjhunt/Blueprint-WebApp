@@ -45,3 +45,12 @@ The existing full scientific request form remains at `/app/advanced/runs/new`. O
 `npm run test:workspace:browser` uses explicit development-only fake auth and intercepted local fixtures to exercise both roles, desktop/mobile views, request submission, setup storage, pilot selection, visit changes, empty/error states and keyboard navigation. It never creates live accounts, sends live messages, or launches providers. This suite is included in the CI E2E job.
 
 Focused route tests cover cross-account reads/writes, role escalation, setup confidentiality, rights rechecks, immutable criteria, honest missing scores, provisional visits and pilot transitions. Existing intake, capture, result and communication tests protect reused contracts. Production build/typecheck and the asset audit are separate checks. The required graphify refresh was attempted; `graphifyy` is unavailable in the configured interpreter, so no refreshed graph is claimed.
+
+
+## Existing-account setup recovery
+
+Accounts without a valid `buyerType` receive the typed `workspace_setup_required` response. Overview and other workspace pages show the setup form directly, and Settings uses the same flow. The sidebar remains neutral until a site or robot-team workspace is configured. A retry is not offered as a solution to missing configuration.
+
+Authenticated `GET/POST /api/workspace/setup` reads and updates only the caller's customer profile. The user explicitly chooses a workspace type and confirms their name/organization. Current Terms/Privacy acceptance is recorded server-side if missing. Operations/capture roles, claims, approvals and saved records are preserved; this does not grant evidence access, supplier qualification or spend authority. Successful setup reloads the saved profile and proceeds to site-task or robot-policy setup. Existing customers can change the workspace type through Settings.
+
+Regression coverage includes legacy operations/capture accounts without a customer type, both setup destinations after reload, retained privileges/data, forbidden privilege/identity fields, failed-save recovery and mobile layout.

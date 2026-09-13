@@ -12,7 +12,12 @@ import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { Helmet } from "@/lib/helmet";
 import { AppShell, type AppView } from "@/components/blueprint/app/AppShell";
-import { useWorkspace, statusLabel } from "@/lib/workspace";
+import { WorkspaceSetup } from "./WorkspaceSetup";
+import {
+  useWorkspace,
+  statusLabel,
+  WorkspaceRequestError,
+} from "@/lib/workspace";
 import type {
   TaskTargets,
   WorkspaceEvaluation,
@@ -45,33 +50,51 @@ export function Frame({
         <title>{title} · Blueprint</title>
         <meta name="robots" content="noindex" />
       </Helmet>
-      {back && (
-        <Link className="ws-back" href={back.href}>
-          ← {back.label}
-        </Link>
-      )}
-      <header className="ws-heading">
-        <div>
-          {!back && (
-            <p>{query.data?.profile.organization || "Your workspace"}</p>
-          )}
-          <h1>{title}</h1>
-        </div>
-        {action}
-      </header>
-      {query.isLoading ? (
-        <p className="ws-loading" role="status">
-          Loading your workspace…
-        </p>
-      ) : query.error ? (
-        <div className="ws-alert" role="alert">
-          <p>{query.error.message}</p>
-          <button className="ws-link" onClick={() => query.refetch()}>
-            Try again
-          </button>
-        </div>
+      {query.needsSetup ? (
+        <WorkspaceSetup />
       ) : (
-        children
+        <>
+          {back && (
+            <Link className="ws-back" href={back.href}>
+              ← {back.label}
+            </Link>
+          )}
+          <header className="ws-heading">
+            <div>
+              {!back && (
+                <p>{query.data?.profile.organization || "Your workspace"}</p>
+              )}
+              <h1>{title}</h1>
+            </div>
+            {!query.isLoading && !query.error && action}
+          </header>
+          {query.isLoading ? (
+            <p className="ws-loading" role="status">
+              Loading your workspace…
+            </p>
+          ) : query.error ? (
+            <div className="ws-alert" role="alert">
+              <p>{query.error.message}</p>
+              {query.error instanceof WorkspaceRequestError &&
+              query.error.status === 401 ? (
+                <Link className="ws-link" href="/sign-in">
+                  Sign in again
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="ws-link"
+                  disabled={query.isFetching}
+                  onClick={() => query.refetch()}
+                >
+                  {query.isFetching ? "Trying…" : "Try again"}
+                </button>
+              )}
+            </div>
+          ) : (
+            children
+          )}
+        </>
       )}
     </AppShell>
   );

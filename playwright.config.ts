@@ -24,11 +24,11 @@ export default defineConfig({
   // doesn't try to load it without that bypass and fail on missing auth.
   testIgnore: operatorQaFakeAuthEnabled
     ? taskEvaluationRunE2eEnabled
-      ? ['**/operator-surfaces.spec.ts', '**/workspace-design.spec.ts']
-      : ['**/task-evaluation-run.spec.ts', '**/workspace-design.spec.ts']
+      ? ['**/operator-surfaces.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
+      : ['**/task-evaluation-run.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
     : [
         '**/operator-surfaces.spec.ts',
-        '**/workspace-design.spec.ts',
+        '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts',
         '**/task-evaluation-run.spec.ts',
         '**/capture-task-review.spec.ts',
         '**/adp-agent-tasks.spec.ts',
