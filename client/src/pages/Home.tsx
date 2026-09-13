@@ -23,7 +23,7 @@ export default function Home() {
           <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Compare candidates</span></summary><p>We bring your qualified listing to relevant robot teams, who can test multiple embodiments, policies, and checkpoints. We coordinate the comparison around your task.</p></details></li>
           <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Choose the pilot</span></summary><p>Get a practical shortlist, a pilot recommendation, expected failure points, and a physical test plan—or a clear reason to pause. Your site and robot team run the physical pilot.</p></details></li>
         </ol>
-        <a className="ms-method-link" href="/how-it-works">How the evaluation works <ArrowRight size={16} aria-hidden="true" /></a>
+        <a className="ms-method-link" href="/how-it-works#evaluation-example">See an evaluation example <ArrowRight size={16} aria-hidden="true" /></a>
       </section>
 
       <section className="ms-team ms-container" aria-labelledby="team-title">
