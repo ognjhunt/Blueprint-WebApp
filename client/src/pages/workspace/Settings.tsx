@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/lib/workspace";
 import {
@@ -11,7 +12,7 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import type { RobotSetup } from "@/types/workspace";
-export default function Settings() {
+function WorkspaceSettings() {
   const query = useWorkspace(),
     action = useAction(query),
     { currentUser } = useAuth(),
@@ -347,4 +348,78 @@ export default function Settings() {
       )}
     </Frame>
   );
+}
+
+// Capturer and operations accounts keep access to their existing account details;
+// the customer workspace API must never be used to infer or grant another role.
+function OtherAccountSettings() {
+  const { currentUser, userData, logout } = useAuth();
+  const [error, setError] = useState("");
+  const captureAccount = userData?.role === "capturer";
+  const operationsAccount =
+    userData?.role === "admin" ||
+    userData?.role === "ops" ||
+    userData?.admin ||
+    userData?.ops;
+  const destination = captureAccount
+    ? "/capture-app/account"
+    : operationsAccount
+      ? "/admin/leads"
+      : "/";
+  return (
+    <AuthLayout>
+      <h1>Account settings</h1>
+      <p className="auth-description">Your Blueprint account.</p>
+      <dl className="ws-facts">
+        <div>
+          <dt>Name</dt>
+          <dd>{userData?.name || currentUser?.displayName || "Not set"}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{currentUser?.email || userData?.email}</dd>
+        </div>
+      </dl>
+      {error && (
+        <p role="alert" className="auth-error">
+          {error}
+        </p>
+      )}
+      <p className="auth-account-link">
+        <Link href="/forgot-password">Reset password</Link>
+      </p>
+      <p className="auth-account-link">
+        <Link href={destination}>
+          {captureAccount
+            ? "Open capture account"
+            : operationsAccount
+              ? "Open operations"
+              : "Blueprint home"}
+        </Link>
+      </p>
+      <button
+        type="button"
+        className="auth-utility"
+        onClick={async () => {
+          try {
+            await logout();
+          } catch {
+            setError("Could not sign out. Please try again.");
+          }
+        }}
+      >
+        Sign out
+      </button>
+    </AuthLayout>
+  );
+}
+export default function Settings() {
+  const { userData } = useAuth();
+  if (
+    userData &&
+    userData.buyerType !== "site_operator" &&
+    userData.buyerType !== "robot_team"
+  )
+    return <OtherAccountSettings />;
+  return <WorkspaceSettings />;
 }

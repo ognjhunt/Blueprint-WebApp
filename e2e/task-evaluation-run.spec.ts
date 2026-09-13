@@ -109,13 +109,14 @@ function installRunApi(page: Page, outcome: "planning_then_partial" | "abstained
 
 test("authenticated intake progresses from planning to a partial decision", async ({ page }) => {
   const api = installRunApi(page, "planning_then_partial");
-  await page.goto("/app/runs/new");
+  await page.goto("/app/advanced/runs/new");
   await expect(page.getByRole("heading", { name: /Describe the decision/i })).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/MuJoCo|Isaac|Cosmos|OSCAR/);
 
   await fillIntake(page, "Should candidate A receive field time?");
   await expect(page).toHaveURL(/\/app\/runs\/request-/);
   await expect(page.getByText("Decision not available yet")).toBeVisible();
+  await page.getByText("Decision not available yet", { exact: true }).click();
   await expect(page.getByText(/current state is planning/i)).toBeVisible();
   expect(JSON.stringify(api.submitted())).not.toMatch(/mujoco|isaac|cosmos|oscar/i);
 
@@ -135,7 +136,7 @@ test("authenticated intake progresses from planning to a partial decision", asyn
 
 test("authenticated intake can end in explicit abstention without a winner", async ({ page }) => {
   installRunApi(page, "abstained");
-  await page.goto("/app/runs/new");
+  await page.goto("/app/advanced/runs/new");
   await fillIntake(page, "Which candidate should receive field time?");
 
   // Wait for the run record before asserting on the outcome. getByText is a

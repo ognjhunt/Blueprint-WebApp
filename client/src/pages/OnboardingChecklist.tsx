@@ -544,7 +544,12 @@ export default function OnboardingChecklist() {
       <div className="ws-form">
         <header className="ws-heading">
           <div>
-            <p>{userData?.company || userData?.name || "Your workspace"}</p>
+            <p>
+              {userData?.company ||
+                userData?.organizationName ||
+                userData?.name ||
+                "Your workspace"}
+            </p>
             <h1>Finish setup</h1>
           </div>
         </header>

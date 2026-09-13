@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -11,15 +11,12 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { AppShell } from "@/components/blueprint/app/AppShell";
 import { SEO } from "@/components/SEO";
 import {
-  SurfaceBrowserFrame,
   SurfaceCard,
   SurfaceMiniLabel,
-  SurfacePage,
-  SurfaceSection,
   SurfaceStatusList,
-  SurfaceTopBar,
 } from "@/components/site/privateSurface";
 import { withCsrfHeader } from "@/lib/csrf";
 import { analyticsEvents } from "@/lib/analytics";
@@ -27,7 +24,6 @@ import {
   getDemandAttributionFromContext,
   hasDemandAttribution,
 } from "@/lib/demandAttribution";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import type { InboundRequestDetail } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS,
@@ -176,11 +172,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
   if (bootstrapMutation.isPending || (!bootstrapReady && accessToken)) {
     return (
-      <SurfacePage>
+      <RequestReviewPage>
         <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
-        <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
-        <SurfaceSection className="py-12">
-          <SurfaceBrowserFrame>
+        <section>
+          <div>
             <div className="grid min-h-[36rem] place-items-center bg-runway-deep p-8">
               <div className="max-w-xl text-center">
                 <SurfaceMiniLabel>Private Review Link</SurfaceMiniLabel>
@@ -193,19 +188,18 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
             </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+          </div>
+        </section>
+      </RequestReviewPage>
     );
   }
 
   if (bootstrapMutation.isError) {
     return (
-      <SurfacePage>
+      <RequestReviewPage>
         <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
-        <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
+        <section>
+          <div>
             <div className="grid gap-0 xl:grid-cols-[0.4fr_0.6fr]">
               <div className="bg-runway-panel p-8 lg:p-10">
                 <SurfaceMiniLabel>Private Access</SurfaceMiniLabel>
@@ -219,31 +213,24 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
               <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="overflow-hidden border border-runway-line">
-                  <img
-                    src={privateGeneratedAssets.privateFacilityAerial}
-                    alt="Blueprint private facility review"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                
                 <div className="mt-6 border border-runway-red-dim bg-runway-panel p-5 text-sm text-runway-red">
                   Review links are request-scoped and expire when the protected workspace changes.
                 </div>
               </div>
             </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+          </div>
+        </section>
+      </RequestReviewPage>
     );
   }
 
   if (requestQuery.isLoading) {
     return (
-      <SurfacePage>
+      <RequestReviewPage>
         <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
-        <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
-        <SurfaceSection className="py-12">
-          <SurfaceBrowserFrame>
+        <section>
+          <div>
             <div className="grid min-h-[36rem] place-items-center bg-runway-deep p-8">
               <div className="max-w-xl text-center">
                 <SurfaceMiniLabel>Protected Request</SurfaceMiniLabel>
@@ -256,19 +243,18 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
             </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+          </div>
+        </section>
+      </RequestReviewPage>
     );
   }
 
   if (requestQuery.isError || !loadedRequest) {
     return (
-      <SurfacePage>
+      <RequestReviewPage>
         <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
-        <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
-        <SurfaceSection className="py-8">
-          <SurfaceBrowserFrame>
+        <section>
+          <div>
             <div className="grid gap-0 xl:grid-cols-[0.42fr_0.58fr]">
               <div className="bg-runway-panel p-8 lg:p-10">
                 <SurfaceMiniLabel>Protected Request</SurfaceMiniLabel>
@@ -281,22 +267,16 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 </p>
               </div>
               <div className="bg-runway-deep p-8 lg:p-10">
-                <div className="overflow-hidden border border-runway-line">
-                  <img
-                    src={privateGeneratedAssets.facilityPlanBoard}
-                    alt="Blueprint request provenance board"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                
                 <div className="mt-6 border border-runway-line bg-runway-panel p-5 text-sm leading-[1.6] text-runway-body">
                   Buyer review links only open once the protected request room has a valid record
                   behind it.
                 </div>
               </div>
             </div>
-          </SurfaceBrowserFrame>
-        </SurfaceSection>
-      </SurfacePage>
+          </div>
+        </section>
+      </RequestReviewPage>
     );
   }
 
@@ -325,21 +305,14 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
       : "Request overview";
 
   return (
-    <SurfacePage>
+    <RequestReviewPage>
       <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
-      <SurfaceTopBar eyebrow="Buyer Review" rightLabel="Private Workspace" />
-      <SurfaceSection className="py-8">
-        <SurfaceBrowserFrame>
+      <section>
+        <div>
           <div className="bg-runway-deep p-6 lg:p-7">
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.22fr] xl:items-start">
               <div className="flex gap-5">
-                <div className="hidden h-28 w-40 shrink-0 overflow-hidden border border-runway-line bg-runway-panel md:block">
-                  <img
-                    src={privateGeneratedAssets.privateFacilityAerial}
-                    alt={request.request.siteName}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                
                 <div className="min-w-0">
                   <SurfaceMiniLabel>Buyer Review {request.site_submission_id}</SurfaceMiniLabel>
                   <h1 className="mt-3 font-display uppercase text-[clamp(2.2rem,4vw,3.5rem)] font-semibold tracking-[0.005em] leading-[0.94] text-runway-text">
@@ -529,14 +502,8 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   ) : null}
 
                   {section === "preview" ? (
-                    <div className="mt-5 grid gap-4 md:grid-cols-[0.56fr_0.44fr]">
-                      <div className="overflow-hidden border border-runway-line bg-runway-panel">
-                        <img
-                          src={privateGeneratedAssets.facilityPlanBoard}
-                          alt="Blueprint provenance board"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
+                    <div className="mt-5 grid gap-4">
+                      
                       <div className="space-y-4">
                         <ValueChip
                           label="Preview status"
@@ -718,8 +685,12 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               </div>
             </div>
           </div>
-        </SurfaceBrowserFrame>
-      </SurfaceSection>
-    </SurfacePage>
+        </div>
+      </section>
+    </RequestReviewPage>
   );
+}
+
+function RequestReviewPage({ children }: { children: ReactNode }) {
+  return <AppShell active="tasks" breadcrumb="Request review" publicView>{children}</AppShell>;
 }

@@ -556,7 +556,7 @@ export default function TaskDetail() {
               <Score result={details} />
               <p className="ws-note">
                 {details.targetsMet === null
-                  ? "There is not enough recorded evidence to compare every target."
+                  ? "These results cannot be compared with every current target."
                   : details.targetsMet
                     ? "This result meets the recorded targets."
                     : "This result is below one or more targets."}{" "}

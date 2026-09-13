@@ -146,7 +146,19 @@ export function Score({ result }: { result: WorkspaceResult }) {
     <>
       <span>
         {result.successRate === null
-          ? "Results pending"
+          ? ["failed", "blocked", "abstained", "cancelled"].includes(
+              result.status,
+            )
+            ? "No scored result"
+            : [
+                  "decided",
+                  "decision_available",
+                  "completed",
+                  "complete",
+                  "partially_decided",
+                ].includes(result.status)
+              ? "See detailed results"
+              : "Results pending"
           : `${Number(result.successRate.toFixed(1))}% success`}
       </span>
       {result.cycleTimeSeconds !== null && (

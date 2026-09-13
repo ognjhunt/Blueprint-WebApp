@@ -68,11 +68,23 @@ export default function Evaluation() {
                 <p>
                   {item.status === "requested"
                     ? "Your request is saved. Blueprint will review compatibility, confirm costs, and prepare the evaluation."
-                    : "Results will appear when the evaluation produces recorded evidence."}
+                    : [
+                          "failed",
+                          "blocked",
+                          "abstained",
+                          "cancelled",
+                          "decided",
+                          "decision_available",
+                          "completed",
+                          "complete",
+                          "partially_decided",
+                        ].includes(item.status)
+                      ? "No single scored result is available. Review the run details for individual policy results, failures, or limitations."
+                      : "Results will appear when the evaluation produces recorded evidence."}
                 </p>
                 {item.runId && (
-                  <ActionLink href={`/app/evaluation-runs/${item.runId}`}>
-                    View run progress
+                  <ActionLink href={`/app/runs/${item.runId}`}>
+                    View run record
                   </ActionLink>
                 )}
               </div>

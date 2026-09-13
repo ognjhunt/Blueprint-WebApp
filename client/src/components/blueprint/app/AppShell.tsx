@@ -69,6 +69,7 @@ export function AppShell({
     organization ||
     String(
       userData?.company ||
+        userData?.organizationName ||
         userData?.name ||
         currentUser?.displayName ||
         "Your workspace",
