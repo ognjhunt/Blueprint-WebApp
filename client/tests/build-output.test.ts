@@ -66,6 +66,18 @@ describe("build output", () => {
     });
   });
 
+  it("ships the recorded evaluation example and all six episode videos", () => {
+    const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
+    expect(html).toContain("Recorded simulation");
+    expect(html).toContain("/proof/cup-evaluation/02-groot-external.mp4");
+    for (const cell of ["00", "02", "04"]) {
+      for (const policy of ["pi05", "groot"]) {
+        expect(fs.existsSync(distPath(`proof/cup-evaluation/${cell}-${policy}-external.mp4`))).toBe(true);
+        expect(fs.existsSync(distPath(`proof/cup-evaluation/${cell}-${policy}-poster.webp`))).toBe(true);
+      }
+    }
+  });
+
   it("prerenders the real auth forms in the shared minimal shell", () => {
     for (const route of ["sign-in", "signup/business", "signup/capturer", "forgot-password"]) {
       const html = fs.readFileSync(distPath(route, "index.html"), "utf8");
