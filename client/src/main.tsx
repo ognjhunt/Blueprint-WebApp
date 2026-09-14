@@ -10,6 +10,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteLayout } from "./components/site/SiteLayout";
 import { LoadingScreen } from "./components/site/LoadingScreen";
+import { CanvasSurfaceSync } from "./components/site/CanvasSurfaceSync";
 import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -81,6 +82,7 @@ const app = (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Analytics />
+          <CanvasSurfaceSync />
           <Router />
           <Toaster />
           <CookieConsent />

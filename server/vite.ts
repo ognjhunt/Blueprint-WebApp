@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { type Server } from "http";
 import viteConfig from "../vite.config";
+import { stampCanvasSurface } from "../client/src/app/canvasSurface";
 
 export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
@@ -34,7 +35,10 @@ export async function setupVite(app: Express, server: Server) {
       // always reload the index.html file from disk incase it changes
       const template = await fs.promises.readFile(clientTemplate, "utf-8");
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      res
+        .status(200)
+        .set({ "Content-Type": "text/html" })
+        .end(stampCanvasSurface(page, url));
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -109,6 +113,6 @@ export function serveStatic(app: Express, distPathOverride?: string) {
       }
     }
 
-    res.status(200).type("html").send(shellHtml);
+    res.status(200).type("html").send(stampCanvasSurface(shellHtml, req.path));
   });
 }
