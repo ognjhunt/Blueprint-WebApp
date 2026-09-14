@@ -51,19 +51,74 @@ for (const condition of ['Baseline', 'Cup shifted 2 cm', 'Lighting']) {
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.videoWidth)).toBe(1280);
       expect(await video.evaluate((element: HTMLVideoElement) => element.error)).toBeNull();
     }
-    await page.getByRole('button', { name: condition === 'Baseline' ? 'Lighting' : 'Baseline', exact: true }).click();
-    await expect.poll(() => videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => v.paused && v.currentTime === 0))).toBe(true);
+    const next = condition === 'Baseline' ? 'Lighting' : 'Baseline';
+    await page.getByRole('button', { name: next, exact: true }).click();
+    // Switching mounts the other condition's episodes rather than reusing the
+    // elements, so no playback carries across the swap.
+    // Asserted through locators rather than an evaluateAll callback, which runs
+    // in the page and cannot see `nextEpisodes`.
+    const nextEpisodes = new RegExp(`/${next === 'Baseline' ? '00' : '04'}-`);
+    await expect(videos.first().locator('source')).toHaveAttribute('src', nextEpisodes);
+    await expect(videos.nth(1).locator('source')).toHaveAttribute('src', nextEpisodes);
   });
 }
+
+test('both episodes start together once the section is in view', async ({ page }) => {
+  await page.goto('/how-it-works');
+  const videos = page.locator('#evaluation-example video');
+  // Nothing should run before the reader reaches the section: each episode is
+  // ~4 MB behind preload="none".
+  await expect(videos.first()).toHaveJSProperty('paused', true);
+  await page.locator('#evaluation-example').scrollIntoViewIfNeeded();
+  // Started for the reader, so the pair stays in step for the comparison.
+  await expect.poll(() => videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => !v.paused))).toBe(true);
+  expect(await videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => v.muted && v.loop))).toBe(true);
+});
+
+test('a reader who pauses an episode keeps it paused', async ({ page }) => {
+  await page.goto('/how-it-works#evaluation-example');
+  const videos = page.locator('#evaluation-example video');
+  await expect.poll(() => videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => !v.paused))).toBe(true);
+
+  await videos.first().evaluate((v: HTMLVideoElement) => v.pause());
+  // Scroll the section away and back; the reader's pause outranks the observer.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('#evaluation-example').scrollIntoViewIfNeeded();
+  await expect(videos.first()).toHaveJSProperty('paused', true);
+  // The episode the reader did not touch is unaffected.
+  await expect.poll(() => videos.nth(1).evaluate((v: HTMLVideoElement) => v.paused)).toBe(false);
+});
+
+test('reduced motion holds the episodes on their posters', async ({ page }) => {
+  // Set explicitly rather than through the `reducedMotion` fixture, which does
+  // not reach the page under this config — matchMedia still reported
+  // no-preference, so the assertions below passed for the wrong reason.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/how-it-works#evaluation-example');
+  const videos = page.locator('#evaluation-example video');
+  await page.locator('#evaluation-example').scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+
+  await expect(videos.first()).toHaveJSProperty('paused', true);
+  await expect(videos.nth(1)).toHaveJSProperty('paused', true);
+  // Nothing is fetched either: NETWORK_EMPTY/NETWORK_IDLE rather than loading.
+  expect(await videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => v.networkState !== v.NETWORK_LOADING))).toBe(true);
+  // The episodes stay watchable on request rather than being withheld.
+  expect(await videos.evaluateAll(elements => elements.every((v: HTMLVideoElement) => v.controls))).toBe(true);
+});
 
 test('a failed media load offers recovery without changing the score', async ({ page }) => {
   await page.route('**/02-pi05-external.mp4', route => route.abort());
   await page.goto('/how-it-works#evaluation-example');
   await page.locator('video').first().evaluate((element: HTMLVideoElement) => element.load());
-  await expect(page.getByText('This episode could not load.')).toBeVisible();
-  await expect(page.getByText('Did not meet criteria', { exact: true })).toBeVisible();
+  // Scoped to the broken episode: playback now starts on its own for whatever
+  // is in view, so recovery has to be asserted per episode rather than by the
+  // only overlay on the page.
+  const brokenEpisode = page.locator('#evaluation-example figure').first();
+  await expect(brokenEpisode.getByText('This episode could not load.')).toBeVisible();
+  await expect(brokenEpisode.getByText('Did not meet criteria', { exact: true })).toBeVisible();
   await page.unroute('**/02-pi05-external.mp4');
-  await page.getByRole('button', { name: 'Try loading again' }).click();
-  await expect(page.getByText('This episode could not load.')).toHaveCount(0);
+  await brokenEpisode.getByRole('button', { name: 'Try loading again' }).click();
+  await expect(brokenEpisode.getByText('This episode could not load.')).toHaveCount(0);
   await expect.poll(() => page.locator('video').first().evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
 });
