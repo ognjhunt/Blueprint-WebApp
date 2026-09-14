@@ -9,36 +9,20 @@ test('business signup flow loads first step', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('site-operator pilot path reaches the private dossier and permission controls', async ({ page }) => {
+test('site-operator signup defers the dossier and permissions to the workspace', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(
-    '/signup/business?buyerType=site_operator&intent=pilot-opportunity',
-    { waitUntil: 'networkidle' },
-  );
-
-  await page.getByLabel(/Organization name/i).fill('SiteCo Operations');
-  await page.getByLabel(/Work email/i).fill('operator@siteco.example');
-  await page.getByLabel(/^Password$/i).fill('strongpass123');
-  await page.getByLabel(/Confirm password/i).fill('strongpass123');
-  await page.getByRole('button', { name: /^Continue$/i }).click();
-
-  await expect(page.getByRole('heading', { name: /About your role/i })).toBeVisible();
-  await page.getByLabel(/Your name/i).fill('Jordan Lee');
-  await page.getByLabel(/Company size/i).selectOption('51-200');
-  await page.getByRole('button', { name: /^Continue$/i }).click();
-
-  await expect(page.getByRole('heading', { name: /Your site and task/i })).toBeVisible();
-  await expect(
-    page.getByRole('checkbox', { name: /Prepare this workflow as a pilot opportunity/i }),
-  ).toBeChecked();
-  await expect(page.getByText(/Progressive access/i)).toBeVisible();
-  await expect(page.getByLabel(/Standardized benchmark/i)).toBeVisible();
-  await expect(page.getByLabel(/Adapt for this site/i)).toHaveValue('not_granted');
-  await expect(page.getByLabel(/General model training/i)).toHaveValue('not_granted');
-  await expect(page.getByText(/receive results, not unrestricted twin files/i)).toBeVisible();
-
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-  );
-  expect(hasHorizontalOverflow).toBe(false);
+  await page.goto('/signup/business?buyerType=site_operator&intent=pilot-opportunity');
+  await page.getByLabel('Work email', { exact: true }).fill('operator@siteco.example');
+  await page.getByLabel('Password', { exact: true }).fill('strongpass123');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Set up your workspace', exact: true })).toBeVisible();
+  await page.getByLabel('Your name', { exact: true }).fill('Jordan Lee');
+  await page.getByLabel('Organization', { exact: true }).fill('SiteCo Operations');
+  await expect(page.getByLabel('Find a robot for my site')).toBeChecked();
+  await expect(page.getByText(/Capture details and permissions are set in your workspace/)).toBeVisible();
+  await expect(page.getByText(/Progressive access|Standardized benchmark|Requested lane/)).toHaveCount(0);
+  await expect(page.getByRole('checkbox')).toHaveCount(1);
+  await expect(page.getByRole('checkbox')).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
