@@ -93,3 +93,18 @@
 .auth-art span { z-index: 1; }
 .auth-step-actions > .runway-cta:last-child { margin-left: auto; }
 @media (max-width: 760px) { .auth-step-actions > .runway-cta:last-child { margin-left: 0; width: 100%; } }
+/* Two-step signup: one role choice and no task dossier during registration. */
+.auth-simple-signup .auth-signup-note { color: #62645d; font-size: 14px; line-height: 1.6; margin-top: 8px; }
+.auth-signup-email { font-size: 14px; color: #62645d; overflow-wrap: anywhere; }
+.auth-workspace-choice { min-width: 0; border: 0; padding: 0; }
+.auth-workspace-choice legend { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+.auth-form .auth-workspace-choice label { display: flex; align-items: center; gap: 12px; padding: 14px; min-height: 52px; border: 1px solid #bac0b2; border-radius: 3px; font-size: 15px; cursor: pointer; margin-bottom: 10px; }
+.auth-workspace-choice label:has(input:checked) { background: #e7ecdf; border-color: #203d2e; }
+.auth-form .auth-workspace-choice input, .auth-form .auth-signup-consent input { width: 18px; height: 18px; min-height: 18px; flex-shrink: 0; padding: 0; accent-color: #203d2e; }
+.auth-form .auth-signup-consent { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 400; line-height: 1.65; margin: 0; }
+.auth-signup-consent input { margin-top: 3px; }
+.auth-signup-consent a, .auth-error a { text-decoration: underline; text-underline-offset: 3px; }
+.auth-signup-actions { display: flex; gap: 24px; align-items: center; }
+.auth-signup-actions .auth-back { margin: 0; white-space: nowrap; min-height: 48px; }
+.auth-signup-actions .auth-primary { flex: 1; }
+.auth-simple-signup ~ .auth-google { margin-top: 0; }
