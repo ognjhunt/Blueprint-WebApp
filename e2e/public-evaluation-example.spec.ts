@@ -55,10 +55,11 @@ for (const condition of ['Baseline', 'Cup shifted 2 cm', 'Lighting']) {
     await page.getByRole('button', { name: next, exact: true }).click();
     // Switching mounts the other condition's episodes rather than reusing the
     // elements, so no playback carries across the swap.
-    const nextPrefix = next === 'Baseline' ? '00-' : '04-';
-    await expect.poll(() => videos.evaluateAll(elements => elements.every(
-      (v: HTMLVideoElement) => v.querySelector('source')?.getAttribute('src')?.includes(nextPrefix) === true,
-    ))).toBe(true);
+    // Asserted through locators rather than an evaluateAll callback, which runs
+    // in the page and cannot see `nextEpisodes`.
+    const nextEpisodes = new RegExp(`/${next === 'Baseline' ? '00' : '04'}-`);
+    await expect(videos.first().locator('source')).toHaveAttribute('src', nextEpisodes);
+    await expect(videos.nth(1).locator('source')).toHaveAttribute('src', nextEpisodes);
   });
 }
 
