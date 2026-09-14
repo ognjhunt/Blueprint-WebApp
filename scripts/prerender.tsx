@@ -1,4 +1,5 @@
 import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
+import { stampCanvasSurface } from "../client/src/app/canvasSurface";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -241,11 +242,14 @@ async function main() {
 
   for (const route of staticRoutes.filter((route) => !minimalMarketingRedirects[route.path])) {
     const { markup, helmet } = renderRoute(route);
-    const html = deferImageLoading(
-      injectHelmet(
-        template.replace(rootPattern, `<div id="root">${markup}</div>`),
-        helmet,
+    const html = stampCanvasSurface(
+      deferImageLoading(
+        injectHelmet(
+          template.replace(rootPattern, `<div id="root">${markup}</div>`),
+          helmet,
+        ),
       ),
+      route.path,
     );
     const outputFile = routePathToFile(distPath, route.path);
 

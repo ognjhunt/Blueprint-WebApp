@@ -161,12 +161,44 @@
     --bp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* ============================================================
+     The canvas, not <body>, owns the page ground.
+     <body> is only as tall as what React has mounted, so painting the
+     ground there leaves the rest of the viewport on the browser default
+     — which is what produced a black band mid-route-transition, when the
+     Suspense fallback replaced a full-height shell with a short one.
+     Painting <html> instead covers the viewport at every height, and
+     overscroll with it. `data-surface` is stamped per route by the
+     prerenderer, the server, and CanvasSurfaceSync; see
+     `client/src/app/canvasSurface.ts`.
+     ============================================================ */
+  html {
+    --canvas-ground: #f6f5ef; /* --ms-paper / --ws-paper */
+    --canvas-ink: #22251e; /* --ms-ink / --ws-ink */
+    background-color: var(--canvas-ground);
+    color-scheme: light;
+  }
+
+  html[data-surface="dark"] {
+    --canvas-ground: #101312; /* runway.deep */
+    --canvas-ink: #e8e6dd; /* runway.text */
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply text-foreground font-sans antialiased;
+    background-color: transparent;
     font-family: "Barlow", "Helvetica Neue", system-ui, sans-serif;
     font-feature-settings: "liga" 1, "kern" 1;
     -webkit-tap-highlight-color: transparent;
-    color-scheme: dark;
+  }
+
+  /* Route-transition fallback. Full-bleed and unpainted so the canvas ground
+     shows through instead of a second, differently-coloured band. */
+  .route-loading {
+    min-height: 100vh;
+    min-height: 100dvh;
+    color: var(--canvas-ink);
   }
 
   h1,
