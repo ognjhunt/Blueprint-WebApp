@@ -1,38 +1,54 @@
 import { useEffect, useRef, useState } from "react";
 
-const variations = [
-  { id: "position", label: "Starting position", detail: "Move the cup within the agreed work area. Both policies start from the same position on each attempt.", compare: "Does the policy still reach, grasp, and place the cup when its starting position changes?" },
-  { id: "lighting", label: "Lighting", detail: "Change the brightness and direction of light within the agreed range. Keep the task and object placement fixed.", compare: "Does the policy still recognize and handle the cup when its appearance changes?" },
-  { id: "camera", label: "Camera view", detail: "Vary the camera view within the robot’s supported setup. Give both policies the same view for each attempt.", compare: "Does the policy still complete the task when the cup appears from a different angle?" },
-] as const;
+type Episode = { policy: string; file: string; passed: boolean; outcome: string; detail: string };
 
-type Variation = (typeof variations)[number]["id"];
+// Internal preview selection from the current corrected scoring receipts for
+// capture-run-c257ae6e11a18e883637739477e5ded8. Original clips remain local;
+// see docs/design/public-evaluation-example/README.md before publication.
+const conditions: { id: string; label: string; detail: string; episodes: Episode[] }[] = [
+  {
+    id: "00", label: "Baseline",
+    detail: "The cup starts at the original position. Both policies receive the same task on the same robot and scene.",
+    episodes: [
+      { policy: "π0.5 DROID", file: "00-pi05", passed: false, outcome: "Missed the target", detail: "The cup moved, but did not finish inside the target at the required height." },
+      { policy: "GR00T N1.7 DROID", file: "00-groot", passed: false, outcome: "Missed the target", detail: "The cup moved, but did not reach the target or meet the required travel distance." },
+    ],
+  },
+  {
+    id: "02", label: "Cup shifted 2 cm",
+    detail: "The cup starts 2 cm from its baseline position. The recorded starting position and seed match for both policies.",
+    episodes: [
+      { policy: "π0.5 DROID", file: "02-pi05", passed: false, outcome: "Missed the target", detail: "The cup moved about 2.2 cm, short of the required 10 cm, and remained outside the target." },
+      { policy: "GR00T N1.7 DROID", file: "02-groot", passed: true, outcome: "Reached and settled", detail: "The cup reached the target, settled on the table, and cleared contact with the robot." },
+    ],
+  },
+  {
+    id: "04", label: "Lighting",
+    detail: "This pair comes from the run’s lighting-variation condition. The cup starts at the baseline position.",
+    episodes: [
+      { policy: "π0.5 DROID", file: "04-pi05", passed: false, outcome: "Contact threshold exceeded", detail: "The corrected scorer recorded a contact-force violation, and the cup finished outside the target." },
+      { policy: "GR00T N1.7 DROID", file: "04-groot", passed: false, outcome: "Did not settle", detail: "The cup reached the target but did not remain still for the required settling window." },
+    ],
+  },
+];
 
-/** A schematic of test inputs, never a generated episode or measured outcome. */
-function TaskDiagram({ variation }: { variation: Variation }) {
-  const cupX = variation === "position" ? 155 : 215;
-  return (
-    <svg viewBox="0 0 500 280" role="img" aria-label={`Illustrative cup-to-target task with varied ${variations.find(v => v.id === variation)?.label.toLowerCase()}`}>
-      <rect width="500" height="280" fill={variation === "lighting" ? "#e3e4d9" : "#eeeee6"} />
-      <g transform={variation === "camera" ? "translate(22 -10) skewY(3)" : undefined}>
-        <path d="M40 192 368 174 464 235 119 256Z" fill="#d4d6ca" stroke="#93998a" />
-        <path d="M119 256v24M449 238v42M48 199v81" stroke="#93998a" strokeWidth="9" />
-        <path d="m280 208 65-4 31 20-67 5Z" fill="#90a78c" stroke="#45634c" />
-        <path d="M350 178v-31" stroke="#4f584b" strokeWidth="38" />
-        <path d="m350 146-29-60-72-34-48 60" fill="none" stroke="#6f7868" strokeWidth="28" strokeLinejoin="round" />
-        <path d="m350 146-29-60-72-34-48 60" fill="none" stroke="#fafaf5" strokeWidth="21" strokeLinejoin="round" />
-        <circle cx="321" cy="86" r="13" fill="#d0d4c6" stroke="#6f7868" />
-        <circle cx="249" cy="52" r="13" fill="#d0d4c6" stroke="#6f7868" />
-        <path d="M201 112v16m-10 12v-12h20v12" stroke="#4f584b" strokeWidth="7" fill="none" />
-        <g transform={`translate(${cupX} 184)`}>
-          <path d="M-13-23v29c0 10 26 10 26 0v-29" fill="#fafaf5" stroke="#858c7d" />
-          <ellipse cy="-23" rx="13" ry="4" fill="#e0e2d7" stroke="#858c7d" />
-          <path d="M13-16c17-3 17 19 0 17" fill="none" stroke="#858c7d" strokeWidth="3" />
-        </g>
-      </g>
-      <text x="25" y="260" fontSize="11" fill="#62645d">Illustration · not an episode</text>
-    </svg>
-  );
+function EpisodeVideo({ episode }: { episode: Episode }) {
+  const [failed, setFailed] = useState(false);
+  const video = useRef<HTMLVideoElement>(null);
+  return <figure>
+    <figcaption>{episode.policy}<span>Franka / DROID</span></figcaption>
+    <div className="ms-eval-video">
+      <video ref={video} controls playsInline preload="none" poster={`/proof/cup-evaluation/${episode.file}-poster.webp`} aria-label={`${episode.policy} recorded simulation episode`} onError={() => setFailed(true)} onLoadedData={() => setFailed(false)}>
+        <source src={`/proof/cup-evaluation/${episode.file}-external.mp4`} type="video/mp4" />
+        Your browser does not support this episode video.
+      </video>
+      {failed && <div className="ms-eval-video-error" role="alert"><p>This episode could not load.</p><button type="button" onClick={() => { setFailed(false); video.current?.load(); }}>Try loading again</button></div>}
+    </div>
+    <div className="ms-eval-outcome">
+      <p className={episode.passed ? "ms-eval-pass" : "ms-eval-miss"}><span aria-hidden="true">{episode.passed ? "✓" : "—"}</span><span>{episode.passed ? "Met recorded criteria" : "Did not meet criteria"}</span></p>
+      <h3>{episode.outcome}</h3><p>{episode.detail}</p>
+    </div>
+  </figure>;
 }
 
 export function EvaluationExample() {
@@ -43,32 +59,31 @@ export function EvaluationExample() {
       return () => cancelAnimationFrame(frame);
     }
   }, []);
-  const [selected, setSelected] = useState<Variation>("position");
-  const variation = variations.find(item => item.id === selected)!;
+  const [selected, setSelected] = useState("02");
+  const condition = conditions.find(item => item.id === selected)!;
   return (
     <section ref={section} className="ms-eval-example" id="evaluation-example" aria-labelledby="evaluation-example-title">
       <p className="ms-eyebrow">An evaluation, explained</p>
       <h2 id="evaluation-example-title">Same task. Different policies.</h2>
-      <p className="ms-eval-lede">Move a cup to the target. Keep the robot and task fixed; change the policy—the software that controls the robot.</p>
+      <p className="ms-eval-lede">Move the cup to the green spot. Same robot, same scene, different policies—the software that controls the robot.</p>
       <div className="ms-eval-toolbar">
-        <span>Illustrative walkthrough</span>
-        <div className="ms-eval-options" role="group" aria-label="Explore evaluation variations">
-          {variations.map(item => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}>{item.label}</button>)}
+        <span>Recorded simulation · 3 conditions · 6 episodes</span>
+        <div className="ms-eval-options" role="group" aria-label="Explore recorded conditions">
+          {conditions.map(item => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}>{item.label}</button>)}
         </div>
       </div>
       <div className="ms-eval-pair">
-        {["Policy A", "Policy B"].map(policy => <figure key={policy}>
-          <figcaption>{policy}<span>Same robot · same task</span></figcaption>
-          <TaskDiagram variation={selected} />
-        </figure>)}
+        {condition.episodes.map(episode => <EpisodeVideo key={episode.file} episode={episode} />)}
       </div>
       <div className="ms-eval-explanation" aria-live="polite" aria-atomic="true">
-        <div><h3>What changes</h3><p>{variation.detail}</p></div>
-        <div><h3>What we learn</h3><p>{variation.compare}</p></div>
+        <div><h3>What changes</h3><p>{condition.detail}</p></div>
+        <div><h3>What counts as success</h3><p>Move the cup at least 10 cm, finish within the green target, and leave it settled on the table with robot contact cleared and contact limits respected. Pushing is allowed; lifting is not required.</p></div>
       </div>
-      <p className="ms-eval-boundary">Each episode is one attempt. Repeat the agreed variations to compare task completion, cycle time, and failure points. These illustrations explain the test; they do not show measured results.</p>
-      <details className="ms-eval-details"><summary>What the results tell you</summary><p>Review the episode videos alongside success rate, cycle time, and the conditions where a candidate struggles. Compare results against the site’s targets to decide what deserves a physical pilot—or whether to pause. Simulation results guide that decision; the physical pilot checks real performance.</p></details>
-      <details className="ms-eval-details"><summary>How results stay private</summary><p>The site reviews anonymized candidate results. Robot teams see their own results against the site’s targets, without competitor scores. Site identity and detailed access follow the site’s permissions; public examples require separate permission to share.</p></details>
+      <p className="ms-eval-boundary">Selected episodes from one research run, shown with corrected scoring. Controls were not verified for this run; these outcomes do not establish a policy winner or physical performance.</p>
+      <details className="ms-eval-details"><summary>What an evaluation can vary</summary><p>Object position and approach, lighting, camera views, bounded friction or mass changes, and agreed object or material variants. The test plan defines the ranges and repeated attempts. Teams can bring different embodiments, policies, and checkpoints; this example keeps the embodiment fixed.</p></details>
+      <details className="ms-eval-details"><summary>What the results tell you</summary><p>Review the episode videos alongside success rate, cycle time, and the conditions where a candidate struggles. Compare results against the site’s targets to decide what deserves a physical pilot—or whether to pause. The physical pilot checks real performance.</p></details>
+      <details className="ms-eval-details"><summary>How results stay private</summary><p>The site reviews anonymized candidate results. Robot teams see their own results against the site’s targets, without competitor scores. This research example names the policies; customer identities and access follow the site’s permissions.</p></details>
+      <p className="ms-eval-source">Internal preview · InteriorGS research scene · <a href="https://tryblueprint.io/app/results/capture-run-c257ae6e11a18e883637739477e5ded8" target="_blank" rel="noreferrer">View source run ↗</a></p>
     </section>
   );
 }

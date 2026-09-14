@@ -276,3 +276,15 @@
   .ms-eval-explanation { grid-template-columns: 1fr; gap: 20px; }
   .ms-eval-options button { padding-inline: 12px; }
 }
+.ms-eval-video { position: relative; background: #e4e6dc; aspect-ratio: 16 / 9; }
+.ms-eval-video video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ms-eval-video-error { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 20px; background: var(--ms-paper); font-size: 14px; }
+.ms-eval-video-error button { text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
+.ms-eval-outcome { padding: 20px; }
+.ms-eval-outcome > p:first-child { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 14px; }
+.ms-eval-pass { color: var(--ms-green); }
+.ms-eval-miss { color: #815541; }
+.ms-eval-outcome h3 { font-size: 20px; line-height: 1.25; letter-spacing: -.035em; margin-bottom: 9px; }
+.ms-eval-outcome > p:last-child { font-size: 14px; line-height: 1.65; color: var(--ms-muted); max-width: 48ch; }
+.ms-eval-source { margin-top: 20px; color: var(--ms-muted); font-size: 11px; line-height: 1.7; }
+.ms-eval-source a { text-decoration: underline; text-underline-offset: 3px; }

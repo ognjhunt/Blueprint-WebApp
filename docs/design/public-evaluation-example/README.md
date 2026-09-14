@@ -1,51 +1,72 @@
-# Public evaluation example
+# Internal evaluation page preview
 
-Owner-requested extension of the existing public website, 2026-09-13.
+Owner-directed public-page design, with locally retained research episodes.
+The owner confirmed on 2026-09-13 that this is internal only and that their own
+captures will replace these videos before beta. Do not publish the research
+clips, posters, or screenshots to the public repository or deployed website.
 
-Place a compact example on `/how-it-works#evaluation-example`, between inviting
-robot teams and recommending a physical pilot. Link directly from the homepage's
-existing method link rather than adding another homepage section.
+## Page and design
 
-## Design
+`/how-it-works#evaluation-example` holds a compact comparison between the two
+introductory steps and the pilot recommendation. The existing homepage method
+link jumps directly to it. The ivory/green palette, typography, rules, spacing,
+and paired panels follow `how-it-works-concept.png`.
 
-`how-it-works-concept.png` was generated with Codex's native imagegen tool, using
-`docs/design/site-led-concept.png` as a style reference. `prompt.txt` retains the
-exact prompt. The tool does not expose a model selector or returned model ID;
-Sunburst was requested in the prompt, but that is not proof of backend identity.
-OpenAI's current model page identifies the requested model:
-https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst
+The concept was generated with the native Codex imagegen tool; `prompt.txt`
+retains the prompt and `docs/design/site-led-concept.png` was the style reference.
+The tool did not return a model identity; requesting Sunburst in a prompt is
+not proof of its backend identity. Episode pixels are original recorded media,
+not image-generated replacements. Posters are frames extracted from those clips.
 
-Preserve ivory, forest green, DM Sans, hairline borders, quiet spacing, and the
-existing public navigation. Use two panels, three variation buttons, and native
-expandable explanations. Live diagrams are code-native schematics, explicitly
-labeled illustrations, and change the same conditions in both panels.
+## Exact run and selection
 
-## Current evidence boundary
+Source record: `capture-run-c257ae6e11a18e883637739477e5ded8`.
+Run: `scene839873-artifixer-corrective-68d36be3-r13-web-20260901T031158Z-policy-canary-abe19c87-5997-4c7c-aedf-6d10fb6abd27`.
 
-The user's proposed cup-on-table comparison is π0.5 DROID versus GR00T N1.7
-DROID on the same embodiment. No episode attachments or exact run link were
-available in this turn. The implementation therefore has no named policy
-performance, invented videos, win/loss outcomes, scores, or benchmark claims.
-This is a working explanatory draft, not the requested recorded case study.
-Do not publish it as a completed comparison.
+Six external-camera episodes from cells 00 (baseline), 02 (placement/approach),
+and 04 (illumination). Both policies use the Franka/DROID embodiment. Cell 02
+starts the cup 2 cm from baseline; initial task positions and seeds match within
+each selected pair. The default selection is cell 02.
 
-Before replacing the illustrations with recorded episodes, identify the exact
-run and each paired condition, inspect the episode receipts and scoring source,
-and confirm public-use rights for the scene and media. Anonymization alone does
-not grant public redistribution rights. Use only current corrected outcomes;
-keep incomplete/invalid episodes distinct from task failure, and disclose the
-selection of examples rather than imply a full-suite win rate. Describe
-simulator recordings as simulation, never physical pilot evidence.
+| Condition | pi05_droid | groot_n17_droid |
+| --- | --- | --- |
+| Baseline | Destination/height criteria missed | Destination/height/travel criteria missed |
+| Cup shifted 2 cm | Destination/travel criteria missed | Pushed and settled; corrected criteria met |
+| Lighting | Contact threshold and destination criteria missed | Settling criteria missed |
 
-Site users review anonymized candidates; robot teams see their own scores
-against the site's targets and no competitor scores. Public examples require
-separate permission to share; no private result API is exposed by this change.
+Outcomes come from the current verified `score_correction.correction.score_updates`
+returned by the source result endpoint, not the superseded original 0/10 summary
+or a learned visual interpretation. The scoring contract permits pushing and
+does not require lifting. Controls were not verified; this does not declare a
+winner, rank the policies generally, or establish physical performance.
+
+Original video bytes were retrieved with read-only archive range requests,
+validated against the archive member hashes, and independently matched to each
+video descriptor in the published run. No policy or simulator was rerun.
+
+## Local media and replacement
+
+Original files and extracted posters are under the locally ignored directory
+`client/public/proof/cup-evaluation/`. Each filename is
+`<cell>-<pi05|groot>-external.mp4` or `<cell>-<pi05|groot>-poster.webp`.
+The exact source bindings, corrected receipts, and hashes are retained locally
+under `output/qa/public-eval/source/selected-provenance.json` and the private
+Codex visualization artifact folder for this task. They are not public assets.
+
+Before beta, replace these clips and update the condition descriptions, outcomes,
+poster frames, and source attribution together. Use the new capture's own
+success criteria and verified receipts; do not reuse this run's outcomes.
+
+For this preview, start Vite on loopback port 5197. No API credentials are needed
+for playback once the local media is present. The normal website deployment and
+source result access permissions are unchanged. This work remains local and the
+existing PR stays a draft.
 
 ## Validation
 
-- Four browser checks: matched variation controls and keyboard activation;
-  privacy and illustration labels; direct homepage anchor navigation; desktop
-  and mobile overflow/screenshots.
-- TypeScript full check with dependencies matching the committed lockfile.
-- Graphify attempted; unavailable `graphifyy` interpreter prevents refresh.
-- No pipeline executions, provider allocations, profile writes, or notifications.
+Eight Playwright checks pass: recorded outcomes and condition controls, keyboard
+input, privacy explanation, homepage anchor, desktop/mobile layout, all six
+original videos playing at native 1280px width, clean player reset on condition
+switch, and recovery from an interrupted media load without changing scores.
+Client TypeScript passes. All six video digests and sizes match the source run.
+Graphify was attempted; its `graphifyy` dependency is unavailable locally.
