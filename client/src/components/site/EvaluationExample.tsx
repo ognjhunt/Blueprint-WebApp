@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 type Episode = { policy: string; file: string; passed: boolean; outcome: string; detail: string };
 
@@ -32,15 +32,85 @@ const conditions: { id: string; label: string; detail: string; episodes: Episode
   },
 ];
 
+/**
+ * Plays an episode while it is on screen, and pauses it when it scrolls away.
+ *
+ * The two episodes are meant to be read side by side, so starting them together
+ * is what makes the comparison legible — a pair started by hand never lines up.
+ * It is tied to visibility rather than page load on purpose: with
+ * `preload="none"` a reader who never reaches the section downloads nothing,
+ * and each episode is about 4 MB.
+ *
+ * A reader's own choice always wins. Pausing stops us resuming it, pressing
+ * play hands control back, and under `prefers-reduced-motion: reduce` nothing
+ * starts on its own — the poster stands until the reader asks for motion.
+ */
+function useInViewPlayback(video: RefObject<HTMLVideoElement>) {
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // Distinguishes a pause we caused (scrolling away) from the reader's own.
+    let pausedByScroll = false;
+    let readerPaused = false;
+
+    const onPause = () => {
+      if (pausedByScroll) pausedByScroll = false;
+      else readerPaused = true;
+    };
+    const onPlay = () => {
+      readerPaused = false;
+    };
+
+    const stop = () => {
+      if (element.paused) return;
+      pausedByScroll = true;
+      element.pause();
+    };
+    const start = () => {
+      if (readerPaused || reducedMotion.matches || !element.paused) return;
+      // A rejected play() just leaves the poster up — blocked autoplay and a
+      // failed media load are both already handled by the controls and the
+      // error overlay.
+      void element.play().catch(() => {});
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? start() : stop()),
+      { threshold: 0.5 },
+    );
+
+    const onReducedMotionChange = () => {
+      if (reducedMotion.matches) stop();
+    };
+
+    element.addEventListener("pause", onPause);
+    element.addEventListener("play", onPlay);
+    reducedMotion.addEventListener("change", onReducedMotionChange);
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+      reducedMotion.removeEventListener("change", onReducedMotionChange);
+      element.removeEventListener("pause", onPause);
+      element.removeEventListener("play", onPlay);
+    };
+  }, [video]);
+}
+
 function EpisodeVideo({ episode }: { episode: Episode }) {
   const [failed, setFailed] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
+  useInViewPlayback(video);
   return <figure>
     <figcaption>{episode.policy}<span>Franka / DROID</span></figcaption>
     <div className="ms-eval-video">
-      {/* Looped: each episode is a silent 15.8s clip, and the pair is meant to be
-          watched repeatedly side by side to compare the two policies. */}
-      <video ref={video} controls loop playsInline preload="none" poster={`/proof/cup-evaluation/${episode.file}-poster.webp`} aria-label={`${episode.policy} recorded simulation episode`} onError={() => setFailed(true)} onLoadedData={() => setFailed(false)}>
+      {/* Looped because each episode is a silent 15.8s clip and comparing the
+          pair usually takes more than one viewing. `muted` carries no loss —
+          these recordings have no audio track — and it is what lets
+          useInViewPlayback start them. */}
+      <video ref={video} controls loop muted playsInline preload="none" poster={`/proof/cup-evaluation/${episode.file}-poster.webp`} aria-label={`${episode.policy} recorded simulation episode`} onError={() => setFailed(true)} onLoadedData={() => setFailed(false)}>
         <source src={`/proof/cup-evaluation/${episode.file}-external.mp4`} type="video/mp4" />
         Your browser does not support this episode video.
       </video>
