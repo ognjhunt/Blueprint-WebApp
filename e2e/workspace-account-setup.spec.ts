@@ -97,7 +97,7 @@ for (const type of ["site_operator", "robot_team"] as const) {
     ).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Open operations →" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await page
       .getByLabel("Organization", { exact: true })
       .fill("Workspace Company");
@@ -207,3 +207,27 @@ test("workspace setup is usable on mobile", async ({ page }, info) => {
     fullPage: true,
   });
 });
+
+for (const role of ["site_operator", "robot_team"] as const) {
+  test(`${role} settings keeps customer navigation out of the admin queue`, async ({ page }) => {
+    const state = await account(page, true);
+    state.workspaceType = role;
+    await page.goto("/settings");
+    await expect(page.locator('a[href^="/admin/"]')).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open operations →" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Open overview →", exact: true }).click();
+    await expect(page).toHaveURL(/\/app$/);
+    await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+    await page.goto("/settings");
+    if (role === "robot_team") {
+      await page.getByRole("link", { name: "Browse openings →", exact: true }).click();
+      await expect(page).toHaveURL(/\/app\/opportunities$/);
+      await expect(page.getByRole("heading", { name: "Openings", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByRole("link", { name: "Browse openings →", exact: true })).toHaveCount(0);
+    }
+    await page.goto("/settings?setup=1");
+    await expect(page.getByRole("heading", { name: "Workspace setup", exact: true })).toBeVisible();
+    await expect(page.locator('a[href^="/admin/"]')).toHaveCount(0);
+  });
+}
