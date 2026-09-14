@@ -90,7 +90,7 @@ describe("build output", () => {
     for (const route of ["sign-in", "forgot-password"]) {
       expect(fs.readFileSync(distPath(route, "index.html"), "utf8")).toContain('method="post"');
     }
-    expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="organizationName"');
+    expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="email"');
   });
 
   it("does not prerender retired aliases or protected operations routes", () => {
