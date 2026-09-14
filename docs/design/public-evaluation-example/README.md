@@ -1,32 +1,27 @@
-# Internal evaluation page preview
+# Public evaluation example
 
-Owner-directed public-page design, with locally retained research episodes.
-The owner confirmed on 2026-09-13 that this is internal only and that their own
-captures will replace these videos before beta. Do not publish the research
-clips, posters, or screenshots to the public repository or deployed website.
+Owner-requested public page on How it works, with a direct homepage link.
+The owner explicitly requested public playback of these exact videos before
+merging. Preserve the research framing, source attribution, and exact outcomes.
+This does not make the source scene a customer capture or physical proof.
 
-## Page and design
+## Design
 
-`/how-it-works#evaluation-example` holds a compact comparison between the two
-introductory steps and the pilot recommendation. The existing homepage method
-link jumps directly to it. The ivory/green palette, typography, rules, spacing,
-and paired panels follow `how-it-works-concept.png`.
-
-The concept was generated with the native Codex imagegen tool; `prompt.txt`
-retains the prompt and `docs/design/site-led-concept.png` was the style reference.
-The tool did not return a model identity; requesting Sunburst in a prompt is
-not proof of its backend identity. Episode pixels are original recorded media,
-not image-generated replacements. Posters are frames extracted from those clips.
+The ivory/green palette, typography, rules, spacing, paired panels, and compact
+condition controls follow `how-it-works-concept.png`. The concept was generated
+with the native Codex imagegen tool using `docs/design/site-led-concept.png` as a
+style reference; `prompt.txt` retains the exact prompt. The tool returned no
+model identity, so the requested Sunburst backend is not independently confirmed.
+Episode pixels are original recordings, not image-generated replacements.
 
 ## Exact run and selection
 
-Source record: `capture-run-c257ae6e11a18e883637739477e5ded8`.
-Run: `scene839873-artifixer-corrective-68d36be3-r13-web-20260901T031158Z-policy-canary-abe19c87-5997-4c7c-aedf-6d10fb6abd27`.
+Source: https://tryblueprint.io/app/results/capture-run-c257ae6e11a18e883637739477e5ded8
 
-Six external-camera episodes from cells 00 (baseline), 02 (placement/approach),
-and 04 (illumination). Both policies use the Franka/DROID embodiment. Cell 02
-starts the cup 2 cm from baseline; initial task positions and seeds match within
-each selected pair. The default selection is cell 02.
+Six external-camera episodes: cells 00 (baseline), 02 (placement/approach), and
+04 (illumination). Both policies use the Franka/DROID embodiment. Cell 02 starts
+the cup 2 cm from baseline; recorded initial positions and seeds match within
+each pair. It is selected by default.
 
 | Condition | pi05_droid | groot_n17_droid |
 | --- | --- | --- |
@@ -34,42 +29,36 @@ each selected pair. The default selection is cell 02.
 | Cup shifted 2 cm | Destination/travel criteria missed | Pushed and settled; corrected criteria met |
 | Lighting | Contact threshold and destination criteria missed | Settling criteria missed |
 
-Outcomes come from the current verified `score_correction.correction.score_updates`
-returned by the source result endpoint, not the superseded original 0/10 summary
-or a learned visual interpretation. The scoring contract permits pushing and
-does not require lifting. Controls were not verified; this does not declare a
-winner, rank the policies generally, or establish physical performance.
+Outcomes use the current verified correction sidecar, not the superseded 0/10
+summary or learned visual interpretation. This scoring contract permits pushing
+and does not require lifting. The page states that controls were not verified
+and that these selected outcomes establish neither a winner nor physical
+performance. It describes evaluation variations without claiming these six
+clips are a full test campaign.
 
-Original video bytes were retrieved with read-only archive range requests,
-validated against the archive member hashes, and independently matched to each
-video descriptor in the published run. No policy or simulator was rerun.
+## Media and replacement
 
-## Local media and replacement
+Files are in `client/public/proof/cup-evaluation/`; the public `provenance.json`
+retains each policy/cell/seed, source descriptor hash and size, and corrected
+outcome. Original bytes were recovered through read-only archive range requests,
+checked against the archive member hash, then independently matched to the
+published result's video descriptor. Posters are extracted source frames.
+There are no signed URLs, private storage credentials, or result API dependencies
+in the page. Videos load on demand with native controls; changing conditions
+remounts the players and prevents old footage from continuing under new labels.
 
-Original files and extracted posters are under the locally ignored directory
-`client/public/proof/cup-evaluation/`. Each filename is
-`<cell>-<pi05|groot>-external.mp4` or `<cell>-<pi05|groot>-poster.webp`.
-The exact source bindings, corrected receipts, and hashes are retained locally
-under `output/qa/public-eval/source/selected-provenance.json` and the private
-Codex visualization artifact folder for this task. They are not public assets.
-
-Before beta, replace these clips and update the condition descriptions, outcomes,
-poster frames, and source attribution together. Use the new capture's own
-success criteria and verified receipts; do not reuse this run's outcomes.
-
-For this preview, start Vite on loopback port 5197. No API credentials are needed
-for playback once the local media is present. The normal website deployment and
-source result access permissions are unchanged. The page code can merge; the licensed media stays local. Production always
-renders the illustrated walkthrough. Episode preview requires a development
-build with `VITE_BLUEPRINT_INTERNAL_EPISODE_PREVIEW=1`; a production build
-ignores that flag. For its browser checks, also set
-`BLUEPRINT_INTERNAL_EPISODE_PREVIEW=1`.
+The source scene is InteriorGS, attributed on the page. Its standard terms limit
+dataset use to noncommercial research and education; no broader rights clearance
+is asserted by this implementation. The owner intends to replace these research
+videos with their own capture recordings before beta. Replace clips, posters,
+condition descriptions, outcomes, and provenance together rather than carrying
+these results onto a different task.
 
 ## Validation
 
-Eight Playwright checks pass: recorded outcomes and condition controls, keyboard
-input, privacy explanation, homepage anchor, desktop/mobile layout, all six
-original videos playing at native 1280px width, clean player reset on condition
-switch, and recovery from an interrupted media load without changing scores.
-Client TypeScript passes. All six video digests and sizes match the source run.
-Graphify was attempted; its `graphifyy` dependency is unavailable locally.
+Eight browser checks cover condition outcomes, keyboard input, privacy text,
+homepage anchor navigation, desktop/mobile layout, all six original videos
+playing at their 1280px native width, player resets, and failed-load recovery.
+The build-output suite requires the prerendered video example and all twelve
+media/poster files. Every original video hash and size matches its source run.
+Graphify was attempted; the local interpreter lacks `graphifyy`.

@@ -82,6 +82,3 @@ client/public/generated/*
 
 # committed-artifact hygiene (2026-07-20)
 tmp/
-
-# Research recordings are local preview inputs, never deployable assets.
-/client/public/proof/cup-evaluation/

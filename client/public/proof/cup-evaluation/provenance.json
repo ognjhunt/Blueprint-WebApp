@@ -1,0 +1,69 @@
+{
+  "source_result_url": "https://tryblueprint.io/app/results/capture-run-c257ae6e11a18e883637739477e5ded8",
+  "scene_source_url": "https://huggingface.co/datasets/spatialverse/InteriorGS",
+  "evidence_kind": "recorded_simulation",
+  "selection": "Six selected episodes from three of the ten conditions; not an overall ranking.",
+  "score_correction_digest": "sha256:1182f117516e0039d565613d8eb3c28d361d2c60ab5687a0a842f0ed92ed57ca",
+  "episodes": [
+    {
+      "cell_id": "scene839873.quick10.00.canonical_anchor",
+      "seed": 1631165126,
+      "policy": "pi05_droid",
+      "video": "00-pi05-external.mp4",
+      "sha256": "sha256:f89db9ce6e8eee9028fdd0d806327a4fc3bea422942da57db11c1fe9aea95331",
+      "size_bytes": 4236757,
+      "task_succeeded": false,
+      "outcome": "moved_below_success_contract"
+    },
+    {
+      "cell_id": "scene839873.quick10.00.canonical_anchor",
+      "seed": 1631165126,
+      "policy": "groot_n17_droid",
+      "video": "00-groot-external.mp4",
+      "sha256": "sha256:f95ef207c67c81ac28c5520db2eac7a0e68b1769f93a1119540d3be86ebcbe34",
+      "size_bytes": 4207584,
+      "task_succeeded": false,
+      "outcome": "moved_below_success_contract"
+    },
+    {
+      "cell_id": "scene839873.quick10.02.placement_approach",
+      "seed": 2035426405,
+      "policy": "pi05_droid",
+      "video": "02-pi05-external.mp4",
+      "sha256": "sha256:74dc11c0be03ebc218b68e666f772cf167ed512bdaa804b7f12e97130110abf1",
+      "size_bytes": 4066388,
+      "task_succeeded": false,
+      "outcome": "moved_below_success_contract"
+    },
+    {
+      "cell_id": "scene839873.quick10.02.placement_approach",
+      "seed": 2035426405,
+      "policy": "groot_n17_droid",
+      "video": "02-groot-external.mp4",
+      "sha256": "sha256:ceef1db20948d8dab3842e2628c48774123a8f33fe16e6966df813afac2391d1",
+      "size_bytes": 4282564,
+      "task_succeeded": true,
+      "outcome": "pushed_and_settled"
+    },
+    {
+      "cell_id": "scene839873.quick10.04.illumination",
+      "seed": 1656404842,
+      "policy": "pi05_droid",
+      "video": "04-pi05-external.mp4",
+      "sha256": "sha256:dd88ca9327b71ac22ecc9bf3f34b53eb257158cd195816ab5b2e70c8ff1c675f",
+      "size_bytes": 4718842,
+      "task_succeeded": false,
+      "outcome": "collision_or_containment_failure"
+    },
+    {
+      "cell_id": "scene839873.quick10.04.illumination",
+      "seed": 1656404842,
+      "policy": "groot_n17_droid",
+      "video": "04-groot-external.mp4",
+      "sha256": "sha256:04bb678d03997a1b8572f27b34bd8248b5c2a95f408d50ee7b9af3c6a1c83753",
+      "size_bytes": 4677191,
+      "task_succeeded": false,
+      "outcome": "moved_below_success_contract"
+    }
+  ]
+}
