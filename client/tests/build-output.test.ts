@@ -66,6 +66,13 @@ describe("build output", () => {
     });
   });
 
+  it("ships the public walkthrough without internal research recordings", () => {
+    const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
+    expect(html).toContain("Illustrative walkthrough");
+    expect(html).not.toContain("/proof/cup-evaluation/");
+    expect(fs.existsSync(distPath("proof/cup-evaluation"))).toBe(false);
+  });
+
   it("prerenders the real auth forms in the shared minimal shell", () => {
     for (const route of ["sign-in", "signup/business", "signup/capturer", "forgot-password"]) {
       const html = fs.readFileSync(distPath(route, "index.html"), "utf8");

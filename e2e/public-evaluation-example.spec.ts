@@ -2,9 +2,11 @@ import { test, expect } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 // Licensed research media stays local for this internal preview.
-const hasEpisodes = existsSync('client/public/proof/cup-evaluation/02-groot-external.mp4');
+const internalPreview = process.env.BLUEPRINT_INTERNAL_EPISODE_PREVIEW === '1';
+const hasEpisodes = internalPreview && existsSync('client/public/proof/cup-evaluation/02-groot-external.mp4');
 
 test('public example explains recorded conditions and private results', async ({ page }) => {
+  test.skip(!internalPreview, 'Recorded episodes require the explicit internal-preview server.');
   await page.goto('/how-it-works#evaluation-example');
   const example = page.locator('#evaluation-example');
   await expect(example.getByRole('heading', { name: 'Same task. Different policies.' })).toBeVisible();
@@ -72,4 +74,16 @@ test('a failed media load offers recovery without changing the score', async ({ 
   await page.getByRole('button', { name: 'Try loading again' }).click();
   await expect(page.getByText('This episode could not load.')).toHaveCount(0);
   await expect.poll(() => page.locator('video').first().evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
+});
+
+
+test('public walkthrough has illustrations and no research media', async ({ page }) => {
+  test.skip(internalPreview, 'Public build coverage runs without the internal preview flag.');
+  await page.goto('/how-it-works#evaluation-example');
+  const example = page.locator('#evaluation-example');
+  await expect(example.getByText('Illustrative walkthrough', { exact: true })).toBeVisible();
+  await expect(example.locator('video')).toHaveCount(0);
+  await example.getByRole('button', { name: 'Lighting', exact: true }).click();
+  await expect(example.getByRole('img', { name: /varied lighting/ })).toHaveCount(2);
+  await expect(example.getByText(/do not show measured results/)).toBeVisible();
 });

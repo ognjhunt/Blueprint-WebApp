@@ -59,8 +59,11 @@ success criteria and verified receipts; do not reuse this run's outcomes.
 
 For this preview, start Vite on loopback port 5197. No API credentials are needed
 for playback once the local media is present. The normal website deployment and
-source result access permissions are unchanged. This work remains local and the
-existing PR stays a draft.
+source result access permissions are unchanged. The page code can merge; the licensed media stays local. Production always
+renders the illustrated walkthrough. Episode preview requires a development
+build with `VITE_BLUEPRINT_INTERNAL_EPISODE_PREVIEW=1`; a production build
+ignores that flag. For its browser checks, also set
+`BLUEPRINT_INTERNAL_EPISODE_PREVIEW=1`.
 
 ## Validation
 

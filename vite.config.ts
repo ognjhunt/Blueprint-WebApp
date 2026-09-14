@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
 import path from "path";
+import { rmSync } from "node:fs";
 import checker from "vite-plugin-checker";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
@@ -16,6 +17,18 @@ function packageNameFromId(id: string) {
 
 export default defineConfig({
   plugins: [
+    {
+      name: "exclude-internal-research-media",
+      apply: "build",
+      closeBundle() {
+        // Vite copies publicDir even when its files are not imported.
+        // Never include local research recordings in a production artifact.
+        rmSync(path.resolve(__dirname, "dist/public/proof/cup-evaluation"), {
+          recursive: true,
+          force: true,
+        });
+      },
+    },
     react(),
     checker({ typescript: true, overlay: false }),
     runtimeErrorOverlay(),
