@@ -16,7 +16,7 @@ import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
     action = useAction(query),
-    { currentUser, userData, tokenClaims } = useAuth(),
+    { currentUser, userData } = useAuth(),
     [tab, setTab] = useState(
       new URLSearchParams(window.location.search).get("tab") === "robots"
         ? "robots"
@@ -158,17 +158,16 @@ function WorkspaceSettings() {
                 ? "Find openings, evaluate your robot, and track pilot decisions."
                 : "Manage captures, task evaluations, and pilot decisions."}
             </p>
-            {(tokenClaims?.admin === true ||
-              tokenClaims?.ops === true ||
-              userData?.admin ||
-              userData?.ops ||
-              ["admin", "ops"].includes(String(userData?.role))) && (
-              <p className="ws-note">
-                <Link className="ws-link" href="/admin/leads">
-                  Open operations →
+            <div className="ws-form-actions">
+              <Link className="ws-link" href="/app">
+                Open overview →
+              </Link>
+              {robot && (
+                <Link className="ws-link" href="/app/opportunities">
+                  Browse openings →
                 </Link>
-              </p>
-            )}
+              )}
+            </div>
             {userData?.role === "capturer" && (
               <p className="ws-note">
                 <Link className="ws-link" href="/capture-app/account">

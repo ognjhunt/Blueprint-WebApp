@@ -222,14 +222,9 @@ function SetupForm({
           )}
         </div>
       </form>
-      {(account.access.operations || account.access.capture) && (
+      {account.access.capture && (
         <div className="ws-setup-existing">
           <p className="ws-note">Your existing account access is kept.</p>
-          {account.access.operations && (
-            <Link className="ws-link" href="/admin/leads">
-              Open operations →
-            </Link>
-          )}
           {account.access.capture && (
             <Link className="ws-link" href="/capture-app/account">
               Open capture account →
