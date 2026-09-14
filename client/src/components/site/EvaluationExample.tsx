@@ -38,7 +38,9 @@ function EpisodeVideo({ episode }: { episode: Episode }) {
   return <figure>
     <figcaption>{episode.policy}<span>Franka / DROID</span></figcaption>
     <div className="ms-eval-video">
-      <video ref={video} controls playsInline preload="none" poster={`/proof/cup-evaluation/${episode.file}-poster.webp`} aria-label={`${episode.policy} recorded simulation episode`} onError={() => setFailed(true)} onLoadedData={() => setFailed(false)}>
+      {/* Looped: each episode is a silent 15.8s clip, and the pair is meant to be
+          watched repeatedly side by side to compare the two policies. */}
+      <video ref={video} controls loop playsInline preload="none" poster={`/proof/cup-evaluation/${episode.file}-poster.webp`} aria-label={`${episode.policy} recorded simulation episode`} onError={() => setFailed(true)} onLoadedData={() => setFailed(false)}>
         <source src={`/proof/cup-evaluation/${episode.file}-external.mp4`} type="video/mp4" />
         Your browser does not support this episode video.
       </video>
