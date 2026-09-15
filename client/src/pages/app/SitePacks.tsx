@@ -143,8 +143,8 @@ export default function SitePacks() {
                     digest-bound renders; it is derived appearance evidence, not physical proof.
                   </p>
                   {ownerAccepted ? (
-                    <p className="mt-3 text-caption text-ink-700" title={offering.presentation.known_artifacts?.join("; ")}>
-                      Owner accepted; AI flagged known artifacts
+                    <p className="mt-3 text-caption text-ink-700" title={`Owner-acknowledged artifacts: ${offering.presentation.known_artifacts?.join("; ") ?? ""}`}>
+                      Owner accepted; AI review rejected
                     </p>
                   ) : null}
                   {appearanceUngraded ? (

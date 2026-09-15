@@ -18,6 +18,7 @@ export type ConfiguredSceneOfferingCard = {
     selected_from_exact_reviewed_frame_count: number;
     ai_visual_review_status?: "rejected";
     human_approval_digest?: string;
+    human_reviewer_identity?: string;
     known_artifacts?: string[];
     warning_label?: "Visual review paused - appearance ungraded";
   };
@@ -38,6 +39,10 @@ export type ConfiguredSceneOfferingCard = {
     appearance_visual_review_completed?: boolean;
     appearance_quality_graded?: boolean;
     appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
+    ai_visual_review_status?: "rejected";
+    human_approval_digest?: string;
+    human_reviewer_identity?: string;
+    known_artifacts?: string[];
     appearance_warning_label?: "Visual review paused - appearance ungraded";
   };
   evaluation_admission?: {

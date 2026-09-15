@@ -83,7 +83,6 @@ export type ConfiguredScenePublicOfferingCard = {
     appearanceReviewStatus: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
     humanApprovalDigest?: string;
     aiVisualReviewStatus?: "rejected";
-    knownArtifacts?: string[];
     warningLabel?: "Visual review paused - appearance ungraded";
   };
   evaluationAction: {

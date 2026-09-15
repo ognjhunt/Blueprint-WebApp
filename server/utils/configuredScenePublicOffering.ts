@@ -50,7 +50,6 @@ function publicCard(
       ...(offering.presentation.human_approval_digest ? {
         humanApprovalDigest: offering.presentation.human_approval_digest,
         aiVisualReviewStatus: offering.presentation.ai_visual_review_status,
-        knownArtifacts: offering.presentation.known_artifacts,
       } : {}),
       ...(offering.presentation.warning_label ? {
         warningLabel: offering.presentation.warning_label,

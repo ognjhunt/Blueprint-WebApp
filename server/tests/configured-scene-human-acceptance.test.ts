@@ -10,6 +10,7 @@ function humanOffering() {
     appearance_review_status: "human_accepted_with_known_artifacts",
     ai_visual_review_status: "rejected",
     human_approval_digest: `sha256:${"a".repeat(64)}`,
+    human_reviewer_identity: "owner",
     known_artifacts: ["Small dark residual marks"],
   };
   Object.assign(value.presentation, metadata, {selected_from_exact_reviewed_frame_count:16});
@@ -31,10 +32,12 @@ describe("owner-accepted generated appearance", () => {
     expect(parsed.proof_boundary.ai_visual_review_status).toBe("rejected");
     expect(parsed.proof_boundary.configuration_is_deployment_or_safety_approval).toBe(false);
   });
-  it.each(["missing-approval","wrong-approval","ai-reviewer","missing-artifacts","ungraded","too-few"])("refuses %s", (fault) => {
+  it.each(["missing-approval","wrong-approval","ai-reviewer","missing-artifacts","ungraded","too-few","ai-runtime","wrong-owner"])("refuses %s", (fault) => {
     const value=humanOffering();
     if(fault==="missing-approval") delete value.presentation.human_approval_digest;
     if(fault==="wrong-approval") value.proof_boundary.human_approval_digest=`sha256:${"b".repeat(64)}`;
+    if(fault==="ai-runtime") value.presentation.selection.reviewer.runtime="openai_agents_sdk";
+    if(fault==="wrong-owner") value.proof_boundary.human_reviewer_identity="someone-else";
     if(fault==="ai-reviewer") value.presentation.selection.reviewer.kind="ai";
     if(fault==="missing-artifacts") value.presentation.known_artifacts=[];
     if(fault==="ungraded") value.proof_boundary.appearance_quality_graded=false;
