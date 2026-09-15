@@ -100,6 +100,7 @@ function SiteCard({ site }: { site: SiteWorldCard }) {
 function ConfiguredSceneCard({ offering }: { offering: ConfiguredScenePublicOfferingCard }) {
   const controlsPending = offering.status === "configured_controls_pending";
   const appearanceUngraded = offering.presentation.appearanceReviewStatus === "paused_ungraded";
+  const ownerAccepted = offering.presentation.appearanceReviewStatus === "human_accepted_with_known_artifacts";
   return (
     <article className="flex flex-col overflow-hidden rounded-lg border border-runway-line bg-runway-panel">
       <img
@@ -129,7 +130,8 @@ function ConfiguredSceneCard({ offering }: { offering: ConfiguredScenePublicOffe
           The thumbnail is derived appearance evidence from the configuration run. It is not capture,
           physical-outcome, policy-performance, deployment, or safety evidence.
         </p>
-        {appearanceUngraded ? (
+        {ownerAccepted ? <p className="mt-3 text-sm text-runway-mute">Owner accepted; AI review rejected.</p> : null}
+          {appearanceUngraded ? (
           <p className="mt-3 rounded-md border border-runway-amber/30 bg-runway-amber/[0.1] px-3 py-2 text-xs font-semibold text-runway-amber">
             Visual review paused — appearance ungraded
           </p>
