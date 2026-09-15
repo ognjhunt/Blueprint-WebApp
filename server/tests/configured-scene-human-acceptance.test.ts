@@ -46,3 +46,11 @@ describe("owner-accepted generated appearance", () => {
     expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(false);
   });
 });
+
+
+it("rejects a human-only selector on an AI-accepted offering", () => {
+  const value: any = structuredClone(fixture);
+  value.presentation.selection.thumbnail_selector = "deterministic_first_approved_camera";
+  value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(false);
+});

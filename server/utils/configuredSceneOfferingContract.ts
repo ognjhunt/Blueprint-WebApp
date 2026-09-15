@@ -222,7 +222,8 @@ export const configuredSceneOfferingSchema = z.object({
   if (reviewStatus !== "human_accepted_with_known_artifacts"
     && [offering.presentation, offering.presentation.selection, offering.proof_boundary]
       .some((row) => row.human_approval_digest !== undefined || row.human_reviewer_identity !== undefined
-        || row.known_artifacts !== undefined || row.ai_visual_review_status !== undefined)) {
+        || row.known_artifacts !== undefined || row.ai_visual_review_status !== undefined
+        || "thumbnail_selector" in row)) {
     context.addIssue({code:z.ZodIssueCode.custom,message:"human approval fields require human acceptance status"});
   }
   const actualDigest = canonicalArtifactDigest(
