@@ -80,7 +80,10 @@ export type ConfiguredScenePublicOfferingCard = {
     thumbnailUrl: string;
     derivedAppearanceEvidence: true;
     captureOrPhysicalEvidence: false;
-    appearanceReviewStatus: "accepted" | "paused_ungraded";
+    appearanceReviewStatus: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
+    humanApprovalDigest?: string;
+    aiVisualReviewStatus?: "rejected";
+    knownArtifacts?: string[];
     warningLabel?: "Visual review paused - appearance ungraded";
   };
   evaluationAction: {

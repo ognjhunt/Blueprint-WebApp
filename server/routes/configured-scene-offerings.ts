@@ -204,6 +204,11 @@ function card(offering: ConfiguredSceneOffering, sourceLaunchId: string) {
         offering.presentation.appearance_review_status ?? "accepted",
       selected_from_exact_reviewed_frame_count:
         offering.presentation.selected_from_exact_reviewed_frame_count,
+      ...(offering.presentation.human_approval_digest ? {
+        human_approval_digest: offering.presentation.human_approval_digest,
+        ai_visual_review_status: offering.presentation.ai_visual_review_status,
+        known_artifacts: offering.presentation.known_artifacts,
+      } : {}),
       ...(offering.presentation.warning_label ? {
         warning_label: offering.presentation.warning_label,
       } : {}),

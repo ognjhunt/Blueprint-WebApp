@@ -108,3 +108,14 @@ describe("configured scene offering preparation binding", () => {
     expect(await blob.text()).toBe("png-bytes");
   });
 });
+
+it("binds16 reviewed views and rejects invalid view counts", () => {
+  const value=offering();
+  value.presentation.selected_from_exact_reviewed_frame_count=16;
+  value.presentation.appearance_review_status="human_accepted_with_known_artifacts";
+  expect(bindConfiguredSceneOfferingToPreparation({},value).scene.mode).toBe("reuse_configured_revision");
+  for(const count of [7,65,NaN,8.5]) {
+    value.presentation.selected_from_exact_reviewed_frame_count=count;
+    expect(() => bindConfiguredSceneOfferingToPreparation({},value)).toThrow("not launch-ready");
+  }
+});

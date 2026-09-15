@@ -14,8 +14,11 @@ export type ConfiguredSceneOfferingCard = {
   presentation: {
     thumbnail_url: string;
     selection: { camera_id: string; rationale: string };
-    appearance_review_status?: "accepted" | "paused_ungraded";
-    selected_from_exact_reviewed_frame_count: 0 | 8;
+    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
+    selected_from_exact_reviewed_frame_count: number;
+    ai_visual_review_status?: "rejected";
+    human_approval_digest?: string;
+    known_artifacts?: string[];
     warning_label?: "Visual review paused - appearance ungraded";
   };
   evaluation_preparation_binding: {
@@ -34,7 +37,7 @@ export type ConfiguredSceneOfferingCard = {
     configuration_is_deployment_or_safety_approval: false;
     appearance_visual_review_completed?: boolean;
     appearance_quality_graded?: boolean;
-    appearance_review_status?: "accepted" | "paused_ungraded";
+    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
     appearance_warning_label?: "Visual review paused - appearance ungraded";
   };
   evaluation_admission?: {
@@ -54,7 +57,9 @@ export function bindConfiguredSceneOfferingToPreparation(
     || !/^sha256:[0-9a-f]{64}$/.test(
       offering.evaluation_preparation_binding.configured_scene_revision_digest,
     )
-    || offering.presentation.selected_from_exact_reviewed_frame_count !== 8
+    || !Number.isInteger(offering.presentation.selected_from_exact_reviewed_frame_count)
+    || offering.presentation.selected_from_exact_reviewed_frame_count < 8
+    || offering.presentation.selected_from_exact_reviewed_frame_count > 64
     || offering.proof_boundary.thumbnail_is_capture_or_physical_evidence !== false
   ) throw new Error("Configured scene offering is not launch-ready");
   const binding = offering.evaluation_preparation_binding;
