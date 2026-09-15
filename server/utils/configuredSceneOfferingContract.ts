@@ -100,16 +100,25 @@ export const configuredSceneOfferingSchema = z.object({
       camera_id: z.string().trim().min(1).max(192),
       frame_digest: digest,
       rationale: z.string().trim().min(1).max(1_000),
-      appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
+      appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+      ai_visual_review_status: z.literal("rejected").optional(),
+      human_approval_digest: digest.optional(),
+      human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
+      known_artifacts: z.array(z.string().trim().min(1).max(1000)).min(1).max(64).optional(),
+      thumbnail_selector: z.literal("deterministic_first_approved_camera").optional(),
       reviewer: z.object({
-        kind: z.enum(["ai", "system"]),
+        kind: z.enum(["ai", "system", "human"]),
         identity: z.string().trim().min(1).max(200),
         runtime: z.string().trim().min(1).max(200),
         model: z.string().trim().min(1).max(200),
       }).strict(),
     }).strict(),
-    appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
-    selected_from_exact_reviewed_frame_count: z.number().int().nonnegative(),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+    ai_visual_review_status: z.literal("rejected").optional(),
+    human_approval_digest: digest.optional(),
+      human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
+    known_artifacts: z.array(z.string().trim().min(1).max(1000)).min(1).max(64).optional(),
+    selected_from_exact_reviewed_frame_count: z.number().int().nonnegative().max(64),
     warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
     derived_appearance_evidence: z.literal(true),
     capture_or_physical_evidence: z.literal(false),
@@ -129,7 +138,11 @@ export const configuredSceneOfferingSchema = z.object({
     thumbnail_is_capture_or_physical_evidence: z.literal(false),
     appearance_visual_review_completed: z.boolean().optional(),
     appearance_quality_graded: z.boolean().optional(),
-    appearance_review_status: z.enum(["accepted", "paused_ungraded"]).optional(),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+    ai_visual_review_status: z.literal("rejected").optional(),
+    human_approval_digest: digest.optional(),
+      human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
+    known_artifacts: z.array(z.string().trim().min(1).max(1000)).min(1).max(64).optional(),
     appearance_warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
     configuration_is_policy_evaluation: z.literal(false),
     configuration_is_deployment_or_safety_approval: z.literal(false),
@@ -175,6 +188,30 @@ export const configuredSceneOfferingSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "ungraded appearance offering must preserve its warning boundary",
     });
+  } else if (reviewStatus === "human_accepted_with_known_artifacts") {
+    const presentation = offering.presentation;
+    const selection = presentation.selection;
+    const proof = offering.proof_boundary;
+    if (presentation.selected_from_exact_reviewed_frame_count < 8
+      || selection.reviewer.kind !== "human"
+      || selection.reviewer.runtime !== "owner_approval"
+      || selection.reviewer.model !== "none"
+      || presentation.human_reviewer_identity !== selection.reviewer.identity
+      || selection.human_reviewer_identity !== selection.reviewer.identity
+      || proof.human_reviewer_identity !== selection.reviewer.identity
+      || selection.thumbnail_selector !== "deterministic_first_approved_camera"
+      || !presentation.human_approval_digest
+      || presentation.human_approval_digest !== selection.human_approval_digest
+      || presentation.human_approval_digest !== proof.human_approval_digest
+      || [presentation.ai_visual_review_status, selection.ai_visual_review_status,
+          proof.ai_visual_review_status].some((status) => status !== "rejected")
+      || !presentation.known_artifacts?.length
+      || JSON.stringify(presentation.known_artifacts) !== JSON.stringify(selection.known_artifacts)
+      || JSON.stringify(presentation.known_artifacts) !== JSON.stringify(proof.known_artifacts)
+      || proof.appearance_visual_review_completed !== true
+      || proof.appearance_quality_graded !== true
+    ) context.addIssue({code:z.ZodIssueCode.custom,
+      message:"human acceptance must preserve exact approval and rejected AI grade"});
   } else if (
     offering.presentation.selected_from_exact_reviewed_frame_count < 8
     || offering.presentation.selection.reviewer.kind !== "ai"
@@ -182,6 +219,13 @@ export const configuredSceneOfferingSchema = z.object({
     code: z.ZodIssueCode.custom,
     message: "accepted appearance offering must bind an AI-reviewed frame",
   });
+  if (reviewStatus !== "human_accepted_with_known_artifacts"
+    && [offering.presentation, offering.presentation.selection, offering.proof_boundary]
+      .some((row) => row.human_approval_digest !== undefined || row.human_reviewer_identity !== undefined
+        || row.known_artifacts !== undefined || row.ai_visual_review_status !== undefined
+        || "thumbnail_selector" in row)) {
+    context.addIssue({code:z.ZodIssueCode.custom,message:"human approval fields require human acceptance status"});
+  }
   const actualDigest = canonicalArtifactDigest(
     offering as unknown as Record<string, unknown>,
     "offering_digest",

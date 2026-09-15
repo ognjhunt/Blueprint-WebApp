@@ -122,6 +122,8 @@ export default function SitePacks() {
               const controlsPending = offering.status === "configured_controls_pending";
               const appearanceUngraded = offering.presentation.appearance_review_status
                 === "paused_ungraded";
+              const ownerAccepted = offering.presentation.appearance_review_status
+                === "human_accepted_with_known_artifacts";
               return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
                 <OfferingThumbnail offering={offering} currentUser={currentUser} />
                 <div className="p-5">
@@ -140,6 +142,11 @@ export default function SitePacks() {
                     Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
                     digest-bound renders; it is derived appearance evidence, not physical proof.
                   </p>
+                  {ownerAccepted ? (
+                    <p className="mt-3 text-caption text-ink-700" title={`Owner-acknowledged artifacts: ${offering.presentation.known_artifacts?.join("; ") ?? ""}`}>
+                      Owner accepted; AI review rejected
+                    </p>
+                  ) : null}
                   {appearanceUngraded ? (
                     <p className="mt-3 border border-runway-signal/40 bg-runway-signal/[0.08] px-3 py-2 text-caption font-semibold text-runway-signal">
                       Visual review paused — appearance ungraded
