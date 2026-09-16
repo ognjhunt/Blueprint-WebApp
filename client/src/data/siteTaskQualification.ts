@@ -62,6 +62,16 @@ export interface QualifyingOption {
   ambiguity?: string;
 }
 
+/**
+ * Who records the walkthrough.
+ *
+ * This is the single most consequential answer on the form, because it decides
+ * whether geography is a constraint at all. A site that films its own workcell
+ * needs nothing from us but an upload link; a site that wants us to come needs
+ * someone to physically drive there, which is why the service-area gate exists.
+ */
+export type CaptureMode = "self_capture" | "site_visit";
+
 export interface QualifyingField {
   id: string;
   /** The question, phrased as an observable rather than as our criterion. */
@@ -71,6 +81,47 @@ export interface QualifyingField {
   /** Which of the four conditions this answer feeds, when it feeds one. */
   condition?: QualifyingCondition["id"];
   options: readonly QualifyingOption[];
+  /**
+   * Capture modes under which this gate actually binds. Omitted means it binds
+   * always, which is true of every gate about the room.
+   *
+   * Only `serviceArea` uses this, and the reason is worth stating plainly: our
+   * service area is a fact about our driving, not about the site. When the site
+   * holds the phone, a warehouse in Ohio is exactly as evaluable as one in
+   * Austin, and blocking it would be us declining revenue to protect a
+   * constraint that no longer applies.
+   */
+  bindsForCaptureModes?: readonly CaptureMode[];
+}
+
+/**
+ * The capture-mode question. Deliberately not in `gateFields`: it can never
+ * block a submission, it selects which gates apply.
+ */
+export const captureModeField = {
+  id: "captureMode",
+  question: "Who records the walkthrough?",
+  hint: "A phone video of the one work area is all the reconstruction needs.",
+  options: [
+    {
+      value: "self_capture" as const,
+      label: "We'll record it ourselves",
+      detail:
+        "You film the work area on any phone and upload it. No app, no scheduling, and no restriction on where the site is.",
+    },
+    {
+      value: "site_visit" as const,
+      label: "Send someone to record it",
+      detail: "Available in the Austin metro today, because a person has to be there.",
+    },
+  ],
+} as const;
+
+/** The mode assumed when a submission predates the question. */
+export const defaultCaptureMode: CaptureMode = "site_visit";
+
+export function isCaptureMode(value: unknown): value is CaptureMode {
+  return value === "self_capture" || value === "site_visit";
 }
 
 /* ----------------------------------------------------------------- gates */
@@ -94,20 +145,25 @@ export const gateFields: readonly QualifyingField[] = [
   {
     id: "serviceArea",
     question: "Where is the site?",
-    hint: "Capture visits run in the Austin metro today.",
+    hint: "Only limits a visit. If you record it yourself, anywhere works.",
+    // The one gate that is about us rather than about the room, so it is the
+    // one gate a self-capture submission is not held to.
+    bindsForCaptureModes: ["site_visit"],
     options: [
       { value: "austin_metro", label: "Austin metro", verdict: "clear" },
       {
         value: "texas_other",
         label: "Elsewhere in Texas",
         verdict: "blocking",
-        unblocks: "A second Texas metro opening, which is a scheduling question rather than a technical one.",
+        unblocks:
+          "Recording the walkthrough yourself, which needs no visit — or a second Texas metro opening.",
       },
       {
         value: "outside_texas",
         label: "Outside Texas",
         verdict: "blocking",
-        unblocks: "Expansion beyond Texas. Worth telling us anyway — where demand clusters is how that order gets decided.",
+        unblocks:
+          "Recording the walkthrough yourself, which needs no visit. Tell us where you are anyway — where demand clusters is how expansion gets ordered.",
       },
     ],
   },

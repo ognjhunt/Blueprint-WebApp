@@ -30,6 +30,10 @@ import {
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import {
+  defaultCaptureMode,
+  isCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
 import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
 import { robotGateFields } from "../../client/src/data/robotTeamQualification";
 
@@ -1166,9 +1170,17 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // selects which gate definitions score them — a robot team answering
     // "hardwareMaturity" must not be scored against the site gates, where that
     // id does not exist and every answer would read as unanswered.
+    // The site's own answer decides whether anyone has to travel, which is the
+    // only thing the service-area gate was ever about. An unrecognised or
+    // absent value falls back to `site_visit`, the stricter reading, so a
+    // submission can never relax a gate by omitting the field.
+    const captureMode = isCaptureMode(payload.captureMode)
+      ? payload.captureMode
+      : defaultCaptureMode;
     const siteTaskVerdict = triageGateAnswers(
       siteTaskGates,
       buyerType === "robot_team" ? robotGateFields : undefined,
+      captureMode,
     );
     const siteTaskTriage = Object.keys(siteTaskGates).length
       ? {
@@ -1489,6 +1501,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteLocationMetadata,
         taskStatement,
         siteTaskGates: Object.keys(siteTaskGates).length ? siteTaskGates : null,
+        capture_mode: buyerType === "robot_team" ? null : captureMode,
         siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
         taskDescription: payload.taskDescription?.trim() || null,
         whatGoesWrong: payload.whatGoesWrong?.trim() || null,

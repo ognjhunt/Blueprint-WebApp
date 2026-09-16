@@ -48,10 +48,13 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { parseTaskVideoLinks } from "@/lib/taskVideos";
 import { describeDisposition, triageGateAnswers } from "@/lib/gateTriage";
 import {
+  captureModeField,
+  defaultCaptureMode,
   gateFields,
   proseFields,
   specFields,
   taskVideoField,
+  type CaptureMode,
 } from "@/data/siteTaskQualification";
 import {
   robotGateFields,
@@ -75,17 +78,22 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
   const [spec, setSpec] = useState<Answers>({});
 
   const activeGates = isSite ? gateFields : robotGateFields;
+  // Only a site chooses this; a robot team is never captured.
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(defaultCaptureMode);
   const activeSpec = isSite ? specFields : robotSpecFields;
   const activeProse = isSite ? proseFields : robotProseFields;
 
   // The same function the server runs, recomputed on every answer.
   const verdict = useMemo(
-    () => triageGateAnswers(gates, activeGates),
-    [gates, activeGates],
+    () => triageGateAnswers(gates, activeGates, captureMode),
+    [gates, activeGates, captureMode],
   );
   const copy = describeDisposition(verdict);
 
-  const gatesAnswered = activeGates.every((field) => gates[field.id]);
+  const bindingGates = activeGates.filter(
+    (field) => !field.bindsForCaptureModes || field.bindsForCaptureModes.includes(captureMode),
+  );
+  const gatesAnswered = bindingGates.every((field) => gates[field.id]);
   const blocked = verdict.disposition === "not_now";
   // The expensive questions are only worth someone's patience once the cheap
   // ones have passed.
@@ -155,6 +163,9 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
           whatGoesWrong: value("whatGoesWrong") || value("evidenceBar") || null,
           taskVideoUrl: videoLinks[0] ?? null,
           siteTaskGates: gates,
+          // Decides whether anyone has to travel, and therefore whether the
+          // service-area gate applied at all. Sent for sites only.
+          ...(isSite ? { captureMode } : {}),
           siteTaskSpec: spec,
           context: {
             sourcePageUrl:
@@ -203,7 +214,29 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
       aria-label={isSite ? "Site screening questions" : "Robot team screening questions"}
       aria-busy={status === "sending"}
     >
-      {activeGates.map((field) => (
+      {isSite && (
+        <label htmlFor="capture-mode">
+          <span>{captureModeField.question}</span>
+          <span className="ms-field-hint">{captureModeField.hint}</span>
+          <select
+            id="capture-mode"
+            name="capture-mode"
+            value={captureMode}
+            onChange={(event) => setCaptureMode(event.target.value as CaptureMode)}
+          >
+            {captureModeField.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="ms-field-hint">
+            {captureModeField.options.find((option) => option.value === captureMode)?.detail}
+          </span>
+        </label>
+      )}
+
+      {bindingGates.map((field) => (
         <label key={field.id} htmlFor={`gate-${field.id}`}>
           <span>{field.question}</span>
           {field.hint ? <span className="ms-field-hint">{field.hint}</span> : null}

@@ -67,6 +67,13 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     sources: [{ url: "https://example.com/specs", title: "Specs", text: "Payload: 18 kg." }],
     allowedValues: { payloadCapacity: ["under_2kg", "two_to_ten", "ten_to_twentyfive"] },
   },
+  capture_dispatch: {
+    requestId: "req-1",
+    taskStatement: "Totes come off the line and get stacked onto pallets.",
+    captureMode: "self_capture",
+    gateAnswers: { sceneStability: "stable", taskShape: "single" },
+    siteContext: "Line-side packing bay, one station.",
+  },
   site_video_evidence: {
     requestId: "req-1",
     taskVideoUrl: "https://example.com/clip.mp4",

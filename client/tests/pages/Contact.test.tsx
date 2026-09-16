@@ -93,10 +93,27 @@ describe("Minimal public screening", () => {
     answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
 
     expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
-    // A rejection that names the change is a reason to come back. It shows in
-    // both the summary line and the itemised blocker, so match either.
-    expect(screen.getAllByText(/Expansion beyond Texas/i).length).toBeGreaterThan(0);
+    // A rejection that names the change is a reason to come back. Since capture
+    // mode became a choice, the change that flips this one is immediate and in
+    // the site's own hands: record the walkthrough themselves, no visit needed.
+    expect(screen.getAllByText(/Recording the walkthrough yourself/i).length).toBeGreaterThan(0);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("stops blocking an out-of-state site once it says it will record itself", async () => {
+    // The change that opens the product beyond Austin. The service area gate is
+    // about whether someone has to drive, so a site holding its own phone is
+    // not held to it.
+    render(<Contact />);
+    answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
+    expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Who records the walkthrough/i), {
+      target: { value: "self_capture" },
+    });
+
+    expect(await screen.findByText(/This clears the screen/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Recording the walkthrough yourself/i)).not.toBeInTheDocument();
   });
 
   it("keeps the spec questions hidden until the gates pass", async () => {

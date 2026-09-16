@@ -39,7 +39,9 @@
  */
 
 import {
+  defaultCaptureMode,
   gateFields as siteGateFields,
+  type CaptureMode,
   type OptionVerdict,
   type QualifyingField,
 } from "@/data/siteTaskQualification";
@@ -100,12 +102,28 @@ export function triageGateAnswers(
   answers: GateAnswers,
   /** Defaults to the site-task gates, which were the first caller. */
   fields: readonly QualifyingField[] = siteGateFields,
+  /**
+   * Which capture mode the site chose. Gates carrying `bindsForCaptureModes`
+   * are scored only under the modes they list.
+   *
+   * Defaults to `site_visit`, the stricter reading, so a submission stored
+   * before this question existed is scored exactly as it was then. A gate can
+   * only ever be relaxed by an explicit answer, never by an absent one.
+   */
+  captureMode: CaptureMode = defaultCaptureMode,
 ): TriageResult {
   const blockers: TriageReason[] = [];
   const openQuestions: TriageReason[] = [];
   const unanswered: string[] = [];
 
   for (const field of fields) {
+    // A gate that does not bind under this mode is not a gate. It is skipped
+    // entirely rather than scored and discarded, so an unanswered service area
+    // cannot hold a self-capture submission at `needs_conversation` either.
+    if (field.bindsForCaptureModes && !field.bindsForCaptureModes.includes(captureMode)) {
+      continue;
+    }
+
     const option = findOption(field, answers[field.id]);
 
     if (!option) {
