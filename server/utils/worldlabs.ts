@@ -493,16 +493,50 @@ export async function generateWorldFromFrames(
   };
 }
 
-/** Export a finished world as a downloadable asset. */
-export async function exportWorldAsset(params: {
+/** PLY splat resolutions the export endpoint accepts. */
+export type SplatExportResolution = "full_res" | "500k" | "150k" | "100k";
+
+/** HQ mesh variants. `textured` is ~600k triangles, `vertex_colored` ~1M. */
+export type MeshExportVariant = "textured" | "vertex_colored";
+
+export interface ExportWorldAssetParams {
   worldId: string;
   assetType: "splats" | "mesh";
   format: "ply" | "glb";
-}) {
+  /** Only meaningful for splats -> ply. Defaults to full_res, as the API does. */
+  resolution?: SplatExportResolution;
+  /** Only meaningful for mesh -> glb. */
+  meshVariant?: MeshExportVariant;
+}
+
+/**
+ * Export a finished world as a file we hold, rather than a link into someone
+ * else's viewer.
+ *
+ * Two different shapes hide behind one endpoint. A PLY splat export is
+ * converted synchronously and comes back already done; an HQ mesh export is a
+ * real async job and comes back in progress, so the caller has to poll it like
+ * a generation. `done` on the response tells them apart.
+ *
+ * Note that a splat PLY is a Gaussian-splat PLY, not triangle geometry — the
+ * thing to hand a physics engine is the GLB.
+ */
+export async function exportWorldAsset(params: ExportWorldAssetParams) {
+  const body: Record<string, unknown> = {
+    asset_type: params.assetType,
+    format: params.format,
+  };
+  if (params.assetType === "splats" && params.format === "ply") {
+    body.resolution = params.resolution || "full_res";
+  }
+  if (params.assetType === "mesh" && params.format === "glb" && params.meshVariant) {
+    body.mesh_variant = params.meshVariant;
+  }
+
   return worldLabsApiRequest<Record<string, unknown>>({
     path: `/marble/v1/worlds/${encodeURIComponent(params.worldId)}:export`,
     method: "POST",
-    body: { asset_type: params.assetType, format: params.format },
+    body,
   });
 }
 
