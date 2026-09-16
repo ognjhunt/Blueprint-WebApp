@@ -20,7 +20,8 @@ should eventually do.
 | 1 | `POST /` | Record a facility, with a source behind every claim |
 | 2 | `POST /:id/draft` | Agent writes the email; nothing is sent |
 | 3 | — | **Read it.** Check each sentence against `observations_used` |
-| 4 | `POST /:id/send` | Post the approved text back; it goes out |
+| 4 | `POST /:id/send` | Post the approved text back — **this queues it** |
+| 4b | `.../action-queue/:ledgerId/approve` | Release it. Now it goes out |
 | 5 | `POST /:id/convert` | A reply arrives; record what they actually stated |
 | 5b | `POST /:id/close` | Or they said stop, or it bounced |
 
@@ -28,6 +29,29 @@ Step 3 is not a formality. `OUTBOUND_PROSPECT_POLICY` sets
 `autoApproveCriteria: () => false` and `alwaysHumanReview: () => true`, so
 there is no configuration in which a cold email leaves without a person having
 read it.
+
+## `send` does not send
+
+Read this before running a batch. Because the policy always requires review,
+`executeAction` writes a ledger entry and returns `pending_approval` rather
+than handing anything to the mailer. **Nothing has left yet.**
+
+The route returns `sent: false` and the exact release path:
+
+```
+POST /api/admin/leads/action-queue/<ledgerDocId>/approve
+```
+
+Two things to know about that step:
+
+- It requires the **`admin`** role. The outbound routes accept `admin` or
+  `ops`, so an ops-only operator can draft and queue but cannot release.
+- A `202` on its own reads like "sent". It is not. The failure this guards
+  against is an operator believing they contacted twenty facilities when they
+  contacted none — which looks identical to twenty people ignoring you, and
+  would teach exactly the wrong lesson.
+
+`POST .../action-queue/:ledgerId/reject` takes a reason and discards it.
 
 ## Why the draft and the send are separate routes
 

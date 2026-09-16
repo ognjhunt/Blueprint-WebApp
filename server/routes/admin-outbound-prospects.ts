@@ -12,7 +12,8 @@
  * The send path deliberately goes through `executeAction` rather than calling
  * the mailer, because that is where suppression, the CAN-SPAM footer, content
  * checks, the idempotency ledger and daily caps already live. Outbound gets
- * those by joining the existing lane, not by reimplementing them.
+ * those by joining the existing lane, not by reimplementing them -- including
+ * that lane's approval queue, which is what actually releases the message.
  *
  * `OUTBOUND_PROSPECT_POLICY` never auto-approves. A person reads every cold
  * email in the beta before it leaves.
@@ -203,6 +204,13 @@ router.post("/:prospectId/draft", async (req: Request, res: Response) => {
  * The draft arrives in the request body rather than being generated here: a
  * person has read it, possibly edited it, and is now approving that exact text.
  * Generating and sending in one call would mean nobody ever saw what went out.
+ *
+ * Note that this **queues**. `OUTBOUND_PROSPECT_POLICY.alwaysHumanReview` puts
+ * every send at tier 3, so `executeAction` writes a ledger entry and returns
+ * `pending_approval`; the mailer is not called until someone releases it at
+ * `/api/admin/leads/action-queue/:ledgerId/approve`. The response says so
+ * outright, because an operator who reads a 202 as "sent" would conclude that
+ * twenty facilities ignored them when in fact nothing was ever sent.
  */
 router.post("/:prospectId/send", async (req: Request, res: Response) => {
   if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
@@ -264,7 +272,22 @@ router.post("/:prospectId/send", async (req: Request, res: Response) => {
       );
     }
 
-    return res.status(202).json({ ok: true, action });
+    // `alwaysHumanReview` means this is queued, not sent. Saying so in the
+    // response -- with the exact route that releases it -- is the difference
+    // between a beta that sent twenty emails and one where the operator
+    // believed they had. A 202 alone reads like "sent".
+    const pending = action.state === "pending_approval";
+
+    return res.status(202).json({
+      ok: true,
+      action,
+      sent: !pending,
+      ...(pending
+        ? {
+            nextStep: `Not sent yet. Release it with POST /api/admin/leads/action-queue/${action.ledgerDocId}/approve (admin role required).`,
+          }
+        : {}),
+    });
   } catch (error) {
     logger.error({ error, prospectId }, "Outbound prospect send failed");
     return res.status(502).json({ error: "The send did not complete" });
