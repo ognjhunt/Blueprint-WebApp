@@ -78,7 +78,7 @@ test("legacy offer URLs still land on the pricing page itself", async ({ page, r
 test("a site never sees a per-episode rate, and a shortlisted team owes nothing more", async ({ page }) => {
   await page.goto("/pricing");
 
-  const site = page.locator("section", { has: page.getByRole("heading", { name: /scoped assessment of one task at one site/i }) });
+  const site = page.locator("section", { has: page.getByRole("heading", { name: /assessment of one task at one site/i }) });
   // The site is buying a decision, not compute — no unit rate in its column.
   await expect(site.getByText(/per episode|\$0\.50/i)).toHaveCount(0);
   await expect(site.getByText(/No per-episode charge/i)).toBeVisible();
