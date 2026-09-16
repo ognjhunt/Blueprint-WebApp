@@ -1,11 +1,12 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   decideReconstructionFromReview,
   describeReconstructionReview,
 } from "../utils/captureReviewGate";
 import { startWorldReconstruction } from "../utils/worldReconstruction";
+import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 import type { SiteVideoEvidenceOutput } from "../agents/tasks/site-video-evidence";
 
 function evidence(overrides: Partial<SiteVideoEvidenceOutput> = {}): SiteVideoEvidenceOutput {
@@ -184,5 +185,37 @@ describe("the gate sits in front of the paid call, not behind it", () => {
 
     expect(record.blocker).not.toBe("capture_review_unavailable");
     expect(record.blocker).not.toBe("capture_footage_unusable");
+  });
+});
+
+describe("a gate that is switched off says so rather than vanishing", () => {
+  const original = process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED;
+    else process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED = original;
+  });
+
+  it("builds no reviewer when the footage lane is off", async () => {
+    // Null from the *builder* means proceed without review, which is how a
+    // deployment with the lane off keeps behaving exactly as it did. That is a
+    // different thing from null out of the reviewer it builds, which blocks --
+    // and conflating the two would either halt every reconstruction on a
+    // misconfiguration or wave through footage nobody read.
+    delete process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED;
+
+    const reviewer = await buildCaptureFootageReviewer({
+      requestId: "req-1",
+      sceneId: "site-req-1",
+      captureId: "walkthrough-req-1",
+    });
+
+    expect(reviewer).toBeNull();
+  });
+
+  it("a reconstruction with no reviewer is not the same as one that failed review", () => {
+    // The distinction restated as an assertion, because the two nulls sit one
+    // function call apart and reading them the same way is the bug.
+    expect(decideReconstructionFromReview({ evidence: null }).reconstruct).toBe(false);
   });
 });
