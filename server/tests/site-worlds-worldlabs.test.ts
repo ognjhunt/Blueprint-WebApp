@@ -165,7 +165,11 @@ describe("live site-world World Labs projection", () => {
             collider_mesh_url: "https://cdn.worldlabs.ai/collider.glb",
           },
           splats: {
-            spz_urls: ["https://cdn.worldlabs.ai/world.spz"],
+            // Shape the live API returns: keyed by detail level, not a list.
+            spz_urls: {
+              "100k": "https://cdn.worldlabs.ai/world-100k.spz",
+              full_res: "https://cdn.worldlabs.ai/world.spz",
+            },
           },
         },
       }),

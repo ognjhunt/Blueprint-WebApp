@@ -3,13 +3,16 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { resolveLiveSiteWorldContext } from "../utils/site-worlds";
 import {
+  configuredWorldModel,
   createWorldFromRequestManifest,
+  generateWorldFromFrames,
   getWorldLabsOperation,
   getWorldLabsWorld,
   readArtifactJson,
   summarizeWorldLabsPreview,
   writeJsonArtifact,
 } from "../utils/worldlabs";
+import { loadCaptureFrames } from "../utils/worldlabsFrames";
 import type { InboundRequest } from "../types/inbound-request";
 import { hasAnyRole } from "../utils/access-control";
 
@@ -92,7 +95,9 @@ async function persistWorldLabsState(params: {
         schema_version: "v1",
         world_id: worldPayload.world_id,
         generated_at: nowIso,
-        spz_urls: Array.isArray(splats.spz_urls) ? splats.spz_urls : [],
+        // Keyed by detail level ("100k" / "500k" / "full_res") by the API. A
+        // list is tolerated for manifests written before that was understood.
+        spz_urls: Array.isArray(splats.spz_urls) ? splats.spz_urls : jsonObject(splats.spz_urls),
         semantics_metadata: jsonObject(splats.semantics_metadata),
       }
     : null;
@@ -258,10 +263,12 @@ router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res
     const context = await resolveContext(String(req.params.siteWorldId || ""));
     const requestManifest: Record<string, unknown> = {
       ...context.requestManifest,
-      provider_model: asString(req.body?.model) || asString(context.requestManifest.provider_model) || "Marble 0.1-mini",
+      provider_model:
+        asString(req.body?.model) || asString(context.requestManifest.provider_model) || configuredWorldModel(),
     };
     const generationRequest = jsonObject(requestManifest.generation_request);
-    generationRequest.model = asString(req.body?.model) || asString(generationRequest.model) || "Marble 0.1-mini";
+    generationRequest.model =
+      asString(req.body?.model) || asString(generationRequest.model) || configuredWorldModel();
     requestManifest.generation_request = generationRequest;
 
     const { operation, generationRequest: submittedRequest, generationSourceType } =
@@ -308,6 +315,107 @@ router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res
     });
   } catch (error) {
     logger.error({ error }, "World Labs generation request failed");
+    const message = error instanceof Error ? error.message : "worldlabs_generation_failed";
+    const status = message === "forbidden" ? 403 : message === "not_found" ? 404 : 400;
+    return res.status(status).json({ error: message });
+  }
+});
+
+/**
+ * Generate a world from the capture's extracted frames.
+ *
+ * This is the path a real site goes through. The video prompt caps at 30
+ * seconds, which no useful walkthrough fits inside, so frames are what we
+ * actually send — and frames are the same input shape Atlas scales to 100+.
+ * How many get sent is the model profile's call, not this route's.
+ */
+router.post("/:siteWorldId/worldlabs-preview/generate-from-frames", async (req: Request, res: Response) => {
+  try {
+    if (!(await hasAnyRole(res, ["admin", "ops"]))) {
+      throw new Error("forbidden");
+    }
+    const context = await resolveContext(String(req.params.siteWorldId || ""));
+
+    const framesPrefixUri =
+      asString(req.body?.framesPrefixUri) ||
+      asString(context.artifacts.capture_frames_prefix_uri) ||
+      asString(context.requestManifest.frames_prefix_uri);
+    if (!framesPrefixUri) {
+      return res.status(400).json({ error: "capture_frames_prefix_missing" });
+    }
+
+    const frames = await loadCaptureFrames(framesPrefixUri);
+    if (!frames.length) {
+      return res.status(400).json({ error: "capture_frames_empty" });
+    }
+
+    const model = asString(req.body?.model) || configuredWorldModel();
+    const generated = await generateWorldFromFrames({
+      frames,
+      model,
+      // Deliberately not the buyer's site name: that field is an
+      // EncryptableString and may carry customer PII, and this value is sent
+      // to a third party and shown in their dashboard. The capture id is
+      // enough to find the world again.
+      displayName: `Blueprint capture ${asString(context.requestManifest.capture_id) || context.requestId}`,
+      textPrompt: asString(context.requestManifest.text_prompt) || undefined,
+      permission: context.requestManifest.permission,
+      assetMetadata: {
+        scene_id: context.requestManifest.scene_id,
+        capture_id: context.requestManifest.capture_id,
+        site_submission_id: context.requestManifest.site_submission_id,
+      },
+    });
+
+    const operationId = asString(generated.operation.operation_id || generated.operation.id);
+    const worldId = asString(
+      generated.operation.world_id || jsonObject(generated.operation.response).world_id,
+    );
+    const world = worldId ? await getWorldLabsWorld(worldId) : null;
+
+    const requestManifest: Record<string, unknown> = {
+      ...context.requestManifest,
+      provider_model: generated.profile.model,
+      generation_request: generated.generationRequest,
+      generation_source_type: generated.generationSourceType,
+      frames_prefix_uri: framesPrefixUri,
+      // The artifact trail records what was sent and what was left behind, so
+      // a thin-looking world can be traced back to its frame budget rather
+      // than guessed at.
+      frame_selection: generated.frameSelection,
+      operation_id: operationId || null,
+      submitted_at: new Date().toISOString(),
+    };
+
+    await writeJsonArtifact({
+      pipelinePrefix: context.pipelinePrefix,
+      relativePath: "worldlabs/worldlabs_request_manifest.json",
+      payload: requestManifest,
+    });
+
+    const persisted = await persistWorldLabsState({
+      requestId: context.requestId,
+      request: context.request,
+      pipelinePrefix: context.pipelinePrefix,
+      requestManifestUri: context.requestManifestUri,
+      requestManifest,
+      operation: generated.operation,
+      world,
+      generationSourceType: generated.generationSourceType,
+    });
+
+    return res.json({
+      ok: true,
+      operationId,
+      model: generated.profile.model,
+      frameSelection: generated.frameSelection,
+      preview: persisted.preview,
+      operationManifestUri: persisted.operationManifestUri,
+      worldManifestUri: persisted.worldManifestUri,
+      spzManifestUri: persisted.spzManifestUri,
+    });
+  } catch (error) {
+    logger.error({ error }, "World Labs frame generation request failed");
     const message = error instanceof Error ? error.message : "worldlabs_generation_failed";
     const status = message === "forbidden" ? 403 : message === "not_found" ? 404 : 400;
     return res.status(status).json({ error: message });

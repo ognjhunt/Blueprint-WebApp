@@ -53,6 +53,7 @@ import internalAgentExecutionRouter from "./routes/internal-agent-execution";
 import paperclipAdpExecutionRouter from "./routes/paperclip-adp-execution";
 import internalCaptureQaRouter from "./routes/internal-capture-qa";
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
+import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
@@ -109,6 +110,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/paperclip", paperclipAdpExecutionRouter);
   app.use("/api/internal/pipeline", internalCaptureQaRouter);
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
+  app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
