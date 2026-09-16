@@ -117,8 +117,30 @@ export const captureModeField = {
   ],
 } as const;
 
-/** The mode assumed when a submission predates the question. */
+/**
+ * The mode assumed when scoring a submission that carries no answer.
+ *
+ * Deliberately the strict one. A stored record from before this question
+ * existed, or a payload that omits the field, must be scored exactly as it
+ * would have been then — a gate can only ever be relaxed by an explicit
+ * answer, never by an absent one.
+ *
+ * This is NOT the default a new site sees on the form. See
+ * `preferredCaptureMode`.
+ */
 export const defaultCaptureMode: CaptureMode = "site_visit";
+
+/**
+ * What a site is offered first.
+ *
+ * The opposite of the scoring fallback, and for the opposite reason. Recording
+ * their own workcell is the path that needs no scheduling, no app and no
+ * service area, so it is the one that should be in front of somebody by
+ * default. Asking for a visit stays available and is one click away; it is just
+ * no longer the front door, because making it the front door is what limited
+ * the product to one metro.
+ */
+export const preferredCaptureMode: CaptureMode = "self_capture";
 
 export function isCaptureMode(value: unknown): value is CaptureMode {
   return value === "self_capture" || value === "site_visit";

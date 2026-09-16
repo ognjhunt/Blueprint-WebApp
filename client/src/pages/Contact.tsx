@@ -49,7 +49,7 @@ import { parseTaskVideoLinks } from "@/lib/taskVideos";
 import { describeDisposition, triageGateAnswers } from "@/lib/gateTriage";
 import {
   captureModeField,
-  defaultCaptureMode,
+  preferredCaptureMode,
   gateFields,
   proseFields,
   specFields,
@@ -79,7 +79,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
 
   const activeGates = isSite ? gateFields : robotGateFields;
   // Only a site chooses this; a robot team is never captured.
-  const [captureMode, setCaptureMode] = useState<CaptureMode>(defaultCaptureMode);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(preferredCaptureMode);
   const activeSpec = isSite ? specFields : robotSpecFields;
   const activeProse = isSite ? proseFields : robotProseFields;
 

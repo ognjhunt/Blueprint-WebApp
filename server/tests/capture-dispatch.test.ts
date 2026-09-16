@@ -7,7 +7,11 @@ import {
   publishesCapturerJob,
 } from "../utils/captureDispatch";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
-import { gateFields } from "../../client/src/data/siteTaskQualification";
+import {
+  defaultCaptureMode,
+  gateFields,
+  preferredCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
 
 /** Every gate answered with its clear option, except the ones overridden. */
 function clearAnswers(overrides: Record<string, string> = {}) {
@@ -86,6 +90,16 @@ describe("geography binds a visit, not the site", () => {
 
     expect(withoutMode.disposition).toBe("not_now");
     expect(withoutMode).toEqual(asVisit);
+  });
+});
+
+describe("which mode a site is offered first", () => {
+  it("offers self-capture by default but still scores a blank record strictly", () => {
+    // Two defaults that point opposite ways, on purpose. A new site is offered
+    // the path that works everywhere; a stored record with no answer is scored
+    // as the visit it would have been, so nothing is relaxed retroactively.
+    expect(preferredCaptureMode).toBe("self_capture");
+    expect(defaultCaptureMode).toBe("site_visit");
   });
 });
 
