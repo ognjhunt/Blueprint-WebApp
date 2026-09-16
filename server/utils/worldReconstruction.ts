@@ -206,13 +206,29 @@ function assetPackageFromWorld(
   };
 }
 
+/** Downloadable formats a caller can ask for once a world exists. */
+export type WorldExportFormat =
+  /** Gaussian-splat PLY. Synchronous and cached, so it settles immediately. */
+  | "splat_ply"
+  /** Textured triangle mesh. Asynchronous, slow, and billed per export. */
+  | "mesh_glb";
+
 export interface AdvanceWorldReconstructionParams {
   operationId: string;
   /**
-   * Export the downloadable files once the world exists. On by default: the
-   * Pipeline needs geometry it owns, not a link into a hosted viewer.
+   * Extra formats to export. Empty by default, and deliberately so.
+   *
+   * A finished world already carries splats, a collider mesh and a panorama,
+   * which is everything needed to start evaluating. The two formats here are
+   * *download conveniences*: the PLY is cheap but redundant with the splats,
+   * and the HQ mesh is asynchronous, documented at up to an hour, and billed
+   * per export.
+   *
+   * Requesting both on every capture put a slow paid artifact nobody had asked
+   * for in the blocking path of every reconstruction. Now a caller that wants a
+   * file asks for it, and the critical path stops at the world existing.
    */
-  exportAssets?: boolean;
+  exports?: readonly WorldExportFormat[];
   /** PLY resolution to convert. full_res unless a caller wants it cheaper. */
   splatResolution?: "full_res" | "500k" | "150k" | "100k";
 }
@@ -306,7 +322,8 @@ export async function advanceWorldReconstruction(
   });
   const assets = assetPackageFromWorld(worldObject, preview);
 
-  if (params.exportAssets === false) {
+  const requestedExports = params.exports ?? [];
+  if (!requestedExports.length) {
     return {
       state: "ready",
       operationId: params.operationId,
@@ -324,6 +341,7 @@ export async function advanceWorldReconstruction(
   let exportBlocker: string | null = null;
 
   // Splat PLY: synchronous and cached, so this settles on the first call.
+  if (requestedExports.includes("splat_ply")) {
   try {
     const splatExport = await exportWorldAsset({
       worldId,
@@ -337,9 +355,11 @@ export async function advanceWorldReconstruction(
     assets.splatPlyUrl = null;
     void error;
   }
+  }
 
   // HQ mesh GLB: a real async job. Record the operation and report honestly
   // that it is still running rather than implying we have the file.
+  if (requestedExports.includes("mesh_glb")) {
   try {
     const meshExport = await exportWorldAsset({
       worldId,
@@ -358,8 +378,11 @@ export async function advanceWorldReconstruction(
     exportBlocker = exportBlocker || "worldlabs_mesh_export_failed";
     void error;
   }
+  }
 
-  const exportsSettled = Boolean(assets.splatPlyUrl) && Boolean(assets.meshGlbUrl);
+  const exportsSettled = requestedExports.every((format) =>
+    format === "splat_ply" ? Boolean(assets.splatPlyUrl) : Boolean(assets.meshGlbUrl),
+  );
 
   return {
     state: exportsSettled ? "ready" : "exporting",

@@ -41,6 +41,9 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
 }
 
 const clearSiteGates = async (page: import("@playwright/test").Page) => {
+  // The form opens on self-capture, where the service-area gate is not asked at
+  // all. These tests exercise the full six-gate set, so they ask for a visit.
+  await page.locator("#capture-mode").selectOption("site_visit");
   await page.locator("#gate-serviceArea").selectOption("austin_metro");
   await page.locator("#gate-sceneStability").selectOption("stable");
   await page.locator("#gate-taskShape").selectOption("single");

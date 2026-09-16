@@ -131,6 +131,50 @@ describe("advancing a running reconstruction", () => {
     expect(worldlabs.getWorldLabsWorld).not.toHaveBeenCalled();
   });
 
+  it("does not export anything by default", async () => {
+    // The critical path stops at the world existing. A finished world already
+    // carries splats, a collider mesh and a panorama; the HQ mesh is an
+    // asynchronous, billed export that nobody should get by accident.
+    worldlabs.getWorldLabsOperation.mockResolvedValue({
+      operation_id: "op-1",
+      done: true,
+      metadata: { world_id: "world-1" },
+    });
+    worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD);
+
+    const record = await advanceWorldReconstruction({ operationId: "op-1" });
+
+    expect(record.state).toBe("ready");
+    expect(worldlabs.exportWorldAsset).not.toHaveBeenCalled();
+    // What ships with the world is still there, so the Pipeline is not waiting.
+    expect(record.assets?.colliderMeshUrl).toBe("https://cdn.worldlabs.ai/collider.glb");
+    expect(record.assets?.spzUrlsByDetail).toEqual({
+      "100k": "https://cdn.worldlabs.ai/w-100k.spz",
+    });
+  });
+
+  it("exports only the formats asked for", async () => {
+    worldlabs.getWorldLabsOperation.mockResolvedValue({
+      operation_id: "op-1",
+      done: true,
+      metadata: { world_id: "world-1" },
+    });
+    worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD);
+    worldlabs.exportWorldAsset.mockResolvedValue({ url: "https://cdn.worldlabs.ai/world.ply" });
+
+    const record = await advanceWorldReconstruction({
+      operationId: "op-1",
+      exports: ["splat_ply"],
+    });
+
+    expect(worldlabs.exportWorldAsset).toHaveBeenCalledTimes(1);
+    expect(worldlabs.exportWorldAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ assetType: "splats", format: "ply" }),
+    );
+    expect(record.assets?.splatPlyUrl).toBe("https://cdn.worldlabs.ai/world.ply");
+    expect(record.state).toBe("ready");
+  });
+
   it("pulls the files out once the world exists", async () => {
     worldlabs.getWorldLabsOperation.mockResolvedValue({
       operation_id: "op-1",
@@ -144,7 +188,10 @@ describe("advancing a running reconstruction", () => {
         : { url: "https://cdn.worldlabs.ai/world.glb" },
     );
 
-    const record = await advanceWorldReconstruction({ operationId: "op-1" });
+    const record = await advanceWorldReconstruction({
+      operationId: "op-1",
+      exports: ["splat_ply", "mesh_glb"],
+    });
 
     expect(record.state).toBe("ready");
     expect(record.assets).toMatchObject({
@@ -168,7 +215,10 @@ describe("advancing a running reconstruction", () => {
     worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD);
     worldlabs.exportWorldAsset.mockResolvedValue({ url: "https://cdn.worldlabs.ai/a" });
 
-    await advanceWorldReconstruction({ operationId: "op-1" });
+    await advanceWorldReconstruction({
+      operationId: "op-1",
+      exports: ["splat_ply", "mesh_glb"],
+    });
 
     expect(worldlabs.exportWorldAsset).toHaveBeenCalledWith(
       expect.objectContaining({ assetType: "splats", format: "ply", resolution: "full_res" }),
@@ -193,7 +243,10 @@ describe("advancing a running reconstruction", () => {
         : { operation_id: "mesh-op-9", done: false },
     );
 
-    const record = await advanceWorldReconstruction({ operationId: "op-1" });
+    const record = await advanceWorldReconstruction({
+      operationId: "op-1",
+      exports: ["splat_ply", "mesh_glb"],
+    });
 
     expect(record.state).toBe("exporting");
     expect(record.assets?.meshGlbUrl).toBeNull();
@@ -211,14 +264,17 @@ describe("advancing a running reconstruction", () => {
     worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD);
     worldlabs.exportWorldAsset.mockRejectedValue(new Error("worldlabs_api_402:no credits"));
 
-    const record = await advanceWorldReconstruction({ operationId: "op-1" });
+    const record = await advanceWorldReconstruction({
+      operationId: "op-1",
+      exports: ["splat_ply"],
+    });
 
     expect(record.state).toBe("exporting");
     expect(record.blocker).toBe("worldlabs_splat_export_failed");
     expect(record.assets?.worldId).toBe("world-1");
   });
 
-  it("skips exporting when the caller only wants the world", async () => {
+  it("skips exporting when the caller explicitly asks for none", async () => {
     worldlabs.getWorldLabsOperation.mockResolvedValue({
       operation_id: "op-1",
       done: true,
@@ -226,7 +282,7 @@ describe("advancing a running reconstruction", () => {
     });
     worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD);
 
-    const record = await advanceWorldReconstruction({ operationId: "op-1", exportAssets: false });
+    const record = await advanceWorldReconstruction({ operationId: "op-1", exports: [] });
 
     expect(record.state).toBe("ready");
     expect(worldlabs.exportWorldAsset).not.toHaveBeenCalled();
@@ -254,7 +310,6 @@ describe("advancing a running reconstruction", () => {
       metadata: { world_id: "world-1" },
     });
     worldlabs.getWorldLabsWorld.mockResolvedValue(READY_WORLD.world);
-    worldlabs.exportWorldAsset.mockResolvedValue({ url: "https://cdn.worldlabs.ai/a" });
 
     const record = await advanceWorldReconstruction({ operationId: "op-1" });
 
