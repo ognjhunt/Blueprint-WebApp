@@ -24,7 +24,8 @@ image.png
 temp_large_assets/
 
 # Local tooling and generated review artifacts
-.claude/
+.claude/*
+!.claude/settings.json
 attached_assets/playwright-smoke-20260306/
 firebase-debug.log
 firestore-debug.log
