@@ -35,6 +35,7 @@ import {
   quoteExamples,
   rounds,
   screeningRound,
+  shortlistRule,
   siteAssessment,
 } from "@/lib/episodePricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
@@ -132,6 +133,9 @@ export default function Pricing() {
               </article>
             ))}
           </div>
+          <p className="ms-round-rule">
+            <strong>{shortlistRule.statement}</strong> {shortlistRule.detail}
+          </p>
           <p className="ms-price-note">
             These are Blueprint's budgets, not an industry standard. Published protocols range from
             about ten trials per task on real hardware to five hundred per suite in simulation, and

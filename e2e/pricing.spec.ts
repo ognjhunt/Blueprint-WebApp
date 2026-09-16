@@ -73,7 +73,7 @@ test("a site never sees a per-episode rate, and a shortlisted team owes nothing 
   // The site is buying a decision, not compute — no unit rate in its column.
   await expect(site.getByText(/per episode|\$0\.50/i)).toHaveCount(0);
   await expect(site.getByText(/No per-episode charge/i)).toBeVisible();
-  await expect(site.getByText(/up to three finalists/i)).toBeVisible();
+  await expect(site.getByText(/up to five finalists/i)).toBeVisible();
 
   const rounds = page.locator("section", { has: page.getByRole("heading", { name: "The two rounds" }) });
   await expect(rounds.getByText("Screening", { exact: true })).toBeVisible();
@@ -81,5 +81,5 @@ test("a site never sees a per-episode rate, and a shortlisted team owes nothing 
   await expect(rounds.getByText(/Included in the site's assessment fee/i)).toBeVisible();
 
   await expect(page.getByRole("heading", { name: /Being shortlisted never costs you more/i })).toBeVisible();
-  await expect(page.getByText(/Screening never names a winner/i)).toBeVisible();
+  await expect(page.getByText(/Everything screening cannot separate from the leader goes forward, up to five/i)).toBeVisible();
 });

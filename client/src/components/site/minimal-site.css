@@ -328,6 +328,8 @@
 .ms-round-purpose { margin-top: 16px; font-size: 16px; line-height: 1.55; letter-spacing: -.02em; }
 .ms-round-resolves, .ms-round-limit { margin-top: 11px; font-size: 13px; line-height: 1.75; color: var(--ms-muted); }
 .ms-round-limit { padding-top: 11px; border-top: 1px solid #d7dbd0; }
+.ms-round-rule { margin-top: 20px; max-width: 86ch; font-size: 14px; line-height: 1.75; color: var(--ms-ink); border-left: 2px solid var(--ms-green); padding-left: 16px; }
+.ms-round-rule strong { font-weight: 500; }
 .ms-price-rules { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 48px; margin-top: 26px; counter-reset: ms-rule; }
 .ms-price-rules li { counter-increment: ms-rule; }
 .ms-price-rules h3 { font-size: 16px; line-height: 1.45; letter-spacing: -.025em; }

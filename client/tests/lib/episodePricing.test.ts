@@ -9,6 +9,7 @@ import {
   quoteScreening,
   rounds,
   screeningRound,
+  shortlistRule,
   siteAssessment,
 } from "@/lib/episodePricing";
 
@@ -38,8 +39,17 @@ describe("episode pricing", () => {
   });
 
   it("bounds the shortlist the site fee covers", () => {
-    expect(finalistRound.shortlist).toBe(3);
-    expect(siteAssessment.bounded).toMatch(/up to three finalists/i);
+    expect(finalistRound.shortlist).toBe(5);
+    expect(shortlistRule.cap).toBe(finalistRound.shortlist);
+    expect(siteAssessment.bounded).toMatch(/up to five finalists/i);
+  });
+
+  it("sets the shortlist by what screening can rule out, not by a fixed count", () => {
+    // A fixed shortlist cuts candidates on differences screening cannot
+    // establish; the rule only cuts what it can.
+    expect(shortlistRule.statement).toMatch(/cannot separate from the leader/i);
+    expect(shortlistRule.detail).toMatch(/only cuts a candidate it can rule out/i);
+    expect(screeningRound.resolves).toMatch(/up to five/i);
   });
 
   it("keeps every per-episode rate out of the site's side of the page", () => {

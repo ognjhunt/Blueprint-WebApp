@@ -38,9 +38,9 @@
  *        200            ~12 points               ~6 points
  *        500             ~8 points               ~4 points
  *
- * 50 is a screen and nothing more: it removes a candidate 30 points worse about
- * 88% of the time and one 40 points worse about 99% of the time, and it cannot
- * rank two close candidates. 500 is the smallest count that resolves a gap of
+ * 50 is a screen and nothing more. It is not used to rank: it only cuts a
+ * candidate it can actually rule out, roughly 20 points behind the leader, and
+ * everything closer advances. 500 is the smallest count that resolves a gap of
  * roughly 8 points, which is the size of difference a finalist round actually
  * has to settle. Below about 5 points even 500 episodes cannot call a winner,
  * and the result says so instead.
@@ -80,11 +80,11 @@ export const screeningRound = {
   episodes: 50,
   fundedBy: "robot-team",
   funder: "Paid by the robot team, per checkpoint entered.",
-  purpose: "Cut a long list of checkpoints down to a shortlist.",
+  purpose: "Cut the field to a shortlist, without cutting anything it cannot rule out.",
   resolves:
-    "Removes a candidate roughly 30 points worse about 88% of the time, and one 40 points worse about 99% of the time.",
+    "Every candidate screening cannot separate from the leader goes forward, up to five. At 50 episodes a candidate is only cut once it is roughly 20 points behind — so a close field advances intact rather than being thinned on noise.",
   limit:
-    "It cannot rank two close candidates — at 50 episodes the smallest gap it reliably separates is about 22 points. Screening never names a winner.",
+    "It never names a winner, and it is not a ranking. Screening decides one thing: whether a candidate is far enough behind to rule out.",
 } as const;
 
 /**
@@ -103,10 +103,28 @@ export const finalistRound = {
   limit:
     "Below about 5 points, 500 episodes still cannot call it. The result reports the comparison as too close to separate rather than naming a winner.",
   /** Bounded so "included" is a promise with a number behind it. */
-  shortlist: 3,
+  shortlist: 5,
 } as const;
 
 export const rounds = [screeningRound, finalistRound] as const;
+
+/**
+ * How the shortlist is set. A fixed shortlist of three drops the genuinely best
+ * candidate about a third of the time when the field is tight, because at 50
+ * episodes a tight field is exactly the case screening cannot rank. Advancing
+ * everyone screening cannot rule out fixes that without charging anybody more:
+ * the rule spends finalist episodes where the evidence is ambiguous and saves
+ * them where it is not. Simulated over fifteen candidates, the best candidate
+ * survives screening about 83% of the time on a twenty-point field and about
+ * 98% on a forty-point one, against 66% for a fixed three.
+ */
+export const shortlistRule = {
+  cap: 5,
+  statement:
+    "Everything screening cannot separate from the leader goes forward, up to five.",
+  detail:
+    "Screening only cuts a candidate it can rule out — at 50 episodes, one roughly 20 points behind the leader. A close field therefore carries more candidates into the finalist round, and a clearly separated one carries fewer. Nobody is cut on a difference screening cannot establish.",
+} as const;
 
 /** A site's one charge. All-in, and never quoted per episode. */
 export const siteAssessment = {
@@ -122,7 +140,8 @@ export const siteAssessment = {
   ],
   allIn:
     "One payment, agreed before any work starts. No per-episode charge, nothing to approve once the shortlist is set, and nothing per robot if a pilot goes ahead.",
-  bounded: "Covers a shortlist of up to three finalists.",
+  bounded:
+    "Covers a shortlist of up to five finalists. Screening decides how many that is: only candidates it can rule out are cut, so a close field carries more candidates forward and a clearly separated one carries fewer.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee. */

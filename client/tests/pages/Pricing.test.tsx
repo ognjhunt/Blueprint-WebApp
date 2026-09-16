@@ -28,7 +28,7 @@ describe("Pricing", () => {
     // A site operator should never have to learn what an episode is.
     expect(site.textContent).not.toMatch(/\$0\.50|per episode/i);
     expect(within(site).getByText(/No per-episode charge/i)).toBeInTheDocument();
-    expect(within(site).getByText(/up to three finalists/i)).toBeInTheDocument();
+    expect(within(site).getByText(/up to five finalists/i)).toBeInTheDocument();
   });
 
   it("states the site fee covers the finalist comparison", () => {
@@ -49,9 +49,19 @@ describe("Pricing", () => {
     expect(within(rounds).getByText(/Included in the site's assessment fee/i)).toBeInTheDocument();
   });
 
+  it("states the shortlist rule where the rounds are described", () => {
+    render(<Pricing />);
+    expect(
+      screen.getByText(/Everything screening cannot separate from the leader goes forward, up to five/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/only cuts a candidate it can rule out/i),
+    ).toBeInTheDocument();
+  });
+
   it("says what each round cannot do, next to what it costs", () => {
     render(<Pricing />);
-    expect(screen.getByText(/Screening never names a winner/i)).toBeInTheDocument();
+    expect(screen.getByText(/It never names a winner, and it is not a ranking/i)).toBeInTheDocument();
     expect(screen.getByText(/too close to separate rather than naming a winner/i)).toBeInTheDocument();
   });
 
