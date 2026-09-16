@@ -35,9 +35,22 @@ const CLEAR_GATES: Record<string, string> = {
   accessWindow: "scheduled",
 };
 
+/**
+ * Choose who records the walkthrough. The form opens on self-capture, where the
+ * service-area gate is not asked at all, so a test that cares about geography
+ * has to say it wants a visit first.
+ */
+function chooseCaptureMode(mode: "self_capture" | "site_visit") {
+  fireEvent.change(document.querySelector("#capture-mode")!, { target: { value: mode } });
+}
+
 function answerGates(answers: Record<string, string>) {
   for (const [fieldId, value] of Object.entries(answers)) {
-    fireEvent.change(document.querySelector(`#gate-${fieldId}`)!, { target: { value } });
+    const field = document.querySelector(`#gate-${fieldId}`);
+    // A gate that does not bind under the chosen mode is not rendered.
+    if (field) {
+      fireEvent.change(field, { target: { value } });
+    }
   }
 }
 
@@ -60,6 +73,7 @@ function sentBody() {
 describe("Minimal public screening", () => {
   it("posts gate answers as enums to the inbound-request pipeline with CSRF", async () => {
     render(<Contact />);
+    chooseCaptureMode("site_visit");
     answerGates(CLEAR_GATES);
     fillContact();
     fireEvent.change(document.querySelector("#contact-site-address")!, {
@@ -90,19 +104,39 @@ describe("Minimal public screening", () => {
 
   it("shows a blocked site what would flip it, before it submits", async () => {
     render(<Contact />);
+    chooseCaptureMode("site_visit");
     answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
 
     expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
-    // A rejection that names the change is a reason to come back. It shows in
-    // both the summary line and the itemised blocker, so match either.
-    expect(screen.getAllByText(/Expansion beyond Texas/i).length).toBeGreaterThan(0);
+    // A rejection that names the change is a reason to come back. Since capture
+    // mode became a choice, the change that flips this one is immediate and in
+    // the site's own hands: record the walkthrough themselves, no visit needed.
+    expect(screen.getAllByText(/Recording the walkthrough yourself/i).length).toBeGreaterThan(0);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("stops blocking an out-of-state site once it says it will record itself", async () => {
+    // The change that opens the product beyond Austin. The service area gate is
+    // about whether someone has to drive, so a site holding its own phone is
+    // not held to it.
+    render(<Contact />);
+    chooseCaptureMode("site_visit");
+    answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
+    expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Who records the walkthrough/i), {
+      target: { value: "self_capture" },
+    });
+
+    expect(await screen.findByText(/This clears the screen/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Recording the walkthrough yourself/i)).not.toBeInTheDocument();
   });
 
   it("keeps the spec questions hidden until the gates pass", async () => {
     render(<Contact />);
     expect(document.querySelector("#spec-cycleTime")).toBeNull();
 
+    chooseCaptureMode("site_visit");
     answerGates(CLEAR_GATES);
     await waitFor(() => expect(document.querySelector("#spec-cycleTime")).not.toBeNull());
   });
@@ -117,6 +151,7 @@ describe("Minimal public screening", () => {
 
   it("refuses to submit until the required fields are there", async () => {
     render(<Contact />);
+    chooseCaptureMode("site_visit");
     answerGates(CLEAR_GATES);
     fireEvent.submit(screen.getByRole("form"));
 
@@ -130,6 +165,7 @@ describe("Minimal public screening", () => {
       vi.fn().mockResolvedValue({ ok: false, json: async () => ({ message: "Service temporarily unavailable" }) }),
     );
     render(<Contact />);
+    chooseCaptureMode("site_visit");
     answerGates(CLEAR_GATES);
     fillContact();
     fireEvent.change(document.querySelector("#contact-site-address")!, {

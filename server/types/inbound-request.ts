@@ -1079,6 +1079,12 @@ export interface InboundRequestPayload {
   taskStatement?: string;
   /** Structured qualifying answers, keyed by field id. Enums only. */
   siteTaskGates?: Record<string, string> | null;
+  /**
+   * Who records the walkthrough: `self_capture` or `site_visit`. Decides
+   * whether the service-area gate binds, because that gate is about our
+   * driving rather than about the site. Absent means `site_visit`.
+   */
+  captureMode?: string | null;
   /** Spec-tier answers. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** Free-text task description, read by the narrative review against the gates. */

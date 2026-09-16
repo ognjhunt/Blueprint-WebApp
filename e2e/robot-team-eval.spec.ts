@@ -12,13 +12,17 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   await expect(page.getByText(/site-funded manipulation evaluations/)).toBeVisible();
   await expect(page.getByText(/applying does not guarantee either/)).toBeVisible();
   // The robot side screens on whether a team would deploy, not on whether a
-  // room works, so it must never show the site gates.
+  // room works, so it must never show the site gates or be asked who records
+  // a walkthrough -- a robot team is never captured.
   await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  await expect(page.locator("#capture-mode")).toHaveCount(0);
   await expect(page.locator("#gate-hardwareMaturity")).toBeVisible();
   await page.goto("/for-site-operators");
   await expect(page).toHaveURL(/\/contact\/site-operator/);
   await expect(page.getByText(/paid evaluation/)).toBeVisible();
-  await expect(page.locator("#gate-serviceArea")).toBeVisible();
+  // The site marker is the capture-mode question. Service area is only asked
+  // once a visit is requested, so it is not the persona tell any more.
+  await expect(page.locator("#capture-mode")).toBeVisible();
 });
 
 test("both persona destinations are usable on mobile", async ({ page }) => {

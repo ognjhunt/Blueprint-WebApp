@@ -54,6 +54,8 @@ import paperclipAdpExecutionRouter from "./routes/paperclip-adp-execution";
 import internalCaptureQaRouter from "./routes/internal-capture-qa";
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
+import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
+import adminOutboundProspectsRouter from "./routes/admin-outbound-prospects";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
@@ -111,6 +113,9 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureQaRouter);
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
   app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
+  // Public by design: the signed link in the path is the credential.
+  app.use("/api/self-capture/uploads", selfCaptureUploadsRouter);
+  app.use("/api/admin/outbound-prospects", adminOutboundProspectsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);

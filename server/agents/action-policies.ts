@@ -110,6 +110,27 @@ export const INBOUND_POLICY: LaneSafetyPolicy = {
   contentChecks: true,
 };
 
+/**
+ * Cold outbound, during the beta.
+ *
+ * `autoApproveCriteria` returns false unconditionally, which is the point: a
+ * person reads every one of the first cold emails before it sends. That is the
+ * same discipline as picking the facilities by hand -- you do not automate
+ * sending before you have read what the writer produces, and twenty emails is
+ * a sample small enough to read and large enough to learn from.
+ *
+ * The daily cap is deliberately tiny. A new sending domain that suddenly emits
+ * volume is a domain that stops being delivered, and a beta that needs more
+ * than a handful of sends a day is not yet a beta.
+ */
+export const OUTBOUND_PROSPECT_POLICY: LaneSafetyPolicy = {
+  lane: "outbound_prospect",
+  autoApproveCriteria: () => false,
+  alwaysHumanReview: () => true,
+  maxDailyAutoSends: 5,
+  contentChecks: true,
+};
+
 export const SUPPORT_POLICY: LaneSafetyPolicy = {
   lane: "support",
   autoApproveCriteria: (draft) =>

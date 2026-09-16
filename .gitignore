@@ -83,3 +83,9 @@ client/public/generated/*
 
 # committed-artifact hygiene (2026-07-20)
 tmp/
+
+# Local Playwright override. This container's Chromium build does not match the
+# version @playwright/test pins, so verifying e2e locally needs a config that
+# points `executablePath` at the pre-installed browser. It hardcodes an absolute
+# path and must never be committed.
+playwright.local-verify.config.ts

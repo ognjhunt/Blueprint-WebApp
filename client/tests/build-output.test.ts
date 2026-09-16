@@ -218,10 +218,17 @@ describe("build output", () => {
     expect(siteHtml).toContain("paid evaluation");
     // Budget moved into the spec tier behind the gates -- it is a matching
     // parameter, not a screen. The persona distinction in prerendered HTML is
-    // now the gate set itself.
-    expect(siteHtml).toContain('id="gate-serviceArea"');
+    // the gate set itself.
+    //
+    // The site form opens on self-capture, where the service-area gate is not
+    // asked at all, so the markers are the capture-mode question (asked only of
+    // sites) and a gate that binds under every mode.
+    expect(siteHtml).toContain('id="capture-mode"');
+    expect(siteHtml).toContain('id="gate-sceneStability"');
+    expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Bring your robot. Find the fit.");
     expect(robotHtml).toContain("applying does not guarantee either");
+    expect(robotHtml).not.toContain('id="capture-mode"');
     expect(robotHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain('id="gate-hardwareMaturity"');
     for (const route of ["index.html", "contact/site-operator/index.html", "contact/robot-team/index.html", "privacy/index.html", "terms/index.html"]) {

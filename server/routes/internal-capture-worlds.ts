@@ -42,7 +42,12 @@ const reconstructBody = z
 const advanceBody = z
   .object({
     operation_id: z.string().trim().min(1).max(200),
-    export_assets: z.boolean().optional(),
+    /**
+     * Download formats to produce. Omitted means none: a finished world already
+     * carries splats, a collider mesh and a panorama, and the HQ mesh is a slow
+     * billed export nobody should get by accident.
+     */
+    exports: z.array(z.enum(["splat_ply", "mesh_glb"])).max(2).optional(),
     splat_resolution: z.enum(["full_res", "500k", "150k", "100k"]).optional(),
   })
   .strict();
@@ -152,7 +157,7 @@ router.post(
     try {
       const record = await advanceWorldReconstruction({
         operationId: parsed.data.operation_id,
-        exportAssets: parsed.data.export_assets,
+        exports: parsed.data.exports,
         splatResolution: parsed.data.splat_resolution,
       });
 

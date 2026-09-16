@@ -30,7 +30,20 @@ const mockIntakeSubmission = async (page: import("@playwright/test").Page) => {
   return submissions;
 };
 
+/**
+ * Choose who records the walkthrough. The form opens on self-capture, where the
+ * service-area gate is not asked at all, so a test about geography has to say
+ * it wants a visit first.
+ */
+const chooseCaptureMode = async (
+  page: import("@playwright/test").Page,
+  mode: "self_capture" | "site_visit",
+) => {
+  await page.locator("#capture-mode").selectOption(mode);
+};
+
 const clearEverySiteGate = async (page: import("@playwright/test").Page) => {
+  await chooseCaptureMode(page, "site_visit");
   await page.locator("#gate-serviceArea").selectOption("austin_metro");
   await page.locator("#gate-sceneStability").selectOption("stable");
   await page.locator("#gate-taskShape").selectOption("single");
@@ -47,6 +60,11 @@ test("site-operator page leads with the questions that can end a submission", as
   await expect(
     page.getByRole("heading", { name: /Let’s start with your site/i }),
   ).toBeVisible();
+  // Self-capture is what a site is offered first, and it is not held to a
+  // service area, so that gate is absent until a visit is asked for.
+  await expect(page.locator("#capture-mode")).toBeVisible();
+  await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  await chooseCaptureMode(page, "site_visit");
   await expect(page.locator("#gate-serviceArea")).toBeVisible();
   // The spec tier stays hidden until the gates pass.
   await expect(page.locator("#spec-cycleTime")).toHaveCount(0);
@@ -68,10 +86,32 @@ test("a blocking answer names the change that would flip it, before submitting",
 }) => {
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
 
+  await chooseCaptureMode(page, "site_visit");
   await page.locator("#gate-serviceArea").selectOption("outside_texas");
 
   await expect(page.getByText(/Not yet/i).first()).toBeVisible();
-  await expect(page.getByText(/Expansion beyond Texas/i).first()).toBeVisible();
+  // The change that flips it is now immediate and in the site's own hands.
+  await expect(
+    page.getByText(/Recording the walkthrough yourself/i).first(),
+  ).toBeVisible();
+});
+
+test("an out-of-state site stops being blocked once it says it will record itself", async ({
+  page,
+}) => {
+  // The change that opens the product beyond Austin: the service-area gate is
+  // about whether anyone has to drive, so a site holding its own phone is not
+  // held to it.
+  await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+
+  await chooseCaptureMode(page, "site_visit");
+  await page.locator("#gate-serviceArea").selectOption("outside_texas");
+  await expect(page.getByText(/Not yet/i).first()).toBeVisible();
+
+  await chooseCaptureMode(page, "self_capture");
+
+  await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  await expect(page.getByText(/Not yet/i)).toHaveCount(0);
 });
 
 test("clearing the gates reveals the spec tier and reports the verdict", async ({ page }) => {
