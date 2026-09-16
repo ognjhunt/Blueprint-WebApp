@@ -32,6 +32,114 @@ type UploadState =
   | { status: "done" }
   | { status: "failed"; message: string };
 
+type VideoMetadata = {
+  widthPx: number;
+  heightPx: number;
+  fps: number;
+  durationSeconds: number;
+  recordedAtEpochMs: number;
+};
+
+/**
+ * Measure the video, rather than describe it.
+ *
+ * Width, height and duration come off the element once metadata loads. Frame
+ * rate is the awkward one: no browser exposes it as a property, so it is
+ * counted. `requestVideoFrameCallback` reports how many frames have actually
+ * been presented and the media time they cover, and dividing one by the other
+ * is a real measurement over a real sample.
+ *
+ * Where that API is missing, this returns null and the caller refuses the
+ * upload. That is deliberate. The alternative is defaulting to 30 and writing
+ * it into the capture record as an observation, and a number nobody measured
+ * is worse than a failure somebody can see.
+ */
+async function readVideoMetadata(file: File): Promise<VideoMetadata | null> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.playsInline = true;
+  video.src = url;
+
+  try {
+    const loaded = await new Promise<boolean>((resolve) => {
+      const done = (ok: boolean) => resolve(ok);
+      video.onloadedmetadata = () => done(true);
+      video.onerror = () => done(false);
+      // A file the browser cannot decode would otherwise hang here forever.
+      setTimeout(() => done(false), 15_000);
+    });
+
+    if (!loaded || !video.videoWidth || !video.videoHeight || !Number.isFinite(video.duration)) {
+      return null;
+    }
+
+    const fps = await measureFps(video);
+    if (!fps) return null;
+
+    return {
+      widthPx: video.videoWidth,
+      heightPx: video.videoHeight,
+      fps: Math.round(fps * 100) / 100,
+      durationSeconds: video.duration,
+      // What the phone recorded, when we can tell. `lastModified` is the file's
+      // own timestamp rather than the moment it was uploaded.
+      recordedAtEpochMs: file.lastModified || Date.now(),
+    };
+  } finally {
+    video.src = "";
+    URL.revokeObjectURL(url);
+  }
+}
+
+type FrameCallbackVideo = HTMLVideoElement & {
+  requestVideoFrameCallback?: (
+    callback: (now: number, metadata: { mediaTime: number; presentedFrames: number }) => void,
+  ) => number;
+};
+
+function measureFps(video: HTMLVideoElement): Promise<number | null> {
+  const withCallback = video as FrameCallbackVideo;
+  if (typeof withCallback.requestVideoFrameCallback !== "function") {
+    return Promise.resolve(null);
+  }
+
+  return new Promise<number | null>((resolve) => {
+    let first: { mediaTime: number; presentedFrames: number } | null = null;
+    let settled = false;
+
+    const finish = (value: number | null) => {
+      if (settled) return;
+      settled = true;
+      video.pause();
+      resolve(value);
+    };
+
+    const onFrame = (_now: number, metadata: { mediaTime: number; presentedFrames: number }) => {
+      if (!first) {
+        first = metadata;
+      } else {
+        const elapsed = metadata.mediaTime - first.mediaTime;
+        const frames = metadata.presentedFrames - first.presentedFrames;
+        // Sample about a second of real playback before dividing; a couple of
+        // frames is not enough to tell 24 from 30.
+        if (elapsed >= 0.75 && frames > 0) {
+          const fps = frames / elapsed;
+          finish(Number.isFinite(fps) && fps > 0 && fps < 1000 ? fps : null);
+          return;
+        }
+      }
+      withCallback.requestVideoFrameCallback?.(onFrame);
+    };
+
+    withCallback.requestVideoFrameCallback?.(onFrame);
+    void video.play().catch(() => finish(null));
+    // Autoplay refused, a still frame, or a stalled decode all land here.
+    setTimeout(() => finish(null), 8_000);
+  });
+}
+
 const FILM_STEPS = [
   "Stand where someone doing the job would stand, and start recording.",
   "Walk one slow lap around the work area — all the way around if you can.",
@@ -87,11 +195,30 @@ export default function SelfCaptureUpload() {
   }, [token]);
 
   const send = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setFileName(file.name);
       setUpload({ status: "uploading", percent: 0 });
 
+      // The server cannot read these: it has no ffprobe, and the extractor
+      // refuses a manifest without width, height and a frame rate. So they are
+      // measured here, off the real file, and a failure to measure stops the
+      // upload rather than shipping a guess that would ride along in the
+      // capture record as though somebody had observed it.
+      const metadata = await readVideoMetadata(file);
+      if (!metadata) {
+        setUpload({
+          status: "failed",
+          message:
+            "We could not read this video. Record it in your phone's camera app and pick it from your library, rather than using a link or a screen recording.",
+        });
+        return;
+      }
+
+      // Metadata first, file second. Multer buffers the whole request either
+      // way, but a streaming parser reaches the small field before the hundreds
+      // of megabytes behind it, and nothing is gained by the other order.
       const body = new FormData();
+      body.append("metadata", JSON.stringify(metadata));
       body.append("video", file);
 
       const request = new XMLHttpRequest();
@@ -188,7 +315,7 @@ export default function SelfCaptureUpload() {
                 style={{ display: "none" }}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
-                  if (file) send(file);
+                  if (file) void send(file);
                 }}
               />
 
