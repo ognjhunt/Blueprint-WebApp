@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Free core site and robot-team access, plus a site-paid success fee when a deployment produces collected provider revenue.",
+      "Two prices: a one-time site-task assessment fee paid by the site, and a per-episode rate robot teams draw from a prepaid balance. No subscription on either side.",
   },
   {
     path: "/contact",

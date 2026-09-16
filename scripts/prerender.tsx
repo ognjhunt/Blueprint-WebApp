@@ -13,6 +13,7 @@ import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import HowItWorks from "../client/src/pages/HowItWorks";
+import Pricing from "../client/src/pages/Pricing";
 import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
@@ -99,6 +100,7 @@ const PrerenderFallbackSummary = () => (
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
+  { path: "/pricing", component: Pricing },
   { path: "/capture", component: Capture },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },

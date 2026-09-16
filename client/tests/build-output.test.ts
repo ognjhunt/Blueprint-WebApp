@@ -48,6 +48,7 @@ describe("build output", () => {
     [
       "index.html",
       "how-it-works/index.html",
+      "pricing/index.html",
       "sites/index.html",
       "capture/index.html",
       "contact/robot-team/index.html",
@@ -95,7 +96,6 @@ describe("build output", () => {
 
   it("does not prerender retired aliases or protected operations routes", () => {
     [
-      "pricing/index.html",
       "proof/index.html",
       "for-robot-teams/index.html",
       "for-site-operators/index.html",
@@ -149,10 +149,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(6);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(7);
 
     [
       "https://tryblueprint.io/product",

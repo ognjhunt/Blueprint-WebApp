@@ -12,5 +12,5 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(page.getByText(/clear reason to pause/)).toBeVisible();
   await expect(page.getByText(/site and robot team run the physical pilot/)).toBeVisible();
   await expect(page.getByText("Illustrative scenes", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Pricing", exact: true })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
 });
