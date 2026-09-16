@@ -8,12 +8,13 @@ A Task Evaluation Run is a paid engagement around a qualified site opportunity. 
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
+- [Pricing](https://tryblueprint.io/pricing)
 - [Discuss your site](https://tryblueprint.io/contact/site-operator)
 - [Apply as a robot team](https://tryblueprint.io/contact/robot-team)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot-team participation depends on task fit and site approval. Scope and pricing are agreed before evaluation begins. Contact: hello@tryblueprint.io.
+Robot-team participation depends on task fit and site approval. A site pays $2,500 once per site-task for a scoped assessment; robot teams pay $0.50 per standard episode from a prepaid balance, quoted before a run starts. Scope is agreed before evaluation begins. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

@@ -85,6 +85,6 @@ test("robots and sitemap are publicly reachable", async ({ request }) => {
   const sitemapText = await sitemap.text();
   expect(sitemapText).toContain("https://tryblueprint.io/contact/site-operator");
   expect(sitemapText).toContain("https://tryblueprint.io/contact/robot-team");
-  expect(sitemapText).not.toContain("https://tryblueprint.io/pricing");
+  expect(sitemapText).toContain("https://tryblueprint.io/pricing");
   expect(sitemapText).not.toContain("https://tryblueprint.io/world-models");
 });

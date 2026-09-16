@@ -12,7 +12,9 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/"');
     expect(source).toContain('path: "/sites"');
     expect(source).toContain('path: "/sites/:slug"');
-    expect(minimalMarketingRedirects["/pricing"]).toBe("/contact/site-operator");
+    // /pricing is a page of its own again, not a redirect into the site intake.
+    expect(source).toContain('path: "/pricing"');
+    expect(minimalMarketingRedirects["/pricing"]).toBeUndefined();
     expect(minimalMarketingRedirects["/proof"]).toBe("/#how-it-works");
     expect(source).toContain('path: "/contact"');
     expect(minimalMarketingRedirects["/for-robot-teams"]).toBe("/contact/robot-team");

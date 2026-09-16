@@ -121,7 +121,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
-  for (const [from, to] of [["/pricing", "/contact/site-operator"], ["/for-robot-teams", "/contact/robot-team"], ["/about", "/"], ["/governance", "/privacy"]]) {
+  for (const [from, to] of [["/for-robot-teams", "/contact/robot-team"], ["/about", "/"], ["/governance", "/privacy"]]) {
     await page.goto(`${from}?source=legacy-review`);
     await expect(page).toHaveURL(new RegExp(`${to.replaceAll("/", "\\/")}\\?source=legacy-review`));
     await expect(page.locator(".minimal-site h1")).toBeVisible();

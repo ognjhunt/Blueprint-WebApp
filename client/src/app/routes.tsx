@@ -40,6 +40,7 @@ function lazyRoute<P = any>(
 }
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
+const Pricing = lazyRoute(() => import("../pages/Pricing"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
@@ -232,6 +233,7 @@ export const appRoutes: AppRoute[] = [
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/pricing", layout: "public", component: Pricing },
   { path: "/launch-map", layout: "public", component: CaptureLaunchAccess },
 
   // Capture / Earn direct flows
