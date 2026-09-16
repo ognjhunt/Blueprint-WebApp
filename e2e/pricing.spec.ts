@@ -24,7 +24,7 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
 
   // A free site is told what funds this and what is still not free, rather
   // than discovering later that it was never the customer.
-  await expect(page.getByText(/Robot teams pay to be screened against real sites/i)).toBeVisible();
+  await expect(page.getByText(/Robot teams pay for evaluation runs/i)).toBeVisible();
   await expect(page.getByText(/A physical pilot/i)).toBeVisible();
   // And a team is told money cannot buy a longer run than a rival.
   await expect(page.getByText(/You cannot buy more episodes than a rival/i)).toBeVisible();

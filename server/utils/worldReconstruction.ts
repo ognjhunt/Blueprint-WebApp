@@ -19,10 +19,14 @@
  * proceed says which blocker stopped it rather than looking finished, and
  * calling it twice does not generate a second world.
  *
- * What it deliberately does not do is decide whether a capture is good enough.
- * That judgement stays where it already lives.
+ * It does not judge whether a *site* is worth reconstructing — that is settled
+ * by the gates long before an upload link is issued. What it does now check,
+ * when a caller supplies a reviewer, is whether the footage in hand actually
+ * shows the task, because the gates cannot screen a video that did not exist
+ * when they ran. See `captureReviewGate`.
  */
 
+import { logger } from "../logger";
 import {
   exportWorldAsset,
   generateWorldFromFrames,
@@ -32,6 +36,11 @@ import {
   type WorldLabsPreviewSummary,
 } from "./worldlabs";
 import { loadCaptureFrames } from "./worldlabsFrames";
+import {
+  decideReconstructionFromReview,
+  describeReconstructionReview,
+} from "./captureReviewGate";
+import type { SiteVideoEvidenceOutput } from "../agents/tasks/site-video-evidence";
 import type { FrameCandidate } from "./worldModelProfiles";
 
 export type WorldReconstructionState =
@@ -116,6 +125,21 @@ export interface StartWorldReconstructionParams {
   assetMetadata?: Record<string, unknown>;
   /** Injectable for tests. Defaults to reading the capture's frame index. */
   loadFrames?: (framesPrefixUri: string) => Promise<FrameCandidate[]>;
+  /**
+   * Read the walkthrough before paying to reconstruct it.
+   *
+   * Optional, and absent means no review — which keeps every existing caller,
+   * including the iOS capture path, behaving exactly as it did. When supplied
+   * it runs after the frames load (free) and before generation (not), and it
+   * can only ever stop a reconstruction, never start one.
+   *
+   * Returning `null` is a failure, not an abstention: a reviewer that was asked
+   * and did not answer blocks, because the alternative is spending on footage
+   * nothing has confirmed shows the task.
+   */
+  reviewCapture?: () => Promise<SiteVideoEvidenceOutput | null>;
+  /** Gates that bind for this submission, so a contradiction is scored honestly. */
+  bindingFieldIds?: readonly string[];
 }
 
 /**
@@ -142,6 +166,34 @@ export async function startWorldReconstruction(
 
   if (!frames.length) {
     return blocked("capture_frames_empty");
+  }
+
+  // The last thing before money moves. Frames are already in our bucket and
+  // cost nothing to have loaded; the generation below is billed. So this is
+  // where a video that does not show the task gets stopped, rather than after
+  // it has produced a scene that looks like a result.
+  if (params.reviewCapture) {
+    let evidence: SiteVideoEvidenceOutput | null = null;
+    try {
+      evidence = await params.reviewCapture();
+    } catch (error) {
+      logger.warn(
+        { error, framesPrefixUri: params.framesPrefixUri },
+        "Capture footage review failed; holding reconstruction rather than spending",
+      );
+      evidence = null;
+    }
+
+    const review = decideReconstructionFromReview({
+      evidence,
+      bindingFieldIds: params.bindingFieldIds,
+    });
+
+    if (!review.reconstruct) {
+      return blocked(review.blocker, {
+        failureReason: describeReconstructionReview(review),
+      });
+    }
   }
 
   try {

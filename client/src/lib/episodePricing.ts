@@ -171,8 +171,15 @@ export const siteAssessment = {
    * Stated rather than implied. A site that pays nothing is not the customer,
    * and pretending otherwise is the dishonest version of this model.
    */
+  /**
+   * Precise about what a robot team actually receives, because the loose
+   * version — "they buy your footage" — is both wrong and alarming. They buy
+   * evaluation runs. What they run against is the 3D scene reconstructed from
+   * the walkthrough; the walkthrough itself is an input we hold, not a product
+   * we resell.
+   */
   whatWeGetFromIt:
-    "Robot teams pay to be screened against real sites, and that is what funds this. Your walkthrough becomes the environment they are evaluated in, under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for evaluation runs, and that is what funds this. They never receive your recording — it is reconstructed into a 3D scene, and the scene is what their robots are tested in, under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
     "A physical pilot. That is a real commitment with real cost, quoted when there is something to buy rather than something to learn.",
 } as const;

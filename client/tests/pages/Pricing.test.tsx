@@ -45,8 +45,8 @@ describe("Pricing", () => {
     // A site that pays nothing is not the customer. Saying so on the page is
     // the difference between this model and the dishonest version of it.
     render(<Pricing />);
-    expect(screen.getByText(/Robot teams pay to be screened against real sites/i)).toBeInTheDocument();
-    expect(screen.getByText(/under the rights you grant at intake and nothing wider/i)).toBeInTheDocument();
+    expect(screen.getByText(/Robot teams pay for evaluation runs/i)).toBeInTheDocument();
+    expect(screen.getByText(/never receive your recording/i)).toBeInTheDocument();
     expect(screen.getByText(/A physical pilot/i)).toBeInTheDocument();
   });
 
