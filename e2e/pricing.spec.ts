@@ -7,8 +7,9 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
     "Robot teams pay to be screened.",
   );
 
-  const site = page.locator("section", { has: page.getByRole("heading", { name: /scoped assessment of one task at one site/i }) });
-  await expect(site.getByText("$2,500", { exact: true })).toBeVisible();
+  const site = page.locator("section", { has: page.getByRole("heading", { name: /assessment of one task at one site/i }) });
+  await expect(site.getByText("$0", { exact: true })).toBeVisible();
+  await expect(site.getByText(/No fee, no per-episode charge, and no card/i)).toBeVisible();
   await expect(site.getByRole("link", { name: /Discuss your site/i })).toHaveAttribute(
     "href",
     "/contact/site-operator",
@@ -21,8 +22,16 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
     "/contact/robot-team",
   );
 
-  // The old model is gone from the public surface entirely.
-  await expect(page.getByText(/site pays nothing|\$0 for sites|\$10,000 if you win/)).toHaveCount(0);
+  // A free site is told what funds this and what is still not free, rather
+  // than discovering later that it was never the customer.
+  await expect(page.getByText(/Robot teams pay to be screened against real sites/i)).toBeVisible();
+  await expect(page.getByText(/A physical pilot/i)).toBeVisible();
+  // And a team is told money cannot buy a longer run than a rival.
+  await expect(page.getByText(/You cannot buy more episodes than a rival/i)).toBeVisible();
+
+  // The superseded deployment-marketplace model stays off this page. Sites now
+  // pay nothing, but never via win fees -- that is a different product surface.
+  await expect(page.getByText(/\$10,000 if you win|\$1,000 to evaluate/)).toHaveCount(0);
 });
 
 test("pricing shows the episode definition and the arithmetic behind a quote", async ({ page }) => {
@@ -78,7 +87,7 @@ test("a site never sees a per-episode rate, and a shortlisted team owes nothing 
   const rounds = page.locator("section", { has: page.getByRole("heading", { name: "The two rounds" }) });
   await expect(rounds.getByText("Screening", { exact: true })).toBeVisible();
   await expect(rounds.getByText("Finalist comparison", { exact: true })).toBeVisible();
-  await expect(rounds.getByText(/Included in the site's assessment fee/i)).toBeVisible();
+  await expect(rounds.getByText(/Funded and run by Blueprint/i)).toBeVisible();
 
   await expect(page.getByRole("heading", { name: /Being shortlisted never costs you more/i })).toBeVisible();
   await expect(page.getByText(/Everything screening cannot separate from the leader goes forward, up to five/i)).toBeVisible();

@@ -41,7 +41,7 @@ import {
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Two prices. A site pays $2,500 once, all-in, for a scoped site-task assessment. Robot teams pay $0.50 per episode to screen checkpoints — and nothing more if they are shortlisted.";
+  "Sites pay nothing to find out whether a robot can do the job. Robot teams pay $0.50 per episode to screen checkpoints against real sites — and nothing more if they are shortlisted.";
 
 const sampleBalance = 200;
 const perCheckpoint = quoteScreening(1);
@@ -65,8 +65,11 @@ export default function Pricing() {
       <article className="ms-pricing ms-container">
         <header className="ms-pricing-intro">
           <p className="ms-eyebrow">Pricing</p>
-          <h1>Sites pay for the assessment.<br />Robot teams pay to be screened.</h1>
-          <p>Two prices, two payers. One payment each, and no subscription on either side.</p>
+          <h1>Sites pay nothing to find out.<br />Robot teams pay to be screened.</h1>
+          <p>
+            One payer. A site records a walkthrough and gets an answer; robot teams pay for
+            access to real sites, and that is what funds it.
+          </p>
         </header>
 
         <div className="ms-price-split">
@@ -82,6 +85,15 @@ export default function Pricing() {
             </ul>
             <p className="ms-price-note"><strong>{siteAssessment.allIn}</strong></p>
             <p className="ms-price-note">{siteAssessment.bounded}</p>
+            {/*
+              Said plainly on the page rather than buried in terms. A site that
+              pays nothing is not the customer, and letting someone discover
+              that later is the dishonest version of this model.
+            */}
+            <p className="ms-price-note">{siteAssessment.whatWeGetFromIt}</p>
+            <p className="ms-price-note">
+              <strong>What is not free:</strong> {siteAssessment.whatIsNotFree}
+            </p>
             <a className="ms-text-link" href="/contact/site-operator">
               Discuss your site <ArrowRight size={20} aria-hidden="true" />
             </a>
@@ -102,6 +114,12 @@ export default function Pricing() {
             <ul className="ms-price-list">
               {balanceModel.notCharged.map((item) => <li key={item}>{item}</li>)}
             </ul>
+            {/*
+              The first question a team should ask about a model where vendors
+              fund the system: can a richer rival buy a longer run? Answered
+              here rather than left to be discovered.
+            */}
+            <p className="ms-price-note"><strong>{balanceModel.fairness}</strong></p>
             <p className="ms-price-note">
               Your balance is held in dollars, so a rate that differs for an unusual workload stays
               honest. {formatPrice(sampleBalance)} is {formatCount(episodesForBalance(sampleBalance))}{" "}

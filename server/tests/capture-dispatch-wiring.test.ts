@@ -2,9 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  createInboundEmailPolicy,
   decideDispatchForRequest,
   nextStepForDispatch,
 } from "../agents/workflows";
+import { INBOUND_POLICY } from "../agents/action-policies";
 import {
   buildLetsTalkEmail,
   buildMatchEmail,
@@ -294,5 +296,68 @@ describe("an outbound reply can actually reach the intake it is meant for", () =
 
     expect(intake.gateAnswerSources).toEqual({ sceneStability: "inferred" });
     expect(intake.captureMode).toBe("self_capture");
+  });
+});
+
+describe("a person is kept where something is actually being committed", () => {
+  const SELF_CAPTURE = {
+    dispatch: true as const,
+    channel: "self_capture_upload" as const,
+    captureMode: "self_capture" as const,
+  };
+  const VISIT = {
+    dispatch: true as const,
+    channel: "capturer_visit" as const,
+    captureMode: "site_visit" as const,
+  };
+  const qualified = { recommendation: "qualified_ready", confidence: 0.95 };
+
+  it("stops queueing a fixed email that carries a free link", () => {
+    // The gate this replaces held every qualified site, which is the one case
+    // the whole self-capture path exists for. Nothing is committed here: the
+    // link expires and either side can ignore it.
+    const policy = createInboundEmailPolicy({ deterministic: true, dispatch: SELF_CAPTURE });
+
+    expect(policy.alwaysHumanReview(qualified)).toBe(false);
+    expect(policy.autoApproveCriteria(qualified)).toBe(true);
+  });
+
+  it("keeps the person when somebody has to drive", () => {
+    const policy = createInboundEmailPolicy({ deterministic: true, dispatch: VISIT });
+    expect(policy.alwaysHumanReview(qualified)).toBe(true);
+  });
+
+  it("keeps the person when the body is model prose rather than fixed copy", () => {
+    // `buyer_follow_up` is written by a model, so the review-the-copy-once
+    // argument does not apply to it.
+    const policy = createInboundEmailPolicy({ deterministic: false, dispatch: SELF_CAPTURE });
+    expect(policy.alwaysHumanReview(qualified)).toBe(true);
+  });
+
+  it("never overrides a concern raised upstream", () => {
+    const policy = createInboundEmailPolicy({ deterministic: true, dispatch: SELF_CAPTURE });
+
+    expect(policy.alwaysHumanReview({ ...qualified, requires_human_review: true })).toBe(true);
+    expect(policy.alwaysHumanReview({ ...qualified, automation_status: "blocked" })).toBe(true);
+    expect(policy.alwaysHumanReview({ recommendation: "escalated_to_geometry" })).toBe(true);
+    expect(
+      policy.autoApproveCriteria({ ...qualified, requires_human_review: true }),
+    ).toBe(false);
+  });
+
+  it("leaves the shared lane policy alone for every other caller", () => {
+    // Only this one email narrows. INBOUND_POLICY stays the conservative
+    // default, so nothing else in the lane loosens by accident.
+    expect(INBOUND_POLICY.alwaysHumanReview(qualified)).toBe(true);
+  });
+
+  it("dispatches a qualified self-capture site now that the prompt stopped flagging it", () => {
+    // The end-to-end point of the change: the flag the prompt used to set on
+    // every qualified site fed straight into this, so dispatch held for exactly
+    // the submissions it exists to serve.
+    expect(decideDispatchForRequest(request(), false)).toMatchObject({
+      dispatch: true,
+      channel: "self_capture_upload",
+    });
   });
 });

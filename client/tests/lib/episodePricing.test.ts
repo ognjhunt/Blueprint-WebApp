@@ -24,10 +24,14 @@ describe("episode pricing", () => {
     expect(quoteScreening(6).usd).toBe(quoteScreening(1).usd * 6);
   });
 
-  it("offers exactly two rounds, funded by different parties", () => {
+  it("offers exactly two rounds, and no contestant funds its own final", () => {
     expect(rounds).toHaveLength(2);
     expect(screeningRound.fundedBy).toBe("robot-team");
-    expect(finalistRound.fundedBy).toBe("site");
+    // Not "site" and not "robot-team". A finalist round bought by its own
+    // contestant is an auction: the richest entrant buys the longest run and
+    // therefore the tightest interval. Blueprint setting the count is the
+    // whole reason the comparison is a comparison.
+    expect(finalistRound.fundedBy).toBe("blueprint");
   });
 
   it("sets the finalist round large enough to be worth running after screening", () => {
@@ -77,7 +81,10 @@ describe("episode pricing", () => {
 
   it("keeps cents on the rate and drops them on whole dollars", () => {
     expect(formatPrice(episodeRate)).toBe("$0.50");
-    expect(formatPrice(siteAssessment.amount)).toBe("$2,500");
+        // Free to find out. A price here -- any price -- reintroduces procurement,
+    // which is weeks, and the ten-minute path dies with it.
+    expect(siteAssessment.amount).toBe(0);
+    expect(formatPrice(siteAssessment.amount)).toBe("$0");
     expect(formatPrice(quoteScreening(6).usd)).toBe("$150");
   });
 });

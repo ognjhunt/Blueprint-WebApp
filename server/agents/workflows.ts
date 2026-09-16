@@ -513,8 +513,63 @@ function createWaitlistEmailPolicy(): LaneSafetyPolicy {
   };
 }
 
-function createInboundEmailPolicy(): LaneSafetyPolicy {
-  return INBOUND_POLICY;
+/**
+ * Whether a person has to read this particular inbound email before it goes.
+ *
+ * `INBOUND_POLICY` queues every `qualified_ready` / `qualified_risky` email for
+ * approval, and the qualification prompt separately tells the model to flag
+ * those states. Both were written when qualifying a site meant committing to
+ * send somebody to it — the prompt says so in as many words, "those
+ * recommendations can change buyer-facing commitments".
+ *
+ * Self-capture changed what qualifying commits us to. A qualified site that
+ * films its own workcell gets a signed upload link: it costs nothing, it
+ * expires, and either side can ignore it. Holding that behind a person is the
+ * same category error the service-area gate made — treating a fact about our
+ * old cost structure as a fact about the submission.
+ *
+ * So the gate narrows to what is actually being committed, and the
+ * conservative default stays everywhere else:
+ *
+ * - **A capturer visit** still needs a person. Somebody drives to a real
+ *   address, and that is a real commitment.
+ * - **A model-written follow-up** still needs a person. The deterministic
+ *   variants are fixed copy selected by the site's own answers, which is what
+ *   `qualificationEmails` means by reviewing the copy once instead of
+ *   spot-checking every send. `buyer_follow_up` is model prose and gets no
+ *   such guarantee.
+ * - **Anything upstream asked a person for** still gets one: `blocked`, and
+ *   the rights, privacy, payout and commercial concerns that set
+ *   `requires_human_review`, are untouched here.
+ *
+ * What is left auto-sending is a pre-reviewed, deterministic email carrying a
+ * free link to a site that asked for one.
+ */
+export function createInboundEmailPolicy(params: {
+  /** True when the body is the deterministic gate-built copy, not model prose. */
+  deterministic: boolean;
+  dispatch: CaptureDispatchDecision;
+}): LaneSafetyPolicy {
+  const commitsAVisit = params.dispatch.dispatch && params.dispatch.channel === "capturer_visit";
+  if (!params.deterministic || commitsAVisit) {
+    return INBOUND_POLICY;
+  }
+
+  return {
+    ...INBOUND_POLICY,
+    autoApproveCriteria: (draft) =>
+      (draft.confidence ?? 0) >= 0.8 &&
+      !draft.requires_human_review &&
+      draft.automation_status !== "blocked",
+    alwaysHumanReview: (draft) =>
+      draft.requires_human_review === true ||
+      draft.automation_status === "blocked" ||
+      // Escalations are about the request itself, not about what capture mode
+      // costs us, so they keep their person.
+      ["escalated_to_geometry", "escalated_to_validation"].includes(
+        draft.recommendation ?? "",
+      ),
+  };
 }
 
 function createSupportEmailPolicy(): LaneSafetyPolicy {
@@ -853,7 +908,7 @@ function buildInboundActionSpecs(
         subject: screenedEmail?.subject ?? result.buyer_follow_up.subject,
         body: screenedEmail?.body ?? result.buyer_follow_up.body,
       },
-      policy: createInboundEmailPolicy(),
+      policy: createInboundEmailPolicy({ deterministic: Boolean(screenedEmail), dispatch }),
     });
   }
 
