@@ -194,7 +194,8 @@ describe("build output", () => {
     expect(llms).toContain("paid engagement");
     expect(llmsFull).toContain("simulation is not a deployment guarantee");
     expect(llmsFull).toContain("participation depends on task fit and site approval");
-    expect(llms).not.toContain("https://tryblueprint.io/pricing");
+    expect(llms).toContain("https://tryblueprint.io/pricing");
+    // The retired $0-for-sites model must not survive anywhere in the crawl map.
     expect(llms).not.toContain("The site pays nothing");
 
   });
