@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Two prices: a one-time site-task assessment fee paid by the site, and a per-episode rate robot teams draw from a prepaid balance. No subscription on either side.",
+      "Two prices: a one-time all-in site-task assessment fee paid by the site, and a per-episode rate robot teams draw from a prepaid balance to screen checkpoints. No subscription on either side.",
   },
   {
     path: "/contact",

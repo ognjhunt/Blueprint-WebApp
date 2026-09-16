@@ -319,12 +319,17 @@
 .ms-price-table tbody th span { display: block; margin-top: 4px; font-size: 12px; color: var(--ms-muted); }
 .ms-price-table td { font-size: 16px; letter-spacing: -.02em; width: 20%; }
 .ms-price-table td:last-child { width: 16%; text-align: right; padding-right: 0; }
-.ms-price-rows { margin-top: 24px; }
-.ms-price-rows > div { display: grid; grid-template-columns: 200px 210px 1fr; gap: 24px; align-items: baseline; padding-block: 16px; border-bottom: 1px solid #d7dbd0; }
-.ms-price-rows dt { font-size: 16px; letter-spacing: -.025em; }
-.ms-price-rows dd { font-size: 14px; line-height: 1.7; color: var(--ms-muted); }
-.ms-price-rows-figure { color: var(--ms-ink) !important; }
-.ms-price-rows-figure span { display: block; margin-top: 3px; font-size: 12px; color: var(--ms-muted); }
+/* The two rounds, side by side: same shape, different funder. */
+.ms-round-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 26px; background: var(--ms-rule); border: 1px solid var(--ms-rule); }
+.ms-round { background: var(--ms-paper); padding: 26px 28px 28px; }
+.ms-round-count { margin-top: 14px; font-size: 15px; letter-spacing: -.02em; color: var(--ms-muted); }
+.ms-round-count span { font-size: 40px; line-height: 1.05; letter-spacing: -.055em; color: var(--ms-ink); margin-right: 9px; }
+.ms-round-funder { margin-top: 14px; font-size: 13px; line-height: 1.6; color: var(--ms-green); }
+.ms-round-purpose { margin-top: 16px; font-size: 16px; line-height: 1.55; letter-spacing: -.02em; }
+.ms-round-resolves, .ms-round-limit { margin-top: 11px; font-size: 13px; line-height: 1.75; color: var(--ms-muted); }
+.ms-round-limit { padding-top: 11px; border-top: 1px solid #d7dbd0; }
+.ms-round-rule { margin-top: 20px; max-width: 86ch; font-size: 14px; line-height: 1.75; color: var(--ms-ink); border-left: 2px solid var(--ms-green); padding-left: 16px; }
+.ms-round-rule strong { font-weight: 500; }
 .ms-price-rules { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 48px; margin-top: 26px; counter-reset: ms-rule; }
 .ms-price-rules li { counter-increment: ms-rule; }
 .ms-price-rules h3 { font-size: 16px; line-height: 1.45; letter-spacing: -.025em; }
@@ -337,7 +342,7 @@
   .ms-price-split > section { padding: 30px 0 34px; }
   .ms-price-split > section:last-child { border-left: 0; border-top: 1px solid var(--ms-rule); }
   .ms-price-split > section > .ms-text-link { padding-top: 22px; }
-  .ms-price-rows > div { grid-template-columns: 1fr; gap: 6px; }
+  .ms-round-pair { grid-template-columns: 1fr; }
   .ms-price-rules { grid-template-columns: 1fr; gap: 24px; }
 }
 @media (max-width: 700px) {
@@ -350,6 +355,9 @@
   .ms-price-block { padding-block: 28px 32px; }
   .ms-price-block > h2 { font-size: 24px; }
   .ms-price-definition { font-size: 18px; }
+  .ms-round { padding: 22px 20px 24px; }
+  .ms-round-count span { font-size: 34px; }
+  .ms-round-purpose { font-size: 15px; }
   .ms-price-table th, .ms-price-table td { padding: 12px 8px 12px 0; }
   .ms-price-table tbody th { font-size: 14px; }
   .ms-price-table td { font-size: 14px; width: 22%; }

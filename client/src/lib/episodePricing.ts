@@ -1,37 +1,60 @@
 /**
- * What Blueprint charges. Two prices, paid by two different parties.
+ * What Blueprint charges, and how many episodes each round runs.
  *
- *   $2,500     a site pays once, per site-task, for the scoped assessment.
- *   $0.50      a robot team pays per episode, out of a prepaid balance.
+ *   $2,500     a site pays once, per site-task. All-in.
+ *   $0.50      a robot team pays per episode, and screening is the only
+ *              thing a robot team buys.
  *
- * WHY THE TWO SIDES ARE PRICED SEPARATELY. Preparing a site — defining the
- * task and its pass mark, capturing it, screening candidates, writing the
- * pilot recommendation — is work done once, whether one team evaluates or ten.
- * Running an episode is work done per attempt. Billing them as one number
- * would either overcharge the first team or undercharge the tenth.
+ * WHY THE SITE FEE IS ALL-IN. A site is buying a decision — which robot
+ * deserves a physical pilot — not compute. "Episode" is a robot-team concept:
+ * it exists so a vendor can control spend across its own checkpoints. Putting a
+ * per-episode rate in front of a site operator means quoting them a bill they
+ * cannot size in advance, and then returning mid-engagement to collect for a
+ * finalist round they never budgeted for. So the finalist comparison is inside
+ * the $2,500 and the site never sees a per-unit rate.
  *
- * WHY EPISODES RATHER THAN PACKAGES. A "comparative evaluation" is not a fixed
- * quantity of work: six checkpoints at 500 episodes is sixty times the
- * execution of one checkpoint at 50. Priced as a package, the same invoice
- * covers wildly different workloads, and a team that only wants to screen six
- * checkpoints cheaply has to buy a deep comparison it did not ask for. Priced
- * per episode, the bill follows the work and a team can start at $25.
+ * WHY THE SITE FUNDS THE FINALIST ROUND RATHER THAN THE VENDORS. Two reasons.
+ * A team that budgeted for screening and is then promoted would owe money it
+ * did not plan for, at the exact moment the site is waiting on a result. And if
+ * vendors funded their own finalist rounds, the team with the deepest pockets
+ * would buy more statistical confidence than its rivals — which is not a
+ * comparison. Blueprint funds and controls the finalist round so every finalist
+ * gets the same episode count under the same conditions.
  *
- * WHY A PREPAID BALANCE RATHER THAN A SUBSCRIPTION. A monthly fee has to be
- * justified by repeat demand that has not been demonstrated yet, and a plan
- * that includes "four evaluations" for four times the overage price is a
- * minimum spend wearing a discount's clothes. A balance a team tops up needs
- * no plan tiers, no included-usage arithmetic, and no forecast of how much
- * testing a team will want next month. If committed spend ever earns a real
- * discount, it can be added on top of this without repricing anything.
+ * WHY TWO ROUNDS AND NOT FOUR. A menu of budgets asks the buyer to solve a
+ * statistics problem to pick a line item. Two fixed rounds answer it once:
+ * screening removes candidates that are clearly worse, and the finalist round
+ * separates the ones that are left.
  *
- * ON THE NUMBERS. These are starting prices Blueprint intends to test with
- * buyers. They are not a market rate: no independent source establishes one
- * for site-task robot evaluation, and neither price is derived from a
- * published benchmark. The episode budgets below are likewise Blueprint's own
- * operating budgets, not a standard — the count that separates two close
- * candidates depends on how small a difference matters, not on a number a
- * paper happened to use.
+ * ON THE EPISODE COUNTS. These are Blueprint's operating budgets, chosen from
+ * what each count can actually resolve, computed for a two-sided test at the
+ * conventional 95% level:
+ *
+ *     episodes   smallest gap detectable   success-rate interval
+ *     per policy  at 80% power              half-width at 70%
+ *     ---------  -----------------------   ---------------------
+ *         50            ~22 points               ~12 points
+ *        100            ~17 points               ~9 points
+ *        200            ~12 points               ~6 points
+ *        500             ~8 points               ~4 points
+ *
+ * 50 is a screen and nothing more. It is not used to rank: it only cuts a
+ * candidate it can actually rule out, roughly 20 points behind the leader, and
+ * everything closer advances. 500 is the smallest count that resolves a gap of
+ * roughly 8 points, which is the size of difference a finalist round actually
+ * has to settle. Below about 5 points even 500 episodes cannot call a winner,
+ * and the result says so instead.
+ *
+ * There is no settled industry standard to defer to here. Published protocols
+ * in 2025-2026 range from roughly 10 trials per task on real hardware to 500
+ * per suite in simulation, and audits of that literature find most reported
+ * improvements are not statistically separable at the counts used. So these
+ * numbers are stated as our budgets and by what they resolve, never as a
+ * standard someone else set.
+ *
+ * WHAT THE COUNTS DO NOT BUY. Simulated ranking is not real-world ranking, and
+ * no episode count closes that gap. The finalist round narrows which candidate
+ * deserves a physical pilot; it never certifies physical performance or safety.
  */
 
 /** The episode is the billable unit. This sentence is the whole definition. */
@@ -47,7 +70,63 @@ export const episodeBoundaries = [
 /** A robot team's rate. Non-standard workloads are quoted before they run. */
 export const episodeRate = 0.5;
 
-/** A site's one charge. Nothing recurring, and nothing per robot afterwards. */
+/**
+ * Round one. The robot team pays for this, because it is the team's own
+ * decision how many checkpoints are worth putting forward.
+ */
+export const screeningRound = {
+  id: "screening",
+  name: "Screening",
+  episodes: 50,
+  fundedBy: "robot-team",
+  funder: "Paid by the robot team, per checkpoint entered.",
+  purpose: "Cut the field to a shortlist, without cutting anything it cannot rule out.",
+  resolves:
+    "Every candidate screening cannot separate from the leader goes forward, up to five. At 50 episodes a candidate is only cut once it is roughly 20 points behind — so a close field advances intact rather than being thinned on noise.",
+  limit:
+    "It never names a winner, and it is not a ranking. Screening decides one thing: whether a candidate is far enough behind to rule out.",
+} as const;
+
+/**
+ * Round two. The site pays for this inside the assessment fee, so a promoted
+ * team owes nothing and every finalist is measured identically.
+ */
+export const finalistRound = {
+  id: "finalist",
+  name: "Finalist comparison",
+  episodes: 500,
+  fundedBy: "site",
+  funder: "Included in the site's assessment fee. The robot team pays nothing.",
+  purpose: "Separate the shortlist and produce the pilot recommendation.",
+  resolves:
+    "Resolves a gap of about 8 points at the same confidence level — the smallest round that settles the differences a shortlist actually turns on.",
+  limit:
+    "Below about 5 points, 500 episodes still cannot call it. The result reports the comparison as too close to separate rather than naming a winner.",
+  /** Bounded so "included" is a promise with a number behind it. */
+  shortlist: 5,
+} as const;
+
+export const rounds = [screeningRound, finalistRound] as const;
+
+/**
+ * How the shortlist is set. A fixed shortlist of three drops the genuinely best
+ * candidate about a third of the time when the field is tight, because at 50
+ * episodes a tight field is exactly the case screening cannot rank. Advancing
+ * everyone screening cannot rule out fixes that without charging anybody more:
+ * the rule spends finalist episodes where the evidence is ambiguous and saves
+ * them where it is not. Simulated over fifteen candidates, the best candidate
+ * survives screening about 83% of the time on a twenty-point field and about
+ * 98% on a forty-point one, against 66% for a fixed three.
+ */
+export const shortlistRule = {
+  cap: 5,
+  statement:
+    "Everything screening cannot separate from the leader goes forward, up to five.",
+  detail:
+    "Screening only cuts a candidate it can rule out — at 50 episodes, one roughly 20 points behind the leader. A close field therefore carries more candidates into the finalist round, and a clearly separated one carries fewer. Nobody is cut on a difference screening cannot establish.",
+} as const;
+
+/** A site's one charge. All-in, and never quoted per episode. */
 export const siteAssessment = {
   amount: 2_500,
   unit: "one-time, per site-task",
@@ -56,19 +135,24 @@ export const siteAssessment = {
     "The task defined: objects, cycle, exceptions, and the pass mark everything is measured against.",
     "The site captured and rebuilt as the environment candidates are evaluated in.",
     "Candidates screened against Blueprint's four qualifying conditions.",
+    "The finalist comparison run for every shortlisted candidate, at Blueprint's cost.",
     "A pilot recommendation, the expected failure points, and a physical test plan — or a clear reason to pause.",
   ],
-  evaluationBudget:
-    "An evaluation budget is agreed as part of the scope, at the same $0.50 per episode, before any work starts.",
-  notCharged: "Nothing recurring. Nothing per robot once a pilot goes ahead.",
+  allIn:
+    "One payment, agreed before any work starts. No per-episode charge, nothing to approve once the shortlist is set, and nothing per robot if a pilot goes ahead.",
+  bounded:
+    "Covers a shortlist of up to five finalists. Screening decides how many that is: only candidates it can rule out are cut, so a close field carries more candidates forward and a clearly separated one carries fewer.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee. */
 export const balanceModel = {
-  summary: "Add funds, run episodes, top up when the balance gets low.",
+  summary: "Screening is the only thing a robot team buys.",
+  detail:
+    "Add funds, screen the checkpoints you want to put forward, top up when the balance gets low.",
   notCharged: [
     "No subscription and no monthly minimum.",
     "No listing fee, seat fee, or fee to apply.",
+    "Nothing more if you are shortlisted — the finalist round is the site's.",
     "No percentage of whatever you sign with the site.",
   ],
 } as const;
@@ -83,66 +167,26 @@ export const billingRules = [
   {
     rule: "You see the quote before the run.",
     detail:
-      "Checkpoints × episodes × the rate, reserved against your balance rather than charged. Episodes that never run are released.",
+      "Checkpoints × 50 × the rate, reserved against your balance rather than charged. Episodes that never run are released.",
+  },
+  {
+    rule: "Being shortlisted never costs you more.",
+    detail:
+      "The finalist round is funded and run by Blueprint as part of the site's assessment, so there is no top-up to make and no deadline to miss.",
   },
   {
     rule: "Top-ups and spend caps are separate settings.",
     detail:
       "Auto top-up is optional, the monthly cap is its own control, and a balance you bought carries over rather than expiring.",
   },
-  {
-    rule: "Anything non-standard gets its own visible rate.",
-    detail:
-      "A longer time limit or an unusual sensing setup is quoted per episode before it runs. We do not quietly count one run as three episodes.",
-  },
 ] as const;
 
-/** Quote shapes teams actually ask for, priced straight off the rate. */
+/** What a team actually pays, for the checkpoint counts teams actually enter. */
 export const quoteExamples = [
-  { label: "Screen one checkpoint", checkpoints: 1, episodesEach: 50 },
-  { label: "Compare one finalist deeply", checkpoints: 1, episodesEach: 200 },
-  { label: "Screen six checkpoints", checkpoints: 6, episodesEach: 50 },
-  { label: "Run six checkpoints deep", checkpoints: 6, episodesEach: 500 },
+  { label: "One checkpoint", checkpoints: 1 },
+  { label: "Three checkpoints", checkpoints: 3 },
+  { label: "Six checkpoints", checkpoints: 6 },
 ] as const;
-
-/**
- * Blueprint's starting budgets per stage — not an industry standard, and not a
- * claim that any of these counts settles a close comparison. The point of the
- * ladder is that a clearly weak checkpoint should be eliminated for $25 rather
- * than tested to the same depth as a contender.
- */
-export const episodeBudgets = [
-  {
-    stage: "Integration check",
-    episodes: "10–20",
-    each: [10, 20] as const,
-    purpose: "Catch broken observation and action mappings before spending anything real.",
-  },
-  {
-    stage: "Screening",
-    episodes: "50",
-    each: [50, 50] as const,
-    purpose: "Eliminate the obviously weak candidates and see where the failures cluster.",
-  },
-  {
-    stage: "Finalist comparison",
-    episodes: "100–200",
-    each: [100, 200] as const,
-    purpose: "Fresh held-out scenarios, same conditions for every finalist.",
-  },
-  {
-    stage: "Deeper testing",
-    episodes: "500+",
-    each: [500, null] as const,
-    purpose: "Close contenders, wider operating conditions, or a reliability question worth the spend.",
-  },
-] as const;
-
-/** Screen six, then take two forward — against testing all six to depth. */
-export const stagedExample = {
-  staged: { label: "Screen six at 50, compare two finalists at 200", episodes: 6 * 50 + 2 * 200 },
-  flat: { label: "Run all six at 500", episodes: 6 * 500 },
-} as const;
 
 export type EpisodeQuote = {
   episodes: number;
@@ -157,6 +201,11 @@ function nonNegativeInteger(value: number) {
 export function quoteEpisodes(checkpoints: number, episodesEach: number): EpisodeQuote {
   const episodes = nonNegativeInteger(checkpoints) * nonNegativeInteger(episodesEach);
   return { episodes, usd: episodes * episodeRate };
+}
+
+/** What a robot team owes to screen `checkpoints` candidates. */
+export function quoteScreening(checkpoints: number): EpisodeQuote {
+  return quoteEpisodes(checkpoints, screeningRound.episodes);
 }
 
 /** What a balance buys, for the "$200 is 400 episodes" reading. */
