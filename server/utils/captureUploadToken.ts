@@ -1,0 +1,138 @@
+/**
+ * The link a site uses to hand us a walkthrough.
+ *
+ * Self-capture means the person uploading has no account, no app, and no
+ * reason to make one — they are a warehouse manager who filmed one aisle
+ * because we asked. So the link itself has to be the credential.
+ *
+ * Deliberately the same construction as `request-review-auth.ts`: same secret
+ * resolution, same base64url payload plus HMAC, same shape. What differs is the
+ * `kind`, and that difference is load-bearing — it means a review link can
+ * never be replayed as an upload link, or the reverse, even though both are
+ * signed with the same secret and both name a request id.
+ *
+ * The TTL is short by comparison (seven days, against fourteen for review)
+ * because an upload link is an invitation to write to our storage, and the
+ * window in which a site actually films is days rather than weeks.
+ */
+
+import crypto from "node:crypto";
+
+interface CaptureUploadTokenPayload {
+  kind: "capture_upload";
+  requestId: string;
+  /** Where the video lands, fixed at issue time so the link cannot redirect it. */
+  captureId: string;
+  sceneId: string;
+  exp: number;
+}
+
+export const CAPTURE_UPLOAD_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+function getSecret() {
+  return (
+    process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET ||
+    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
+    process.env.PIPELINE_SYNC_TOKEN ||
+    "blueprint-request-review-dev-secret"
+  );
+}
+
+function toBase64Url(value: string) {
+  return Buffer.from(value, "utf-8").toString("base64url");
+}
+
+function fromBase64Url(value: string) {
+  return Buffer.from(value, "base64url").toString("utf-8");
+}
+
+function signPayload(serializedPayload: string) {
+  return crypto.createHmac("sha256", getSecret()).update(serializedPayload).digest("base64url");
+}
+
+export function createCaptureUploadToken(params: {
+  requestId: string;
+  captureId: string;
+  sceneId: string;
+  ttlSeconds?: number;
+}) {
+  const payload: CaptureUploadTokenPayload = {
+    kind: "capture_upload",
+    requestId: params.requestId,
+    captureId: params.captureId,
+    sceneId: params.sceneId,
+    exp: Math.floor(Date.now() / 1000) + (params.ttlSeconds ?? CAPTURE_UPLOAD_TOKEN_TTL_SECONDS),
+  };
+  const serialized = JSON.stringify(payload);
+  return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
+}
+
+/**
+ * Verify a link and return where its upload is allowed to land.
+ *
+ * Returns null for anything wrong rather than distinguishing the failures: a
+ * caller holding a bad link learns only that it does not work, which is all
+ * they are entitled to know.
+ */
+export function verifyCaptureUploadToken(token: string): CaptureUploadTokenPayload | null {
+  const [encodedPayload, signature] = String(token || "").split(".");
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  let serialized: string;
+  try {
+    serialized = fromBase64Url(encodedPayload);
+  } catch {
+    return null;
+  }
+
+  const expected = signPayload(serialized);
+  const provided = Buffer.from(signature, "utf-8");
+  const expectedBuffer = Buffer.from(expected, "utf-8");
+  if (
+    provided.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(provided, expectedBuffer)
+  ) {
+    return null;
+  }
+
+  let payload: CaptureUploadTokenPayload;
+  try {
+    payload = JSON.parse(serialized) as CaptureUploadTokenPayload;
+  } catch {
+    return null;
+  }
+
+  // Domain separation. A `request_review` token carries a valid signature for
+  // this secret, so the kind check is what stops it opening an upload.
+  if (payload.kind !== "capture_upload") {
+    return null;
+  }
+  if (!payload.requestId || !payload.captureId || !payload.sceneId) {
+    return null;
+  }
+  if (!Number.isFinite(payload.exp) || payload.exp * 1000 < Date.now()) {
+    return null;
+  }
+
+  return payload;
+}
+
+/**
+ * Where a self-captured walkthrough is written.
+ *
+ * This is the canonical path the `extractFrames` Cloud Function already
+ * watches, which is the whole point: a video a site uploaded from a browser
+ * enters exactly the same pipeline as one a capturer recorded in the app.
+ * Frames, reconstruction and the Pipeline handoff are all downstream of this
+ * object existing, and none of them need to know which way it arrived.
+ */
+export function selfCaptureObjectPath(params: {
+  sceneId: string;
+  captureId: string;
+  extension: string;
+}) {
+  const extension = params.extension.replace(/^\./, "").toLowerCase();
+  return `scenes/${params.sceneId}/captures/${params.captureId}/raw/walkthrough.${extension}`;
+}
