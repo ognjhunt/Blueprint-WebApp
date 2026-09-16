@@ -6,82 +6,81 @@ describe("Pricing", () => {
   it("splits the site's bill from the robot team's", () => {
     render(<Pricing />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Robot teams pay for episodes/i }),
+      screen.getByRole("heading", { level: 1, name: /Robot teams pay to be screened/i }),
     ).toBeInTheDocument();
 
     const site = screen
       .getByRole("heading", { name: /scoped assessment of one task at one site/i })
       .closest("section") as HTMLElement;
     expect(within(site).getByText("$2,500")).toBeInTheDocument();
-    expect(within(site).getByText(/one-time, per site-task/i)).toBeInTheDocument();
 
     const team = screen
-      .getByRole("heading", { name: /Add funds, run episodes, top up/i })
+      .getByRole("heading", { name: /Screening is the only thing a robot team buys/i })
       .closest("section") as HTMLElement;
     expect(within(team).getByText("$0.50")).toBeInTheDocument();
-    expect(within(team).getByText(/per episode/i)).toBeInTheDocument();
   });
 
-  it("defines the episode before pricing one", () => {
+  it("keeps per-episode pricing out of the site's column entirely", () => {
+    render(<Pricing />);
+    const site = screen
+      .getByRole("heading", { name: /scoped assessment of one task at one site/i })
+      .closest("section") as HTMLElement;
+    // A site operator should never have to learn what an episode is.
+    expect(site.textContent).not.toMatch(/\$0\.50|per episode/i);
+    expect(within(site).getByText(/No per-episode charge/i)).toBeInTheDocument();
+    expect(within(site).getByText(/up to three finalists/i)).toBeInTheDocument();
+  });
+
+  it("states the site fee covers the finalist comparison", () => {
     render(<Pricing />);
     expect(
-      screen.getByText(/One episode is one run of one policy on one scenario/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Six checkpoints attempting the same scenario is six episodes, not one/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/One robot driven by several models is still one episode/i),
+      screen.getByText(/finalist comparison run for every shortlisted candidate, at Blueprint's cost/i),
     ).toBeInTheDocument();
   });
 
-  it("prices the quote table straight off checkpoints times episodes", () => {
+  it("offers exactly two rounds and names who funds each", () => {
     render(<Pricing />);
-    const screenSix = screen
-      .getByRole("rowheader", { name: /Screen six checkpoints/i })
+    const rounds = screen.getByRole("heading", { name: "The two rounds" }).closest("section") as HTMLElement;
+    expect(within(rounds).getByText("Screening")).toBeInTheDocument();
+    expect(within(rounds).getByText("Finalist comparison")).toBeInTheDocument();
+    expect(within(rounds).getByText("50")).toBeInTheDocument();
+    expect(within(rounds).getByText("500")).toBeInTheDocument();
+    expect(within(rounds).getByText(/Paid by the robot team/i)).toBeInTheDocument();
+    expect(within(rounds).getByText(/Included in the site's assessment fee/i)).toBeInTheDocument();
+  });
+
+  it("says what each round cannot do, next to what it costs", () => {
+    render(<Pricing />);
+    expect(screen.getByText(/Screening never names a winner/i)).toBeInTheDocument();
+    expect(screen.getByText(/too close to separate rather than naming a winner/i)).toBeInTheDocument();
+  });
+
+  it("tells a shortlisted team it owes nothing more", () => {
+    render(<Pricing />);
+    expect(
+      screen.getByRole("heading", { name: /Being shortlisted never costs you more/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/no top-up to make and no deadline to miss/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing more if you are shortlisted/i)).toBeInTheDocument();
+  });
+
+  it("prices screening straight off checkpoints times fifty", () => {
+    render(<Pricing />);
+    const six = screen
+      .getByRole("rowheader", { name: /Six checkpoints/i })
       .closest("tr") as HTMLElement;
-    // 6 × 50 = 300 episodes at $0.50.
-    expect(within(screenSix).getByText("300")).toBeInTheDocument();
-    expect(within(screenSix).getByText("$150")).toBeInTheDocument();
-
-    const deep = screen
-      .getByRole("rowheader", { name: /Run six checkpoints deep/i })
-      .closest("tr") as HTMLElement;
-    expect(within(deep).getByText("3,000")).toBeInTheDocument();
-    expect(within(deep).getByText("$1,500")).toBeInTheDocument();
+    expect(within(six).getByText("300")).toBeInTheDocument();
+    expect(within(six).getByText("$150")).toBeInTheDocument();
   });
 
-  it("shows staged screening costing less than testing everything deeply", () => {
-    render(<Pricing />);
-    // 6 × 50 + 2 × 200 = 700 episodes ($350) against 6 × 500 = 3,000 ($1,500).
-    expect(screen.getByText(/700 episodes — \$350/)).toBeInTheDocument();
-    expect(screen.getByText(/3,000 — \$1,500/)).toBeInTheDocument();
-  });
-
-  it("says the budgets are Blueprint's own rather than a standard", () => {
+  it("marks the budgets as Blueprint's own rather than a standard", () => {
     render(<Pricing />);
     expect(
-      screen.getByText(/Blueprint's starting budgets, not an industry standard/i),
+      screen.getByText(/Blueprint's budgets, not an industry standard/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/no published episode count settles a close comparison/i),
+      screen.getByText(/simulated ranking is still not a real-world ranking/i),
     ).toBeInTheDocument();
-  });
-
-  it("states who eats a failure and that nothing recurs", () => {
-    render(<Pricing />);
-    expect(
-      screen.getByRole("heading", { name: /A failed attempt is billable\. A failure of ours is not/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/An environment that will not launch is not a result, and you do not/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/No subscription and no monthly minimum/i)).toBeInTheDocument();
-    expect(screen.getByText(/No percentage of whatever you sign with the site/i)).toBeInTheDocument();
-  });
-
-  it("marks the prices as terms under test rather than a market rate", () => {
-    render(<Pricing />);
     expect(
       screen.getByText(/starting prices we intend to test with buyers, not an industry rate/i),
     ).toBeInTheDocument();

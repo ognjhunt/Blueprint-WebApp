@@ -3,36 +3,60 @@ import { describe, expect, it } from "vitest";
 import {
   episodeRate,
   episodesForBalance,
+  finalistRound,
   formatPrice,
   quoteEpisodes,
+  quoteScreening,
+  rounds,
+  screeningRound,
   siteAssessment,
-  stagedExample,
 } from "@/lib/episodePricing";
 
 describe("episode pricing", () => {
-  it("bills checkpoints times episodes times the rate", () => {
-    expect(quoteEpisodes(1, 50)).toEqual({ episodes: 50, usd: 25 });
-    expect(quoteEpisodes(6, 50)).toEqual({ episodes: 300, usd: 150 });
-    expect(quoteEpisodes(6, 500)).toEqual({ episodes: 3_000, usd: 1_500 });
+  it("bills screening at checkpoints times the screening count times the rate", () => {
+    expect(quoteScreening(1)).toEqual({ episodes: 50, usd: 25 });
+    expect(quoteScreening(3)).toEqual({ episodes: 150, usd: 75 });
+    expect(quoteScreening(6)).toEqual({ episodes: 300, usd: 150 });
   });
 
   it("counts a checkpoint per run rather than per comparison", () => {
-    // Six checkpoints on the same scenario cost six times one checkpoint.
-    expect(quoteEpisodes(6, 50).usd).toBe(quoteEpisodes(1, 50).usd * 6);
+    expect(quoteScreening(6).usd).toBe(quoteScreening(1).usd * 6);
   });
 
-  it("makes staged screening cheaper than testing every checkpoint deeply", () => {
-    expect(stagedExample.staged.episodes).toBe(700);
-    expect(stagedExample.flat.episodes).toBe(3_000);
-    expect(quoteEpisodes(1, stagedExample.staged.episodes).usd).toBeLessThan(
-      quoteEpisodes(1, stagedExample.flat.episodes).usd,
-    );
+  it("offers exactly two rounds, funded by different parties", () => {
+    expect(rounds).toHaveLength(2);
+    expect(screeningRound.fundedBy).toBe("robot-team");
+    expect(finalistRound.fundedBy).toBe("site");
+  });
+
+  it("sets the finalist round large enough to be worth running after screening", () => {
+    // Screening cannot rank close candidates, so the finalist round has to
+    // resolve a materially smaller gap or it buys nothing.
+    expect(finalistRound.episodes).toBeGreaterThan(screeningRound.episodes);
+    expect(screeningRound.episodes).toBe(50);
+    expect(finalistRound.episodes).toBe(500);
+  });
+
+  it("bounds the shortlist the site fee covers", () => {
+    expect(finalistRound.shortlist).toBe(3);
+    expect(siteAssessment.bounded).toMatch(/up to three finalists/i);
+  });
+
+  it("keeps every per-episode rate out of the site's side of the page", () => {
+    const siteCopy = [
+      siteAssessment.summary,
+      siteAssessment.allIn,
+      siteAssessment.bounded,
+      ...siteAssessment.covers,
+    ].join(" ");
+    expect(siteCopy).not.toMatch(/0\.50|per episode/i);
   });
 
   it("never produces a negative or fractional-episode invoice", () => {
     expect(quoteEpisodes(-3, 50)).toEqual({ episodes: 0, usd: 0 });
     expect(quoteEpisodes(Number.NaN, 50)).toEqual({ episodes: 0, usd: 0 });
     expect(quoteEpisodes(1, 50.9).episodes).toBe(50);
+    expect(quoteScreening(-2)).toEqual({ episodes: 0, usd: 0 });
   });
 
   it("converts a dollar balance into whole standard episodes", () => {
@@ -44,6 +68,6 @@ describe("episode pricing", () => {
   it("keeps cents on the rate and drops them on whole dollars", () => {
     expect(formatPrice(episodeRate)).toBe("$0.50");
     expect(formatPrice(siteAssessment.amount)).toBe("$2,500");
-    expect(formatPrice(quoteEpisodes(6, 50).usd)).toBe("$150");
+    expect(formatPrice(quoteScreening(6).usd)).toBe("$150");
   });
 });
