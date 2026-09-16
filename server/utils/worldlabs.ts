@@ -2,6 +2,14 @@ import path from "node:path";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { getConfiguredEnvValue, requireConfiguredEnvValue } from "../config/env";
 import { parseGsUri } from "./pipeline-dashboard";
+import {
+  azimuthForFrameIndex,
+  DEFAULT_WORLD_MODEL,
+  resolveWorldModelProfile,
+  selectFramesForModel,
+  type FrameCandidate,
+  type WorldModelProfile,
+} from "./worldModelProfiles";
 
 export type WorldLabsPreviewStatus = "not_requested" | "queued" | "processing" | "ready" | "failed";
 
@@ -15,6 +23,12 @@ export interface WorldLabsPreviewSummary {
   panoUrl?: string | null;
   caption?: string | null;
   spzUrls?: string[];
+  /**
+   * Splat downloads keyed by the detail level the API returns them under
+   * ("100k", "500k", "full_res"). `spzUrls` stays a flat list for existing
+   * consumers; this keeps the level, which is what a renderer actually needs.
+   */
+  spzUrlsByDetail?: Record<string, string>;
   colliderMeshUrl?: string | null;
   worldManifestUri?: string | null;
   operationManifestUri?: string | null;
@@ -198,6 +212,42 @@ function firstString(...values: unknown[]) {
   return "";
 }
 
+function jsonRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/**
+ * Read `assets.splats.spz_urls` into a {detail level -> url} map.
+ *
+ * The live API keys these by resolution. A list shape is also accepted because
+ * manifests written by earlier revisions of this file stored one; those get
+ * positional keys so nothing is lost.
+ */
+function normalizeSpzUrls(value: unknown): Record<string, string> {
+  const record = jsonRecord(value);
+  if (record) {
+    const entries = Object.entries(record)
+      .map(([key, url]) => [key, String(url || "").trim()] as const)
+      .filter(([, url]) => url);
+    return Object.fromEntries(entries);
+  }
+
+  if (Array.isArray(value)) {
+    const entries = value
+      .map((url, index) => [`legacy_${index}`, String(url || "").trim()] as const)
+      .filter(([, url]) => url);
+    return Object.fromEntries(entries);
+  }
+
+  return {};
+}
+
+export function configuredWorldModel() {
+  return getConfiguredEnvValue("WORLDLABS_DEFAULT_MODEL") || DEFAULT_WORLD_MODEL;
+}
+
 export async function prepareWorldLabsMediaAssetUpload(params: {
   fileName: string;
   extension: string;
@@ -285,6 +335,180 @@ function normalizePermission(value: unknown) {
     allowed_readers: [],
     allowed_writers: [],
   };
+}
+
+function mimeTypeForImageExtension(extension: string) {
+  switch (extension.toLowerCase()) {
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "jpg":
+    case "jpeg":
+    default:
+      return "image/jpeg";
+  }
+}
+
+/** Upload one frame and return the media asset id the prompt will reference. */
+async function uploadFrameAsMediaAsset(params: {
+  frame: FrameCandidate;
+  index: number;
+  metadata: Record<string, unknown>;
+}) {
+  const extension = extensionFromUri(params.frame.uri, "jpg");
+  const fileName = fileNameFromUri(params.frame.uri, `frame-${params.index}.${extension}`);
+  const uploadPayload = await prepareWorldLabsMediaAssetUpload({
+    fileName,
+    extension,
+    kind: "image",
+    metadata: params.metadata,
+  });
+
+  const mediaAsset = jsonRecord(uploadPayload.media_asset) || {};
+  const uploadInfo = jsonRecord(uploadPayload.upload_info) || {};
+  const bytes = await readBinaryFromUri(params.frame.uri);
+
+  await uploadPreparedMediaAsset({
+    uploadInfo,
+    contentType: mimeTypeForImageExtension(extension),
+    bytes,
+  });
+
+  const mediaAssetId = firstString(mediaAsset.id, mediaAsset.media_asset_id);
+  if (!mediaAssetId) {
+    throw new Error("worldlabs_media_asset_id_missing");
+  }
+  return mediaAssetId;
+}
+
+export interface GenerateWorldFromFramesParams {
+  /** Every frame pulled from the walkthrough, in capture order. */
+  frames: readonly FrameCandidate[];
+  model?: string | null;
+  displayName?: string | null;
+  textPrompt?: string | null;
+  permission?: unknown;
+  /** Carried onto each uploaded asset so uploads stay traceable to a capture. */
+  assetMetadata?: Record<string, unknown>;
+}
+
+export interface GenerateWorldFromFramesResult {
+  operation: Record<string, unknown>;
+  generationRequest: Record<string, unknown>;
+  generationSourceType: "frames_media_assets";
+  profile: WorldModelProfile;
+  /** What was sent vs. what existed, for the artifact trail. */
+  frameSelection: {
+    submittedCount: number;
+    consideredCount: number;
+    droppedForModelCap: number;
+    reconstructImages: boolean;
+    submittedFrameUris: string[];
+  };
+}
+
+/**
+ * Turn a site walkthrough into a world by sending frames, not the video.
+ *
+ * This is the path Blueprint runs on. The video prompt caps at 30 seconds,
+ * which is far shorter than a real walkthrough, so handing over selected frames
+ * is the only way to cover a whole site — and it is the same shape Atlas scales
+ * to 100+ frames. The frame budget comes from the model profile, so moving to
+ * Atlas is a model string, not a rewrite.
+ */
+export async function generateWorldFromFrames(
+  params: GenerateWorldFromFramesParams,
+): Promise<GenerateWorldFromFramesResult> {
+  const profile = resolveWorldModelProfile(params.model || configuredWorldModel());
+
+  if (!profile.available) {
+    // Atlas lands here until someone has seen the real spec. Failing loudly
+    // beats shipping a request built on a guessed schema.
+    throw new Error(
+      `worldlabs_model_unavailable:${profile.model}:${profile.note}`,
+    );
+  }
+
+  const selection = selectFramesForModel(params.frames, profile);
+  if (!selection.frames.length) {
+    throw new Error("worldlabs_no_frames_available");
+  }
+
+  const assetMetadata = params.assetMetadata || {};
+  const multiImagePrompt: Record<string, unknown>[] = [];
+
+  for (const [index, frame] of selection.frames.entries()) {
+    const mediaAssetId = await uploadFrameAsMediaAsset({
+      frame,
+      index,
+      metadata: { ...assetMetadata, frame_index: index },
+    });
+    multiImagePrompt.push({
+      azimuth: azimuthForFrameIndex(index, selection.frames.length),
+      content: { source: "media_asset", media_asset_id: mediaAssetId },
+    });
+  }
+
+  const worldPrompt: Record<string, unknown> = {
+    type: "multi-image",
+    multi_image_prompt: multiImagePrompt,
+    text_prompt: firstString(params.textPrompt) || DEFAULT_WORLDLABS_TEXT_PROMPT,
+  };
+
+  // Marble needs this flag to accept more than four images, and reconstruction
+  // mode is what we want regardless: these frames are of one real room.
+  if (profile.supportsReconstructFlag) {
+    worldPrompt.reconstruct_images = true;
+  }
+
+  const generationRequest: Record<string, unknown> = {
+    model: profile.model,
+    world_prompt: worldPrompt,
+    permission: normalizePermission(params.permission),
+  };
+  const displayName = firstString(params.displayName);
+  if (displayName) {
+    generationRequest.display_name = displayName;
+  }
+
+  const operation = await worldLabsApiRequest<Record<string, unknown>>({
+    path: "/marble/v1/worlds:generate",
+    method: "POST",
+    body: generationRequest,
+  });
+
+  return {
+    operation,
+    generationRequest,
+    generationSourceType: "frames_media_assets",
+    profile,
+    frameSelection: {
+      submittedCount: selection.frames.length,
+      consideredCount: selection.consideredCount,
+      droppedForModelCap: selection.droppedForModelCap,
+      reconstructImages: Boolean(worldPrompt.reconstruct_images),
+      submittedFrameUris: selection.frames.map((frame) => frame.uri),
+    },
+  };
+}
+
+/** Export a finished world as a downloadable asset. */
+export async function exportWorldAsset(params: {
+  worldId: string;
+  assetType: "splats" | "mesh";
+  format: "ply" | "glb";
+}) {
+  return worldLabsApiRequest<Record<string, unknown>>({
+    path: `/marble/v1/worlds/${encodeURIComponent(params.worldId)}:export`,
+    method: "POST",
+    body: { asset_type: params.assetType, format: params.format },
+  });
+}
+
+/** Remaining API credits, so an operator can see a 402 coming. */
+export async function getWorldLabsCredits() {
+  return worldLabsApiRequest<Record<string, unknown>>({ path: "/marble/v1/credits" });
 }
 
 export async function createWorldFromRequestManifest(requestManifest: Record<string, unknown>) {
@@ -412,9 +636,12 @@ export function summarizeWorldLabsPreview(params: {
     worldManifest.assets && typeof worldManifest.assets === "object"
       ? ((worldManifest.assets as Record<string, unknown>).splats as Record<string, unknown> | undefined)
       : undefined;
-  const spzUrls = Array.isArray(splats?.spz_urls)
-    ? (splats?.spz_urls as unknown[]).map((item) => String(item)).filter(Boolean)
-    : [];
+  // The API returns `spz_urls` as an object keyed by detail level —
+  // {"100k": url, "500k": url, "full_res": url} — not a list. Older stored
+  // manifests in this repo were written assuming a list, so read both shapes
+  // rather than silently dropping every splat URL we have ever recorded.
+  const spzUrlsByDetail = normalizeSpzUrls(splats?.spz_urls);
+  const spzUrls = Object.values(spzUrlsByDetail);
   const failureReason = firstString(
     operationManifest.failure_reason,
     (operationManifest.error as Record<string, unknown> | undefined)?.message,
@@ -427,7 +654,10 @@ export function summarizeWorldLabsPreview(params: {
   } else if (failureReason || operationManifest.error) {
     status = "failed";
   } else if (operationId && !operationDone) {
-    const rawStatus = firstString(operationManifest.status).toLowerCase();
+    // Live operations report progress at `metadata.progress.status`, not at the
+    // top level. Reading the top level only ever produced "processing".
+    const progress = jsonRecord(jsonRecord(operationManifest.metadata)?.progress);
+    const rawStatus = firstString(progress?.status, operationManifest.status).toLowerCase();
     status = rawStatus === "queued" || rawStatus === "pending" ? "queued" : "processing";
   } else if (
     params.requestManifestUri ||
@@ -449,6 +679,7 @@ export function summarizeWorldLabsPreview(params: {
     panoUrl: firstString(imagery?.pano_url) || null,
     caption: firstString((worldManifest.assets as Record<string, unknown> | undefined)?.caption, worldManifest.caption) || null,
     spzUrls,
+    spzUrlsByDetail,
     colliderMeshUrl: firstString(mesh?.collider_mesh_url) || null,
     worldManifestUri: params.worldManifestUri || null,
     operationManifestUri: params.operationManifestUri || null,
