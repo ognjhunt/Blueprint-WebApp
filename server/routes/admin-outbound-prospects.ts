@@ -35,7 +35,15 @@ import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import {
   buildUnsubscribeUrl,
   normalizeSuppressionEmail,
+  recordEmailSuppression,
 } from "../utils/email-suppression";
+import {
+  bindingGateFieldIds,
+  isCaptureMode,
+  preferredCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
+import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import { decideCaptureDispatch, describeCaptureDispatch } from "../utils/captureDispatch";
 import {
   convertProspectToRequestPayload,
   guardProspectSend,
@@ -66,6 +74,12 @@ const draftSchema = z
   .object({
     subject: z.string().trim().min(1).max(120),
     body: z.string().trim().min(1).max(2200),
+  })
+  .strict();
+
+const closeSchema = z
+  .object({
+    reason: z.string().trim().min(1).max(400),
   })
   .strict();
 
@@ -284,6 +298,21 @@ router.post("/:prospectId/convert", async (req: Request, res: Response) => {
     captureMode: parsed.data.captureMode ?? null,
   });
 
+  // Run the real decision rather than describing it. The operator's next move
+  // is a follow-up email, and what that email should ask is exactly the hold
+  // reason: "still resting on sceneStability, accessWindow" is two questions,
+  // where "some gates remain inferred" is a shrug. Same functions the inbound
+  // path uses, so the preview cannot disagree with the eventual dispatch.
+  const captureMode = isCaptureMode(payload.captureMode) ? payload.captureMode : preferredCaptureMode;
+  const triage = triageGateAnswers(payload.siteTaskGates, undefined, captureMode);
+  const dispatch = decideCaptureDispatch({
+    disposition: triage.disposition,
+    captureMode,
+    unanswered: triage.unanswered,
+    bindingFieldIds: bindingGateFieldIds(captureMode),
+    gateAnswerSources: payload.gateAnswerSources,
+  });
+
   await db.collection(COLLECTION).doc(prospectId).set({ stage: "converted" }, { merge: true });
 
   // Returned rather than posted onward: during the beta a person carries this
@@ -292,8 +321,63 @@ router.post("/:prospectId/convert", async (req: Request, res: Response) => {
   return res.status(200).json({
     ok: true,
     requestPayload: payload,
+    dispatch,
+    dispatchSummary: describeCaptureDispatch(dispatch),
     note: "Gates the operator did not state remain inferred and will hold capture dispatch.",
   });
+});
+
+/**
+ * They asked us to stop.
+ *
+ * The one route an outbound program cannot be run without. A footer
+ * unsubscribe link handles the person who clicks it; almost nobody does. What
+ * actually arrives is a one-line reply saying take us off your list, read by a
+ * person, and without somewhere to put it that request lives in someone's
+ * memory until it does not.
+ *
+ * So closing writes the suppression entry, not just the stage. Suppression is
+ * scoped to `growth_campaign`, which is the promise being made: we will not
+ * approach you again. If this facility later becomes a customer, the lifecycle
+ * mail it has asked for is a different scope and is untouched.
+ */
+router.post("/:prospectId/close", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "Prospect store is unavailable" });
+
+  const parsed = closeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "A reason is required to close a prospect", code: "close_invalid" });
+  }
+
+  const prospectId = String(req.params.prospectId || "").trim();
+  const prospect = await readProspect(prospectId);
+  if (!prospect) return res.status(404).json({ error: "not_found" });
+
+  // Suppression first. If the stage write succeeded and this failed, the
+  // prospect would look handled while still being sendable, which is the one
+  // ordering that can produce a second email to someone who declined.
+  const suppression = await recordEmailSuppression({
+    email: prospect.contactEmail,
+    scope: "growth_campaign",
+    reason: parsed.data.reason,
+    source: "outbound_prospect_close",
+    campaignId: `outbound_prospect_${prospectId}`,
+  });
+
+  if (!suppression.persisted) {
+    return res.status(503).json({
+      error: "The opt-out could not be recorded, so the prospect stays open rather than looking handled.",
+      code: "suppression_unavailable",
+    });
+  }
+
+  await db.collection(COLLECTION).doc(prospectId).set(
+    { stage: "closed", closedReason: parsed.data.reason, closedAtIso: new Date().toISOString() },
+    { merge: true },
+  );
+
+  return res.json({ ok: true, stage: "closed", suppressedEmail: suppression.email });
 });
 
 export default router;

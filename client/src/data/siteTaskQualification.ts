@@ -299,6 +299,25 @@ export const gateFields: readonly QualifyingField[] = [
   },
 ];
 
+/**
+ * The gate ids that actually bind under a capture mode.
+ *
+ * `triageGateAnswers` applies the same rule inline over the field objects; this
+ * exposes it as ids for the callers that reason about gates without scoring
+ * them — chiefly provenance, which has to tell an inferred answer that matters
+ * from one nobody was ever asked. Deriving both from `bindsForCaptureModes`
+ * means the two cannot drift: adding a mode-specific gate updates both at once.
+ */
+export function bindingGateFieldIds(
+  captureMode: CaptureMode,
+  fields: readonly QualifyingField[] = gateFields,
+): readonly string[] {
+  return fields
+    .filter((field) => !field.bindsForCaptureModes || field.bindsForCaptureModes.includes(captureMode))
+    .map((field) => field.id);
+}
+
+
 /* ------------------------------------------------------------- the spec */
 
 /**

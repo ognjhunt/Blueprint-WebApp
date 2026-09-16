@@ -7,6 +7,8 @@ import {
   withOperatorStatedAnswers,
 } from "../../client/src/lib/gateProvenance";
 import { decideCaptureDispatch } from "../utils/captureDispatch";
+import { bindingGateFieldIds } from "../../client/src/data/siteTaskQualification";
+import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import {
   convertProspectToRequestPayload,
   guardProspectSend,
@@ -158,6 +160,49 @@ describe("nothing leaves the building unsourced or unwanted", () => {
       isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "already_contacted" });
+  });
+
+  it("refuses a closed prospect with its own blocker, not the redraftable one", async () => {
+    // The draft route lets `already_contacted` through so a message nobody
+    // approved can be rewritten. Someone who asked us to stop must not ride in
+    // on that allowance, so the blocker has to be distinguishable.
+    const result = await guardProspectSend(
+      prospect({ stage: "closed", closedReason: "Asked not to be contacted." }),
+      { isSuppressed: async () => false },
+    );
+
+    expect(result).toMatchObject({ send: false, blocker: "prospect_closed" });
+    expect(result.send === false && result.detail).toContain("Asked not to be contacted.");
+  });
+
+  it("refuses a closed prospect even if the suppression list has not caught up", async () => {
+    // Closing writes a suppression entry, but the stage is the local fact and
+    // must stand on its own rather than depending on a second read succeeding.
+    const result = await guardProspectSend(prospect({ stage: "closed" }), {
+      isSuppressed: async () => false,
+    });
+    expect(result).toMatchObject({ send: false, blocker: "prospect_closed" });
+  });
+});
+
+describe("the gates that bind follow the capture mode", () => {
+  it("drops the service-area gate when the site holds the phone", () => {
+    // The one gate about our driving rather than their room.
+    expect(bindingGateFieldIds("self_capture")).not.toContain("serviceArea");
+    expect(bindingGateFieldIds("site_visit")).toContain("serviceArea");
+  });
+
+  it("agrees exactly with what triage actually scores", () => {
+    // Two implementations of one rule is how they drift, and a drift here is
+    // silent: provenance would audit a gate triage never asked about, or miss
+    // one it did. Given no answers at all, every binding gate lands in
+    // `unanswered` -- so triage names its own binding set, and the two lists
+    // have to be the same list.
+    for (const mode of ["self_capture", "site_visit"] as const) {
+      expect([...triageGateAnswers({}, undefined, mode).unanswered].sort()).toEqual(
+        [...bindingGateFieldIds(mode)].sort(),
+      );
+    }
   });
 });
 

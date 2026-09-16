@@ -80,6 +80,9 @@ export interface OutboundProspect {
   reasonForContact: string;
   createdAtIso: string;
   contactedAtIso?: string | null;
+  /** Why we stopped, when we stopped. Set together with a suppression entry. */
+  closedReason?: string | null;
+  closedAtIso?: string | null;
 }
 
 export type SendGuardResult =
@@ -89,6 +92,7 @@ export type SendGuardResult =
 export type SendBlocker =
   | "email_missing"
   | "email_suppressed"
+  | "prospect_closed"
   | "no_sourced_observations"
   | "unsourced_observation"
   | "hypothesis_missing"
@@ -110,6 +114,21 @@ export async function guardProspectSend(
   const email = normalizeSuppressionEmail(prospect.contactEmail);
   if (!email || !email.includes("@")) {
     return { send: false, blocker: "email_missing", detail: "No usable contact address." };
+  }
+
+  // Checked before `already_contacted` and kept separate from it on purpose:
+  // drafting a second version of a message nobody approved is fine, and the
+  // draft route lets `already_contacted` through for exactly that reason.
+  // Someone who asked us to stop is not that case, and must not be reachable by
+  // any route the send guard protects.
+  if (prospect.stage === "closed") {
+    return {
+      send: false,
+      blocker: "prospect_closed",
+      detail: prospect.closedReason
+        ? `Prospect was closed: ${prospect.closedReason}`
+        : "Prospect was closed and must not be contacted again.",
+    };
   }
 
   if (prospect.stage === "contacted" || prospect.stage === "converted") {
