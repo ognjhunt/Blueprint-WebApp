@@ -92,6 +92,19 @@ export interface QualifyingField {
    * constraint that no longer applies.
    */
   bindsForCaptureModes?: readonly CaptureMode[];
+  /**
+   * Whether 45 seconds of footage settles this better than a conversation.
+   *
+   * Three of the six gates are facts about the room — does it change, is the
+   * task bounded, how many different objects. Video shows all three directly,
+   * and shows them better than an operator's self-report does, because it is
+   * the thing itself rather than a description of it. The other three are facts
+   * about the business — where the site is, when we can get in, when they want
+   * to deploy — and no camera answers those.
+   *
+   * This is what decides whether a marginal answer needs a call or a video.
+   */
+  settledByFootage?: boolean;
 }
 
 /**
@@ -191,6 +204,7 @@ export const gateFields: readonly QualifyingField[] = [
   },
   {
     id: "sceneStability",
+    settledByFootage: true,
     question: "Between shifts, how much does this work area change?",
     hint: "Think about what a photo from last month would still get right.",
     condition: "fixed-scene",
@@ -212,6 +226,7 @@ export const gateFields: readonly QualifyingField[] = [
   },
   {
     id: "taskShape",
+    settledByFootage: true,
     question: "Is this one repeated job, or a category of jobs?",
     condition: "bounded-task",
     options: [
@@ -232,6 +247,7 @@ export const gateFields: readonly QualifyingField[] = [
   },
   {
     id: "objectVariety",
+    settledByFootage: true,
     question: "How many distinct items does this task handle?",
     hint: "Counting item types, not item counts.",
     condition: "known-objects",
@@ -308,6 +324,22 @@ export const gateFields: readonly QualifyingField[] = [
  * from one nobody was ever asked. Deriving both from `bindsForCaptureModes`
  * means the two cannot drift: adding a mode-specific gate updates both at once.
  */
+/**
+ * Whether footage would settle every one of these open questions.
+ *
+ * Returns false for an empty list and for any id we do not recognise, because
+ * the consequence of a wrong "yes" is asking somebody to film a video that
+ * cannot answer the question we actually have. The consequence of a wrong "no"
+ * is a call we might not have needed, which is the cheaper mistake.
+ */
+export function footageSettlesAll(
+  fieldIds: readonly string[] | null | undefined,
+  fields: readonly QualifyingField[] = gateFields,
+): boolean {
+  if (!fieldIds?.length) return false;
+  return fieldIds.every((id) => fields.find((field) => field.id === id)?.settledByFootage === true);
+}
+
 export function bindingGateFieldIds(
   captureMode: CaptureMode,
   fields: readonly QualifyingField[] = gateFields,

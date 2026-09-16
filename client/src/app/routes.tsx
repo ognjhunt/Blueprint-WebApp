@@ -43,6 +43,7 @@ const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Pricing = lazyRoute(() => import("../pages/Pricing"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
+const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CapturerAccount = lazyRoute(() => import("../pages/CapturerAccount"));
 const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
@@ -238,6 +239,9 @@ export const appRoutes: AppRoute[] = [
 
   // Capture / Earn direct flows
   { path: "/capture", layout: "public", component: Capture },
+  // The link in a dispatch email. Bare shell and no nav: whoever opens this was
+  // sent here to do one thing, and has no account to navigate with.
+  { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
   { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },
   { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },

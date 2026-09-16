@@ -28,7 +28,21 @@ import type {
   AgentTaskKind,
 } from "./types";
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
-import { buildQualificationEmail } from "../utils/qualificationEmails";
+import {
+  buildQualificationEmail,
+  type MatchNextStep,
+} from "../utils/qualificationEmails";
+import {
+  decideCaptureDispatch,
+  describeCaptureDispatch,
+  type CaptureDispatchDecision,
+} from "../utils/captureDispatch";
+import { createCaptureUploadToken } from "../utils/captureUploadToken";
+import {
+  bindingGateFieldIds,
+  defaultCaptureMode,
+  isCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
 import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
 import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import {
@@ -677,6 +691,88 @@ export function clampRecommendationToGates(
   return { qualificationState, requiresHumanReview };
 }
 
+/**
+ * Where a capture upload link points.
+ *
+ * Kept here rather than imported because the two other origin readers in the
+ * codebase are private to their modules; this one is scoped to the same
+ * variables so a deployment cannot end up issuing links on a different host
+ * from its unsubscribe footers.
+ */
+function publicAppOrigin() {
+  return (
+    process.env.VITE_PUBLIC_APP_URL?.trim()
+    || process.env.APP_URL?.trim()
+    || "https://tryblueprint.io"
+  ).replace(/\/+$/, "");
+}
+
+/**
+ * Decide whether capture starts for this submission, and on what terms.
+ *
+ * The inputs are all already computed: the deterministic gate verdict, the
+ * review clamp, and the capture mode the site chose at intake. This adds no
+ * judgement of its own — it is the existing one-way door applied at the moment
+ * a submission is otherwise finished being screened.
+ *
+ * Capture mode comes off the stored request. Absent means the submission
+ * predates the question, and `decideCaptureDispatch` holds rather than assuming
+ * nobody has to travel.
+ */
+export function decideDispatchForRequest(
+  request: InboundRequest,
+  requiresHumanReview: boolean,
+): CaptureDispatchDecision {
+  const captureMode = isCaptureMode(request.request.capture_mode)
+    ? request.request.capture_mode
+    : null;
+
+  return decideCaptureDispatch({
+    disposition: request.site_task_triage?.disposition,
+    requiresHumanReview,
+    unanswered: request.site_task_triage?.unanswered_field_ids,
+    captureMode,
+    // Provenance is absent for every inbound submission, which reads as
+    // operator-stated -- correct, because the site answered these itself. The
+    // binding list still matters: it is what stops an outbound-converted
+    // request dispatching on gates nobody confirmed.
+    bindingFieldIds: bindingGateFieldIds(captureMode ?? defaultCaptureMode),
+    gateAnswerSources: request.site_task_gate_sources ?? null,
+  });
+}
+
+/**
+ * Turn a dispatch decision into the one sentence the site reads.
+ *
+ * Issuing the token here is what makes the link real. The ids are derived from
+ * the request rather than generated, so a re-run of this workflow points at the
+ * same storage prefix instead of scattering a second empty capture beside the
+ * first.
+ */
+export function nextStepForDispatch(
+  request: InboundRequest,
+  decision: CaptureDispatchDecision,
+): MatchNextStep {
+  if (!decision.dispatch) {
+    return { kind: "held" };
+  }
+
+  if (decision.channel === "capturer_visit") {
+    return { kind: "capturer_visit" };
+  }
+
+  const token = createCaptureUploadToken({
+    requestId: request.requestId,
+    sceneId: `site-${request.requestId}`,
+    captureId: `walkthrough-${request.requestId}`,
+  });
+
+  return {
+    kind: "self_capture",
+    uploadUrl: `${publicAppOrigin()}/capture-upload/${token}`,
+  };
+}
+
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
@@ -694,6 +790,11 @@ function buildInboundActionSpecs(
       ? "in_review"
       : qualificationState;
 
+  // The step that used to be a person noticing a queue. Everything it reads was
+  // already decided above, so this adds latency of zero and judgement of zero.
+  const dispatch = decideDispatchForRequest(request, requiresHumanReview);
+  const nextStep = nextStepForDispatch(request, dispatch);
+
   const specs: Phase2WorkflowActionSpec[] = [
     {
       actionKey: "inbound_status_update",
@@ -708,6 +809,16 @@ function buildInboundActionSpecs(
           status: routingStatus,
           human_review_required: requiresHumanReview,
           automation_confidence: result.confidence,
+          // Recorded whether or not it dispatched. A hold with a named reason
+          // is the thing an operator needs to see; a silent no-op was the
+          // failure mode this whole path replaces.
+          capture_dispatch: {
+            dispatched: dispatch.dispatch,
+            channel: dispatch.dispatch ? dispatch.channel : null,
+            hold_reason: dispatch.dispatch ? null : dispatch.holdReason,
+            summary: describeCaptureDispatch(dispatch),
+            decided_at: new Date().toISOString(),
+          },
         },
       },
       policy: createPhase2RoutingPolicy("inbound"),
@@ -723,6 +834,11 @@ function buildInboundActionSpecs(
     siteName: request.request.siteName,
     triage: request.site_task_triage,
     matches,
+    // So the email names the step the system actually took. Before this it
+    // asked every qualified site to book a call while dispatch was separately
+    // issuing an upload link or holding -- two different next steps in flight
+    // for one submission.
+    nextStep,
   });
 
   if (request.contact.email && (screenedEmail || result.buyer_follow_up)) {
@@ -741,7 +857,7 @@ function buildInboundActionSpecs(
     });
   }
 
-  return { routingStatus, specs };
+  return { routingStatus, specs, dispatch };
 }
 
 function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) {

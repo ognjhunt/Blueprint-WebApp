@@ -8,6 +8,7 @@ import {
   SUPPORT_POLICY,
 } from "../agents/action-policies.js";
 import { getConfiguredEnvValue } from "../config/env.js";
+import { bookingUrl as configuredBookingUrl } from "./bookingLink.js";
 import { getEmailTransportStatus } from "./email.js";
 import { recordEmailSuppression } from "./email-suppression.js";
 import { logGrowthEvent } from "./growth-events.js";
@@ -406,8 +407,7 @@ export async function runBuyerLifecycleCheck(params: {
 
   const results: Array<Record<string, unknown>> = [];
   const bookingUrl =
-    getConfiguredEnvValue("BLUEPRINT_VOICE_BOOKING_URL") ||
-    "https://calendly.com/blueprintar/30min";
+    configuredBookingUrl();
   const maxResults = Math.max(1, Math.min(params.limit ?? Number.POSITIVE_INFINITY, 100));
 
   for (const doc of entitlementsSnapshot.docs) {

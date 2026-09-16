@@ -6,6 +6,8 @@ import type {
 import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 import type { LegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import type { SiteMatchSummaryRecord } from "../utils/siteMatchRun";
+import type { CaptureMode } from "../../client/src/data/siteTaskQualification";
+import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 
 // R047: server-derived Terms of Service / Privacy Policy acceptance record.
 // `accepted_at` is a Firestore server timestamp on the real write path and an
@@ -234,6 +236,15 @@ export interface RequestDetails {
    * is what makes the verdict on them reproducible and auditable.
    */
   siteTaskGates?: Record<string, string> | null;
+  /**
+   * Who records the walkthrough: `self_capture` or `site_visit`.
+   *
+   * Decides whether the service-area gate binds, and therefore whether capture
+   * can be dispatched without anyone driving. Absent means the question predates
+   * this field; readers fall back to `site_visit`, the stricter reading, rather
+   * than assuming nobody has to travel.
+   */
+  capture_mode?: CaptureMode | null;
   /** Answers to the spec-tier questions. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** The free-text task description the narrative review reads against the gates. */
@@ -855,6 +866,14 @@ export interface SiteTaskTriageSummary {
   blockers: string[];
   /** Marginal answers a form cannot settle — the agenda for a call. */
   open_questions: string[];
+  /**
+   * The gate ids behind `open_questions`, so a reader can ask what kind of
+   * question each one is. Needed to tell a question about the room, which
+   * footage answers better than a conversation, from one about the business,
+   * which no camera answers. Absent on rows stored before this existed, and
+   * readers must treat absent as "cannot tell" and keep the call.
+   */
+  open_question_field_ids?: string[];
   /** Gate ids left unanswered. A blank never counts as a pass. */
   unanswered_field_ids: string[];
   incomplete: boolean;
@@ -913,6 +932,19 @@ export interface InboundRequest {
   ops_automation?: OpsAutomationEnvelope;
   structured_intake?: StructuredIntakeSummary;
   site_task_triage?: SiteTaskTriageSummary | null;
+  /**
+   * Where each gate answer came from, keyed by field id.
+   *
+   * Absent for every submission that arrived through the form, and absent reads
+   * as `operator_stated` — the site answered its own questions. It is populated
+   * only when a request was converted from an outbound prospect, where some
+   * answers are our hypothesis rather than anybody's statement, and it is what
+   * keeps a guess from dispatching a capture.
+   *
+   * Top-level with the other derived state, so it survives the encryption round
+   * trip: `contact` and `request` are rebuilt field by field, the rest is spread.
+   */
+  site_task_gate_sources?: GateAnswerSources | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
   /** The last match run against the robot-team registry. Derived, like the triage. */
   site_match?: SiteMatchSummaryRecord | null;
@@ -1030,6 +1062,8 @@ export interface RequestDetailsStored {
    * retried lead silently dropped its narrative review.
    */
   siteTaskGates?: Record<string, string> | null;
+  /** An enum token like the gates, and stored in the clear for the same reason. */
+  capture_mode?: CaptureMode | null;
   siteTaskSpec?: Record<string, string> | null;
   /** Operator prose. Encrypted: a task description can name people and process. */
   taskDescription?: EncryptableString | null;
@@ -1079,6 +1113,15 @@ export interface InboundRequestPayload {
   taskStatement?: string;
   /** Structured qualifying answers, keyed by field id. Enums only. */
   siteTaskGates?: Record<string, string> | null;
+  /**
+   * Where each gate answer came from, for a request converted from an outbound
+   * prospect. Omitted by the public form, and omitted reads as operator-stated.
+   *
+   * Safe to accept from any caller: the only value that changes anything is
+   * `inferred`, and `inferred` can only ever hold a dispatch. Nobody can use
+   * this to get a capture started; they can only decline one for themselves.
+   */
+  gateAnswerSources?: Record<string, string> | null;
   /**
    * Who records the walkthrough: `self_capture` or `site_visit`. Decides
    * whether the service-area gate binds, because that gate is about our

@@ -224,6 +224,7 @@ const privateOrNoindex = [
   "/signup*",
   "/off-waitlist-signup",
   "/capture-app",
+  "/capture-upload/*",
   "/world-models/*/start",
   "/world-models/*/workspace",
 ];
