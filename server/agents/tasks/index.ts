@@ -11,6 +11,7 @@ import { adpRunOperatorTask } from "./adp-run-operator";
 import { siteVideoEvidenceTask } from "./site-video-evidence";
 import { robotCapabilityExtractionTask } from "./robot-capability-extraction";
 import { captureDispatchTask } from "./capture-dispatch";
+import { outboundOutreachTask } from "./outbound-outreach";
 
 export const taskDefinitions = {
   waitlist_triage: waitlistTriageTask,
@@ -25,6 +26,7 @@ export const taskDefinitions = {
   site_video_evidence: siteVideoEvidenceTask,
   robot_capability_extraction: robotCapabilityExtractionTask,
   capture_dispatch: captureDispatchTask,
+  outbound_outreach: outboundOutreachTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 
 export function getTaskDefinition<TInput = unknown, TOutput = unknown>(

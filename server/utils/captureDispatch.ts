@@ -35,6 +35,10 @@ import {
   type CaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import type { TriageDisposition } from "../../client/src/lib/gateTriage";
+import {
+  auditInferredGates,
+  type GateAnswerSources,
+} from "../../client/src/lib/gateProvenance";
 
 export type CaptureChannel =
   /** The site films it. We send an upload link; no app, no scheduling. */
@@ -51,6 +55,7 @@ export type CaptureHoldReason =
   | "needs_conversation"
   | "human_review_requested"
   | "gates_incomplete"
+  | "gates_inferred"
   | "capture_mode_missing";
 
 export interface CaptureDispatchInput {
@@ -62,6 +67,17 @@ export interface CaptureDispatchInput {
   unanswered?: readonly string[];
   /** What the site chose on the form. */
   captureMode?: string | null;
+  /**
+   * The gates that actually bind, after capture mode has been applied. Needed
+   * to tell an inferred answer that matters from one nobody was asked.
+   */
+  bindingFieldIds?: readonly string[];
+  /**
+   * Where each gate answer came from. Absent means operator-stated, which is
+   * correct for every inbound request and for everything stored before
+   * outbound existed.
+   */
+  gateAnswerSources?: GateAnswerSources | null;
 }
 
 /**
@@ -105,6 +121,24 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
       dispatch: false,
       holdReason: "gates_incomplete",
       detail: `Unanswered gates: ${input.unanswered.join(", ")}.`,
+    };
+  }
+
+  // An outbound prospect's gates are a hypothesis about a facility nobody has
+  // visited. They are enough to start a conversation and never enough to spend
+  // money: dispatching on them would send a capturer to an address, or commit a
+  // paid reconstruction, on the strength of a guess.
+  const inferred = auditInferredGates(
+    input.bindingFieldIds ?? [],
+    input.gateAnswerSources,
+  );
+  if (!inferred.allOperatorStated) {
+    return {
+      dispatch: false,
+      holdReason: "gates_inferred",
+      detail:
+        `Still resting on inferred answers: ${inferred.inferredFieldIds.join(", ")}. ` +
+        "The operator has to confirm these before anything is captured.",
     };
   }
 

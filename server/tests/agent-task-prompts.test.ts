@@ -67,6 +67,17 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     sources: [{ url: "https://example.com/specs", title: "Specs", text: "Payload: 18 kg." }],
     allowedValues: { payloadCapacity: ["under_2kg", "two_to_ten", "ten_to_twentyfive"] },
   },
+  outbound_outreach: {
+    prospectId: "prospect-1",
+    facilityName: "Example Distribution Center",
+    facilityAddress: "100 Industrial Way, Columbus OH",
+    observations: [
+      { claim: "Runs a single day shift", source: "https://example.com/careers/warehouse" },
+    ],
+    hypothesisedTask: "Totes come off the line and get stacked onto pallets.",
+    inferredGates: { sceneStability: "stable" },
+    selfCaptureSeconds: 45,
+  },
   capture_dispatch: {
     requestId: "req-1",
     taskStatement: "Totes come off the line and get stacked onto pallets.",
