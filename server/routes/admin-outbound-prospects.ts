@@ -1,7 +1,7 @@
 /**
  * Running an outbound beta, by hand, on purpose.
  *
- * Four routes: record a facility we chose, draft the email, send it, and
+ * Record a facility we chose, list what we have, draft the email, send it, and
  * convert a reply into an ordinary inbound request. No discovery crawler, no
  * sequences, no reply classifier, no UI. Twenty facilities can be picked by a
  * person and twenty replies read by a person, and doing it that way first is
@@ -26,6 +26,11 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { hasAnyRole } from "../utils/access-control";
 import { executeAction } from "../agents/action-executor";
+import { runAgentTask } from "../agents/runtime";
+import type {
+  OutboundOutreachInput,
+  OutboundOutreachOutput,
+} from "../agents/tasks/outbound-outreach";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import {
   buildUnsubscribeUrl,
@@ -123,6 +128,59 @@ router.get("/", async (_req: Request, res: Response) => {
   const snapshot = await db.collection(COLLECTION).limit(200).get();
   const prospects = snapshot.docs.map((doc) => ({ prospectId: doc.id, ...doc.data() }));
   return res.json({ ok: true, prospects });
+});
+
+/**
+ * Draft the email, without sending it.
+ *
+ * Separate from `/send` on purpose. The agent proposes; a person reads, edits
+ * and then approves that exact text by posting it back. One route that drafted
+ * and sent would mean nobody ever saw what went out, which is the failure mode
+ * an outbound beta exists to avoid.
+ */
+router.post("/:prospectId/draft", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+
+  const prospectId = String(req.params.prospectId || "").trim();
+  const prospect = await readProspect(prospectId);
+  if (!prospect) return res.status(404).json({ error: "not_found" });
+
+  // Checked before spending a model call: a prospect with no sourced
+  // observations has nothing specific to say, and a generic cold email is
+  // worse than none -- it burns the address and teaches nothing.
+  const guard = await guardProspectSend(prospect);
+  if (!guard.send && guard.blocker !== "already_contacted") {
+    return res.status(409).json({ ok: false, blocker: guard.blocker, detail: guard.detail });
+  }
+
+  try {
+    const result = await runAgentTask<OutboundOutreachInput, OutboundOutreachOutput>({
+      kind: "outbound_outreach",
+      input: {
+        prospectId,
+        facilityName: prospect.facilityName,
+        facilityAddress: prospect.facilityAddress,
+        observations: prospect.observations,
+        hypothesisedTask: prospect.hypothesisedTask,
+        inferredGates: prospect.inferredGates,
+      },
+      session_key: `outbound:${prospectId}`,
+      metadata: { prospect_id: prospectId },
+    });
+
+    if (result.status !== "completed" || !result.output) {
+      return res.status(502).json({ error: result.error || "Draft could not be written" });
+    }
+
+    return res.json({
+      ok: true,
+      draft: result.output,
+      note: "Read this before sending. Every factual claim should trace to one of the observations.",
+    });
+  } catch (error) {
+    logger.error({ error, prospectId }, "Outbound outreach draft failed");
+    return res.status(502).json({ error: "Draft could not be written" });
+  }
 });
 
 /**
