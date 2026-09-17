@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
+import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
 
@@ -616,6 +617,12 @@ export default function SelfCaptureUpload() {
                 checklist={shotList}
                 onSaved={() => setUpload({ status: "done" })}
               />
+
+              {/* The room is not the objects. A robot grasps the tote and stacks
+                  the cartons, and those are often filmed clear -- so we list the
+                  items and take a few photos of each to build sim-ready versions.
+                  A film-only link can add the photos; only an owner edits the list. */}
+              <TaskItemsPanel token={token} scope={scope} />
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and

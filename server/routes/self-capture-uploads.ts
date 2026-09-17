@@ -29,6 +29,12 @@ import {
   selfCaptureObjectPath,
   verifyCaptureUploadToken,
 } from "../utils/captureUploadToken";
+import {
+  getItemInventory,
+  presentInventory,
+  recordItemImage,
+  taskItemImagePath,
+} from "../utils/taskItemInventory";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
@@ -816,5 +822,120 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
 
   return res.status(outcome.status).json(outcome.body);
 });
+
+/** Phone-camera image formats a site will actually send. */
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", "webp"]);
+
+/**
+ * An example photo of one task object.
+ *
+ * The walkthrough reconstructs the room; this gives the Pipeline the objects
+ * the task turns on — a tote, a stack of cartons — so it can build a sim-ready
+ * version of each and place it in the scene. This matters most when the work
+ * area was filmed clear: the scene is real and the objects are simply not in
+ * the shot, so we ask for them here instead.
+ *
+ * Photographing an item is capture, not attestation, so a film-only link may do
+ * it; declaring which items exist is the owner's, and lives on the brief route.
+ * The destination is built from the signed token's scene and the item id, never
+ * from the request body, so one link cannot aim an image at another site's
+ * prefix. And the item has to already be on the list: an image for an item
+ * nobody declared has nowhere to belong, and is refused before any bytes are
+ * stored rather than left orphaned.
+ */
+router.post(
+  "/:token/items/:itemId/image",
+  upload.single("image"),
+  async (req: UploadRequest, res: Response) => {
+    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+    if (!payload) {
+      return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    }
+
+    // Same capture gate as the walkthrough: holding a link is not the same as
+    // being cleared to use it (region, privacy holds).
+    const authorization = await authorizeCaptureUpload(payload.requestId);
+    if (!authorization.allowed) {
+      return res.status(409).json({
+        error: authorization.detail || "This capture cannot start yet.",
+        code: authorization.holdReason || "capture_held",
+        blockers: authorization.blockers,
+      });
+    }
+
+    const file = req.file;
+    if (!file || !file.size) {
+      return res.status(400).json({ error: "No image was attached." });
+    }
+
+    const extension = extensionOf(file.originalname);
+    if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
+      return res.status(415).json({
+        error: "Attach a photo from your phone — .jpg, .png, .heic, or .webp.",
+        accepts: [...ALLOWED_IMAGE_EXTENSIONS],
+      });
+    }
+
+    if (!storageAdmin) {
+      logger.error({ requestId: payload.requestId }, "Item image upload attempted without storage");
+      return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
+    }
+
+    const itemId = String(req.params.itemId || "").trim();
+    // The item has to exist before we store anything, so a stray image cannot be
+    // written to storage with no inventory entry pointing at it.
+    const inventory = await getItemInventory(payload.requestId);
+    const declared = inventory?.items.some((entry) => entry.itemId === itemId);
+    if (!declared) {
+      return res.status(404).json({
+        error: "That item is not on this task's item list. Add it first, then attach its photos.",
+        code: "unknown_item",
+      });
+    }
+
+    const imageId = `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const objectPath = taskItemImagePath({
+      sceneId: payload.sceneId,
+      itemId,
+      imageId,
+      extension,
+    });
+
+    try {
+      await storageAdmin
+        .bucket(storageBucketName())
+        .file(objectPath)
+        .save(file.buffer, {
+          contentType: file.mimetype || "image/jpeg",
+          resumable: false,
+          metadata: {
+            metadata: {
+              request_id: payload.requestId,
+              scene_id: payload.sceneId,
+              item_id: itemId,
+              kind: "task_item_example",
+            },
+          },
+        });
+    } catch (error) {
+      logger.error({ error, requestId: payload.requestId, itemId }, "Failed to store an item image");
+      return res.status(502).json({ error: "We could not save that photo. Try again shortly." });
+    }
+
+    const record = await recordItemImage(payload.requestId, itemId, {
+      imageId,
+      storagePath: objectPath,
+      uploadedAtIso: new Date().toISOString(),
+    });
+    if (!record) {
+      // Removed between the check and the write. The bytes are harmless orphans
+      // a later cleanup sweeps; the honest answer to the caller is that the item
+      // is gone.
+      return res.status(404).json({ error: "That item is no longer on the list.", code: "unknown_item" });
+    }
+
+    return res.status(201).json({ ok: true, scope: payload.scope, ...presentInventory(record) });
+  },
+);
 
 export default router;
