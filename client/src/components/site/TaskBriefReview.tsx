@@ -194,7 +194,7 @@ export function TaskBriefReview(props: { token: string; brief: DraftedBrief; onC
           override any of it, or say they do not know. */}
       {rows.confirmable.map((answer) => (
         <fieldset key={answer.fieldId} style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "10px 0" }}>
-          <legend className="ms-field-hint" style={{ padding: "0 6px" }}>
+          <legend style={{ padding: "0 6px", fontWeight: 600 }}>
             {fieldQuestion(answer.fieldId)}
           </legend>
           <p style={{ margin: "0 0 8px" }}>
@@ -230,7 +230,7 @@ export function TaskBriefReview(props: { token: string; brief: DraftedBrief; onC
           real answer that does not block. */}
       {rows.open.map((fieldId) => (
         <fieldset key={fieldId} style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "10px 0" }}>
-          <legend className="ms-field-hint" style={{ padding: "0 6px" }}>{fieldQuestion(fieldId)}</legend>
+          <legend style={{ padding: "0 6px", fontWeight: 600 }}>{fieldQuestion(fieldId)}</legend>
           <p className="ms-field-hint" style={{ marginTop: 0 }}>
             We could not tell from what you sent. If you know, tell us — if not, that is fine.
           </p>

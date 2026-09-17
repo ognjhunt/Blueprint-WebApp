@@ -555,34 +555,30 @@ export default function SelfCaptureUpload() {
                 view would finish the job.
               </p>
             </div>
-          ) : scope === "owner" && brief && !briefConfirmed && briefBlocksCapture ? (
-            /* The brief comes before the camera only when it still gates the
-               recording. Confirming is the attestation that lets a submission
-               reach `qualified` -- but the audit was right that a full
-               confirmation is too strict a wall: only the capture-blocking
-               gates change what to film, so those are what hold the camera.
-               Once they are resolved (or nothing blocks capture), this falls
-               through to the recorder and the rest of the brief settles after.
-               A film-only colleague link never lands here: attestation is not
-               theirs to make. */
-            <TaskBriefReview
-              token={token}
-              brief={brief}
-              onConfirmed={() => setBriefConfirmed(true)}
-            />
           ) : (
             <>
-              {/* An owner whose brief did not wall the camera can still confirm
-                  it -- and must, eventually, for the site to become supply. So
-                  the confirm path stays available here, one disclosure in,
-                  rather than vanishing because filming came first. A film-only
-                  link never sees it. */}
+              {/* Camera first. The brief never walls the recorder: permission to
+                  capture, the one or two answers that change what to film, and
+                  the later task qualification are three different things, and
+                  only the first is needed to point a phone at the workcell. So
+                  the recorder is always here, and the brief is a disclosure
+                  beside it -- opened by default when a capture-blocking gate is
+                  still unresolved, because that answer refines the recording,
+                  but never hidden and never required to reveal the camera.
+                  Confirming it is still the attestation that turns the site into
+                  supply, and it can happen before or after filming. A film-only
+                  link never sees it: attestation is not theirs to make. */}
               {scope === "owner" && brief && !briefConfirmed && (
-                <details style={{ marginBottom: "20px" }}>
-                  <summary>Review and confirm your task brief</summary>
+                <details open={briefBlocksCapture} style={{ marginBottom: "20px" }}>
+                  <summary>
+                    {briefBlocksCapture
+                      ? "A couple of answers refine what to film"
+                      : "Review and confirm your task brief"}
+                  </summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. Confirming it is what lets a robot team be
-                    matched to your site — you can do it before or after you film.
+                    We drafted this from what you sent. You can film now — confirming the brief is
+                    what lets a robot team be matched to your site, and you can do it before or
+                    after you film.
                   </p>
                   <TaskBriefReview
                     token={token}
