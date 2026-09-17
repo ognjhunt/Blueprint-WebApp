@@ -73,6 +73,9 @@ function splitName(value: string) {
 function ScreeningForm({ isSite }: { isSite: boolean }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+  // The site's link to its own submission, handed back by the submit response
+  // rather than waited for in an inbox.
+  const [captureUrl, setCaptureUrl] = useState<string | null>(null);
   const pending = useRef(false);
   const [gates, setGates] = useState<Answers>({});
   const [spec, setSpec] = useState<Answers>({});
@@ -181,6 +184,8 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             : "We couldn’t send your request. Please try again, or email hello@tryblueprint.io.",
         );
       }
+      const result = (await response.json().catch(() => ({}))) as { captureUrl?: string | null };
+      setCaptureUrl(typeof result.captureUrl === "string" ? result.captureUrl : null);
       setStatus("sent");
     } catch (submitError) {
       setError(
@@ -201,6 +206,26 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
         <h2>{copy.headline}</h2>
         <p>{copy.body}</p>
         <p>{copy.nextStep}</p>
+        {captureUrl && (
+          /*
+           * The link, on the screen that already knows the verdict.
+           *
+           * It used to be minted after this point and sent by email, so a site
+           * that had just been told it cleared the screen still had to go and
+           * find an inbox for a link that existed a second later. The same URL
+           * opens an upload page or a status page depending on what the server
+           * says when it is opened, which is why one link serves both verdicts.
+           */
+          <p className="ms-success-link">
+            <a className="ms-text-link" href={captureUrl}>
+              {blocked ? "Open your submission" : "Record the walkthrough"}
+              <ArrowRight size={18} aria-hidden="true" />
+            </a>
+            <span className="ms-field-hint">
+              Keep this link — it is how you come back to this submission.
+            </span>
+          </p>
+        )}
         <a className="ms-text-link" href="/">
           Back to Blueprint <ArrowRight size={18} aria-hidden="true" />
         </a>

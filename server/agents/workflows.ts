@@ -37,7 +37,7 @@ import {
   describeCaptureDispatch,
   type CaptureDispatchDecision,
 } from "../utils/captureDispatch";
-import { createCaptureUploadToken } from "../utils/captureUploadToken";
+import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import {
   bindingGateFieldIds,
   defaultCaptureMode,
@@ -816,15 +816,9 @@ export function nextStepForDispatch(
     return { kind: "capturer_visit" };
   }
 
-  const token = createCaptureUploadToken({
-    requestId: request.requestId,
-    sceneId: `site-${request.requestId}`,
-    captureId: `walkthrough-${request.requestId}`,
-  });
-
   return {
     kind: "self_capture",
-    uploadUrl: `${publicAppOrigin()}/capture-upload/${token}`,
+    uploadUrl: captureUploadUrlFor(request.requestId),
   };
 }
 

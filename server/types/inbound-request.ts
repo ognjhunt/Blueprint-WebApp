@@ -1208,6 +1208,23 @@ export interface SubmitInboundRequestResponse {
   siteSubmissionId?: string;
   status: RequestStatus;
   message?: string;
+  /**
+   * The site's own link to this submission, issued whatever the screen said.
+   *
+   * It used to arrive by email, minted only once a request had cleared and been
+   * dispatched — so a site that already knew it had passed still had to go and
+   * find an inbox for a link that existed a second after it pressed submit.
+   *
+   * Issued here instead, to everyone. Whether it opens an upload page or a
+   * status page is decided live by `authorizeCaptureUpload` each time it is
+   * opened, so a blocked site holds something real rather than a promise that
+   * we will come back to them — which, for a condition that changes inside
+   * their own building, was never a promise we could keep.
+   *
+   * Absent for robot teams, who have no capture, and absent when the store
+   * could not mint it.
+   */
+  captureUrl?: string | null;
 }
 
 export interface SceneDashboardTask {

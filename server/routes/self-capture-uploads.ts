@@ -22,6 +22,7 @@ import {
   selfCaptureObjectPath,
   verifyCaptureUploadToken,
 } from "../utils/captureUploadToken";
+import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 
 const router = Router();
 
@@ -158,11 +159,17 @@ export function buildBrowserCaptureManifest(input: {
 }
 
 /**
- * What the link opens to: enough for the page to tell someone what to film.
+ * What the link opens to: enough for the page to tell someone what to film, or
+ * why they cannot yet.
  *
  * Returns nothing about the site or the buyer. A link that leaks who a customer
  * is to anyone who receives it forwarded is a worse problem than a link that is
- * slightly less helpful.
+ * slightly less helpful. The hold reasons below are the site's own answers read
+ * back to it, which is not a leak: it already knows what it told us.
+ *
+ * `state` is read live rather than baked into the token, so the same URL is a
+ * status page while something is in the way and an upload page the moment it
+ * is not. Nobody has to send a second link.
  */
 router.get("/:token", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -170,11 +177,18 @@ router.get("/:token", async (req: Request, res: Response) => {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
   }
 
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+
   return res.json({
     ok: true,
     captureId: payload.captureId,
     expiresAt: new Date(payload.exp * 1000).toISOString(),
     accepts: [...ALLOWED_EXTENSIONS],
+    state: authorization.allowed ? "ready" : "held",
+    holdReason: authorization.holdReason,
+    detail: authorization.detail,
+    blockers: authorization.blockers,
+    openQuestions: authorization.openQuestions,
   });
 });
 
@@ -182,6 +196,20 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  }
+
+  // Before anything else about the file. A token now reaches sites that have
+  // not cleared the screen -- that is what makes the link worth issuing at
+  // submit -- so holding one is no longer the same as being allowed to use it.
+  // Checking here rather than only in the page is the whole security boundary:
+  // the page is a convenience, this is the rule.
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  if (!authorization.allowed) {
+    return res.status(409).json({
+      error: authorization.detail || "This capture cannot start yet.",
+      code: authorization.holdReason || "capture_held",
+      blockers: authorization.blockers,
+    });
   }
 
   const file = req.file;
