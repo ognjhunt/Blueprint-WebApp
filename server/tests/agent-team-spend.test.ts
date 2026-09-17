@@ -414,3 +414,36 @@ describe("a hold becomes a spend only for work that happened", () => {
     expect(once.reservedUsd).toBe(0);
   });
 });
+
+/* --------------------------------------------- the intake's own answers */
+
+describe("the intake knows which of its questions a run will answer better", () => {
+  it("marks exactly the seven an evaluation measures", async () => {
+    const { measurableRobotSpecFieldIds } = await import(
+      "../../client/src/data/robotTeamQualification"
+    );
+
+    expect([...measurableRobotSpecFieldIds()].sort()).toEqual([
+      "cycleTime",
+      "demonstratedSuccessRate",
+      "dutyCycle",
+      "humanProximity",
+      "lighting",
+      "objectHandling",
+      "payloadCapacity",
+    ]);
+  });
+
+  it("leaves the two no episode can settle unmarked", async () => {
+    // budgetBand is a commercial fact about the business and taskFamily is a
+    // declaration of what the robot is for. No run establishes either, so
+    // marking them superseded would promise a measurement we cannot make.
+    const { measurableRobotSpecFieldIds } = await import(
+      "../../client/src/data/robotTeamQualification"
+    );
+    const measurable = measurableRobotSpecFieldIds();
+
+    expect(measurable).not.toContain("budgetBand");
+    expect(measurable).not.toContain("taskFamily");
+  });
+});
