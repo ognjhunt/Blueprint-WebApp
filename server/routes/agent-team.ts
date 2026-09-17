@@ -78,6 +78,7 @@ import {
   reservationTtlMs,
   runIdForReservation,
 } from "../utils/agentEvalRuns";
+import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 
 const router = Router();
@@ -480,6 +481,14 @@ const runsSchema = z
     confirm: z.boolean().optional(),
     /** Required when confirming, so a retry cannot double-spend. */
     idempotencyKey: z.string().trim().min(8).max(200).optional(),
+    /**
+     * The plan the team saw in the dry run, signed. When present, confirm
+     * reserves exactly the scenes it names and refuses any that are no longer
+     * runnable -- so a team spends on what it approved, not on whatever supply
+     * happens to look like at confirm time. Absent keeps the old behaviour:
+     * confirm reserves a freshly computed selection.
+     */
+    planToken: z.string().trim().max(4000).optional(),
   })
   .strict();
 
@@ -534,12 +543,23 @@ router.post("/runs", async (req: Request, res: Response) => {
   });
 
   if (!parsed.data.confirm) {
+    // Sign the plan we are showing, so a later confirm can reserve exactly
+    // this and not whatever supply looks like by then.
+    const planToken = createEvalPlanToken({
+      teamId,
+      checkpointId: parsed.data.checkpointId,
+      lines: selection.selected.map((candidate) => ({
+        sceneId: candidate.sceneId,
+        costUsd: candidate.costUsd,
+      })),
+    });
     return res.status(200).json({
       dryRun: true,
       teamId,
       spent: false,
+      planToken,
       ...selection,
-      note: "Nothing was spent. Send confirm:true with an idempotencyKey to start these runs.",
+      note: "Nothing was spent. Send confirm:true with this planToken and an idempotencyKey to start exactly these runs.",
     });
   }
 
@@ -568,7 +588,55 @@ router.post("/runs", async (req: Request, res: Response) => {
     detail: string;
   }[] = [];
 
-  for (const [index, candidate] of selection.selected.entries()) {
+  // Which scenes actually get reserved. With a plan token, it is exactly what
+  // the team approved: each named scene re-validated against current supply,
+  // and any that is no longer runnable refused by name rather than swapped for
+  // another. Without a token, the freshly computed selection, as before.
+  let toReserve = selection.selected;
+  if (parsed.data.planToken) {
+    const plannedLines = verifyEvalPlanToken(parsed.data.planToken, {
+      teamId,
+      checkpointId: parsed.data.checkpointId,
+    });
+    if (!plannedLines) {
+      return res.status(409).json({
+        error: "That plan is no longer valid. Request a fresh dry run and confirm again.",
+        code: "eval_plan_invalid",
+      });
+    }
+    // Runnable means still in the catalogue, not still inside this confirm's
+    // budget. `selected` is the budget-capped slice; `selected ∪ skipped` is
+    // every scene `buildTeamEvalCandidates` returned -- the runnable supply,
+    // ranked, with each rationale intact. Pinning against the slice would refuse
+    // a scene the team approved just because supply that arrived since outranked
+    // it for the budget, and call a site that plainly still exists "gone". A
+    // scene the team approved that is genuinely unaffordable now is refused
+    // below by `authorizeAgentSpend`, with a reason that says so.
+    const rankedById = new Map(
+      [...selection.selected, ...selection.skipped].map((ranked) => [ranked.sceneId, ranked]),
+    );
+    const pinned: typeof selection.selected = [];
+    for (const line of plannedLines) {
+      const candidate = rankedById.get(line.sceneId);
+      if (!candidate) {
+        // Named in the plan, not runnable now. Refused rather than substituted:
+        // the team approved this site, and swapping in another would be
+        // spending on something it never saw.
+        refused.push({
+          sceneId: line.sceneId,
+          siteLabel: "This site",
+          costUsd: line.costUsd,
+          refusal: "site_no_longer_runnable",
+          detail: "This site is no longer available to evaluate. Nothing was charged for it.",
+        });
+        continue;
+      }
+      pinned.push(candidate);
+    }
+    toReserve = pinned;
+  }
+
+  for (const [index, candidate] of toReserve.entries()) {
     const authorization = await authorizeAgentSpend({
       teamId,
       amountUsd: candidate.costUsd,

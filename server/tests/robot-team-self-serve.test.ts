@@ -413,6 +413,119 @@ describe("registration to plan, without an operator", () => {
   });
 });
 
+describe("the plan a team saw is what it reserves", () => {
+  // A team that is about to reserve has funded and switched its agent on --
+  // otherwise the dry run caps its budget at a zero balance, selects nothing,
+  // and signs an empty plan, which is not the case this describe block is about.
+  // Seed the ledger and policy the way funding and PUT /policy would, so the
+  // dry run sees a plan worth pinning.
+  async function registerTeam(baseUrl: string) {
+    const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
+      method: "POST",
+      headers: json(),
+      body: JSON.stringify({
+        teamName: "Alpha Robotics",
+        checkpoint: { label: "v3", runtime: "policy_endpoint", reference: "https://policies.example/v3" },
+      }),
+    });
+    const body = (await registered.json()) as {
+      agentKey: string;
+      teamId: string;
+      checkpoint: { checkpointId: string };
+    };
+
+    const { creditTeam, setSpendPolicy } = await import("../utils/robotTeamBalance");
+    await creditTeam({
+      teamId: body.teamId,
+      amountUsd: 500,
+      reason: "Test seed: funded balance",
+      idempotencyKey: "seed-credit-1",
+    });
+    await setSpendPolicy({
+      teamId: body.teamId,
+      dailyLimitUsd: 500,
+      perRunLimitUsd: 500,
+      agentSpendEnabled: true,
+    });
+
+    return body;
+  }
+
+  it("hands back a signed plan token in the dry run", async () => {
+    seedOneRunnableSite();
+    const body = await withRoutes(async (baseUrl) => {
+      const { agentKey, checkpoint } = await registerTeam(baseUrl);
+      const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: json(agentKey),
+        body: JSON.stringify({ checkpointId: checkpoint.checkpointId }),
+      });
+      return (await response.json()) as { dryRun: boolean; planToken?: string; selected: unknown[] };
+    });
+
+    expect(body.dryRun).toBe(true);
+    expect(typeof body.planToken).toBe("string");
+  });
+
+  it("refuses a planned site that is no longer runnable, rather than swapping in another", async () => {
+    // The exact supply-shift the fix is for: the site is runnable at dry-run
+    // time, gone by confirm time. The team must be told, not silently charged
+    // for a different site it never saw.
+    seedOneRunnableSite();
+    const result = await withRoutes(async (baseUrl) => {
+      const { agentKey, checkpoint } = await registerTeam(baseUrl);
+
+      const dry = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: json(agentKey),
+        body: JSON.stringify({ checkpointId: checkpoint.checkpointId }),
+      });
+      const { planToken } = (await dry.json()) as { planToken: string };
+
+      // Supply moves between the two calls.
+      sharedFakeFirestoreState.docs.delete("inboundRequests/site-1");
+
+      const confirm = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: json(agentKey),
+        body: JSON.stringify({
+          checkpointId: checkpoint.checkpointId,
+          confirm: true,
+          idempotencyKey: "pinned-confirm-1",
+          planToken,
+        }),
+      });
+      return (await confirm.json()) as {
+        started: unknown[];
+        refused: { sceneId: string; refusal: string }[];
+      };
+    });
+
+    expect(result.started).toEqual([]);
+    expect(result.refused.some((entry) => entry.refusal === "site_no_longer_runnable")).toBe(true);
+  });
+
+  it("rejects a tampered or foreign plan token before spending anything", async () => {
+    seedOneRunnableSite();
+    const status = await withRoutes(async (baseUrl) => {
+      const { agentKey, checkpoint } = await registerTeam(baseUrl);
+      const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: json(agentKey),
+        body: JSON.stringify({
+          checkpointId: checkpoint.checkpointId,
+          confirm: true,
+          idempotencyKey: "bad-plan-1",
+          planToken: "clearly.not-signed",
+        }),
+      });
+      return response.status;
+    });
+
+    expect(status).toBe(409);
+  });
+});
+
 /* ------------------------------------------------------------- funding */
 
 describe("funding needs no operator", () => {
