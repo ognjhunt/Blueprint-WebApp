@@ -56,6 +56,9 @@ const TIMESLICE_MS = 4_000;
  */
 const MP4_CANDIDATES = [
   'video/mp4;codecs="avc1.42E01E"',
+  'video/mp4;codecs="avc1.4d002a"',
+  "video/mp4;codecs=avc1",
+  "video/mp4;codecs=h264",
   "video/mp4",
 ] as const;
 
@@ -217,12 +220,18 @@ export function CaptureRecorder(props: {
         video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
-    } catch {
+    } catch (error) {
+      // Tell a blocked permission apart from a camera that could not open, so
+      // the person is sent to the right fix rather than a generic dead end.
+      const name = (error as { name?: string } | null)?.name;
+      const blocked = name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError";
       setState({
         status: "failed",
-        message:
-          "We could not open the camera. You can still record in your phone's camera app and "
-          + "upload the file below.",
+        message: blocked
+          ? "Camera access was blocked. Allow the camera for this page in your browser settings, "
+            + "or record in your phone's camera app and upload the file below."
+          : "We could not open the camera. You can record in your phone's camera app and upload "
+            + "the file below.",
         recoverable: false,
       });
       return;
