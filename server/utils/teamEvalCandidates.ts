@@ -31,6 +31,7 @@ import type { InboundRequest } from "../types/inbound-request";
 import { screeningRound, episodeRate } from "../../client/src/lib/episodePricing";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { coverageEvidenceFrom } from "./captureCoverageReview";
+import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 
 /**
  * What one screening run costs at the published rate.
@@ -67,10 +68,10 @@ function hasBuiltScene(request: InboundRequest): boolean {
 }
 
 /**
- * Requests that are real, screened, confirmed and reconstructed — the runnable
- * supply.
+ * Requests that are real, screened, confirmed, reconstructed and runnable — the
+ * runnable supply.
  *
- * ## Three conditions, and each one used to be missing or wrong
+ * ## Four conditions, and each one used to be missing or wrong
  *
  * `disposition === "qualified"` was the only filter. It is still necessary and
  * it was never sufficient:
@@ -84,6 +85,11 @@ function hasBuiltScene(request: InboundRequest): boolean {
  * - **Every binding gate has to be answered**, which `qualified` already
  *   implies, and `assessReadiness` re-checks because this is the last place
  *   before a team is quoted a price for it.
+ * - **An evaluation has to be able to run against the scene.** A world manifest
+ *   proves the scene was reconstructed, not that our harness can load and step
+ *   it. `sceneRunnableReadiness` requires an internal proof of that before the
+ *   site is sold, so the first team to buy a run is not the one who finds out
+ *   integration does not work. It fails closed: unverified is held back.
  *
  * The disposition stays the indexed query and the rest is filtered in memory:
  * the query is already capped, and a three-field composite index for a check
@@ -122,7 +128,16 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
         },
         reconstructed: hasBuiltScene(request),
       });
-      return readiness.isSupply;
+      if (!readiness.isSupply) return false;
+
+      // Site-ready is not run-ready. `assessReadiness` establishes that the
+      // operator confirmed a scene we could build; it says nothing about
+      // whether our harness can actually load and step that scene. Requiring an
+      // internal runnability proof here is what keeps the first team to buy an
+      // evaluation from being the one who discovers integration works. It fails
+      // closed on purpose -- an unverified scene is held back from supply, not
+      // sold as ready. See `sceneRunnableReadiness`.
+      return sceneRunnableReadiness(request.evaluation_readiness).runnable;
     });
 }
 

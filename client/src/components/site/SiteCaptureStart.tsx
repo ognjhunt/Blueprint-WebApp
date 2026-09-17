@@ -10,7 +10,7 @@
  * on our account.
  *
  * Neither holds now. A site recording on its own phone costs us nothing to
- * receive; the privacy screen reads the footage before a frame is extracted;
+ * receive; the privacy screen reads the footage before anything is derived from it;
  * and the footage review refuses to reconstruct anything unusable. The money is
  * guarded after the video, by the video.
  *
@@ -233,9 +233,9 @@ export function SiteCaptureStart() {
     <form className="ms-form" onSubmit={submit} aria-label="Start a site capture">
       <h2 style={{ marginTop: 0 }}>Tell us about one repetitive job.</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        Start with a description. Add footage if you already have some, or film it later with our
-        instructions — we will use whatever you give us and tell you what, if anything, is
-        missing. No question here is a test of whether your site is good enough: what the footage
+        Start with a description. If you already have footage, tell us below; if not, you will film
+        it later with our instructions — either way we will use whatever you give us and tell you
+        what, if anything, is missing. No question here is a test of whether your site is good enough: what the footage
         shows is what decides, and you will hear exactly what we saw.
       </p>
 

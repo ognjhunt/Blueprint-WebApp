@@ -183,7 +183,7 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
   // below exists to stop us *spending* — sending a person to an address,
   // committing a paid reconstruction — and none of that is triggered by a site
   // uploading a phone video. The video lands in our bucket, the privacy screen
-  // reads it before a frame is extracted, and the footage review refuses to
+  // reads it before anything is derived from it, and the footage review refuses to
   // reconstruct anything unusable. The money is guarded after this point and
   // not at all by this point.
   //
