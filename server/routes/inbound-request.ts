@@ -11,6 +11,7 @@ import {
   isCaptureRegion,
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
+import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
@@ -1711,6 +1712,48 @@ export async function submitInboundRequest(req: Request, res: Response) {
       .collection("inboundRequests")
       .doc(payload.requestId)
       .set(encryptedInboundRequest);
+
+    // 8a. Draft the task brief, so there is something for the operator to
+    // confirm. This is the entry point the Tier 2 mechanism was missing: the
+    // brief, the attestation and the readiness ladder all existed, and nothing
+    // called `draftBrief` -- so no brief was ever drafted, the confirmation
+    // page always read "not ready", and the funnel it was meant to unblock
+    // stayed blocked one step further down.
+    //
+    // Drafted from what the operator gave us: the task statement as the
+    // summary, and any gate answers they supplied as `description`-basis
+    // proposals. In the bare-bones flow that is often just the summary, which
+    // is the honest state -- a one-liner leaves every gate an open question the
+    // operator answers when they confirm. Footage, when it arrives, sharpens
+    // this later; it does not gate the brief existing now.
+    if (buyerType === "site_operator") {
+      try {
+        const proposed = Object.entries(siteTaskGates || {})
+          .filter(([, value]) => Boolean(value))
+          .map(([fieldId, value]) => ({
+            fieldId,
+            value: String(value),
+            basis: "description" as const,
+            reading: "From what you told us at intake.",
+          }));
+        await saveBrief(
+          draftBrief({
+            requestId: payload.requestId,
+            summary: taskStatement || "Your site task",
+            captureMode,
+            proposed,
+          }),
+        );
+      } catch (error) {
+        // A missing brief means the operator sees "we are still reading it"
+        // rather than a confirmable draft -- degraded, not broken -- so this
+        // must not fail the submission.
+        logger.error(
+          { error, requestId: payload.requestId },
+          "Could not draft a task brief at submission",
+        );
+      }
+    }
 
     createLifecycleCadenceForInboundRequest({
       requestId: payload.requestId,
