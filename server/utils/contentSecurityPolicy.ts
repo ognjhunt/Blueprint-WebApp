@@ -42,7 +42,14 @@ export function buildContentSecurityPolicy({
     derivePostHogAssetHost(posthogHost),
   ]);
 
-  const cspConnectAllowlist = analyticsConnectAllowlist;
+  const cspConnectAllowlist = uniqueNonEmpty([
+    ...analyticsConnectAllowlist,
+    // The keyless geocoder the location field falls back to when there is no
+    // Google Maps key. Google's own hosts are already allowed below. Without
+    // this, the free provider is blocked and the field silently loses its
+    // suggestions (typing still works, which is the floor, but not the point).
+    "https://photon.komoot.io",
+  ]);
 
   return [
     "default-src 'self'",

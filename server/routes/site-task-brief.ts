@@ -45,9 +45,11 @@ import {
   projectTaskStatus,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
 import { deliverOutbox } from "../utils/captureOutbox";
+import { sendEmail } from "../utils/email";
+import { sendSms, looksLikePhoneNumber } from "../utils/sms";
 
 const router = Router();
 
@@ -215,6 +217,156 @@ router.get("/:token/film-link", async (req: Request, res: Response) => {
     });
   }
   return res.status(200).json({ ok: true, filmUrl: captureUploadUrlFor(payload.requestId, "film") });
+});
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** An owner link can hand the film link to a few people, not spam a number. */
+const MAX_HANDOFF_SENDS = 25;
+
+const filmLinkSendSchema = z
+  .object({
+    channel: z.enum(["email", "sms"]),
+    to: z.string().trim().min(3).max(320),
+  })
+  .strict();
+
+/**
+ * Send the record-only link straight to whoever is doing the filming.
+ *
+ * The common shape once outreach is involved: the person we reach is a site ops
+ * lead at a desk, and the person who can actually walk the floor with a phone is
+ * someone else. This turns the manual copy-and-forward into one step — the owner
+ * enters a number or an email and we deliver the film-scoped link with a
+ * one-line instruction.
+ *
+ * Owner scope only, like minting the link itself. The message is fixed and
+ * carries only the link and the task, so this cannot be driven into sending
+ * arbitrary content; a per-request cap bounds how many destinations one link can
+ * reach. SMS is best effort: Twilio is not part of this repo's approved primary
+ * stack and is unconfigured by default, so when it is off this says so plainly
+ * and returns the link to share rather than pretending to have texted it. Email
+ * always works.
+ */
+router.post("/:token/film-link/send", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({
+      error: "Only the site operator's own link can send a record-only link to someone else.",
+      code: "capture_token_film_only",
+    });
+  }
+
+  const parsed = filmLinkSendSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "That request is invalid", code: "film_link_send_invalid" });
+  }
+  const { channel, to } = parsed.data;
+
+  if (channel === "email" && !EMAIL_RE.test(to)) {
+    return res.status(400).json({ error: "That does not look like an email address.", code: "invalid_email" });
+  }
+  if (channel === "sms" && !looksLikePhoneNumber(to)) {
+    return res.status(400).json({
+      error: "Enter the number in full international form, like +15551234567.",
+      code: "invalid_number",
+    });
+  }
+
+  // Check the relay cap before sending; the counter is incremented only on a
+  // successful send below, so a config error or a bad number does not burn a
+  // slot. A race could let a few extra through, which is fine: this is a soft
+  // abuse bound, not a security control.
+  const requestRef = db ? db.collection("inboundRequests").doc(payload.requestId) : null;
+  if (requestRef) {
+    try {
+      const snap = await requestRef.get();
+      const sends = Number(
+        (snap.data() as { site_capture_handoff_sends?: number } | undefined)?.site_capture_handoff_sends ?? 0,
+      );
+      if (sends >= MAX_HANDOFF_SENDS) {
+        return res.status(429).json({
+          error: "This capture has shared its link with a lot of people already. Copy the link and send it directly.",
+          code: "handoff_send_limit",
+        });
+      }
+    } catch (error) {
+      logger.warn({ error, requestId: payload.requestId }, "Could not read the handoff send counter; sending anyway");
+    }
+  }
+
+  const requestId = payload.requestId;
+  const filmUrl = captureUploadUrlFor(requestId, "film");
+  const brief = await getBrief(requestId).catch(() => null);
+  const task = (brief?.summary || "").trim();
+  const taskClause = task ? ` for "${task.length > 120 ? `${task.slice(0, 117)}…` : task}"` : "";
+
+  async function bumpSendCounter() {
+    if (!requestRef) return;
+    try {
+      await requestRef.set(
+        { site_capture_handoff_sends: admin.firestore.FieldValue.increment(1) },
+        { merge: true },
+      );
+    } catch (error) {
+      logger.warn({ error, requestId }, "Could not increment the handoff send counter");
+    }
+  }
+
+  try {
+    if (channel === "sms") {
+      const result = await sendSms({
+        to,
+        body:
+          `Blueprint: you've been asked to film a site walkthrough${taskClause}. ` +
+          `Open on your phone — no app needed: ${filmUrl}`,
+      });
+      if (!result.sent) {
+        return res.status(result.reason === "not_configured" ? 503 : 400).json({
+          ok: false,
+          code: result.reason === "not_configured" ? "sms_unavailable" : "sms_send_failed",
+          error:
+            result.reason === "not_configured"
+              ? "Text messaging is not set up here yet. Send it by email, or copy the link and share it."
+              : "We could not text that number. Check it, or send it by email instead.",
+          filmUrl,
+        });
+      }
+      await bumpSendCounter();
+      return res.status(200).json({ ok: true, channel: "sms", sent: true });
+    }
+
+    const result = await sendEmail({
+      to,
+      subject: "You've been asked to film a Blueprint site capture",
+      text:
+        `Someone has asked you to film a short walkthrough of a work area${taskClause} for a Blueprint robot evaluation.\n\n` +
+        `Open this link on your phone — no app to install, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
+        `You can record and upload from this link. Confirming the task details stays with the site operator who sent it to you.`,
+      replyTo: "ops@tryblueprint.io",
+    });
+    if (!result.sent) {
+      return res.status(503).json({
+        ok: false,
+        code: "email_unavailable",
+        error: "We could not send that email right now. Copy the link and share it directly.",
+        filmUrl,
+      });
+    }
+    await bumpSendCounter();
+    return res.status(200).json({ ok: true, channel: "email", sent: true });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId, channel }, "Could not send the film-link handoff");
+    return res.status(502).json({
+      ok: false,
+      code: "handoff_failed",
+      error: "That could not be sent. Copy the link and share it directly.",
+      filmUrl,
+    });
+  }
 });
 
 router.post("/:token/confirm", async (req: Request, res: Response) => {

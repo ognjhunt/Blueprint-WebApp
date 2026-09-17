@@ -222,14 +222,15 @@ describe("field encryption", () => {
     });
   });
 
-  it("carries capture mode and gate provenance through a storage round trip", async () => {
-    // The bug this guards was silent and has now happened twice in this shape.
-    // `contact` and `request` are rebuilt field by field while everything else
-    // is spread, so a new field inside `request` is dropped on write unless
-    // somebody remembers to add it in two places. Capture mode was collected on
-    // the form, scored once at intake and then thrown away -- which made every
-    // stored submission look like it had never answered the question, and would
-    // have held every capture dispatch on `capture_mode_missing`.
+  it("carries capture mode, region, footage and gate provenance through a storage round trip", async () => {
+    // The bug this guards was silent and has now happened three times in this
+    // shape. `contact` and `request` are rebuilt field by field while everything
+    // else is spread, so a new field inside `request` is dropped on write unless
+    // somebody remembers to add it in two places. Capture mode went first;
+    // capture_region went the same way and was worse -- a site that told us it
+    // was in the US had its region thrown away here, so every capture held on
+    // `capture_region_unknown` ("no region recorded") even though the operator
+    // answered, and the camera the intake had already offered opened onto a wall.
     const request = {
       contact: {
         firstName: "Ada",
@@ -248,6 +249,8 @@ describe("field encryption", () => {
         taskStatement: "Qualify a picking workflow.",
         siteTaskGates: { sceneStability: "stable" },
         capture_mode: "self_capture" as const,
+        capture_region: "us" as const,
+        has_existing_footage: true,
       },
       site_task_gate_sources: { sceneStability: "inferred" as const },
     };
@@ -262,6 +265,13 @@ describe("field encryption", () => {
     expect(stored.request.capture_mode).toBe("self_capture");
     expect(decrypted.request.capture_mode).toBe("self_capture");
     expect(decrypted.request.siteTaskGates).toEqual({ sceneStability: "stable" });
+
+    // Region is the beta's lawful basis for collecting; drop it and the capture
+    // is held as "no region recorded". Footage rides with it. Both survive now.
+    expect(stored.request.capture_region).toBe("us");
+    expect(decrypted.request.capture_region).toBe("us");
+    expect(stored.request.has_existing_footage).toBe(true);
+    expect(decrypted.request.has_existing_footage).toBe(true);
 
     // Provenance rides at the top level, where the spread carries it.
     expect(decrypted.site_task_gate_sources).toEqual({ sceneStability: "inferred" });

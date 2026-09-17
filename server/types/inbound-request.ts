@@ -255,6 +255,8 @@ export interface RequestDetails {
    * `captureResidency.ts`.
    */
   capture_region?: CaptureRegion | null;
+  /** Whether the operator says they already have footage. Decides what we say next. */
+  has_existing_footage?: boolean | null;
   /** Answers to the spec-tier questions. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** The free-text task description the narrative review reads against the gates. */

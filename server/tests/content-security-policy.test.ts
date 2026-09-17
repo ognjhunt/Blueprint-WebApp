@@ -22,6 +22,14 @@ describe("content security policy", () => {
     expect(scriptSrc).toContain("https://maps.gstatic.com");
   });
 
+  it("lets the location field query its geocoders", () => {
+    const connectSrc = parseDirective(buildContentSecurityPolicy({ isProduction: true }), "connect-src");
+    // Google Places when a key is configured, and the keyless free fallback the
+    // field uses otherwise. Dropping either silently strips the suggestions.
+    expect(connectSrc).toContain("https://maps.googleapis.com");
+    expect(connectSrc).toContain("https://photon.komoot.io");
+  });
+
   it("keeps development-only script sources out of production", () => {
     const policy = buildContentSecurityPolicy({ isProduction: true });
 
