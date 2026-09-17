@@ -48,6 +48,19 @@ import { withCsrfHeader } from "@/lib/csrf";
 const TIMESLICE_MS = 4_000;
 
 /**
+ * A stalled part upload aborts here so its retry is a fresh attempt rather than a
+ * hang. This is the fix for "0 pieces saved" on a flaky connection: without a
+ * timeout a `fetch` PUT can wait forever on a half-open socket, and the operator
+ * sees a recording that uploads nothing and then "connection dropped".
+ */
+const PART_TIMEOUT_MS = 60_000;
+
+/** Attempts per part, with backoff, before the recording waits for a resume. */
+const MAX_PART_ATTEMPTS = 4;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
  * The mp4 variants worth trying, best first.
  *
  * Checked at runtime rather than sniffed from the user agent: a browser that
@@ -149,14 +162,20 @@ export function CaptureRecorder(props: {
         body.append("part", part, `part-${index}`);
 
         let ok = false;
-        // Three attempts, then leave it queued: the recording is still in the
-        // page and the operator can retry, which is a better outcome than
-        // dropping a part and composing a video with a hole in it.
-        for (let attempt = 0; attempt < 3 && !ok; attempt += 1) {
+        // A few attempts with backoff and a per-attempt timeout, then leave it
+        // queued: the recording is still in the page and the operator can resume,
+        // which beats dropping a part and composing a video with a hole. The
+        // timeout is the important part -- a stalled request aborts into a fresh
+        // retry instead of hanging, which is what turned a marginal connection
+        // into "0 pieces saved, connection dropped".
+        for (let attempt = 0; attempt < MAX_PART_ATTEMPTS && !ok; attempt += 1) {
+          if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+          const controller = new AbortController();
+          const timer = window.setTimeout(() => controller.abort(), PART_TIMEOUT_MS);
           try {
             const response = await fetch(
               `/api/self-capture/uploads/${props.token}/parts/${index}?extension=mp4`,
-              { method: "PUT", credentials: "include", body },
+              { method: "PUT", credentials: "include", body, signal: controller.signal },
             );
             ok = response.ok;
             if (!ok && response.status === 409) {
@@ -170,7 +189,9 @@ export function CaptureRecorder(props: {
               return;
             }
           } catch {
-            // Network. Retried below.
+            // Network, or the timeout aborted a stall. Retried after backoff.
+          } finally {
+            window.clearTimeout(timer);
           }
         }
 
@@ -282,14 +303,16 @@ export function CaptureRecorder(props: {
 
   const finish = useCallback(async () => {
     const recorder = recorderRef.current;
-    if (!recorder) return;
-
-    // `stop` flushes a final chunk through `ondataavailable`, so the queue is
-    // only settled after that callback has run.
-    await new Promise<void>((resolve) => {
-      recorder.onstop = () => resolve();
-      recorder.stop();
-    });
+    // Flush the final chunk if the recorder is still going. On a resume after a
+    // completion that failed, the recorder is already stopped -- calling stop on
+    // an inactive recorder throws -- so only stop a live one, and never bail out
+    // here, because a resume still needs the drain and the complete call below.
+    if (recorder && recorder.state !== "inactive") {
+      await new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+        recorder.stop();
+      });
+    }
     stopStream();
 
     setState({
@@ -372,9 +395,34 @@ export function CaptureRecorder(props: {
       sentParts: nextIndexRef.current,
       pendingParts: queueRef.current.length,
     });
+    // Resync against what the server already holds before resending. A part can
+    // save server-side even when its response never reached us, so without this
+    // a resume re-sends parts that already landed -- and on a still-marginal
+    // connection it fails on those same ones and never makes progress. The GET
+    // is best-effort; if it cannot be read we fall back to resending what we
+    // have. `stored` is the endpoint built exactly for this.
+    try {
+      const response = await fetch(
+        `/api/self-capture/uploads/${props.token}/parts?extension=mp4`,
+        { credentials: "include" },
+      );
+      if (response.ok) {
+        const data = (await response.json()) as { stored?: number[] };
+        const stored = new Set(data.stored ?? []);
+        // Skip the confirmed, contiguous prefix the server already has. A gap is
+        // left to resend, because compose needs 0..n-1 with no holes.
+        while (queueRef.current.length && stored.has(nextIndexRef.current)) {
+          const part = queueRef.current.shift()!;
+          sentBytesRef.current += part.size;
+          nextIndexRef.current += 1;
+        }
+      }
+    } catch {
+      // Best effort. Fall through to resending what we hold.
+    }
     await drainQueue();
     if (!queueRef.current.length) await finish();
-  }, [drainQueue, finish]);
+  }, [drainQueue, finish, props.token]);
 
   if (state.status === "unsupported") {
     return (

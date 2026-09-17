@@ -125,13 +125,18 @@ function shotListFor(brief: SiteTaskBriefRecord): { id: string; label: string }[
  * a form. "Between shifts, how much does this work area change?" is not an
  * instruction anybody can act on while filming.
  */
+// Every label is a still thing to point a camera at, never an action to film.
+// The reconstruction fuses many frames of a *static* scene; a person or a moving
+// object mid-pass becomes a ghost in the result, so the job's motion is settled
+// from the brief, not from filming it happening. What to film is where the job
+// lives, not the job being done.
 const SHOT_LABELS: Record<string, string> = {
   sceneStability: "The equipment and layout, so we can see what is fixed in place",
-  taskShape: "One complete cycle of the job, start to finish",
+  taskShape: "Where the job starts and where it ends — the spots, with nothing moving through them",
   objectVariety: "The different items this task handles, if they vary",
   accessWindow: "The space around the station, and how someone gets to it",
-  humanProximity: "Where people stand or pass while the job runs",
-  cycleTime: "The job at its normal pace, not sped up or demonstrated",
+  humanProximity: "Where people usually stand or pass — the spots, with no one in frame",
+  cycleTime: "The whole stretch the job runs across, end to end, with it stopped",
   lighting: "The area under its normal lighting",
 };
 
