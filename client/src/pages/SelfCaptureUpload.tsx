@@ -173,13 +173,6 @@ function measureFps(video: HTMLVideoElement): Promise<number | null> {
   });
 }
 
-const FILM_STEPS = [
-  "Stand where someone doing the job would stand, and start recording.",
-  "Walk one slow lap around the work area — all the way around if you can.",
-  "Keep the things that get handled in frame: the items, the surfaces, the machine.",
-  "About 45 seconds is plenty. Steady beats thorough.",
-];
-
 export default function SelfCaptureUpload() {
   const [, params] = useRoute("/capture-upload/:token");
   const token = params?.token ?? "";
@@ -410,9 +403,48 @@ export default function SelfCaptureUpload() {
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
 
+  // "Where this stands", for the operator who has no account. It carries a
+  // re-film request when there is one, so it is never dropped -- but on a
+  // recordable link the camera is the page, so it moves below the camera. When
+  // there is no camera yet (a held or checking link) it stays at the top.
+  const statusCard = status ? (
+    <div
+      style={{
+        border: "1px solid var(--ms-rule)",
+        padding: "16px",
+        marginBottom: "24px",
+        background: "var(--ms-paper)",
+      }}
+    >
+      <strong>{status.headline}</strong>
+      {status.operatorAction && (
+        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+          {status.operatorAction}
+        </p>
+      )}
+      {status.nextUpdateIso ? (
+        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+          Next update by {new Date(status.nextUpdateIso).toLocaleString()}.
+        </p>
+      ) : (
+        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+          We will email you when there is something to say. Nothing to watch here.
+        </p>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <div className="ms-container" style={{ paddingBlock: "64px", maxWidth: "640px" }}>
-      <Helmet>
+    // This page renders in the "bare" shell, outside SiteLayout/MinimalSiteLayout,
+    // so it has to establish the minimal-site theme itself. Without this wrapper the
+    // `--ms-*` tokens and `color-scheme: light` are undefined here, and a phone in
+    // dark mode paints every un-coloured element with the browser's own dark-mode
+    // defaults: that is the washed-out body text and the invisible `--ms-green`
+    // buttons (the "Open the camera" control rendered cream-on-cream). The wrapper
+    // carries the theme only -- no header or footer -- so the bare shell is intact.
+    <div className="minimal-site">
+      <div className="ms-container" style={{ paddingBlock: "64px", maxWidth: "640px" }}>
+        <Helmet>
         <title>Upload your walkthrough | Blueprint</title>
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
@@ -421,35 +453,10 @@ export default function SelfCaptureUpload() {
         {link.status === "held" ? "Not yet — here is what is in the way" : "Film the work area"}
       </h1>
 
-      {/* Where the task stands, for the operator who has no account. The
-          workspace serves the same status to signed-in sites; this serves the
-          person who followed a link from an email and never signed up. */}
-      {status && (
-        <div
-          style={{
-            border: "1px solid var(--ms-rule)",
-            padding: "16px",
-            marginBottom: "24px",
-            background: "var(--ms-paper)",
-          }}
-        >
-          <strong>{status.headline}</strong>
-          {status.operatorAction && (
-            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-              {status.operatorAction}
-            </p>
-          )}
-          {status.nextUpdateIso ? (
-            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-              Next update by {new Date(status.nextUpdateIso).toLocaleString()}.
-            </p>
-          ) : (
-            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-              We will email you when there is something to say. Nothing to watch here.
-            </p>
-          )}
-        </div>
-      )}
+      {/* Where the task stands. Above the fold only when there is no camera on
+          this page yet -- a held or checking link. On a recordable link it moves
+          below the camera, because the camera is the page. */}
+      {link.status !== "valid" && statusCard}
 
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
@@ -499,18 +506,6 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
-          <p style={{ color: "var(--ms-muted)", marginBottom: "28px" }}>
-            One video of one work area. No app, no account, nothing to fill in.
-          </p>
-
-          <ol style={{ paddingLeft: "20px", marginBottom: "32px", lineHeight: 1.7 }}>
-            {FILM_STEPS.map((step) => (
-              <li key={step} style={{ marginBottom: "8px" }}>
-                {step}
-              </li>
-            ))}
-          </ol>
-
           {!onAPhone && upload.status === "idle" && (
             /*
              * Opened on a laptop, where the camera button below is useless.
@@ -557,28 +552,44 @@ export default function SelfCaptureUpload() {
             </div>
           ) : (
             <>
-              {/* Camera first. The brief never walls the recorder: permission to
-                  capture, the one or two answers that change what to film, and
-                  the later task qualification are three different things, and
-                  only the first is needed to point a phone at the workcell. So
-                  the recorder is always here, and the brief is a disclosure
-                  beside it -- opened by default when a capture-blocking gate is
-                  still unresolved, because that answer refines the recording,
-                  but never hidden and never required to reveal the camera.
-                  Confirming it is still the attestation that turns the site into
-                  supply, and it can happen before or after filming. A film-only
-                  link never sees it: attestation is not theirs to make. */}
+              {/* Bare bones: the camera is the page. One hero action -- the guided
+                  recorder, which offers itself only where the browser records a
+                  format our reconstruction accepts and steps aside to the file
+                  picker below otherwise -- then one line of how, and everything
+                  else optional and beneath it. */}
+              <CaptureRecorder
+                token={token}
+                checklist={shotList}
+                onSaved={() => setUpload({ status: "done" })}
+              />
+
+              <p className="ms-field-hint" style={{ marginTop: "16px" }}>
+                Stand where the work happens, walk one slow lap, about 45 seconds. Film the work,
+                not the worker.
+              </p>
+
+              {/* A re-film request or "where this stands" lands right under the
+                  camera, so someone who came back to add an angle sees what we
+                  need before the optional sections. */}
+              {statusCard}
+
+              {/* Optional, and never in front of the camera. Permission to
+                  capture, the answers that refine what to film, and task
+                  qualification are three different things, and only the first is
+                  needed to record -- so the brief is a collapsed disclosure here,
+                  not a gate. Confirming it is the attestation that turns the site
+                  into supply, before or after filming. A film-only link never
+                  sees it: attestation is not theirs to make. */}
               {scope === "owner" && brief && !briefConfirmed && (
-                <details open={briefBlocksCapture} style={{ marginBottom: "20px" }}>
+                <details style={{ marginTop: "28px", marginBottom: "8px" }}>
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
-                      : "Review and confirm your task brief"}
+                      : "Review your task brief"}
                   </summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. You can film now — confirming the brief is
-                    what lets a robot team be matched to your site, and you can do it before or
-                    after you film.
+                    We drafted this from what you sent. Film whenever you like — confirming the brief
+                    is what lets a robot team be matched to your site, before or after you film.
                   </p>
                   <TaskBriefReview
                     token={token}
@@ -587,16 +598,6 @@ export default function SelfCaptureUpload() {
                   />
                 </details>
               )}
-
-              {/* The guided path. It offers itself only where the browser can
-                  record a format our reconstruction accepts, and hides itself
-                  otherwise -- so the file picker below is never the second-best
-                  option presented as a consolation, it is the path. */}
-              <CaptureRecorder
-                token={token}
-                checklist={shotList}
-                onSaved={() => setUpload({ status: "done" })}
-              />
 
               {/* The room is not the objects. A robot grasps the tote and stacks
                   the cartons, and those are often filmed clear -- so we list the
@@ -678,6 +679,7 @@ export default function SelfCaptureUpload() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
