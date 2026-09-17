@@ -395,6 +395,75 @@ export async function markResolved(docId: string, state: EvalRunState, note: str
   );
 }
 
+/**
+ * Whether a team's agent may still cancel its own reservation.
+ *
+ * ## The hole this closes
+ *
+ * `POST /runs/:reservationId/release` took any reservation id, wrote
+ * `reason: "Run did not start"` as a fixed string, and never looked at the run.
+ * So an agent could reserve, let execution begin, release the hold, and keep
+ * the work. Today -- with nothing reporting outcomes yet -- that work is never
+ * billed at all. Once outcomes do report, the same call still frees the balance
+ * in between, so reserve/release/reserve runs N jobs against one funded balance.
+ *
+ * `deriveBalance` used to hide the result rather than prevent it: it clamps
+ * `availableUsd` at zero, so the overdraft showed up as a balance that stopped
+ * moving instead of as a number anybody could see.
+ *
+ * ## So a release is a cancellation, and cancellation has a window
+ *
+ * It is valid while nothing has reported. Once an outcome exists the run is
+ * billable or not on its own merits, and that is the Pipeline's report to make
+ * rather than the spender's.
+ *
+ * We cannot see from this repo whether execution has physically started -- that
+ * is the completion-record contract's job. What we can see is whether anything
+ * has been reported, and refusing on that is the honest half of the guarantee:
+ * it closes the loop that costs money and leaves the race that costs latency.
+ */
+export type ReleaseEligibility =
+  | { allowed: true; alreadyResolved: boolean; run: EvalRunRecord | null }
+  | {
+      allowed: false;
+      reason: "outcome_reported" | "not_your_reservation";
+      run: EvalRunRecord;
+    };
+
+export async function checkReleaseEligibility(
+  teamId: string,
+  reservationId: string,
+): Promise<ReleaseEligibility> {
+  const run = await getRunForReservation(reservationId);
+
+  // No run record at all. This is an orphan hold, and giving it back is the
+  // same thing the reconciler does at expiry -- refusing would strand it.
+  if (!run) return { allowed: true, alreadyResolved: false, run: null };
+
+  // A reservation belongs to the team that took it. Releasing someone else's
+  // is a no-op in the ledger, because entries are per team, but saying so
+  // beats writing a meaningless entry and reporting success.
+  if (run.teamId && run.teamId !== teamId) {
+    return { allowed: false, reason: "not_your_reservation", run };
+  }
+
+  // Already settled or released. Idempotent rather than an error: an agent
+  // retrying a call it never saw the answer to should get the same answer.
+  if (run.moneyResolved) {
+    return { allowed: true, alreadyResolved: true, run };
+  }
+
+  // Something reported. `episodesRun` is null until it does, and the state
+  // leaves `requested` at the same moment, so either one is enough -- both are
+  // checked because they are written together and a partial write should fail
+  // closed.
+  if (run.state !== "requested" || run.episodesRun !== null) {
+    return { allowed: false, reason: "outcome_reported", run };
+  }
+
+  return { allowed: true, alreadyResolved: false, run };
+}
+
 /** The run attached to a hold, or null if nothing was ever recorded for it. */
 export async function getRunForReservation(
   reservationId: string,

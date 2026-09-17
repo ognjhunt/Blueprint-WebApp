@@ -447,3 +447,115 @@ describe("the intake knows which of its questions a run will answer better", () 
     expect(measurable).not.toContain("taskFamily");
   });
 });
+
+describe("one resolution per reservation, and the first one wins", () => {
+  /** Entries at distinct times, so replay order is the written order. */
+  function at(iso: string, partial: Partial<LedgerEntry> & Pick<LedgerEntry, "kind" | "amountUsd">) {
+    return entry({ createdAtIso: iso, ...partial });
+  }
+
+  it("closes the reserve/release loop that could spend past the balance", () => {
+    // The attack the release endpoint made possible: reserve, let execution
+    // start, hand the hold back, reserve again. Each released hold frees the
+    // balance, so one $25 top-up funded two runs -- and when the settlements
+    // arrived they booked as real spend, because a settle used to be added
+    // unconditionally. `availableUsd` clamps at zero, so the breach showed up
+    // as a balance that stopped moving rather than as a number.
+    const balance = deriveBalance("team-1", [
+      at("2026-09-17T00:00:00.000Z", { kind: "credit", amountUsd: 25 }),
+      at("2026-09-17T00:01:00.000Z", { kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      at("2026-09-17T00:02:00.000Z", { kind: "release", amountUsd: 0, reservationId: "res-1" }),
+      at("2026-09-17T00:03:00.000Z", { kind: "reserve", amountUsd: 25, reservationId: "res-2" }),
+      at("2026-09-17T00:04:00.000Z", { kind: "release", amountUsd: 0, reservationId: "res-2" }),
+      // Both runs executed anyway and reported late.
+      at("2026-09-17T00:05:00.000Z", { kind: "settle", amountUsd: 25, reservationId: "res-1" }),
+      at("2026-09-17T00:06:00.000Z", { kind: "settle", amountUsd: 25, reservationId: "res-2" }),
+    ]);
+
+    // Nothing charged, because both holds were already resolved. We absorb the
+    // work rather than billing against money that was handed back.
+    expect(balance.spentUsd).toBe(0);
+    expect(balance.absorbedUsd).toBe(50);
+    expect(balance.overdrawnUsd).toBe(0);
+    expect(balance.availableUsd).toBe(25);
+  });
+
+  it("keeps the evidence cost visible instead of dropping it", () => {
+    // A run that timed out, was released, and reported afterwards. The result
+    // is still recorded elsewhere; the money is final. What this asserts is
+    // that the cost we took on is a number somebody can read.
+    const balance = deriveBalance("team-1", [
+      at("2026-09-17T00:00:00.000Z", { kind: "credit", amountUsd: 100 }),
+      at("2026-09-17T00:01:00.000Z", { kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      at("2026-09-17T00:02:00.000Z", { kind: "release", amountUsd: 0, reservationId: "res-1" }),
+      at("2026-09-17T00:03:00.000Z", { kind: "settle", amountUsd: 18.5, reservationId: "res-1" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(0);
+    expect(balance.absorbedUsd).toBe(18.5);
+    expect(balance.availableUsd).toBe(100);
+  });
+
+  it("still settles normally when the settle is the first resolution", () => {
+    // The regression guard for the change above. Finality must not mean that
+    // an ordinary settlement stops working.
+    const balance = deriveBalance("team-1", [
+      at("2026-09-17T00:00:00.000Z", { kind: "credit", amountUsd: 100 }),
+      at("2026-09-17T00:01:00.000Z", { kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      at("2026-09-17T00:02:00.000Z", { kind: "settle", amountUsd: 18.5, reservationId: "res-1" }),
+      // A release arriving after the settle is the no-op, not the other way round.
+      at("2026-09-17T00:03:00.000Z", { kind: "release", amountUsd: 0, reservationId: "res-1" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(18.5);
+    expect(balance.absorbedUsd).toBe(0);
+    expect(balance.reservedUsd).toBe(0);
+    expect(balance.availableUsd).toBe(81.5);
+  });
+
+  it("does not depend on the order the store happens to return", () => {
+    // `readEntries` queries without an `orderBy`, and Firestore answers those
+    // in document-id order -- `team:release:res-1` before `team:reserve:res-1`
+    // before `team:settle:res-1`, which is alphabetical and therefore
+    // meaningless. A reservation could be resolved before it was taken.
+    const written: LedgerEntry[] = [
+      at("2026-09-17T00:00:00.000Z", { kind: "credit", amountUsd: 100, entryId: "team-1:credit" }),
+      at("2026-09-17T00:01:00.000Z", {
+        kind: "reserve",
+        amountUsd: 25,
+        reservationId: "res-1",
+        entryId: "team-1:reserve:res-1",
+      }),
+      at("2026-09-17T00:02:00.000Z", {
+        kind: "settle",
+        amountUsd: 10,
+        reservationId: "res-1",
+        entryId: "team-1:settle:res-1",
+      }),
+    ];
+
+    const inOrder = deriveBalance("team-1", written);
+    const idOrder = deriveBalance("team-1", [...written].sort((a, b) =>
+      a.entryId.localeCompare(b.entryId),
+    ));
+    const reversed = deriveBalance("team-1", [...written].reverse());
+
+    expect(idOrder).toEqual(inOrder);
+    expect(reversed).toEqual(inOrder);
+    expect(inOrder.spentUsd).toBe(10);
+    expect(inOrder.reservedUsd).toBe(0);
+  });
+
+  it("surfaces a breach rather than clamping it out of sight", () => {
+    // Should never happen. If it does, `availableUsd` would read zero and carry
+    // on, so the excess is reported as its own number.
+    const balance = deriveBalance("team-1", [
+      at("2026-09-17T00:00:00.000Z", { kind: "credit", amountUsd: 10 }),
+      at("2026-09-17T00:01:00.000Z", { kind: "settle", amountUsd: 30, reservationId: "res-x" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(30);
+    expect(balance.availableUsd).toBe(0);
+    expect(balance.overdrawnUsd).toBe(20);
+  });
+});

@@ -39,6 +39,7 @@
  */
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 import { mergeCapability } from "./robotTeamRegistry";
 import {
   ROBOT_TEAMS_COLLECTION,
@@ -189,6 +190,109 @@ export async function markCheckpointStatus(params: {
  * number simply stops winning, which is exactly what should happen the moment
  * someone measures it.
  */
+/**
+ * Withdraw a claim a measurement failed to support.
+ *
+ * ## The hole this closes
+ *
+ * `successRateBand` writes no band below roughly 85% -- deliberately, because a
+ * robot measured at sixty per cent has no honest band to sit in and `ninety`
+ * would be an inflation. But `recordRunResult` then only called
+ * `recordMeasuredCapability` for fields that *had* a band:
+ *
+ *     if (result.claimed.demonstratedSuccessRate) { measured.demonstratedSuccessRate = ... }
+ *
+ * So a team that self-reported `ninetyfive` and then measured 30 successes in
+ * 50 attempts kept the self-report. The strongest evidence we will ever have
+ * about that checkpoint arrived, contradicted the claim, and changed nothing --
+ * and the claim is what sites are shown and what matching reads. The system
+ * preserved the weakest positive evidence at exactly the moment the strongest
+ * negative evidence landed.
+ *
+ * ## No claim is a result, not an absence
+ *
+ * So it is written like one. The field is cleared and its provenance is set to
+ * `measured`, naming the run. Because `mergeCapability` refuses to let a worse
+ * grade overwrite a better one, that also means a later self-report cannot
+ * quietly restore the number: once we have measured a failure, the team cannot
+ * re-assert its way past it.
+ *
+ * ## Only for a field the run measured, and only when it disproved the claim
+ *
+ * "Measured and unsupported" and "not measured" are different, and conflating
+ * them would let a run that reported no cycle time erase a published one. So
+ * the caller decides which fields it genuinely measured.
+ *
+ * And "unsupported" is not "disproved". Ten-for-ten earns no band -- ten trials
+ * cannot separate 90% from 99% -- but it contradicts nothing, and withdrawing a
+ * claim on the strength of it would punish a good short run. That is what
+ * `contradicts` is for.
+ */
+export async function invalidateMeasuredCapability(params: {
+  teamId: string;
+  checkpointId: string;
+  runId: string;
+  /** Fields this run measured. Candidates for withdrawal, not a verdict. */
+  fields: readonly RobotCapabilityField[];
+  /**
+   * Whether the run actually disproved the value currently held.
+   *
+   * Passed in rather than decided here, because the test is statistical and
+   * belongs with the run maths. Absent means withdraw any held value, which is
+   * only correct for a field where holding a value at all is the error.
+   */
+  contradicts?: (field: RobotCapabilityField, heldValue: string) => boolean;
+  /** For the record: what was seen that did not support the claim. */
+  note: string;
+}): Promise<RobotTeamRecord | null> {
+  if (!db || !params.fields.length) return null;
+
+  const ref = db.collection(ROBOT_TEAMS_COLLECTION).doc(params.teamId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) return null;
+  const existing = snapshot.data() as RobotTeamRecord;
+
+  const capability = { ...existing.capability };
+  const fieldProvenance = { ...existing.fieldProvenance };
+  const withdrawn: RobotCapabilityField[] = [];
+
+  for (const field of params.fields) {
+    const held = capability[field];
+    // Nothing to withdraw. Recording a measured-grade "no claim" over an
+    // already-empty field would still be true, but it would also mean every
+    // unsupported run rewrote the document for no change.
+    if (held === null || held === undefined || held === "") continue;
+
+    // The claim survives unless this run ruled it out. Silence is not
+    // contradiction: a short clean run earns no band and disproves nothing.
+    if (params.contradicts && !params.contradicts(field, String(held))) continue;
+
+    (capability as Record<string, unknown>)[field] = null;
+    fieldProvenance[field] = {
+      grade: "measured",
+      source: `evaluationRun:${params.runId}#${params.checkpointId}`,
+      observedAt: nowIso(),
+    };
+    withdrawn.push(field);
+  }
+
+  if (!withdrawn.length) return existing;
+
+  const record: RobotTeamRecord = {
+    ...existing,
+    capability,
+    fieldProvenance,
+    updatedAt: nowIso(),
+  };
+
+  await ref.set({ ...record }, { merge: true });
+  logger.info(
+    { teamId: params.teamId, runId: params.runId, withdrawn, note: params.note },
+    "Withdrew capability claims a measurement did not support",
+  );
+  return record;
+}
+
 export async function recordMeasuredCapability(params: {
   teamId: string;
   checkpointId: string;

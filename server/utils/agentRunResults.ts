@@ -42,7 +42,11 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { recordMeasuredCapability } from "./robotCheckpoints";
+import {
+  invalidateMeasuredCapability,
+  recordMeasuredCapability,
+} from "./robotCheckpoints";
+import type { RobotCapabilityField } from "../types/robot-team-registry";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 
@@ -108,6 +112,75 @@ export function wilsonLowerBound(successes: number, trials: number): number {
   const margin =
     z * Math.sqrt((p * (1 - p)) / trials + z2 / (4 * trials * trials));
   return Math.max(0, (centre - margin) / denominator);
+}
+
+/**
+ * The upper end of the same interval.
+ *
+ * Needed for the opposite question. `wilsonLowerBound` answers "what can this
+ * run claim"; this answers "what can this run rule out" -- and only the second
+ * one justifies withdrawing somebody else's claim.
+ */
+export function wilsonUpperBound(successes: number, trials: number): number {
+  if (trials <= 0) return 1;
+  const z = 1.96;
+  const p = successes / trials;
+  const z2 = z * z;
+  const denominator = 1 + z2 / trials;
+  const centre = p + z2 / (2 * trials);
+  const margin =
+    z * Math.sqrt((p * (1 - p)) / trials + z2 / (4 * trials * trials));
+  return Math.min(1, (centre + margin) / denominator);
+}
+
+/**
+ * What each band asserts to whoever reads it.
+ *
+ * Deliberately the *name's* claim rather than the threshold the band is awarded
+ * at. `successRateBand` hands out `ninety` at a lower bound of 0.85, so the two
+ * numbers differ -- and when the question is "has this claim been disproved",
+ * the honest reference is what a site is being told, which is 90%.
+ *
+ * (That gap between a band's name and its award threshold is a separate defect,
+ * and it is not fixed here: changing the thresholds changes which bands get
+ * written, and this change is about what happens to a claim that is already
+ * written.)
+ */
+export const SUCCESS_RATE_BAND_CLAIM: Record<string, number> = {
+  ninety: 0.9,
+  ninetyfive: 0.95,
+  ninetynine: 0.99,
+  ninetynine_plus: 0.99,
+};
+
+/**
+ * Whether this run rules out a band somebody already claimed.
+ *
+ * ## Why "no band" is the wrong test
+ *
+ * My first attempt withdrew a claim whenever the run earned no band of its own.
+ * That is wrong, and wrong in a way that punishes honesty: ten-for-ten earns no
+ * band, because ten trials cannot separate 90% from 99% -- but it is a perfect
+ * result, and it contradicts nothing. Withdrawing a claim on the strength of it
+ * would mean a team's good short run cost it the claim its long run earned.
+ *
+ * So the test is contradiction, not silence. The claim goes only when the whole
+ * interval this run supports sits below what the claim asserts -- 30 of 50 has
+ * an upper bound near 73%, which rules out 95%, while 10 of 10 rules out
+ * nothing. Same rule the footage review uses on a site: `contradicts` revokes,
+ * and an absence of corroboration does not.
+ */
+export function measurementContradictsBand(
+  successes: number,
+  trials: number,
+  heldBand: string | null | undefined,
+): boolean {
+  if (trials <= 0) return false;
+  const claimed = heldBand ? SUCCESS_RATE_BAND_CLAIM[heldBand] : undefined;
+  // Nothing recognisable is claimed, so there is nothing to disprove. An
+  // unknown band is left alone rather than guessed at.
+  if (claimed === undefined) return false;
+  return wilsonUpperBound(successes, trials) < claimed;
 }
 
 /**
@@ -233,6 +306,34 @@ export async function recordRunResult(params: {
         checkpointId: run.checkpointId,
         runId: run.runId,
         measured,
+      });
+    }
+
+    // And the other half, which was missing: a field this run measured and
+    // could not support a claim for.
+    //
+    // `successRateBand` writing null is a finding, not a gap -- it means the
+    // attempts happened and did not reach the lowest band we are willing to
+    // state. Skipping the registry in that case left whatever was claimed
+    // before standing, so a self-reported rate survived the measurement that
+    // disproved it.
+    //
+    // Episodes having run is what makes it a measurement. Zero episodes is a
+    // run that never happened, and it must not erase anything.
+    // Cycle time has no case here: `cycleTimeBand` returns a band for every
+    // valid median and null only when none was reported, which is "not
+    // measured" rather than "measured and disproved". Nothing to withdraw.
+    if (episodesRun > 0) {
+      await invalidateMeasuredCapability({
+        teamId: run.teamId,
+        checkpointId: run.checkpointId,
+        runId: run.runId,
+        fields: ["demonstratedSuccessRate"],
+        contradicts: (_field, heldValue) =>
+          measurementContradictsBand(episodesSucceeded, episodesRun, heldValue),
+        note:
+          `${episodesSucceeded}/${episodesRun} attempts succeeded, which rules out the band ` +
+          "that was on file.",
       });
     }
   } catch (error) {

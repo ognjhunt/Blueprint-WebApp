@@ -49,9 +49,11 @@ const {
   cycleTimeBand,
   getRunForTeam,
   listRunsForTeam,
+  measurementContradictsBand,
   recordRunResult,
   successRateBand,
   wilsonLowerBound,
+  wilsonUpperBound,
 } = await import("../utils/agentRunResults");
 const { getRobotTeam } = await import("../utils/robotTeamRegistry");
 
@@ -300,5 +302,165 @@ describe("a team can read its own results and only its own", () => {
     const runs = await listRunsForTeam(TEAM);
     expect(runs).toHaveLength(2);
     expect(runs.every((run) => run.moneyResolved)).toBe(true);
+  });
+});
+
+/* --------------------------------- a measurement that disproves a claim */
+
+describe("a run that rules out a claim withdraws it", () => {
+  /** A team that has already told us how good it is. */
+  function seedTeamClaiming(band: string, grade = "self_reported") {
+    sharedFakeFirestoreState.docs.set(`robotTeams/${TEAM}`, {
+      id: TEAM,
+      name: "Alpha Robotics",
+      status: "applied",
+      registrationSource: "self_serve",
+      capability: { demonstratedSuccessRate: band },
+      fieldProvenance: {
+        demonstratedSuccessRate: {
+          grade,
+          source: "intake:req-1",
+          observedAt: "2026-09-01T00:00:00.000Z",
+        },
+      },
+      createdAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
+  }
+
+  it("clears a self-reported band the run disproved", async () => {
+    // The hole. `recordRunResult` only wrote to the registry for fields that
+    // earned a band, so a run measuring 30 of 50 wrote nothing -- and the
+    // team's own `ninetyfive` survived the strongest evidence we will ever
+    // have about that checkpoint.
+    seedRun();
+    seedTeamClaiming("ninetyfive");
+
+    await recordRunResult({
+      runId: "run_res_1",
+      report: {
+        episodesRun: 50,
+        episodesSucceeded: 30,
+        medianCycleSeconds: null,
+        cycleSecondsP10: null,
+        cycleSecondsP90: null,
+        note: null,
+        artifactUri: null,
+      },
+    });
+
+    const team = await getRobotTeam(TEAM);
+    expect(team?.capability.demonstratedSuccessRate).toBeNull();
+    // Recorded as a measured finding, not as an absence. That grade is what
+    // stops a later self-report from restoring the number.
+    expect(team?.fieldProvenance.demonstratedSuccessRate?.grade).toBe("measured");
+    expect(team?.fieldProvenance.demonstratedSuccessRate?.source).toContain("run_res_1");
+  });
+
+  it("leaves a claim alone when a short clean run cannot disprove it", async () => {
+    // Ten-for-ten earns no band, because ten trials cannot separate 90% from
+    // 99%. It is also a perfect result. Withdrawing on "no band" would mean a
+    // team's good short run cost it the claim its long run earned.
+    seedRun();
+    seedTeamClaiming("ninetyfive");
+    sharedFakeFirestoreState.docs.set("evaluationRuns/run_res_1", {
+      ...(sharedFakeFirestoreState.docs.get("evaluationRuns/run_res_1") as object),
+      episodesRun: 10,
+    });
+
+    await recordRunResult({
+      runId: "run_res_1",
+      report: {
+        episodesRun: 10,
+        episodesSucceeded: 10,
+        medianCycleSeconds: null,
+        cycleSecondsP10: null,
+        cycleSecondsP90: null,
+        note: null,
+        artifactUri: null,
+      },
+    });
+
+    const team = await getRobotTeam(TEAM);
+    expect(team?.capability.demonstratedSuccessRate).toBe("ninetyfive");
+    expect(team?.fieldProvenance.demonstratedSuccessRate?.grade).toBe("self_reported");
+  });
+
+  it("withdraws a measured band that a later run disproved", async () => {
+    // Measured does not mean immortal. A previous run's band is evidence, and
+    // evidence can be superseded by evidence at the same grade.
+    seedRun();
+    seedTeamClaiming("ninetynine", "measured");
+
+    await recordRunResult({
+      runId: "run_res_1",
+      report: {
+        episodesRun: 50,
+        episodesSucceeded: 20,
+        medianCycleSeconds: null,
+        cycleSecondsP10: null,
+        cycleSecondsP90: null,
+        note: null,
+        artifactUri: null,
+      },
+    });
+
+    const team = await getRobotTeam(TEAM);
+    expect(team?.capability.demonstratedSuccessRate).toBeNull();
+  });
+
+  it("does not touch the registry for a run that executed nothing", async () => {
+    // Zero episodes is an environment that would not launch. It is not a
+    // measurement and it must not erase anything.
+    seedRun();
+    seedTeamClaiming("ninetyfive");
+
+    await recordRunResult({
+      runId: "run_res_1",
+      report: {
+        episodesRun: 0,
+        episodesSucceeded: 0,
+        medianCycleSeconds: null,
+        cycleSecondsP10: null,
+        cycleSecondsP90: null,
+        note: null,
+        artifactUri: null,
+      },
+    });
+
+    const team = await getRobotTeam(TEAM);
+    expect(team?.capability.demonstratedSuccessRate).toBe("ninetyfive");
+  });
+});
+
+describe("contradiction, not silence", () => {
+  it("rules out a band only when the whole interval sits below it", () => {
+    // 30/50 has an upper bound near 72%, so it rules out every band we state.
+    expect(measurementContradictsBand(30, 50, "ninety")).toBe(true);
+    expect(measurementContradictsBand(30, 50, "ninetyfive")).toBe(true);
+
+    // 47/50 observes 94% with an upper bound near 98%: it cannot rule out a
+    // 95% claim, and it can rule out a 99% one.
+    expect(measurementContradictsBand(47, 50, "ninetyfive")).toBe(false);
+    expect(measurementContradictsBand(47, 50, "ninetynine")).toBe(true);
+
+    // A perfect short run rules out nothing at all.
+    expect(measurementContradictsBand(10, 10, "ninetynine_plus")).toBe(false);
+  });
+
+  it("treats an empty run and an unrecognised band as contradicting nothing", () => {
+    expect(measurementContradictsBand(0, 0, "ninety")).toBe(false);
+    expect(measurementContradictsBand(0, 50, "unsure")).toBe(false);
+    expect(measurementContradictsBand(0, 50, null)).toBe(false);
+  });
+
+  it("brackets the observation between the two bounds", () => {
+    for (const [k, n] of [[30, 50], [10, 10], [47, 50], [0, 50], [1, 3]]) {
+      const lower = wilsonLowerBound(k, n);
+      const upper = wilsonUpperBound(k, n);
+      expect(lower).toBeLessThanOrEqual(k / n);
+      expect(upper).toBeGreaterThanOrEqual(k / n);
+      expect(upper).toBeLessThanOrEqual(1);
+    }
   });
 });
