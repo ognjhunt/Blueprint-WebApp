@@ -36,6 +36,14 @@ type AgentCliCommand =
   | "catalog:list"
   | "catalog:search"
   | "site-world:search"
+  | "team:me"
+  | "team:checkpoint:register"
+  | "team:checkpoint:list"
+  | "team:plan"
+  | "team:runs:start"
+  | "team:runs:release"
+  | "team:policy:get"
+  | "team:policy:set"
   | "request:location"
   | "commerce:quote"
   | "commerce:checkout"
@@ -232,13 +240,33 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   }
 
   const scopedArgs =
-    primary === "catalog" || primary === "world" || primary === "site-world" || primary === "siteworld" || primary === "session" || primary === "commerce"
+    primary === "catalog" || primary === "world" || primary === "site-world" || primary === "siteworld" || primary === "session" || primary === "commerce" || primary === "team"
       ? rest
       : secondaryOrId
         ? [secondaryOrId, ...rest]
         : rest;
   const { options, positionals } = parseFlags(scopedArgs);
   const format = global.format;
+
+  if (primary === "team") {
+    // `team <thing> <verb>` — the surface that acts for one team rather than
+    // reading the public catalogue. Everything here needs an agent key.
+    const [thing, verb] = [secondaryOrId, positionals[0]];
+    if (thing === "me") return { command: "team:me", options, format };
+    if (thing === "checkpoint" && verb === "register") {
+      return { command: "team:checkpoint:register", options, format };
+    }
+    if (thing === "checkpoint") return { command: "team:checkpoint:list", options, format };
+    if (thing === "plan") return { command: "team:plan", options, format };
+    if (thing === "runs" && verb === "release") {
+      return { command: "team:runs:release", options, format };
+    }
+    if (thing === "runs") return { command: "team:runs:start", options, format };
+    if (thing === "policy" && verb === "set") {
+      return { command: "team:policy:set", options, format };
+    }
+    if (thing === "policy") return { command: "team:policy:get", options, format };
+  }
 
   if (primary === "catalog" && secondaryOrId === "list") {
     return { command: "catalog:list", options: { limit: Number(options.limit || 24) }, format };
@@ -645,6 +673,61 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
     case "catalog:search":
     case "site-world:search":
       return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
+    // The team-scoped surface. Auth is the per-team agent key in
+    // BLUEPRINT_AGENT_AUTH_TOKEN, which the client already sends as a bearer.
+    case "team:me":
+      return client.requestJson("/api/agent-team/me");
+    case "team:checkpoint:list":
+      return client.requestJson("/api/agent-team/checkpoints");
+    case "team:checkpoint:register":
+      return client.requestJson("/api/agent-team/checkpoints", {
+        method: "POST",
+        body: JSON.stringify({
+          label: requireString(parsed.options, "label"),
+          runtime: requireString(parsed.options, "runtime"),
+          reference: requireString(parsed.options, "reference"),
+        }),
+      });
+    case "team:plan":
+      return client.requestJson("/api/agent-team/plan", {
+        method: "POST",
+        body: JSON.stringify({
+          checkpointId: requireString(parsed.options, "checkpointId"),
+          ...(parsed.options.budget != null ? { budgetUsd: Number(parsed.options.budget) } : {}),
+          ...(parsed.options.maxRuns != null ? { maxRuns: Number(parsed.options.maxRuns) } : {}),
+        }),
+      });
+    case "team:runs:start":
+      return client.requestJson("/api/agent-team/runs", {
+        method: "POST",
+        body: JSON.stringify({
+          checkpointId: requireString(parsed.options, "checkpointId"),
+          ...(parsed.options.budget != null ? { budgetUsd: Number(parsed.options.budget) } : {}),
+          ...(parsed.options.maxRuns != null ? { maxRuns: Number(parsed.options.maxRuns) } : {}),
+          // Absent confirm returns the plan and spends nothing, which is the
+          // safe default an agent gets when it forgets the flag.
+          confirm: parsed.options.confirm === true,
+          ...(parsed.options.idempotencyKey != null
+            ? { idempotencyKey: String(parsed.options.idempotencyKey) }
+            : {}),
+        }),
+      });
+    case "team:runs:release":
+      return client.requestJson(
+        `/api/agent-team/runs/${encodeURIComponent(requireString(parsed.options, "reservationId"))}/release`,
+        { method: "POST" },
+      );
+    case "team:policy:get":
+      return client.requestJson("/api/agent-team/policy");
+    case "team:policy:set":
+      return client.requestJson("/api/agent-team/policy", {
+        method: "PUT",
+        body: JSON.stringify({
+          dailyLimitUsd: Number(parsed.options.dailyLimit ?? 0),
+          perRunLimitUsd: Number(parsed.options.perRunLimit ?? 0),
+          agentSpendEnabled: parsed.options.enable === true,
+        }),
+      });
     case "request:location":
       return buildAgentRequestLocationDraft(parsed.options as AgentRequestLocationDraftInput);
     case "ask":

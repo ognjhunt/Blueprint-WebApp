@@ -26,6 +26,16 @@ export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.session.control",
   "blueprint.session.renderExplorer",
   "blueprint.session.export",
+  // Team-scoped agent surface. Everything above reads the public catalogue;
+  // these act for one team, and one of them spends its money.
+  "blueprint.team.me",
+  "blueprint.team.checkpoint.register",
+  "blueprint.team.checkpoint.list",
+  "blueprint.team.plan",
+  "blueprint.team.runs.start",
+  "blueprint.team.runs.release",
+  "blueprint.team.policy.get",
+  "blueprint.team.policy.set",
 ] as const;
 export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts help --format json",
@@ -39,6 +49,11 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id <pipeline-site-world-id> --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id <pipeline-site-world-id> --session-mode runtime_only --robot-profile-id <robot-profile-id> --task-id <task-id> --scenario-id <scenario-id> --start-state-id <start-state-id>",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team me",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team checkpoint register --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team plan --checkpoint-id <checkpoint-id> --budget 100",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs start --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key <key>",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team policy set --daily-limit 100 --per-run-limit 25 --enable",
 ] as const;
 
 export function buildRobotAgentAccessManifest() {
@@ -61,6 +76,39 @@ export function buildRobotAgentAccessManifest() {
       summary:
         "A headless robot-team agent can discover Blueprint, ask grounded questions, search live public site records, and draft a Task Evaluation Run intake request without credentials. Historical orders and hosted sessions remain protected compatibility records.",
       cliCommands: ROBOT_AGENT_CLI_COMMANDS,
+    },
+    /**
+     * The team-scoped surface: what an agent can do *for one team*, including
+     * spending its money. Separate from everything else in this manifest, which
+     * reads the public catalogue and commits nothing.
+     *
+     * Auth here is a revocable per-team key rather than a person's session,
+     * because an autonomous spender is not a person and should not inherit
+     * whatever a founder's account can do.
+     */
+    teamAgent: {
+      base: "/api/agent-team",
+      auth: "Authorization: Bearer bpk_... (per-team agent key, revocable)",
+      routes: {
+        me: "GET /api/agent-team/me",
+        registerCheckpoint: "POST /api/agent-team/checkpoints",
+        listCheckpoints: "GET /api/agent-team/checkpoints",
+        plan: "POST /api/agent-team/plan",
+        startRuns: "POST /api/agent-team/runs",
+        releaseReservation: "POST /api/agent-team/runs/:reservationId/release",
+        getPolicy: "GET /api/agent-team/policy",
+        setPolicy: "PUT /api/agent-team/policy",
+      },
+      spendModel: {
+        summary:
+          "Fund a balance, set a daily limit, switch the agent on. The agent plans against what is left today and reserves before it runs.",
+        dryRunByDefault:
+          "POST /runs without confirm:true returns the plan and spends nothing.",
+        idempotency:
+          "Confirming requires an idempotencyKey, so a retried call cannot pay twice.",
+        ranking:
+          "Runs are ranked by expected information gain per dollar, not by likelihood of passing. A run that confirms what the team already knows is deliberately ranked last.",
+      },
     },
     siteWorldSearch: {
       endpoint: "/api/site-worlds/search",

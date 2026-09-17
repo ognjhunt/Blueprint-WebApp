@@ -33,6 +33,16 @@ describe("Blueprint MCP server", () => {
       "blueprint.session.control",
       "blueprint.session.renderExplorer",
       "blueprint.session.export",
+      // The team-scoped surface: acts for one team and can spend its money,
+      // unlike everything above, which reads the public catalogue.
+      "blueprint.team.me",
+      "blueprint.team.checkpoint.register",
+      "blueprint.team.checkpoint.list",
+      "blueprint.team.plan",
+      "blueprint.team.runs.start",
+      "blueprint.team.runs.release",
+      "blueprint.team.policy.get",
+      "blueprint.team.policy.set",
     ]);
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.ask")?.inputSchema.required).toEqual(["q"]);
     expect(toolNames).not.toContain("blueprint.commerce.checkoutLive");

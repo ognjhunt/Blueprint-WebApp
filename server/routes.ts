@@ -27,6 +27,7 @@ import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import agentAccessRouter from "./routes/agent-access";
+import agentTeamRouter from "./routes/agent-team";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
@@ -101,6 +102,9 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/agent-access", agentAccessRouter);
+  // Team-scoped agent surface: discovery, planning and budgeted spend. Auth is
+  // a revocable per-team agent key, not a person's session.
+  app.use("/api/agent-team", agentTeamRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
