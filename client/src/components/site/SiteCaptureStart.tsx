@@ -40,16 +40,38 @@
  * Consent. We need permission to record the site and to let robot teams
  * evaluate against the scene, and that is a legal act rather than a
  * qualification — so it is a checkbox that blocks, and the only one.
+ *
+ * ## And the one thing that can still withhold a camera link
+ *
+ * Where the site is. Not a judgement about the site: the beta's basis for
+ * collecting a walkthrough is region-scoped, and the privacy policy says
+ * non-US participation needs transfer terms signed *before capture*. So an
+ * out-of-region site submits, we keep the lead, and the answer is a
+ * conversation instead of a link. What we do not do is invite someone to film
+ * footage we would then have to refuse — which is what this page did before.
  */
 import { useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import {
+  captureRegionHeldNotice,
+  captureRegionNotice,
+  captureRegionOptions,
+  isApprovedCaptureRegion,
+  type CaptureRegion,
+} from "@/data/captureResidency";
 import { withCsrfHeader } from "@/lib/csrf";
 
 type State =
   | { status: "idle" }
   | { status: "working" }
-  | { status: "done"; captureUrl: string | null; selfRecording: boolean; email: string }
+  | {
+      status: "done";
+      captureUrl: string | null;
+      selfRecording: boolean;
+      email: string;
+      regionApproved: boolean;
+    }
   | { status: "failed"; message: string };
 
 function splitName(value: string) {
@@ -61,6 +83,11 @@ function splitName(value: string) {
 export function SiteCaptureStart() {
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
+  // Defaulted to the one region we are cleared for, because that is where
+  // almost every site will be and a required empty select is a speed bump for
+  // the common case. The default is not what grants the clearance: the server
+  // re-reads this and holds on anything else, and on nothing at all.
+  const [region, setRegion] = useState<CaptureRegion>("us");
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,6 +127,7 @@ export function SiteCaptureStart() {
           siteTaskGates: {},
           siteTaskSpec: {},
           captureMode: selfRecording ? "self_capture" : "site_visit",
+          captureRegion: region,
           context: {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
@@ -126,6 +154,7 @@ export function SiteCaptureStart() {
         captureUrl: typeof result.captureUrl === "string" ? result.captureUrl : null,
         selfRecording,
         email,
+        regionApproved: isApprovedCaptureRegion(region),
       });
     } catch {
       setState({
@@ -138,7 +167,16 @@ export function SiteCaptureStart() {
   if (state.status === "done") {
     return (
       <div className="ms-form" aria-live="polite">
-        {state.selfRecording && state.captureUrl ? (
+        {!state.regionApproved ? (
+          <>
+            <h2 style={{ marginTop: 0 }}>We have your site.</h2>
+            <p className="ms-field-hint">{captureRegionHeldNotice}</p>
+            <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+              We will reply to {state.email}. If you already have footage, do not send it yet —
+              we would have to delete it unread.
+            </p>
+          </>
+        ) : state.selfRecording && state.captureUrl ? (
           <>
             <h2 style={{ marginTop: 0 }}>Film the work area.</h2>
             <p className="ms-field-hint">
@@ -176,8 +214,9 @@ export function SiteCaptureStart() {
     <form className="ms-form" onSubmit={submit} aria-label="Start a site capture">
       <h2 style={{ marginTop: 0 }}>Show us the work.</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        A phone video of one work area is all a reconstruction needs. Nothing here can turn you
-        away — what the footage shows is what decides, and you will hear exactly what we saw.
+        A phone video of one work area is all a reconstruction needs. No question here is a test
+        of whether your site is good enough — what the footage shows is what decides, and you will
+        hear exactly what we saw.
       </p>
 
       <label htmlFor="start-name">
@@ -213,6 +252,26 @@ export function SiteCaptureStart() {
           style={{ width: "auto", minHeight: 0 }}
         />
         <span>We will film it ourselves</span>
+      </label>
+
+      <label htmlFor="start-region">
+        <span>Which country is the site in?</span>
+        {/* Asked rather than parsed out of the free-text location below. A
+            residency decision made on a guess reads as a clearance we never
+            had, and this one decides whether we may collect at all. */}
+        <span className="ms-field-hint">{captureRegionNotice}</span>
+        <select
+          id="start-region"
+          name="startRegion"
+          value={region}
+          onChange={(event) => setRegion(event.target.value as CaptureRegion)}
+        >
+          {captureRegionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label htmlFor="start-location">

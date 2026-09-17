@@ -24,9 +24,19 @@
  * A site that records its own workcell needs an upload link. A site that wants
  * someone to come needs a person in a van, and that person is in Austin. The
  * service-area gate exists for the second case only — see
- * `bindsForCaptureModes` in `siteTaskQualification.ts` — so self-capture is
- * dispatchable anywhere, and the marketplace is one of two paths rather than
- * the only one.
+ * `bindsForCaptureModes` in `siteTaskQualification.ts` — so self-capture is not
+ * bound by where our capturers are, and the marketplace is one of two paths
+ * rather than the only one.
+ *
+ * ## "Not bound by our capturers" is not "anywhere"
+ *
+ * This header used to say self-capture was "dispatchable anywhere". That was
+ * wrong, and it was wrong in the direction that costs a site something: the
+ * privacy policy scopes the beta to US capture sites, and says non-US
+ * participation needs signed transfer terms *before capture*. Two different
+ * geographies were being conflated — where a capturer can drive, and where we
+ * are cleared to receive footage from. The first does not bind an upload. The
+ * second binds both, and it is now checked here rather than asserted in prose.
  */
 
 import {
@@ -39,6 +49,10 @@ import {
   auditInferredGates,
   type GateAnswerSources,
 } from "../../client/src/lib/gateProvenance";
+import {
+  isApprovedCaptureRegion,
+  isCaptureRegion,
+} from "../../client/src/data/captureResidency";
 
 export type CaptureChannel =
   /** The site films it. We send an upload link; no app, no scheduling. */
@@ -56,6 +70,10 @@ export type CaptureHoldReason =
   | "human_review_requested"
   | "gates_incomplete"
   | "gates_inferred"
+  /** The site is somewhere the beta has not been cleared to collect from. */
+  | "capture_region_unapproved"
+  /** Nobody recorded which region the site is in, so there is no basis to rely on. */
+  | "capture_region_unknown"
   | "capture_mode_missing";
 
 export interface CaptureDispatchInput {
@@ -78,6 +96,16 @@ export interface CaptureDispatchInput {
    * outbound existed.
    */
   gateAnswerSources?: GateAnswerSources | null;
+  /**
+   * Which region the site is in, as the operator stated it.
+   *
+   * Absent is not "probably fine". A capture invitation is the act that starts
+   * collection, and the beta's lawful basis for collecting is region-scoped, so
+   * an unrecorded region means there is no basis to point at. See
+   * `captureResidency.ts` for why this is asked rather than parsed out of the
+   * free-text location.
+   */
+  captureRegion?: string | null;
 }
 
 /**
@@ -115,6 +143,38 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
         `Still resting on inferred answers: ${inferred.inferredFieldIds.join(", ")}. ` +
         "The operator has to confirm these before anything is captured.",
     };
+  }
+
+  // Checked before the self-capture return, and before anything about cost,
+  // for the same reason as the inferred-gates check above: it is not a cost
+  // question.
+  //
+  // The privacy policy scopes the external beta to US capture sites and says
+  // non-US participation needs signed transfer terms "before capture or
+  // sharing". A capture invitation is what starts collection. So inviting an
+  // out-of-region site to film is asking for data we have said we are not
+  // cleared to receive, and "the upload is free" is no more of an excuse here
+  // than it was there.
+  //
+  // This binds to a visit as well as an upload. The concern is the basis for
+  // collecting the footage, which does not change depending on who holds the
+  // phone.
+  if (!isApprovedCaptureRegion(input.captureRegion)) {
+    return isCaptureRegion(input.captureRegion)
+      ? {
+          dispatch: false,
+          holdReason: "capture_region_unapproved",
+          detail:
+            "The site is outside the region the beta is cleared to collect from. " +
+            "Transfer terms have to be signed before a walkthrough is recorded, not after.",
+        }
+      : {
+          dispatch: false,
+          holdReason: "capture_region_unknown",
+          detail:
+            "No region recorded for this site, so there is no basis to collect a walkthrough " +
+            "against. Ask the operator which country the site is in.",
+        };
   }
 
   // A self-recorded walkthrough costs us nothing to receive.

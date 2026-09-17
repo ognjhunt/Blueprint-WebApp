@@ -793,6 +793,7 @@ export function decideDispatchForRequest(
     // request dispatching on gates nobody confirmed.
     bindingFieldIds: bindingGateFieldIds(captureMode ?? defaultCaptureMode),
     gateAnswerSources: request.site_task_gate_sources ?? null,
+    captureRegion: request.request.capture_region ?? null,
   });
 }
 

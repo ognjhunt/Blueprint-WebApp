@@ -557,12 +557,16 @@ export const howItWorksSplit = {
 
 /* ------------------------------------------------------------ pricing page */
 
-export const pricingHero = {
-  eyebrow: "Two numbers · sites pay nothing",
-  title: "Two charges. The site pays nothing.",
-  body:
-    "Robot teams pay $1,000 to evaluate a site-task. Win it and the total is $10,000. Lose and it stays $1,000. No percentage, no per-robot rate, nothing recurring.",
-} as const;
+// `pricingHero` was here, carrying "$1,000 to evaluate a site-task. Win it and
+// the total is $10,000" -- a different commercial model from the one /pricing
+// ships, which computes every figure from `@/lib/episodePricing` ($0.50 an
+// episode, 50 to screen a checkpoint, finalist round funded by Blueprint).
+//
+// Deleted rather than corrected. Nothing imported it, so it was not a live
+// contradiction; it was a loaded one, sitting in a file called
+// `publicSiteCopy` waiting for someone to wire up a hero. The pricing page
+// reads the pricing module, and that is the only place a price should come
+// from.
 
 export const pricingIncluded = [
   "One decision-shaped request against a real site-task",

@@ -33,7 +33,7 @@ function request(overrides: Partial<InboundRequest> = {}): InboundRequest {
   return {
     requestId: "req-1",
     site_task_triage: QUALIFIED,
-    request: { capture_mode: "self_capture" },
+    request: { capture_mode: "self_capture", capture_region: "us" },
     ...overrides,
   } as unknown as InboundRequest;
 }
@@ -59,7 +59,7 @@ describe("capture starts without anybody noticing a queue", () => {
     // The stricter reading. Defaulting here would send somebody driving to an
     // address on the strength of a field that was never filled in.
     const decision = decideDispatchForRequest(
-      request({ request: {} as InboundRequest["request"] }),
+      request({ request: { capture_region: "us" } as InboundRequest["request"] }),
       false,
     );
     expect(decision).toMatchObject({ dispatch: false, holdReason: "capture_mode_missing" });

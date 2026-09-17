@@ -7,6 +7,7 @@ import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 import type { LegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import type { SiteMatchSummaryRecord } from "../utils/siteMatchRun";
 import type { CaptureMode } from "../../client/src/data/siteTaskQualification";
+import type { CaptureRegion } from "../../client/src/data/captureResidency";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 
 // R047: server-derived Terms of Service / Privacy Policy acceptance record.
@@ -245,6 +246,15 @@ export interface RequestDetails {
    * than assuming nobody has to travel.
    */
   capture_mode?: CaptureMode | null;
+  /**
+   * Which region the site is in, as the operator stated it.
+   *
+   * The beta's basis for collecting a walkthrough is region-scoped, so this is
+   * what `decideCaptureDispatch` reads before issuing a capture invitation.
+   * Absent means nobody was asked, which is a hold rather than a pass — see
+   * `captureResidency.ts`.
+   */
+  capture_region?: CaptureRegion | null;
   /** Answers to the spec-tier questions. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** The free-text task description the narrative review reads against the gates. */
@@ -1064,6 +1074,8 @@ export interface RequestDetailsStored {
   siteTaskGates?: Record<string, string> | null;
   /** An enum token like the gates, and stored in the clear for the same reason. */
   capture_mode?: CaptureMode | null;
+  /** Also an enum token, also queryable: a residency hold has to be auditable. */
+  capture_region?: CaptureRegion | null;
   siteTaskSpec?: Record<string, string> | null;
   /** Operator prose. Encrypted: a task description can name people and process. */
   taskDescription?: EncryptableString | null;
@@ -1128,6 +1140,12 @@ export interface InboundRequestPayload {
    * driving rather than about the site. Absent means `site_visit`.
    */
   captureMode?: string | null;
+  /**
+   * Which region the site is in. Asked rather than parsed out of the location,
+   * because a residency decision made on a guess reads as a clearance we never
+   * had.
+   */
+  captureRegion?: string | null;
   /** Spec-tier answers. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** Free-text task description, read by the narrative review against the gates. */

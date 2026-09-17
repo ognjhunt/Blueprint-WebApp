@@ -353,34 +353,54 @@ export const appRoutes: AppRoute[] = [
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
   { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
-  { path: "/internal/opportunity-board", layout: "public", shell: "bare", component: OpportunityBoard },
+  // The opportunity board carries a different commercial model from the one
+  // that ships: $1,000 to evaluate a site-task and $10,000 on award, against
+  // /pricing's $0.50 per episode with a Blueprint-funded finalist round. It was
+  // reachable by URL on a public layout, with an offer flow attached, so a
+  // robot team could read one price here and be quoted another by the API.
+  //
+  // Protected rather than deleted: it is ops tooling for a model we may still
+  // want, and the path already says `/internal`. What it must not be is a
+  // second public price.
+  {
+    path: "/internal/opportunity-board",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
+    shell: "bare",
+    component: OpportunityBoard,
+  },
   {
     path: "/internal/opportunity-board/:id/anonymous",
-    layout: "public",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
     shell: "bare",
     component: OpportunityAnonymous,
   },
   {
     path: "/internal/opportunity-board/:id/package",
-    layout: "public",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
     shell: "bare",
     component: OpportunityPackage,
   },
   {
     path: "/internal/opportunity-board/:id/offer",
-    layout: "public",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
     shell: "bare",
     component: OpportunityOffer,
   },
   {
     path: "/internal/opportunity-board/:id/offers",
-    layout: "public",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
     shell: "bare",
     component: OpportunityOffers,
   },
   {
     path: "/internal/opportunity-board/:id",
-    layout: "public",
+    layout: "protected",
+    requireRoles: ADMIN_ROLES,
     shell: "bare",
     component: OpportunityListing,
   },

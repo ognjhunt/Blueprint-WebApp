@@ -6,6 +6,11 @@ import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
+import {
+  isApprovedCaptureRegion,
+  isCaptureRegion,
+  type CaptureRegion,
+} from "../../client/src/data/captureResidency";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
@@ -138,8 +143,25 @@ const router = Router();
  * link could not be minted still gets a confirmed submission and hears from us
  * the way it always did.
  */
-function siteCaptureUrl(buyerType: string, requestId: string): string | null {
+/**
+ * The link, which is the invitation to collect.
+ *
+ * Region-checked here as well as in `decideCaptureDispatch`, because this is
+ * the synchronous path: the form gets its answer from this call, long before a
+ * workflow reads the request. Handing out a link the upload authorization will
+ * then refuse would be its own small dishonesty — the site films, and only then
+ * finds out.
+ *
+ * Both callers read `isApprovedCaptureRegion`, so there is one rule rather than
+ * two that can drift.
+ */
+function siteCaptureUrl(
+  buyerType: string,
+  requestId: string,
+  captureRegion: CaptureRegion | null,
+): string | null {
   if (buyerType !== "site_operator") return null;
+  if (!isApprovedCaptureRegion(captureRegion)) return null;
   try {
     return captureUploadUrlFor(requestId);
   } catch {
@@ -1219,6 +1241,13 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const captureMode = isCaptureMode(payload.captureMode)
       ? payload.captureMode
       : defaultCaptureMode;
+    // Stored as the operator stated it, including when they did not state it.
+    // `decideCaptureDispatch` holds on both an unapproved region and an absent
+    // one, so normalising an absent value into a default here would invent a
+    // clearance. Null is the honest token for "nobody was asked".
+    const captureRegion = isCaptureRegion(payload.captureRegion)
+      ? payload.captureRegion
+      : null;
     const siteTaskVerdict = triageGateAnswers(
       siteTaskGates,
       buyerType === "robot_team" ? robotGateFields : undefined,
@@ -1505,7 +1534,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         requestId: payload.requestId,
         siteSubmissionId: payload.requestId,
         status: existingData.status,
-        captureUrl: siteCaptureUrl(buyerType, payload.requestId),
+        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -1548,6 +1577,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         taskStatement,
         siteTaskGates: Object.keys(siteTaskGates).length ? siteTaskGates : null,
         capture_mode: buyerType === "robot_team" ? null : captureMode,
+        capture_region: buyerType === "robot_team" ? null : captureRegion,
         siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
         taskDescription: payload.taskDescription?.trim() || null,
         whatGoesWrong: payload.whatGoesWrong?.trim() || null,
@@ -2034,7 +2064,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       requestId: payload.requestId,
       siteSubmissionId: payload.requestId,
       status: "submitted",
-      captureUrl: siteCaptureUrl(buyerType, payload.requestId),
+      captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {
     logger.error(
