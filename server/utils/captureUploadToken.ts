@@ -18,12 +18,33 @@
 
 import crypto from "node:crypto";
 
+/**
+ * What a capture link is allowed to do.
+ *
+ * The security gap this closes: the same signed link opened the camera *and*
+ * confirmed the brief -- and confirming the brief is the attestation that
+ * writes gate answers as `operator_stated`. So an owner who forwarded the QR to
+ * a colleague meant only to film handed them the authority to attest to
+ * operating facts they may have no standing over. Least privilege: filming and
+ * attesting are different acts and get different links.
+ *
+ * - `owner`   -- the submitter's own link: film, confirm the brief, see status.
+ * - `film`    -- a colleague's link: film, upload, see status. Cannot attest.
+ */
+export type CaptureTokenScope = "owner" | "film";
+
 interface CaptureUploadTokenPayload {
   kind: "capture_upload";
   requestId: string;
   /** Where the video lands, fixed at issue time so the link cannot redirect it. */
   captureId: string;
   sceneId: string;
+  /**
+   * The link's capability. Absent on tokens minted before the split, which were
+   * all the submitter's own link -- so absent reads as `owner`, and no
+   * already-issued link loses a capability it had.
+   */
+  scope?: CaptureTokenScope;
   exp: number;
 }
 
@@ -62,7 +83,10 @@ function signPayload(serializedPayload: string) {
  * twice points at the same storage prefix instead of scattering a second empty
  * capture beside the first.
  */
-export function captureUploadUrlFor(requestId: string): string {
+export function captureUploadUrlFor(
+  requestId: string,
+  scope: CaptureTokenScope = "owner",
+): string {
   const origin = (
     process.env.VITE_PUBLIC_APP_URL?.trim()
     || process.env.APP_URL?.trim()
@@ -73,6 +97,7 @@ export function captureUploadUrlFor(requestId: string): string {
     requestId,
     sceneId: `site-${requestId}`,
     captureId: `walkthrough-${requestId}`,
+    scope,
   });
   return `${origin}/capture-upload/${token}`;
 }
@@ -81,6 +106,7 @@ export function createCaptureUploadToken(params: {
   requestId: string;
   captureId: string;
   sceneId: string;
+  scope?: CaptureTokenScope;
   ttlSeconds?: number;
 }) {
   const payload: CaptureUploadTokenPayload = {
@@ -88,6 +114,7 @@ export function createCaptureUploadToken(params: {
     requestId: params.requestId,
     captureId: params.captureId,
     sceneId: params.sceneId,
+    scope: params.scope ?? "owner",
     exp: Math.floor(Date.now() / 1000) + (params.ttlSeconds ?? CAPTURE_UPLOAD_TOKEN_TTL_SECONDS),
   };
   const serialized = JSON.stringify(payload);
@@ -143,7 +170,10 @@ export function verifyCaptureUploadToken(token: string): CaptureUploadTokenPaylo
     return null;
   }
 
-  return payload;
+  // Absent or unrecognised scope reads as `owner`, because every link minted
+  // before this field existed was the submitter's own. A `film` link is only
+  // ever one we deliberately narrowed.
+  return { ...payload, scope: payload.scope === "film" ? "film" : "owner" };
 }
 
 /**

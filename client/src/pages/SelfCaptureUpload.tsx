@@ -21,6 +21,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
+import { captureBlockingGates } from "@/lib/siteTaskReadiness";
+import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
@@ -204,6 +206,44 @@ export default function SelfCaptureUpload() {
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
+  /**
+   * What this link may do. A film-only colleague link never shows the brief
+   * confirm UI -- confirming is an attestation only the operator's own link
+   * carries -- so the recorder is what they see. Defaults to owner, matching
+   * the server, which reads an absent scope as owner.
+   */
+  const [scope, setScope] = useState<"owner" | "film">("owner");
+  /** A record-only link for a colleague, minted on demand from the owner link. */
+  const [filmLink, setFilmLink] = useState<string | null>(null);
+  const [filmLinkPending, setFilmLinkPending] = useState(false);
+
+  // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
+  // the capture-blocking gates change what to film; if one of those is still
+  // unresolved we genuinely do not know what to record, so the brief comes
+  // first. If only evaluation-blocking gates remain, the camera opens and the
+  // rest of the brief settles afterwards -- the readiness ladder's own
+  // distinction, applied to the UI instead of a blanket "confirm everything
+  // first".
+  async function requestFilmLink() {
+    if (filmLink || filmLinkPending) return;
+    setFilmLinkPending(true);
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/film-link`);
+      const data = (await response.json().catch(() => null)) as { filmUrl?: string } | null;
+      if (response.ok && data?.filmUrl) setFilmLink(data.filmUrl);
+    } catch {
+      // No link. The owner can still film themselves.
+    } finally {
+      setFilmLinkPending(false);
+    }
+  }
+
+  const briefBlocksCapture = (() => {
+    if (!brief) return false;
+    const mode = isCaptureMode(brief.captureMode) ? brief.captureMode : defaultCaptureMode;
+    const captureIds = new Set(captureBlockingGates(mode).map((field) => field.id));
+    return brief.unresolved.some((id) => captureIds.has(id));
+  })();
   /** Where the task stands, for the operator who has no account to check. */
   const [status, setStatus] = useState<TaskStatus | null>(null);
 
@@ -245,9 +285,12 @@ export default function SelfCaptureUpload() {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
         const data = (await response.json().catch(() => null)) as {
           ready?: boolean;
+          scope?: "owner" | "film";
           brief?: (DraftedBrief & { shotList?: ChecklistItem[]; confirmedAtIso?: string | null });
         } | null;
-        if (cancelled || !response.ok || !data?.ready || !data.brief) return;
+        if (cancelled || !response.ok) return;
+        if (data?.scope === "film" || data?.scope === "owner") setScope(data.scope);
+        if (!data?.ready || !data.brief) return;
         if (Array.isArray(data.brief.shotList)) setShotList(data.brief.shotList);
         setBrief({
           summary: data.brief.summary,
@@ -527,12 +570,16 @@ export default function SelfCaptureUpload() {
                 view would finish the job.
               </p>
             </div>
-          ) : brief && !briefConfirmed ? (
-            /* The brief comes before the camera. Confirming what we understood
-               is the attestation that lets a submission reach `qualified`, and
-               a walkthrough filmed against a brief nobody corrected is footage
-               we cannot turn into supply. Once confirmed, this falls through to
-               the recorder below on the next render. */
+          ) : scope === "owner" && brief && !briefConfirmed && briefBlocksCapture ? (
+            /* The brief comes before the camera only when it still gates the
+               recording. Confirming is the attestation that lets a submission
+               reach `qualified` -- but the audit was right that a full
+               confirmation is too strict a wall: only the capture-blocking
+               gates change what to film, so those are what hold the camera.
+               Once they are resolved (or nothing blocks capture), this falls
+               through to the recorder and the rest of the brief settles after.
+               A film-only colleague link never lands here: attestation is not
+               theirs to make. */
             <TaskBriefReview
               token={token}
               brief={brief}
@@ -540,6 +587,26 @@ export default function SelfCaptureUpload() {
             />
           ) : (
             <>
+              {/* An owner whose brief did not wall the camera can still confirm
+                  it -- and must, eventually, for the site to become supply. So
+                  the confirm path stays available here, one disclosure in,
+                  rather than vanishing because filming came first. A film-only
+                  link never sees it. */}
+              {scope === "owner" && brief && !briefConfirmed && (
+                <details style={{ marginBottom: "20px" }}>
+                  <summary>Review and confirm your task brief</summary>
+                  <p className="ms-field-hint">
+                    We drafted this from what you sent. Confirming it is what lets a robot team be
+                    matched to your site — you can do it before or after you film.
+                  </p>
+                  <TaskBriefReview
+                    token={token}
+                    brief={brief}
+                    onConfirmed={() => setBriefConfirmed(true)}
+                  />
+                </details>
+              )}
+
               {/* The guided path. It offers itself only where the browser can
                   record a format our reconstruction accepts, and hides itself
                   otherwise -- so the file picker below is never the second-best
@@ -549,6 +616,42 @@ export default function SelfCaptureUpload() {
                 checklist={shotList}
                 onSaved={() => setUpload({ status: "done" })}
               />
+
+              {/* Least privilege for the person who actually films. An owner who
+                  is handing this to a colleague sends a link that can record and
+                  upload but cannot attest -- so a forwarded QR never carries the
+                  authority to confirm operating facts on the site's behalf. */}
+              {scope === "owner" && (
+                <div style={{ marginTop: "20px" }}>
+                  {filmLink ? (
+                    <p className="ms-field-hint">
+                      Record-only link for a colleague — they can film and upload, only you can
+                      confirm the brief:
+                      <br />
+                      <input
+                        readOnly
+                        value={filmLink}
+                        onFocus={(event) => event.currentTarget.select()}
+                        style={{ width: "100%", marginTop: "6px" }}
+                      />
+                    </p>
+                  ) : (
+                    <p className="ms-field-hint">
+                      Someone else doing the filming?{" "}
+                      <button
+                        type="button"
+                        className="ms-text-link"
+                        onClick={requestFilmLink}
+                        disabled={filmLinkPending}
+                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        {filmLinkPending ? "Creating…" : "Create a record-only link"}
+                      </button>{" "}
+                      — they can film and upload, but only you can confirm the task brief.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 Already have a video? Upload it instead — if it covers the work area we will use

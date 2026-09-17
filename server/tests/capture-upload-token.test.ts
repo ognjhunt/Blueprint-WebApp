@@ -70,6 +70,52 @@ describe("the upload link is the credential", () => {
   );
 });
 
+describe("the link's scope is a capability, not decoration", () => {
+  it("defaults a freshly minted link to owner", () => {
+    const payload = verifyCaptureUploadToken(createCaptureUploadToken(SUBJECT));
+    expect(payload?.scope).toBe("owner");
+  });
+
+  it("carries a film scope when one is asked for", () => {
+    const payload = verifyCaptureUploadToken(
+      createCaptureUploadToken({ ...SUBJECT, scope: "film" }),
+    );
+    expect(payload?.scope).toBe("film");
+  });
+
+  it("reads a token with no scope as owner, so no already-issued link loses a capability", () => {
+    // Simulate a pre-split token: same signing, no scope field. Verification
+    // must normalise it to owner rather than to undefined or film.
+    const legacy = createCaptureUploadToken(SUBJECT);
+    // The payload is base64url(JSON).signature; strip scope from the JSON and
+    // re-sign the way the signer does, to model a token minted before scope.
+    const [encoded] = legacy.split(".");
+    const json = JSON.parse(Buffer.from(encoded, "base64url").toString("utf-8"));
+    delete json.scope;
+    const serialized = JSON.stringify(json);
+    const crypto = require("node:crypto") as typeof import("node:crypto");
+    const secret =
+      process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET ||
+      process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
+      process.env.PIPELINE_SYNC_TOKEN ||
+      "blueprint-request-review-dev-secret";
+    const sig = crypto.createHmac("sha256", secret).update(serialized).digest("base64url");
+    const token = `${Buffer.from(serialized, "utf-8").toString("base64url")}.${sig}`;
+
+    expect(verifyCaptureUploadToken(token)?.scope).toBe("owner");
+  });
+
+  it("normalises an unrecognised scope to owner rather than trusting it", () => {
+    const payload = verifyCaptureUploadToken(
+      createCaptureUploadToken({ ...SUBJECT, scope: "superuser" as never }),
+    );
+    // A minted "superuser" is not a real capability; the reader collapses
+    // anything that is not "film" to owner, which is the safe existing default
+    // and never a wider capability than owner.
+    expect(payload?.scope).toBe("owner");
+  });
+});
+
 describe("where a self-captured video lands", () => {
   it("writes to the exact prefix extractFrames already watches", () => {
     // The reason self-capture costs almost nothing: a browser upload enters the

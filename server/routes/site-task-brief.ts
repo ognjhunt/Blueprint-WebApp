@@ -24,7 +24,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 
 import { logger } from "../logger";
-import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
+import { captureUploadUrlFor, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import {
   confirmBrief,
   getBrief,
@@ -165,10 +165,14 @@ router.get("/:token", async (req: Request, res: Response) => {
       // so beats a 404 that reads as "your submission is gone".
       return res.status(200).json({
         ready: false,
+        scope: payload.scope,
         note: "We have not finished reading what you sent. This page will have a draft shortly.",
       });
     }
-    return res.status(200).json({ ready: true, brief: presentBrief(brief) });
+    // The scope travels with the brief so the client shows the confirm UI only
+    // for an owner link -- a film-only colleague sees the shot list to record
+    // against, not a button that would 403.
+    return res.status(200).json({ ready: true, scope: payload.scope, brief: presentBrief(brief) });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");
     return res.status(503).json({
@@ -178,12 +182,50 @@ router.get("/:token", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Mint a record-only link for a colleague, from an owner link.
+ *
+ * The least-privilege path the audit asked for: an owner who is handing the
+ * filming to someone else gets a film-scoped link that can record, upload and
+ * check status but cannot confirm the brief. Only an owner token can mint one --
+ * a film link cannot widen itself or spawn more.
+ *
+ * The film token points at the same request and the same storage prefix, so a
+ * colleague's upload lands exactly where the owner's would. What it lacks is the
+ * attestation capability, and nothing else.
+ */
+router.get("/:token/film-link", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({
+      error: "Only the site operator's own link can create a record-only link for someone else.",
+      code: "capture_token_film_only",
+    });
+  }
+  return res.status(200).json({ ok: true, filmUrl: captureUploadUrlFor(payload.requestId, "film") });
+});
+
 router.post("/:token/confirm", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(401).json({
       error: "That link is not valid any more.",
       code: "capture_token_invalid",
+    });
+  }
+
+  // Confirming the brief is an attestation, and a film-only link does not carry
+  // the authority to make one. A colleague sent a narrowed link to record can
+  // upload footage; they cannot state operating facts on the operator's behalf.
+  if (payload.scope !== "owner") {
+    return res.status(403).json({
+      error:
+        "This link is for recording only. Confirming the task brief has to be done from the "
+        + "original link we sent the site's operator.",
+      code: "capture_token_film_only",
     });
   }
 
@@ -328,7 +370,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // sends. Never blocks or fails the status read.
     void deliverOutbox({ limit: 5 }).catch(() => undefined);
 
-    return res.status(200).json({ ok: true, status, summary: brief?.summary ?? null });
+    return res.status(200).json({ ok: true, scope: payload.scope, status, summary: brief?.summary ?? null });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
     return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });
