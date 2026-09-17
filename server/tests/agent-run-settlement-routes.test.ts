@@ -136,8 +136,9 @@ async function seedSpendableTeam() {
     unrunnableReason: null,
   });
 
-  // Runnable supply now means three things, not one: a qualified verdict, the
-  // operator's confirmation of the brief we drafted, and a scene that exists.
+  // Runnable supply now means four things, not one: a qualified verdict, the
+  // operator's confirmation of the brief we drafted, a scene that exists, and an
+  // internal proof that an evaluation can actually run against that scene.
   docs.set("inboundRequests/site-1", {
     requestId: "site-1",
     request: {
@@ -161,6 +162,14 @@ async function seedSpendableTeam() {
       capture_id: "cap-1",
       pipeline_prefix: "gs://bucket/site-1",
       artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site-1/world.json" },
+    },
+    // The runnability proof `sceneRunnableReadiness` requires: a simulator has
+    // stepped this scene and benchmark tasks are defined.
+    evaluation_readiness: {
+      runtime_launchable: true,
+      benchmark_coverage_status: "ready",
+      benchmark_task_count: 3,
+      robot_eval_preflight_summary: { simulator_execution_proven: true, episode_count: 20 },
     },
   });
 }

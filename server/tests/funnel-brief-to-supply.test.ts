@@ -162,7 +162,12 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
       any
     >;
 
-    // The exact check `loadRunnableSites` runs, with a scene now present.
+    // The site-readiness half of what `loadRunnableSites` runs, with a scene
+    // now present. This is the operator's side: brief confirmed, gates
+    // answered, scene reconstructed. `loadRunnableSites` then adds one more
+    // gate on our side -- `sceneRunnableReadiness`, that an evaluation can
+    // actually run against the scene -- which the funnel does not produce and
+    // is covered in scene-runnable-readiness.test.ts.
     const readiness = assessReadiness({
       answers: stored.siteTaskGates as Record<string, string>,
       captureMode: "self_capture",

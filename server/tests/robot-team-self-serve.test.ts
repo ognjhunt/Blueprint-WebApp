@@ -116,6 +116,16 @@ function seedOneRunnableSite() {
       pipeline_prefix: "gs://bucket/site-1",
       artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site-1/world.json" },
     },
+    // A scene existing is not a scene an evaluation can run against. This
+    // fixture claims to be genuine runnable supply, so it carries the internal
+    // proof `sceneRunnableReadiness` requires: a simulator has stepped it and
+    // benchmark tasks are defined.
+    evaluation_readiness: {
+      runtime_launchable: true,
+      benchmark_coverage_status: "ready",
+      benchmark_task_count: 3,
+      robot_eval_preflight_summary: { simulator_execution_proven: true, episode_count: 20 },
+    },
   });
 }
 
