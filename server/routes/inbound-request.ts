@@ -19,6 +19,11 @@ import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken } from "../utils/request-review-auth";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import {
+  inferHandoffChannel,
+  sendFilmLinkHandoff,
+  shouldSendFilmerHandoff,
+} from "../utils/filmLinkHandoff";
 import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
@@ -1934,6 +1939,34 @@ export async function submitInboundRequest(req: Request, res: Response) {
         }
       })()
     );
+
+    // Route the film link to whoever will actually do the filming, when the
+    // operator named someone else on-site at intake. In outreach the person we
+    // reach is usually a desk, not the floor; this hands the record-only link
+    // straight to the floor from the first touch, so nobody has to open the
+    // capture page and forward it. Best effort, and only when the capture could
+    // actually run: self-capture, in an approved region (so the link is a live
+    // recorder and not a "no region" wall), with a destination given.
+    const filmerContact = String(payload.filmerContact || "").trim();
+    if (shouldSendFilmerHandoff({ filmerContact, buyerType, captureMode, captureRegion })) {
+      automationPromises.push(
+        (async () => {
+          try {
+            await sendFilmLinkHandoff({
+              requestId: payload.requestId,
+              channel: inferHandoffChannel(filmerContact),
+              to: filmerContact,
+              taskSummary: taskStatement,
+            });
+          } catch (error) {
+            logger.error(
+              { error, requestId: payload.requestId },
+              "Could not send the intake film-link handoff",
+            );
+          }
+        })(),
+      );
+    }
 
     // Confirmation email
     automationPromises.push(

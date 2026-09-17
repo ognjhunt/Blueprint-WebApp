@@ -94,6 +94,10 @@ export function SiteCaptureStart() {
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
   const [hasFootage, setHasFootage] = useState(false);
+  // When the submitter is not the one who will film — common when outreach
+  // reaches an ops lead at a desk — we send the record-only link straight to
+  // whoever is on the floor. Blank means the submitter is filming.
+  const [filmerContact, setFilmerContact] = useState("");
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,6 +139,7 @@ export function SiteCaptureStart() {
           captureMode: selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: hasFootage,
+          filmerContact: filmerContact.trim() || undefined,
           context: {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
@@ -294,6 +299,26 @@ export function SiteCaptureStart() {
         />
         <span>We will film it ourselves</span>
       </label>
+
+      {selfRecording && (
+        <label htmlFor="start-filmer">
+          <span>Who is doing the filming?</span>
+          <span className="ms-field-hint">
+            Filming it yourself? Leave this blank. If someone else on-site will do it, put their
+            phone or email here and we will send them a record-only link — they can film and upload,
+            and only you can confirm the task brief.
+          </span>
+          <input
+            id="start-filmer"
+            name="startFilmer"
+            type="text"
+            maxLength={320}
+            placeholder="Their phone (+15551234567) or email — optional"
+            value={filmerContact}
+            onChange={(event) => setFilmerContact(event.target.value)}
+          />
+        </label>
+      )}
 
       <label htmlFor="start-region">
         <span>Which country is the site in?</span>

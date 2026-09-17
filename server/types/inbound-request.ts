@@ -1159,6 +1159,12 @@ export interface InboundRequestPayload {
    */
   captureRegion?: string | null;
   /**
+   * Where to send the record-only link when someone other than the submitter
+   * will do the filming — a phone number or an email. Optional, and only acted
+   * on for a self-capture in an approved region.
+   */
+  filmerContact?: string | null;
+  /**
    * Whether the site says it already has footage or photographs.
    *
    * Changes what we tell them next, not which funnel they are in. Evidence they

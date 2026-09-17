@@ -48,8 +48,7 @@ import {
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
 import { deliverOutbox } from "../utils/captureOutbox";
-import { sendEmail } from "../utils/email";
-import { sendSms, looksLikePhoneNumber } from "../utils/sms";
+import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 
 const router = Router();
 
@@ -219,8 +218,6 @@ router.get("/:token/film-link", async (req: Request, res: Response) => {
   return res.status(200).json({ ok: true, filmUrl: captureUploadUrlFor(payload.requestId, "film") });
 });
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /** An owner link can hand the film link to a few people, not spam a number. */
 const MAX_HANDOFF_SENDS = 25;
 
@@ -266,16 +263,6 @@ router.post("/:token/film-link/send", async (req: Request, res: Response) => {
   }
   const { channel, to } = parsed.data;
 
-  if (channel === "email" && !EMAIL_RE.test(to)) {
-    return res.status(400).json({ error: "That does not look like an email address.", code: "invalid_email" });
-  }
-  if (channel === "sms" && !looksLikePhoneNumber(to)) {
-    return res.status(400).json({
-      error: "Enter the number in full international form, like +15551234567.",
-      code: "invalid_number",
-    });
-  }
-
   // Check the relay cap before sending; the counter is incremented only on a
   // successful send below, so a config error or a bad number does not burn a
   // slot. A race could let a few extra through, which is fine: this is a soft
@@ -299,74 +286,54 @@ router.post("/:token/film-link/send", async (req: Request, res: Response) => {
   }
 
   const requestId = payload.requestId;
-  const filmUrl = captureUploadUrlFor(requestId, "film");
   const brief = await getBrief(requestId).catch(() => null);
-  const task = (brief?.summary || "").trim();
-  const taskClause = task ? ` for "${task.length > 120 ? `${task.slice(0, 117)}…` : task}"` : "";
 
-  async function bumpSendCounter() {
-    if (!requestRef) return;
-    try {
-      await requestRef.set(
-        { site_capture_handoff_sends: admin.firestore.FieldValue.increment(1) },
-        { merge: true },
-      );
-    } catch (error) {
-      logger.warn({ error, requestId }, "Could not increment the handoff send counter");
-    }
-  }
-
+  let result;
   try {
-    if (channel === "sms") {
-      const result = await sendSms({
-        to,
-        body:
-          `Blueprint: you've been asked to film a site walkthrough${taskClause}. ` +
-          `Open on your phone — no app needed: ${filmUrl}`,
-      });
-      if (!result.sent) {
-        return res.status(result.reason === "not_configured" ? 503 : 400).json({
-          ok: false,
-          code: result.reason === "not_configured" ? "sms_unavailable" : "sms_send_failed",
-          error:
-            result.reason === "not_configured"
-              ? "Text messaging is not set up here yet. Send it by email, or copy the link and share it."
-              : "We could not text that number. Check it, or send it by email instead.",
-          filmUrl,
-        });
-      }
-      await bumpSendCounter();
-      return res.status(200).json({ ok: true, channel: "sms", sent: true });
-    }
-
-    const result = await sendEmail({
-      to,
-      subject: "You've been asked to film a Blueprint site capture",
-      text:
-        `Someone has asked you to film a short walkthrough of a work area${taskClause} for a Blueprint robot evaluation.\n\n` +
-        `Open this link on your phone — no app to install, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
-        `You can record and upload from this link. Confirming the task details stays with the site operator who sent it to you.`,
-      replyTo: "ops@tryblueprint.io",
-    });
-    if (!result.sent) {
-      return res.status(503).json({
-        ok: false,
-        code: "email_unavailable",
-        error: "We could not send that email right now. Copy the link and share it directly.",
-        filmUrl,
-      });
-    }
-    await bumpSendCounter();
-    return res.status(200).json({ ok: true, channel: "email", sent: true });
+    result = await sendFilmLinkHandoff({ requestId, channel, to, taskSummary: brief?.summary ?? null });
   } catch (error) {
-    logger.error({ error, requestId: payload.requestId, channel }, "Could not send the film-link handoff");
+    logger.error({ error, requestId, channel }, "Could not send the film-link handoff");
     return res.status(502).json({
       ok: false,
       code: "handoff_failed",
       error: "That could not be sent. Copy the link and share it directly.",
-      filmUrl,
+      filmUrl: captureUploadUrlFor(requestId, "film"),
     });
   }
+
+  if (result.sent) {
+    // Count only a successful send against the relay cap, so a config error or
+    // a bad number never burns a slot.
+    if (requestRef) {
+      try {
+        await requestRef.set(
+          { site_capture_handoff_sends: admin.firestore.FieldValue.increment(1) },
+          { merge: true },
+        );
+      } catch (error) {
+        logger.warn({ error, requestId }, "Could not increment the handoff send counter");
+      }
+    }
+    return res.status(200).json({ ok: true, channel, sent: true });
+  }
+
+  // A bad destination or a channel that is off. Bad input is a 400; a channel
+  // being unavailable is a 503, and either way the link comes back to share.
+  const status =
+    result.code === "sms_unavailable" || result.code === "email_unavailable" ? 503 : 400;
+  const messages: Record<string, string> = {
+    invalid_email: "That does not look like an email address.",
+    invalid_number: "Enter the number in full international form, like +15551234567.",
+    sms_send_failed: "We could not text that number. Check it, or send it by email instead.",
+    sms_unavailable: "Text messaging is not set up here yet. Send it by email, or copy the link and share it.",
+    email_unavailable: "We could not send that email right now. Copy the link and share it directly.",
+  };
+  return res.status(status).json({
+    ok: false,
+    code: result.code,
+    error: messages[result.code ?? ""] || "That could not be sent. Copy the link and share it directly.",
+    filmUrl: result.filmUrl,
+  });
 });
 
 router.post("/:token/confirm", async (req: Request, res: Response) => {
