@@ -53,6 +53,7 @@
 import { useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 import {
   captureRegionHeldNotice,
@@ -220,6 +221,10 @@ export function SiteCaptureStart() {
               brief we draft from your job description will appear for you to correct. Film the
               work, not the worker: hands and objects are what a robot team needs to see.
             </p>
+            {/* The laptop, watching the phone through the server's own status
+                rather than guessing. Renders nothing until there is something
+                real to say, and never blocks the capture happening elsewhere. */}
+            <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
         ) : (
           <>
