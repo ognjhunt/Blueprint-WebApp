@@ -61,6 +61,21 @@ export type WorkspaceTask = {
     selectedResultId: string | null;
     notes: string | null;
   };
+  /**
+   * Where the task stands on the assessment ladder, when it is a site task.
+   *
+   * Optional because this type is shared with the robot-team role, and because
+   * a task with no brief drafted has no readiness yet. Projected from the same
+   * `projectTaskStatus` the account-free page uses, so the two surfaces cannot
+   * disagree about one task.
+   */
+  readiness?: {
+    decision: string;
+    headline: string;
+    operatorAction: string | null;
+    missingViews: string[];
+    nextUpdateIso: string | null;
+  } | null;
   createdAt: string | null;
 };
 export type WorkspaceEvaluation = WorkspaceResult & {

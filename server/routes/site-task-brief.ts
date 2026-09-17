@@ -31,8 +31,37 @@ import {
   type SiteTaskBriefRecord,
 } from "../utils/siteTaskBrief";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
+import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
+import {
+  projectTaskStatus,
+  taskStatusInputFrom,
+} from "../utils/taskStatusProjection";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
 const router = Router();
+
+/** Just the fields status needs, so this route does not decrypt a whole lead. */
+async function readRequestForStatus(requestId: string): Promise<{
+  siteTaskGates?: Record<string, string> | null;
+  site_task_brief_confirmed_at?: unknown;
+  capture_coverage?: {
+    covers_scene?: boolean | null;
+    missing_coverage?: string[] | null;
+    supplement_would_finish?: boolean | null;
+  } | null;
+  site_task_next_update_iso?: string | null;
+} | null> {
+  if (!db) return null;
+  const snap = await db.collection("inboundRequests").doc(requestId).get();
+  if (!snap.exists) return null;
+  const data = snap.data() as Record<string, unknown>;
+  return {
+    siteTaskGates: (data.request as { siteTaskGates?: Record<string, string> } | undefined)?.siteTaskGates ?? null,
+    site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
+    capture_coverage: (data.capture_coverage as never) ?? null,
+    site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
+  };
+}
 
 /** The gate ids a client is allowed to answer. Anything else is ignored. */
 const GATE_IDS = new Set(gateFields.map((field) => field.id));
@@ -202,6 +231,67 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       error: "The confirmation could not be recorded",
       code: "task_brief_confirm_unavailable",
     });
+  }
+});
+
+/**
+ * Where the task stands, for the account-free operator who filmed it.
+ *
+ * The signed link is the credential, same as the brief and the camera. This is
+ * the status view the workspace cannot serve, because the workspace needs an
+ * account and the person who followed a link from an email does not have one.
+ *
+ * It projects status through the same `projectTaskStatus` the workspace uses,
+ * so the two surfaces cannot tell one operator "we can assess this" while
+ * telling another "in review" about the same task.
+ */
+router.get("/:token/status", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+  }
+
+  try {
+    const [brief, request] = await Promise.all([
+      getBrief(payload.requestId),
+      readRequestForStatus(payload.requestId),
+    ]);
+
+    // The readiness stage, when we can compute it. Absent when there is no
+    // brief yet, which `projectTaskStatus` reads as "received".
+    let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
+    if (brief) {
+      const gates = (request?.siteTaskGates as Record<string, string> | null) ?? {};
+      stage = assessReadiness({
+        answers: gates,
+        captureMode: brief.captureMode,
+        briefDrafted: true,
+        briefConfirmed: Boolean(request?.site_task_brief_confirmed_at),
+        evidence: {
+          hasAny: true,
+          hasVisual: Boolean(request?.capture_coverage),
+          explainsTask: true,
+          coversScene: request?.capture_coverage?.covers_scene ?? false,
+          missingCoverage: request?.capture_coverage?.missing_coverage ?? undefined,
+        },
+        reconstructed: false,
+      }).stage;
+    }
+
+    const status = projectTaskStatus(
+      taskStatusInputFrom({
+        site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
+        capture_coverage: request?.capture_coverage ?? null,
+        site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
+        briefDrafted: Boolean(brief),
+        stage,
+      }),
+    );
+
+    return res.status(200).json({ ok: true, status, summary: brief?.summary ?? null });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load task status");
+    return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });
   }
 });
 

@@ -21,6 +21,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
+
+/** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
+type TaskStatus = {
+  decision: string;
+  headline: string;
+  operatorAction: string | null;
+  missingViews: string[];
+  nextUpdateIso: string | null;
+};
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -195,6 +204,8 @@ export default function SelfCaptureUpload() {
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
+  /** Where the task stands, for the operator who has no account to check. */
+  const [status, setStatus] = useState<TaskStatus | null>(null);
 
   // Whether the camera button below is worth anything on this device. A coarse
   // check on purpose: the cost of being wrong is one extra QR code on a phone,
@@ -215,6 +226,20 @@ export default function SelfCaptureUpload() {
 
     // Separate request, and deliberately not awaited with the link check: a
     // brief we cannot load is a missing checklist, not a broken capture page.
+    (async () => {
+      try {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
+        const data = (await response.json().catch(() => null)) as {
+          ok?: boolean;
+          status?: TaskStatus;
+        } | null;
+        if (cancelled || !response.ok || !data?.status) return;
+        setStatus(data.status);
+      } catch {
+        // No status line. The rest of the page still works.
+      }
+    })();
+
     (async () => {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
@@ -367,6 +392,36 @@ export default function SelfCaptureUpload() {
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
         {link.status === "held" ? "Not yet — here is what is in the way" : "Film the work area"}
       </h1>
+
+      {/* Where the task stands, for the operator who has no account. The
+          workspace serves the same status to signed-in sites; this serves the
+          person who followed a link from an email and never signed up. */}
+      {status && (
+        <div
+          style={{
+            border: "1px solid var(--ms-rule)",
+            padding: "16px",
+            marginBottom: "24px",
+            background: "var(--ms-paper)",
+          }}
+        >
+          <strong>{status.headline}</strong>
+          {status.operatorAction && (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              {status.operatorAction}
+            </p>
+          )}
+          {status.nextUpdateIso ? (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              Next update by {new Date(status.nextUpdateIso).toLocaleString()}.
+            </p>
+          ) : (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              We will email you when there is something to say. Nothing to watch here.
+            </p>
+          )}
+        </div>
+      )}
 
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>

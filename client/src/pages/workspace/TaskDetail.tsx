@@ -70,6 +70,29 @@ export default function TaskDetail() {
               </Tag>
             </p>
           </div>
+
+          {/* Where the task stands, dominant, from the shared projection the
+              account-free capture page uses too -- so a signed-in operator and
+              one on a link cannot be told different things about one task. The
+              `ws-next` treatment is the page's existing status-banner style. */}
+          {task.readiness && (
+            <div className="ws-next">
+              <div>
+                <p className="ws-kicker">Where this stands</p>
+                <h2>{task.readiness.headline}</h2>
+                {task.readiness.operatorAction && <p>{task.readiness.operatorAction}</p>}
+                {task.readiness.missingViews.length > 0 && (
+                  <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
+                )}
+                {task.readiness.nextUpdateIso && (
+                  <p className="ws-muted">
+                    Next update by {new Date(task.readiness.nextUpdateIso).toLocaleString()}.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <Feedback error={action.error} notice={action.notice} />
           <div className="ws-tabs" role="tablist" aria-label="Task sections">
             {["overview", "results", "capture"].map((value) => (
