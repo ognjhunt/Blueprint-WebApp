@@ -227,7 +227,14 @@ describe("build output", () => {
     expect(siteHtml).toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Bring your robot. Find the fit.");
-    expect(robotHtml).toContain("applying does not guarantee either");
+    // The robot persona's own copy, prerendered. It used to assert "applying
+    // does not guarantee either" -- true of the old flow, where a form was
+    // followed by a wait for us. The offer starts immediately now, so what has
+    // to survive prerender is the plan being free and the questions not being
+    // a gate.
+    expect(robotHtml).toContain("ranked, priced, and free to look at");
+    expect(robotHtml).toContain("they are not a gate");
+    expect(robotHtml).toContain("POST /api/agent-team/register");
     expect(robotHtml).not.toContain('id="capture-mode"');
     expect(robotHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain('id="gate-hardwareMaturity"');
