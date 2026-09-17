@@ -520,13 +520,20 @@ export async function encryptInboundRequestForStorage<
       taskStatement: await encryptFieldValue(
         request.request.taskStatement || "Task statement pending"
       ),
-      // Enum tokens, stored in the clear so a re-run can recompute the same
-      // deterministic verdict from the same answers. Capture mode belongs with
-      // them: it selects which gates bind, so a verdict cannot be reproduced
-      // without it, and dropping it here is what made a stored submission look
-      // like it had never answered the question.
+      // Enum tokens and small flags, stored in the clear so a re-run can
+      // recompute the same deterministic verdict from the same answers. They are
+      // not PII and they carry decisions the rest of the system depends on:
+      // capture_mode selects which gates bind; capture_region is the beta's
+      // lawful basis for collecting, and without it `decideCaptureDispatch`
+      // holds every capture as "no region recorded" even though the operator
+      // told us; has_existing_footage decides what we say next. Each was written
+      // by intake and then silently dropped by this rebuild, which is exactly
+      // how a stored submission comes to look like it never answered a question
+      // it did answer.
       siteTaskGates: request.request.siteTaskGates ?? null,
       capture_mode: request.request.capture_mode ?? null,
+      capture_region: request.request.capture_region ?? null,
+      has_existing_footage: request.request.has_existing_footage ?? null,
       siteTaskSpec: request.request.siteTaskSpec ?? null,
       taskDescription: await encryptOptionalField(
         request.request.taskDescription ?? null
@@ -628,6 +635,8 @@ export async function decryptInboundRequestForAdmin<
         : "Legacy submission requires manual scoping",
       siteTaskGates: request.request.siteTaskGates ?? null,
       capture_mode: request.request.capture_mode ?? null,
+      capture_region: request.request.capture_region ?? null,
+      has_existing_footage: request.request.has_existing_footage ?? null,
       siteTaskSpec: request.request.siteTaskSpec ?? null,
       taskDescription: await decryptOptionalField(
         request.request.taskDescription ?? null
