@@ -6,7 +6,7 @@ describe("Site-led homepage", () => {
   it("offers a site inquiry first and a separate robot-team application", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your site.The right robot.A pilot worth running.");
-    expect(screen.getByRole("link", { name: "Discuss your site" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Apply as a robot team" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
     expect(screen.queryByText(/Free\.|~0|months 0–2/i)).not.toBeInTheDocument();

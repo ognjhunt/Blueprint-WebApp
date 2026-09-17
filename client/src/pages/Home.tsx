@@ -12,8 +12,12 @@ export default function Home() {
       <EmbodimentHero>
           <div className="ms-hero-copy">
             <h1 id="hero-title">Your site.<br />The right robot.<br />A pilot worth running.</h1>
-            <p className="ms-hero-description">Compare robots and policies on your real task.<br className="ms-desktop-break" /> Decide what deserves a physical pilot.</p>
-            <a className="ms-button ms-button-large" href="/contact/site-operator">Discuss your site <ArrowRight size={25} strokeWidth={1.5} aria-hidden="true" /></a>
+            {/* Input-neutral on purpose. The recording is how most assessments end
+                up being done, not the price of starting one -- a description is
+                enough to get a task brief back, and footage they already hold
+                gets reused rather than re-shot. */}
+            <p className="ms-hero-description">Start with a description, photos, or video.<br className="ms-desktop-break" /> We define the task and what deserves a physical pilot.</p>
+            <a className="ms-button ms-button-large" href="/contact/site-operator">Start a task assessment <ArrowRight size={25} strokeWidth={1.5} aria-hidden="true" /></a>
           </div>
       </EmbodimentHero>
 

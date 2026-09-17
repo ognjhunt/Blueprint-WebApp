@@ -95,7 +95,7 @@ export default function Pricing() {
               <strong>What is not free:</strong> {siteAssessment.whatIsNotFree}
             </p>
             <a className="ms-text-link" href="/contact/site-operator">
-              Discuss your site <ArrowRight size={20} aria-hidden="true" />
+              Start a task assessment <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
 
@@ -223,7 +223,7 @@ export default function Pricing() {
 
         <div className="ms-how-cta">
           <a className="ms-button ms-button-large" href="/contact/site-operator">
-            Discuss your site <ArrowRight size={20} aria-hidden="true" />
+            Start a task assessment <ArrowRight size={20} aria-hidden="true" />
           </a>
           <a className="ms-text-link" href="/contact/robot-team">
             Apply as a robot team <ArrowRight size={20} aria-hidden="true" />

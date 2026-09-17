@@ -4,7 +4,7 @@ test("homepage leads with the site decision and separates supplier participation
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("A pilot worth running.");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("link", { name: "Discuss your site" })).toHaveAttribute("href", "/contact/site-operator");
+  await expect(nav.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
   await expect(nav.getByRole("link", { name: "Robot teams" })).toHaveAttribute("href", "/contact/robot-team");
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(page.getByRole("link", { name: "Apply as a robot team" })).toBeVisible();

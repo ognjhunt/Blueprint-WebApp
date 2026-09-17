@@ -1578,6 +1578,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteTaskGates: Object.keys(siteTaskGates).length ? siteTaskGates : null,
         capture_mode: buyerType === "robot_team" ? null : captureMode,
         capture_region: buyerType === "robot_team" ? null : captureRegion,
+        has_existing_footage:
+          buyerType === "robot_team" ? null : Boolean(payload.hasExistingFootage),
         siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
         taskDescription: payload.taskDescription?.trim() || null,
         whatGoesWrong: payload.whatGoesWrong?.trim() || null,

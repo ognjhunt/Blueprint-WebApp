@@ -80,17 +80,42 @@ function json(key?: string) {
   };
 }
 
-/** One screened, reconstructed site, so there is something to plan against. */
+/**
+ * One site that is genuinely runnable supply.
+ *
+ * This fixture used to claim "screened, reconstructed" in its own name while
+ * carrying neither a confirmed brief nor a scene -- the same thing
+ * `loadRunnableSites` claimed in its docstring and did not check. Now that it
+ * does check, the fixture has to be what it says it is: every binding gate
+ * answered, the operator's confirmation on file, and a world manifest.
+ */
 function seedOneRunnableSite() {
   sharedFakeFirestoreState.docs.set("inboundRequests/site-1", {
     requestId: "site-1",
     request: {
       buyerType: "site",
       targetSiteType: "Grocery back room",
+      capture_mode: "self_capture",
+      capture_region: "us",
       siteTaskSpec: { taskFamily: "shelf_restock", payloadCapacity: "payload_20kg" },
-      siteTaskGates: { serviceArea: "us_national" },
+      siteTaskGates: {
+        sceneStability: "stable",
+        taskShape: "single",
+        objectVariety: "under_10",
+        deploymentTimeline: "this_quarter",
+        accessWindow: "scheduled",
+      },
     },
     site_task_triage: { disposition: "qualified" },
+    // The attestation: the operator confirmed our reading of their evidence.
+    site_task_brief_confirmed_at: "2026-09-17T00:00:00.000Z",
+    // And a scene actually exists, which nothing checked before.
+    pipeline: {
+      scene_id: "site-1",
+      capture_id: "cap-1",
+      pipeline_prefix: "gs://bucket/site-1",
+      artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site-1/world.json" },
+    },
   });
 }
 

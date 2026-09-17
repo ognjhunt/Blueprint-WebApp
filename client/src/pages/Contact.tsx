@@ -453,7 +453,7 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title={`${isSite ? "Discuss your site" : "Robot teams"} | Blueprint`}
+        title={`${isSite ? "Start a task assessment" : "Robot teams"} | Blueprint`}
         description={description}
         canonical={isSite ? "/contact/site-operator" : "/contact/robot-team"}
         image="https://tryblueprint.io/images/site-led/workcell.webp"

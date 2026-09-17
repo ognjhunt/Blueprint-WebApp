@@ -71,6 +71,7 @@ type State =
       selfRecording: boolean;
       email: string;
       regionApproved: boolean;
+      hasFootage: boolean;
     }
   | { status: "failed"; message: string };
 
@@ -88,6 +89,10 @@ export function SiteCaptureStart() {
   // the common case. The default is not what grants the clearance: the server
   // re-reads this and holds on anything else, and on nothing at all.
   const [region, setRegion] = useState<CaptureRegion>("us");
+  // Asked because it changes what we say next, not to route them into a
+  // different funnel. Existing footage gets assessed for both purposes -- does
+  // it explain the job, does it cover the scene -- and reused wherever it can be.
+  const [hasFootage, setHasFootage] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,6 +133,7 @@ export function SiteCaptureStart() {
           siteTaskSpec: {},
           captureMode: selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
+          hasExistingFootage: hasFootage,
           context: {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
@@ -155,6 +161,7 @@ export function SiteCaptureStart() {
         selfRecording,
         email,
         regionApproved: isApprovedCaptureRegion(region),
+        hasFootage,
       });
     } catch {
       setState({
@@ -178,22 +185,34 @@ export function SiteCaptureStart() {
           </>
         ) : state.selfRecording && state.captureUrl ? (
           <>
-            <h2 style={{ marginTop: 0 }}>Film the work area.</h2>
+            <h2 style={{ marginTop: 0 }}>
+              {state.hasFootage ? "Send us what you have." : "Film the work area."}
+            </h2>
+            {/* Two purposes, one recording. Footage they already hold may
+                explain the job and cover the scene; if it does we reuse it, and
+                if it only does the first we ask for the specific views that are
+                missing rather than for "a better video". What we never do is
+                make them film something they have already filmed. */}
             <p className="ms-field-hint">
-              One video of one work area, on any phone. Thirty seconds of the actual cycle is
-              enough. No app and nothing to install.
+              {state.hasFootage
+                ? "Upload the video or photos you already have through this link. We will tell you "
+                  + "whether they cover the work area well enough to build the scene, or which extra "
+                  + "views would finish the job — you will not be asked to film it all again."
+                : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
+                  + "enough. No app and nothing to install."}
             </p>
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large" href={state.captureUrl}>
-                Open the camera
+                {state.hasFootage ? "Open the uploader" : "Open the camera"}
               </a>
             </p>
             {/* The handoff, because this page is usually open on a laptop and
                 the camera is in their pocket. */}
             <CaptureHandoffQr url={state.captureUrl} />
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-              Keep this link — it is how you come back to this submission. Film the work, not the
-              worker: hands and objects are what a robot team needs to see.
+              Keep this link — it is how you come back to this submission, and it is where the task
+              brief we draft from your job description will appear for you to correct. Film the
+              work, not the worker: hands and objects are what a robot team needs to see.
             </p>
           </>
         ) : (
@@ -212,11 +231,12 @@ export function SiteCaptureStart() {
 
   return (
     <form className="ms-form" onSubmit={submit} aria-label="Start a site capture">
-      <h2 style={{ marginTop: 0 }}>Show us the work.</h2>
+      <h2 style={{ marginTop: 0 }}>Tell us about one repetitive job.</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        A phone video of one work area is all a reconstruction needs. No question here is a test
-        of whether your site is good enough — what the footage shows is what decides, and you will
-        hear exactly what we saw.
+        Start with a description. Add footage if you already have some, or film it later with our
+        instructions — we will use whatever you give us and tell you what, if anything, is
+        missing. No question here is a test of whether your site is good enough: what the footage
+        shows is what decides, and you will hear exactly what we saw.
       </p>
 
       <label htmlFor="start-name">
@@ -237,9 +257,29 @@ export function SiteCaptureStart() {
       <label htmlFor="start-task">
         <span>What is the job?</span>
         <span className="ms-field-hint">
-          One line is plenty — "move totes from the conveyor to a pallet". The video says the rest.
+          One line is enough to start — "move sealed cartons from the conveyor onto a pallet".
+          More is better: what the items are, what varies, and what makes a cycle go wrong all
+          save us asking.
         </span>
-        <input id="start-task" name="startTask" type="text" required maxLength={400} />
+        <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} />
+      </label>
+
+      <label htmlFor="start-existing-footage" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
+        <input
+          id="start-existing-footage"
+          name="startExistingFootage"
+          type="checkbox"
+          checked={hasFootage}
+          onChange={(event) => setHasFootage(event.target.checked)}
+          style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
+        />
+        {/* Reuse before re-record. A recording that already shows the job may
+            also have the coverage a scene needs -- and if it does, asking them
+            to film again would be us making them pay for our workflow having
+            stages. */}
+        <span style={{ fontWeight: 400 }}>
+          I already have a video or photos of this job
+        </span>
       </label>
 
       <label htmlFor="start-self-recording" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>

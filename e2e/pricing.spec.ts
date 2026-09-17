@@ -10,7 +10,7 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
   const site = page.locator("section", { has: page.getByRole("heading", { name: /assessment of one task at one site/i }) });
   await expect(site.getByText("$0", { exact: true })).toBeVisible();
   await expect(site.getByText(/No fee, no per-episode charge, and no card/i)).toBeVisible();
-  await expect(site.getByRole("link", { name: /Discuss your site/i })).toHaveAttribute(
+  await expect(site.getByRole("link", { name: /Start a task assessment/i })).toHaveAttribute(
     "href",
     "/contact/site-operator",
   );

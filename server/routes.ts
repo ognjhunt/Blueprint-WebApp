@@ -57,6 +57,7 @@ import internalCaptureReconstructionRouter from "./routes/internal-capture-recon
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
 import internalAgentRunSettlementRouter from "./routes/internal-agent-run-settlement";
 import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
+import siteTaskBriefRouter from "./routes/site-task-brief";
 import adminOutboundProspectsRouter from "./routes/admin-outbound-prospects";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
@@ -130,6 +131,9 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalAgentRunSettlementRouter);
   // Public by design: the signed link in the path is the credential.
   app.use("/api/self-capture/uploads", selfCaptureUploadsRouter);
+  // Same signed link as the camera, because it is the same person doing two
+  // things about one submission.
+  app.use("/api/site-task-brief", siteTaskBriefRouter);
   app.use("/api/admin/outbound-prospects", adminOutboundProspectsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);

@@ -116,7 +116,7 @@ describe("Pricing", () => {
 
   it("routes each side to its own intake", () => {
     render(<Pricing />);
-    expect(screen.getAllByRole("link", { name: /Discuss your site/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Start a task assessment/i })[0]).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );

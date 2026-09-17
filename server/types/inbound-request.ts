@@ -963,6 +963,14 @@ export interface InboundRequest {
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
+  /**
+   * When the operator confirmed the task brief we drafted.
+   *
+   * The attestation. Until this exists the gate answers are our reading of
+   * their evidence rather than their statement of it, so nothing downstream
+   * may treat the verdict as theirs.
+   */
+  site_task_brief_confirmed_at?: FirebaseFirestore.Timestamp | string | null;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
   // R047: recorded Terms of Service / Privacy Policy acceptance for the buyer/operator.
@@ -1076,6 +1084,8 @@ export interface RequestDetailsStored {
   capture_mode?: CaptureMode | null;
   /** Also an enum token, also queryable: a residency hold has to be auditable. */
   capture_region?: CaptureRegion | null;
+  /** Whether the site said it already holds footage. Drives reuse, not routing. */
+  has_existing_footage?: boolean | null;
   siteTaskSpec?: Record<string, string> | null;
   /** Operator prose. Encrypted: a task description can name people and process. */
   taskDescription?: EncryptableString | null;
@@ -1146,6 +1156,15 @@ export interface InboundRequestPayload {
    * had.
    */
   captureRegion?: string | null;
+  /**
+   * Whether the site says it already has footage or photographs.
+   *
+   * Changes what we tell them next, not which funnel they are in. Evidence they
+   * already hold gets assessed for both purposes -- does it explain the job,
+   * does it cover the work area -- and reused wherever it can be, because
+   * making someone film twice for our workflow's benefit is our cost to bear.
+   */
+  hasExistingFootage?: boolean;
   /** Spec-tier answers. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** Free-text task description, read by the narrative review against the gates. */
@@ -1338,6 +1357,14 @@ export interface InboundRequestListItem {
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
+  /**
+   * When the operator confirmed the task brief we drafted.
+   *
+   * The attestation. Until this exists the gate answers are our reading of
+   * their evidence rather than their statement of it, so nothing downstream
+   * may treat the verdict as theirs.
+   */
+  site_task_brief_confirmed_at?: FirebaseFirestore.Timestamp | string | null;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
 }

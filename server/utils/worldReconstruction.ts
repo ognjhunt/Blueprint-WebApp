@@ -140,6 +140,26 @@ export interface StartWorldReconstructionParams {
   reviewCapture?: () => Promise<SiteVideoEvidenceOutput | null>;
   /** Gates that bind for this submission, so a contradiction is scored honestly. */
   bindingFieldIds?: readonly string[];
+  /**
+   * Whether the scene this would build could actually be sold.
+   *
+   * ## The check that was not here
+   *
+   * `reviewCapture` asks whether the footage is any good. Nothing asked whether
+   * the *site* was in a state where a finished scene could be offered to a
+   * robot team — and because a blank gate never qualifies and footage may only
+   * lower a verdict, an unscreened submission could be reconstructed and then
+   * sat in the library forever, unsellable. We paid for the scene either way.
+   *
+   * Two different questions, so two different callbacks: this one is about the
+   * submission, `reviewCapture` is about the recording. Both run before
+   * generation, which is the only billed step.
+   *
+   * Injectable and optional for the same reason as `reviewCapture`: this module
+   * does not read Firestore, and an absent check keeps every existing caller
+   * behaving as it did. A caller that owns a request record supplies it.
+   */
+  checkSellable?: () => Promise<{ spend: boolean; reason: string }>;
 }
 
 /**
@@ -166,6 +186,28 @@ export async function startWorldReconstruction(
 
   if (!frames.length) {
     return blocked("capture_frames_empty");
+  }
+
+  // Asked before the footage review, because it is cheaper and it is about a
+  // different thing: no amount of good footage makes a scene sellable if the
+  // site's own answers are still our reading of their evidence rather than
+  // their statement of it.
+  if (params.checkSellable) {
+    let verdict: { spend: boolean; reason: string };
+    try {
+      verdict = await params.checkSellable();
+    } catch (error) {
+      logger.warn(
+        { error, framesPrefixUri: params.framesPrefixUri },
+        "Sellability check failed; holding reconstruction rather than spending",
+      );
+      return blocked("site_sellability_unknown", {
+        failureReason: error instanceof Error ? error.message : String(error),
+      });
+    }
+    if (!verdict.spend) {
+      return blocked("site_not_sellable", { failureReason: verdict.reason });
+    }
   }
 
   // The last thing before money moves. Frames are already in our bucket and
