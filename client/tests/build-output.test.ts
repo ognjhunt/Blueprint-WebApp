@@ -233,7 +233,12 @@ describe("build output", () => {
     // to survive prerender is the plan being free and the questions not being
     // a gate.
     expect(robotHtml).toContain("ranked, priced, and free to look at");
-    expect(robotHtml).toContain("they are not a gate");
+    // The form is no longer what this page leads with: the panel that shows a
+    // free ranked plan is, and the application sits behind a disclosure. A
+    // person and their agent now have the same access, which they did not.
+    expect(robotHtml).toContain("See my plan");
+    expect(robotHtml).toContain("a later conversation than evaluating one");
+    expect(robotHtml).toContain("Rather talk to someone");
     expect(robotHtml).toContain("POST /api/agent-team/register");
     expect(robotHtml).not.toContain('id="capture-mode"');
     expect(robotHtml).not.toContain('id="gate-serviceArea"');

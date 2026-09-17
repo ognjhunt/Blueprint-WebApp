@@ -44,6 +44,7 @@ import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { RobotTeamPlanPreview } from "@/components/site/RobotTeamPlanPreview";
 import { SEO } from "@/components/SEO";
 import { withCsrfHeader } from "@/lib/csrf";
 import { parseTaskVideoLinks } from "@/lib/taskVideos";
@@ -467,7 +468,7 @@ export default function Contact() {
           <p className="ms-inquiry-aside">
             {isSite
               ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
-              : "These questions sharpen the match; they are not a gate. Nothing here has to be answered before you can see what we would run your checkpoint against — that plan is free and available immediately, and you pay only for runs you choose to start. Where a site visit or a physical pilot follows, that needs the site's approval, and this form does not promise one."}
+              : "Start with the panel above: a checkpoint is all we need to show you what to run it against, and that costs nothing. The form below is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
           </p>
           {!isSite && (
             /*
@@ -480,10 +481,10 @@ export default function Contact() {
              * would leave the fastest route undiscoverable.
              */
             <p className="ms-inquiry-aside">
-              Prefer to skip the form? Your own agent can do all of this:{" "}
-              <code>POST /api/agent-team/register</code> takes a team name and
-              returns a key, then <code>POST /api/agent-team/plan</code> returns
-              the ranked list with a reason per row. No credential to register,
+              Your own agent can do exactly what the panel above does, and then
+              buy the runs: <code>POST /api/agent-team/register</code>,{" "}
+              <code>POST /api/agent-team/plan</code>,{" "}
+              <code>POST /api/agent-team/runs</code>. No credential to register,
               nothing charged until you confirm a run.{" "}
               <a className="ms-text-link" href="/agent-access.openapi.json">
                 Machine-readable spec
@@ -499,7 +500,32 @@ export default function Contact() {
             <ArrowUpRight size={16} aria-hidden="true" />
           </a>
         </div>
-        <ScreeningForm key={isSite ? "site" : "robot"} isSite={isSite} />
+        {isSite ? (
+          <ScreeningForm key="site" isSite />
+        ) : (
+          /*
+           * The plan first, the form second.
+           *
+           * Both are on the page because they do different jobs: the panel is
+           * the product -- what we would run and why, free -- and the form is
+           * how you reach a person. Putting the form first made a sales
+           * qualifier look like step one of the product, which is what left a
+           * visitor with strictly worse access than their own agent.
+           */
+          <div className="ms-inquiry-forms">
+            <RobotTeamPlanPreview />
+            <details style={{ marginTop: "32px" }}>
+              <summary style={{ cursor: "pointer" }}>
+                Rather talk to someone? Send an application instead
+              </summary>
+              <p className="ms-field-hint" style={{ margin: "12px 0 20px" }}>
+                None of this is needed to see a plan or to start runs. It is what a
+                person here would ask you on a call about an actual deployment.
+              </p>
+              <ScreeningForm key="robot" isSite={false} />
+            </details>
+          </div>
+        )}
       </section>
     </>
   );

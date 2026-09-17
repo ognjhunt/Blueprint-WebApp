@@ -85,6 +85,11 @@ test("site inquiry validates, retains data on failure, then acknowledges a succe
 test("robot application answers the robot gates, not the site's", async ({ page }) => {
   await page.goto("/contact/robot-team");
   await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  // The application now sits behind a disclosure: the page leads with the free
+  // plan, which is the product, and the form is how you reach a person. Open it
+  // before asserting on what it asks -- those facts are unchanged, only where
+  // they live.
+  await page.getByText(/Rather talk to someone/i).click();
   await page.locator("#gate-hardwareMaturity").selectOption({ index: 1 });
   await page.locator("#gate-deploymentGeography").selectOption({ index: 1 });
   await page.locator("#gate-engineerCapacity").selectOption({ index: 1 });
