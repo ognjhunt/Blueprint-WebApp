@@ -53,6 +53,7 @@
 import { useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 import {
   captureRegionHeldNotice,
   captureRegionNotice,
@@ -321,7 +322,13 @@ export function SiteCaptureStart() {
             ? "A city is plenty. We only need a street address if we are sending someone."
             : "A capture operator needs a street address, not a site nickname."}
         </span>
-        <input id="start-location" name="startLocation" type="text" required maxLength={300} />
+        <LocationAutocomplete
+          id="start-location"
+          name="startLocation"
+          required
+          maxLength={300}
+          placeholder={selfRecording ? "City, or a full address" : "Street address"}
+        />
       </label>
 
       <label htmlFor="start-rights" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
