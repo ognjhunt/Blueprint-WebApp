@@ -30,6 +30,15 @@ import {
   getBrief,
   type SiteTaskBriefRecord,
 } from "../utils/siteTaskBrief";
+import {
+  REQUESTED_ITEM_SHOTS,
+  deriveItemInventory,
+  getItemInventory,
+  presentInventory,
+  removeItem,
+  saveItemInventory,
+  upsertItem,
+} from "../utils/taskItemInventory";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -374,6 +383,116 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
     return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });
+  }
+});
+
+/* ------------------------------------------------------- task item inventory */
+
+/**
+ * The objects the robot has to handle, so the Pipeline can build sim-ready
+ * versions of them rather than only the room.
+ *
+ * A walkthrough gives us the scene. It does not give us the tote a robot grasps
+ * or the cartons it stacks -- and those are frequently filmed clear, because a
+ * clear work area is the honest thing to capture. So we list the items and ask
+ * for a few example photos of each. We suggest what we can read out of the task
+ * description; the operator corrects and completes the list.
+ *
+ * Declaring an item is an operating statement about the site, so mutations need
+ * an owner link -- the same boundary the brief confirmation draws. Reading is
+ * open to any valid link, and photographing the items (on the uploads route) is
+ * capture a film-only colleague can do.
+ */
+const itemSchema = z
+  .object({
+    /** Present when editing an existing item; absent to add a new one. */
+    itemId: z.string().trim().max(120).optional(),
+    label: z.string().trim().min(1).max(120),
+    locationNote: z.string().trim().max(400).optional(),
+    quantityHint: z.string().trim().max(120).optional(),
+  })
+  .strict();
+
+/** The item list, seeded from the brief the first time it is read. */
+router.get("/:token/items", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ ready: false, error: "This link is not valid or has expired." });
+  }
+
+  try {
+    let inventory = await getItemInventory(payload.requestId);
+    if (!inventory) {
+      // First read: propose items from the drafted brief so the operator starts
+      // from a list to correct rather than a blank one to fill. Seeded once so
+      // the suggestions are real items that can receive photos.
+      const brief = await getBrief(payload.requestId).catch(() => null);
+      inventory = deriveItemInventory({
+        requestId: payload.requestId,
+        taskSummary: brief?.summary ?? null,
+      });
+      await saveItemInventory(inventory);
+    }
+    return res.status(200).json({
+      ok: true,
+      scope: payload.scope,
+      requestedShots: REQUESTED_ITEM_SHOTS,
+      ...presentInventory(inventory),
+    });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load the task item inventory");
+    return res.status(503).json({ error: "The item list could not be loaded", code: "item_inventory_unavailable" });
+  }
+});
+
+/** Add an item, or edit one. Owner scope: declaring an item is an attestation. */
+router.post("/:token/items", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({
+      error:
+        "This is a film-only link. Photographing the items is fine, but only an owner link can " +
+        "change the item list.",
+      code: "capture_token_film_only",
+    });
+  }
+
+  const parsed = itemSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "That item is invalid", code: "item_invalid" });
+  }
+
+  try {
+    const record = await upsertItem(payload.requestId, parsed.data);
+    return res.status(200).json({ ok: true, scope: payload.scope, ...presentInventory(record) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not save a task item");
+    return res.status(503).json({ error: "The item could not be saved", code: "item_inventory_unavailable" });
+  }
+});
+
+/** Remove an item. Owner scope, same reason. */
+router.delete("/:token/items/:itemId", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({
+      error: "This is a film-only link. Only an owner link can change the item list.",
+      code: "capture_token_film_only",
+    });
+  }
+
+  try {
+    const record = await removeItem(payload.requestId, String(req.params.itemId || "").trim());
+    return res.status(200).json({ ok: true, scope: payload.scope, ...presentInventory(record) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not remove a task item");
+    return res.status(503).json({ error: "The item could not be removed", code: "item_inventory_unavailable" });
   }
 });
 
