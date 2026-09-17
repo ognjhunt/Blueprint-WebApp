@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -172,6 +173,15 @@ export default function SelfCaptureUpload() {
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
   const [fileName, setFileName] = useState<string | null>(null);
+  /**
+   * What to film, from the brief we drafted and they confirmed.
+   *
+   * Empty is a valid answer and the recorder handles it: a submission whose
+   * brief we have not read yet still gets a camera, just without a list. What
+   * it must never be is invented here -- a shot list that named views the task
+   * does not have would be us telling somebody to film a room we imagined.
+   */
+  const [shotList, setShotList] = useState<ChecklistItem[]>([]);
 
   // Whether the camera button below is worth anything on this device. A coarse
   // check on purpose: the cost of being wrong is one extra QR code on a phone,
@@ -189,6 +199,23 @@ export default function SelfCaptureUpload() {
     }
 
     let cancelled = false;
+
+    // Separate request, and deliberately not awaited with the link check: a
+    // brief we cannot load is a missing checklist, not a broken capture page.
+    (async () => {
+      try {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
+        const data = (await response.json().catch(() => null)) as {
+          ready?: boolean;
+          brief?: { shotList?: ChecklistItem[] };
+        } | null;
+        if (cancelled || !response.ok || !data?.ready) return;
+        if (Array.isArray(data.brief?.shotList)) setShotList(data.brief.shotList);
+      } catch {
+        // No list. The camera still works.
+      }
+    })();
+
     (async () => {
       try {
         const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
@@ -418,14 +445,30 @@ export default function SelfCaptureUpload() {
                 background: "var(--ms-paper)",
               }}
             >
-              <strong>That is everything we need.</strong>
+              <strong>Your capture is saved.</strong>
               <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                We will turn it into a 3D scene and run the shortlisted robots against it. You do
-                not need to do anything else — we will email you when there is something to look at.
+                You can close this page. We check next whether it covers the work area well enough to
+                build the scene, and we will come back to you either way — including if one more
+                view would finish the job.
               </p>
             </div>
           ) : (
             <>
+              {/* The guided path. It offers itself only where the browser can
+                  record a format our reconstruction accepts, and hides itself
+                  otherwise -- so the file picker below is never the second-best
+                  option presented as a consolation, it is the path. */}
+              <CaptureRecorder
+                token={token}
+                checklist={shotList}
+                onSaved={() => setUpload({ status: "done" })}
+              />
+
+              <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+                Already have a video? Upload it instead — if it covers the work area we will use
+                it rather than ask you to film again.
+              </p>
+
               <input
                 ref={inputRef}
                 type="file"

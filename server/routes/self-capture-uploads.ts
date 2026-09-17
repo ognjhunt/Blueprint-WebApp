@@ -15,6 +15,13 @@
 
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
+import {
+  composeParts,
+  discardParts,
+  savePart,
+  storedPartIndices,
+} from "../utils/captureParts";
+import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -245,6 +252,134 @@ async function writeCompletionMarker(params: {
     );
 }
 
+/**
+ * Everything that happens once the bytes are in the bucket.
+ *
+ * Extracted because there are two ways in now -- a single POST and a composed
+ * set of resumable parts -- and only one of them may exist as code. The
+ * sequence it owns is load-bearing in two places:
+ *
+ * - **Manifest before marker.** The marker starts extraction and extraction
+ *   reads the manifest, so the reverse order produces a blocked report rather
+ *   than a scene.
+ * - **Privacy screen between them.** This is the only moment the video is in
+ *   hand and nothing has been derived from it. A parts route that wrote its own
+ *   marker would bypass the screen, and no later gate can un-copy the frames
+ *   that would follow.
+ */
+async function finishStoredCapture(params: {
+  payload: { requestId: string; sceneId: string; captureId: string };
+  objectPath: string;
+  rawPrefix: string;
+  videoMetadata: BrowserVideoMetadata;
+  sizeBytes: number;
+}): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { payload, objectPath, rawPrefix } = params;
+
+  if (!storageAdmin) {
+    return {
+      status: 503,
+      body: { error: "Uploads are unavailable right now. Try again shortly." },
+    };
+  }
+  const bucket = storageAdmin.bucket(storageBucketName());
+
+  const manifest = buildBrowserCaptureManifest({
+    payload: payload as never,
+    objectPath,
+    video: params.videoMetadata,
+    sizeBytes: params.sizeBytes,
+  });
+
+  try {
+    await bucket
+      .file(`${rawPrefix}/manifest.json`)
+      .save(JSON.stringify(manifest, null, 2), { contentType: "application/json" });
+  } catch (error) {
+    logger.error(
+      { error, captureId: payload.captureId },
+      "Self-capture video stored but the manifest failed",
+    );
+    return {
+      status: 502,
+      body: {
+        error: "Your video reached us but we could not start processing it. We have been alerted.",
+      },
+    };
+  }
+
+  const privacy = await screenCaptureForPrivacy({
+    requestId: payload.requestId,
+    sceneId: payload.sceneId,
+    captureId: payload.captureId,
+  });
+
+  await recordCapturePrivacyScreen({
+    requestId: payload.requestId,
+    captureId: payload.captureId,
+    result: privacy,
+  });
+
+  if (!privacy.proceed) {
+    // 200 and `ok: true`, because the upload genuinely succeeded. Accepting
+    // fails open; only deriving fails closed. Telling someone their video
+    // failed when we are holding it would send them off to re-film something
+    // we already have.
+    //
+    // The two cases read differently to whoever is looking at them.
+    // `rejected` needs a person and asking again will not change it.
+    // `pending` is our problem and retries on its own.
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        captureId: payload.captureId,
+        state: "held",
+        eligibility: privacy.eligibility,
+        retryable: privacy.retryable ?? false,
+        code:
+          privacy.eligibility === "pending"
+            ? "capture_review_unavailable"
+            : "capture_privacy_review",
+        message: privacy.detail,
+      },
+    };
+  }
+
+  try {
+    await writeCompletionMarker({
+      sceneId: payload.sceneId,
+      captureId: payload.captureId,
+      rawPrefix,
+      objectPath,
+    });
+  } catch (error) {
+    // The video is already stored, so this is recoverable by rewriting the
+    // marker rather than re-uploading hundreds of megabytes. Say so plainly
+    // instead of reporting a success that will never produce a scene.
+    logger.error(
+      { error, captureId: payload.captureId, sceneId: payload.sceneId },
+      "Self-capture video stored but completion marker failed; capture will not extract",
+    );
+    return {
+      status: 502,
+      body: {
+        error: "Your video reached us but we could not start processing it. We have been alerted.",
+      },
+    };
+  }
+
+  return {
+    status: 201,
+    body: {
+      ok: true,
+      captureId: payload.captureId,
+      eligibility: privacy.eligibility,
+      message: "Got it. We'll build the scene and come back to you.",
+    },
+  };
+}
+
 router.get("/:token", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
@@ -414,92 +549,247 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
     sizeBytes: file.size,
   });
 
-  const bucket = storageAdmin.bucket(storageBucketName());
+  // One path from here, shared with the resumable parts route. A composed
+  // capture must go through the same manifest, the same privacy screen and the
+  // same marker -- a second implementation of this sequence would be a second
+  // chance to skip the screen, which is exactly what Tier 3 exists to prevent.
+  const outcome = await finishStoredCapture({
+    payload,
+    objectPath,
+    rawPrefix,
+    videoMetadata,
+    sizeBytes: file.size,
+  });
+
+  return res.status(outcome.status).json(outcome.body);
+});
+
+
+/* ----------------------------------------------- resumable parts */
+
+/**
+ * The same upload, in pieces that survive a dropped connection.
+ *
+ * A site employee is standing in a warehouse on site wifi holding a recording
+ * they cannot make again without walking back to the pallet. The single POST
+ * loses all of a 200MB upload when the connection drops at 80%, and the second
+ * attempt is a second favour asked of somebody who already did us one.
+ *
+ * Three calls: ask what is already stored, send what is missing, finish. The
+ * finish goes through `finishStoredCapture`, so a composed capture gets the
+ * same manifest, the same privacy screen and the same marker as a single POST.
+ */
+
+/** A part is bounded well below the whole-file limit; this is per part. */
+const DEFAULT_MAX_PART_BYTES = 32 * 1024 * 1024;
+
+const partUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: Number(process.env.SELF_CAPTURE_MAX_PART_BYTES ?? DEFAULT_MAX_PART_BYTES),
+  },
+});
+
+/** Resolve the destination for a token, without trusting the request body. */
+function partsDestination(
+  payload: { sceneId: string; captureId: string },
+  extension: string,
+): { objectPath: string; rawPrefix: string } {
+  const objectPath = selfCaptureObjectPath({
+    sceneId: payload.sceneId,
+    captureId: payload.captureId,
+    extension,
+  });
+  return { objectPath, rawPrefix: objectPath.slice(0, objectPath.lastIndexOf("/")) };
+}
+
+router.get("/:token/parts", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  }
+  if (!storageAdmin) {
+    return res.status(503).json({ error: "Uploads are unavailable right now." });
+  }
+
+  const extension = String(req.query.extension || "mp4").toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(extension)) {
+    return res.status(415).json({ error: "Record as .mov or .mp4." });
+  }
+
+  const { rawPrefix } = partsDestination(payload, extension);
 
   try {
-    await bucket
-      .file(`${rawPrefix}/manifest.json`)
-      .save(JSON.stringify(manifest, null, 2), { contentType: "application/json" });
+    const stored = await storedPartIndices(
+      storageAdmin.bucket(storageBucketName()) as never,
+      rawPrefix,
+    );
+    return res.json({
+      ok: true,
+      captureId: payload.captureId,
+      stored,
+      maxPartBytes: Number(process.env.SELF_CAPTURE_MAX_PART_BYTES ?? DEFAULT_MAX_PART_BYTES),
+    });
+  } catch (error) {
+    logger.error({ error, captureId: payload.captureId }, "Could not list capture parts");
+    return res.status(503).json({ error: "We could not check what has uploaded so far." });
+  }
+});
+
+router.put(
+  "/:token/parts/:index",
+  partUpload.single("part"),
+  async (req: UploadRequest, res: Response) => {
+    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+    if (!payload) {
+      return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    }
+
+    // Re-read permission per part rather than once at the start. A submission
+    // parked by a person mid-upload should stop accepting bytes, and a token
+    // issued before that is not an argument for continuing.
+    const authorization = await authorizeCaptureUpload(payload.requestId);
+    if (!authorization.allowed) {
+      return res.status(409).json({
+        error: authorization.detail,
+        code: authorization.holdReason,
+      });
+    }
+
+    const index = Number(req.params.index);
+    if (!Number.isInteger(index) || index < 0 || index > 100_000) {
+      return res.status(400).json({ error: "That part number is not valid." });
+    }
+
+    const extension = String(req.query.extension || "mp4").toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(extension)) {
+      return res.status(415).json({ error: "Record as .mov or .mp4." });
+    }
+
+    const part = req.file;
+    if (!part || !part.size) {
+      return res.status(400).json({ error: "That part was empty." });
+    }
+    if (!storageAdmin) {
+      return res.status(503).json({ error: "Uploads are unavailable right now." });
+    }
+
+    const { rawPrefix } = partsDestination(payload, extension);
+
+    try {
+      await savePart({
+        bucket: storageAdmin.bucket(storageBucketName()) as never,
+        rawPrefix,
+        index,
+        body: part.buffer,
+      });
+    } catch (error) {
+      logger.error(
+        { error, captureId: payload.captureId, index },
+        "Could not store a capture part",
+      );
+      // 503 rather than 400: the client should retry this part, not give up on
+      // the recording.
+      return res.status(503).json({ error: "That part did not save. It will be retried." });
+    }
+
+    return res.json({ ok: true, index, bytes: part.size });
+  },
+);
+
+const completeSchema = z
+  .object({
+    parts: z.number().int().min(1).max(100_000),
+    extension: z.string().trim().min(1).max(8),
+    metadata: z.unknown(),
+    sizeBytes: z.number().int().min(1),
+  })
+  .strict();
+
+router.post("/:token/parts/complete", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  }
+
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  if (!authorization.allowed) {
+    return res.status(409).json({ error: authorization.detail, code: authorization.holdReason });
+  }
+
+  const parsed = completeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "We could not read that upload's details." });
+  }
+
+  const extension = parsed.data.extension.toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(extension)) {
+    return res.status(415).json({ error: "Record as .mov or .mp4." });
+  }
+
+  // Same refusal as the single POST, and for the same reason: without these the
+  // manifest cannot validate, and an invalid manifest means the extractor
+  // writes a blocked report instead of a scene -- which looks, from the site's
+  // side, exactly like a successful upload.
+  const videoMetadata = parseVideoMetadata(parsed.data.metadata);
+  if (!videoMetadata) {
+    return res.status(400).json({
+      error: "We could not read this video's dimensions.",
+      code: "video_metadata_missing",
+    });
+  }
+
+  if (!storageAdmin) {
+    return res.status(503).json({ error: "Uploads are unavailable right now." });
+  }
+
+  const { objectPath, rawPrefix } = partsDestination(payload, extension);
+  const bucket = storageAdmin.bucket(storageBucketName()) as never;
+
+  let composition: Awaited<ReturnType<typeof composeParts>>;
+  try {
+    composition = await composeParts({
+      bucket,
+      rawPrefix,
+      objectPath,
+      expectedParts: parsed.data.parts,
+    });
   } catch (error) {
     logger.error(
       { error, captureId: payload.captureId },
-      "Self-capture video stored but the manifest failed",
+      "Could not compose capture parts into the walkthrough",
     );
-    return res.status(502).json({
-      error: "Your video reached us but we could not start processing it. We have been alerted.",
+    return res.status(503).json({ error: "We could not assemble your upload. Please retry." });
+  }
+
+  if (!composition.ok) {
+    // Named rather than generic, because the client can act on it: send the
+    // missing parts and call complete again. Composing around a gap would
+    // produce a video that is shorter than it should be and still decodes,
+    // which is the worst failure available here.
+    return res.status(409).json({
+      error:
+        composition.reason === "no_parts"
+          ? "We have none of your upload yet."
+          : "Some of your upload is still missing.",
+      code: composition.reason,
+      missing: composition.missing,
     });
   }
 
-  // Between the manifest and the marker is the only moment where the video is
-  // in hand and nothing has been derived from it yet. The privacy question
-  // belongs here rather than at reconstruction: the reconstruction gate is in
-  // front of the *spending*, and by the time it runs the extractor has already
-  // decoded this video into frames of whoever is in it.
-  //
-  // It holds the marker rather than the cheque, because the marker is what
-  // starts extraction. And it fails open, so an evidence lane that is switched
-  // off leaves us exactly where we were rather than stranding every upload.
-  const privacy = await screenCaptureForPrivacy({
-    requestId: payload.requestId,
-    sceneId: payload.sceneId,
-    captureId: payload.captureId,
+  const outcome = await finishStoredCapture({
+    payload,
+    objectPath,
+    rawPrefix,
+    videoMetadata,
+    sizeBytes: parsed.data.sizeBytes,
   });
 
-  await recordCapturePrivacyScreen({
-    requestId: payload.requestId,
-    captureId: payload.captureId,
-    result: privacy,
-  });
+  // After the capture exists, never before: a failure to tidy up costs storage,
+  // and a failure to tidy up early costs the recording.
+  await discardParts(bucket, rawPrefix);
 
-  if (!privacy.proceed) {
-    // 200, not an error, and `ok: true` — because the upload genuinely
-    // succeeded. Accepting fails open; only deriving fails closed. Telling
-    // someone their video failed when we are holding it would send them off to
-    // re-film something we already have.
-    //
-    // The two cases read differently to whoever is looking at them. `rejected`
-    // needs a person and asking again will not change it. `pending` is our
-    // problem and retries on its own.
-    return res.status(200).json({
-      ok: true,
-      captureId: payload.captureId,
-      state: "held",
-      eligibility: privacy.eligibility,
-      retryable: privacy.retryable ?? false,
-      code:
-        privacy.eligibility === "pending"
-          ? "capture_review_unavailable"
-          : "capture_privacy_review",
-      message: privacy.detail,
-    });
-  }
-
-  try {
-    await writeCompletionMarker({
-      sceneId: payload.sceneId,
-      captureId: payload.captureId,
-      rawPrefix,
-      objectPath,
-    });
-  } catch (error) {
-    // The video is already stored, so this is recoverable by rewriting the
-    // marker rather than re-uploading hundreds of megabytes. Say so plainly
-    // instead of reporting a success that will never produce a scene.
-    logger.error(
-      { error, captureId: payload.captureId, sceneId: payload.sceneId },
-      "Self-capture video stored but completion marker failed; capture will not extract",
-    );
-    return res.status(502).json({
-      error: "Your video reached us but we could not start processing it. We have been alerted.",
-    });
-  }
-
-  return res.status(201).json({
-    ok: true,
-    captureId: payload.captureId,
-    eligibility: privacy.eligibility,
-    message: "Got it. We'll build the scene and come back to you.",
-  });
+  return res.status(outcome.status).json(outcome.body);
 });
 
 export default router;

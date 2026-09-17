@@ -49,6 +49,47 @@ const confirmSchema = z
   .strict();
 
 /**
+ * What to film, in the operator's terms.
+ *
+ * Derived from the gates the footage can actually settle (`settledByFootage`)
+ * rather than from the whole gate list, because a shot list that included "when
+ * would you want a robot running" would be asking somebody to point a camera at
+ * a business decision.
+ *
+ * The first item is unconditional: every reconstruction needs the work area
+ * whatever the gates say, and a list that could come back empty would leave the
+ * camera screen with no instruction at all.
+ */
+function shotListFor(brief: SiteTaskBriefRecord): { id: string; label: string }[] {
+  const items = [{ id: "work-area", label: "The whole work area, from a few steps back" }];
+
+  for (const field of gateFields) {
+    if (!field.settledByFootage) continue;
+    const label = SHOT_LABELS[field.id];
+    if (label) items.push({ id: field.id, label });
+  }
+
+  return items;
+}
+
+/**
+ * One line per gate, phrased as a thing to point a camera at.
+ *
+ * Separate from the gate's own `question`, which is phrased for someone reading
+ * a form. "Between shifts, how much does this work area change?" is not an
+ * instruction anybody can act on while filming.
+ */
+const SHOT_LABELS: Record<string, string> = {
+  sceneStability: "The equipment and layout, so we can see what is fixed in place",
+  taskShape: "One complete cycle of the job, start to finish",
+  objectVariety: "The different items this task handles, if they vary",
+  accessWindow: "The space around the station, and how someone gets to it",
+  humanProximity: "Where people stand or pass while the job runs",
+  cycleTime: "The job at its normal pace, not sped up or demonstrated",
+  lighting: "The area under its normal lighting",
+};
+
+/**
  * What the operator is shown.
  *
  * Deliberately omits nothing about our own reasoning: each proposed answer
@@ -58,6 +99,7 @@ const confirmSchema = z
 function presentBrief(brief: SiteTaskBriefRecord) {
   return {
     summary: brief.summary,
+    shotList: shotListFor(brief),
     captureMode: brief.captureMode,
     proposed: brief.proposed.map((answer) => ({
       fieldId: answer.fieldId,
