@@ -113,6 +113,18 @@ Registering a checkpoint asks for a label, a runtime (`policy_endpoint`, `contai
 
 Two things are still asked, because no episode measures them: **where they can deploy**, and **whether the hardware exists**. Both are facts about a business rather than a robot.
 
+The intake's nine spec questions are now marked for what they are.
+`supersededByMeasurement` flags the seven a run establishes better than a team
+can — payload, human proximity, cycle time, duty cycle, demonstrated success
+rate, lighting and object handling. They stay askable, because a team with no
+runs yet has nothing else and a datasheet figure beats no figure, but they are
+identifiable as placeholders rather than facts.
+
+The two left unmarked are the two no episode can settle: `budgetBand` is a
+commercial fact about the business, and `taskFamily` is a declaration of what
+the robot is for. Marking those superseded would promise a measurement we
+cannot make.
+
 ## What was deliberately not deleted
 
 An earlier first-principles pass proposed deleting the `provisional` match state and the capability-refresh loop. Tracing the code showed both were wrong:
