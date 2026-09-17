@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
+import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -182,6 +183,18 @@ export default function SelfCaptureUpload() {
    * does not have would be us telling somebody to film a room we imagined.
    */
   const [shotList, setShotList] = useState<ChecklistItem[]>([]);
+  /**
+   * The drafted brief, when there is one to confirm.
+   *
+   * The brief comes before the camera on purpose: confirming what we
+   * understood is the attestation that lets a submission reach `qualified`, and
+   * a walkthrough filmed against a brief nobody corrected is a video we cannot
+   * turn into supply. So an unconfirmed brief is shown first, and the recorder
+   * appears once it is confirmed — or immediately when there is no brief yet,
+   * because a blank capture is still better than a blocked one.
+   */
+  const [brief, setBrief] = useState<DraftedBrief | null>(null);
+  const [briefConfirmed, setBriefConfirmed] = useState(false);
 
   // Whether the camera button below is worth anything on this device. A coarse
   // check on purpose: the cost of being wrong is one extra QR code on a phone,
@@ -207,10 +220,17 @@ export default function SelfCaptureUpload() {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
         const data = (await response.json().catch(() => null)) as {
           ready?: boolean;
-          brief?: { shotList?: ChecklistItem[] };
+          brief?: (DraftedBrief & { shotList?: ChecklistItem[]; confirmedAtIso?: string | null });
         } | null;
-        if (cancelled || !response.ok || !data?.ready) return;
-        if (Array.isArray(data.brief?.shotList)) setShotList(data.brief.shotList);
+        if (cancelled || !response.ok || !data?.ready || !data.brief) return;
+        if (Array.isArray(data.brief.shotList)) setShotList(data.brief.shotList);
+        setBrief({
+          summary: data.brief.summary,
+          captureMode: data.brief.captureMode,
+          proposed: data.brief.proposed ?? [],
+          unresolved: data.brief.unresolved ?? [],
+        });
+        setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
       } catch {
         // No list. The camera still works.
       }
@@ -452,6 +472,17 @@ export default function SelfCaptureUpload() {
                 view would finish the job.
               </p>
             </div>
+          ) : brief && !briefConfirmed ? (
+            /* The brief comes before the camera. Confirming what we understood
+               is the attestation that lets a submission reach `qualified`, and
+               a walkthrough filmed against a brief nobody corrected is footage
+               we cannot turn into supply. Once confirmed, this falls through to
+               the recorder below on the next render. */
+            <TaskBriefReview
+              token={token}
+              brief={brief}
+              onConfirmed={() => setBriefConfirmed(true)}
+            />
           ) : (
             <>
               {/* The guided path. It offers itself only where the browser can
