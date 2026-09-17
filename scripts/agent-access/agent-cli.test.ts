@@ -39,6 +39,15 @@ describe("Blueprint agent CLI", () => {
       command: "team:policy:set",
     });
     expect(parseAgentCliArgs(["team", "policy"])).toMatchObject({ command: "team:policy:get" });
+    // `results` and `results <run-id>` are different calls, and neither may
+    // fall through to the `runs` cases beside them, one of which spends money.
+    expect(parseAgentCliArgs(["team", "results"])).toMatchObject({
+      command: "team:results:list",
+    });
+    expect(parseAgentCliArgs(["team", "results", "run_res_abc"])).toMatchObject({
+      command: "team:results:get",
+      options: { runId: "run_res_abc" },
+    });
   });
 
   it("documents the whole no-operator path in help, so an agent can find it", async () => {
@@ -54,6 +63,7 @@ describe("Blueprint agent CLI", () => {
       "team plan",
       "team policy set",
       "team runs list",
+      "team results",
     ]) {
       expect(help).toContain(command);
     }

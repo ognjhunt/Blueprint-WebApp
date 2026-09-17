@@ -61,6 +61,7 @@ import {
   runIdForReservation,
   settlementAmountUsd,
 } from "../utils/agentEvalRuns";
+import { recordRunResult } from "../utils/agentRunResults";
 
 const router = Router();
 
@@ -89,6 +90,103 @@ const settlementSchema = z
     reason: z.string().trim().max(400).optional(),
   })
   .strict();
+
+const resultSchema = z
+  .object({
+    reservation_id: z.string().trim().min(1).max(300),
+    /** Episodes that executed. The denominator. */
+    episodes_run: z.number().int().min(0).max(100_000),
+    /** Of those, the ones that met the task's success contract. */
+    episodes_succeeded: z.number().int().min(0).max(100_000),
+    median_cycle_seconds: z.number().finite().nonnegative().max(86_400).nullish(),
+    /** Spread, when measured. Only ever used to say "it varies". */
+    cycle_seconds_p10: z.number().finite().nonnegative().max(86_400).nullish(),
+    cycle_seconds_p90: z.number().finite().nonnegative().max(86_400).nullish(),
+    note: z.string().trim().max(2000).nullish(),
+    artifact_uri: z.string().trim().max(1600).nullish(),
+  })
+  .strict();
+
+/**
+ * What the run showed, as opposed to what it cost.
+ *
+ * Separate from settlement next door for the reason stated there: that route
+ * carries the cost of the work and this one carries its result, and a change to
+ * either schema must not be able to silently stop the other from happening. A
+ * run that settles and never reports is billed and invisible; a run that
+ * reports and never settles is free and visible. Both are recoverable, and
+ * neither can break the other.
+ *
+ * This is the call that was missing. `recordEvaluationOutcome` and
+ * `recordMeasuredCapability` existed, were correct, and had no caller — so the
+ * `measured` grade had no writer, a self-registered team could never be
+ * promoted into the supply sites are shown, and a team could buy evaluations
+ * and never learn what they showed.
+ */
+router.post(
+  "/agent-run-results",
+  createPipelineSyncRateLimiter(),
+  guard,
+  async (req: Request, res: Response) => {
+    const parsed = resultSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Run result is invalid",
+        code: "agent_run_result_invalid",
+      });
+    }
+
+    if (parsed.data.episodes_succeeded > parsed.data.episodes_run) {
+      // Refused rather than clamped. More successes than episodes is a bug on
+      // the reporting side, and quietly clamping it would write a measured
+      // claim derived from a number nobody meant.
+      return res.status(400).json({
+        error: "More successes were reported than episodes ran.",
+        code: "agent_run_result_impossible",
+      });
+    }
+
+    try {
+      const result = await recordRunResult({
+        runId: runIdForReservation(parsed.data.reservation_id),
+        report: {
+          episodesRun: parsed.data.episodes_run,
+          episodesSucceeded: parsed.data.episodes_succeeded,
+          medianCycleSeconds: parsed.data.median_cycle_seconds ?? null,
+          cycleSecondsP10: parsed.data.cycle_seconds_p10 ?? null,
+          cycleSecondsP90: parsed.data.cycle_seconds_p90 ?? null,
+          note: parsed.data.note ?? null,
+          artifactUri: parsed.data.artifact_uri ?? null,
+        },
+      });
+
+      if (!result) {
+        return res.status(404).json({
+          error: "No run is on file for that reservation.",
+          code: "agent_run_not_found",
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        runId: result.runId,
+        observed: result.observed,
+        // Echoed so the Pipeline can see what the numbers were allowed to
+        // establish, which is deliberately less than the numbers themselves.
+        claimed: result.claimed,
+      });
+    } catch (error) {
+      logger.error(
+        { error, reservationId: parsed.data.reservation_id },
+        "Agent run result could not be recorded",
+      );
+      return res.status(503).json({
+        error: "The result could not be recorded",
+        code: "agent_run_result_unavailable",
+      });
+    }
+  },
+);
 
 router.post(
   "/agent-run-settlements",

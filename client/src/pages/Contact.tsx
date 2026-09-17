@@ -468,7 +468,7 @@ export default function Contact() {
           <p className="ms-inquiry-aside">
             {isSite
               ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
-              : "Start by giving us a checkpoint: that is all we need to show you what to run it against, and it costs nothing. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
+              : "Five questions about your robot, and you will see which real sites we would run it against, what each costs, and why. None of them can turn you away. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
           </p>
           {!isSite && (
             /*

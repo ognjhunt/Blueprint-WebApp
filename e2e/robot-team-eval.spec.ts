@@ -5,7 +5,7 @@ test("legacy robot-team evaluation URL reaches the supplier application", async 
   await expect(page).toHaveURL(/\/contact\/robot-team/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bring your robot. Find the fit.");
   // The page leads with the free plan now, so the application is one click in.
-  await expect(page.getByRole("button", { name: "See my plan" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "See what we would run" })).toBeVisible();
   await page.getByText(/Rather talk to someone/i).click();
   await expect(page.getByRole("button", { name: "Send application" })).toBeVisible();
 });
@@ -24,7 +24,7 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   // And a person can do the same thing the agent does, on the page, which is
   // the asymmetry this closed: the bot used to have better access than the
   // customer.
-  await expect(page.getByRole("button", { name: "See my plan" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "See what we would run" })).toBeVisible();
   // The application now sits behind a disclosure: the page leads with the free
   // plan, which is the product, and the form is how you reach a person. Open it
   // before asserting on what it asks -- those facts are unchanged, only where

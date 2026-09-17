@@ -31,25 +31,79 @@ function jsonOnce(status: number, body: unknown) {
 }
 
 function fillAndSubmit(reference = "https://policies.example/v3") {
-  fireEvent.change(screen.getByLabelText(/team name/i), {
+  fireEvent.change(screen.getByLabelText(/work email/i), {
+    target: { value: "eng@alpha.example" },
+  });
+  fireEvent.change(screen.getByLabelText(/team or company/i), {
     target: { value: "Alpha Robotics" },
   });
-  fireEvent.change(screen.getByLabelText(/where is it/i), { target: { value: reference } });
-  fireEvent.click(screen.getByRole("button", { name: /see my plan/i }));
+  if (reference !== null) {
+    fireEvent.change(screen.getByLabelText(/where is it/i), { target: { value: reference } });
+  }
+  fireEvent.click(screen.getByRole("button", { name: /see what we would run/i }));
 }
 
 describe("RobotTeamPlanPreview", () => {
-  it("asks for a checkpoint and nothing else", () => {
+  it("asks about the robot, and asks none of the four gates", () => {
     render(<RobotTeamPlanPreview />);
 
-    // The four gates are deployment questions and belong to a later
-    // conversation; the seven spec answers a single run establishes better.
-    // None of them is needed to rank sites.
+    // Understanding the robot is the point of onboarding. The gates are
+    // deployment questions and belong to a later conversation.
+    expect(screen.getByLabelText(/what is it/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/what does it do/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/work email/i)).toBeInTheDocument();
     expect(screen.queryByText(/where is the hardware today/i)).toBeNull();
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
     expect(screen.queryByText(/would you deploy/i)).toBeNull();
-    expect(screen.getByLabelText(/team name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/where is it/i)).toBeInTheDocument();
+  });
+
+  it("sends the robot details so the first plan is ranked, not generic", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
+
+    render(<RobotTeamPlanPreview />);
+    fireEvent.change(screen.getByLabelText(/what does it do/i), {
+      target: { value: "palletizing" },
+    });
+    fillAndSubmit();
+
+    await screen.findByText(/you are in/i);
+    const [, registerInit] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(registerInit.body))).toMatchObject({
+      contactEmail: "eng@alpha.example",
+      taskFamily: "palletizing",
+    });
+  });
+
+  it("does not dead-end when the library has nothing yet", async () => {
+    // The state the first version stopped on: "No evaluation candidates
+    // available today", full stop, at the moment someone had just signed up.
+    // An empty library is our gap, not theirs, and the answer has to name what
+    // happens next.
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
+
+    render(<RobotTeamPlanPreview />);
+    fillAndSubmit();
+
+    await screen.findByText(/you are in/i);
+    expect(screen.getByText(/gap in our library/i)).toBeInTheDocument();
+    expect(screen.getByText(/come back to you when a site lands/i)).toBeInTheDocument();
+  });
+
+  it("registers a team that has no checkpoint yet", async () => {
+    // Having nothing to run is a real state, not a failure. Turning them away
+    // for it would be a gate wearing a different hat.
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x" });
+
+    render(<RobotTeamPlanPreview />);
+    fireEvent.click(screen.getByLabelText(/i have a checkpoint/i));
+    fillAndSubmit(null as unknown as string);
+
+    await screen.findByText(/you are in/i);
+    expect(screen.getByText(/nothing to rank yet/i)).toBeInTheDocument();
+    // Only the registration call: there is no checkpoint to plan against.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("registers with the checkpoint inline and shows the ranked plan", async () => {
@@ -67,14 +121,13 @@ describe("RobotTeamPlanPreview", () => {
           rationale: "Resolves 4 hard constraints nobody has established for this robot.",
         },
       ],
-      summary: "Starting 1 run for $250 of a $2500 budget.",
       totalCostUsd: 250,
     });
 
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
 
-    await screen.findByText(/1 site worth running against/i);
+    await screen.findByText(/1 site we would run this against/i);
     expect(screen.getByText("Grocery back room")).toBeInTheDocument();
     // The reason, not just the ranking -- a team should be able to disagree.
     expect(screen.getByText(/resolves 4 hard constraints/i)).toBeInTheDocument();
@@ -93,35 +146,40 @@ describe("RobotTeamPlanPreview", () => {
     expect(planInit.headers.Authorization).toBe("Bearer bpk_secret");
   });
 
-  it("shows the key once, because we cannot show it again", async () => {
+  it("does not put a bearer token in a person's face", async () => {
+    // A key is an agent affordance. Handing one to a human as the headline,
+    // under "this is the only time we can show it", makes losing it their
+    // fault for something they never asked for.
     jsonOnce(201, {
       teamId: "team_alpha_ab12cd",
       agentKey: "bpk_only_chance",
       checkpoint: { checkpointId: "ckpt_1" },
     });
-    jsonOnce(200, { selected: [], summary: "No evaluation candidates available today." });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
 
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
 
-    await screen.findByText(/only time we can show it/i);
+    await screen.findByText(/you are in/i);
+    expect(screen.queryByText("bpk_only_chance")).toBeNull();
+
+    // Available to the teams that want it, behind the disclosure where agent
+    // things live.
+    fireEvent.click(screen.getByRole("button", { name: /reveal key/i }));
     expect(screen.getByText("bpk_only_chance")).toBeInTheDocument();
   });
 
-  it("says plainly when there is nothing worth running", async () => {
-    // Honest rather than encouraging: an empty library is our problem, and
-    // dressing it up as a near-miss would be fake supply.
-    jsonOnce(201, {
-      teamId: "t",
-      agentKey: "bpk_x",
-      checkpoint: { checkpointId: "ckpt_1" },
-    });
-    jsonOnce(200, { selected: [], summary: "No evaluation candidates available today." });
+  it("never claims to have sent an email, because nothing sends one", async () => {
+    // Registration writes a record. It does not notify anyone, and saying it
+    // did would be the easiest lie on the page to tell.
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
 
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
 
-    await screen.findByText(/nothing worth running yet/i);
+    await screen.findByText(/you are in/i);
+    expect(document.body.textContent).not.toMatch(/we have emailed|check your inbox|sent you an email/i);
   });
 
   it("surfaces the reason a checkpoint was refused", async () => {
@@ -139,7 +197,10 @@ describe("RobotTeamPlanPreview", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("does not claim a plan when the catalogue fails", async () => {
+  it("does not blame the robot for our own outage", async () => {
+    // An empty list and a failed catalogue look identical on screen and are
+    // opposite things to say. "We have no site for your robot" is a claim about
+    // their machine; this was our request failing.
     jsonOnce(201, {
       teamId: "t",
       agentKey: "bpk_x",
@@ -150,8 +211,9 @@ describe("RobotTeamPlanPreview", () => {
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
 
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/catalogue/i);
-    expect(screen.queryByText(/worth running against/i)).toBeNull();
+    await screen.findByText(/could not load the site list/i);
+    expect(screen.getByText(/fault on our side/i)).toBeInTheDocument();
+    expect(screen.queryByText(/gap in our library/i)).toBeNull();
+    expect(screen.queryByText(/we would run this against/i)).toBeNull();
   });
 });

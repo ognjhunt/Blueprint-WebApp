@@ -216,6 +216,17 @@ export async function registerSelfServeTeam(params: {
   name: string;
   contactEmail?: string | null;
   website?: string | null;
+  /**
+   * What the robot is for, in the enum the matcher speaks.
+   *
+   * Asked because understanding the robot is the product, not a gate on it:
+   * `taskFamily` is the coarsest ranking input there is, it takes one click,
+   * and a run supersedes it later like any other self-reported figure. Leaving
+   * it unasked did not make signup faster, it made the first plan worse.
+   */
+  taskFamily?: string | null;
+  /** The team's own words for what they build. For a person to read. */
+  capabilityDescription?: string | null;
 }): Promise<RobotTeamRecord | null> {
   if (!db) return null;
 
@@ -238,13 +249,26 @@ export async function registerSelfServeTeam(params: {
     registrationSource: "self_serve",
     contactEmail: params.contactEmail?.trim() || null,
     website: params.website?.trim() || null,
-    // Empty, and that is the point. Nothing here is claimed, so nothing here
-    // can be wrong, and the first run measures it instead.
     capability: {},
     fieldProvenance: {},
+    capabilityDescription: params.capabilityDescription?.trim() || null,
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
+
+  // Whatever they told us about the robot, at the grade a form produces. Still
+  // nothing measured and nothing claimed on their behalf -- but a `taskFamily`
+  // they chose in one click is the difference between a ranked plan and a
+  // generic one, and a run overwrites it the moment there is something better.
+  if (params.taskFamily?.trim()) {
+    const merged = mergeCapability(
+      record,
+      { taskFamily: params.taskFamily.trim() },
+      { grade: "self_reported", source: `selfServeRegistration:${id}` },
+    );
+    record.capability = merged.capability;
+    record.fieldProvenance = merged.fieldProvenance;
+  }
 
   await writeRecord(record);
   logger.info({ robotTeamId: id }, "Robot team self-registered");
