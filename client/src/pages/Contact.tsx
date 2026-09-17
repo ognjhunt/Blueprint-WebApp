@@ -468,7 +468,7 @@ export default function Contact() {
           <p className="ms-inquiry-aside">
             {isSite
               ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
-              : "Start with the panel above: a checkpoint is all we need to show you what to run it against, and that costs nothing. The form below is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
+              : "Start by giving us a checkpoint: that is all we need to show you what to run it against, and it costs nothing. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
           </p>
           {!isSite && (
             /*
@@ -481,7 +481,7 @@ export default function Contact() {
              * would leave the fastest route undiscoverable.
              */
             <p className="ms-inquiry-aside">
-              Your own agent can do exactly what the panel above does, and then
+              Your own agent can do exactly what the checkpoint panel does, and then
               buy the runs: <code>POST /api/agent-team/register</code>,{" "}
               <code>POST /api/agent-team/plan</code>,{" "}
               <code>POST /api/agent-team/runs</code>. No credential to register,
