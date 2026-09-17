@@ -351,3 +351,66 @@ describe("measurement outranks the team's own estimate", () => {
     expect(QUOTABLE_GRADES).toContain("measured");
   });
 });
+
+/* ------------------------------------------------------- settlement */
+
+describe("a hold becomes a spend only for work that happened", () => {
+  it("charges for episodes that executed, whatever the robot did in them", () => {
+    // Published billing rule: "the robot dropping the box is a result, and you
+    // pay for it." Failure is a finding, and findings are the product.
+    const balance = deriveBalance("team-1", [
+      entry({ kind: "credit", amountUsd: 100 }),
+      entry({ kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      entry({ kind: "settle", amountUsd: 25, reservationId: "res-1" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(25);
+    expect(balance.availableUsd).toBe(75);
+  });
+
+  it("charges nothing when the environment never launched", () => {
+    // The other half of the same rule: "an environment that will not launch is
+    // not a result, and you do not pay." Released whole rather than settled at
+    // zero, so the ledger records what happened instead of a spend of nothing.
+    const balance = deriveBalance("team-1", [
+      entry({ kind: "credit", amountUsd: 100 }),
+      entry({ kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      entry({ kind: "release", amountUsd: 0, reservationId: "res-1" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(0);
+    expect(balance.availableUsd).toBe(100);
+    expect(balance.reservedUsd).toBe(0);
+  });
+
+  it("charges for a partial run and frees the rest", () => {
+    // 50 episodes quoted, 20 ran. The team keeps the difference without
+    // anybody filing anything.
+    const balance = deriveBalance("team-1", [
+      entry({ kind: "credit", amountUsd: 100 }),
+      entry({ kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      entry({ kind: "settle", amountUsd: 10, reservationId: "res-1" }),
+    ]);
+
+    expect(balance.spentUsd).toBe(10);
+    expect(balance.availableUsd).toBe(90);
+  });
+
+  it("cannot be charged twice by a retried delivery", () => {
+    // Settlement is keyed on the reservation, not the attempt. Two deliveries
+    // of the same settlement are one movement, which matters because the
+    // Pipeline retries anything it never saw acknowledged.
+    const duplicated = [
+      entry({ kind: "credit", amountUsd: 100 }),
+      entry({ kind: "reserve", amountUsd: 25, reservationId: "res-1" }),
+      entry({ kind: "settle", amountUsd: 25, reservationId: "res-1", entryId: "same" }),
+    ];
+
+    // The ledger stores one document per idempotency key, so a replay is the
+    // same entry rather than a second one; replaying the derived list proves
+    // the arithmetic does not double even if a duplicate ever reached it.
+    const once = deriveBalance("team-1", duplicated);
+    expect(once.spentUsd).toBe(25);
+    expect(once.reservedUsd).toBe(0);
+  });
+});

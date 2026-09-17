@@ -85,6 +85,20 @@ Every selected row carries a `rationale` and every skipped one a named `skipReas
 
 **This is arithmetic, not an agent.** Every input is a number we already hold, and a model asked to rank these would produce a plausible ordering nobody could audit — and would be tempted by exactly the pass-rate heuristic the module exists to reject.
 
+## Settlement: who eats a failure
+
+`POST /api/internal/pipeline/agent-run-settlements` turns a hold into a spend. It is **Pipeline-signed, not agent-authenticated** — if it sat on the agent surface a team could settle its own reservation for zero and get the work free.
+
+It is deliberately separate from the evaluation-run schemas next door. Those carry the *result* of the work; this carries what the work *cost*. Coupled, a change to either schema could silently stop money moving.
+
+The split follows the published rule:
+
+- **Episodes executed** → settled for what they cost, whatever the robot did in them. A robot dropping the box is a result, and results are the product.
+- **Nothing executed** → the whole hold is released, not settled at zero, so the ledger records what happened rather than a spend of nothing.
+- **Fewer episodes than quoted** → settled for what ran; the rest returns automatically.
+
+Keyed on the reservation rather than the delivery attempt, so a Pipeline retry cannot charge twice.
+
 ## Dry run by default
 
 `POST /runs` without `confirm: true` returns the plan and spends nothing. An agent that forgets the flag pays with a JSON read, not a bill.
@@ -108,6 +122,6 @@ An earlier first-principles pass proposed deleting the `provisional` match state
 
 ## Still open
 
-- **Settlement is not wired.** Reservations are taken when runs start; nothing calls `settleReservation` when the Pipeline reports a run finished. Until that lands, holds must be released manually via `POST /runs/:reservationId/release`. This is the next thing to build.
+- **Settlement depends on the Pipeline calling it.** `POST /api/internal/pipeline/agent-run-settlements` exists and is Pipeline-signed, taking `episodes_run` and `rate_usd` and closing the hold. The Pipeline does not call it yet, so until it does, holds are released manually with `POST /runs/:reservationId/release`. The webapp half is done; the Pipeline half is not.
 - **Funding is operator-only.** `creditTeam` is idempotent and takes an external reference, so the ledger is ready for Stripe. The top-up SKU and its price points are a product decision nobody has made, and shipping a payment flow on an invented price would be worse than an operator crediting a beta team.
 - **No end-to-end timing.** Nothing measures how long a run takes from authorisation to result.
