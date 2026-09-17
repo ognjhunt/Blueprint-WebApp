@@ -350,6 +350,137 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     expect(FAKE_FIELD_DELETE in (stored ?? {})).toBe(false);
   });
 
+  it("records what the run showed, and hands the team a way to read it", async () => {
+    // The loop that was never closed: money settled and results went nowhere.
+    // `recordEvaluationOutcome` and `recordMeasuredCapability` had no caller,
+    // and no route on the agent surface could return a result.
+    await seedSpendableTeam();
+
+    const seen = await withRoutes(async (baseUrl) => {
+      const start = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          checkpointId: "ckpt-1",
+          confirm: true,
+          idempotencyKey: "plan-result",
+          maxRuns: 1,
+        }),
+      });
+      const { started } = (await start.json()) as {
+        started: { reservationId: string; runId: string }[];
+      };
+      const [run] = started;
+
+      const reported = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          reservation_id: run.reservationId,
+          episodes_run: 200,
+          episodes_succeeded: 198,
+          median_cycle_seconds: 44,
+          note: "Two drops, both on the same shelf.",
+        }),
+      });
+      expect(reported.status).toBe(200);
+
+      const list = await fetch(`${baseUrl}/api/agent-team/results`, { headers: AUTH });
+      const one = await fetch(`${baseUrl}/api/agent-team/results/${run.runId}`, { headers: AUTH });
+      return {
+        reported: (await reported.json()) as Record<string, unknown>,
+        list: (await list.json()) as { runs: Record<string, unknown>[] },
+        one: (await one.json()) as Record<string, unknown>,
+      };
+    });
+
+    // The observation and the claim are kept apart, and the claim is the
+    // lower bound: 198 of 200 is 99%, which 200 trials support at 95%, not at
+    // "better than 99%".
+    expect(seen.reported.observed).toMatchObject({ episodesRun: 200, episodesSucceeded: 198 });
+    expect(seen.reported.claimed).toMatchObject({ cycleTime: "thirty_to_two_min" });
+
+    expect(seen.list.runs).toHaveLength(1);
+    expect(seen.list.runs[0]?.resultStatus).toBe("reported");
+    expect(seen.one.resultStatus).toBe("reported");
+    expect((seen.one.result as { note?: string })?.note).toMatch(/two drops/i);
+  });
+
+  it("says a run is awaiting its result rather than leaving a bare null", async () => {
+    await seedSpendableTeam();
+
+    const list = await withRoutes(async (baseUrl) => {
+      await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          checkpointId: "ckpt-1",
+          confirm: true,
+          idempotencyKey: "plan-pending",
+          maxRuns: 1,
+        }),
+      });
+      const response = await fetch(`${baseUrl}/api/agent-team/results`, { headers: AUTH });
+      return (await response.json()) as { runs: { resultStatus: string; result: unknown }[] };
+    });
+
+    // A run with no result is not a run that found nothing.
+    expect(list.runs[0]?.resultStatus).toBe("awaiting_result");
+    expect(list.runs[0]?.result).toBeNull();
+  });
+
+  it("refuses more successes than episodes rather than clamping them", async () => {
+    // Clamping would write a measured claim derived from a number nobody meant,
+    // and nothing outranks a measured claim.
+    await seedSpendableTeam();
+
+    const result = await withRoutes(async (baseUrl) => {
+      const start = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          checkpointId: "ckpt-1",
+          confirm: true,
+          idempotencyKey: "plan-impossible",
+          maxRuns: 1,
+        }),
+      });
+      const { started } = (await start.json()) as { started: { reservationId: string }[] };
+      const response = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          reservation_id: started[0].reservationId,
+          episodes_run: 10,
+          episodes_succeeded: 40,
+        }),
+      });
+      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+    });
+
+    expect(result.status).toBe(400);
+    expect(result.body.code).toBe("agent_run_result_impossible");
+  });
+
+  it("refuses a result for a reservation no run was recorded against", async () => {
+    await seedSpendableTeam();
+
+    const status = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          reservation_id: "res_nobody_ever",
+          episodes_run: 50,
+          episodes_succeeded: 50,
+        }),
+      });
+      return response.status;
+    });
+
+    expect(status).toBe(404);
+  });
+
   it("confirms it reconciled a run it recognised", async () => {
     const result = await holdThenSettle({ episodes_run: 50, rate_usd: 5 });
     expect(result.settlement.reconciled).toBe(true);

@@ -252,6 +252,13 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     // `team <thing> <verb>` — the surface that acts for one team rather than
     // reading the public catalogue. Everything here needs an agent key.
     const [thing, verb] = [secondaryOrId, positionals[0]];
+    if (thing === "results") {
+      // `team results` lists; `team results <run-id>` reads one. The id arrives
+      // as a positional, so it is read here rather than as a flag.
+      return verb
+        ? { command: "team:results:get", options: { ...options, runId: verb }, format }
+        : { command: "team:results:list", options, format };
+    }
     if (thing === "register") return { command: "team:register", options, format };
     if (thing === "fund") return { command: "team:funding:start", options, format };
     if (thing === "me") return { command: "team:me", options, format };
@@ -543,6 +550,8 @@ function buildHelpPayload(topic: unknown) {
       { command: "team policy set --daily-limit <usd> --per-run-limit <usd> --enable", description: "The team's own limits on its agent. Off until set." },
       { command: "team runs --checkpoint-id <id>", description: "Start runs. Without --confirm this returns the plan and spends nothing." },
       { command: "team runs list", description: "Open holds, what each was quoted, and when it is released if nothing reports." },
+      { command: "team results", description: "Every run this team bought and what each showed, with the observation and the claim kept apart." },
+      { command: "team results <run-id>", description: "One run's result." },
       { command: "team runs release --reservation-id <id>", description: "Give back a hold for a run that will not start." },
     ],
     environment: {
@@ -568,6 +577,7 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- team policy set --daily-limit 100 --per-run-limit 25 --enable",
       "npm run agent:cli -- team runs --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key $(date +%F)-run",
       "npm run agent:cli -- team runs list",
+      "npm run agent:cli -- team results",
     ],
     exitCodes: AGENT_CLI_EXIT_CODES,
     truthBoundaries: [
@@ -736,6 +746,12 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
       });
     case "team:runs:list":
       return client.requestJson("/api/agent-team/runs");
+    case "team:results:list":
+      return client.requestJson("/api/agent-team/results");
+    case "team:results:get":
+      return client.requestJson(
+        `/api/agent-team/results/${encodeURIComponent(requireString(parsed.options, "runId"))}`,
+      );
     case "team:me":
       return client.requestJson("/api/agent-team/me");
     case "team:checkpoint:list":

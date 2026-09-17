@@ -77,6 +77,7 @@ import {
   reservationTtlMs,
   runIdForReservation,
 } from "../utils/agentEvalRuns";
+import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 
 const router = Router();
 
@@ -682,6 +683,80 @@ router.get("/runs", async (req: Request, res: Response) => {
     })),
     heldUsd:
       Math.round(runs.reduce((sum, run) => sum + run.quotedUsd, 0) * 100) / 100,
+  });
+});
+
+/**
+ * Everything this team has bought, and what each one showed.
+ *
+ * `GET /runs` above answers "where is my money"; this answers "what did I
+ * learn", which is the question the team actually paid for and the one nothing
+ * on this surface could answer. A run that has settled drops off the holds
+ * list, so without this a finished evaluation became invisible at the exact
+ * moment it became useful.
+ *
+ * Results carry both what was observed and what that entitles us to claim, kept
+ * apart on purpose: fifty successes in fifty episodes is a real observation and
+ * is not a demonstration of better than 99%, and a team reading its own result
+ * should be able to see both numbers and tell which is which.
+ */
+router.get("/results", async (req: Request, res: Response) => {
+  const teamId = await requireTeam(req, res);
+  if (!teamId) return;
+
+  const runs = await listRunsForTeam(teamId);
+
+  return res.json({
+    teamId,
+    runs: runs.map((run) => ({
+      runId: run.runId,
+      checkpointId: run.checkpointId,
+      sceneId: run.sceneId,
+      taskFamily: run.taskFamily,
+      state: run.state,
+      quotedUsd: run.quotedUsd,
+      episodesRun: run.episodesRun,
+      requestedAtIso: run.requestedAtIso,
+      result: run.result ?? null,
+      // Said plainly rather than left to be inferred from a null: a run with no
+      // result is not a run that found nothing.
+      resultStatus: run.result
+        ? "reported"
+        : run.state === "abandoned"
+          ? "never_reported"
+          : "awaiting_result",
+    })),
+  });
+});
+
+/** One run, with whatever it showed. */
+router.get("/results/:runId", async (req: Request, res: Response) => {
+  const teamId = await requireTeam(req, res);
+  if (!teamId) return;
+
+  const run = await getRunForTeam(teamId, String(req.params.runId || "").trim());
+  // 404 for another team's run as well as for one that does not exist. A run id
+  // is derivable from a reservation id, so distinguishing the two would let a
+  // team confirm which of its guesses name real runs.
+  if (!run) {
+    return res.status(404).json({ error: "No such run for this team.", code: "run_not_found" });
+  }
+
+  return res.json({
+    teamId,
+    runId: run.runId,
+    checkpointId: run.checkpointId,
+    sceneId: run.sceneId,
+    state: run.state,
+    quotedUsd: run.quotedUsd,
+    episodesRun: run.episodesRun,
+    requestedAtIso: run.requestedAtIso,
+    result: run.result ?? null,
+    resultStatus: run.result
+      ? "reported"
+      : run.state === "abandoned"
+        ? "never_reported"
+        : "awaiting_result",
   });
 });
 

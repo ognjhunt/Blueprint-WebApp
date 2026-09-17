@@ -128,6 +128,7 @@ export function buildRobotAgentAccessManifest() {
           "PUT /api/agent-team/policy — the team's own daily and per-run limits, then switch the agent on.",
           "POST /api/agent-team/runs with confirm:true — reserves and starts.",
           "GET /api/agent-team/runs — open holds and when each expires if nothing reports.",
+          "GET /api/agent-team/results — what each run showed, once it has been reported.",
         ],
         noGates:
           "Registration asks no qualifying questions. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
@@ -147,6 +148,8 @@ export function buildRobotAgentAccessManifest() {
           "The balance is the hard ceiling and only a real payment raises it. The policy is the team pacing itself, and the same key can change it.",
         holds:
           "A run reserves its quote up front and settles for the episodes that executed, pro-rated. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
+        results:
+          "A result carries what was observed and, separately, what that entitles us to claim. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
       },
     },
     siteWorldSearch: {
