@@ -26,6 +26,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
+// The privacy screen is exercised in its own file; here it only has to be
+// controllable, so the marker-writing path can be tested on both answers.
+const screenCaptureForPrivacy = vi.hoisted(() =>
+  vi.fn(async () => ({ proceed: true, outcome: "cleared", detail: null, evidence: null })),
+);
+vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
+
+/** Every object written to the bucket, by path, so the marker can be asserted. */
+const written = vi.hoisted(() => new Map<string, string>());
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   return {
@@ -38,9 +48,15 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       },
     },
     dbAdmin: sharedFakeFirestore,
-    // No bucket: an upload that gets past authorization fails on storage, which
-    // is a different error and is exactly how these tests tell the two apart.
-    storageAdmin: null,
+    storageAdmin: {
+      bucket: () => ({
+        file: (path: string) => ({
+          save: async (body: unknown) => {
+            written.set(path, typeof body === "string" ? body : "<binary>");
+          },
+        }),
+      }),
+    },
     authAdmin: { verifyIdToken: async () => ({ uid: "nobody" }) },
   };
 });
@@ -98,6 +114,95 @@ function seedRequest(
 
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
+  written.clear();
+  screenCaptureForPrivacy.mockClear();
+  screenCaptureForPrivacy.mockResolvedValue({
+    proceed: true,
+    outcome: "cleared",
+    detail: null,
+    evidence: null,
+  });
+});
+
+/** A well-formed upload for a site that cleared the screen. */
+async function uploadFor(baseUrl: string, requestId: string) {
+  const token = tokenFrom(captureUploadUrlFor(requestId));
+  const form = new FormData();
+  form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
+  form.append(
+    "metadata",
+    JSON.stringify({
+      widthPx: 1920,
+      heightPx: 1080,
+      durationSeconds: 61,
+      fps: 30,
+      recordedAtEpochMs: 1_758_000_000_000,
+    }),
+  );
+  const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, {
+    method: "POST",
+    body: form,
+  });
+  return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+}
+
+/* -------------------------------------------- looking before we copy */
+
+describe("the privacy question is asked before anything is derived", () => {
+  it("writes no completion marker when the footage is held", async () => {
+    // The marker is what starts extraction. Holding it is what keeps frames of
+    // identifiable people from being written into our bucket at all -- which
+    // the reconstruction-time gate, standing in front of the spending, could
+    // not do because the copying had already happened.
+    seedRequest("req-privacy", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValue({
+      proceed: false,
+      outcome: "privacy_hold",
+      detail: "The footage appears to centre identifiable people.",
+      evidence: null,
+    });
+
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-privacy"));
+
+    const paths = [...written.keys()];
+    expect(paths.some((path) => path.endsWith("manifest.json"))).toBe(true);
+    expect(paths.some((path) => path.endsWith("capture_upload_complete.json"))).toBe(false);
+
+    // And the site is not told its upload failed, because it did not.
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    expect(result.body.state).toBe("held");
+  });
+
+  it("writes the marker once the footage clears", async () => {
+    seedRequest("req-clear", { disposition: "qualified" });
+
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-clear"));
+
+    expect([...written.keys()].some((p) => p.endsWith("capture_upload_complete.json"))).toBe(true);
+    expect(result.status).toBe(201);
+    expect(result.body.state).toBeUndefined();
+  });
+
+  it("writes the manifest before the marker, because extraction reads it", async () => {
+    seedRequest("req-order", { disposition: "qualified" });
+
+    await withRoutes((baseUrl) => uploadFor(baseUrl, "req-order"));
+
+    const paths = [...written.keys()];
+    expect(paths.findIndex((p) => p.endsWith("manifest.json"))).toBeLessThan(
+      paths.findIndex((p) => p.endsWith("capture_upload_complete.json")),
+    );
+  });
+
+  it("never reaches the privacy screen for a site that is not allowed to upload", async () => {
+    // Authorization first: a held submission should not cost a model call.
+    seedRequest("req-unauthorized", { disposition: "not_now" });
+
+    await withRoutes((baseUrl) => uploadFor(baseUrl, "req-unauthorized"));
+
+    expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+  });
 });
 
 /* --------------------------------------------------- the security boundary */
@@ -195,11 +300,12 @@ describe("a link is a destination, not a permission", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     });
 
-    // Past authorization, past the file and extension checks, and stopped by
-    // the absent storage bucket this test deliberately does not provide. A 503
-    // here proves the gate opened; only a 409 would mean it had not.
-    expect(result.status).toBe(503);
-    expect(String(result.body.error)).toMatch(/unavailable/i);
+    // Past authorization and past the file and extension checks, stopped by the
+    // metadata this request deliberately omits. That is the next check and a
+    // different one, so it proves the gate opened rather than that the upload
+    // succeeded; only a 409 would mean it had not.
+    expect(result.status).toBe(400);
+    expect(result.body.code).toBe("video_metadata_missing");
   });
 });
 

@@ -23,6 +23,8 @@ import {
   verifyCaptureUploadToken,
 } from "../utils/captureUploadToken";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
+import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
+import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
 
 const router = Router();
 
@@ -295,11 +297,57 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
     sizeBytes: file.size,
   });
 
+  const bucket = storageAdmin.bucket(storageBucketName());
+
   try {
-    const bucket = storageAdmin.bucket(storageBucketName());
     await bucket
       .file(`${rawPrefix}/manifest.json`)
       .save(JSON.stringify(manifest, null, 2), { contentType: "application/json" });
+  } catch (error) {
+    logger.error(
+      { error, captureId: payload.captureId },
+      "Self-capture video stored but the manifest failed",
+    );
+    return res.status(502).json({
+      error: "Your video reached us but we could not start processing it. We have been alerted.",
+    });
+  }
+
+  // Between the manifest and the marker is the only moment where the video is
+  // in hand and nothing has been derived from it yet. The privacy question
+  // belongs here rather than at reconstruction: the reconstruction gate is in
+  // front of the *spending*, and by the time it runs the extractor has already
+  // decoded this video into frames of whoever is in it.
+  //
+  // It holds the marker rather than the cheque, because the marker is what
+  // starts extraction. And it fails open, so an evidence lane that is switched
+  // off leaves us exactly where we were rather than stranding every upload.
+  const privacy = await screenCaptureForPrivacy({
+    requestId: payload.requestId,
+    sceneId: payload.sceneId,
+    captureId: payload.captureId,
+  });
+
+  await recordCapturePrivacyScreen({
+    requestId: payload.requestId,
+    captureId: payload.captureId,
+    result: privacy,
+  });
+
+  if (!privacy.proceed) {
+    // 200, not an error. Their upload worked; it is what is in it that needs a
+    // person, and telling someone their video failed when it did not would
+    // send them off to re-film something we already have.
+    return res.status(200).json({
+      ok: true,
+      captureId: payload.captureId,
+      state: "held",
+      code: "capture_privacy_review",
+      message: privacy.detail,
+    });
+  }
+
+  try {
     await bucket
       .file(`${rawPrefix}/capture_upload_complete.json`)
       .save(
