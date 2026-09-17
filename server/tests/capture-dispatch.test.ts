@@ -140,10 +140,13 @@ describe("dispatching capture without a person", () => {
     expect(decision).toMatchObject({ dispatch: false, holdReason: "human_review_requested" });
   });
 
-  it("holds on needs_conversation", () => {
+  it("holds a visit on needs_conversation", () => {
+    // Was asserted against `self_capture`, incidentally: the rule is about
+    // sending a person on answers a form could not settle, and that is what it
+    // now says. Receiving a video has no such cost; see below.
     const decision = decideCaptureDispatch({
       disposition: "needs_conversation",
-      captureMode: "self_capture",
+      captureMode: "site_visit",
     });
 
     expect(decision).toMatchObject({ dispatch: false, holdReason: "needs_conversation" });
@@ -155,14 +158,63 @@ describe("dispatching capture without a person", () => {
     ).toMatchObject({ dispatch: false, holdReason: "not_qualified" });
   });
 
-  it("holds when a gate is unanswered even if something says qualified", () => {
+  it("holds a visit when a gate is unanswered even if something says qualified", () => {
     const decision = decideCaptureDispatch({
       disposition: "qualified",
-      captureMode: "self_capture",
+      captureMode: "site_visit",
       unanswered: ["sceneStability"],
     });
 
     expect(decision).toMatchObject({ dispatch: false, holdReason: "gates_incomplete" });
+  });
+
+  /* ------------------------------------------ receiving a video is free */
+
+  it("lets an unscreened site record itself", () => {
+    // The asymmetry this module was missing. Every check it makes exists to
+    // stop us spending -- a person travelling, a paid reconstruction -- and a
+    // site uploading a phone video triggers none of that. Requiring a clean
+    // screen first meant a site had to pass a screen before we would accept
+    // the one artifact that makes the screen answerable.
+    for (const disposition of ["not_now", "needs_conversation", undefined] as const) {
+      expect(
+        decideCaptureDispatch({ disposition, captureMode: "self_capture" }),
+      ).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
+    }
+  });
+
+  it("lets an unscreened site record with gates it never answered", () => {
+    expect(
+      decideCaptureDispatch({
+        disposition: "not_now",
+        captureMode: "self_capture",
+        unanswered: ["sceneStability", "taskShape", "objectVariety", "accessWindow"],
+      }),
+    ).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
+  });
+
+  it("still refuses a self-capture invitation built on gates nobody stated", () => {
+    // Not a cost question, so "this one is free" does not excuse it: inferred
+    // gates mean the operator has never spoken to us, and inviting someone to
+    // film a site they never asked us about is wrong at any price.
+    expect(
+      decideCaptureDispatch({
+        disposition: "qualified",
+        captureMode: "self_capture",
+        bindingFieldIds: ["sceneStability"],
+        gateAnswerSources: { sceneStability: "inferred" },
+      }),
+    ).toMatchObject({ dispatch: false, holdReason: "gates_inferred" });
+  });
+
+  it("still refuses a self-capture invitation a human parked", () => {
+    expect(
+      decideCaptureDispatch({
+        disposition: "qualified",
+        captureMode: "self_capture",
+        requiresHumanReview: true,
+      }),
+    ).toMatchObject({ dispatch: false, holdReason: "human_review_requested" });
   });
 
   it("holds rather than assuming a visit when no capture mode was recorded", () => {

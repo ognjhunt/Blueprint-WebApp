@@ -215,7 +215,13 @@ describe("build output", () => {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
     expect(siteHtml).toContain("Let’s start with your site.");
-    expect(siteHtml).toContain("paid evaluation");
+    // Was "paid evaluation". The site page leads with a camera now -- a phone
+    // video of one work area is all a reconstruction needs, and receiving it
+    // costs us nothing -- so what has to survive prerender is the footage
+    // deciding and the screen being available rather than required.
+    expect(siteHtml).toContain("Show us the work.");
+    expect(siteHtml).toContain("nothing here can turn you away");
+    expect(siteHtml).toContain("Want the full read first");
     // Budget moved into the spec tier behind the gates -- it is a matching
     // parameter, not a screen. The persona distinction in prerendered HTML is
     // the gate set itself.
@@ -272,7 +278,11 @@ describe("build output", () => {
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
+    // Replaced rather than dropped: the point of these is to prove the scan
+    // above is reading the real public bundle, so removing one because the copy
+    // moved would quietly make the whole check vacuous. "Site-funded Task
+    // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A pilot worth running.");
-    expect(browserJavaScript).toContain("Site-funded Task Evaluation Run");
+    expect(browserJavaScript).toContain("what the footage shows is what decides");
   });
 });

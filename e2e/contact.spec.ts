@@ -5,7 +5,7 @@
  * `/api/inbound-request` instead of free text to `/api/contact`, and a blocked
  * site sees which condition failed and what would flip it before it submits.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const mockIntakeSubmission = async (page: import("@playwright/test").Page) => {
   const submissions: Record<string, unknown>[] = [];
@@ -35,6 +35,21 @@ const mockIntakeSubmission = async (page: import("@playwright/test").Page) => {
  * service-area gate is not asked at all, so a test about geography has to say
  * it wants a visit first.
  */
+/**
+ * Open the six-question screen.
+ *
+ * The site page leads with a camera now: a phone video of one work area is all
+ * a reconstruction needs, and four of the gates below are things the footage
+ * shows better than a dropdown. The screen still exists for a site that wants
+ * the full read before filming, one click in — so these tests open it rather
+ * than drop the assertions, because what it asks is unchanged.
+ */
+async function openSiteScreen(page: Page) {
+  const summary = page.getByText(/Want the full read first/i);
+  await expect(summary).toBeVisible();
+  await summary.click();
+}
+
 const chooseCaptureMode = async (
   page: import("@playwright/test").Page,
   mode: "self_capture" | "site_visit",
@@ -56,6 +71,7 @@ test("site-operator page leads with the questions that can end a submission", as
   page,
 }) => {
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
 
   await expect(
     page.getByRole("heading", { name: /Let’s start with your site/i }),
@@ -90,6 +106,7 @@ test("a blocking answer names the change that would flip it, before submitting",
   page,
 }) => {
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
 
   await chooseCaptureMode(page, "site_visit");
   await page.locator("#gate-serviceArea").selectOption("outside_texas");
@@ -108,6 +125,7 @@ test("an out-of-state site stops being blocked once it says it will record itsel
   // about whether anyone has to drive, so a site holding its own phone is not
   // held to it.
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
 
   await chooseCaptureMode(page, "site_visit");
   await page.locator("#gate-serviceArea").selectOption("outside_texas");
@@ -121,6 +139,7 @@ test("an out-of-state site stops being blocked once it says it will record itsel
 
 test("clearing the gates reveals the spec tier and reports the verdict", async ({ page }) => {
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
   await clearEverySiteGate(page);
 
   await expect(page.getByText(/clears the screen/i).first()).toBeVisible();
@@ -132,6 +151,7 @@ test("the form posts structured gate answers rather than prose", async ({ page }
   const submissions = await mockIntakeSubmission(page);
 
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
   await clearEverySiteGate(page);
 
   await page.locator("#spec-cycleTime").selectOption("thirty_to_two_min");
@@ -178,6 +198,7 @@ test("submission failure keeps the answers so a visitor can retry", async ({ pag
   });
 
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await openSiteScreen(page);
   await clearEverySiteGate(page);
   await page
     .locator("#prose-taskDescription")

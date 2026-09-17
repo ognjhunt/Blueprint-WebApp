@@ -97,37 +97,12 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
     };
   }
 
-  if (input.disposition !== "qualified") {
-    return input.disposition === "needs_conversation"
-      ? {
-          dispatch: false,
-          holdReason: "needs_conversation",
-          detail:
-            "Marginal answers are the ones a form could not settle, so dispatching on them would be guessing.",
-        }
-      : {
-          dispatch: false,
-          holdReason: "not_qualified",
-          detail: `Disposition is ${input.disposition ?? "unknown"}; capture starts only on a clean pass.`,
-        };
-  }
-
-  // Belt and braces. `triageGateAnswers` already refuses to return `qualified`
-  // with anything unanswered, but this module is the last thing before real
-  // money moves, so it re-checks rather than trusting an invariant it does not
-  // own.
-  if (input.unanswered?.length) {
-    return {
-      dispatch: false,
-      holdReason: "gates_incomplete",
-      detail: `Unanswered gates: ${input.unanswered.join(", ")}.`,
-    };
-  }
-
+  // Checked before anything else about cost, because it is not a cost question.
+  //
   // An outbound prospect's gates are a hypothesis about a facility nobody has
-  // visited. They are enough to start a conversation and never enough to spend
-  // money: dispatching on them would send a capturer to an address, or commit a
-  // paid reconstruction, on the strength of a guess.
+  // visited, which means the operator has never spoken to us. Inviting someone
+  // to film a site they never asked us about is wrong at any price, so "this
+  // one is free" does not excuse skipping it.
   const inferred = auditInferredGates(
     input.bindingFieldIds ?? [],
     input.gateAnswerSources,
@@ -139,6 +114,65 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
       detail:
         `Still resting on inferred answers: ${inferred.inferredFieldIds.join(", ")}. ` +
         "The operator has to confirm these before anything is captured.",
+    };
+  }
+
+  // A self-recorded walkthrough costs us nothing to receive.
+  //
+  // This is the asymmetry the rest of this function was missing. Every check
+  // below exists to stop us *spending* — sending a person to an address,
+  // committing a paid reconstruction — and none of that is triggered by a site
+  // uploading a phone video. The video lands in our bucket, the privacy screen
+  // reads it before a frame is extracted, and the footage review refuses to
+  // reconstruct anything unusable. The money is guarded after this point and
+  // not at all by this point.
+  //
+  // What the screen verdict actually decides is whether a site is offered to
+  // robot teams, and `loadRunnableSites` enforces that separately on
+  // `disposition === "qualified"`. Requiring it here as well meant a site had
+  // to pass a screen before we would accept the one artifact that makes the
+  // screen answerable: four of its five binding gates are things the footage
+  // shows better than any dropdown.
+  //
+  // So an unscreened site may record. It is not sellable until the gates are
+  // resolved — that part is unchanged — but resolving them is now a later
+  // conversation rather than a toll gate in front of our own supply.
+  if (input.captureMode === "self_capture") {
+    return {
+      dispatch: true,
+      captureMode: "self_capture",
+      channel: "self_capture_upload",
+    };
+  }
+
+  /* --------------------------------------------- from here, a visit only */
+
+  // Everything below guards a capturer travelling to an address, and a
+  // reconstruction committed on answers nobody has stood in a room to check.
+
+  if (input.disposition !== "qualified") {
+    return input.disposition === "needs_conversation"
+      ? {
+          dispatch: false,
+          holdReason: "needs_conversation",
+          detail:
+            "Marginal answers are the ones a form could not settle, so sending someone on them would be guessing.",
+        }
+      : {
+          dispatch: false,
+          holdReason: "not_qualified",
+          detail: `Disposition is ${input.disposition ?? "unknown"}; a visit starts only on a clean pass.`,
+        };
+  }
+
+  // Belt and braces. `triageGateAnswers` already refuses to return `qualified`
+  // with anything unanswered, but this is the last thing before real money
+  // moves, so it re-checks rather than trusting an invariant it does not own.
+  if (input.unanswered?.length) {
+    return {
+      dispatch: false,
+      holdReason: "gates_incomplete",
+      detail: `Unanswered gates: ${input.unanswered.join(", ")}.`,
     };
   }
 
@@ -157,7 +191,7 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
   return {
     dispatch: true,
     captureMode: input.captureMode,
-    channel: input.captureMode === "self_capture" ? "self_capture_upload" : "capturer_visit",
+    channel: "capturer_visit",
   };
 }
 
