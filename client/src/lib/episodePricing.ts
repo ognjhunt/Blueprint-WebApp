@@ -121,7 +121,22 @@ export const finalistRound = {
   episodes: 500,
   fundedBy: "blueprint",
   funder:
-    "Funded and run by Blueprint. Neither the site nor the robot team is billed for it, and no team can buy a longer run than another.",
+    "Funded and run by Blueprint under the offer you enter. Neither the site nor the robot team is billed for it, and no team can buy a longer run than another.",
+  /**
+   * Said out loud because the economics are not established.
+   *
+   * A finalist is ten unpaid episodes for every paid screening episode, and
+   * the shortlist rule advances a close field intact. Whether that is
+   * sustainable depends on our real per-episode cost, which is being metered
+   * (`cohortEconomics.ts`) and is not yet known. Presenting it as a settled
+   * permanent feature would be claiming a fact we do not have.
+   *
+   * So it is a current offer, honoured for whoever enters under it. If the
+   * measured economics force a change it applies to later cohorts and is
+   * stated, not applied quietly to people who already accepted these terms.
+   */
+  commitment:
+    "This is Blueprint's current offer rather than a permanent entitlement. A team that enters under it keeps it; if the economics force a change, it changes for later rounds and we say so before anyone enters one.",
   purpose: "Separate the shortlist and produce the pilot recommendation.",
   resolves:
     "Resolves a gap of about 8 points at the same confidence level — the smallest round that settles the differences a shortlist actually turns on.",
@@ -145,11 +160,71 @@ export const rounds = [screeningRound, finalistRound] as const;
  */
 export const shortlistRule = {
   cap: 5,
+  /**
+   * And a floor, which the rule did not have.
+   *
+   * ## The arithmetic that forced this
+   *
+   * A finalist is 500 episodes at Blueprint's cost against a screening entry
+   * of 50 at the team's. So every candidate that advances carries ten unpaid
+   * episodes for each paid one — and the rule above says a *close* field
+   * advances intact, which is exactly the field screening cannot separate.
+   *
+   * At three indistinguishable entrants that means $75 of revenue against
+   * 1,650 executed episodes: break-even needs an average episode cost under
+   * 4.6¢ before a penny of site preparation. At fifteen entrants and five
+   * finalists the same sum allows 11.5¢. The least liquid sites are the least
+   * profitable ones, even when execution is cheap, and a cold start is nothing
+   * but least-liquid sites.
+   *
+   * ## Why a floor rather than a different payer
+   *
+   * The obvious fix is to charge finalists. But a mandatory fee lands at the
+   * moment a team has just been told it made the shortlist, which is the worst
+   * place available to put a new purchase decision — and it would change terms
+   * somebody already accepted.
+   *
+   * A floor changes nothing anyone was promised. A finalist round exists to
+   * *separate* candidates; with one credible candidate there is nothing to
+   * separate and no comparison to fund. So the round runs when it has a job to
+   * do, and a site with a single candidate gets its assessment without one.
+   */
+  floor: 2,
   statement:
-    "Everything screening cannot separate from the leader goes forward, up to five.",
+    "Everything screening cannot separate from the leader goes forward, up to five — when there is more than one candidate to separate.",
   detail:
-    "Screening only cuts a candidate it can rule out — at 50 episodes, one roughly 20 points behind the leader. A close field therefore carries more candidates into the finalist round, and a clearly separated one carries fewer. Nobody is cut on a difference screening cannot establish.",
+    "Screening only cuts a candidate it can rule out — at 50 episodes, one roughly 20 points behind the leader. A close field therefore carries more candidates into the finalist round, and a clearly separated one carries fewer. Nobody is cut on a difference screening cannot establish. A field of one is not a comparison, so it is reported as the single candidate it is rather than run as a finalist round against nobody.",
 } as const;
+
+/**
+ * Whether a finalist round has anything to do.
+ *
+ * Kept next to the rule so the pricing page and any scheduler read the same
+ * function rather than two implementations of "enough candidates".
+ */
+export function finalistRoundRuns(shortlistedCandidates: number): {
+  runs: boolean;
+  reason: string;
+} {
+  if (shortlistedCandidates >= shortlistRule.floor) {
+    return {
+      runs: true,
+      reason: `${shortlistedCandidates} candidates to separate, at ${finalistRound.episodes} episodes each.`,
+    };
+  }
+  if (shortlistedCandidates === 1) {
+    return {
+      runs: false,
+      reason:
+        "One candidate is not a comparison. The screening result stands on its own and is "
+        + "reported as a single candidate rather than as a winner.",
+    };
+  }
+  return {
+    runs: false,
+    reason: "No candidate survived screening, so there is nothing to compare.",
+  };
+}
 
 /** What a site pays to find out: nothing. */
 export const siteAssessment = {
@@ -220,7 +295,7 @@ export const billingRules = [
   {
     rule: "Being shortlisted never costs you more.",
     detail:
-      "Blueprint funds and runs the finalist round, so there is no top-up to make and no deadline to miss. It is also why you cannot buy your way to a longer run than a rival: the episode count is ours to set, and every finalist gets the same one.",
+      "Blueprint funds and runs the finalist round under the offer you entered, so there is no top-up to make and no deadline to miss. It is also why you cannot buy your way to a longer run than a rival: the episode count is ours to set, and every finalist gets the same one. A finalist round runs when there is more than one candidate to separate — a single surviving candidate is reported as that rather than run against nobody.",
   },
   {
     rule: "Top-ups and spend caps are separate settings.",

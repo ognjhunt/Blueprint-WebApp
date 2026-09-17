@@ -28,6 +28,9 @@ import {
   projectWorkspaceResult,
   teamAlias,
 } from "../utils/workspace-projection";
+import { getBrief } from "../utils/siteTaskBrief";
+import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
+import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import type {
   InboundRequestStored,
   InboundRequest,
@@ -451,6 +454,42 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     !task.archived
   )
     task.status = "Review results";
+
+  // Where the task sits on the assessment ladder, from the same projection the
+  // account-free capture page uses. Best-effort: a failure to read the brief is
+  // a missing readiness line, not a failed task load.
+  try {
+    const brief = await getBrief(requestId);
+    let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
+    if (brief) {
+      stage = assessReadiness({
+        answers: (object(record.request).siteTaskGates as Record<string, string> | null) ?? {},
+        captureMode: text(object(record.request).capture_mode) || null,
+        briefDrafted: true,
+        briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
+        evidence: {
+          hasAny: true,
+          hasVisual: Boolean(record.capture_coverage),
+          explainsTask: true,
+          coversScene: object(record.capture_coverage).covers_scene ?? false,
+          missingCoverage: object(record.capture_coverage).missing_coverage ?? undefined,
+        },
+        reconstructed: false,
+      }).stage;
+    }
+    task.readiness = projectTaskStatus(
+      taskStatusInputFrom({
+        site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
+        capture_coverage: (record.capture_coverage as never) ?? null,
+        site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
+        briefDrafted: Boolean(brief),
+        stage,
+      }),
+    );
+  } catch {
+    task.readiness = null;
+  }
+
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {

@@ -13,7 +13,7 @@ describe("How it works", () => {
     expect(screen.queryByText(/two compatible|exactly two|two-candidate limit/i)).not.toBeInTheDocument();
     expect(screen.getByText(/All robotics teams can apply/)).toBeInTheDocument();
     expect(screen.getByText(/clear reason to pause/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Discuss your site" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Apply as a robot team" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.queryByText(/quadruped|inspection/i)).not.toBeInTheDocument();
   });

@@ -1,0 +1,87 @@
+/**
+ * One price, on one surface.
+ *
+ * Two commercial models exist in this repo. The one that ships is per-episode:
+ * `@/lib/episodePricing` says $0.50 an episode, 50 episodes to screen a
+ * checkpoint, and a finalist round Blueprint funds. The other is
+ * `@/lib/deploymentPricing`: $1,000 to evaluate a site-task, $10,000 on award.
+ *
+ * The second one was reachable. `/internal/opportunity-board` and its five
+ * sub-routes were on a `public` layout with an offer flow attached, so a robot
+ * team with the URL could read one price there and be quoted another by
+ * `/api/agent-team/plan`. Nothing linked to them, which is why it went
+ * unnoticed rather than why it was harmless.
+ *
+ * These tests pin the two facts that keep that from happening again: the
+ * opportunity board is not public, and no module feeding a public page names
+ * the other model's numbers.
+ */
+import fs from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { appRoutes } from "@/app/routes";
+
+const repoRoot = path.resolve(__dirname, "../../..");
+
+describe("the public surface carries one pricing model", () => {
+  it("keeps every opportunity-board route off the public layout", () => {
+    // Some entries carry no path (catch-alls), so this is optional-chained
+    // rather than assumed.
+    const boardRoutes = appRoutes.filter((route) =>
+      route.path?.startsWith("/internal/opportunity-board"),
+    );
+
+    // If this is zero the test has stopped testing anything -- either the
+    // routes were renamed or deleted, and either way the assertion below is
+    // vacuous. Fail loudly rather than pass silently.
+    expect(boardRoutes.length).toBeGreaterThanOrEqual(6);
+
+    for (const route of boardRoutes) {
+      expect(route.layout, `${route.path} must not be public`).toBe("protected");
+      expect(route.requireRoles, `${route.path} must require a role`).toBeTruthy();
+    }
+  });
+
+  it("keeps the award-fee model out of the modules that feed public pages", () => {
+    // Read as text rather than imported, because the point is that the strings
+    // are absent from the source a public page pulls in -- not that some export
+    // happens to be unused today.
+    const publicCopySources = [
+      "client/src/data/publicSiteCopy.ts",
+      "client/src/pages/Pricing.tsx",
+      "client/src/pages/FAQ.tsx",
+    ];
+
+    for (const relativePath of publicCopySources) {
+      const source = fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
+      // Comments are stripped first. What is forbidden is a price that ships,
+      // not prose explaining why the model changed -- and the note left where
+      // `pricingHero` used to be quotes the old claim verbatim so the next
+      // reader knows what was removed. Scanning it would make this test
+      // unpassable by the very comment that documents the fix.
+      const shipped = source
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^[ \t]*\/\/.*$/gm, "");
+      const claims = shipped.match(/\$1,000 to evaluate|total is \$10,000|\$10,000 in total/g);
+      expect(claims, `${relativePath} still states the award-fee model`).toBeNull();
+    }
+  });
+
+  it("states the per-episode model the API actually quotes", async () => {
+    const { episodeRate, screeningRound } = await import("@/lib/episodePricing");
+    const { faqItems } = await import("@/pages/FAQ");
+
+    const paymentAnswer = faqItems.find((item) => item.question === "How is Blueprint paid?");
+    expect(paymentAnswer).toBeTruthy();
+
+    // The figures in the answer have to be the figures in the module, or the
+    // FAQ becomes the third price.
+    expect(paymentAnswer?.answer).toContain(`$${episodeRate.toFixed(2)}`);
+    expect(paymentAnswer?.answer).toContain(String(screeningRound.episodes));
+    expect(paymentAnswer?.answer).toContain(
+      `$${(screeningRound.episodes * episodeRate).toFixed(0)}`,
+    );
+  });
+});

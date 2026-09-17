@@ -33,7 +33,7 @@ describe("public real-site evaluation copy", () => {
         name: /Your site/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Discuss your site/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Start a task assessment/i }).length).toBeGreaterThan(0);
 
     expect(container).toHaveTextContent(/Define the task/i);
     expect(container).toHaveTextContent(/Compare candidates/i);

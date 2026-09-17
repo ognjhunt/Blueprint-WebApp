@@ -33,7 +33,7 @@ export const faqItems = [
   {
     question: "Do robot teams download the site twin?",
     answer:
-      "No. Qualified teams run approved evaluations inside Blueprint's hosted environment. They never receive a downloadable copy of your site, and training rights are separate.",
+      "No. Qualified teams run approved evaluations inside Blueprint's hosted environment. They never receive a downloadable copy of your site and never receive the walkthrough recording, and nothing they are sent is licensed for training unless a written agreement says so.",
   },
   {
     question: "What if a robot does not fit?",
@@ -43,7 +43,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Two numbers, both paid by robot teams: $1,000 to evaluate a site-task, and $10,000 in total if that team wins the work. Nothing recurring. Sites pay nothing.",
+      "Robot teams pay per episode: 50 episodes to screen one checkpoint, at $0.50 each, so $25 a checkpoint. If a checkpoint is shortlisted, Blueprint funds and runs the finalist round rather than billing for it. Nothing recurring, no seat or listing fee, and sites pay nothing.",
   },
 ];
 

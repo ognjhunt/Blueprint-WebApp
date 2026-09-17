@@ -64,6 +64,7 @@ describe("a guess can never qualify a site", () => {
     // enough to start a conversation and never enough to send a capturer to an
     // address or commit a paid reconstruction.
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "self_capture",
       unanswered: [],
@@ -77,6 +78,7 @@ describe("a guess can never qualify a site", () => {
 
   it("dispatches once the operator has stated the binding gates themselves", () => {
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "self_capture",
       unanswered: [],
@@ -92,7 +94,7 @@ describe("a guess can never qualify a site", () => {
   it("leaves inbound requests working exactly as before", () => {
     // No provenance and no binding list: the inbound caller passes neither.
     expect(
-      decideCaptureDispatch({ disposition: "qualified", captureMode: "self_capture" }),
+      decideCaptureDispatch({ captureRegion: "us", disposition: "qualified", captureMode: "self_capture" }),
     ).toMatchObject({ dispatch: true });
   });
 
@@ -235,6 +237,7 @@ describe("a reply rejoins the inbound funnel", () => {
     });
 
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "self_capture",
       bindingFieldIds: BINDING,

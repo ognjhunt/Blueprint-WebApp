@@ -116,7 +116,7 @@ describe("Pricing", () => {
 
   it("routes each side to its own intake", () => {
     render(<Pricing />);
-    expect(screen.getAllByRole("link", { name: /Discuss your site/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Start a task assessment/i })[0]).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );
@@ -124,5 +124,29 @@ describe("Pricing", () => {
       "href",
       "/contact/robot-team",
     );
+  });
+});
+
+describe("the finalist subsidy is not presented as settled", () => {
+  it("says on the page that it is the current offer rather than an entitlement", () => {
+    // A subsidy of ten unpaid episodes per paid one, whose sustainability is
+    // unmeasured, must not read as a permanent feature. It also must not read
+    // as a threat to people who already entered -- the commitment is kept for
+    // whoever entered under it.
+    render(<Pricing />);
+
+    expect(screen.getByText(/current offer rather than a permanent entitlement/i)).toBeInTheDocument();
+    expect(screen.getByText(/A team that enters under it keeps it/i)).toBeInTheDocument();
+  });
+
+  it("states the floor where a team reads the rule", () => {
+    render(<Pricing />);
+
+    // Stated in two places -- the shortlist rule and the billing rules -- which
+    // is right: a team reading either one should learn it.
+    expect(
+      screen.getAllByText(/more than one candidate to separate/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/field of one is not a comparison/i)).toBeInTheDocument();
   });
 });

@@ -126,39 +126,51 @@ describe("the one question it asks", () => {
   });
 });
 
-describe("failing open, on purpose", () => {
-  it("proceeds when the evidence lane is switched off", async () => {
-    // The rule everywhere else in this repo is fail closed. Not here: this is a
-    // tightening of an existing gate, and a tightening that strands every
-    // upload when a flag is off is worse than the thing it fixes.
+describe("accepting an upload fails open; deriving from it fails closed", () => {
+  it("proceeds when no reviewer was ever configured, and says so", async () => {
+    // The one case that still proceeds. A deployment that never switched the
+    // evidence lane on has not made a privacy decision, and halting every
+    // capture dead would be a surprise rather than a safeguard. It is recorded
+    // as `unscreened`, which cannot be read as "watched and found nothing".
     isSiteVideoEvidenceEnabled.mockReturnValue(false);
 
     const result = await screenCaptureForPrivacy(CAPTURE);
 
     expect(result.proceed).toBe(true);
+    expect(result.eligibility).toBe("unscreened");
     expect(result.outcome).toBe("not_reviewed");
     expect(buildCaptureFootageReviewer).not.toHaveBeenCalled();
   });
 
-  it("proceeds when no reviewer can be built", async () => {
+  it("holds when there is nothing signable to review", async () => {
+    // The lane is on, so we opted into screening and could not do it. Not the
+    // same as never having configured a reviewer.
     buildCaptureFootageReviewer.mockResolvedValue(null);
 
     await expect(screenCaptureForPrivacy(CAPTURE)).resolves.toMatchObject({
-      proceed: true,
-      outcome: "not_reviewed",
+      proceed: false,
+      eligibility: "pending",
+      outcome: "review_unavailable",
+      retryable: true,
     });
   });
 
-  it("proceeds when building the reviewer throws", async () => {
+  it("holds when building the reviewer throws", async () => {
     buildCaptureFootageReviewer.mockRejectedValue(new Error("storage unavailable"));
 
     await expect(screenCaptureForPrivacy(CAPTURE)).resolves.toMatchObject({
-      proceed: true,
-      outcome: "not_reviewed",
+      proceed: false,
+      eligibility: "pending",
+      retryable: true,
     });
   });
 
-  it("proceeds when the review itself throws", async () => {
+  it("holds when the review itself throws", async () => {
+    // The path the audit was specifically about. A model error is not evidence
+    // that the footage is clear, and the old behaviour treated it as such --
+    // which is how frames of unconsented people reach a bucket. The
+    // reconstruction-time gate cannot un-copy them, so pointing at it was
+    // never a defence.
     buildCaptureFootageReviewer.mockResolvedValue({
       review: vi.fn(async () => {
         throw new Error("provider refused");
@@ -167,21 +179,25 @@ describe("failing open, on purpose", () => {
     });
 
     await expect(screenCaptureForPrivacy(CAPTURE)).resolves.toMatchObject({
-      proceed: true,
-      outcome: "not_reviewed",
+      proceed: false,
+      eligibility: "pending",
+      outcome: "review_unavailable",
     });
   });
 
-  it("proceeds when the review returns nothing", async () => {
+  it("holds when the review returns nothing", async () => {
     buildCaptureFootageReviewer.mockResolvedValue(reviewerReturning(null));
 
     await expect(screenCaptureForPrivacy(CAPTURE)).resolves.toMatchObject({
-      proceed: true,
-      outcome: "not_reviewed",
+      proceed: false,
+      eligibility: "pending",
     });
   });
 
-  it("does not hold an upload open on a provider that has stopped answering", async () => {
+  it("still returns promptly when a provider stops answering, without deriving", async () => {
+    // Both halves matter. The site is holding an open request with a video
+    // already stored, so this cannot wait on a hung call -- and it must not pay
+    // for returning quickly by letting extraction start.
     vi.stubEnv("BLUEPRINT_CAPTURE_PRIVACY_SCREEN_TIMEOUT_MS", "40");
     buildCaptureFootageReviewer.mockResolvedValue({
       review: vi.fn(() => new Promise(() => {})),
@@ -191,11 +207,24 @@ describe("failing open, on purpose", () => {
     const started = Date.now();
     const result = await screenCaptureForPrivacy(CAPTURE);
 
-    expect(result.proceed).toBe(true);
-    expect(result.outcome).toBe("not_reviewed");
-    // The site is holding an open request with a video already stored, so this
-    // has to return rather than wait on a hung call.
+    expect(result.proceed).toBe(false);
+    expect(result.eligibility).toBe("pending");
+    expect(result.retryable).toBe(true);
     expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it("never marks a hold retryable when a person is what is needed", async () => {
+    // A privacy reading is not a transient failure. Asking the same reviewer
+    // the same question about the same video gives the same answer.
+    buildCaptureFootageReviewer.mockResolvedValue(
+      reviewerReturning({ privacy_flag: true, observations: [] } as never),
+    );
+
+    const result = await screenCaptureForPrivacy(CAPTURE);
+
+    expect(result.eligibility).toBe("rejected");
+    expect(result.retryable).toBe(false);
+    expect(result.proceed).toBe(false);
   });
 });
 

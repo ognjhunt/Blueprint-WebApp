@@ -45,6 +45,7 @@
  */
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 
 const LEDGER_COLLECTION = "robotTeamLedger";
 const POLICY_COLLECTION = "robotTeamSpendPolicy";
@@ -83,6 +84,25 @@ export interface TeamBalance {
   reservedUsd: number;
   /** What an agent may commit right now. Never negative. */
   availableUsd: number;
+  /**
+   * Settlements that arrived after the reservation was already resolved, and
+   * were therefore not charged.
+   *
+   * Financial finality and evidence are separate: a run that timed out and was
+   * released, then reported late, keeps its result and costs the team nothing.
+   * We absorb it. This is that number, surfaced rather than silently dropped,
+   * because a cost we take on is still a cost somebody should be able to see.
+   */
+  absorbedUsd: number;
+  /**
+   * Committed money in excess of funded money. Should always be zero.
+   *
+   * `availableUsd` clamps at zero, which is right for an agent deciding whether
+   * it may spend, and wrong as the only record: the reserve/release loop used to
+   * show up here as a balance that stopped moving rather than as a breach. If
+   * this is ever non-zero, an invariant has failed and the clamp is hiding it.
+   */
+  overdrawnUsd: number;
 }
 
 /**
@@ -141,44 +161,90 @@ async function readEntries(teamId: string): Promise<LedgerEntry[]> {
  * reserved — which is how a run that used fewer episodes than quoted gives the
  * remainder back without anyone doing arithmetic by hand.
  */
+/** credit, then reserve, then whatever resolves it. Ties broken the same way twice. */
+const KIND_REPLAY_RANK: Record<LedgerEntryKind, number> = {
+  credit: 0,
+  reserve: 1,
+  settle: 2,
+  release: 2,
+};
+
+/**
+ * Put the ledger in the order it happened.
+ *
+ * `readEntries` runs a query with no `orderBy`, and Firestore answers one of
+ * those in document-id order. The ids are `team:kind:reservation`, so for a
+ * single reservation they sort `release` before `reserve` before `settle` --
+ * alphabetically, which is to say meaninglessly. Every rule in the replay below
+ * is order-dependent, and one of them is now "the first resolution wins", so
+ * the order has to be stated rather than inherited from a key format.
+ */
+function inReplayOrder(entries: readonly LedgerEntry[]): LedgerEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.createdAtIso !== b.createdAtIso) {
+      return a.createdAtIso < b.createdAtIso ? -1 : 1;
+    }
+    const rank = KIND_REPLAY_RANK[a.kind] - KIND_REPLAY_RANK[b.kind];
+    return rank !== 0 ? rank : a.entryId.localeCompare(b.entryId);
+  });
+}
+
 export function deriveBalance(teamId: string, entries: readonly LedgerEntry[]): TeamBalance {
   let creditedUsd = 0;
   let spentUsd = 0;
+  let absorbedUsd = 0;
   const openReservations = new Map<string, number>();
+  /** Reservations a settle or a release has already closed. */
+  const resolvedReservations = new Set<string>();
 
-  for (const entry of entries) {
+  for (const entry of inReplayOrder(entries)) {
     if (entry.kind === "credit") {
       creditedUsd += entry.amountUsd;
       continue;
     }
     if (entry.kind === "reserve") {
-      openReservations.set(
-        entry.reservationId || entry.entryId,
-        (openReservations.get(entry.reservationId || entry.entryId) ?? 0) + entry.amountUsd,
-      );
+      const key = entry.reservationId || entry.entryId;
+      openReservations.set(key, (openReservations.get(key) ?? 0) + entry.amountUsd);
       continue;
     }
     if (entry.kind === "settle") {
+      const key = entry.reservationId || "";
+      // A settle used to book spend unconditionally, which is how the balance
+      // could go past what was funded: release the hold, reserve again, and the
+      // late settlements all landed as real spend against money that had been
+      // handed back. One resolution per reservation, and the first one wins.
+      if (key && resolvedReservations.has(key)) {
+        absorbedUsd += entry.amountUsd;
+        continue;
+      }
       spentUsd += entry.amountUsd;
-      // The whole hold clears, not just the settled portion: a run that
-      // consumed less than quoted returns the difference.
-      openReservations.delete(entry.reservationId || "");
+      if (key) {
+        resolvedReservations.add(key);
+        // The whole hold clears, not just the settled portion: a run that
+        // consumed less than quoted returns the difference.
+        openReservations.delete(key);
+      }
       continue;
     }
     if (entry.kind === "release") {
-      openReservations.delete(entry.reservationId || "");
+      const key = entry.reservationId || "";
+      if (!key || resolvedReservations.has(key)) continue;
+      resolvedReservations.add(key);
+      openReservations.delete(key);
     }
   }
 
   const reservedUsd = [...openReservations.values()].reduce((sum, value) => sum + value, 0);
-  const availableUsd = Math.max(0, creditedUsd - spentUsd - reservedUsd);
+  const committedUsd = spentUsd + reservedUsd;
 
   return {
     teamId,
     creditedUsd: round2(creditedUsd),
     spentUsd: round2(spentUsd),
     reservedUsd: round2(reservedUsd),
-    availableUsd: round2(availableUsd),
+    availableUsd: round2(Math.max(0, creditedUsd - committedUsd)),
+    absorbedUsd: round2(absorbedUsd),
+    overdrawnUsd: round2(Math.max(0, committedUsd - creditedUsd)),
   };
 }
 
@@ -186,8 +252,28 @@ export async function getTeamBalance(teamId: string): Promise<TeamBalance> {
   // No store means no confirmed funds. An agent that cannot read its balance
   // must not spend, so the honest answer is zero rather than an exception the
   // caller might catch and shrug off.
-  if (!db) return { teamId, creditedUsd: 0, spentUsd: 0, reservedUsd: 0, availableUsd: 0 };
-  return deriveBalance(teamId, await readEntries(teamId));
+  if (!db) {
+    return {
+      teamId,
+      creditedUsd: 0,
+      spentUsd: 0,
+      reservedUsd: 0,
+      availableUsd: 0,
+      absorbedUsd: 0,
+      overdrawnUsd: 0,
+    };
+  }
+  const balance = deriveBalance(teamId, await readEntries(teamId));
+  if (balance.overdrawnUsd > 0) {
+    // Never expected. `availableUsd` would show this as zero and carry on, so
+    // it is said out loud instead: committed money exceeds funded money, and
+    // something upstream let it.
+    logger.error(
+      { teamId, balance },
+      "Robot team balance is overdrawn: committed exceeds credited",
+    );
+  }
+  return balance;
 }
 
 /** What the agent has already committed today, for the daily cap. */

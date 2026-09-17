@@ -219,7 +219,10 @@ describe("build output", () => {
     // video of one work area is all a reconstruction needs, and receiving it
     // costs us nothing -- so what has to survive prerender is the footage
     // deciding and the screen being available rather than required.
-    expect(siteHtml).toContain("Show us the work.");
+    // The site page now leads with the job rather than the camera: a
+    // description is enough to get a task brief back, and footage they already
+    // hold is reused rather than re-shot.
+    expect(siteHtml).toContain("Tell us about one repetitive job.");
     expect(siteHtml).toContain("nothing here can turn you away");
     expect(siteHtml).toContain("Want the full read first");
     // Budget moved into the spec tier behind the gates -- it is a matching

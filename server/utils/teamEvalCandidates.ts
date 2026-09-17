@@ -29,6 +29,8 @@ import { toSiteRequirement } from "./siteMatchRun";
 import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
 import { screeningRound, episodeRate } from "../../client/src/lib/episodePricing";
+import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
+import { coverageEvidenceFrom } from "./captureCoverageReview";
 
 /**
  * What one screening run costs at the published rate.
@@ -52,7 +54,41 @@ export function screeningRunEpisodes(): number {
   return screeningRound.episodes;
 }
 
-/** Requests that are real, screened and reconstructed — the runnable supply. */
+/**
+ * Whether a site has a scene a robot team could actually run in.
+ *
+ * The docstring below used to say "screened and reconstructed" and the function
+ * only checked the first. So a qualified site with no scene was offered as
+ * runnable supply, and a team could buy an evaluation against an environment
+ * that did not exist.
+ */
+function hasBuiltScene(request: InboundRequest): boolean {
+  return Boolean(request.pipeline?.artifacts?.worldlabs_world_manifest_uri);
+}
+
+/**
+ * Requests that are real, screened, confirmed and reconstructed — the runnable
+ * supply.
+ *
+ * ## Three conditions, and each one used to be missing or wrong
+ *
+ * `disposition === "qualified"` was the only filter. It is still necessary and
+ * it was never sufficient:
+ *
+ * - **A scene has to exist.** Claimed in the old comment, never checked.
+ * - **The operator has to have confirmed the brief.** Otherwise the gates are
+ *   our reading of their evidence rather than their answers, and a verdict
+ *   standing on our own reading is not a verdict. This is also what keeps text
+ *   intake from inflating the catalogue: a description can start an assessment
+ *   and can never, by itself, produce supply.
+ * - **Every binding gate has to be answered**, which `qualified` already
+ *   implies, and `assessReadiness` re-checks because this is the last place
+ *   before a team is quoted a price for it.
+ *
+ * The disposition stays the indexed query and the rest is filtered in memory:
+ * the query is already capped, and a three-field composite index for a check
+ * that runs on at most 500 documents buys nothing.
+ */
 async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
   if (!db) return [];
 
@@ -65,7 +101,29 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
   return snapshot.docs
     .map((doc) => doc.data() as InboundRequest)
     // A robot team's own submission is not a site to evaluate against.
-    .filter((request) => request.request?.buyerType !== "robot_team");
+    .filter((request) => request.request?.buyerType !== "robot_team")
+    .filter((request) => {
+      // Measured coverage where we have it, and the old inference where we do
+      // not: a built scene means coverage sufficed, which is true by
+      // construction. What this must never do is read "nobody checked" as
+      // "does not cover", because that would silently drop supply.
+      const measured = coverageEvidenceFrom(request as never);
+      const readiness = assessReadiness({
+        answers: (request.request?.siteTaskGates as Record<string, string> | null) ?? {},
+        captureMode: request.request?.capture_mode ?? null,
+        briefDrafted: true,
+        briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
+        evidence: {
+          hasAny: true,
+          hasVisual: true,
+          explainsTask: true,
+          coversScene: measured?.coversScene ?? true,
+          missingCoverage: measured?.missingCoverage,
+        },
+        reconstructed: hasBuiltScene(request),
+      });
+      return readiness.isSupply;
+    });
 }
 
 /**

@@ -19,6 +19,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
+import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
+
+/** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
+type TaskStatus = {
+  decision: string;
+  headline: string;
+  operatorAction: string | null;
+  missingViews: string[];
+  nextUpdateIso: string | null;
+};
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -172,6 +183,29 @@ export default function SelfCaptureUpload() {
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
   const [fileName, setFileName] = useState<string | null>(null);
+  /**
+   * What to film, from the brief we drafted and they confirmed.
+   *
+   * Empty is a valid answer and the recorder handles it: a submission whose
+   * brief we have not read yet still gets a camera, just without a list. What
+   * it must never be is invented here -- a shot list that named views the task
+   * does not have would be us telling somebody to film a room we imagined.
+   */
+  const [shotList, setShotList] = useState<ChecklistItem[]>([]);
+  /**
+   * The drafted brief, when there is one to confirm.
+   *
+   * The brief comes before the camera on purpose: confirming what we
+   * understood is the attestation that lets a submission reach `qualified`, and
+   * a walkthrough filmed against a brief nobody corrected is a video we cannot
+   * turn into supply. So an unconfirmed brief is shown first, and the recorder
+   * appears once it is confirmed — or immediately when there is no brief yet,
+   * because a blank capture is still better than a blocked one.
+   */
+  const [brief, setBrief] = useState<DraftedBrief | null>(null);
+  const [briefConfirmed, setBriefConfirmed] = useState(false);
+  /** Where the task stands, for the operator who has no account to check. */
+  const [status, setStatus] = useState<TaskStatus | null>(null);
 
   // Whether the camera button below is worth anything on this device. A coarse
   // check on purpose: the cost of being wrong is one extra QR code on a phone,
@@ -189,6 +223,44 @@ export default function SelfCaptureUpload() {
     }
 
     let cancelled = false;
+
+    // Separate request, and deliberately not awaited with the link check: a
+    // brief we cannot load is a missing checklist, not a broken capture page.
+    (async () => {
+      try {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
+        const data = (await response.json().catch(() => null)) as {
+          ok?: boolean;
+          status?: TaskStatus;
+        } | null;
+        if (cancelled || !response.ok || !data?.status) return;
+        setStatus(data.status);
+      } catch {
+        // No status line. The rest of the page still works.
+      }
+    })();
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
+        const data = (await response.json().catch(() => null)) as {
+          ready?: boolean;
+          brief?: (DraftedBrief & { shotList?: ChecklistItem[]; confirmedAtIso?: string | null });
+        } | null;
+        if (cancelled || !response.ok || !data?.ready || !data.brief) return;
+        if (Array.isArray(data.brief.shotList)) setShotList(data.brief.shotList);
+        setBrief({
+          summary: data.brief.summary,
+          captureMode: data.brief.captureMode,
+          proposed: data.brief.proposed ?? [],
+          unresolved: data.brief.unresolved ?? [],
+        });
+        setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
+      } catch {
+        // No list. The camera still works.
+      }
+    })();
+
     (async () => {
       try {
         const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
@@ -321,6 +393,36 @@ export default function SelfCaptureUpload() {
         {link.status === "held" ? "Not yet — here is what is in the way" : "Film the work area"}
       </h1>
 
+      {/* Where the task stands, for the operator who has no account. The
+          workspace serves the same status to signed-in sites; this serves the
+          person who followed a link from an email and never signed up. */}
+      {status && (
+        <div
+          style={{
+            border: "1px solid var(--ms-rule)",
+            padding: "16px",
+            marginBottom: "24px",
+            background: "var(--ms-paper)",
+          }}
+        >
+          <strong>{status.headline}</strong>
+          {status.operatorAction && (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              {status.operatorAction}
+            </p>
+          )}
+          {status.nextUpdateIso ? (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              Next update by {new Date(status.nextUpdateIso).toLocaleString()}.
+            </p>
+          ) : (
+            <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
+              We will email you when there is something to say. Nothing to watch here.
+            </p>
+          )}
+        </div>
+      )}
+
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
       )}
@@ -418,14 +520,41 @@ export default function SelfCaptureUpload() {
                 background: "var(--ms-paper)",
               }}
             >
-              <strong>That is everything we need.</strong>
+              <strong>Your capture is saved.</strong>
               <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                We will turn it into a 3D scene and run the shortlisted robots against it. You do
-                not need to do anything else — we will email you when there is something to look at.
+                You can close this page. We check next whether it covers the work area well enough to
+                build the scene, and we will come back to you either way — including if one more
+                view would finish the job.
               </p>
             </div>
+          ) : brief && !briefConfirmed ? (
+            /* The brief comes before the camera. Confirming what we understood
+               is the attestation that lets a submission reach `qualified`, and
+               a walkthrough filmed against a brief nobody corrected is footage
+               we cannot turn into supply. Once confirmed, this falls through to
+               the recorder below on the next render. */
+            <TaskBriefReview
+              token={token}
+              brief={brief}
+              onConfirmed={() => setBriefConfirmed(true)}
+            />
           ) : (
             <>
+              {/* The guided path. It offers itself only where the browser can
+                  record a format our reconstruction accepts, and hides itself
+                  otherwise -- so the file picker below is never the second-best
+                  option presented as a consolation, it is the path. */}
+              <CaptureRecorder
+                token={token}
+                checklist={shotList}
+                onSaved={() => setUpload({ status: "done" })}
+              />
+
+              <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+                Already have a video? Upload it instead — if it covers the work area we will use
+                it rather than ask you to film again.
+              </p>
+
               <input
                 ref={inputRef}
                 type="file"

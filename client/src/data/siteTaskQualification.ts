@@ -105,6 +105,32 @@ export interface QualifyingField {
    * This is what decides whether a marginal answer needs a call or a video.
    */
   settledByFootage?: boolean;
+  /**
+   * Which action this gate's answer actually blocks.
+   *
+   * ## Why one checklist was the wrong shape
+   *
+   * Every gate used to block everything, because there was one verdict and
+   * `qualified` was all of it. That conflated three different questions:
+   *
+   * - is there enough here to start an assessment?
+   * - is there enough to ask someone to go and film their workcell?
+   * - is there enough to prepare an evaluation a robot team would pay for?
+   *
+   * An unknown carton weight does not stop us documenting where the conveyor
+   * and the pallet are. But not knowing whether the station gets rearranged
+   * between shifts does stop us, because it decides which configuration is even
+   * worth recording. The first is `evaluation`; the second is `capture`.
+   *
+   * So the rule is: ask before a capture when the answer changes the capture
+   * decision — not because the answer will eventually be needed.
+   *
+   * `capture` gates are the ones that change what to record, or whether
+   * recording today is worth anything. `evaluation` gates are the ones a robot
+   * team's result depends on, which can be settled while the footage is already
+   * in hand.
+   */
+  blocks?: "capture" | "evaluation";
 }
 
 /**
@@ -180,6 +206,8 @@ export const gateFields: readonly QualifyingField[] = [
   {
     id: "serviceArea",
     question: "Where is the site?",
+    // Blocks a visit and nothing else, which `bindsForCaptureModes` already says.
+    blocks: "capture",
     hint: "Only limits a visit. If you record it yourself, anywhere works.",
     // The one gate that is about us rather than about the room, so it is the
     // one gate a self-capture submission is not held to.
@@ -203,6 +231,9 @@ export const gateFields: readonly QualifyingField[] = [
     ],
   },
   {
+    // Decides which configuration is worth recording at all. A station being
+    // rearranged tomorrow makes a careful capture of today a poor next action.
+    blocks: "capture",
     id: "sceneStability",
     settledByFootage: true,
     question: "Between shifts, how much does this work area change?",
@@ -225,6 +256,8 @@ export const gateFields: readonly QualifyingField[] = [
     ],
   },
   {
+    // Decides what to record: one cycle, or a category nobody can film.
+    blocks: "capture",
     id: "taskShape",
     settledByFootage: true,
     question: "Is this one repeated job, or a category of jobs?",
@@ -246,6 +279,8 @@ export const gateFields: readonly QualifyingField[] = [
     ],
   },
   {
+    // Decides whether the capture needs to show variants or one example.
+    blocks: "capture",
     id: "objectVariety",
     settledByFootage: true,
     question: "How many distinct items does this task handle?",
@@ -269,6 +304,9 @@ export const gateFields: readonly QualifyingField[] = [
     ],
   },
   {
+    // A fact about the business, not about what to film. Needed before a
+    // robot team is offered the site; changes nothing about the recording.
+    blocks: "evaluation",
     id: "deploymentTimeline",
     question: "When would you want a robot actually running here?",
     hint: "A real target, not a best case.",
@@ -292,6 +330,10 @@ export const gateFields: readonly QualifyingField[] = [
     ],
   },
   {
+    // An operating condition, which is a different question from whether the
+    // site may record today -- that is the rights checkbox at intake. This one
+    // binds the feasibility claim, so it binds the evaluation.
+    blocks: "evaluation",
     id: "accessWindow",
     question: "Is there a time this station sits idle and clear of untrained people?",
     hint: "This is both when a robot could run and when we could capture.",

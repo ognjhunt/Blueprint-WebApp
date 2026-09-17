@@ -73,6 +73,7 @@ import {
   createRequestedRun,
   listUnsettledRuns,
   markResolved,
+  checkReleaseEligibility,
   reconcileTeamHolds,
   reservationTtlMs,
   runIdForReservation,
@@ -776,10 +777,49 @@ router.post("/runs/:reservationId/release", async (req: Request, res: Response) 
     return res.status(400).json({ error: "A reservationId is required" });
   }
 
+  // A release is a cancellation, and cancellation has a window. This used to
+  // take any reservation id and give the hold back without looking at the run,
+  // so an agent could reserve, let execution start, release, and keep the work.
+  const eligibility = await checkReleaseEligibility(teamId, reservationId);
+
+  if (!eligibility.allowed) {
+    return res.status(409).json({
+      error:
+        eligibility.reason === "outcome_reported"
+          ? "This run has already reported an outcome, so its hold is not yours to cancel."
+          : "That reservation belongs to another team.",
+      code: eligibility.reason,
+      ...(eligibility.reason === "outcome_reported"
+        ? {
+            why:
+              "Cancelling is for a run that never started. Once episodes are reported the run " +
+              "settles on what it did — a failed attempt is billable and an environment that " +
+              "would not launch is not, and that is the Pipeline's report to make rather than " +
+              "the spender's.",
+            state: eligibility.run.state,
+            episodesRun: eligibility.run.episodesRun,
+          }
+        : {}),
+    });
+  }
+
+  // Already settled or released. Same answer as the first time, and no second
+  // ledger entry: an agent retrying a call it never saw the answer to must not
+  // change anything by asking twice.
+  if (eligibility.alreadyResolved) {
+    return res.json({
+      ok: true,
+      reservationId,
+      released: false,
+      alreadyResolved: true,
+      balance: await getTeamBalance(teamId),
+    });
+  }
+
   const balance = await releaseReservation({
     teamId,
     reservationId,
-    reason: "Run did not start",
+    reason: "Cancelled by the team's agent before any outcome was reported",
     idempotencyKey: `release:${reservationId}`,
   });
 
@@ -793,7 +833,7 @@ router.post("/runs/:reservationId/release", async (req: Request, res: Response) 
     "Released by the team's agent before the run started",
   );
 
-  return res.json({ ok: true, reservationId, balance });
+  return res.json({ ok: true, reservationId, released: true, balance });
 });
 
 /* ------------------------------------------------------------- funding */

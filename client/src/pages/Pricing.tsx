@@ -95,7 +95,7 @@ export default function Pricing() {
               <strong>What is not free:</strong> {siteAssessment.whatIsNotFree}
             </p>
             <a className="ms-text-link" href="/contact/site-operator">
-              Discuss your site <ArrowRight size={20} aria-hidden="true" />
+              Start a task assessment <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
 
@@ -145,6 +145,13 @@ export default function Pricing() {
                   <span>{formatCount(round.episodes)}</span> episodes per candidate
                 </p>
                 <p className="ms-round-funder">{round.funder}</p>
+                {/* Only the finalist round carries this, and it has to be on
+                    the page rather than in the data: a subsidy whose
+                    sustainability is unmeasured must not read as a settled
+                    permanent feature. */}
+                {"commitment" in round ? (
+                  <p className="ms-round-funder">{round.commitment}</p>
+                ) : null}
                 <p className="ms-round-purpose">{round.purpose}</p>
                 <p className="ms-round-resolves">{round.resolves}</p>
                 <p className="ms-round-limit">{round.limit}</p>
@@ -223,7 +230,7 @@ export default function Pricing() {
 
         <div className="ms-how-cta">
           <a className="ms-button ms-button-large" href="/contact/site-operator">
-            Discuss your site <ArrowRight size={20} aria-hidden="true" />
+            Start a task assessment <ArrowRight size={20} aria-hidden="true" />
           </a>
           <a className="ms-text-link" href="/contact/robot-team">
             Apply as a robot team <ArrowRight size={20} aria-hidden="true" />

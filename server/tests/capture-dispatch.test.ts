@@ -106,6 +106,7 @@ describe("which mode a site is offered first", () => {
 describe("dispatching capture without a person", () => {
   it("dispatches a qualified self-capture site to an upload link", () => {
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "self_capture",
       unanswered: [],
@@ -121,6 +122,7 @@ describe("dispatching capture without a person", () => {
 
   it("publishes a capturer job only for a visit", () => {
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "site_visit",
       unanswered: [],
@@ -132,6 +134,7 @@ describe("dispatching capture without a person", () => {
 
   it("holds whenever a person was asked for, whatever the gates said", () => {
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       requiresHumanReview: true,
       captureMode: "self_capture",
@@ -145,6 +148,7 @@ describe("dispatching capture without a person", () => {
     // sending a person on answers a form could not settle, and that is what it
     // now says. Receiving a video has no such cost; see below.
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "needs_conversation",
       captureMode: "site_visit",
     });
@@ -154,12 +158,13 @@ describe("dispatching capture without a person", () => {
 
   it("holds on not_now", () => {
     expect(
-      decideCaptureDispatch({ disposition: "not_now", captureMode: "site_visit" }),
+      decideCaptureDispatch({ captureRegion: "us", disposition: "not_now", captureMode: "site_visit" }),
     ).toMatchObject({ dispatch: false, holdReason: "not_qualified" });
   });
 
   it("holds a visit when a gate is unanswered even if something says qualified", () => {
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: "qualified",
       captureMode: "site_visit",
       unanswered: ["sceneStability"],
@@ -178,7 +183,7 @@ describe("dispatching capture without a person", () => {
     // the one artifact that makes the screen answerable.
     for (const disposition of ["not_now", "needs_conversation", undefined] as const) {
       expect(
-        decideCaptureDispatch({ disposition, captureMode: "self_capture" }),
+        decideCaptureDispatch({ captureRegion: "us", disposition, captureMode: "self_capture" }),
       ).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
     }
   });
@@ -186,6 +191,7 @@ describe("dispatching capture without a person", () => {
   it("lets an unscreened site record with gates it never answered", () => {
     expect(
       decideCaptureDispatch({
+        captureRegion: "us",
         disposition: "not_now",
         captureMode: "self_capture",
         unanswered: ["sceneStability", "taskShape", "objectVariety", "accessWindow"],
@@ -199,6 +205,7 @@ describe("dispatching capture without a person", () => {
     // film a site they never asked us about is wrong at any price.
     expect(
       decideCaptureDispatch({
+        captureRegion: "us",
         disposition: "qualified",
         captureMode: "self_capture",
         bindingFieldIds: ["sceneStability"],
@@ -210,6 +217,7 @@ describe("dispatching capture without a person", () => {
   it("still refuses a self-capture invitation a human parked", () => {
     expect(
       decideCaptureDispatch({
+        captureRegion: "us",
         disposition: "qualified",
         captureMode: "self_capture",
         requiresHumanReview: true,
@@ -220,25 +228,25 @@ describe("dispatching capture without a person", () => {
   it("holds rather than assuming a visit when no capture mode was recorded", () => {
     // Defaulting to site_visit here would dispatch a capturer to a site that
     // could be anywhere, which is the one mistake this module must not make.
-    const decision = decideCaptureDispatch({ disposition: "qualified", captureMode: null });
+    const decision = decideCaptureDispatch({ captureRegion: "us", disposition: "qualified", captureMode: null });
 
     expect(decision).toMatchObject({ dispatch: false, holdReason: "capture_mode_missing" });
   });
 
   it("rejects an unrecognised capture mode rather than coercing it", () => {
     expect(
-      decideCaptureDispatch({ disposition: "qualified", captureMode: "drone" }),
+      decideCaptureDispatch({ captureRegion: "us", disposition: "qualified", captureMode: "drone" }),
     ).toMatchObject({ dispatch: false, holdReason: "capture_mode_missing" });
   });
 
   it("describes every outcome for the request trail", () => {
     expect(
       describeCaptureDispatch(
-        decideCaptureDispatch({ disposition: "qualified", captureMode: "self_capture" }),
+        decideCaptureDispatch({ captureRegion: "us", disposition: "qualified", captureMode: "self_capture" }),
       ),
     ).toContain("no visit required");
     expect(
-      describeCaptureDispatch(decideCaptureDispatch({ disposition: "not_now" })),
+      describeCaptureDispatch(decideCaptureDispatch({ captureRegion: "us", disposition: "not_now" })),
     ).toContain("held (not_qualified)");
   });
 });
@@ -252,6 +260,7 @@ describe("end to end: the form's verdict is the dispatch decision", () => {
     );
 
     const decision = decideCaptureDispatch({
+      captureRegion: "us",
       disposition: triage.disposition,
       unanswered: triage.unanswered,
       captureMode: "self_capture",
@@ -259,5 +268,87 @@ describe("end to end: the form's verdict is the dispatch decision", () => {
     });
 
     expect(decision).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
+  });
+});
+
+describe("where we are cleared to collect binds before anything about cost", () => {
+  it("refuses to invite an out-of-region site to film, however clean its gates", () => {
+    const decision = decideCaptureDispatch({
+      disposition: "qualified",
+      captureMode: "self_capture",
+      unanswered: [],
+      captureRegion: "non_us",
+    });
+
+    // The rule the old header got wrong. "Self-capture is dispatchable
+    // anywhere" conflated where a capturer can drive with where we are cleared
+    // to receive footage. The first does not bind an upload. This does.
+    expect(decision).toMatchObject({
+      dispatch: false,
+      holdReason: "capture_region_unapproved",
+    });
+  });
+
+  it("refuses when nobody recorded a region, rather than assuming the common case", () => {
+    const decision = decideCaptureDispatch({
+      disposition: "qualified",
+      captureMode: "self_capture",
+      unanswered: [],
+    });
+
+    // Absent is not "probably the US". A capture invitation starts collection,
+    // and an unrecorded region means there is no basis to point at.
+    expect(decision).toMatchObject({
+      dispatch: false,
+      holdReason: "capture_region_unknown",
+    });
+  });
+
+  it("binds a visit too, because the basis does not depend on who holds the phone", () => {
+    const decision = decideCaptureDispatch({
+      disposition: "qualified",
+      captureMode: "site_visit",
+      unanswered: [],
+      captureRegion: "non_us",
+    });
+
+    expect(decision).toMatchObject({
+      dispatch: false,
+      holdReason: "capture_region_unapproved",
+    });
+  });
+
+  it("still lets a human-review request and inferred gates answer first", () => {
+    // Order matters for what an operator is told to do. A site nobody has
+    // spoken to should read as "confirm the gates", not as "check the region".
+    expect(
+      decideCaptureDispatch({
+        disposition: "qualified",
+        captureMode: "self_capture",
+        requiresHumanReview: true,
+        captureRegion: "non_us",
+      }),
+    ).toMatchObject({ dispatch: false, holdReason: "human_review_requested" });
+
+    expect(
+      decideCaptureDispatch({
+        disposition: "qualified",
+        captureMode: "self_capture",
+        bindingFieldIds: ["sceneStability"],
+        gateAnswerSources: { sceneStability: "inferred" },
+        captureRegion: "non_us",
+      }),
+    ).toMatchObject({ dispatch: false, holdReason: "gates_inferred" });
+  });
+
+  it("dispatches once the region is one we are cleared for", () => {
+    expect(
+      decideCaptureDispatch({
+        disposition: "qualified",
+        captureMode: "self_capture",
+        unanswered: [],
+        captureRegion: "us",
+      }),
+    ).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
   });
 });

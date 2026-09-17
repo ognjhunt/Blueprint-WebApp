@@ -136,15 +136,32 @@ async function seedSpendableTeam() {
     unrunnableReason: null,
   });
 
+  // Runnable supply now means three things, not one: a qualified verdict, the
+  // operator's confirmation of the brief we drafted, and a scene that exists.
   docs.set("inboundRequests/site-1", {
     requestId: "site-1",
     request: {
       buyerType: "site",
       targetSiteType: "Warehouse",
+      capture_mode: "self_capture",
+      capture_region: "us",
       siteTaskSpec: { taskFamily: "tote_transfer" },
-      siteTaskGates: { serviceArea: "us_national" },
+      siteTaskGates: {
+        sceneStability: "stable",
+        taskShape: "single",
+        objectVariety: "under_10",
+        deploymentTimeline: "this_quarter",
+        accessWindow: "scheduled",
+      },
     },
     site_task_triage: { disposition: "qualified" },
+    site_task_brief_confirmed_at: "2026-09-17T00:00:00.000Z",
+    pipeline: {
+      scene_id: "site-1",
+      capture_id: "cap-1",
+      pipeline_prefix: "gs://bucket/site-1",
+      artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site-1/world.json" },
+    },
   });
 }
 

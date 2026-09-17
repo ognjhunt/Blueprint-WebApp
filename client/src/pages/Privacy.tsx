@@ -28,11 +28,20 @@ export const privacyPolicySections = [
 ] as const;
 
 export const capturePrivacyAnnex = [
-  ["Raw walkthrough media", "Used to package, review, redact, and audit exact-site outputs. Buyer visibility depends on listing rights and privacy state."],
+  // The pricing page states this as an absolute: "They never receive your
+  // recording." This row used to make it conditional -- "buyer visibility
+  // depends on listing rights and privacy state" -- which meant the document a
+  // site reads before consenting disagreed with the document it reads before
+  // buying. The absolute is the true one, so the conditional goes.
+  ["Raw walkthrough media", "Used inside Blueprint to package, review, redact, and audit exact-site outputs. It is never delivered to a robot team or any other buyer. No listing right, order form, rights sheet, or hosted-review scope grants access to the recording itself."],
+  // Stated because "they never get the recording" is necessary and not
+  // sufficient: a policy served through an endpoint has to be sent something to
+  // look at, and what it is sent is derived from the site.
+  ["What a robot team's policy is sent", "Observations rendered from the reconstructed scene, never the walkthrough. Those renders can still show layout, equipment, and stock, so they carry the same rights and retention terms as the scene, and they are not licensed for training unless a written agreement says so."],
   ["Faces, screens, and paperwork", "Expected to be avoided or redacted where practical before buyer-facing proof is presented."],
   ["Location and route metadata", "Used to keep proof tied to the exact site, capture window, allowed route, and restricted-zone boundaries."],
   ["Retention", "Retained under the beta schedule below unless a signed agreement, legal hold, security incident, or active privacy request requires a different handling path."],
-  ["Buyer sharing", "Shared according to the listing, order form, rights sheet, hosted-review scope, or other written agreement."],
+  ["Buyer sharing", "Derived outputs -- the scene, its observations, and the evaluation results -- are shared according to the listing, order form, rights sheet, hosted-review scope, or other written agreement. The raw walkthrough is outside the scope of all of them."],
 ];
 
 export const rolePrivacyAnnex = [

@@ -7,6 +7,7 @@ import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 import type { LegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import type { SiteMatchSummaryRecord } from "../utils/siteMatchRun";
 import type { CaptureMode } from "../../client/src/data/siteTaskQualification";
+import type { CaptureRegion } from "../../client/src/data/captureResidency";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 
 // R047: server-derived Terms of Service / Privacy Policy acceptance record.
@@ -245,6 +246,15 @@ export interface RequestDetails {
    * than assuming nobody has to travel.
    */
   capture_mode?: CaptureMode | null;
+  /**
+   * Which region the site is in, as the operator stated it.
+   *
+   * The beta's basis for collecting a walkthrough is region-scoped, so this is
+   * what `decideCaptureDispatch` reads before issuing a capture invitation.
+   * Absent means nobody was asked, which is a hold rather than a pass — see
+   * `captureResidency.ts`.
+   */
+  capture_region?: CaptureRegion | null;
   /** Answers to the spec-tier questions. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** The free-text task description the narrative review reads against the gates. */
@@ -953,6 +963,14 @@ export interface InboundRequest {
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
+  /**
+   * When the operator confirmed the task brief we drafted.
+   *
+   * The attestation. Until this exists the gate answers are our reading of
+   * their evidence rather than their statement of it, so nothing downstream
+   * may treat the verdict as theirs.
+   */
+  site_task_brief_confirmed_at?: FirebaseFirestore.Timestamp | string | null;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
   // R047: recorded Terms of Service / Privacy Policy acceptance for the buyer/operator.
@@ -1064,6 +1082,10 @@ export interface RequestDetailsStored {
   siteTaskGates?: Record<string, string> | null;
   /** An enum token like the gates, and stored in the clear for the same reason. */
   capture_mode?: CaptureMode | null;
+  /** Also an enum token, also queryable: a residency hold has to be auditable. */
+  capture_region?: CaptureRegion | null;
+  /** Whether the site said it already holds footage. Drives reuse, not routing. */
+  has_existing_footage?: boolean | null;
   siteTaskSpec?: Record<string, string> | null;
   /** Operator prose. Encrypted: a task description can name people and process. */
   taskDescription?: EncryptableString | null;
@@ -1128,6 +1150,21 @@ export interface InboundRequestPayload {
    * driving rather than about the site. Absent means `site_visit`.
    */
   captureMode?: string | null;
+  /**
+   * Which region the site is in. Asked rather than parsed out of the location,
+   * because a residency decision made on a guess reads as a clearance we never
+   * had.
+   */
+  captureRegion?: string | null;
+  /**
+   * Whether the site says it already has footage or photographs.
+   *
+   * Changes what we tell them next, not which funnel they are in. Evidence they
+   * already hold gets assessed for both purposes -- does it explain the job,
+   * does it cover the work area -- and reused wherever it can be, because
+   * making someone film twice for our workflow's benefit is our cost to bear.
+   */
+  hasExistingFootage?: boolean;
   /** Spec-tier answers. These specify a task; they never gate it. */
   siteTaskSpec?: Record<string, string> | null;
   /** Free-text task description, read by the narrative review against the gates. */
@@ -1320,6 +1357,14 @@ export interface InboundRequestListItem {
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary | null;
   pipeline?: PipelineAttachment;
+  /**
+   * When the operator confirmed the task brief we drafted.
+   *
+   * The attestation. Until this exists the gate answers are our reading of
+   * their evidence rather than their statement of it, so nothing downstream
+   * may treat the verdict as theirs.
+   */
+  site_task_brief_confirmed_at?: FirebaseFirestore.Timestamp | string | null;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
 }

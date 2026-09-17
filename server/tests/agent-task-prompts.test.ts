@@ -92,6 +92,11 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     whatGoesWrong: "Shrink wrap snags about twice a shift.",
     operatorAnswers: { sceneStability: "stable", taskShape: "single" },
   },
+  capture_coverage: {
+    videoUrl: "https://example.com/clip.mp4",
+    taskSummary: "Totes move from the conveyor to a pallet.",
+    requestedViews: [{ id: "work-area", label: "The whole work area, from a few steps back" }],
+  },
 };
 
 describe("agent task prompts", () => {

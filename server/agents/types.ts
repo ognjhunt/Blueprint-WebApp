@@ -27,6 +27,17 @@ export type AgentTaskKind =
   | "adp_run_operator"
   | "external_harness_thread"
   | "site_video_evidence"
+  /**
+   * Whether the footage covers the work area well enough to build a scene, and
+   * which views are missing if not.
+   *
+   * Separate from `site_video_evidence` because it answers a different question
+   * about the same file. That one scores what the footage shows against what
+   * the operator said; this one establishes what the footage *never showed* --
+   * and absence is the harder claim, because it cannot be found by sampling
+   * frames and hoping the missing thing was not in one of them.
+   */
+  | "capture_coverage"
   | "robot_capability_extraction"
   | "capture_dispatch"
   | "outbound_outreach";

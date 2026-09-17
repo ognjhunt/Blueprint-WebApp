@@ -28,22 +28,42 @@
  * frames being in hand, and re-deciding them here would mean two places could
  * disagree about the same footage. This reads one boolean and ignores the rest.
  *
- * ## And it fails open
+ * ## Accepting an upload fails open. Deriving from it fails closed.
  *
- * Every path that cannot get an answer — the lane switched off, no signable
- * video, a model error, a timeout — proceeds. That is the opposite of the rule
- * everywhere else in this repo, and it is deliberate:
+ * The first version of this failed open on every path — lane off, no signable
+ * video, model error, timeout — and defended that by pointing at the
+ * reconstruction-time review, which still refuses to spend on footage it could
+ * not read.
  *
- * This check is a *tightening* of an existing gate, not the gate itself. The
- * reconstruction-time review is unchanged and still refuses to spend on footage
- * it could not read. If this one failed closed, a deployment with the evidence
- * lane off would strand every upload in the bucket with no marker and nothing
- * watching — which is a worse failure than the one it set out to prevent, and
- * the exact shape of bug this codebase has already been bitten by once.
+ * That defence was circular, and an audit took it apart cleanly: **the
+ * downstream gate does not protect the thing this gate was moved here to
+ * protect.** The reconstruction review guards *spending*. This one exists
+ * because by the time that review runs, the extractor has already decoded the
+ * video into frames of whoever is in it. A later gate cannot un-copy them. So
+ * "there is a gate downstream" is no reason at all to let a timeout produce
+ * persistent derivative copies.
  *
- * So the worst case here is that we are no better off than before, at the point
- * where before was already safe about money.
- */
+ * The real answer was not "fail open or strand every upload" — that was a
+ * limitation of the state machine, not a trade-off. Two transitions, two
+ * postures:
+ *
+ * - **Accepting the upload** fails open. It always succeeds, is always
+ *   recorded, and never depends on a reviewer. Nobody re-films because our
+ *   model timed out.
+ * - **Deriving from the upload** fails closed. The completion marker — the
+ *   thing that starts extraction — is written only for footage we actually
+ *   cleared, or footage nobody was ever configured to screen.
+ *
+ * ## Which leaves one honest distinction
+ *
+ * "We asked and could not get an answer" is not the same as "nobody ever
+ * configured a reviewer". The first is a failure of something we opted into,
+ * and it retries rather than deriving. The second is a deployment that never
+ * turned privacy screening on, where halting the product would be a surprise
+ * and pretending the footage was cleared would be a lie — so it proceeds, and
+ * it is recorded as `unscreened`, which is a word that cannot be mistaken for
+ * `cleared`.
+  */
 
 import { logger } from "../logger";
 import { buildCaptureFootageReviewer } from "./captureFootageReview";
@@ -64,16 +84,38 @@ function timeoutMs(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_PRIVACY_SCREEN_TIMEOUT_MS;
 }
 
+/**
+ * Whether anything may be derived from this upload yet.
+ *
+ * Deliberately separate from whether the upload succeeded. The upload always
+ * succeeds; this is about the next transition.
+ */
+export type ProcessingEligibility =
+  /** Watched and clear. Extraction may start. */
+  | "approved"
+  /** We asked and got no answer. Retryable, and nothing is derived meanwhile. */
+  | "pending"
+  /** Watched, and it needs a person before anything is processed. */
+  | "rejected"
+  /** No reviewer was ever configured here. Proceeds, and says so. */
+  | "unscreened";
+
 export interface PrivacyScreenResult {
   /** Whether the completion marker may be written, and extraction may start. */
   proceed: boolean;
+  /** What the upload is eligible for, which is not whether it arrived. */
+  eligibility: ProcessingEligibility;
   /** Why, in one machine-readable word. */
   outcome:
     | "cleared"
     | "privacy_hold"
-    /** No review was possible. Proceeds; see the fail-open note above. */
+    /** Asked, no answer. Retries; derives nothing in the meantime. */
+    | "review_unavailable"
+    /** Nobody configured a reviewer. Proceeds, recorded as unscreened. */
     | "not_reviewed";
   detail: string | null;
+  /** Set on `pending`: whether asking again could plausibly help. */
+  retryable?: boolean;
   /**
    * The reading itself, when there was one, so it can be stored rather than
    * thrown away — a second model call to ask the same question of the same
@@ -83,12 +125,40 @@ export interface PrivacyScreenResult {
   evidence: SiteVideoEvidenceOutput | null;
 }
 
-const PROCEED_UNREVIEWED: PrivacyScreenResult = {
+/**
+ * No reviewer exists in this deployment.
+ *
+ * Proceeds, because a deployment that never switched the evidence lane on has
+ * not made a privacy decision and stopping every capture dead would be a
+ * surprise rather than a safeguard. Recorded as `unscreened` so it can never be
+ * read as "watched and found nothing".
+ */
+const PROCEED_UNSCREENED: PrivacyScreenResult = {
   proceed: true,
+  eligibility: "unscreened",
   outcome: "not_reviewed",
   detail: null,
   evidence: null,
 };
+
+/**
+ * We asked and could not get an answer.
+ *
+ * Holds. This is the case the old fail-open covered and should not have: a
+ * model error or a timeout is not evidence that the footage is clear, and
+ * treating it as such is how frames of unconsented people end up in a bucket.
+ * The upload is kept and the screen is retried.
+ */
+function reviewUnavailable(detail: string): PrivacyScreenResult {
+  return {
+    proceed: false,
+    eligibility: "pending",
+    outcome: "review_unavailable",
+    retryable: true,
+    detail,
+    evidence: null,
+  };
+}
 
 /** Resolve to null rather than hang the upload on a provider that has stopped. */
 async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
@@ -116,37 +186,62 @@ export async function screenCaptureForPrivacy(params: {
   sceneId: string;
   captureId: string;
 }): Promise<PrivacyScreenResult> {
-  if (!isSiteVideoEvidenceEnabled()) return PROCEED_UNREVIEWED;
+  // Never configured. Status quo, named honestly.
+  if (!isSiteVideoEvidenceEnabled()) return PROCEED_UNSCREENED;
 
   let reviewer: Awaited<ReturnType<typeof buildCaptureFootageReviewer>> = null;
   try {
     reviewer = await buildCaptureFootageReviewer(params);
   } catch (error) {
-    logger.warn({ error, ...params }, "Could not build a privacy reviewer; proceeding unreviewed");
-    return PROCEED_UNREVIEWED;
+    logger.warn({ error, ...params }, "Could not build a privacy reviewer; holding for retry");
+    return reviewUnavailable(
+      "We could not review the footage yet. Nothing has been processed from it, and we will try "
+      + "again shortly.",
+    );
   }
-  if (!reviewer) return PROCEED_UNREVIEWED;
+  // The lane is on but this capture has nothing signable to watch -- no video
+  // URL we can hand a reviewer. Not the same as "no reviewer exists", so it
+  // holds and retries rather than proceeding.
+  if (!reviewer) {
+    return reviewUnavailable(
+      "There is nothing we can review yet. Nothing has been processed, and we will try again "
+      + "shortly.",
+    );
+  }
 
   let evidence: SiteVideoEvidenceOutput | null = null;
   try {
     evidence = await withTimeout(reviewer.review(), timeoutMs());
   } catch (error) {
-    logger.warn({ error, ...params }, "Privacy screen failed; proceeding unreviewed");
-    return PROCEED_UNREVIEWED;
+    // The path the audit was specifically about. A model error is not
+    // evidence that the footage is clear, and proceeding on it is how frames
+    // of unconsented people get written.
+    logger.warn({ error, ...params }, "Privacy screen failed; holding rather than deriving");
+    return reviewUnavailable(
+      "We could not finish reviewing the footage. Nothing has been processed from it, and we "
+      + "will try again shortly.",
+    );
   }
 
   if (!evidence) {
     // Distinguished in the log from "cleared" on purpose: a review that timed
     // out and a review that found nothing look identical downstream otherwise,
     // and only one of them is a reason to look at the provider.
-    logger.warn(params, "Privacy screen returned nothing; proceeding unreviewed");
-    return PROCEED_UNREVIEWED;
+    logger.warn(params, "Privacy screen returned nothing; holding rather than deriving");
+    return reviewUnavailable(
+      "The review did not come back in time. Nothing has been processed from the footage, and we "
+      + "will try again shortly.",
+    );
   }
 
   if (evidence.privacy_flag) {
     logger.info(params, "Capture held at upload: footage appears to centre identifiable people");
     return {
       proceed: false,
+      eligibility: "rejected",
+      // Not retryable: asking the same model the same question about the same
+      // video will give the same answer. This one needs a person.
+      retryable: false,
       outcome: "privacy_hold",
       detail:
         "The footage appears to centre identifiable people. Consent is a question for a person "
@@ -155,5 +250,5 @@ export async function screenCaptureForPrivacy(params: {
     };
   }
 
-  return { proceed: true, outcome: "cleared", detail: null, evidence };
+  return { proceed: true, eligibility: "approved", outcome: "cleared", detail: null, evidence };
 }

@@ -99,7 +99,7 @@ function seedRequest(
 ) {
   sharedFakeFirestoreState.docs.set(`inboundRequests/${requestId}`, {
     requestId,
-    request: { buyerType: "site_operator", capture_mode: captureMode },
+    request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us" },
     site_task_triage: {
       blocking_field_ids: [],
       blockers: [],
@@ -244,7 +244,7 @@ describe("a link is a destination, not a permission", () => {
     // gates mean the operator never contacted us.
     sharedFakeFirestoreState.docs.set("inboundRequests/req-inferred", {
       requestId: "req-inferred",
-      request: { buyerType: "site_operator", capture_mode: "self_capture" },
+      request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us" },
       site_task_gate_sources: { sceneStability: "inferred", taskShape: "inferred" },
       site_task_triage: {
         disposition: "qualified",
@@ -280,6 +280,43 @@ describe("a link is a destination, not a permission", () => {
     });
 
     expect(body.code).toBe("capturer_visit_scheduled");
+  });
+
+  it("refuses an upload from a region the beta is not cleared to collect from", async () => {
+    // The strongest of the three enforcement points. `siteCaptureUrl` withholds
+    // the link and `decideCaptureDispatch` refuses to dispatch, but a link that
+    // was issued before the region was asked -- or forwarded by someone -- must
+    // still not be able to hand us the footage. Collection is the act the basis
+    // has to exist for.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-non-us", {
+      requestId: "req-non-us",
+      request: {
+        buyerType: "site_operator",
+        capture_mode: "self_capture",
+        capture_region: "non_us",
+      },
+      site_task_triage: {
+        disposition: "qualified",
+        blocking_field_ids: [],
+        blockers: [],
+        open_questions: [],
+        unanswered_field_ids: [],
+        incomplete: false,
+      },
+    });
+
+    const body = await withRoutes(async (baseUrl) => {
+      const token = tokenFrom(captureUploadUrlFor("req-non-us"));
+      const form = new FormData();
+      form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, {
+        method: "POST",
+        body: form,
+      });
+      return (await response.json()) as Record<string, unknown>;
+    });
+
+    expect(body.code).toBe("capture_region_unapproved");
   });
 
   it("refuses when the submission behind the link cannot be found", async () => {
@@ -369,6 +406,7 @@ describe("one link, two pages", () => {
       request: {
         buyerType: "site_operator",
         capture_mode: "self_capture",
+        capture_region: "us",
         siteName: "Acme Cold Storage, 40 Mill Road",
       },
       contact: { email: "ops@acme.example", firstName: "Dana" },
