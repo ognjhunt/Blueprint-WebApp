@@ -41,6 +41,8 @@ import {
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
+import { commitTaskUpdate } from "./taskUpdateCommitment";
+import { deliverOutbox } from "./captureOutbox";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -166,6 +168,37 @@ export async function reviewCaptureCoverage(params: {
   }
 
   await recordCoverageFinding(params.requestId, params.captureId, finding);
+
+  // A named shortfall is the one coverage outcome worth an email: it is a
+  // specific, cheap thing the operator can do. "Covers the scene" needs no
+  // message -- the assessment simply proceeds -- and an unnamed shortfall is
+  // nothing they could act on. Queued through the outbox so it survives a crash.
+  if (!finding.coversScene && finding.missingCoverage.length) {
+    try {
+      const snap = await db?.collection("inboundRequests").doc(params.requestId).get();
+      const contact = (snap?.data()?.contact as { email?: string; firstName?: string } | undefined) ?? undefined;
+      if (contact?.email) {
+        await commitTaskUpdate({
+          requestId: params.requestId,
+          to: contact.email,
+          kind: "coverage_shortfall",
+          subject: "Blueprint — one more view would finish your capture",
+          body:
+            `Hi ${contact.firstName || "there"},\n\n`
+            + (finding.supplementWouldFinish
+              ? "Your footage shows the task clearly. To finish the scene we just need a little more:\n\n"
+              : "Your footage needs more coverage before we can build the scene:\n\n")
+            + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
+            + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"
+            + "— The Blueprint Team",
+        });
+        await deliverOutbox({ limit: 5 }).catch(() => undefined);
+      }
+    } catch (error) {
+      logger.warn({ error, requestId: params.requestId }, "Could not queue a coverage-shortfall email");
+    }
+  }
+
   return finding;
 }
 

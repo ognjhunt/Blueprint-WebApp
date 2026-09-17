@@ -37,6 +37,8 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
+import { deliverOutbox } from "../utils/captureOutbox";
 
 const router = Router();
 
@@ -50,16 +52,21 @@ async function readRequestForStatus(requestId: string): Promise<{
     supplement_would_finish?: boolean | null;
   } | null;
   site_task_next_update_iso?: string | null;
+  contactEmail?: string | null;
+  contactFirstName?: string | null;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
   if (!snap.exists) return null;
   const data = snap.data() as Record<string, unknown>;
+  const contact = data.contact as { email?: string; firstName?: string } | undefined;
   return {
     siteTaskGates: (data.request as { siteTaskGates?: Record<string, string> } | undefined)?.siteTaskGates ?? null,
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
     site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
+    contactEmail: typeof contact?.email === "string" ? contact.email : null,
+    contactFirstName: typeof contact?.firstName === "string" ? contact.firstName : null,
   };
 }
 
@@ -212,6 +219,35 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
+    // A decision was reached, so commit to the next update and queue the email
+    // that honours it -- through the outbox, so a crash between here and the
+    // send does not lose it. Best-effort read of the contact: a missing email
+    // means no message to send, not a failed confirmation.
+    void (async () => {
+      const request = await readRequestForStatus(payload.requestId).catch(() => null);
+      if (!request?.contactEmail) return;
+      const firstName = request.contactFirstName || "there";
+      const decision = result.readiness.blockingCapture.length
+        ? "We need a couple of details before you record."
+        : "We can assess this task — a recording of the work area is the next step.";
+      await commitTaskUpdate({
+        requestId: payload.requestId,
+        to: request.contactEmail,
+        kind: result.readiness.blockingCapture.length ? "input_needed" : "brief_confirmed",
+        subject: "Blueprint — we have your task brief",
+        body:
+          `Hi ${firstName},\n\n`
+          + `Thanks for confirming the task brief. ${decision}\n\n`
+          + `${result.readiness.nextAction}\n\n`
+          + "You can come back to your task any time from the link we sent you. "
+          + "We will email you when there is something new.\n\n"
+          + "— The Blueprint Team",
+      });
+      // Deliver opportunistically on this request's own path, so notifications
+      // do not depend on a scheduler being enabled in this deployment.
+      await deliverOutbox({ limit: 5 }).catch(() => undefined);
+    })();
+
     return res.status(200).json({
       ok: true,
       // The verdict, and what it means for them next. Both, because a
@@ -287,6 +323,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         stage,
       }),
     );
+
+    // Piggyback delivery on this poll, so a deployment with no scheduler still
+    // sends. Never blocks or fails the status read.
+    void deliverOutbox({ limit: 5 }).catch(() => undefined);
 
     return res.status(200).json({ ok: true, status, summary: brief?.summary ?? null });
   } catch (error) {
