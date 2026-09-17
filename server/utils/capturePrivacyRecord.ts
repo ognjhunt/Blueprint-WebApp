@@ -24,6 +24,14 @@ export async function recordCapturePrivacyScreen(params: {
   requestId: string;
   captureId: string;
   result: PrivacyScreenResult;
+  /**
+   * How many times we have asked, including this one.
+   *
+   * Stored because the retry budget has to survive a restart: a counter held
+   * in memory would reset and a held capture could be retried forever without
+   * ever reaching a person.
+   */
+  attempts?: number;
 }): Promise<void> {
   if (!db) return;
 
@@ -36,8 +44,19 @@ export async function recordCapturePrivacyScreen(params: {
           capture_privacy_screen: {
             capture_id: params.captureId,
             outcome: params.result.outcome,
+            // What the upload may be used for, which is a different question
+            // from whether it arrived. `proceeded` answers the old, conflated
+            // one and is kept so existing readers do not break.
+            eligibility: params.result.eligibility,
+            retryable: params.result.retryable ?? false,
             proceeded: params.result.proceed,
             detail: params.result.detail,
+            attempts: params.attempts ?? 1,
+            // Set once and never overwritten, because the age of the hold is
+            // measured from when it started rather than from the last attempt.
+            ...(params.result.eligibility === "pending" && (params.attempts ?? 1) <= 1
+              ? { first_held_at_iso: new Date().toISOString() }
+              : {}),
             screened_at_iso: new Date().toISOString(),
             screened_at: admin.firestore.FieldValue.serverTimestamp(),
           },

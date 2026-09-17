@@ -24,6 +24,7 @@ import {
 } from "../utils/captureUploadToken";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
+import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
 
 const router = Router();
@@ -173,10 +174,121 @@ export function buildBrowserCaptureManifest(input: {
  * status page while something is in the way and an upload page the moment it
  * is not. Nobody has to send a second link.
  */
+/**
+ * Find the video a capture already uploaded.
+ *
+ * The signed token carries the scene and capture ids but not the file
+ * extension, and the retry path needs the real object path to name in the
+ * marker. Rather than guess, this asks storage what is actually there -- the
+ * manifest is written beside the video before the privacy screen runs, so for
+ * any capture that can be held, both exist.
+ */
+async function resolveStoredObjectPath(
+  sceneId: string,
+  captureId: string,
+): Promise<{ rawPrefix: string; objectPath: string } | null> {
+  if (!storageAdmin) return null;
+  for (const extension of ALLOWED_EXTENSIONS) {
+    const objectPath = selfCaptureObjectPath({ sceneId, captureId, extension });
+    try {
+      const [exists] = await storageAdmin
+        .bucket(storageBucketName())
+        .file(objectPath)
+        .exists();
+      if (exists) {
+        return { rawPrefix: objectPath.slice(0, objectPath.lastIndexOf("/")), objectPath };
+      }
+    } catch {
+      // A storage error on one candidate extension is not a reason to stop
+      // looking at the others.
+    }
+  }
+  return null;
+}
+
+/**
+ * The marker that starts extraction.
+ *
+ * Extracted because two paths write it now: the upload itself, and a retry that
+ * finally got an answer out of the privacy screen. One implementation, because
+ * the extractor checks `raw_prefix` against the object's own path and a second
+ * copy of that contract would be a second chance to get it wrong.
+ */
+async function writeCompletionMarker(params: {
+  sceneId: string;
+  captureId: string;
+  rawPrefix: string;
+  objectPath: string;
+}): Promise<void> {
+  if (!storageAdmin) throw new Error("Storage is unavailable");
+  await storageAdmin
+    .bucket(storageBucketName())
+    .file(`${params.rawPrefix}/capture_upload_complete.json`)
+    .save(
+      JSON.stringify(
+        {
+          schema_version: "v1",
+          scene_id: params.sceneId,
+          capture_id: params.captureId,
+          // Checked against the object's own path by the extractor. Stated
+          // here so a marker copied to the wrong prefix is caught rather than
+          // silently processed against another capture's video.
+          raw_prefix: params.rawPrefix,
+          capture_source: "browser_self_capture",
+          video_uri: params.objectPath,
+          completed_at_iso: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+      { contentType: "application/json" },
+    );
+}
+
 router.get("/:token", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  }
+
+  // The cheap half of the promise that nothing gets stranded. The screen holds
+  // when it cannot get an answer, so something has to ask again -- and the
+  // caller who cares is here, asking how their upload is doing. Recovery does
+  // not wait on a scheduler being switched on in this deployment.
+  let resumed: Awaited<ReturnType<typeof resumeHeldPrivacyScreen>> | null = null;
+  try {
+    resumed = await resumeHeldPrivacyScreen({
+      requestId: payload.requestId,
+      captureId: payload.captureId,
+      sceneId: payload.sceneId,
+    });
+
+    if (resumed.action === "cleared") {
+      // It cleared on retry, so the thing that was missing is the marker. The
+      // extension is not on the token, so it comes from the stored manifest
+      // path -- see `resolveStoredObjectPath`.
+      const stored = await resolveStoredObjectPath(payload.sceneId, payload.captureId);
+      if (stored) {
+        await writeCompletionMarker({
+          sceneId: payload.sceneId,
+          captureId: payload.captureId,
+          rawPrefix: stored.rawPrefix,
+          objectPath: stored.objectPath,
+        });
+      } else {
+        logger.error(
+          { requestId: payload.requestId, captureId: payload.captureId },
+          "Privacy screen cleared on retry but the stored video could not be located",
+        );
+      }
+    }
+  } catch (error) {
+    // Never fail a status check over a retry. The site asked a question; the
+    // answer is still available whether or not the retry worked.
+    logger.warn(
+      { error, requestId: payload.requestId, captureId: payload.captureId },
+      "Could not resume a held privacy screen on status poll",
+    );
   }
 
   const authorization = await authorizeCaptureUpload(payload.requestId);
@@ -191,6 +303,11 @@ router.get("/:token", async (req: Request, res: Response) => {
     detail: authorization.detail,
     blockers: authorization.blockers,
     openQuestions: authorization.openQuestions,
+    // Present only when something was actually being held, so an ordinary
+    // status check does not grow a field that reads as a problem.
+    ...(resumed && resumed.action !== "nothing_held"
+      ? { review: { action: resumed.action } }
+      : {}),
   });
 });
 
@@ -335,40 +452,35 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   });
 
   if (!privacy.proceed) {
-    // 200, not an error. Their upload worked; it is what is in it that needs a
-    // person, and telling someone their video failed when it did not would
-    // send them off to re-film something we already have.
+    // 200, not an error, and `ok: true` — because the upload genuinely
+    // succeeded. Accepting fails open; only deriving fails closed. Telling
+    // someone their video failed when we are holding it would send them off to
+    // re-film something we already have.
+    //
+    // The two cases read differently to whoever is looking at them. `rejected`
+    // needs a person and asking again will not change it. `pending` is our
+    // problem and retries on its own.
     return res.status(200).json({
       ok: true,
       captureId: payload.captureId,
       state: "held",
-      code: "capture_privacy_review",
+      eligibility: privacy.eligibility,
+      retryable: privacy.retryable ?? false,
+      code:
+        privacy.eligibility === "pending"
+          ? "capture_review_unavailable"
+          : "capture_privacy_review",
       message: privacy.detail,
     });
   }
 
   try {
-    await bucket
-      .file(`${rawPrefix}/capture_upload_complete.json`)
-      .save(
-        JSON.stringify(
-          {
-            schema_version: "v1",
-            scene_id: payload.sceneId,
-            capture_id: payload.captureId,
-            // Checked against the object's own path by the extractor. Stated
-            // here so a marker copied to the wrong prefix is caught rather than
-            // silently processed against another capture's video.
-            raw_prefix: rawPrefix,
-            capture_source: "browser_self_capture",
-            video_uri: objectPath,
-            completed_at_iso: new Date().toISOString(),
-          },
-          null,
-          2,
-        ),
-        { contentType: "application/json" },
-      );
+    await writeCompletionMarker({
+      sceneId: payload.sceneId,
+      captureId: payload.captureId,
+      rawPrefix,
+      objectPath,
+    });
   } catch (error) {
     // The video is already stored, so this is recoverable by rewriting the
     // marker rather than re-uploading hundreds of megabytes. Say so plainly
@@ -385,6 +497,7 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   return res.status(201).json({
     ok: true,
     captureId: payload.captureId,
+    eligibility: privacy.eligibility,
     message: "Got it. We'll build the scene and come back to you.",
   });
 });
