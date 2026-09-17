@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // Every submission is intercepted. These tests never send an inquiry or email.
 test.beforeEach(async ({ page }) => {
@@ -52,8 +52,24 @@ const clearSiteGates = async (page: import("@playwright/test").Page) => {
   await page.locator("#gate-accessWindow").selectOption("scheduled");
 };
 
+/**
+ * Open the six-question screen.
+ *
+ * The site page leads with a camera now: a phone video of one work area is all
+ * a reconstruction needs, and four of the gates below are things the footage
+ * shows better than a dropdown. The screen still exists for a site that wants
+ * the full read before filming, one click in — so these tests open it rather
+ * than drop the assertions, because what it asks is unchanged.
+ */
+async function openSiteScreen(page: Page) {
+  const summary = page.getByText(/Want the full read first/i);
+  await expect(summary).toBeVisible();
+  await summary.click();
+}
+
 test("site inquiry validates, retains data on failure, then acknowledges a successful retry", async ({ page }) => {
   await page.goto("/contact/site-operator");
+  await openSiteScreen(page);
   let attempts = 0;
   let body: Record<string, any> = {};
   await page.route("**/api/inbound-request", async (route) => {
@@ -143,6 +159,7 @@ test("site owners can share task footage by link", async ({ page }) => {
   // consent record exists would bypass what /governance promises, and a link
   // leaves custody with the site.
   await page.goto("/contact/site-operator");
+  await openSiteScreen(page);
   await clearSiteGates(page);
   await page.locator("#prose-taskDescription").fill("Two related pick-and-place tasks.");
   await page.locator("#taskVideoUrl").fill("https://example.com/task-demo");

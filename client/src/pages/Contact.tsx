@@ -45,6 +45,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { RobotTeamPlanPreview } from "@/components/site/RobotTeamPlanPreview";
+import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { SEO } from "@/components/SEO";
 import { withCsrfHeader } from "@/lib/csrf";
 import { parseTaskVideoLinks } from "@/lib/taskVideos";
@@ -443,7 +444,7 @@ export default function Contact() {
   const isSite = location !== "/contact/robot-team";
   const title = isSite ? "Let’s start with your site." : "Bring your robot. Find the fit.";
   const description = isSite
-    ? "Six questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — then we scope a paid evaluation together."
+    ? "A phone video of one work area is all we need to build the 3D scene robot teams evaluate against. It costs you nothing and nothing here can turn you away."
     // Was "Tell us what your system can do" — a promise to go and look, which
     // is what the old flow actually did: a form, then a wait for a matching
     // site. We already hold the scenes, so the honest offer is a ranked plan
@@ -467,7 +468,7 @@ export default function Contact() {
           <p className="ms-inquiry-description">{description}</p>
           <p className="ms-inquiry-aside">
             {isSite
-              ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
+              ? "What the footage shows is what decides, so there is nothing to pass first — four of the questions we used to ask up front are things a thirty-second video answers better than any dropdown. We read it before spending anything and tell you exactly what we saw. The six-question screen is still here if you want the full read before filming, or a conversation instead."
               : "Five questions about your robot, and you will see which real sites we would run it against, what each costs, and why. None of them can turn you away. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
           </p>
           {!isSite && (
@@ -501,7 +502,32 @@ export default function Contact() {
           </a>
         </div>
         {isSite ? (
-          <ScreeningForm key="site" isSite />
+          /*
+           * The camera first, the screen second.
+           *
+           * The six questions above the form used to decide whether we would
+           * accept a video. Four of the five that bind a self-recorded capture
+           * are things the footage shows better than a dropdown, and receiving
+           * a video costs us nothing -- so the screen was protecting nothing
+           * and turning away the supply we are short of.
+           *
+           * It still exists, below, for a site that wants the full read before
+           * filming or wants to talk to someone. It no longer stands in front
+           * of the one artifact that makes it answerable.
+           */
+          <div className="ms-inquiry-forms">
+            <SiteCaptureStart />
+            <details style={{ marginTop: "32px" }}>
+              <summary style={{ cursor: "pointer" }}>
+                Want the full read first, or a conversation?
+              </summary>
+              <p className="ms-field-hint" style={{ margin: "12px 0 20px" }}>
+                Six questions that tell you where you stand before you film anything. None of
+                them is needed to send us a video.
+              </p>
+              <ScreeningForm key="site" isSite />
+            </details>
+          </div>
         ) : (
           /*
            * The plan first, the form second.

@@ -39,7 +39,14 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   await expect(page.locator("#gate-hardwareMaturity")).toBeVisible();
   await page.goto("/for-site-operators");
   await expect(page).toHaveURL(/\/contact\/site-operator/);
-  await expect(page.getByText(/paid evaluation/)).toBeVisible();
+  // The site page leads with a camera rather than a screen, so its own copy is
+  // about the footage deciding rather than about scoping a paid evaluation.
+  await expect(page.getByText(/six-question screen is still here/i)).toBeVisible();
+  // Its screen is behind a disclosure too, for the same reason the robot
+  // application is: it is no longer step one.
+  const siteScreen = page.getByText(/Want the full read first/i);
+  await expect(siteScreen).toBeVisible();
+  await siteScreen.click();
   // The site marker is the capture-mode question. Service area is only asked
   // once a visit is requested, so it is not the persona tell any more.
   await expect(page.locator("#capture-mode")).toBeVisible();
@@ -47,18 +54,18 @@ test("persona aliases separate site buyers from participating robot teams", asyn
 
 test("both persona destinations are usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const [path, button, disclosed] of [
-    // The robot page keeps its application behind a disclosure, because it
-    // leads with the free plan instead. The site page has no such split.
-    ["/for-robot-teams", "Send application", true],
-    ["/for-site-operators", "Send inquiry", false],
+  for (const [path, button, summaryText] of [
+    // Both pages lead with the thing that is actually the product -- a free
+    // ranked plan, a camera -- and keep their form one click in.
+    ["/for-robot-teams", "Send application", /Rather talk to someone/i],
+    ["/for-site-operators", "Send inquiry", /Want the full read first/i],
   ] as const) {
     await page.goto(path);
-    if (disclosed) {
+    {
       // Both of these paths are client-side redirects, so this has to wait for
       // the destination rather than test for the summary immediately -- a bare
       // `count()` races the redirect and silently skips the click.
-      const summary = page.getByText(/Rather talk to someone/i);
+      const summary = page.getByText(summaryText);
       await expect(summary).toBeVisible();
       await summary.click();
     }

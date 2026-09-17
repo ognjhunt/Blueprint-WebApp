@@ -196,8 +196,10 @@ describe("the privacy question is asked before anything is derived", () => {
   });
 
   it("never reaches the privacy screen for a site that is not allowed to upload", async () => {
-    // Authorization first: a held submission should not cost a model call.
-    seedRequest("req-unauthorized", { disposition: "not_now" });
+    // Authorization first: a held submission should not cost a model call. A
+    // failed screen no longer holds a self-capture, so this uses the hold that
+    // still exists -- a site set up for a capturer visit.
+    seedRequest("req-unauthorized", { disposition: "not_now" }, "site_visit");
 
     await withRoutes((baseUrl) => uploadFor(baseUrl, "req-unauthorized"));
 
@@ -208,48 +210,57 @@ describe("the privacy question is asked before anything is derived", () => {
 /* --------------------------------------------------- the security boundary */
 
 describe("a link is a destination, not a permission", () => {
-  it("refuses an upload for a site that did not clear the screen", async () => {
+  it("lets a site that did not clear the screen record anyway", async () => {
+    // Reversed deliberately. This asserted a 409, which was right while the
+    // screen stood in front of the video -- and wrong once we noticed the
+    // screen was asking a site to describe a room before we would accept a
+    // film of the same room. Receiving a video costs us nothing; the money is
+    // guarded after this, at reconstruction.
     seedRequest("req-blocked", {
       disposition: "not_now",
       blocking_field_ids: ["sceneStability"],
       blockers: ["You told us the layout changes daily. A scene that moves cannot be reused."],
     });
 
-    const result = await withRoutes(async (baseUrl) => {
-      const token = tokenFrom(captureUploadUrlFor("req-blocked"));
-      const form = new FormData();
-      form.append("video", new Blob(["not a video"], { type: "video/quicktime" }), "walk.mov");
-      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, {
-        method: "POST",
-        body: form,
-      });
-      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
-    });
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-blocked"));
 
-    // 409, not 404: the link is real, the moment is wrong.
-    expect(result.status).toBe(409);
-    expect(result.body.code).toBe("not_qualified");
-    expect(String(result.body.blockers)).toContain("layout changes daily");
+    expect(result.status).not.toBe(409);
+    expect([...written.keys()].some((p) => p.endsWith("capture_upload_complete.json"))).toBe(true);
   });
 
-  it("refuses an upload while a marginal answer is unsettled", async () => {
+  it("lets a site with an unsettled answer record anyway", async () => {
     seedRequest("req-marginal", {
       disposition: "needs_conversation",
       open_questions: ["How often does the pallet position move?"],
     });
 
-    const status = await withRoutes(async (baseUrl) => {
-      const token = tokenFrom(captureUploadUrlFor("req-marginal"));
-      const form = new FormData();
-      form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
-      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, {
-        method: "POST",
-        body: form,
-      });
-      return response.status;
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-marginal"));
+
+    expect(result.status).not.toBe(409);
+  });
+
+  it("still refuses an upload on gates nobody stated", async () => {
+    // The guard that is not about cost, and so survives the change: inferred
+    // gates mean the operator never contacted us.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-inferred", {
+      requestId: "req-inferred",
+      request: { buyerType: "site_operator", capture_mode: "self_capture" },
+      site_task_gate_sources: { sceneStability: "inferred", taskShape: "inferred" },
+      site_task_triage: {
+        disposition: "qualified",
+        blocking_field_ids: [],
+        blockers: [],
+        open_questions: [],
+        unanswered_field_ids: [],
+        incomplete: false,
+        evaluated_at: "2026-09-17T00:00:00.000Z",
+      },
     });
 
-    expect(status).toBe(409);
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-inferred"));
+
+    expect(result.status).toBe(409);
+    expect(result.body.code).toBe("gates_inferred");
   });
 
   it("refuses an upload when the site was set up for a capturer visit", async () => {
@@ -312,11 +323,17 @@ describe("a link is a destination, not a permission", () => {
 /* ----------------------------------------------- what the page is told */
 
 describe("one link, two pages", () => {
-  it("reports held with the site's own words when something is in the way", async () => {
-    seedRequest("req-held", {
-      disposition: "not_now",
-      blockers: ["You told us there is no access window. A capture needs 40 minutes in the space."],
-    });
+  it("reports held with the site's own words when something really is in the way", async () => {
+    // A capturer visit is still gated, so the held page still has a job. The
+    // screen verdict no longer produces it; the channel does.
+    seedRequest(
+      "req-held",
+      {
+        disposition: "not_now",
+        blockers: ["You told us there is no access window. A capture needs 40 minutes in the space."],
+      },
+      "site_visit",
+    );
 
     const body = await withRoutes(async (baseUrl) => {
       const token = tokenFrom(captureUploadUrlFor("req-held"));
@@ -379,12 +396,13 @@ describe("one link, two pages", () => {
 
   it("turns the same link live when the thing in the way resolves", async () => {
     // The whole reason a held link is worth issuing: nobody sends a second one.
-    seedRequest("req-flip", { disposition: "needs_conversation" });
+    // Shown on the visit path, which is where a hold still comes from.
+    seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
     const url = captureUploadUrlFor("req-flip");
 
     await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: false });
 
-    seedRequest("req-flip", { disposition: "qualified" });
+    seedRequest("req-flip", { disposition: "qualified" }, "self_capture");
 
     await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: true });
     // Same URL throughout.

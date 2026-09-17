@@ -7,7 +7,7 @@
  * ones pass.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockLocation = "/contact/site-operator";
@@ -54,14 +54,28 @@ function answerGates(answers: Record<string, string>) {
   }
 }
 
+/**
+ * The screening form, specifically.
+ *
+ * Both personas now lead with the thing that is actually the product -- a
+ * camera for a site, a free ranked plan for a robot team -- and keep the
+ * screening form one click in. So there are two forms on the page and two
+ * fields called "Your name", and a global query picks whichever it finds
+ * first rather than the one under test.
+ */
+function screeningForm() {
+  return within(screen.getByRole("form", { name: /screening questions/i }));
+}
+
 function fillContact() {
-  fireEvent.change(screen.getByLabelText("Your name"), {
+  const form = screeningForm();
+  fireEvent.change(form.getByLabelText("Your name"), {
     target: { value: "  Test Person  " },
   });
-  fireEvent.change(screen.getByLabelText("Work email"), {
+  fireEvent.change(form.getByLabelText("Work email"), {
     target: { value: "person@example.com" },
   });
-  fireEvent.change(screen.getByLabelText("Company"), {
+  fireEvent.change(form.getByLabelText("Company"), {
     target: { value: "Example Company" },
   });
 }
@@ -153,7 +167,7 @@ describe("Minimal public screening", () => {
     render(<Contact />);
     chooseCaptureMode("site_visit");
     answerGates(CLEAR_GATES);
-    fireEvent.submit(screen.getByRole("form"));
+    fireEvent.submit(screen.getByRole("form", { name: /screening questions/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/complete all required fields/i);
     expect(fetch).not.toHaveBeenCalled();
