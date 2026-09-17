@@ -156,11 +156,27 @@ export const robotGateFields: readonly QualifyingField[] = [
 export interface RobotSpecField extends SpecField {
   /** The `specFields` id on the site side whose enum this mirrors, if any. */
   siteSpecCounterpart?: string;
+  /**
+   * Whether an evaluation run establishes this better than the team can.
+   *
+   * Seven of these nine are outputs of the 550 episodes we were about to run
+   * anyway — we were asking a team to predict its own benchmark results and
+   * then letting the prediction decide who got matched. Once a checkpoint is
+   * registered, `recordMeasuredCapability` writes the real figure at
+   * `measured`, which outranks `self_reported` in `GRADE_RANK`, and the team's
+   * estimate simply stops winning.
+   *
+   * The two that are not marked are the two no episode can settle:
+   * `budgetBand` is a commercial fact about the business, and `taskFamily` is
+   * a declaration of what the robot is for.
+   */
+  supersededByMeasurement?: boolean;
 }
 
 export const robotSpecFields: readonly RobotSpecField[] = [
   {
     id: "payloadCapacity",
+    supersededByMeasurement: true,
     question: "What is the heaviest payload the system handles?",
     whyAsked: "Matched directly against what a site's task actually lifts.",
     siteSpecCounterpart: "payloadWeight",
@@ -173,6 +189,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "humanProximity",
+    supersededByMeasurement: true,
     question: "What human proximity is the system rated for?",
     whyAsked: "A site that shares floor space with people rules out anything not rated for it.",
     siteSpecCounterpart: "humanProximity",
@@ -184,6 +201,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "cycleTime",
+    supersededByMeasurement: true,
     question: "What cycle time can it hold on a task like this?",
     hint: "Sustained, not best case.",
     whyAsked: "Compared against how long the same job takes a person at the site today.",
@@ -198,6 +216,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "dutyCycle",
+    supersededByMeasurement: true,
     question: "How many cycles can it sustain in a shift?",
     whyAsked: "Matched against the site's actual volume, which is what decides the economics.",
     siteSpecCounterpart: "volume",
@@ -210,6 +229,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "demonstratedSuccessRate",
+    supersededByMeasurement: true,
     question: "What completion rate have you actually demonstrated?",
     hint: "Measured, not targeted. We would rather have the real number.",
     whyAsked: "Compared against the site's acceptance threshold. A gap here is the most common reason a promising match fails.",
@@ -224,6 +244,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "lighting",
+    supersededByMeasurement: true,
     question: "What is the hardest lighting it handles reliably?",
     whyAsked: "Daylight is the awkward case on both sides, and it is worth knowing before a capture.",
     siteSpecCounterpart: "lighting",
@@ -251,6 +272,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "objectHandling",
+    supersededByMeasurement: true,
     question: "How much does the system need to know about an object in advance?",
     whyAsked:
       "This decides how much of a site's object list has to be enumerated before you could run — and therefore what a data package has to contain.",
@@ -286,6 +308,18 @@ export const robotSpecFields: readonly RobotSpecField[] = [
  * is a robot team telling us what our product should be, in their words, before
  * we have built the wrong thing.
  */
+/**
+ * Spec answers a registered checkpoint will replace with a measurement.
+ *
+ * Used to tell a team which of these are worth their time: the ones a run
+ * cannot settle. Everything else is a placeholder until the first evaluation.
+ */
+export function measurableRobotSpecFieldIds(
+  fields: readonly RobotSpecField[] = robotSpecFields,
+): readonly string[] {
+  return fields.filter((field) => field.supersededByMeasurement).map((field) => field.id);
+}
+
 export const robotProseFields: readonly { id: string; question: string; hint: string }[] = [
   {
     id: "capabilityDescription",

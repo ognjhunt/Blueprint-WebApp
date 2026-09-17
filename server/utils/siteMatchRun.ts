@@ -72,6 +72,13 @@ export function summariseForStorage(summary: MatchSummary): SiteMatchSummaryReco
 export async function runSiteMatch(
   request: InboundRequest,
 ): Promise<MatchSummary | null> {
+  // A robot team's own submission is not a site, however well it screened.
+  // Without this the registry was matched against a robot team's spec answers
+  // and the team received a reply counting how many robot teams clear its
+  // constraints -- nonsense, sent to the wrong audience, and produced purely
+  // because both buyer types share one intake and one triage function.
+  if (request.request?.buyerType === "robot_team") return null;
+
   if (request.site_task_triage?.disposition !== "qualified") return null;
 
   const teams = await listMatchableRobotTeams();

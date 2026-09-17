@@ -46,6 +46,25 @@ The planner returns an exact testbed match, a request candidate, or a `task_eval
 - `blueprint.session.renderExplorer`
 - `blueprint.session.export`
 
+## Team-scoped tools
+
+These act for one robot team and are authenticated with a revocable per-team agent
+key (`Authorization: Bearer bpk_...`), not a person's session. An autonomous spender
+is not a person and should not inherit whatever a founder's account can do.
+
+- `blueprint.team.me`
+- `blueprint.team.checkpoint.register`
+- `blueprint.team.checkpoint.list`
+- `blueprint.team.plan`
+- `blueprint.team.runs.start`
+- `blueprint.team.runs.release`
+- `blueprint.team.policy.get`
+- `blueprint.team.policy.set`
+
+Only `blueprint.team.runs.start` spends. It returns a plan and spends nothing
+unless `confirm: true` is sent with an idempotency key, and every run is
+authorised separately against the team's balance, per-run limit and daily limit.
+
 Hosted-session tools are compatibility operations for already entitled records. They retain Firebase robot-team/admin authentication, entitlement, tenant, session ownership, rights, runtime, and launch-readiness gates. They are not a separate current product or a promise of new fulfillment.
 
 Historical compatibility commands remain available for authorized records:

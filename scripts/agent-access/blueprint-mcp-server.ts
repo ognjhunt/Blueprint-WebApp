@@ -91,6 +91,28 @@ const requestLocationDraftInputSchema: BlueprintMcpTool["inputSchema"] = {
   additionalProperties: false,
 };
 
+const teamCheckpointSchema = {
+  type: "object",
+  properties: {
+    label: stringProp("The team's own name for this policy version."),
+    runtime: stringProp("policy_endpoint | container_image | model_artifact"),
+    reference: stringProp("Endpoint URL, image reference, or artifact URI."),
+  },
+  required: ["label", "runtime", "reference"],
+  additionalProperties: false,
+};
+
+const teamPlanSchema = {
+  type: "object",
+  properties: {
+    checkpointId: stringProp("Checkpoint to evaluate."),
+    budgetUsd: integerProp("Ceiling for this plan. Defaults to today's remaining allowance."),
+    maxRuns: integerProp("Most runs to start at once."),
+  },
+  required: ["checkpointId"],
+  additionalProperties: false,
+};
+
 export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.siteWorld.search",
@@ -320,6 +342,76 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "blueprint.team.me",
+    description:
+      "Balance, spend policy, remaining daily allowance and registered checkpoints for the team the agent key belongs to. One round trip, so an agent can decide whether it may act without four calls. Reads only; commits nothing.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "blueprint.team.checkpoint.register",
+    description:
+      "Register a policy checkpoint Blueprint can execute. Deliberately asks for no capability figures: payload, cycle time and success rate are outputs of a run, and a team's estimate of its own benchmark results is the worst data in the system.",
+    inputSchema: teamCheckpointSchema,
+  },
+  {
+    name: "blueprint.team.checkpoint.list",
+    description: "List the team's registered checkpoints and whether each is runnable.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "blueprint.team.plan",
+    description:
+      "Which evaluations across every site on the platform would teach this team the most per dollar, with a rationale per row and a named reason for everything skipped. Ranks by expected information gain, not by likelihood of passing. Commits nothing.",
+    inputSchema: teamPlanSchema,
+  },
+  {
+    name: "blueprint.team.runs.start",
+    description:
+      "Start the planned evaluations. The only team tool that spends. Without confirm:true it returns the plan and spends nothing; confirming requires an idempotencyKey so a retry cannot pay twice. Each run is authorised separately against the team's balance and daily limit.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        checkpointId: stringProp("Checkpoint to evaluate."),
+        budgetUsd: integerProp("Ceiling for this batch."),
+        maxRuns: integerProp("Most runs to start at once."),
+        confirm: { type: "boolean", description: "Must be true to spend." },
+        idempotencyKey: stringProp("Required when confirming."),
+      },
+      required: ["checkpointId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.team.runs.release",
+    description: "Give back a reservation for a run that never started.",
+    inputSchema: {
+      type: "object",
+      properties: { reservationId: stringProp("Reservation to release.") },
+      required: ["reservationId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.team.policy.get",
+    description: "Read the team's daily limit, per-run limit and whether agent spend is switched on.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "blueprint.team.policy.set",
+    description:
+      "Set the team's spend limits. A balance alone is never permission: agentSpendEnabled must be true before any autonomous spend is authorised, and a team can switch it off instantly without revoking the key or touching the balance.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dailyLimitUsd: integerProp("Hard ceiling per UTC day."),
+        perRunLimitUsd: integerProp("Ceiling for any single run."),
+        agentSpendEnabled: { type: "boolean", description: "Switches autonomous spend on or off." },
+      },
+      required: ["dailyLimitUsd", "perRunLimitUsd", "agentSpendEnabled"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 function requireArg(args: Record<string, unknown>, key: string) {
@@ -372,6 +464,49 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
   let payload: unknown;
 
   switch (name) {
+    // Team-scoped surface. `requestJson` carries the agent key the client was
+    // constructed with, which is what scopes every one of these to one team.
+    case "blueprint.team.me":
+      payload = await client.requestJson("/api/agent-team/me");
+      break;
+    case "blueprint.team.checkpoint.list":
+      payload = await client.requestJson("/api/agent-team/checkpoints");
+      break;
+    case "blueprint.team.checkpoint.register":
+      payload = await client.requestJson("/api/agent-team/checkpoints", {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      break;
+    case "blueprint.team.plan":
+      payload = await client.requestJson("/api/agent-team/plan", {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      break;
+    case "blueprint.team.runs.start":
+      payload = await client.requestJson("/api/agent-team/runs", {
+        method: "POST",
+        // Passed through unchanged: `confirm` absent means the server returns a
+        // plan and spends nothing, and that default belongs on the server.
+        body: JSON.stringify(args),
+      });
+      break;
+    case "blueprint.team.runs.release":
+      payload = await client.requestJson(
+        `/api/agent-team/runs/${encodeURIComponent(String((args as { reservationId?: string }).reservationId || ""))}/release`,
+        { method: "POST" },
+      );
+      break;
+    case "blueprint.team.policy.get":
+      payload = await client.requestJson("/api/agent-team/policy");
+      break;
+    case "blueprint.team.policy.set":
+      payload = await client.requestJson("/api/agent-team/policy", {
+        method: "PUT",
+        body: JSON.stringify(args),
+      });
+      break;
     case "blueprint.siteWorld.search":
       payload = await client.searchSiteWorlds(searchArgs(args));
       break;

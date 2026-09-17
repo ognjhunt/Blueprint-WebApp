@@ -2017,7 +2017,15 @@
                 "blueprint.session.runBatch",
                 "blueprint.session.control",
                 "blueprint.session.renderExplorer",
-                "blueprint.session.export"
+                "blueprint.session.export",
+                "blueprint.team.me",
+                "blueprint.team.checkpoint.register",
+                "blueprint.team.checkpoint.list",
+                "blueprint.team.plan",
+                "blueprint.team.runs.start",
+                "blueprint.team.runs.release",
+                "blueprint.team.policy.get",
+                "blueprint.team.policy.set"
               ]
             }
           },
