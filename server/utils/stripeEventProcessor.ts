@@ -22,7 +22,9 @@ import {
 } from "./accounting";
 import { createOnboardingSequence } from "./buyer-onboarding";
 import { initRenewalTracking } from "./growth-ops";
+import { logger } from "../logger";
 import { recordBetaOpsFailureSignal } from "./ops-alerts";
+import { creditPaidTopup } from "./robotTeamFunding";
 import { dispatchTransactionalNotification } from "./transactional-notifications";
 
 async function handleCheckoutSessionCompleted(
@@ -30,6 +32,20 @@ async function handleCheckoutSessionCompleted(
   event: Stripe.Event,
 ) {
   const checkoutSessionId = session.id;
+
+  // A robot team's balance top-up is not a buyer order and has no record in
+  // `buyerOrders`, so it has to be handled before the lookup below — which
+  // returns null for it and would drop the payment on the floor. Returns null
+  // for every other kind of session, so this is a no-op for orders.
+  const topup = await creditPaidTopup(session);
+  if (topup) {
+    logger.info(
+      { teamId: topup.teamId, amountUsd: topup.amountUsd, eventId: event.id },
+      "Credited a robot team balance top-up from checkout",
+    );
+    return null;
+  }
+
   const order =
     (await findBuyerOrderByCheckoutSessionId(checkoutSessionId)) ||
     (session.client_reference_id

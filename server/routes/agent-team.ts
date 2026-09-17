@@ -31,9 +31,11 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
 import { logger } from "../logger";
+import { createRateLimitRedisStore } from "../utils/rate-limit-redis";
 import {
   authorizeAgentSpend,
   getSpendPolicy,
@@ -43,20 +45,191 @@ import {
   setSpendPolicy,
 } from "../utils/robotTeamBalance";
 import {
+  issueAgentKey,
   presentedAgentKey,
   resolveAgentKey,
 } from "../utils/robotTeamAgentKeys";
+import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
+import {
+  MAX_TOPUP_USD,
+  MIN_TOPUP_USD,
+  startBalanceTopup,
+} from "../utils/robotTeamFunding";
 import {
   listCheckpoints,
   registerCheckpoint,
+  type RobotCheckpoint,
 } from "../utils/robotCheckpoints";
 import {
   selectEvalsForBudget,
   type EvalCandidate,
 } from "../utils/evalSelection";
-import { buildTeamEvalCandidates } from "../utils/teamEvalCandidates";
+import {
+  buildTeamEvalCandidates,
+  screeningRunCostUsd,
+  screeningRunEpisodes,
+} from "../utils/teamEvalCandidates";
+import {
+  createRequestedRun,
+  listUnsettledRuns,
+  markResolved,
+  reconcileTeamHolds,
+  reservationTtlMs,
+  runIdForReservation,
+} from "../utils/agentEvalRuns";
 
 const router = Router();
+
+/**
+ * What we need to run something. Declared here because registration can carry
+ * a checkpoint inline, and a `const` is not hoisted.
+ */
+const checkpointSchema = z
+  .object({
+    label: z.string().trim().min(1).max(120),
+    runtime: z.enum(["policy_endpoint", "container_image", "model_artifact"]),
+    reference: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+
+/* ----------------------------------------------------------- registration */
+
+/**
+ * Open, because a closed one is a queue.
+ *
+ * Harder than the rest of this surface on purpose: registration is the only
+ * route here with no credential, so it is the only one an anonymous caller can
+ * reach. Ten a minute per address is far more than a real team needs and far
+ * less than a useful way to fill a collection.
+ */
+const registrationRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRateLimitRedisStore("rl:agent-team-register:"),
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many registrations from this address. Try again shortly.",
+      code: "registration_rate_limited",
+    });
+  },
+});
+
+const registerSchema = z
+  .object({
+    teamName: z.string().trim().min(2).max(120),
+    contactEmail: z.string().trim().email().max(320).optional(),
+    website: z.string().trim().url().max(500).optional(),
+    /** Optional, so one call can get a team from nothing to a plan. */
+    checkpoint: checkpointSchema.optional(),
+  })
+  .strict();
+
+/**
+ * Register a robot team and get a key, in one call, with no questions.
+ *
+ * ## Why there are no gates here
+ *
+ * The intake asks four gates before a team is in the registry: where the
+ * hardware is, where they can deploy, engineer capacity, deployment timeline.
+ * Every one of those is a fact about deploying a robot at a site. None of them
+ * is needed to run a policy against a scene we already hold, and running it is
+ * what a team came for. Gating evaluation on deployment questions is what made
+ * the old flow end in "we will be in touch".
+ *
+ * They are still the right questions — for a pilot, where somebody is about to
+ * spend real weeks. Asked then, they are due diligence. Asked here, they were
+ * a queue.
+ *
+ * ## Why answering nothing costs a team nothing
+ *
+ * `evalSelection` ranks an unknown hard constraint above everything else: a
+ * team we know nothing about has the most to learn from a run, by our own
+ * scoring. So a blank team does not get a worse plan — it gets the most
+ * informative one, and the run measures what the form used to ask it to
+ * predict.
+ *
+ * ## What this grants
+ *
+ * An identity and nothing else. Zero balance, autonomous spend off, status
+ * `self_registered`, which is outside the set of teams sites are told about.
+ * The key is returned once and never stored in a readable form.
+ */
+router.post("/register", registrationRateLimiter, async (req: Request, res: Response) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Registration is invalid",
+      code: "registration_invalid",
+      required: {
+        teamName: "string",
+        contactEmail: "email (optional)",
+        website: "url (optional)",
+        checkpoint: "{ label, runtime, reference } (optional)",
+      },
+    });
+  }
+
+  const team = await registerSelfServeTeam({
+    name: parsed.data.teamName,
+    contactEmail: parsed.data.contactEmail ?? null,
+    website: parsed.data.website ?? null,
+  });
+  if (!team) {
+    return res.status(503).json({
+      error: "The registry is unavailable, so no team was created.",
+      code: "registry_unavailable",
+    });
+  }
+
+  const issued = await issueAgentKey({ teamId: team.id, label: "self-serve" });
+  if (!issued) {
+    // A team with no key cannot do anything, and a second registration would
+    // create a second team. Say so plainly rather than returning a half-made
+    // account that looks like it worked.
+    return res.status(503).json({
+      error: "The team was created but no key could be issued.",
+      code: "agent_key_unavailable",
+      teamId: team.id,
+      recovery: "Retry registration; this team record has no usable credential.",
+    });
+  }
+
+  let checkpoint: RobotCheckpoint | { refusal: string; detail: string } | null = null;
+  if (parsed.data.checkpoint) {
+    const result = await registerCheckpoint({ teamId: team.id, ...parsed.data.checkpoint });
+    // A bad checkpoint does not undo a good registration. The team keeps its
+    // key and can register another; failing the whole call here would make them
+    // register twice and leave an orphan team behind.
+    checkpoint = result.registered ? result.checkpoint : { refusal: result.refusal, detail: result.detail };
+  }
+
+  return res.status(201).json({
+    ok: true,
+    teamId: team.id,
+    // Once. We store a SHA-256 and cannot show it again.
+    agentKey: issued.key,
+    keyNote: "Store this now. It is not recoverable — issue another if you lose it.",
+    checkpoint,
+    grants: {
+      balanceUsd: 0,
+      agentSpendEnabled: false,
+      note: "A key is an identity, not a credit line. Fund a balance and set a policy before an agent can spend.",
+    },
+    next: parsed.data.checkpoint
+      ? [
+          "POST /api/agent-team/funding to add balance (Stripe, face value).",
+          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+          "POST /api/agent-team/plan to see what your checkpoint should run against. Free.",
+        ]
+      : [
+          "POST /api/agent-team/checkpoints with something we can run.",
+          "POST /api/agent-team/funding to add balance (Stripe, face value).",
+          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+        ],
+  });
+});
 
 /** Resolve the key to a team, or answer 401 without saying why. */
 async function requireTeam(req: Request, res: Response): Promise<string | null> {
@@ -71,6 +244,18 @@ async function requireTeam(req: Request, res: Response): Promise<string | null> 
     });
     return null;
   }
+
+  // Free this team's expired holds before anything here reads a balance.
+  //
+  // Reserving money is instant and resolving it used to depend on the Pipeline
+  // calling our settlement endpoint, so a run nobody reported left the money
+  // locked until a person noticed. Doing it here means the agent that is short
+  // a hold is the one that clears it, on its own next call: no clock to be
+  // switched on, no other system to remember. It swallows its own failures, so
+  // a reconciliation problem cannot take down the surface — the balance just
+  // stays conservative, which is the safe direction.
+  await reconcileTeamHolds(teamId);
+
   return teamId;
 }
 
@@ -115,14 +300,6 @@ router.get("/me", async (req: Request, res: Response) => {
 });
 
 /* -------------------------------------------------------- checkpoints */
-
-const checkpointSchema = z
-  .object({
-    label: z.string().trim().min(1).max(120),
-    runtime: z.enum(["policy_endpoint", "container_image", "model_artifact"]),
-    reference: z.string().trim().min(1).max(2000),
-  })
-  .strict();
 
 /**
  * Register something we can run.
@@ -174,12 +351,36 @@ const planSchema = z
   .strict();
 
 /**
- * What would you buy, and why.
+ * How much of a plan to show a team that has not funded anything yet.
  *
- * Commits nothing. This is the call a team points at before it trusts its agent
- * with a budget, and the call the agent makes every morning before it spends.
- * The rationale on every row is the point — a team should be able to read its
- * agent's reasoning and disagree with it.
+ * Ten runs is enough to see the shape of the offer — a spread of sites, the
+ * reasons, the prices — without generating a list nobody will read.
+ */
+const PLANNING_PREVIEW_RUNS = 10;
+
+/**
+ * What would you buy, and why. Free, and free *before* funding.
+ *
+ * ## Why this is not capped by the balance
+ *
+ * It used to be. `budgetUsd` was the minimum of the ask, the daily allowance
+ * and the balance — so a team that had just registered got an empty plan, and
+ * the only way to find out what Blueprint could offer them was to pay first.
+ *
+ * That is exactly backwards for a loss leader. "Free to find out, paid to act"
+ * requires that finding out works with a zero balance, and this route commits
+ * nothing: no reservation, no ledger entry, no promise. A plan a team cannot
+ * currently afford is not a lie, it is a quote.
+ *
+ * So the plan is sized by what the team asked for, and what they could actually
+ * spend right now is reported beside it rather than silently truncating it. The
+ * two numbers are different and a team is owed both.
+ *
+ * ## Why the rationale matters more than the ranking
+ *
+ * This is the call a team points at before it trusts its agent with a budget.
+ * A ranking is not trustworthy because it is correct; it is trustworthy because
+ * someone can read it and disagree.
  */
 router.post("/plan", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
@@ -196,17 +397,18 @@ router.post("/plan", async (req: Request, res: Response) => {
     getTeamBalance(teamId),
   ]);
 
-  // A plan is capped by whichever runs out first: today's allowance, or the
-  // money. Planning against a budget the team cannot fund produces a list that
-  // reads like a promise and is not one.
   const dailyRemaining = policy.dailyLimitUsd > 0
     ? Math.max(0, policy.dailyLimitUsd - spentToday)
     : 0;
-  const budgetUsd = Math.min(
-    parsed.data.budgetUsd ?? dailyRemaining,
-    dailyRemaining,
-    balance.availableUsd,
-  );
+  // What the team could commit this minute. Reported, never used to truncate.
+  const spendableNowUsd =
+    Math.round(Math.min(dailyRemaining, balance.availableUsd) * 100) / 100;
+
+  const budgetUsd =
+    parsed.data.budgetUsd
+    ?? (dailyRemaining > 0
+      ? dailyRemaining
+      : Math.round(PLANNING_PREVIEW_RUNS * screeningRunCostUsd() * 100) / 100);
 
   let candidates: EvalCandidate[];
   try {
@@ -225,17 +427,36 @@ router.post("/plan", async (req: Request, res: Response) => {
     maxRuns: parsed.data.maxRuns,
   });
 
+  // Against what the plan actually costs, not against the budget it was sized
+  // by: a $500 plan under a $2,000 ask needs $500, and quoting the ask would
+  // ask a team to fund runs this plan does not contain.
+  const fundingNeededUsd =
+    Math.round(Math.max(0, selection.totalCostUsd - spendableNowUsd) * 100) / 100;
+
   return res.json({
     teamId,
     checkpointId: parsed.data.checkpointId,
-    constrainedBy:
-      budgetUsd === 0
-        ? policy.agentSpendEnabled
-          ? "no_budget_remaining"
-          : "agent_spend_disabled"
-        : budgetUsd === balance.availableUsd
-          ? "balance"
-          : "daily_limit",
+    committed: false,
+    plannedAgainstUsd: budgetUsd,
+    spendableNowUsd,
+    fundingNeededUsd,
+    /** What stops this plan being bought right now, if anything does. */
+    blockedBy:
+      fundingNeededUsd === 0
+        ? null
+        : !policy.agentSpendEnabled
+          ? "agent_spend_disabled"
+          : balance.availableUsd <= 0
+            ? "no_balance"
+            : dailyRemaining <= 0
+              ? "daily_limit_reached"
+              : "insufficient_balance",
+    next:
+      fundingNeededUsd === 0
+        ? "POST /api/agent-team/runs with confirm:true and an idempotencyKey."
+        : !policy.agentSpendEnabled
+          ? "PUT /api/agent-team/policy to set a daily limit and switch the agent on."
+          : `POST /api/agent-team/funding with amountUsd ${fundingNeededUsd} to cover this plan.`,
     ...selection,
   });
 });
@@ -323,6 +544,7 @@ router.post("/runs", async (req: Request, res: Response) => {
   }
 
   type StartedRun = {
+    runId: string;
     sceneId: string;
     siteLabel: string;
     costUsd: number;
@@ -357,10 +579,43 @@ router.post("/runs", async (req: Request, res: Response) => {
       continue;
     }
 
-    // The reservation is the commitment. Handing the run to the Pipeline is the
-    // next step and is not this route's job; a run that never starts releases
-    // its hold rather than silently keeping the money.
+    // A hold with nothing attached to it is the bug this replaced: the money
+    // was reserved, the run existed only as a promise, and nothing could ever
+    // conclude it. The run record is what the settlement reconciler reads, so
+    // writing it is part of authorising the spend, not a step after it.
+    const run = await createRequestedRun({
+      teamId,
+      checkpointId: parsed.data.checkpointId,
+      sceneId: candidate.sceneId,
+      taskFamily: candidate.taskFamily ?? null,
+      reservationId: authorization.reservationId,
+      quotedUsd: candidate.costUsd,
+      quotedEpisodes: screeningRunEpisodes(),
+    });
+
+    if (!run) {
+      // The hold exists and the run does not, so nothing downstream could ever
+      // settle it. Give the money straight back rather than leaving a hold the
+      // reconciler has no record of.
+      await releaseReservation({
+        teamId,
+        reservationId: authorization.reservationId,
+        reason: "Run record could not be written; hold returned immediately",
+        idempotencyKey: `release:${authorization.reservationId}`,
+      });
+      refused.push({
+        sceneId: candidate.sceneId,
+        siteLabel: candidate.siteLabel,
+        costUsd: candidate.costUsd,
+        refusal: "run_record_unavailable",
+        detail:
+          "The run could not be recorded, so its hold was released. Nothing was charged. Retry with the same idempotencyKey.",
+      });
+      continue;
+    }
+
     started.push({
+      runId: run.runId,
       sceneId: candidate.sceneId,
       siteLabel: candidate.siteLabel,
       costUsd: candidate.costUsd,
@@ -379,6 +634,54 @@ router.post("/runs", async (req: Request, res: Response) => {
       Math.round(started.reduce((sum, item) => sum + item.costUsd, 0) * 100) / 100,
     balance: await getTeamBalance(teamId),
     summary: selection.summary,
+    // Stated in the response because an agent budgeting across days needs to
+    // know that a hold is not a permanent deduction. Nothing has to be polled
+    // and nothing has to be chased: a run that never reports releases itself.
+    holds: {
+      settlesOn: "episodes actually executed, pro-rated against the quote",
+      expiresAfterMs: reservationTtlMs(),
+      onExpiry: "released in full; the run is marked abandoned and nothing is charged",
+      inspect: "GET /api/agent-team/runs",
+    },
+  });
+});
+
+/**
+ * Every hold this team has open, and what will happen to it.
+ *
+ * The question an agent asks when its available balance is lower than it
+ * expected. Without this the only answer was to ask a person to read the
+ * ledger, which is the thing this whole surface exists to remove.
+ */
+router.get("/runs", async (req: Request, res: Response) => {
+  const teamId = await requireTeam(req, res);
+  if (!teamId) return;
+
+  const runs = await listUnsettledRuns(teamId);
+  const ttlMs = reservationTtlMs();
+
+  return res.json({
+    teamId,
+    ttlMs,
+    runs: runs.map((run) => ({
+      runId: run.runId,
+      sceneId: run.sceneId,
+      checkpointId: run.checkpointId,
+      reservationId: run.reservationId,
+      state: run.state,
+      quotedUsd: run.quotedUsd,
+      quotedEpisodes: run.quotedEpisodes,
+      episodesRun: run.episodesRun,
+      requestedAtIso: run.requestedAtIso,
+      // Absolute, not relative, so an agent comparing two responses taken
+      // minutes apart reads one number rather than doing the arithmetic twice.
+      holdExpiresAtIso:
+        run.state === "requested"
+          ? new Date(Date.parse(run.requestedAtIso) + ttlMs).toISOString()
+          : null,
+    })),
+    heldUsd:
+      Math.round(runs.reduce((sum, run) => sum + run.quotedUsd, 0) * 100) / 100,
   });
 });
 
@@ -399,7 +702,82 @@ router.post("/runs/:reservationId/release", async (req: Request, res: Response) 
     idempotencyKey: `release:${reservationId}`,
   });
 
+  // Take the run out of the settlement queue too. Without this the reconciler
+  // would later find a `requested` run whose hold was already given back and
+  // release it a second time — harmless, because the ledger dedupes, but it
+  // would report work as abandoned that a team deliberately cancelled.
+  await markResolved(
+    runIdForReservation(reservationId),
+    "abandoned",
+    "Released by the team's agent before the run started",
+  );
+
   return res.json({ ok: true, reservationId, balance });
+});
+
+/* ------------------------------------------------------------- funding */
+
+const fundingSchema = z
+  .object({
+    amountUsd: z.number().finite().positive().max(1_000_000),
+  })
+  .strict();
+
+/**
+ * Add balance, without asking anyone.
+ *
+ * This was the last thing on the robot-team path that required an operator. An
+ * agent could plan, quote and refuse entirely on its own, and then the money it
+ * spent against had to be credited by a person running an admin route — so "a
+ * team hands its agent $100 a day" started with an email to us.
+ *
+ * ## No price is invented here
+ *
+ * A top-up is face value: ask for $100, pay $100, get $100 of balance. Run
+ * prices still come from `episodePricing` and are quoted per run. That is why
+ * this can be self-serve at all — a number the team chose, charged at face
+ * value, is not a commercial term that needs approving.
+ *
+ * ## The link, not the money
+ *
+ * This returns a Stripe URL and credits nothing. Payment is proven by
+ * `checkout.session.completed`, at the webhook, because a success redirect is
+ * just a URL anyone could open. An agent creates the session, passes the link
+ * to whoever holds the card, and watches `GET /me` for the balance to move —
+ * which is the right shape for an agent in CI with nowhere to be redirected to.
+ */
+router.post("/funding", async (req: Request, res: Response) => {
+  const teamId = await requireTeam(req, res);
+  if (!teamId) return;
+
+  const parsed = fundingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Funding request is invalid",
+      code: "funding_invalid",
+      required: { amountUsd: `number between ${MIN_TOPUP_USD} and ${MAX_TOPUP_USD}` },
+    });
+  }
+
+  const result = await startBalanceTopup({ teamId, amountUsd: parsed.data.amountUsd });
+  if (!result.created) {
+    return res.status(result.refusal === "stripe_unavailable" ? 503 : 400).json({
+      error: result.detail,
+      code: result.refusal,
+      bounds: { minUsd: MIN_TOPUP_USD, maxUsd: MAX_TOPUP_USD },
+    });
+  }
+
+  return res.status(201).json({
+    ok: true,
+    teamId,
+    amountUsd: result.amountUsd,
+    checkoutUrl: result.checkoutUrl,
+    sessionId: result.sessionId,
+    credited: false,
+    note: "Nothing is credited until the payment completes. Poll GET /api/agent-team/me for the balance.",
+    next: "PUT /api/agent-team/policy to set a daily limit and switch the agent on once funded.",
+  });
 });
 
 /* -------------------------------------------------------------- policy */

@@ -94,13 +94,29 @@ export type RobotCapabilityField = keyof RobotCapability;
  * they have not agreed to anything. Nothing about a prospect may be described
  * to a site as a Blueprint relationship.
  */
-export type RobotTeamStatus = "applied" | "prospect" | "engaged" | "declined";
+export type RobotTeamStatus =
+  /**
+   * Registered itself through the API and has not been measured yet.
+   *
+   * Deliberately outside the default matchable set. Registration is open —
+   * anyone can create a team and a key in one call — so if this status were
+   * matchable, a name typed into a public endpoint would become supply we tell
+   * sites about. A team enters the list sites see once a run has measured it,
+   * which is the only claim about a robot we did not take somebody's word for.
+   */
+  | "self_registered"
+  | "applied"
+  | "prospect"
+  | "engaged"
+  | "declined";
 
 export interface RobotTeamRecord {
   id: string;
   name: string;
   /** Present when the team reached us through the robot-team intake. */
   inboundRequestId?: string | null;
+  /** Which door they came through. `self_serve` answered no questions. */
+  registrationSource?: "intake" | "self_serve";
   contactEmail?: string | null;
   website?: string | null;
   status: RobotTeamStatus;

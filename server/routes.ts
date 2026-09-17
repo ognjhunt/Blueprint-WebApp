@@ -103,8 +103,14 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/agent-access", agentAccessRouter);
-  // Team-scoped agent surface: discovery, planning and budgeted spend. Auth is
-  // a revocable per-team agent key, not a person's session.
+  // Team-scoped agent surface: registration, discovery, planning and budgeted
+  // spend. Auth is a revocable per-team agent key, not a person's session, and
+  // `POST /register` needs none at all — it is how a team gets a key, so
+  // requiring one would make the whole path start with an email to us.
+  //
+  // No `csrfProtection` on purpose. CSRF defends cookie-authenticated browser
+  // forms; a bearer-key API is not vulnerable to it, and applying it here would
+  // break every non-browser client, which is all of them.
   app.use("/api/agent-team", agentTeamRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
