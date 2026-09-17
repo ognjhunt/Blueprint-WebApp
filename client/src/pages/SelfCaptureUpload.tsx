@@ -24,6 +24,15 @@ import { Helmet } from "@/lib/helmet";
 type LinkState =
   | { status: "checking" }
   | { status: "valid"; accepts: string[]; expiresAt: string }
+  /**
+   * A real link for a submission that cannot be recorded against yet.
+   *
+   * Distinct from `invalid` on purpose. An invalid link is a dead end and says
+   * so; a held one is the site's own submission with something specific in the
+   * way, and the difference matters because the second one becomes an upload
+   * page on its own the moment that thing resolves.
+   */
+  | { status: "held"; detail: string; blockers: string[]; openQuestions: string[] }
   | { status: "invalid"; message: string };
 
 type UploadState =
@@ -177,6 +186,18 @@ export default function SelfCaptureUpload() {
           return;
         }
 
+        if (data.state === "held") {
+          setLink({
+            status: "held",
+            detail: String(data.detail || "This capture cannot start yet."),
+            blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
+            openQuestions: Array.isArray(data.openQuestions)
+              ? data.openQuestions.map(String)
+              : [],
+          });
+          return;
+        }
+
         setLink({
           status: "valid",
           accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
@@ -263,11 +284,46 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        Film the work area
+        {link.status === "held" ? "Not yet — here is what is in the way" : "Film the work area"}
       </h1>
 
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
+      )}
+
+      {link.status === "held" && (
+        <>
+          <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
+
+          {link.blockers.length > 0 && (
+            <ul style={{ paddingLeft: "20px", marginBottom: "24px", lineHeight: 1.7 }}>
+              {link.blockers.map((blocker) => (
+                <li key={blocker} style={{ marginBottom: "8px" }}>
+                  {blocker}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {link.openQuestions.length > 0 && (
+            <>
+              <p style={{ marginBottom: "8px" }}>What a short call would settle:</p>
+              <ul style={{ paddingLeft: "20px", marginBottom: "24px", lineHeight: 1.7 }}>
+                {link.openQuestions.map((question) => (
+                  <li key={question} style={{ marginBottom: "8px" }}>
+                    {question}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <p style={{ color: "var(--ms-muted)" }}>
+            Keep this link. It is the same page you will record on — when the above changes,
+            open it again and it will let you upload. Nothing needs to be re-submitted and
+            nobody needs to email you.
+          </p>
+        </>
       )}
 
       {link.status === "invalid" && (

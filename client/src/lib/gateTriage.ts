@@ -365,8 +365,13 @@ export function describeDisposition(result: TriageResult): {
       body: first
         ? `You told us: ${first.answer.toLowerCase()}. ${first.detail}`
         : "One of the screening conditions does not hold at this site today.",
+      // Was "we come back to you when that changes on our side or yours". The
+      // condition that has to change is usually inside their own building --
+      // an access window, a room that keeps moving -- and we cannot see that
+      // happen. Promising to notice was a promise we had no way to keep, so
+      // this hands them the link instead and lets them come back to it.
       nextStep:
-        "We keep the task on file and come back to you when that changes on our side or yours. No call needed for this answer.",
+        "Your link below stays live. When this changes, open it again and it will let you record. No call needed for this answer.",
     };
   }
 
@@ -383,7 +388,11 @@ export function describeDisposition(result: TriageResult): {
   return {
     headline: "This clears the screen.",
     body: "Every condition holds and the task is specific enough to put in front of the robot teams we are talking to.",
+    // Was "a capture only follows a match -- we do not capture speculatively".
+    // That was true when a capturer had to travel and we were paying for the
+    // trip. Recording is the site's own phone and costs us nothing to receive,
+    // so waiting on a match now buys nothing and delays everything.
     nextStep:
-      "We check it against those teams before scheduling anything. A capture only follows a match — we do not capture speculatively.",
+      "Record the walkthrough whenever suits you — the link below is live now. Nothing else has to happen first.",
   };
 }

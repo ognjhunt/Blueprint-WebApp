@@ -12,6 +12,7 @@ import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken } from "../utils/request-review-auth";
+import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
@@ -128,6 +129,23 @@ import type {
 } from "../types/inbound-request";
 
 const router = Router();
+
+/**
+ * A site's link to its own submission, or null.
+ *
+ * Null for robot teams, who have nothing to capture. Never throws: a link is
+ * worth handing over and never worth failing a submission for, so a site whose
+ * link could not be minted still gets a confirmed submission and hears from us
+ * the way it always did.
+ */
+function siteCaptureUrl(buyerType: string, requestId: string): string | null {
+  if (buyerType !== "site_operator") return null;
+  try {
+    return captureUploadUrlFor(requestId);
+  } catch {
+    return null;
+  }
+}
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
@@ -1487,6 +1505,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         requestId: payload.requestId,
         siteSubmissionId: payload.requestId,
         status: existingData.status,
+        captureUrl: siteCaptureUrl(buyerType, payload.requestId),
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -2015,6 +2034,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       requestId: payload.requestId,
       siteSubmissionId: payload.requestId,
       status: "submitted",
+      captureUrl: siteCaptureUrl(buyerType, payload.requestId),
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {
     logger.error(

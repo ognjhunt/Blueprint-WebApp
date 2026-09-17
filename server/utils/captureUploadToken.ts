@@ -50,6 +50,33 @@ function signPayload(serializedPayload: string) {
   return crypto.createHmac("sha256", getSecret()).update(serializedPayload).digest("base64url");
 }
 
+/**
+ * The site's link to its own submission.
+ *
+ * One definition, because two callers now build it: the email that goes out
+ * when a capture is dispatched, and the submit response that hands it over
+ * immediately. A second spelling of this URL would mean a site could be sent
+ * two links to the same capture that differ by a slash.
+ *
+ * The ids are derived from the request rather than generated, so calling this
+ * twice points at the same storage prefix instead of scattering a second empty
+ * capture beside the first.
+ */
+export function captureUploadUrlFor(requestId: string): string {
+  const origin = (
+    process.env.VITE_PUBLIC_APP_URL?.trim()
+    || process.env.APP_URL?.trim()
+    || "https://tryblueprint.io"
+  ).replace(/\/+$/, "");
+
+  const token = createCaptureUploadToken({
+    requestId,
+    sceneId: `site-${requestId}`,
+    captureId: `walkthrough-${requestId}`,
+  });
+  return `${origin}/capture-upload/${token}`;
+}
+
 export function createCaptureUploadToken(params: {
   requestId: string;
   captureId: string;

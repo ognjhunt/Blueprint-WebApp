@@ -212,9 +212,26 @@ describe("describeDisposition", () => {
     expect(copy.nextStep).toMatch(/agenda/i);
   });
 
-  it("does not promise a visit to a qualified site, because a match comes first", () => {
+  it("sends a cleared site to record, and still promises no visit", () => {
+    // This used to assert "we do not capture speculatively", which is still
+    // true of a capturer *visit* -- someone travels and we pay for it, so
+    // `captureVisit.ts` keeps that claim. It was never true of a site
+    // recording on its own phone, which costs us nothing to receive, so
+    // waiting on a match there bought nothing and delayed everything.
     const copy = describeDisposition(triageGateAnswers(allClear()));
-    expect(copy.nextStep).toMatch(/we do not capture speculatively/i);
+    expect(copy.nextStep).toMatch(/record the walkthrough/i);
+    expect(copy.nextStep).toMatch(/nothing else has to happen first/i);
+    // Still no promise of a visit, which is the part that was load-bearing.
     expect(copy.nextStep).not.toMatch(/we will schedule|book a visit|pick a date/i);
+  });
+
+  it("hands a blocked site its own link instead of promising to notice", () => {
+    // The old copy said "we come back to you when that changes on our side or
+    // yours". The condition is usually inside their building -- an access
+    // window, a room that keeps moving -- and we cannot see that change. It
+    // was a promise with no mechanism behind it.
+    const copy = describeDisposition(triageGateAnswers(answerWith("sceneStability", "blocking")));
+    expect(copy.nextStep).toMatch(/link below stays live/i);
+    expect(copy.nextStep).not.toMatch(/come back to you/i);
   });
 });

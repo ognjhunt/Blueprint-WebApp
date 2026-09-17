@@ -104,14 +104,18 @@ describe("SiteTaskIntake", () => {
     expect(screen.getByText(new RegExp(marginal.ambiguity!.slice(0, 35), "i"))).toBeInTheDocument();
   });
 
-  it("promises a qualified site a match check rather than a visit", () => {
+  it("sends a qualified site to record, without implying a visit", () => {
     render(<SiteTaskIntake />);
     answerGatesClear();
 
     expect(screen.getAllByText(/Clears the screen/i).length).toBeGreaterThan(0);
-    // /capture-visit leads with "we do not capture speculatively". This form
-    // must not contradict it by implying a booking.
-    expect(screen.getByText(/we do not capture speculatively/i)).toBeInTheDocument();
+    // This used to assert "we do not capture speculatively", matching
+    // /capture-visit. That claim is still true of a capturer *visit*, where
+    // someone travels and we pay for the trip, and `captureVisit.ts` keeps it.
+    // It was never true of a site recording on its own phone: that costs us
+    // nothing to receive, so holding it back for a match bought nothing.
+    expect(screen.getByText(/record the walkthrough/i)).toBeInTheDocument();
+    // The part that was load-bearing is unchanged: no visit is implied.
     expect(document.body.textContent).not.toMatch(
       /book a visit|pick a date|schedule your capture/i,
     );
