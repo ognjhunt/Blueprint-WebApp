@@ -47,6 +47,8 @@ import {
   recordMeasuredCapability,
 } from "./robotCheckpoints";
 import type { RobotCapabilityField } from "../types/robot-team-registry";
+import { recordCohortEpisodes } from "./cohortEconomics";
+import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 
@@ -291,6 +293,25 @@ export async function recordRunResult(params: {
       demonstratedSuccessRate: result.claimed.demonstratedSuccessRate,
       cycleTime: result.claimed.cycleTime,
       observedAt: result.reportedAtIso,
+    });
+
+    // Meter it. The run executed against a prepared site, so this is the
+    // moment the cost side of that site's economics becomes knowable -- and
+    // the published arithmetic says a thin field cannot bear much. Recorded
+    // rather than assumed, because the per-episode cost is the unknown the
+    // whole exercise exists to find out.
+    await recordCohortEpisodes({
+      sceneId: run.sceneId,
+      round: "screening",
+      episodes: episodesRun,
+      // One entry per checkpoint's first run against this scene. A second run
+      // of the same checkpoint is more episodes, not another paid entry.
+      newEntry: true,
+      revenueUsd: settlementAmountUsd({
+        quotedUsd: run.quotedUsd,
+        quotedEpisodes: run.quotedEpisodes,
+        episodesRun,
+      }),
     });
 
     // Anything else the run established, attributed to the checkpoint that
