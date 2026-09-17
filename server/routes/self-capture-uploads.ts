@@ -32,6 +32,7 @@ import {
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
+import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
 
 const router = Router();
@@ -368,6 +369,30 @@ async function finishStoredCapture(params: {
       },
     };
   }
+
+  // The coverage read, and the reason it is here rather than awaited: the
+  // operator is standing in a warehouse holding a phone, and a model
+  // traversing a two-minute video is not something to make them wait on. The
+  // finding is stored on the request, so the task page and the supply query
+  // both pick it up whenever it lands.
+  //
+  // Deliberately after the privacy screen. Coverage is a question about the
+  // footage and privacy is a question about whether we may read the footage at
+  // all -- asking the second one second would be the ordering mistake Tier 3
+  // exists to fix.
+  void reviewCaptureCoverage({
+    requestId: payload.requestId,
+    sceneId: payload.sceneId,
+    captureId: payload.captureId,
+  }).catch((error) => {
+    // Never fails the upload. A missing coverage finding means we do not know
+    // which views are short, which is worse than knowing and much better than
+    // telling somebody their capture failed when it did not.
+    logger.warn(
+      { error, captureId: payload.captureId },
+      "Coverage review could not be started for a stored capture",
+    );
+  });
 
   return {
     status: 201,

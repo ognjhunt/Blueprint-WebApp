@@ -9,6 +9,7 @@ import { supportTriageTask } from "./support-triage";
 import { waitlistTriageTask } from "./waitlist-triage";
 import { adpRunOperatorTask } from "./adp-run-operator";
 import { siteVideoEvidenceTask } from "./site-video-evidence";
+import { captureCoverageTask } from "./capture-coverage";
 import { robotCapabilityExtractionTask } from "./robot-capability-extraction";
 import { captureDispatchTask } from "./capture-dispatch";
 import { outboundOutreachTask } from "./outbound-outreach";
@@ -24,6 +25,7 @@ export const taskDefinitions = {
   external_harness_thread: externalHarnessThreadTask,
   adp_run_operator: adpRunOperatorTask,
   site_video_evidence: siteVideoEvidenceTask,
+  capture_coverage: captureCoverageTask,
   robot_capability_extraction: robotCapabilityExtractionTask,
   capture_dispatch: captureDispatchTask,
   outbound_outreach: outboundOutreachTask,

@@ -30,6 +30,7 @@ import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
 import { screeningRound, episodeRate } from "../../client/src/lib/episodePricing";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
+import { coverageEvidenceFrom } from "./captureCoverageReview";
 
 /**
  * What one screening run costs at the published rate.
@@ -102,12 +103,23 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
     // A robot team's own submission is not a site to evaluate against.
     .filter((request) => request.request?.buyerType !== "robot_team")
     .filter((request) => {
+      // Measured coverage where we have it, and the old inference where we do
+      // not: a built scene means coverage sufficed, which is true by
+      // construction. What this must never do is read "nobody checked" as
+      // "does not cover", because that would silently drop supply.
+      const measured = coverageEvidenceFrom(request as never);
       const readiness = assessReadiness({
         answers: (request.request?.siteTaskGates as Record<string, string> | null) ?? {},
         captureMode: request.request?.capture_mode ?? null,
         briefDrafted: true,
         briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
-        evidence: { hasAny: true, hasVisual: true, explainsTask: true, coversScene: true },
+        evidence: {
+          hasAny: true,
+          hasVisual: true,
+          explainsTask: true,
+          coversScene: measured?.coversScene ?? true,
+          missingCoverage: measured?.missingCoverage,
+        },
         reconstructed: hasBuiltScene(request),
       });
       return readiness.isSupply;
