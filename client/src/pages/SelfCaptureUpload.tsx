@@ -17,6 +17,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -39,6 +41,13 @@ type UploadState =
   | { status: "idle" }
   | { status: "uploading"; percent: number }
   | { status: "done" }
+  /**
+   * The upload worked and what is in it needs a person.
+   *
+   * Distinct from `failed` because telling someone their upload failed when it
+   * did not would send them off to re-film a video we already have.
+   */
+  | { status: "held"; message: string }
   | { status: "failed"; message: string };
 
 type VideoMetadata = {
@@ -163,6 +172,14 @@ export default function SelfCaptureUpload() {
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
   const [fileName, setFileName] = useState<string | null>(null);
+
+  // Whether the camera button below is worth anything on this device. A coarse
+  // check on purpose: the cost of being wrong is one extra QR code on a phone,
+  // or one missing QR code on a laptop that can still copy the URL out of its
+  // own address bar.
+  const onAPhone =
+    typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const pageUrl = typeof window === "undefined" ? "" : window.location.href;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -252,6 +269,23 @@ export default function SelfCaptureUpload() {
 
       request.addEventListener("load", () => {
         if (request.status >= 200 && request.status < 300) {
+          // A 2xx is not automatically "done": the privacy screen answers with
+          // a held state on a successful upload.
+          let body: { state?: string; message?: string } = {};
+          try {
+            body = JSON.parse(request.responseText) || {};
+          } catch {
+            // No body we can read means the plain success it has always been.
+          }
+          if (body.state === "held") {
+            setUpload({
+              status: "held",
+              message:
+                body.message
+                || "Your video reached us. Someone is looking at it before anything is processed.",
+            });
+            return;
+          }
           setUpload({ status: "done" });
           return;
         }
@@ -347,7 +381,36 @@ export default function SelfCaptureUpload() {
             ))}
           </ol>
 
-          {upload.status === "done" ? (
+          {!onAPhone && upload.status === "idle" && (
+            /*
+             * Opened on a laptop, where the camera button below is useless.
+             * Without this the page is a dead end that asks someone to get a
+             * URL onto their own phone by hand.
+             *
+             * Hidden once an upload is under way, because by then they are on
+             * the device that is doing it.
+             */
+            <div style={{ marginBottom: "32px" }}>
+              <p style={{ marginBottom: 0 }}>Record this on your phone.</p>
+              <CaptureHandoffQr url={pageUrl} label="Scan to open this page on your phone" />
+            </div>
+          )}
+
+          {upload.status === "held" ? (
+            <div
+              style={{
+                border: "1px solid var(--ms-rule)",
+                padding: "20px",
+                background: "var(--ms-paper)",
+              }}
+            >
+              <strong>We have your video. Nothing is being processed from it yet.</strong>
+              <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
+                {upload.message} There is nothing to re-film and nothing for you to do — we will
+                come back to you about it.
+              </p>
+            </div>
+          ) : upload.status === "done" ? (
             <div
               style={{
                 border: "1px solid var(--ms-rule)",

@@ -43,6 +43,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { SEO } from "@/components/SEO";
 import { withCsrfHeader } from "@/lib/csrf";
 import { parseTaskVideoLinks } from "@/lib/taskVideos";
@@ -224,6 +225,13 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             <span className="ms-field-hint">
               Keep this link — it is how you come back to this submission.
             </span>
+            {!blocked && (
+              /*
+               * Only when they can actually record. A code that carries someone
+               * to a status page is a worse version of the link beside it.
+               */
+              <CaptureHandoffQr url={captureUrl} />
+            )}
           </p>
         )}
         <a className="ms-text-link" href="/">
