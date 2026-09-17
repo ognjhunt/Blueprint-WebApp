@@ -122,6 +122,10 @@ const registerSchema = z
     teamName: z.string().trim().min(2).max(120),
     contactEmail: z.string().trim().email().max(320).optional(),
     website: z.string().trim().url().max(500).optional(),
+    /** What the robot is for. One click, and it is the coarsest ranking input. */
+    taskFamily: z.string().trim().max(60).optional(),
+    /** What they build, in their words. For a person, never parsed. */
+    capabilityDescription: z.string().trim().max(2000).optional(),
     /** Optional, so one call can get a team from nothing to a plan. */
     checkpoint: checkpointSchema.optional(),
   })
@@ -176,6 +180,8 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     name: parsed.data.teamName,
     contactEmail: parsed.data.contactEmail ?? null,
     website: parsed.data.website ?? null,
+    taskFamily: parsed.data.taskFamily ?? null,
+    capabilityDescription: parsed.data.capabilityDescription ?? null,
   });
   if (!team) {
     return res.status(503).json({

@@ -236,7 +236,7 @@ describe("build output", () => {
     // The form is no longer what this page leads with: the panel that shows a
     // free ranked plan is, and the application sits behind a disclosure. A
     // person and their agent now have the same access, which they did not.
-    expect(robotHtml).toContain("See my plan");
+    expect(robotHtml).toContain("See what we would run");
     expect(robotHtml).toContain("a later conversation than evaluating one");
     expect(robotHtml).toContain("Rather talk to someone");
     expect(robotHtml).toContain("POST /api/agent-team/register");
