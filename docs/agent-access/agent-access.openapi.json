@@ -2025,7 +2025,10 @@
                 "blueprint.team.runs.start",
                 "blueprint.team.runs.release",
                 "blueprint.team.policy.get",
-                "blueprint.team.policy.set"
+                "blueprint.team.policy.set",
+                "blueprint.team.runs.list",
+                "blueprint.team.register",
+                "blueprint.team.funding.start"
               ]
             }
           },

@@ -12,6 +12,53 @@ function collectObjectKeys(value: unknown, keys = new Set<string>()) {
 }
 
 describe("Blueprint agent CLI", () => {
+  it("routes the team surface, keeping read commands away from the spending one", () => {
+    expect(parseAgentCliArgs(["team", "register", "--team-name", "Alpha Robotics"])).toMatchObject({
+      command: "team:register",
+      options: { teamName: "Alpha Robotics" },
+    });
+    expect(parseAgentCliArgs(["team", "fund", "--amount", "100"])).toMatchObject({
+      command: "team:funding:start",
+      options: { amount: 100 },
+    });
+    // The trap: `team runs` starts runs and spends money, so a more specific
+    // verb beside it must be matched first or a read becomes a purchase.
+    expect(parseAgentCliArgs(["team", "runs", "list"])).toMatchObject({
+      command: "team:runs:list",
+    });
+    expect(parseAgentCliArgs(["team", "runs", "release", "--reservation-id", "res-1"])).toMatchObject({
+      command: "team:runs:release",
+    });
+    expect(parseAgentCliArgs(["team", "runs", "--checkpoint-id", "ckpt-1"])).toMatchObject({
+      command: "team:runs:start",
+    });
+    expect(parseAgentCliArgs(["team", "plan", "--checkpoint-id", "ckpt-1"])).toMatchObject({
+      command: "team:plan",
+    });
+    expect(parseAgentCliArgs(["team", "policy", "set", "--daily-limit", "100"])).toMatchObject({
+      command: "team:policy:set",
+    });
+    expect(parseAgentCliArgs(["team", "policy"])).toMatchObject({ command: "team:policy:get" });
+  });
+
+  it("documents the whole no-operator path in help, so an agent can find it", async () => {
+    // Help is where an agent discovers what exists. The team surface shipped
+    // absent from it, which made the self-serve path undiscoverable.
+    const lines: string[] = [];
+    await runAgentCli(["help"], { env: {}, stdout: (line) => lines.push(line) });
+    const help = lines.join("\n");
+
+    for (const command of [
+      "team register",
+      "team fund",
+      "team plan",
+      "team policy set",
+      "team runs list",
+    ]) {
+      expect(help).toContain(command);
+    }
+  });
+
   it("parses nested catalog and session commands", () => {
     expect(parseAgentCliArgs(["catalog", "list", "--limit", "3"])).toMatchObject({
       command: "catalog:list",

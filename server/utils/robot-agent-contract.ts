@@ -36,6 +36,10 @@ export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.team.runs.release",
   "blueprint.team.policy.get",
   "blueprint.team.policy.set",
+  "blueprint.team.runs.list",
+  // The two that need no key at all, because they are how a team gets one.
+  "blueprint.team.register",
+  "blueprint.team.funding.start",
 ] as const;
 export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts help --format json",
@@ -54,6 +58,9 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team plan --checkpoint-id <checkpoint-id> --budget 100",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs start --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key <key>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team policy set --daily-limit 100 --per-run-limit 25 --enable",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team register --team-name \"Alpha Robotics\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team fund --amount 100",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs list",
 ] as const;
 
 export function buildRobotAgentAccessManifest() {
@@ -90,14 +97,42 @@ export function buildRobotAgentAccessManifest() {
       base: "/api/agent-team",
       auth: "Authorization: Bearer bpk_... (per-team agent key, revocable)",
       routes: {
+        register: "POST /api/agent-team/register",
         me: "GET /api/agent-team/me",
         registerCheckpoint: "POST /api/agent-team/checkpoints",
         listCheckpoints: "GET /api/agent-team/checkpoints",
         plan: "POST /api/agent-team/plan",
         startRuns: "POST /api/agent-team/runs",
+        listRuns: "GET /api/agent-team/runs",
         releaseReservation: "POST /api/agent-team/runs/:reservationId/release",
+        startFunding: "POST /api/agent-team/funding",
         getPolicy: "GET /api/agent-team/policy",
         setPolicy: "PUT /api/agent-team/policy",
+      },
+      /**
+       * The whole path, with nobody in it.
+       *
+       * Stated as a sequence because the point is that it is one: an agent can
+       * go from having no account to holding evaluation results without a
+       * person on either side. Registration needs no credential, funding needs
+       * no operator, and the only step that is not an API call is somebody
+       * paying — which is a fact about money, not a queue.
+       */
+      selfServe: {
+        noOperatorRequired: true,
+        sequence: [
+          "POST /api/agent-team/register — no credential, no questions. Returns a team id and a key, once.",
+          "POST /api/agent-team/checkpoints — something we can run. Or send it inline with register.",
+          "POST /api/agent-team/plan — free. What to run against, ranked, with a reason per row.",
+          "POST /api/agent-team/funding — a Stripe link at face value. Balance lands on payment.",
+          "PUT /api/agent-team/policy — the team's own daily and per-run limits, then switch the agent on.",
+          "POST /api/agent-team/runs with confirm:true — reserves and starts.",
+          "GET /api/agent-team/runs — open holds and when each expires if nothing reports.",
+        ],
+        noGates:
+          "Registration asks no qualifying questions. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
+        blankIsFine:
+          "A team that has answered nothing gets the most informative plan, not the worst one: an unknown hard constraint is ranked above every other kind of run, because one result closes it for every site that shares it.",
       },
       spendModel: {
         summary:
@@ -108,6 +143,10 @@ export function buildRobotAgentAccessManifest() {
           "Confirming requires an idempotencyKey, so a retried call cannot pay twice.",
         ranking:
           "Runs are ranked by expected information gain per dollar, not by likelihood of passing. A run that confirms what the team already knows is deliberately ranked last.",
+        ceiling:
+          "The balance is the hard ceiling and only a real payment raises it. The policy is the team pacing itself, and the same key can change it.",
+        holds:
+          "A run reserves its quote up front and settles for the episodes that executed, pro-rated. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
       },
     },
     siteWorldSearch: {

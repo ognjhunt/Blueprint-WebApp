@@ -10,6 +10,17 @@
 
 export type StoredDoc = Record<string, unknown>;
 
+/**
+ * What `FieldValue.delete()` resolves to here.
+ *
+ * A string rather than a symbol because documents are cloned through JSON,
+ * which drops symbols — and a sentinel that silently disappears would make a
+ * merge-with-delete look like a merge with nothing in it. Mock
+ * `admin.firestore.FieldValue.delete` as `() => FAKE_FIELD_DELETE` and a merge
+ * carrying it removes the field, as Firestore does.
+ */
+export const FAKE_FIELD_DELETE = "__FAKE_FIRESTORE_FIELD_DELETE__";
+
 export type FakeFirestoreState = {
   docs: Map<string, StoredDoc>;
 };
@@ -32,6 +43,10 @@ function deepMerge(
 ): Record<string, unknown> {
   const merged: Record<string, unknown> = { ...target };
   for (const [key, value] of Object.entries(source)) {
+    if (value === FAKE_FIELD_DELETE) {
+      delete merged[key];
+      continue;
+    }
     const existing = merged[key];
     if (isPlainObject(existing) && isPlainObject(value)) {
       merged[key] = deepMerge(existing, value);
@@ -52,8 +67,26 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b));
 }
 
+/**
+ * Resolve a Firestore field path, including a dotted one.
+ *
+ * Real queries filter on `"site_task_triage.disposition"` and this fake read
+ * it as a literal key, so every such query silently matched nothing. A query
+ * that returns an empty set looks exactly like a query with no data behind it,
+ * which is the worst way for a fake to be wrong.
+ */
+function fieldAt(data: StoredDoc, path: string): unknown {
+  if (!path.includes(".")) return data[path];
+  let cursor: unknown = data;
+  for (const segment of path.split(".")) {
+    if (!isPlainObject(cursor)) return undefined;
+    cursor = cursor[segment];
+  }
+  return cursor;
+}
+
 function queryMatches(data: StoredDoc, filter: QueryFilter): boolean {
-  const actual = data[filter.field];
+  const actual = fieldAt(data, filter.field);
   switch (filter.op) {
     case "==":
       return actual === filter.value;

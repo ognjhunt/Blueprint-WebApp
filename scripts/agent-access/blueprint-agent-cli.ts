@@ -252,6 +252,8 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     // `team <thing> <verb>` — the surface that acts for one team rather than
     // reading the public catalogue. Everything here needs an agent key.
     const [thing, verb] = [secondaryOrId, positionals[0]];
+    if (thing === "register") return { command: "team:register", options, format };
+    if (thing === "fund") return { command: "team:funding:start", options, format };
     if (thing === "me") return { command: "team:me", options, format };
     if (thing === "checkpoint" && verb === "register") {
       return { command: "team:checkpoint:register", options, format };
@@ -260,6 +262,10 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     if (thing === "plan") return { command: "team:plan", options, format };
     if (thing === "runs" && verb === "release") {
       return { command: "team:runs:release", options, format };
+    }
+    // Before the bare `runs` case below, which starts runs and spends money.
+    if (thing === "runs" && verb === "list") {
+      return { command: "team:runs:list", options, format };
     }
     if (thing === "runs") return { command: "team:runs:start", options, format };
     if (thing === "policy" && verb === "set") {
@@ -525,10 +531,23 @@ function buildHelpPayload(topic: unknown) {
       { command: "session create|get|reset|step|batch|control", description: "Operate eligible hosted sessions through existing APIs." },
       { command: "explorer-render", description: "Render an explorer frame for an existing session." },
       { command: "export", description: "Export dataset/session artifacts through the existing session API." },
+      // The team surface: acting for one team rather than reading the public
+      // catalogue. `help` is where an agent finds out this path exists, so
+      // leaving it out made the whole thing undiscoverable.
+      { command: "team register --team-name <name>", description: "Create a team and get an agent key. No credential, no qualifying questions. The key is returned once." },
+      { command: "team me", description: "Balance, policy, today's remaining allowance, checkpoints, and whether spend is possible right now." },
+      { command: "team checkpoint register", description: "Register something we can run: a policy endpoint, container image, or model artifact." },
+      { command: "team checkpoint", description: "List this team's checkpoints." },
+      { command: "team plan --checkpoint-id <id>", description: "What to evaluate against, ranked by information gain per dollar, with a reason per row. Spends nothing." },
+      { command: "team fund --amount <usd>", description: "Start a balance top-up and get a Stripe link. Face value; the balance lands when the payment does." },
+      { command: "team policy set --daily-limit <usd> --per-run-limit <usd> --enable", description: "The team's own limits on its agent. Off until set." },
+      { command: "team runs --checkpoint-id <id>", description: "Start runs. Without --confirm this returns the plan and spends nothing." },
+      { command: "team runs list", description: "Open holds, what each was quoted, and when it is released if nothing reports." },
+      { command: "team runs release --reservation-id <id>", description: "Give back a hold for a run that will not start." },
     ],
     environment: {
       BLUEPRINT_API_BASE_URL: "Optional. Defaults to http://localhost:5000.",
-      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery and request drafting; required for protected historical hosted-session and entitlement flows.",
+      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery and request drafting; required for protected historical hosted-session and entitlement flows. Also carries the per-team agent key (bpk_...) for every `team` command except `team register`.",
       BLUEPRINT_FIREBASE_ID_TOKEN: "Fallback bearer token env var for protected flows.",
     },
     examples: [
@@ -541,6 +560,14 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- ask --q \"How do I request a Task Evaluation Run with a budget?\"",
       "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
       "npm run agent:cli -- commerce live-order <live-order-id>",
+      // The whole robot-team path, with no person in it. Steps 2 onward read
+      // the key from BLUEPRINT_AGENT_AUTH_TOKEN.
+      "npm run agent:cli -- team register --team-name \"Alpha Robotics\" --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
+      "npm run agent:cli -- team plan --checkpoint-id <checkpoint-id> --budget 100",
+      "npm run agent:cli -- team fund --amount 100",
+      "npm run agent:cli -- team policy set --daily-limit 100 --per-run-limit 25 --enable",
+      "npm run agent:cli -- team runs --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key $(date +%F)-run",
+      "npm run agent:cli -- team runs list",
     ],
     exitCodes: AGENT_CLI_EXIT_CODES,
     truthBoundaries: [
@@ -675,6 +702,40 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
       return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
     // The team-scoped surface. Auth is the per-team agent key in
     // BLUEPRINT_AGENT_AUTH_TOKEN, which the client already sends as a bearer.
+    case "team:register":
+      // The only team command that needs no key -- it is how a team gets one.
+      return client.requestJson("/api/agent-team/register", {
+        method: "POST",
+        body: JSON.stringify({
+          teamName: requireString(parsed.options, "teamName"),
+          ...(parsed.options.contactEmail != null
+            ? { contactEmail: String(parsed.options.contactEmail) }
+            : {}),
+          ...(parsed.options.website != null
+            ? { website: String(parsed.options.website) }
+            : {}),
+          // A checkpoint inline, so one command goes from nothing to a
+          // plannable team. Only sent when all three parts are present.
+          ...(parsed.options.label != null &&
+          parsed.options.runtime != null &&
+          parsed.options.reference != null
+            ? {
+                checkpoint: {
+                  label: String(parsed.options.label),
+                  runtime: String(parsed.options.runtime),
+                  reference: String(parsed.options.reference),
+                },
+              }
+            : {}),
+        }),
+      });
+    case "team:funding:start":
+      return client.requestJson("/api/agent-team/funding", {
+        method: "POST",
+        body: JSON.stringify({ amountUsd: Number(requireString(parsed.options, "amount")) }),
+      });
+    case "team:runs:list":
+      return client.requestJson("/api/agent-team/runs");
     case "team:me":
       return client.requestJson("/api/agent-team/me");
     case "team:checkpoint:list":

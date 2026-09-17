@@ -110,18 +110,29 @@ router.get("/", async (_req: Request, res: Response) => {
 /* ------------------------------------------------- the agent's account */
 
 /**
- * Four things a person must do before a team's agent can run: issue it a key,
- * fund it, set what it may spend, and see what it did.
+ * The operator's view of a team's account, and the levers for a team that asks
+ * us to do it for them.
  *
- * None of these belong on the agent surface itself. An agent must not be able
- * to raise its own limit or top up its own balance, which is the whole reason
- * the spend policy lives outside the key it authenticates with.
+ * ## None of this is on the critical path any more
  *
- * Funding is an operator action rather than a self-serve checkout. `creditTeam`
- * is idempotent and takes an external reference, so the ledger is ready for
- * Stripe — but the top-up SKU and its price points are a product decision
- * nobody has made, and shipping a payment flow on an invented price would be
- * worse than an operator crediting a beta team.
+ * It used to be all of it. A team could not get a key, funds or a policy
+ * without one of these routes, so the agent surface was autonomous downstream
+ * of four manual steps. A team can now register itself, fund itself and set its
+ * own policy; these remain for support, for teams invoiced off-platform, and
+ * for correcting our own mistakes.
+ *
+ * ## What actually bounds an agent
+ *
+ * Not these routes — an earlier version of this comment claimed an agent
+ * "cannot raise its own limit or top up its own balance", and both halves were
+ * wrong. `PUT /api/agent-team/policy` has always let a team's key change its
+ * own limits, and funding is now self-serve too.
+ *
+ * The real ceiling is the balance, and it is a hard one: the only entry that
+ * increases it is a `credit`, and a credit comes from a real payment landing or
+ * an operator here. An agent cannot credit itself by asking. The policy is
+ * pacing on top of that — self-imposed, changeable by the team at any moment,
+ * and useful precisely because it is not the thing stopping a runaway.
  */
 
 async function requireOps(res: Response) {

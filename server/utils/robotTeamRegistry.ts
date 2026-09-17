@@ -23,6 +23,8 @@
  * would get less true the longer it ran. The ordering is stated once, in
  * `GRADE_RANK`, and every write goes through it.
  */
+import crypto from "node:crypto";
+
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
@@ -157,6 +159,8 @@ export async function listMatchableRobotTeams(
   options: { statuses?: RobotTeamStatus[]; limit?: number } = {},
 ): Promise<RobotTeamRecord[]> {
   if (!db) return [];
+  // `self_registered` is absent on purpose: see the status union. Anyone can
+  // create one of those, so it is not supply until a run has measured it.
   const statuses = options.statuses ?? ["applied", "engaged", "prospect"];
   const snapshot = await db
     .collection(ROBOT_TEAMS_COLLECTION)
@@ -172,6 +176,79 @@ async function writeRecord(record: RobotTeamRecord) {
     .collection(ROBOT_TEAMS_COLLECTION)
     .doc(record.id)
     .set({ ...record, updatedAt: nowIso() }, { merge: true });
+}
+
+/* ------------------------------------------------------------- trigger 0 */
+
+/**
+ * A robot team registered itself. No form, no gates, no spec answers.
+ *
+ * ## Why this exists beside the intake
+ *
+ * The intake asks four gates and nine spec answers before a team is in the
+ * registry, and a team that had submitted it still had nothing to do but wait:
+ * a key came from an operator, funding came from an operator, and the flow
+ * ended at "we will be in touch".
+ *
+ * Every one of those questions gates *deployment* — where the hardware is, how
+ * many engineers they can spare, when they could start. None of them gate
+ * *evaluation*, which runs a policy against a scene we already hold and needs
+ * exactly one thing: something runnable. Asking deployment questions to unlock
+ * an evaluation is a category error, and it was the whole delay.
+ *
+ * Worse, it was self-defeating. `evalSelection` scores an unknown hard
+ * constraint higher than anything else — a team that has told us nothing has
+ * the most to learn from a run, by our own ranking. The intake extracted, up
+ * front and for free, exactly the information the evaluation exists to produce.
+ *
+ * So this is the front door: a name, and you are in. The intake stays for teams
+ * that would rather talk to someone, and its answers still sharpen the ranking.
+ * It is no longer the gate.
+ *
+ * ## What registering does not grant
+ *
+ * Nothing spendable. The team lands at `self_registered` with an empty
+ * capability, a zero balance and autonomous spend off. A key is an identity,
+ * not a credit line, and the first real payment is what proves a counterparty
+ * exists — which is why open registration is safe rather than an abuse surface.
+ */
+export async function registerSelfServeTeam(params: {
+  name: string;
+  contactEmail?: string | null;
+  website?: string | null;
+}): Promise<RobotTeamRecord | null> {
+  if (!db) return null;
+
+  const slug = params.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48);
+
+  // A random suffix always, never the bare slug. Reusing the slug would let a
+  // second registration under an existing team's name attach a working key to
+  // that team's balance and results — so the one thing this must never do is
+  // resolve a name to a record somebody else created.
+  const id = `team_${slug || "team"}_${crypto.randomBytes(5).toString("hex")}`;
+
+  const record: RobotTeamRecord = {
+    id,
+    name: params.name.trim(),
+    status: "self_registered",
+    registrationSource: "self_serve",
+    contactEmail: params.contactEmail?.trim() || null,
+    website: params.website?.trim() || null,
+    // Empty, and that is the point. Nothing here is claimed, so nothing here
+    // can be wrong, and the first run measures it instead.
+    capability: {},
+    fieldProvenance: {},
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+
+  await writeRecord(record);
+  logger.info({ robotTeamId: id }, "Robot team self-registered");
+  return record;
 }
 
 /* ------------------------------------------------------------- trigger 1 */
@@ -281,7 +358,19 @@ export async function recordEvaluationOutcome(params: {
     },
   );
 
-  const record: RobotTeamRecord = { ...existing, capability, fieldProvenance };
+  const record: RobotTeamRecord = {
+    ...existing,
+    capability,
+    fieldProvenance,
+    // A measured result is what earns a self-registered team its place in the
+    // list sites are shown. Registration is open, so a name alone buys nothing;
+    // a run against a real scene is the evidence, and this is the only path
+    // from `self_registered` into matchable supply.
+    status:
+      existing.status === "self_registered" && changed.length
+        ? "applied"
+        : existing.status,
+  };
   await writeRecord(record);
   logger.info(
     { robotTeamId: params.robotTeamId, runId: params.runId, changed },

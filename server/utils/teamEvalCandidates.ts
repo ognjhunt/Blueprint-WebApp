@@ -40,6 +40,18 @@ export function screeningRunCostUsd(): number {
   return Math.round(screeningRound.episodes * episodeRate * 100) / 100;
 }
 
+/**
+ * How many episodes that quote buys.
+ *
+ * Recorded on the run alongside the price so a run that executed half its
+ * episodes can be billed for half. Without it the only honest options are
+ * charging the whole quote for partial work or giving partial work away, and
+ * both are worse than arithmetic.
+ */
+export function screeningRunEpisodes(): number {
+  return screeningRound.episodes;
+}
+
 /** Requests that are real, screened and reconstructed — the runnable supply. */
 async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
   if (!db) return [];

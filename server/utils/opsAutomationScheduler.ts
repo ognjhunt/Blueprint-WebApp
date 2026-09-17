@@ -27,6 +27,7 @@ import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
 import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
+import { reconcileAgentRunSettlements } from "./agentEvalRuns";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
@@ -375,6 +376,37 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 2_000,
     defaultStartupDelayMs: 110 * 1000,
     run: ({ limit }) => runOperatingGraphProjectionLoop({ limit }),
+  },
+  {
+    // The sweep for robot teams whose agents have gone quiet.
+    //
+    // A team's own holds are already reconciled on its agent's next call, so
+    // an active team never needs this lane: the caller blocked by a stale hold
+    // is the caller who asks next, and it gets the truth then. This exists for
+    // the team that reserved money and then stopped calling, where nobody is
+    // going to ask on their behalf.
+    key: "agent_run_settlement",
+    enabledEnv: "BLUEPRINT_AGENT_RUN_SETTLEMENT_ENABLED",
+    intervalEnv: "BLUEPRINT_AGENT_RUN_SETTLEMENT_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_AGENT_RUN_SETTLEMENT_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_AGENT_RUN_SETTLEMENT_STARTUP_DELAY_MS",
+    // Five minutes. Money a team cannot spend is a real cost to them, and the
+    // pass reads only what is actually due, so an idle platform costs one empty
+    // query per interval.
+    defaultIntervalMs: 5 * 60 * 1000,
+    defaultBatchSize: 50,
+    maxBatchSize: 500,
+    defaultStartupDelayMs: 45 * 1000,
+    run: async ({ limit }) => {
+      const summary = await reconcileAgentRunSettlements({ limit });
+      return {
+        processedCount: summary.settled + summary.released + summary.abandoned,
+        failedCount: summary.failed,
+        reason: summary.abandoned
+          ? `${summary.abandoned} hold(s) released on expiry with nothing reported`
+          : null,
+      };
+    },
   },
 ];
 

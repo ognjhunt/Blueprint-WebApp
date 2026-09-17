@@ -1,6 +1,19 @@
 /**
  * Closing out the money a run reserved.
  *
+ * ## The fast path, not the only path
+ *
+ * This is how a hold is resolved *promptly*: the Pipeline finishes a run, calls
+ * here, and the team's balance frees within the second. It is not what makes
+ * resolution *certain*. That is `reconcileAgentRunSettlements`, which reads the
+ * run records we hold and resolves anything that finished or timed out whether
+ * or not this route was ever called.
+ *
+ * The two share one idempotency key per reservation, so whichever gets there
+ * first wins and the other is a no-op. Which means a Pipeline deploy that
+ * forgets this endpoint costs latency, not money — and that is deliberate,
+ * because the Pipeline lives in a repo this one cannot change.
+ *
  * ## Why this is its own route
  *
  * When an agent starts runs, each one reserves what it was quoted. Something
@@ -41,6 +54,13 @@ import {
   releaseReservation,
   settleReservation,
 } from "../utils/robotTeamBalance";
+import {
+  getRunForReservation,
+  markResolved,
+  reportRunOutcome,
+  runIdForReservation,
+  settlementAmountUsd,
+} from "../utils/agentEvalRuns";
 
 const router = Router();
 
@@ -91,7 +111,26 @@ router.post(
       rate_usd: rateUsd,
     } = parsed.data;
 
+    // Our own record for this hold, keyed on the reservation rather than on the
+    // Pipeline's run id — the reservation is the only identifier both sides
+    // agreed on, and it is the thing being settled.
+    const recordId = runIdForReservation(reservationId);
+
     try {
+      // Record the outcome before moving any money. If the ledger write below
+      // throws, the outcome is already durable and due, so the reconciler
+      // finishes the job on its next pass instead of the hold sitting there
+      // waiting for a retry that may never come.
+      const recorded = await reportRunOutcome({
+        runId: recordId,
+        state:
+          parsed.data.blocked_before_any_episode || episodesRun === 0
+            ? "blocked"
+            : "completed",
+        episodesRun,
+        note: parsed.data.reason || `Pipeline run ${runId}`,
+      });
+
       // A run that never executed an episode is our failure, not a result.
       // Release the whole hold rather than settling it at zero, so the ledger
       // says what happened rather than recording a spend of nothing.
@@ -102,32 +141,53 @@ router.post(
           reason: parsed.data.reason || `Run ${runId} executed no episodes`,
           idempotencyKey: `settle-release:${reservationId}`,
         });
+        if (recorded) {
+          await markResolved(recordId, "blocked", "Released: no episodes ran");
+        }
         return res.status(200).json({
           ok: true,
           settled: false,
           released: true,
           amountUsd: 0,
+          reconciled: recorded,
           balance,
         });
       }
 
-      const amountUsd = Math.round(episodesRun * rateUsd * 100) / 100;
+      // What the Pipeline says the work cost, capped at what the team's agent
+      // actually authorised. `deriveBalance` books a settle at face value and
+      // does not clamp it to the hold, so a wrong rate on this side would come
+      // out of a team's balance as real spend. The quote is the ceiling: we
+      // never charge for more than was agreed, however many episodes ran.
+      const reportedUsd = Math.round(episodesRun * rateUsd * 100) / 100;
+      const record = recorded ? await getRunForReservation(reservationId) : null;
+      const amountUsd = record
+        ? Math.min(reportedUsd, settlementAmountUsd({ ...record, episodesRun }))
+        : reportedUsd;
+
       const balance = await settleReservation({
         teamId,
         reservationId,
         amountUsd,
         reason: parsed.data.reason || `Run ${runId}: ${episodesRun} episodes`,
         // Keyed on the reservation, not the attempt, so the Pipeline retrying a
-        // delivery it never saw acknowledged cannot charge the team twice.
+        // delivery it never saw acknowledged cannot charge the team twice — and
+        // so the reconciler, using the same key, cannot charge for it either.
         idempotencyKey: `settle:${reservationId}`,
       });
+      if (record) {
+        await markResolved(recordId, "completed", `Settled $${amountUsd}`);
+      }
 
       return res.status(200).json({
         ok: true,
         settled: true,
         released: false,
         amountUsd,
+        quotedUsd: record?.quotedUsd ?? null,
+        reportedUsd,
         episodesRun,
+        reconciled: Boolean(record),
         balance,
       });
     } catch (error) {

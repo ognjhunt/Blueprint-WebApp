@@ -410,7 +410,11 @@ export default function Contact() {
   const title = isSite ? "Let’s start with your site." : "Bring your robot. Find the fit.";
   const description = isSite
     ? "Six questions decide whether a robot can work at your site today. Answer them and see where you stand before anyone calls you — then we scope a paid evaluation together."
-    : "Tell us what your system can do. All robotics teams can apply for site-funded manipulation evaluations—arms, humanoids, mobile manipulators, and their policies.";
+    // Was "Tell us what your system can do" — a promise to go and look, which
+    // is what the old flow actually did: a form, then a wait for a matching
+    // site. We already hold the scenes, so the honest offer is a ranked plan
+    // today, and the questions below are no longer what unlocks it.
+    : "Give us a checkpoint we can run and see which real sites it should be evaluated against — ranked, priced, and free to look at. Arms, humanoids, mobile manipulators, and the policies that run them.";
   return (
     <>
       <SEO
@@ -430,8 +434,30 @@ export default function Contact() {
           <p className="ms-inquiry-aside">
             {isSite
               ? "These questions are the screen, not a survey. Six of them can end a submission, and we would rather end it here than on a call — with the reason, and what would change it. What follows a clear screen is a Site-funded Task Evaluation Run. Scope and pricing are agreed before evaluation begins."
-              : "Bring one system or several policy checkpoints. We match applications to qualified site tasks and agree the evaluation scope. Evaluation access and physical pilots require site approval; applying does not guarantee either."}
+              : "These questions sharpen the match; they are not a gate. Nothing here has to be answered before you can see what we would run your checkpoint against — that plan is free and available immediately, and you pay only for runs you choose to start. Where a site visit or a physical pilot follows, that needs the site's approval, and this form does not promise one."}
           </p>
+          {!isSite && (
+            /*
+             * The path with nobody in it.
+             *
+             * A robot team's engineers are the audience for this page, and an
+             * increasing share of them will send an agent rather than read it.
+             * The form stays the front door for anyone who wants to talk to a
+             * person; this is the front door for everyone else, and hiding it
+             * would leave the fastest route undiscoverable.
+             */
+            <p className="ms-inquiry-aside">
+              Prefer to skip the form? Your own agent can do all of this:{" "}
+              <code>POST /api/agent-team/register</code> takes a team name and
+              returns a key, then <code>POST /api/agent-team/plan</code> returns
+              the ranked list with a reason per row. No credential to register,
+              nothing charged until you confirm a run.{" "}
+              <a className="ms-text-link" href="/agent-access.openapi.json">
+                Machine-readable spec
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </a>
+            </p>
+          )}
           <a
             className="ms-text-link"
             href={isSite ? "/contact/robot-team" : "/contact/site-operator"}
