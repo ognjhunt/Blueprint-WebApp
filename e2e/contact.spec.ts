@@ -77,6 +77,11 @@ test("robot-team page asks its own gates, not the site's", async ({ page }) => {
     page.getByRole("heading", { name: /Bring your robot. Find the fit/i }),
   ).toBeVisible();
   await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
+  // The application now sits behind a disclosure: the page leads with the free
+  // plan, which is the product, and the form is how you reach a person. Open it
+  // before asserting on what it asks -- those facts are unchanged, only where
+  // they live.
+  await page.getByText(/Rather talk to someone/i).click();
   await expect(page.locator("#gate-hardwareMaturity")).toBeVisible();
   await expect(page.getByRole("button", { name: /Send application/i })).toBeVisible();
 });
