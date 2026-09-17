@@ -209,6 +209,13 @@ export default function SelfCaptureUpload() {
    */
   const [scope, setScope] = useState<"owner" | "film">("owner");
 
+  // Whether the operator can clear the loose items before filming. A cleared
+  // space films as a clean plate -- nothing to remove later -- but it is a real
+  // ask, so it is offered, not required. Either way the objects themselves come
+  // from the item photos, not this walkthrough. Purely a client hint that steers
+  // the filming guidance; it changes nothing about how the video is stored.
+  const [clearItems, setClearItems] = useState<"in_place" | "cleared">("in_place");
+
   // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
   // the capture-blocking gates change what to film; if one of those is still
   // unresolved we genuinely do not know what to record, so the brief comes
@@ -563,9 +570,51 @@ export default function SelfCaptureUpload() {
                 onSaved={() => setUpload({ status: "done" })}
               />
 
-              <p className="ms-field-hint" style={{ marginTop: "16px" }}>
-                Stand where the work happens, walk one slow lap, about 45 seconds. Film the work,
-                not the worker.
+              {/* The clean-plate option. Clearing the loose items and filming the
+                  empty space rebuilds cleaner than filming around them and having
+                  to remove them later -- but it is a real ask, so it is offered,
+                  not required. Either way the items come from the photos below. */}
+              <fieldset style={{ border: "none", padding: 0, margin: "16px 0 0" }}>
+                <legend className="ms-field-hint" style={{ padding: 0, marginBottom: "6px" }}>
+                  Can you move the loose items out of the way first?
+                </legend>
+                <label htmlFor="cap-in-place" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                  <input
+                    id="cap-in-place"
+                    type="radio"
+                    name="clear-items"
+                    checked={clearItems === "in_place"}
+                    onChange={() => setClearItems("in_place")}
+                    style={{ width: "auto", minHeight: 0 }}
+                  />
+                  <span style={{ fontWeight: 400 }}>No — film it as it normally is</span>
+                </label>
+                <label htmlFor="cap-cleared" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                  <input
+                    id="cap-cleared"
+                    type="radio"
+                    name="clear-items"
+                    checked={clearItems === "cleared"}
+                    onChange={() => setClearItems("cleared")}
+                    style={{ width: "auto", minHeight: 0 }}
+                  />
+                  <span style={{ fontWeight: 400 }}>Yes — I’ll clear it and film the empty space</span>
+                </label>
+              </fieldset>
+
+              {/* Coverage is about occlusion, not thoroughness: whatever the camera
+                  never sees gets guessed, so the instruction is overlap and angles,
+                  not "a lap". And the pass is static -- motion is a ghost in the
+                  result. */}
+              <p className="ms-field-hint" style={{ marginTop: "12px" }}>
+                {clearItems === "cleared"
+                  ? "Clear the loose items, then film the empty space. Move slowly and overlap your "
+                    + "passes — cover every surface from a few heights, especially right around where "
+                    + "the work happens. Keep it still: no people, nothing moving. Photograph the "
+                    + "items themselves below."
+                  : "Move slowly and overlap your passes — cover every surface from a few heights, "
+                    + "especially right around where the work happens. Keep the scene still: no people "
+                    + "or moving items in frame."}
               </p>
 
               {/* A re-film request or "where this stands" lands right under the
