@@ -22,6 +22,7 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
+import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
 
@@ -214,9 +215,6 @@ export default function SelfCaptureUpload() {
    * the server, which reads an absent scope as owner.
    */
   const [scope, setScope] = useState<"owner" | "film">("owner");
-  /** A record-only link for a colleague, minted on demand from the owner link. */
-  const [filmLink, setFilmLink] = useState<string | null>(null);
-  const [filmLinkPending, setFilmLinkPending] = useState(false);
 
   // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
   // the capture-blocking gates change what to film; if one of those is still
@@ -225,20 +223,6 @@ export default function SelfCaptureUpload() {
   // rest of the brief settles afterwards -- the readiness ladder's own
   // distinction, applied to the UI instead of a blanket "confirm everything
   // first".
-  async function requestFilmLink() {
-    if (filmLink || filmLinkPending) return;
-    setFilmLinkPending(true);
-    try {
-      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/film-link`);
-      const data = (await response.json().catch(() => null)) as { filmUrl?: string } | null;
-      if (response.ok && data?.filmUrl) setFilmLink(data.filmUrl);
-    } catch {
-      // No link. The owner can still film themselves.
-    } finally {
-      setFilmLinkPending(false);
-    }
-  }
-
   const briefBlocksCapture = (() => {
     if (!brief) return false;
     const mode = isCaptureMode(brief.captureMode) ? brief.captureMode : defaultCaptureMode;
@@ -628,37 +612,7 @@ export default function SelfCaptureUpload() {
                   is handing this to a colleague sends a link that can record and
                   upload but cannot attest -- so a forwarded QR never carries the
                   authority to confirm operating facts on the site's behalf. */}
-              {scope === "owner" && (
-                <div style={{ marginTop: "20px" }}>
-                  {filmLink ? (
-                    <p className="ms-field-hint">
-                      Record-only link for a colleague — they can film and upload, only you can
-                      confirm the brief:
-                      <br />
-                      <input
-                        readOnly
-                        value={filmLink}
-                        onFocus={(event) => event.currentTarget.select()}
-                        style={{ width: "100%", marginTop: "6px" }}
-                      />
-                    </p>
-                  ) : (
-                    <p className="ms-field-hint">
-                      Someone else doing the filming?{" "}
-                      <button
-                        type="button"
-                        className="ms-text-link"
-                        onClick={requestFilmLink}
-                        disabled={filmLinkPending}
-                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
-                      >
-                        {filmLinkPending ? "Creating…" : "Create a record-only link"}
-                      </button>{" "}
-                      — they can film and upload, but only you can confirm the task brief.
-                    </p>
-                  )}
-                </div>
-              )}
+              {scope === "owner" && <FilmLinkHandoff token={token} />}
 
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 Already have a video? Upload it instead — if it covers the work area we will use
