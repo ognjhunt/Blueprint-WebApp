@@ -283,3 +283,71 @@ describe("a balance is not permission", () => {
     expect(utcDayKey(new Date("2026-09-18T00:01:00.000Z"))).toBe("2026-09-18");
   });
 });
+
+/* ------------------------------------------------- checkpoint intake */
+
+describe("a checkpoint asks for nothing a run would measure", () => {
+  it("refuses a checkpoint with nothing runnable behind it", async () => {
+    const { registerCheckpoint } = await import("../utils/robotCheckpoints");
+    const result = await registerCheckpoint({
+      teamId: "team-1",
+      label: "v3",
+      runtime: "policy_endpoint",
+      reference: "   ",
+    });
+
+    expect(result.registered).toBe(false);
+    // No Firestore here, so the store check fires first; either refusal is a
+    // refusal, and neither invents a checkpoint we cannot execute.
+    expect(result.registered === false && result.refusal).toBeTruthy();
+  });
+
+  it("refuses a runtime we cannot execute", async () => {
+    const { registerCheckpoint } = await import("../utils/robotCheckpoints");
+    const result = await registerCheckpoint({
+      teamId: "team-1",
+      label: "v3",
+      runtime: "powerpoint",
+      reference: "https://example.test/policy",
+    });
+
+    expect(result.registered).toBe(false);
+  });
+});
+
+describe("measurement outranks the team's own estimate", () => {
+  it("puts measured above self_reported in the grade ladder", async () => {
+    // The property the whole checkpoint-first change rests on: once a run
+    // writes `measured`, mergeCapability stops letting the team's own number
+    // win, with no migration and no deletion.
+    const { QUOTABLE_GRADES } = await import("../types/robot-team-registry");
+    const { mergeCapability } = await import("../utils/robotTeamRegistry");
+
+    const existing = {
+      capability: { payloadCapacity: "under_5kg" },
+      fieldProvenance: {
+        payloadCapacity: {
+          grade: "self_reported" as const,
+          source: "intake",
+          observedAt: "2026-09-01T00:00:00.000Z",
+        },
+      },
+    };
+
+    const merged = mergeCapability(existing, { payloadCapacity: "five_to_20kg" }, {
+      grade: "measured",
+      source: "evaluationRun:run-1",
+    });
+
+    expect(merged.capability.payloadCapacity).toBe("five_to_20kg");
+    expect(merged.fieldProvenance.payloadCapacity?.grade).toBe("measured");
+    // And a later self-report cannot take it back.
+    const reverted = mergeCapability(
+      { capability: merged.capability, fieldProvenance: merged.fieldProvenance },
+      { payloadCapacity: "under_5kg" },
+      { grade: "self_reported", source: "intake-2" },
+    );
+    expect(reverted.capability.payloadCapacity).toBe("five_to_20kg");
+    expect(QUOTABLE_GRADES).toContain("measured");
+  });
+});
