@@ -1,3 +1,5 @@
+import { bookingUrl } from "./bookingLink";
+
 interface WaitlistDataForPrompt {
   name: string;
   email: string;
@@ -52,7 +54,7 @@ To get started, please take time to choose sign up and choose a date & time for 
 ${offWaitlistUrl}
 
 Any questions? Here's a link to my calendar if you wanted to chat this week!:
-https://calendly.com/blueprintar/30min
+${bookingUrl()}
 
 ____
 Nijel Hunt
@@ -182,7 +184,7 @@ You should receive a Google Calendar Invite for this shortly. Please accept it t
 Based on the provided information (${estimated_square_footage} sq ft), we estimate the mapping will take approximately ${calculatedMappingDuration} minutes.
 
 Pilot Details: https://www.tryblueprint.io/pilot-program
-Questions? Reply to this email or schedule a chat: https://calendly.com/blueprintar/30min
+Questions? Reply to this email or schedule a chat: ${bookingUrl()}
 
 Thanks,
 Nijel Hunt

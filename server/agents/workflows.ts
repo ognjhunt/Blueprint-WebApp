@@ -28,7 +28,21 @@ import type {
   AgentTaskKind,
 } from "./types";
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
-import { buildQualificationEmail } from "../utils/qualificationEmails";
+import {
+  buildQualificationEmail,
+  type MatchNextStep,
+} from "../utils/qualificationEmails";
+import {
+  decideCaptureDispatch,
+  describeCaptureDispatch,
+  type CaptureDispatchDecision,
+} from "../utils/captureDispatch";
+import { createCaptureUploadToken } from "../utils/captureUploadToken";
+import {
+  bindingGateFieldIds,
+  defaultCaptureMode,
+  isCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
 import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
 import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import {
@@ -499,8 +513,63 @@ function createWaitlistEmailPolicy(): LaneSafetyPolicy {
   };
 }
 
-function createInboundEmailPolicy(): LaneSafetyPolicy {
-  return INBOUND_POLICY;
+/**
+ * Whether a person has to read this particular inbound email before it goes.
+ *
+ * `INBOUND_POLICY` queues every `qualified_ready` / `qualified_risky` email for
+ * approval, and the qualification prompt separately tells the model to flag
+ * those states. Both were written when qualifying a site meant committing to
+ * send somebody to it — the prompt says so in as many words, "those
+ * recommendations can change buyer-facing commitments".
+ *
+ * Self-capture changed what qualifying commits us to. A qualified site that
+ * films its own workcell gets a signed upload link: it costs nothing, it
+ * expires, and either side can ignore it. Holding that behind a person is the
+ * same category error the service-area gate made — treating a fact about our
+ * old cost structure as a fact about the submission.
+ *
+ * So the gate narrows to what is actually being committed, and the
+ * conservative default stays everywhere else:
+ *
+ * - **A capturer visit** still needs a person. Somebody drives to a real
+ *   address, and that is a real commitment.
+ * - **A model-written follow-up** still needs a person. The deterministic
+ *   variants are fixed copy selected by the site's own answers, which is what
+ *   `qualificationEmails` means by reviewing the copy once instead of
+ *   spot-checking every send. `buyer_follow_up` is model prose and gets no
+ *   such guarantee.
+ * - **Anything upstream asked a person for** still gets one: `blocked`, and
+ *   the rights, privacy, payout and commercial concerns that set
+ *   `requires_human_review`, are untouched here.
+ *
+ * What is left auto-sending is a pre-reviewed, deterministic email carrying a
+ * free link to a site that asked for one.
+ */
+export function createInboundEmailPolicy(params: {
+  /** True when the body is the deterministic gate-built copy, not model prose. */
+  deterministic: boolean;
+  dispatch: CaptureDispatchDecision;
+}): LaneSafetyPolicy {
+  const commitsAVisit = params.dispatch.dispatch && params.dispatch.channel === "capturer_visit";
+  if (!params.deterministic || commitsAVisit) {
+    return INBOUND_POLICY;
+  }
+
+  return {
+    ...INBOUND_POLICY,
+    autoApproveCriteria: (draft) =>
+      (draft.confidence ?? 0) >= 0.8 &&
+      !draft.requires_human_review &&
+      draft.automation_status !== "blocked",
+    alwaysHumanReview: (draft) =>
+      draft.requires_human_review === true ||
+      draft.automation_status === "blocked" ||
+      // Escalations are about the request itself, not about what capture mode
+      // costs us, so they keep their person.
+      ["escalated_to_geometry", "escalated_to_validation"].includes(
+        draft.recommendation ?? "",
+      ),
+  };
 }
 
 function createSupportEmailPolicy(): LaneSafetyPolicy {
@@ -677,6 +746,88 @@ export function clampRecommendationToGates(
   return { qualificationState, requiresHumanReview };
 }
 
+/**
+ * Where a capture upload link points.
+ *
+ * Kept here rather than imported because the two other origin readers in the
+ * codebase are private to their modules; this one is scoped to the same
+ * variables so a deployment cannot end up issuing links on a different host
+ * from its unsubscribe footers.
+ */
+function publicAppOrigin() {
+  return (
+    process.env.VITE_PUBLIC_APP_URL?.trim()
+    || process.env.APP_URL?.trim()
+    || "https://tryblueprint.io"
+  ).replace(/\/+$/, "");
+}
+
+/**
+ * Decide whether capture starts for this submission, and on what terms.
+ *
+ * The inputs are all already computed: the deterministic gate verdict, the
+ * review clamp, and the capture mode the site chose at intake. This adds no
+ * judgement of its own — it is the existing one-way door applied at the moment
+ * a submission is otherwise finished being screened.
+ *
+ * Capture mode comes off the stored request. Absent means the submission
+ * predates the question, and `decideCaptureDispatch` holds rather than assuming
+ * nobody has to travel.
+ */
+export function decideDispatchForRequest(
+  request: InboundRequest,
+  requiresHumanReview: boolean,
+): CaptureDispatchDecision {
+  const captureMode = isCaptureMode(request.request.capture_mode)
+    ? request.request.capture_mode
+    : null;
+
+  return decideCaptureDispatch({
+    disposition: request.site_task_triage?.disposition,
+    requiresHumanReview,
+    unanswered: request.site_task_triage?.unanswered_field_ids,
+    captureMode,
+    // Provenance is absent for every inbound submission, which reads as
+    // operator-stated -- correct, because the site answered these itself. The
+    // binding list still matters: it is what stops an outbound-converted
+    // request dispatching on gates nobody confirmed.
+    bindingFieldIds: bindingGateFieldIds(captureMode ?? defaultCaptureMode),
+    gateAnswerSources: request.site_task_gate_sources ?? null,
+  });
+}
+
+/**
+ * Turn a dispatch decision into the one sentence the site reads.
+ *
+ * Issuing the token here is what makes the link real. The ids are derived from
+ * the request rather than generated, so a re-run of this workflow points at the
+ * same storage prefix instead of scattering a second empty capture beside the
+ * first.
+ */
+export function nextStepForDispatch(
+  request: InboundRequest,
+  decision: CaptureDispatchDecision,
+): MatchNextStep {
+  if (!decision.dispatch) {
+    return { kind: "held" };
+  }
+
+  if (decision.channel === "capturer_visit") {
+    return { kind: "capturer_visit" };
+  }
+
+  const token = createCaptureUploadToken({
+    requestId: request.requestId,
+    sceneId: `site-${request.requestId}`,
+    captureId: `walkthrough-${request.requestId}`,
+  });
+
+  return {
+    kind: "self_capture",
+    uploadUrl: `${publicAppOrigin()}/capture-upload/${token}`,
+  };
+}
+
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
@@ -694,6 +845,11 @@ function buildInboundActionSpecs(
       ? "in_review"
       : qualificationState;
 
+  // The step that used to be a person noticing a queue. Everything it reads was
+  // already decided above, so this adds latency of zero and judgement of zero.
+  const dispatch = decideDispatchForRequest(request, requiresHumanReview);
+  const nextStep = nextStepForDispatch(request, dispatch);
+
   const specs: Phase2WorkflowActionSpec[] = [
     {
       actionKey: "inbound_status_update",
@@ -708,6 +864,16 @@ function buildInboundActionSpecs(
           status: routingStatus,
           human_review_required: requiresHumanReview,
           automation_confidence: result.confidence,
+          // Recorded whether or not it dispatched. A hold with a named reason
+          // is the thing an operator needs to see; a silent no-op was the
+          // failure mode this whole path replaces.
+          capture_dispatch: {
+            dispatched: dispatch.dispatch,
+            channel: dispatch.dispatch ? dispatch.channel : null,
+            hold_reason: dispatch.dispatch ? null : dispatch.holdReason,
+            summary: describeCaptureDispatch(dispatch),
+            decided_at: new Date().toISOString(),
+          },
         },
       },
       policy: createPhase2RoutingPolicy("inbound"),
@@ -723,6 +889,11 @@ function buildInboundActionSpecs(
     siteName: request.request.siteName,
     triage: request.site_task_triage,
     matches,
+    // So the email names the step the system actually took. Before this it
+    // asked every qualified site to book a call while dispatch was separately
+    // issuing an upload link or holding -- two different next steps in flight
+    // for one submission.
+    nextStep,
   });
 
   if (request.contact.email && (screenedEmail || result.buyer_follow_up)) {
@@ -737,11 +908,11 @@ function buildInboundActionSpecs(
         subject: screenedEmail?.subject ?? result.buyer_follow_up.subject,
         body: screenedEmail?.body ?? result.buyer_follow_up.body,
       },
-      policy: createInboundEmailPolicy(),
+      policy: createInboundEmailPolicy({ deterministic: Boolean(screenedEmail), dispatch }),
     });
   }
 
-  return { routingStatus, specs };
+  return { routingStatus, specs, dispatch };
 }
 
 function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) {

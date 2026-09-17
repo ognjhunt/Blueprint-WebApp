@@ -3,6 +3,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
+import { bookingUrl } from "../utils/bookingLink";
 import { isValidEmailAddress } from "../utils/validation";
 
 function emailDomain(value: string) {
@@ -251,7 +252,7 @@ export default async function contactHandler(req: Request, res: Response) {
     summaryLines.push(`Message: ${message}`);
   }
 
-  summaryLines.push("Calendly link: https://calendly.com/blueprintar/30min");
+  summaryLines.push(`Calendly link: ${bookingUrl()}`);
 
   const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
   const subject = `Blueprint request from ${company}`;

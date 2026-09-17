@@ -521,8 +521,12 @@ export async function encryptInboundRequestForStorage<
         request.request.taskStatement || "Task statement pending"
       ),
       // Enum tokens, stored in the clear so a re-run can recompute the same
-      // deterministic verdict from the same answers.
+      // deterministic verdict from the same answers. Capture mode belongs with
+      // them: it selects which gates bind, so a verdict cannot be reproduced
+      // without it, and dropping it here is what made a stored submission look
+      // like it had never answered the question.
       siteTaskGates: request.request.siteTaskGates ?? null,
+      capture_mode: request.request.capture_mode ?? null,
       siteTaskSpec: request.request.siteTaskSpec ?? null,
       taskDescription: await encryptOptionalField(
         request.request.taskDescription ?? null
@@ -623,6 +627,7 @@ export async function decryptInboundRequestForAdmin<
         ? await decryptFieldValue(request.request.taskStatement)
         : "Legacy submission requires manual scoping",
       siteTaskGates: request.request.siteTaskGates ?? null,
+      capture_mode: request.request.capture_mode ?? null,
       siteTaskSpec: request.request.siteTaskSpec ?? null,
       taskDescription: await decryptOptionalField(
         request.request.taskDescription ?? null

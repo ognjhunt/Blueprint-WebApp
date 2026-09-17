@@ -1,4 +1,5 @@
 import { logger } from "../logger";
+import { bookingUrl } from "./bookingLink";
 import {
   HELP_WITH_LABELS,
   REQUESTED_LANE_LABELS,
@@ -269,7 +270,7 @@ export async function notifySlackInboundRequest(
           text: "Schedule Call",
           emoji: true,
         },
-        url: "https://calendly.com/blueprintar/30min",
+        url: bookingUrl(),
         action_id: "schedule_call",
       },
     ],

@@ -27,8 +27,33 @@
  */
 import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
+import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
+import { bookingUrl } from "./bookingLink";
 
-export const CALENDLY_URL = "https://calendly.com/blueprintar/30min";
+/**
+ * Where a booking link points, when one is warranted.
+ *
+ * ## When a call earns its place, and when it does not
+ *
+ * A call costs days of calendar latency and two people's synchronous time. That
+ * is worth paying when the information cannot be got another way, or when the
+ * person on the other end wants a human before they commit. It is not worth
+ * paying to find out what a room looks like, because 45 seconds of footage
+ * answers that better and in fifteen minutes.
+ *
+ * So booking links belong at commitment and at reassurance, and not at
+ * discovery. `buildMatchEmail` used to open with one and no longer does: it
+ * fires before any capture exists, so there was no scope to agree and nothing
+ * to discuss that the video does not show. `buildLetsTalkEmail` keeps one, but
+ * only for the open questions footage cannot settle.
+ *
+ * The link that is still missing is the one after an evaluation, where there is
+ * a scene, measured results and a real decision about money. That email does
+ * not exist yet because nothing emits an evaluation-complete event to hang it
+ * on, and building the hook before the event is how you get machinery nobody
+ * triggers.
+ */
+export const CALENDLY_URL = bookingUrl();
 
 export type QualificationEmail = {
   subject: string;
@@ -103,17 +128,33 @@ export function buildNotYetEmail(params: {
 export function buildLetsTalkEmail(params: {
   firstName: string;
   siteName?: string | null;
-  triage: Pick<SiteTaskTriageSummary, "open_questions" | "incomplete">;
+  triage: Pick<
+    SiteTaskTriageSummary,
+    "open_questions" | "incomplete" | "open_question_field_ids"
+  >;
   calendlyUrl?: string;
 }): QualificationEmail {
   const { firstName, siteName, triage } = params;
-  const calendly = params.calendlyUrl || CALENDLY_URL;
+  const calendly = params.calendlyUrl || bookingUrl();
   const openQuestions = triage.open_questions.filter(Boolean);
   const site = siteName?.trim();
 
-  const subject = site
-    ? `${site}: a short call should settle this`
-    : "A short call should settle this";
+  /**
+   * A marginal answer about the room is a question footage settles, and asking
+   * for a call to discuss what a camera would show is the expensive way to
+   * learn it. A blank gate is not a marginal answer at all, so an incomplete
+   * submission keeps the call: nobody described the thing we would be filming.
+   */
+  const footageAnswers =
+    !triage.incomplete && footageSettlesAll(triage.open_question_field_ids);
+
+  const subject = footageAnswers
+    ? site
+      ? `${site}: 45 seconds of video should settle this`
+      : "45 seconds of video should settle this"
+    : site
+      ? `${site}: a short call should settle this`
+      : "A short call should settle this";
 
   const body = [
     `Hi ${firstNameOf(firstName)},`,
@@ -122,7 +163,11 @@ export function buildLetsTalkEmail(params: {
       ? `Thanks for describing the task at ${site}. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`
       : `Thanks for describing the task. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`,
     "",
-    openQuestions.length ? "Here is the agenda, so the call is short:" : "",
+    openQuestions.length
+      ? footageAnswers
+        ? "Here is what we could not tell from the form:"
+        : "Here is the agenda, so the call is short:"
+      : "",
     openQuestions.length ? "" : "",
     openQuestions.length ? bulletList(openQuestions) : "",
     "",
@@ -130,9 +175,13 @@ export function buildLetsTalkEmail(params: {
       ? "A couple of the screening questions were left blank, so we will confirm those too rather than assuming."
       : "",
     "",
-    `Thirty minutes, and you can book whenever suits: ${calendly}`,
+    footageAnswers
+      ? "You do not need to book anything to settle this. Film that one work area on a phone for about 45 seconds and send it back — every question above is about the room itself, and the video shows it better than either of us could describe it."
+      : `Thirty minutes, and you can book whenever suits: ${calendly}`,
     "",
-    "If reading that list makes the answer obvious on your side, tell us and we will save us both the call.",
+    footageAnswers
+      ? "If you would rather talk it through first, reply and we will find a time."
+      : "If reading that list makes the answer obvious on your side, tell us and we will save us both the call.",
     "",
     "— The Blueprint team",
   ]
@@ -141,6 +190,39 @@ export function buildLetsTalkEmail(params: {
     .join("\n");
 
   return { subject, body, variant: "lets_talk" };
+}
+
+/**
+ * What happens next for a site that cleared the screen.
+ *
+ * Mirrors `CaptureDispatchDecision` rather than restating it: the caller runs
+ * the real decision and hands the outcome here, so the email cannot promise a
+ * step the system did not take.
+ */
+export type MatchNextStep =
+  /** An upload link was issued. The site films it themselves. */
+  | { kind: "self_capture"; uploadUrl: string }
+  /** Dispatchable, but somebody has to drive. Scheduling is a human exchange. */
+  | { kind: "capturer_visit" }
+  /** Held. We say we are reviewing rather than inventing a next step. */
+  | { kind: "held" };
+
+function matchNextStepLine(nextStep: MatchNextStep | undefined, calendly: string): string {
+  if (nextStep?.kind === "self_capture") {
+    return `The next step takes about a minute: film the work area on a phone and upload it here — ${nextStep.uploadUrl}. You do not need an app, an account, or a call. We turn that into a 3D scene and run the shortlisted robots against it.`;
+  }
+  if (nextStep?.kind === "capturer_visit") {
+    return "The next step is a walkthrough capture on site. Reply with a couple of windows that suit and we will confirm one — or, if it is easier, tell us and you can film it yourself in about a minute instead.";
+  }
+  if (nextStep?.kind === "held") {
+    // Deliberately no link and no promise. Something upstream wanted a person,
+    // and inviting an upload we are not ready to process would be worse than
+    // saying less.
+    return "We are reviewing the details before we start a capture, and will come back to you shortly with what we need.";
+  }
+  // No decision passed: legacy callers and the non-intake paths. A booking link
+  // is the honest fallback there, because nothing has been dispatched.
+  return `The next step is a short call to agree scope: ${calendly}`;
 }
 
 /**
@@ -167,9 +249,19 @@ export function buildMatchEmail(params: {
   siteName?: string | null;
   summary: MatchSummary;
   calendlyUrl?: string;
+  /**
+   * What the system actually did with this submission, so the email can say it.
+   *
+   * This email fires at qualification, before any capture exists. It used to
+   * end with "the next step is a short call to agree scope", which was wrong
+   * twice over: there was no scope to agree, and meanwhile dispatch had either
+   * sent an upload link or held. Passing the real outcome in means the sentence
+   * describes what happened rather than asserting a step nobody takes.
+   */
+  nextStep?: MatchNextStep;
 }): QualificationEmail {
   const { firstName, siteName, summary } = params;
-  const calendly = params.calendlyUrl || CALENDLY_URL;
+  const calendly = params.calendlyUrl || bookingUrl();
   const site = siteName?.trim();
   const matched = summary.matched.length;
   const provisional = summary.provisional.length;
@@ -187,7 +279,7 @@ export function buildMatchEmail(params: {
         ? `\n${provisional === 1 ? "One further team" : `${provisional} further teams`} might also fit, but we are missing a figure we would need to say so. We will ask them rather than guess.`
         : "",
       "",
-      `The next step is a short call to agree scope: ${calendly}`,
+      matchNextStepLine(params.nextStep, calendly),
       "",
       "— The Blueprint team",
     ]
@@ -256,6 +348,8 @@ export function buildQualificationEmail(params: {
    * why a clean screen still returns null without it.
    */
   matches?: MatchSummary | null;
+  /** The dispatch outcome, so the match branch can name a real next step. */
+  nextStep?: MatchNextStep;
 }): QualificationEmail | null {
   const { triage } = params;
   if (!triage) return null;
@@ -283,6 +377,7 @@ export function buildQualificationEmail(params: {
       firstName: params.firstName,
       siteName: params.siteName,
       summary: params.matches,
+      nextStep: params.nextStep,
     });
   }
 

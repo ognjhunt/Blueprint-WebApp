@@ -1,25 +1,44 @@
 /**
  * What Blueprint charges, and how many episodes each round runs.
  *
- *   $2,500     a site pays once, per site-task. All-in.
+ *   $0         a site pays nothing to find out.
  *   $0.50      a robot team pays per episode, and screening is the only
  *              thing a robot team buys.
  *
- * WHY THE SITE FEE IS ALL-IN. A site is buying a decision — which robot
- * deserves a physical pilot — not compute. "Episode" is a robot-team concept:
- * it exists so a vendor can control spend across its own checkpoints. Putting a
- * per-episode rate in front of a site operator means quoting them a bill they
- * cannot size in advance, and then returning mid-engagement to collect for a
- * finalist round they never budgeted for. So the finalist comparison is inside
- * the $2,500 and the site never sees a per-unit rate.
+ * WHY THE SITE PAYS NOTHING. Not generosity, and not because sites are poor.
+ * A price on the site side and a ten-minute onboarding are mutually exclusive.
+ * Any figure — $2,500 or $250 — means a purchase order, a budget owner and
+ * legal, which is weeks. Capture takes forty-five seconds and reconstruction
+ * costs us the price of one world-model generation, so the payment was the
+ * slowest and most expensive step in a process built to be fast and cheap.
+ * Removing it is what makes "film it now, know by this afternoon" true rather
+ * than aspirational.
  *
- * WHY THE SITE FUNDS THE FINALIST ROUND RATHER THAN THE VENDORS. Two reasons.
- * A team that budgeted for screening and is then promoted would owe money it
- * did not plan for, at the exact moment the site is waiting on a result. And if
- * vendors funded their own finalist rounds, the team with the deepest pockets
- * would buy more statistical confidence than its rivals — which is not a
- * comparison. Blueprint funds and controls the finalist round so every finalist
- * gets the same episode count under the same conditions.
+ * It also fixes who we are subsidising. The scarce side of this market is real
+ * rooms running real repeated tasks with permission to be captured — not
+ * funded robot teams starved of deployment data. You subsidise the constrained
+ * side, and that is supply.
+ *
+ * WHAT A SITE IS AND IS NOT GIVEN. Free covers finding out: the capture, the
+ * reconstruction, the screening, and the answer about who clears their
+ * constraints. It does not cover acting on it. A physical pilot is a real
+ * commitment with real cost, and that is where a site's money belongs — at the
+ * point there is something to buy rather than something to learn.
+ *
+ * WHY VENDORS STILL DO NOT FUND THEIR OWN FINALIST ROUNDS. This constraint
+ * survives the change and is the reason "robot teams pay for everything" is
+ * not quite the model. If a vendor bought its own finalist episodes, the team
+ * with the deepest pockets would buy more statistical confidence than its
+ * rivals — which is not a comparison, it is an auction. So funding and
+ * allocation stay separate: robot-team money fills the pool, and Blueprint
+ * decides how it is spent, giving every finalist the same episode count under
+ * the same conditions.
+ *
+ * And a team is never billed at promotion. Being shortlisted mid-evaluation
+ * and owing money nobody planned for, at the exact moment the site is waiting
+ * on a result, is the same surprise bill the old site fee was designed to
+ * avoid. A team's bill stays what it always was: checkpoints × 50 × the rate,
+ * sized before anything runs.
  *
  * WHY TWO ROUNDS AND NOT FOUR. A menu of budgets asks the buyer to solve a
  * statistics problem to pick a line item. Two fixed rounds answer it once:
@@ -88,15 +107,21 @@ export const screeningRound = {
 } as const;
 
 /**
- * Round two. The site pays for this inside the assessment fee, so a promoted
- * team owes nothing and every finalist is measured identically.
+ * Round two. Blueprint funds and runs it, so a promoted team owes nothing and
+ * every finalist is measured identically.
+ *
+ * `fundedBy: "blueprint"` is the load-bearing part, not an accounting detail.
+ * A finalist round bought by its own contestant is an auction, because the
+ * richest entrant buys the longest run and therefore the tightest interval.
+ * Blueprint setting the count is what makes the comparison a comparison.
  */
 export const finalistRound = {
   id: "finalist",
   name: "Finalist comparison",
   episodes: 500,
-  fundedBy: "site",
-  funder: "Included in the site's assessment fee. The robot team pays nothing.",
+  fundedBy: "blueprint",
+  funder:
+    "Funded and run by Blueprint. Neither the site nor the robot team is billed for it, and no team can buy a longer run than another.",
   purpose: "Separate the shortlist and produce the pilot recommendation.",
   resolves:
     "Resolves a gap of about 8 points at the same confidence level — the smallest round that settles the differences a shortlist actually turns on.",
@@ -126,22 +151,37 @@ export const shortlistRule = {
     "Screening only cuts a candidate it can rule out — at 50 episodes, one roughly 20 points behind the leader. A close field therefore carries more candidates into the finalist round, and a clearly separated one carries fewer. Nobody is cut on a difference screening cannot establish.",
 } as const;
 
-/** A site's one charge. All-in, and never quoted per episode. */
+/** What a site pays to find out: nothing. */
 export const siteAssessment = {
-  amount: 2_500,
-  unit: "one-time, per site-task",
-  summary: "A scoped assessment of one task at one site.",
+  amount: 0,
+  unit: "to find out",
+  summary: "An assessment of one task at one site.",
   covers: [
     "The task defined: objects, cycle, exceptions, and the pass mark everything is measured against.",
     "The site captured and rebuilt as the environment candidates are evaluated in.",
     "Candidates screened against Blueprint's four qualifying conditions.",
-    "The finalist comparison run for every shortlisted candidate, at Blueprint's cost.",
+    "The finalist comparison run for every shortlisted candidate.",
     "A pilot recommendation, the expected failure points, and a physical test plan — or a clear reason to pause.",
   ],
   allIn:
-    "One payment, agreed before any work starts. No per-episode charge, nothing to approve once the shortlist is set, and nothing per robot if a pilot goes ahead.",
+    "No fee, no per-episode charge, and no card. You record one walkthrough on a phone; nothing is invoiced for any of the work above.",
   bounded:
     "Covers a shortlist of up to five finalists. Screening decides how many that is: only candidates it can rule out are cut, so a close field carries more candidates forward and a clearly separated one carries fewer.",
+  /**
+   * Stated rather than implied. A site that pays nothing is not the customer,
+   * and pretending otherwise is the dishonest version of this model.
+   */
+  /**
+   * Precise about what a robot team actually receives, because the loose
+   * version — "they buy your footage" — is both wrong and alarming. They buy
+   * evaluation runs. What they run against is the 3D scene reconstructed from
+   * the walkthrough; the walkthrough itself is an input we hold, not a product
+   * we resell.
+   */
+  whatWeGetFromIt:
+    "Robot teams pay for evaluation runs, and that is what funds this. They never receive your recording — it is reconstructed into a 3D scene, and the scene is what their robots are tested in, under the rights you grant at intake and nothing wider.",
+  whatIsNotFree:
+    "A physical pilot. That is a real commitment with real cost, quoted when there is something to buy rather than something to learn.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee. */
@@ -152,9 +192,17 @@ export const balanceModel = {
   notCharged: [
     "No subscription and no monthly minimum.",
     "No listing fee, seat fee, or fee to apply.",
-    "Nothing more if you are shortlisted — the finalist round is the site's.",
+    "Nothing more if you are shortlisted — the finalist round is Blueprint's to fund and run.",
     "No percentage of whatever you sign with the site.",
   ],
+  /**
+   * The thing a team should check before believing the comparison. Funding and
+   * allocation are separate on purpose: a vendor buying its own finalist
+   * episodes would be buying confidence, and the team with the deepest pockets
+   * would win an auction rather than a comparison.
+   */
+  fairness:
+    "You cannot buy more episodes than a rival. Blueprint sets the finalist episode count and runs every finalist at it, under the same conditions, whoever they are.",
 } as const;
 
 /** The billing rules that decide who eats a failure, in plain terms. */
@@ -172,7 +220,7 @@ export const billingRules = [
   {
     rule: "Being shortlisted never costs you more.",
     detail:
-      "The finalist round is funded and run by Blueprint as part of the site's assessment, so there is no top-up to make and no deadline to miss.",
+      "Blueprint funds and runs the finalist round, so there is no top-up to make and no deadline to miss. It is also why you cannot buy your way to a longer run than a rival: the episode count is ours to set, and every finalist gets the same one.",
   },
   {
     rule: "Top-ups and spend caps are separate settings.",

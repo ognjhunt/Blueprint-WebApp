@@ -67,6 +67,25 @@ function normalizeTaskVideoUrl(input: unknown): string | null {
   }
 }
 
+/**
+ * Keep only the provenance markers we understand, and only the honest one.
+ *
+ * Anything that is not literally `inferred` becomes `operator_stated`, so a
+ * malformed or hostile value fails toward the reading that holds a dispatch
+ * rather than the one that starts it.
+ */
+function normalizeGateAnswerSources(input: unknown): GateAnswerSources {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {};
+  }
+  const out: Record<string, GateAnswerSource> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (value !== "inferred") continue;
+    out[key.slice(0, 60)] = "inferred";
+  }
+  return out;
+}
+
 function normalizeGateAnswers(input: unknown): Record<string, string> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return {};
@@ -81,6 +100,10 @@ function normalizeGateAnswers(input: unknown): Record<string, string> {
   return out;
 }
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+import type {
+  GateAnswerSource,
+  GateAnswerSources,
+} from "../../client/src/lib/gateProvenance";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -1166,6 +1189,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // Enum answers only — this is the half of qualification that must be
     // reproducible.
     const siteTaskGates = normalizeGateAnswers(payload.siteTaskGates);
+    const gateAnswerSources = normalizeGateAnswerSources(payload.gateAnswerSources);
     // Both intakes post their gate answers under the same key. The buyer type
     // selects which gate definitions score them — a robot team answering
     // "hardwareMaturity" must not be scored against the site gates, where that
@@ -1191,6 +1215,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
           ),
           open_questions: siteTaskVerdict.openQuestions.map(
             (question) => `${question.question} ${question.answer} — ${question.detail}`,
+          ),
+          open_question_field_ids: siteTaskVerdict.openQuestions.map(
+            (question) => question.fieldId,
           ),
           unanswered_field_ids: [...siteTaskVerdict.unanswered],
           incomplete: siteTaskVerdict.incomplete,
@@ -1578,6 +1605,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
       },
       structured_intake: structuredIntake,
       site_task_triage: siteTaskTriage,
+      // Only ever populated for a converted outbound prospect. Stored top-level
+      // with the other derived state, where the encryption round trip keeps it.
+      site_task_gate_sources: Object.keys(gateAnswerSources).length ? gateAnswerSources : null,
       // A blocked or ambiguous gate verdict is a human-review trigger in its own
       // right, independent of whatever the structured-intake decision concluded.
       human_review_required:

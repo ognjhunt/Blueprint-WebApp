@@ -26,6 +26,7 @@ import {
   startWorldReconstruction,
   type WorldReconstructionRecord,
 } from "../utils/worldReconstruction";
+import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 
 const router = Router();
 
@@ -112,10 +113,25 @@ router.post(
     }
 
     try {
+      // Read the walkthrough before paying to reconstruct it. Null means no
+      // review is possible — the lane is off, or the video is not where we
+      // expect — and the call then behaves exactly as it did before the gate
+      // existed. A reviewer that is built and then fails is a different thing,
+      // and blocks; see `captureReviewGate`.
+      const reviewer = parsed.data.site_submission_id
+        ? await buildCaptureFootageReviewer({
+            requestId: parsed.data.site_submission_id,
+            sceneId: parsed.data.scene_id || "",
+            captureId,
+          })
+        : null;
+
       const record = await startWorldReconstruction({
         framesPrefixUri: parsed.data.frames_prefix_uri,
         model: parsed.data.model,
         textPrompt: parsed.data.text_prompt,
+        reviewCapture: reviewer?.review,
+        bindingFieldIds: reviewer?.bindingFieldIds,
         // Not the buyer's site name: this is shown in a third party's
         // dashboard, and the capture id is enough to find the world again.
         displayName: `Blueprint capture ${captureId}`,

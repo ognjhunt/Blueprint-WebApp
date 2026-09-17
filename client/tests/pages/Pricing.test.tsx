@@ -10,9 +10,12 @@ describe("Pricing", () => {
     ).toBeInTheDocument();
 
     const site = screen
-      .getByRole("heading", { name: /scoped assessment of one task at one site/i })
+      .getByRole("heading", { name: /assessment of one task at one site/i })
       .closest("section") as HTMLElement;
-    expect(within(site).getByText("$2,500")).toBeInTheDocument();
+    expect(within(site).getByText("$0")).toBeInTheDocument();
+    // The claim that makes ten-minute onboarding possible: nothing to approve,
+    // so nothing to route through procurement.
+    expect(within(site).getByText(/No fee, no per-episode charge, and no card/i)).toBeInTheDocument();
 
     const team = screen
       .getByRole("heading", { name: /Screening is the only thing a robot team buys/i })
@@ -23,7 +26,7 @@ describe("Pricing", () => {
   it("keeps per-episode pricing out of the site's column entirely", () => {
     render(<Pricing />);
     const site = screen
-      .getByRole("heading", { name: /scoped assessment of one task at one site/i })
+      .getByRole("heading", { name: /assessment of one task at one site/i })
       .closest("section") as HTMLElement;
     // A site operator should never have to learn what an episode is.
     expect(site.textContent).not.toMatch(/\$0\.50|per episode/i);
@@ -31,11 +34,26 @@ describe("Pricing", () => {
     expect(within(site).getByText(/up to five finalists/i)).toBeInTheDocument();
   });
 
-  it("states the site fee covers the finalist comparison", () => {
+  it("states the finalist comparison is covered", () => {
     render(<Pricing />);
     expect(
-      screen.getByText(/finalist comparison run for every shortlisted candidate, at Blueprint's cost/i),
+      screen.getByText(/finalist comparison run for every shortlisted candidate/i),
     ).toBeInTheDocument();
+  });
+
+  it("tells a free site what it is giving and what is not free", () => {
+    // A site that pays nothing is not the customer. Saying so on the page is
+    // the difference between this model and the dishonest version of it.
+    render(<Pricing />);
+    expect(screen.getByText(/Robot teams pay for evaluation runs/i)).toBeInTheDocument();
+    expect(screen.getByText(/never receive your recording/i)).toBeInTheDocument();
+    expect(screen.getByText(/A physical pilot/i)).toBeInTheDocument();
+  });
+
+  it("promises a robot team that money cannot buy a longer run", () => {
+    // The first objection to vendors funding the system, answered on the page.
+    render(<Pricing />);
+    expect(screen.getByText(/You cannot buy more episodes than a rival/i)).toBeInTheDocument();
   });
 
   it("offers exactly two rounds and names who funds each", () => {
@@ -46,7 +64,7 @@ describe("Pricing", () => {
     expect(within(rounds).getByText("50")).toBeInTheDocument();
     expect(within(rounds).getByText("500")).toBeInTheDocument();
     expect(within(rounds).getByText(/Paid by the robot team/i)).toBeInTheDocument();
-    expect(within(rounds).getByText(/Included in the site's assessment fee/i)).toBeInTheDocument();
+    expect(within(rounds).getByText(/Funded and run by Blueprint/i)).toBeInTheDocument();
   });
 
   it("states the shortlist rule where the rounds are described", () => {

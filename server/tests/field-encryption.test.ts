@@ -221,4 +221,49 @@ describe("field encryption", () => {
       allowedAdvisoryHints: ["hold_steady", "scan_corners"],
     });
   });
+
+  it("carries capture mode and gate provenance through a storage round trip", async () => {
+    // The bug this guards was silent and has now happened twice in this shape.
+    // `contact` and `request` are rebuilt field by field while everything else
+    // is spread, so a new field inside `request` is dropped on write unless
+    // somebody remembers to add it in two places. Capture mode was collected on
+    // the form, scored once at intake and then thrown away -- which made every
+    // stored submission look like it had never answered the question, and would
+    // have held every capture dispatch on `capture_mode_missing`.
+    const request = {
+      contact: {
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+        roleTitle: "Engineer",
+        company: "Analytical Engine Co",
+      },
+      request: {
+        budgetBucket: "$50K-$300K" as const,
+        requestedLanes: ["qualification"] as const,
+        helpWith: [] as never[],
+        buyerType: "site_operator" as const,
+        siteName: "Analytical Engine Co - Durham",
+        siteLocation: "Durham, NC",
+        taskStatement: "Qualify a picking workflow.",
+        siteTaskGates: { sceneStability: "stable" },
+        capture_mode: "self_capture" as const,
+      },
+      site_task_gate_sources: { sceneStability: "inferred" as const },
+    };
+
+    const stored = await encryptInboundRequestForStorage(
+      request as unknown as Parameters<typeof encryptInboundRequestForStorage>[0],
+    );
+    const decrypted = await decryptInboundRequestForAdmin(stored as never);
+
+    // Enum tokens stay in the clear: a verdict cannot be reproduced without the
+    // answers, and capture mode selects which gates were scored at all.
+    expect(stored.request.capture_mode).toBe("self_capture");
+    expect(decrypted.request.capture_mode).toBe("self_capture");
+    expect(decrypted.request.siteTaskGates).toEqual({ sceneStability: "stable" });
+
+    // Provenance rides at the top level, where the spread carries it.
+    expect(decrypted.site_task_gate_sources).toEqual({ sceneStability: "inferred" });
+  });
 });

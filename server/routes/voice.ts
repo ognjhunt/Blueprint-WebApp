@@ -9,6 +9,7 @@ import {
   synthesizeElevenLabsSpeech,
 } from "../utils/elevenlabs";
 import { getConfiguredEnvValue } from "../config/env";
+import { bookingUrl as configuredBookingUrl } from "../utils/bookingLink";
 
 const router = Router();
 
@@ -182,8 +183,7 @@ async function persistTelephonyCall(params: {
 function buildGuardrailedResponse(message: string) {
   const normalized = message.toLowerCase();
   const bookingUrl =
-    getConfiguredEnvValue("BLUEPRINT_VOICE_BOOKING_URL") ||
-    "https://calendly.com/blueprintar/30min";
+    configuredBookingUrl();
   const supportEmail =
     getConfiguredEnvValue("BLUEPRINT_SUPPORT_EMAIL") || "hello@tryblueprint.io";
 
