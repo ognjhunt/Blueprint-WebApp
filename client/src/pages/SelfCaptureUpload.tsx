@@ -475,13 +475,21 @@ export default function SelfCaptureUpload() {
         </p>
       )}
       {status.claimUrl && (
-        /* The account moment, and the only one on this page: there is now
-           something behind it to see. The link is minted server-side for the
-           owner's link alone; a film-only link never receives one. */
+        /* The account moment. Offered from the confirmed brief onward, as an
+           option: the link keeps working without it. The URL is minted
+           server-side for the owner's link alone; a film-only link never
+           receives one. */
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.claimUrl}>
-            Claim your site to see the results
+            {status.decision === "results" || status.decision === "screening"
+              ? "Claim your site to see the results"
+              : "Claim your site to follow this task"}
           </a>
+          {status.decision !== "results" && status.decision !== "screening" && (
+            <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
+              Optional. This link keeps working; an account adds a task page that tracks every step.
+            </span>
+          )}
         </p>
       )}
     </div>

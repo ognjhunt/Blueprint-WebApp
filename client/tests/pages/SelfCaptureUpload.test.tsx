@@ -176,6 +176,17 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
   });
 
+  it("offers the claim as a way to follow the task before any results exist", async () => {
+    setUserAgent(DESKTOP_UA);
+    const waiting = { decision: "footage_received", headline: "We have your recording and are checking whether it covers the work area.", operatorAction: null, missingViews: [], nextUpdateIso: null };
+    vi.stubGlobal("fetch", mockFetchWithStatus(waiting, "http://localhost/claim/tok-claim"));
+    render(<SelfCaptureUpload />);
+
+    const link = await screen.findByRole("link", { name: /claim your site to follow this task/i });
+    expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
+    expect(screen.getByText(/Optional\. This link keeps working/)).toBeInTheDocument();
+  });
+
   it("offers no claim link when the server offered none", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", mockFetchWithStatus(results, null));
