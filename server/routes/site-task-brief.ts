@@ -599,6 +599,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ok: true,
       scope: payload.scope,
       status,
+      // The completion marker, as a fact: the laptop that showed the QR code
+      // reads this to know the phone's recording landed.
+      captureReceived: hasStoredCapture,
       summary: brief?.summary ?? null,
       claimUrl,
       sceneViewUrl,

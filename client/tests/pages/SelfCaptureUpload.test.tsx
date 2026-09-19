@@ -98,6 +98,43 @@ describe("SelfCaptureUpload by device", () => {
   });
 });
 
+describe("SelfCaptureUpload after the phone has uploaded", () => {
+  const DESKTOP_UA =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
+
+  it("shows the saved layout with the brief open on a laptop, instead of the QR code", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/status")) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, captureReceived: true, status: {
+          decision: "confirm_brief", headline: "We drafted your task brief.", operatorAction: "Review and confirm the brief.", missingViews: [], nextUpdateIso: null,
+        } }) });
+      }
+      if (url.includes("/items")) {
+        return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
+      }
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
+          summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
+        } }) });
+      }
+      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    }));
+    render(<SelfCaptureUpload />);
+
+    await screen.findByRole("heading", { name: "Your capture is saved" });
+    expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
+    expect(screen.getByText(/One thing left for you: check the task brief below/)).toBeInTheDocument();
+    const details = screen.getByText("Next: check your task brief").closest("details")!;
+    expect(details.open).toBe(true);
+    expect(screen.getByRole("button", { name: "Add another video" })).toBeInTheDocument();
+  });
+});
+
 describe("SelfCaptureUpload once robot teams have run", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";

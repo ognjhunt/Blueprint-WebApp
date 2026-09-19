@@ -146,3 +146,30 @@ it("falls back to the emailed link with the same answers when the workspace refu
   expect(fallback).toHaveLength(1);
   expect(fallback[0][1].body).toBe(refused[0][1].body);
 });
+
+it("moves the laptop from the QR code to the brief once the phone's recording lands", async () => {
+  const captureUrl = "https://tryblueprint.io/capture-upload/tok.signed";
+  let received = false;
+  fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+    if (String(url).includes("/status")) {
+      return { ok: true, json: async () => ({ status: { headline: received ? "We have your recording." : "Film the work area.", stage: null }, captureReceived: received }) };
+    }
+    if (init?.method === "POST") return { ok: true, status: 200, json: async () => ({ captureUrl }) };
+    return photon([]);
+  });
+  render(<SiteCaptureStart />);
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin" } });
+  fireEvent.change(region(), { target: { value: "us" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
+  fireEvent.click(document.querySelector("#start-rights")!);
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByText("Film the work area.", { selector: "h2" });
+  expect(screen.getByRole("link", { name: "Open your task page" })).toHaveAttribute("href", captureUrl);
+
+  received = true;
+  await screen.findByText("Your recording is in.", { selector: "h2" }, { timeout: 10_000 });
+  expect(screen.getByRole("link", { name: "Review your task brief" })).toHaveAttribute("href", captureUrl);
+  expect(screen.queryByRole("link", { name: "Open your task page" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).toBeNull();
+}, 15_000);
