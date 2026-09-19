@@ -289,3 +289,38 @@ claim. The real walkthrough has prepared frames, not inferred depth yet.
 Worker installation/allocation and live inference remain open; the end-to-end
 completion count stays 0/14. WebApp PR #622 checks are all green at this point;
 neither draft PR has been merged or deployed.
+
+
+## MapAnything Vast attempt and resumable objects (2026-09-19)
+
+The owner explicitly authorized Vast. The first bounded MapAnything attempt
+used the existing reconstruction GPU allocator, the pushed Pipeline commit
+`f3df2ec9a39287a4deeaa3454c061c021f4469b9`, and the actual 13 walkthrough frames.
+The sealed 41,086,688-byte input bundle included three exact worker wheels and
+hashed dependencies, with pinned Apache model/configuration and DINOv2 source.
+The limit was $2, a 3,300-second allocator TTL, a one-hour independent watchdog,
+and zero automatic retries. The allocator dry run and execute admission passed.
+
+Vast allocated instance `51631006`, but the provider subsequently reported
+`stopped_before_start` (created container with current/intended state stopped).
+The image loaded; no worker output or model inference was observed. The owning
+allocator was interrupted so its `finally` block destroyed the instance. Both
+teardown and provider-zero receipts passed; a fresh API read confirmed zero
+active instances. Input/receipt transport objects were deleted with verified
+cleanup. Local receipts remain under Pipeline
+`output/website-task-pipeline/mapanything-vast-attempt-1/`.
+This attempt does not close step 2 or step 3, and the fourteen-step walkthrough
+still has **0/14 end-to-end verified**. The startup failure is retained rather
+than silently retried.
+
+The reconstruction executor now checks exact provider state when output is
+missing and tears down after two consecutive confirmed terminal observations.
+Failed status reads do not count as terminal. It also hands the allocated id to
+the independent watchdog. Focused lifecycle and generation tests: 16 passed.
+
+Generated-object batches now retain successful object results, verify their
+request and artifact hashes on resume, and attempt only unfinished objects in
+new immutable attempt directories. A rate-limited sibling cannot force an
+already-finished object to be purchased again. Corrupt retained outputs hold
+that object instead of silently regenerating it. This is hermetic verification;
+no generated object or simulator qualification is claimed from these tests.
