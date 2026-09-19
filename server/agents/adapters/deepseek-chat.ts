@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { ZodType } from "zod";
 
 import { chatCompletionOperatorTools, runOperatorTool } from "../operator-tools";
-import type { AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
+import type { AgentProvider, AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
 
 const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const OPENROUTER_BASE_URL_PATTERN = /openrouter\.ai/i;
@@ -54,6 +54,30 @@ const client = deepSeekApiKey
       timeout: deepSeekTimeoutMs,
     })
   : null;
+
+/**
+ * Z.ai's GLM endpoint is OpenAI-compatible chat completions, so it rides the
+ * same transport with its own key and base URL. Nothing about the request body
+ * or parsing changes — only who serves it and which key authorizes it.
+ */
+const DEFAULT_ZAI_BASE_URL = "https://api.z.ai/api/paas/v4";
+const zaiClient = process.env.ZAI_API_KEY?.trim()
+  ? new OpenAI({
+      apiKey: process.env.ZAI_API_KEY.trim(),
+      baseURL: process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL,
+      maxRetries: 2,
+      timeout: deepSeekTimeoutMs,
+    })
+  : null;
+
+function clientForProvider(provider: AgentProvider) {
+  if (provider === "zai_glm") {
+    if (!zaiClient) throw new Error("ZAI_API_KEY is not configured");
+    return { client: zaiClient, baseUrl: process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL };
+  }
+  if (!client) throw new Error("DEEPSEEK_API_KEY is not configured");
+  return { client, baseUrl: deepSeekBaseUrl };
+}
 
 /**
  * Why an empty response happened, not just that it did.
@@ -331,13 +355,14 @@ async function createDeepSeekCompletion(params: {
   messages: any[];
   tools?: any[];
   taskKind: AgentTaskKind;
+  provider: AgentProvider;
 }) {
-  if (!client) {
-    throw new Error("DEEPSEEK_API_KEY is not configured");
-  }
-  const providerPreferences = openRouterProviderPreferences(params.model);
+  const { client: providerClient, baseUrl: activeBaseUrl } = clientForProvider(params.provider);
+  const providerPreferences = params.provider === "zai_glm"
+    ? null
+    : openRouterProviderPreferences(params.model);
 
-  return (client.chat.completions.create as any)({
+  return (providerClient.chat.completions.create as any)({
     model: params.model || DEFAULT_DEEPSEEK_MODEL,
     messages: params.messages,
     tools: params.tools,
@@ -411,6 +436,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     messages,
     tools,
     taskKind: task.kind,
+    provider: task.provider,
   });
   const initialUsage = extractUsage(response);
   if (initialUsage) usageSamples.push(initialUsage);
@@ -473,6 +499,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       messages,
       tools,
       taskKind: task.kind,
+      provider: task.provider,
     });
     const followUpUsage = extractUsage(response);
     if (followUpUsage) usageSamples.push(followUpUsage);
@@ -548,7 +575,9 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
         route === "deepseek_via_openrouter" ? providerMetadata.provider_routing : null,
       openrouter_provider_preferences:
         route === "deepseek_via_openrouter" ? providerPreferences : null,
-      deepseek_base_url: deepSeekBaseUrl,
+      deepseek_base_url: task.provider === "zai_glm"
+        ? (process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL)
+        : deepSeekBaseUrl,
       max_tokens: deepSeekMaxTokens,
       thinking: deepSeekThinkingType(task.kind),
       reasoning_effort: deepSeekReasoningEffort(task.kind),

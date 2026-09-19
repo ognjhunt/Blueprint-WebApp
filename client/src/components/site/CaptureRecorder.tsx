@@ -128,6 +128,16 @@ export function CaptureRecorder(props: {
   const sendingRef = useRef(false);
   const sentBytesRef = useRef(0);
   const mimeRef = useRef<string>("video/mp4");
+  /**
+   * The drain that is actually running, if any. `finish` has to wait for the
+   * drain that a chunk callback started — calling `drainQueue` directly there
+   * hits the re-entrancy guard and resolves immediately, so finish would see a
+   * queue that is still non-empty (the in-flight part shifts only on success)
+   * and report a failure that the still-running drain was about to resolve.
+   * Every recording ends with a part in flight — the timeslice guarantees it —
+   * so this was not an edge case, it was the happy path.
+   */
+  const drainPromiseRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (!supportedMp4Type()) setState({ status: "unsupported" });
@@ -293,7 +303,9 @@ export function CaptureRecorder(props: {
     recorder.ondataavailable = (event) => {
       if (event.data && event.data.size) {
         queueRef.current.push(event.data);
-        void drainQueue();
+        if (!sendingRef.current) {
+          drainPromiseRef.current = drainQueue();
+        }
       }
     };
 
@@ -320,6 +332,11 @@ export function CaptureRecorder(props: {
       sentParts: nextIndexRef.current,
       pendingParts: queueRef.current.length,
     });
+    // Wait out the drain that a chunk callback started, then run one more pass
+    // for the recorder's final chunk. Awaiting the tracked promise is the fix:
+    // calling drainQueue twice here used to resolve instantly on the guard and
+    // report a failure the in-flight upload was about to make untrue.
+    await drainPromiseRef.current;
     await drainQueue();
 
     if (queueRef.current.length) {
@@ -420,6 +437,9 @@ export function CaptureRecorder(props: {
     } catch {
       // Best effort. Fall through to resending what we hold.
     }
+    // Same discipline as finish: wait out any drain already running before
+    // deciding that nothing is left to send.
+    await drainPromiseRef.current;
     await drainQueue();
     if (!queueRef.current.length) await finish();
   }, [drainQueue, finish, props.token]);

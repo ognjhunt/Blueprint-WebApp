@@ -853,4 +853,78 @@ describe("inbound request route", () => {
       await stopServer(server);
     }
   });
+
+  it("fills site identity from the email when a site skips the optional fields", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `identity-${Date.now()}`;
+      const payload = buildPayload(requestId, `ops+${Date.now()}@acmefoundry.example`);
+      delete payload.firstName;
+      delete payload.lastName;
+      delete payload.company;
+      payload.accountSignup = false;
+      payload.acceptedTerms = false;
+      // What the camera-first form itself sends: captureRegion decides whether
+      // a link may be minted at all, and captureMode that nobody has to travel.
+      payload.captureMode = "self_capture";
+      payload.captureRegion = "us";
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+      const json = (await response.json()) as { ok: boolean; captureUrl?: string | null };
+      expect(json.ok).toBe(true);
+      // The whole point: a site that skipped identity still gets its camera.
+      expect(json.captureUrl ?? "").toContain("/capture-upload/");
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          contact?: { firstName?: string; lastName?: string; company?: string };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest).toBeDefined();
+      expect(savedRequest?.contact?.firstName).toBe("there");
+      expect(savedRequest?.contact?.lastName).toBe("—");
+      expect(savedRequest?.contact?.company).toBe("acmefoundry.example");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("keeps identity required for robot teams, whose form still asks for it", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-identity-${Date.now()}`;
+      const payload = buildPayload(requestId, `team+${Date.now()}@example.com`);
+      payload.buyerType = "robot_team";
+      delete payload.company;
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(400);
+      const json = (await response.json()) as { message?: string };
+      expect(json.message).toMatch(/company/);
+    } finally {
+      await stopServer(server);
+    }
+  });
 });
