@@ -395,3 +395,20 @@ appearance, observation, candidate and frame references as Pipeline. Six focused
 contract tests and `npm run check` passed; the required graphify refresh completed.
 This closes request-shape compatibility, not the remaining automatic producer and
 dispatch connection. The real walkthrough count remains **0/14 end-to-end verified**.
+
+## Website construction queue handoff (2026-09-19)
+
+Pipeline `e80c0eaa5` connects registered website preparation to the existing
+scene-intent progression worker, derivative publication, preparation queue and
+construction queue. It reopens the authenticated owner intent, retains estimated
+geometry, uses the existing six stages and does not remove the subject twice.
+Replays produce one queue entry and no paid preparation reservation. Generated
+colliders no longer claim an owner-declared common coordinate frame.
+
+The integration test runs the real publisher and queue consumer with an in-memory
+object store and real local OpenUSD fixtures. It exposed and fixed two actual
+worker mismatches: missing immutable stage references and the request's nested
+run identifier. All 90 affected tests passed; changed-file Ruff and diff checks
+passed. The website execution-authority producer and live provider runs remain
+open. This is code-path verification; the walkthrough remains **0/14 end-to-end
+verified**.
