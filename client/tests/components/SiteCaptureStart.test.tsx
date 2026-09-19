@@ -85,23 +85,64 @@ it("clears an inferred country when the address is edited, but preserves an expl
   expect(region().value).toBe("non_us");
 });
 
-it("saves signed-in captures to the authenticated workspace and reuses the request on retry", async () => {
+function signedIn(setup: { ok?: boolean; workspaceType?: string | null }, posts: Array<{ ok: boolean; status?: number; body?: unknown }>) {
   account.user = { uid: "owner-1", email: "owner@example.com", getIdToken: async () => "owner-token" };
-  fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ message: "Try again" }) })
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ captureUrl: null }) });
-  render(<SiteCaptureStart />);
+  const queue = [...posts];
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url === "/api/workspace/setup") return { ok: setup.ok !== false, json: async () => ({ workspaceType: setup.workspaceType ?? null }) };
+    const next = queue.shift() ?? { ok: true };
+    return { ok: next.ok, status: next.status ?? (next.ok ? 200 : 500), json: async () => next.body ?? {} };
+  });
+}
+
+function fillAndSubmit() {
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin" } });
   fireEvent.change(region(), { target: { value: "us" } });
   fireEvent.click(document.querySelector("#start-rights")!);
   fireEvent.submit(screen.getByRole("form"));
+}
+
+function postsTo(url: string) {
+  return fetchMock.mock.calls.filter(c => c[0] === url && c[1]?.method === "POST");
+}
+
+it("saves signed-in captures to the authenticated workspace and reuses the request on retry", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Try again" } }, { ok: true, body: { captureUrl: null } }]);
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  fillAndSubmit();
   await screen.findByRole("alert");
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("link", { name: "Saved in your workspace" });
-  const calls = fetchMock.mock.calls.filter(c => c[0] === "/api/workspace/capture-start");
+  const calls = postsTo("/api/workspace/capture-start");
   expect(calls).toHaveLength(2);
   expect(calls[0][1].headers.Authorization).toBe("Bearer owner-token");
   expect(JSON.parse(calls[0][1].body).requestId).toBe(JSON.parse(calls[1][1].body).requestId);
   expect(JSON.parse(calls[0][1].body).consentAttestation.granted).toBe(true);
+  expect(postsTo("/api/inbound-request")).toHaveLength(0);
   expect(document.querySelector("#start-email")).toBeNull();
+});
+
+it("tells a robot-team account up front that the site goes to the emailed link, and never blocks it", async () => {
+  signedIn({ workspaceType: "robot_team" }, [{ ok: true, body: { captureUrl: "https://example.test/capture" } }]);
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Signed in as owner@example.com, which is not a site workspace/);
+  fillAndSubmit();
+  await screen.findByText(/saved to the link we email owner@example.com/);
+  expect(screen.queryByRole("link", { name: "Saved in your workspace" })).toBeNull();
+  expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+  expect(postsTo("/api/inbound-request")).toHaveLength(1);
+});
+
+it("falls back to the emailed link with the same answers when the workspace refuses the account", async () => {
+  signedIn({ ok: false }, [{ ok: false, status: 403, body: { error: "This action requires a site account." } }, { ok: true, body: { captureUrl: null } }]);
+  render(<SiteCaptureStart />);
+  fillAndSubmit();
+  await screen.findByText(/saved to the link we email owner@example.com/);
+  expect(screen.queryByRole("alert")).toBeNull();
+  const refused = postsTo("/api/workspace/capture-start"), fallback = postsTo("/api/inbound-request");
+  expect(refused).toHaveLength(1);
+  expect(fallback).toHaveLength(1);
+  expect(fallback[0][1].body).toBe(refused[0][1].body);
 });
