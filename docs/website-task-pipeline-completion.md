@@ -357,3 +357,29 @@ execution, native rendering and controls, and signed website publication and
 robot evaluation readback. The 14-item walkthrough count remains **0/14
 end-to-end verified**. Both Pipeline changes are pushed to the draft PR;
 neither a merge nor a production deployment is claimed.
+
+## Native worker transport and consent (2026-09-19)
+
+Pipeline `27f8deac8` compiles all six existing construction stages from website
+preparation and carries the captured object derivatives through source preflight,
+bundle creation, relocation, provider preflight and worker hydration. The archive
+test deletes the original control directory, executes the first two installed
+adapters and reads their outputs with the actual authoring reader. The third
+through sixth stages were not executed. Verification: 68 focused tests and three
+existing bundle compatibility checks passed.
+
+Pipeline `766d717d2` creates the disclosure admission from the bound website task
+context and recorded owner consent, validates current execution authority and
+rejects expired, altered or incomplete authority. The worker binds that admission
+back to the same preparation. A later handoff error preserves finished CPU
+outputs. Verification: 19 focused tests passed. Automatic source resolution,
+submission and queue dispatch still need to be connected; these commits do not
+establish a live automatic path.
+
+The configured Gemini environment variables and local secret match. A read-only
+request with that key successfully retrieved `models/gemini-3.8-flash`; this does
+not verify the billing account balance. The retained failed video request reports
+`TOO_MANY_TOOL_CALLS`, not an authentication or credit failure. Pipeline `21b7a2509`
+uses Google's documented Interactions agentic-video interface with response storage
+disabled and requires paired processing-call/result evidence. Its 41 focused
+provider and clean-plate tests passed. Live walkthrough completion remains unproven.
