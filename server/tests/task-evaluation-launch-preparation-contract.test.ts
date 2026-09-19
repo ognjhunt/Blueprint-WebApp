@@ -93,6 +93,25 @@ function surfaceTarget() {
 }
 
 describe("existing support pick-and-place preparation", () => {
+  it("preserves the Pipeline website derivative references and rejects unbound local files", async () => {
+    const { taskEvaluationLaunchPreparationInputSchema } = await import("../utils/taskEvaluationLaunchPreparationContract");
+    const fixture = structuredClone((await import("./fixtures/astra-preparation-request.v1.json")).default) as any;
+    const reference = { uri: "gs://capture-bucket/prepared/object.png", digest: sha("a"), size_bytes: 32 };
+    fixture.scene.website_native_inputs = {
+      runtime_inputs: reference, appearance: reference, observations: reference,
+      candidate: reference, frames: [reference],
+    };
+    const parsed = taskEvaluationLaunchPreparationInputSchema.safeParse(fixture);
+    expect(parsed.success, JSON.stringify(parsed.success ? null : parsed.error.issues)).toBe(true);
+    if (parsed.success && parsed.data.scene.mode === "configure_source_scene") {
+      expect(parsed.data.scene.website_native_inputs).toEqual(fixture.scene.website_native_inputs);
+    }
+    fixture.scene.website_native_inputs.frames = [{ ...reference, uri: "file:///tmp/object.png" }];
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
+    fixture.scene.website_native_inputs.frames = [];
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
+  });
+
   it("accepts the Pipeline surface contract without a fabricated destination asset", async () => {
     const { taskEvaluationLaunchPreparationInputSchema } = await import("../utils/taskEvaluationLaunchPreparationContract");
     const fixture = structuredClone((await import("./fixtures/astra-preparation-request.v1.json")).default) as any;

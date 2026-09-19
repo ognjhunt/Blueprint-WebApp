@@ -91,6 +91,13 @@ const sceneSchema = z.discriminatedUnion("mode", [
     mode: z.literal("configure_source_scene"),
     identity: versionedIdentity,
     source_manifest: immutableReference,
+    website_native_inputs: z.object({
+      runtime_inputs: immutableReference,
+      appearance: immutableReference,
+      observations: immutableReference,
+      candidate: immutableReference,
+      frames: z.array(immutableReference).min(1).max(256),
+    }).strict().optional(),
     appearance: z.object({
       kind: z.enum(["interiorgs", "gaussian_splat", "textured_usd", "other_observed"]),
       representation: immutableReference,

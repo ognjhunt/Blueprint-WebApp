@@ -383,3 +383,15 @@ not verify the billing account balance. The retained failed video request report
 uses Google's documented Interactions agentic-video interface with response storage
 disabled and requires paired processing-call/result evidence. Its 41 focused
 provider and clean-plate tests passed. Live walkthrough completion remains unproven.
+
+The real Interactions attempt also hit tool-call exhaustion: Google returned
+HTTP 400, `Model generated too many tool calls`. Further retries are parked.
+Pipeline `b54c2e7d5` preserves that specific blocker rather than classifying it as
+a generic provider error; 18 provider-contract tests passed. No usable video
+analysis or billing-balance readback is claimed.
+
+The WebApp preparation validator now accepts the same immutable website runtime,
+appearance, observation, candidate and frame references as Pipeline. Six focused
+contract tests and `npm run check` passed; the required graphify refresh completed.
+This closes request-shape compatibility, not the remaining automatic producer and
+dispatch connection. The real walkthrough count remains **0/14 end-to-end verified**.
