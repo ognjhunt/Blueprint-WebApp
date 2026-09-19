@@ -23,11 +23,11 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Consistent observed-background recovery plus conditional image editing; no VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Unproven |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Unproven |
-| 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | Unproven |
-| 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | Unproven |
-| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Unproven |
-| 13 | Real simulator loads, steps, controls, observes, resets and scores | Native preflight and positive/negative controls, media and receipts | Unproven |
-| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Unproven |
+| 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (existing `rigid_replacement_authoring` stage; website inputs compiled, GPU run pending) |
+| 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (source-to-collider registration and support placement hermetic; `native_task_scene_assembly` pending) |
+| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds plus grasp-hold screen and escalation; `bounded_physics` cells run on GPU) |
+| 13 | Real simulator loads, steps, controls, observes, resets and scores | Native preflight and positive/negative controls, media and receipts | Unproven (existing native Isaac import and ADP-009D hold/scripted-positive controls; needs a paid Vast run) |
+| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | In progress (existing configured-scene offering readback; thumbnail proposal compiled; no run yet) |
 
 ## Execution constraints
 
@@ -88,15 +88,57 @@ These are hermetic tests, not live reconstruction or simulator proof.
 
 ## Parallel work split (2026-09-19, Claude Fable lane)
 
-Claude works in these same worktrees on steps 10–14 so both lanes see each
-other's edits; Astra keeps steps 1–9. Claude-owned files (do not edit in the
-Astra lane without a note here): Pipeline `website_task_assets.py`,
-`website_scene_composition.py`, `website_task_physics.py`,
-`website_task_preflight.py`, `website_task_publication.py` and their tests;
-WebApp changes limited to the pipeline sync acceptance of
-`supported_evaluations` and `proposed_thumbnail`, and the library's
-"Evaluate this task" runtime gate. Interfaces consumed from the Astra lane:
-`clean_plate/removal_manifest.json` (`clean_plate_removal_manifest.v1`),
-`website_task_masks` target bounds, and `website_scene_geometry` estimated
-cameras/scale. Claude commits on `codex/website-task-pipeline` with a
-`[claude]` prefix; pull before editing shared files.
+Claude works in these same worktrees on steps 10–14; Astra keeps steps 1–9.
+Commits carry a `[claude]` prefix; pull before editing shared files.
+
+Correction after owner review: the platform target is Isaac Sim, and SimReady
+authority already lives in the USD Content Agents, the static qualification
+stage, the native import qualification stage and the native task execution
+admission. Steps 10–14 therefore map onto the existing Task Evaluation
+scene-configuration run rather than new simulator code:
+
+| Step | Existing production stage |
+| --- | --- |
+| 10 | `rigid_replacement_authoring` (`content_agents_rigid_replacement` or Astra CAD/Blender) then `replacement_static_qualification` |
+| 11 | `replacement_native_import_qualification` and `native_task_scene_assembly` with frame registration |
+| 12 | stage-3 physics bounds, physical property review, and the `bounded_physics` policy-run cells |
+| 13 | native import driver, native task execution admission, ADP-009D hold (negative) and scripted differential-IK (positive) controls |
+| 14 | `publish_configured_scene_revision` → WebApp configured-scene offering, thumbnail, `/app/packs/:launchId/evaluate` |
+
+No MuJoCo harness is introduced. Local CPU smoke remains non-proof by doctrine.
+
+Claude-owned bridge: Pipeline `website_task_preparation.py` (commit
+`efdf1733d`, 6 hermetic tests). It consumes the Astra lane's confirmed task
+context, `website_task_masks.v1`, `website_source_geometry.v1`, the clean-plate
+removal manifest and a Marble `base_scene` (splat + collider mesh with declared
+up axis and metres per unit, provider operation id, intake binding ids), then:
+
+- registers the MapAnything estimate to the Marble collider (24 axis
+  conventions, trimmed RMSE, ambiguity and poor-fit refusal; scale stays
+  `estimated_registration`, `physical_scale_measured: false`);
+- places the removed subject on the collider support beneath its footprint and
+  fills the removal manifest's `compose_back` slots in a sibling file;
+- emits estimated physics bounds and a grasp-hold sensitivity screen against
+  the Robotiq 2F-85 reference (85 mm stroke, 20–235 N) that names the smallest
+  missing measurement (`mass_kg` or `smallest_dimension_m`);
+- proposes a task-region thumbnail from the source frame and subject mask
+  (operator listing approval still required before display);
+- assembles and validates a `task_evaluation_scene_intake_request.v1` with the
+  two canonical policy candidates, or returns typed blockers
+  (`task_destination_pose_required`, stale consent, missing support).
+
+Still open before rows 10–14 can close:
+
+1. Astra lane step 9 must collect the Marble splat and collider exports and
+   register them as owned intake bindings (`base_scene` input above).
+2. A website source resolution in `task_evaluation_scene_source_resolver` that
+   binds subject/support from this preparation instead of mesh object names,
+   plus no-spend stage 1–2 producers for the website route (removal already
+   happened before reconstruction; no collider prim to excise).
+3. One paid Vast run of the six-stage recipe (Content Agents, static and native
+   Isaac qualification, assembly) and the controls gate. Owner authorization is
+   required; the allocator and `vast_api_key` are configured on this machine.
+4. Browser readback of the configured-scene offering and one evaluation run.
+   Supported evaluations today are the Franka DROID embodiment with
+   `pi05_droid` and `groot_n17_droid`; a robot team's own checkpoint is not yet
+   an Isaac candidate, so the library must not imply otherwise.
