@@ -241,10 +241,12 @@ export function createFakeFirestore(state: FakeFirestoreState) {
         }>;
         set: (ref: MockDocRef, payload: StoredDoc, options?: { merge?: boolean }) => void;
         update: (ref: MockDocRef, payload: StoredDoc) => void;
+        delete: (ref: MockDocRef) => void;
       }) => Promise<T>,
     ): Promise<T> => {
       const writes: Array<() => void> = [];
       const tx = {
+        delete: (ref: MockDocRef) => { writes.push(() => { state.docs.delete(docKey(ref.__collection, ref.id)); }); },
         // Accepts doc refs and query objects (Firestore transactions allow
         // tx.get(query), used by the earnings-aggregate lazy backfill).
         get: async (ref: MockDocRef | { get: () => Promise<unknown>; __collection?: undefined }) => {

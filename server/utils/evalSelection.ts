@@ -55,6 +55,8 @@ export interface EvalCandidate {
   /** The scene this run would execute against. */
   sceneId: string;
   siteLabel: string;
+  thumbnailUrl?: string | null;
+  details?: import("../../client/src/types/taskBrowse").TaskListingDetails | null;
   /** What the matcher concluded for this team against this site. */
   match: Pick<MatchResult, "outcome" | "score" | "scored" | "unknownHardConstraints">;
   /** Cost of the run at the team's rate, already quoted. */

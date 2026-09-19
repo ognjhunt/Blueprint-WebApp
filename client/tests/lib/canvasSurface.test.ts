@@ -92,6 +92,7 @@ describe("canvasSurfaceFor", () => {
       "/how-it-works",
       "/contact/site-operator",
       "/contact/robot-team",
+      "/sites",
       "/privacy",
       "/terms",
       "/sign-in",
@@ -112,7 +113,6 @@ describe("canvasSurfaceFor", () => {
       "/capture-app",
       "/capture-app/account",
       "/launch-map",
-      "/sites",
       "/sites/some-site",
       "/admin/leads",
       "/ops/spend",
@@ -128,8 +128,8 @@ describe("canvasSurfaceFor", () => {
   });
 
   it("ignores trailing slashes, query strings, and hashes", () => {
-    expect(canvasSurfaceFor("/sites/")).toBe("dark");
-    expect(canvasSurfaceFor("/sites?ref=nav")).toBe("dark");
+    expect(canvasSurfaceFor("/sites/")).toBe("light");
+    expect(canvasSurfaceFor("/sites?ref=nav")).toBe("light");
     expect(canvasSurfaceFor("/#how-it-works")).toBe("light");
     expect(canvasSurfaceFor("/contact/site-operator?persona=x#form")).toBe("light");
   });
@@ -164,7 +164,7 @@ describe("stampCanvasSurface", () => {
   });
 
   it("replaces a surface already stamped, rather than duplicating it", () => {
-    expect(stampCanvasSurface('<html lang="en" data-surface="light">', "/sites")).toBe(
+    expect(stampCanvasSurface('<html lang="en" data-surface="light">', "/sites/example")).toBe(
       '<html lang="en" data-surface="dark">',
     );
   });

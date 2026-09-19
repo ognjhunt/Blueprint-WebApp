@@ -12,8 +12,8 @@
  * Blueprint's paper (`#f6f5ef`) is the default because the public site, the
  * auth pages, the `/app` workspace, and the 404 all render on it, and because
  * legacy marketing paths are `MarketingRedirect`s whose destinations are those
- * same paper surfaces. The Runway instrument surfaces — capture, the site
- * library, admin/ops, internal, beta — opt into the dark ground below.
+ * same paper surfaces. The Runway instrument surfaces — capture, site
+ * details, admin/ops, internal, beta — opt into the dark ground below.
  *
  * Kept free of React and browser globals so the client, the Express server, and
  * the prerenderer can all resolve a surface from a pathname.
@@ -29,7 +29,7 @@ export const canvasSurfaceColors: Record<CanvasSurface, string> = {
 export const defaultCanvasSurface: CanvasSurface = "light";
 
 /** Runway-ground routes that are not themselves a path prefix. */
-const darkPaths = new Set(["/capture", "/launch-map", "/sites"]);
+const darkPaths = new Set(["/capture", "/launch-map"]);
 
 /** Route namespaces rendered entirely on the Runway ground. */
 const darkPathPrefixes = [

@@ -30,6 +30,7 @@ import {
   physicalOutcomeJoinSchema,
   projectDecisionEnvelope,
 } from "../utils/decisionEvidenceContract";
+import { agentExecutionAdmissionDigest } from "../utils/agentExecutionAdmission";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -554,6 +555,62 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     | { uid?: string; tenantId?: string; tenant_id?: string; localRouteProof?: boolean }
     | undefined;
   const receivedAtIso = new Date().toISOString();
+  const submittedObject =
+    submittedJobRequest && typeof submittedJobRequest === "object" && !Array.isArray(submittedJobRequest)
+      ? (submittedJobRequest as Record<string, unknown>)
+      : {};
+  const prepareForAgentExecution = submittedObject.execution_mode === "prepared_agent_execution";
+  const executionAuthorization = asObject(submittedObject.execution_authorization);
+  if (prepareForAgentExecution) {
+    const customer = asObject(submittedObject.customer);
+    const sitePackage = asObject(submittedObject.site_package);
+    const rights = asObject(submittedObject.rights_privacy_scope);
+    const requestedTasks = Array.isArray(submittedObject.requested_tasks)
+      ? submittedObject.requested_tasks.map(asObject)
+      : [];
+    const scenarioIds = requestedTasks.length === 1 && Array.isArray(requestedTasks[0].scenario_ids)
+      ? requestedTasks[0].scenario_ids.map(stringValue).filter(Boolean)
+      : [];
+    const episodes = Number(executionAuthorization.episodes);
+    const maxCostUsd = Number(executionAuthorization.max_cost_usd);
+    const blockers = [
+      submittedObject.schema_version === "robot_eval_job_request.v1"
+        ? null
+        : "canonical_robot_eval_request_required",
+      stringValue(sitePackage.capture_root) ? null : "canonical_capture_root_required",
+      executionAuthorization.one_time_purchase === true ? null : "one_time_purchase_required",
+      executionAuthorization.rights_cleared === true && rights.external_use_allowed === true
+        ? null
+        : "explicit_rights_clearance_required",
+      Number.isInteger(episodes) && episodes > 0 ? null : "authorized_episode_count_invalid",
+      Number.isFinite(maxCostUsd) && maxCostUsd >= 0 ? null : "authorized_max_cost_invalid",
+      stringValue(executionAuthorization.principal_team_id) &&
+      stringValue(executionAuthorization.principal_team_id) === stringValue(customer.id)
+        ? null
+        : "execution_principal_mismatch",
+      stringValue(executionAuthorization.authorized_by_user_id) === buyerUserId
+        ? null
+        : "execution_authorizer_mismatch",
+      stringValue(asObject(submittedObject.entitlement).entitlement_id)
+        ? null
+        : "execution_entitlement_required",
+      requestedTasks.length === 1 && scenarioIds.length === 1
+        ? null
+        : "single_task_scenario_required",
+      stringValue(executionAuthorization.task_id) === stringValue(requestedTasks[0]?.task_id) &&
+      stringValue(executionAuthorization.scenario_id) === scenarioIds[0]
+        ? null
+        : "execution_scope_mismatch",
+    ].filter((value): value is string => Boolean(value));
+    if (blockers.length) {
+      return res.status(400).json({
+        ok: false,
+        status: "blocked",
+        code: "agent_execution_preparation_invalid",
+        blockers,
+      });
+    }
+  }
   const normalizedRequest = normalizeDecisionEvidenceRequest({
     value: submittedJobRequest,
     authenticatedUserId: buyerUserId,
@@ -666,14 +723,58 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     verifiedEntitlement = entitlementCheck.entitlement;
     entitlementProof = publicEntitlementProof(entitlementCheck.entitlement);
   }
+  if (prepareForAgentExecution && !verifiedEntitlement) {
+    return res.status(403).json({
+      ok: false,
+      status: "awaiting_authorization",
+      code: "agent_execution_entitlement_required",
+    });
+  }
+  if (
+    prepareForAgentExecution &&
+    stringValue(verifiedEntitlement?.team_id || verifiedEntitlement?.robot_team_id) !==
+      stringValue(asObject(submittedObject.customer).id)
+  ) {
+    return res.status(403).json({
+      ok: false,
+      status: "awaiting_authorization",
+      code: "agent_execution_team_entitlement_mismatch",
+    });
+  }
+  const canonicalExecutionRequest =
+    prepareForAgentExecution &&
+    normalizedRequest.compatibility === "translated_robot_eval_job_request_v1"
+      ? {
+          ...jobRequestWithServerVerifiedEntitlement(submittedObject, verifiedEntitlement!),
+          capture_root: stringValue(asObject(submittedObject.site_package).capture_root),
+        }
+      : normalizedRequest.compatibility === "translated_robot_eval_job_request_v1"
+        ? submittedObject
+        : null;
 
   const queuedAt = receivedAtIso;
-  const inbox = await writeRobotEvalJobRequestInbox({
-    rootDir: process.env.ROBOT_EVAL_JOB_REQUEST_INBOX_DIR || DEFAULT_INBOX_DIR,
-    jobRequest,
-    queuedAt,
-  });
-  const pipelineForward = verifiedEntitlement
+  const inbox = prepareForAgentExecution
+    ? {
+        status: "deferred_for_agent_purchase",
+        performed: false,
+        queue_contract: "blueprint.decision_evidence_request_inbox.v1",
+      }
+    : await writeRobotEvalJobRequestInbox({
+        rootDir: process.env.ROBOT_EVAL_JOB_REQUEST_INBOX_DIR || DEFAULT_INBOX_DIR,
+        jobRequest,
+        queuedAt,
+      });
+  const pipelineForward = prepareForAgentExecution
+    ? {
+        status: "blocked" as const,
+        performed: false,
+        endpoint_configured: Boolean(
+          String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim(),
+        ),
+        required: false,
+        blockers: ["prepared_for_agent_purchase_deferred_forward"],
+      }
+    : verifiedEntitlement
     ? await forwardRobotEvalJobRequestToPipeline({ jobRequest, queuedAt })
     : {
         status: "blocked" as const,
@@ -688,7 +789,9 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     Boolean(verifiedEntitlement) &&
     pipelineForward.required === true &&
     pipelineForward.performed !== true;
-  const recordStatus = !verifiedEntitlement
+  const recordStatus = prepareForAgentExecution
+    ? "prepared_agent_execution"
+    : !verifiedEntitlement
     ? "awaiting_authorization"
     : pipelineForwardBlocksAcceptance
       ? "blocked"
@@ -697,7 +800,12 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const testbed = asObject(jobRequest.testbed);
   const record = {
     decision_request: jobRequest,
-    legacy_job_request: null,
+    legacy_job_request: canonicalExecutionRequest,
+    canonical_execution_request: canonicalExecutionRequest,
+    canonical_execution_request_sha256: canonicalExecutionRequest
+      ? agentExecutionAdmissionDigest(canonicalExecutionRequest)
+      : null,
+    execution_mode: prepareForAgentExecution ? "prepared_agent_execution" : "immediate_forward",
     compatibility: normalizedRequest.compatibility,
     schema_version: jobRequest.schema_version,
     job_id: requestId,

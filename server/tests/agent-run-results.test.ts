@@ -464,3 +464,22 @@ describe("contradiction, not silence", () => {
     }
   });
 });
+
+
+describe("immutable results and repeat delivery", () => {
+  it("reuses an identical receipt and meters its episodes once", async () => {
+    seedRun(); seedTeam();
+    const request = { runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 40, artifactUri: "gs://fixtures/receipt.json" } };
+    const first = await recordRunResult(request);
+    const stored = sharedFakeFirestoreState.docs.get("evaluationRuns/run_res_1")!;
+    // Firestore map iteration order is not JSON property insertion order.
+    const reversed = Object.fromEntries(Object.entries(first!).reverse());
+    sharedFakeFirestoreState.docs.set("evaluationRuns/run_res_1", { ...stored, result: reversed });
+    const second = await recordRunResult(request);
+    expect(second).toEqual(first);
+    const cohort = sharedFakeFirestoreState.docs.get("siteCohortEconomics/" + first!.sceneId);
+    expect(cohort).toMatchObject({ screeningEpisodes: 50, paidEntries: 1 });
+    await expect(recordRunResult({ ...request, report: { ...request.report, episodesSucceeded: 50 } })).rejects.toThrow("conflicts");
+    expect(sharedFakeFirestoreState.docs.get("evaluationRuns/run_res_1")?.result).toEqual(first);
+  });
+});

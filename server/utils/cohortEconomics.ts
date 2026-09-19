@@ -112,6 +112,7 @@ function emptyCohort(sceneId: string): CohortRecord {
  */
 export async function recordCohortEpisodes(params: {
   sceneId: string;
+  runId?: string;
   round: CohortRound;
   episodes: number;
   /** Set when this is a distinct checkpoint's first run in this round. */
@@ -125,6 +126,22 @@ export async function recordCohortEpisodes(params: {
   const increment = admin.firestore.FieldValue.increment;
 
   try {
+    if (params.runId) {
+      const receiptRef = db.collection("siteCohortEpisodeReceipts").doc(params.runId);
+      await db.runTransaction(async transaction => {
+        const receipt = await transaction.get(receiptRef);
+        if (receipt.exists) return;
+        const stored = await transaction.get(ref);
+        const cohort = { ...emptyCohort(params.sceneId), ...stored.data() };
+        const field = params.round === "screening" ? "screeningEpisodes" : "finalistEpisodes";
+        transaction.set(ref, { ...cohort, [field]: cohort[field] + Math.round(params.episodes),
+          paidEntries: cohort.paidEntries + (params.newEntry && params.round === "screening" ? 1 : 0),
+          finalists: cohort.finalists + (params.newEntry && params.round === "finalist" ? 1 : 0),
+          revenueUsd: round2(cohort.revenueUsd + (params.revenueUsd ?? 0)), lastRecordedIso: nowIso() }, { merge: true });
+        transaction.set(receiptRef, { sceneId: params.sceneId, round: params.round, episodes: params.episodes });
+      });
+      return;
+    }
     await ref.set(
       {
         sceneId: params.sceneId,

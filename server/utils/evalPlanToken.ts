@@ -31,6 +31,7 @@ export const EVAL_PLAN_TOKEN_TTL_SECONDS = 60 * 15;
 export interface EvalPlanLine {
   sceneId: string;
   costUsd: number;
+  executionDigest?: string;
 }
 
 interface EvalPlanTokenPayload {
@@ -42,12 +43,13 @@ interface EvalPlanTokenPayload {
 }
 
 function getSecret() {
-  return (
+  const secret = (
     process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET ||
     process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
-    process.env.PIPELINE_SYNC_TOKEN ||
-    "blueprint-request-review-dev-secret"
+    process.env.PIPELINE_SYNC_TOKEN
   );
+  if (!secret && process.env.NODE_ENV === "production") throw new Error("Plan signing secret is required");
+  return secret || "blueprint-request-review-dev-secret";
 }
 
 function sign(serialized: string) {
@@ -64,7 +66,7 @@ export function createEvalPlanToken(params: {
     kind: "eval_plan",
     teamId: params.teamId,
     checkpointId: params.checkpointId,
-    lines: params.lines.map((line) => ({ sceneId: line.sceneId, costUsd: line.costUsd })),
+    lines: params.lines.map((line) => ({ ...line })),
     exp: Math.floor(Date.now() / 1000) + (params.ttlSeconds ?? EVAL_PLAN_TOKEN_TTL_SECONDS),
   };
   const serialized = JSON.stringify(payload);
@@ -83,7 +85,9 @@ export function verifyEvalPlanToken(
   token: string,
   expected: { teamId: string; checkpointId: string },
 ): EvalPlanLine[] | null {
-  const [encoded, signature] = String(token || "").split(".");
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2 || token.length > 16000) return null;
+  const [encoded, signature] = parts;
   if (!encoded || !signature) return null;
 
   let serialized: string;
@@ -109,12 +113,10 @@ export function verifyEvalPlanToken(
   if (payload.kind !== "eval_plan") return null;
   if (payload.teamId !== expected.teamId || payload.checkpointId !== expected.checkpointId) return null;
   if (!Number.isFinite(payload.exp) || payload.exp * 1000 < Date.now()) return null;
-  if (!Array.isArray(payload.lines)) return null;
-
-  return payload.lines
-    .filter(
-      (line): line is EvalPlanLine =>
-        typeof line?.sceneId === "string" && typeof line?.costUsd === "number",
-    )
-    .map((line) => ({ sceneId: line.sceneId, costUsd: line.costUsd }));
+  if (!Array.isArray(payload.lines) || payload.lines.length > 50) return null;
+  if (payload.lines.some(line => !line || typeof line.sceneId !== "string" || !line.sceneId ||
+    !Number.isFinite(line.costUsd) || line.costUsd <= 0 ||
+    (line.executionDigest !== undefined && !/^sha256:[a-f0-9]{64}$/.test(line.executionDigest)))) return null;
+  if (new Set(payload.lines.map(line => line.sceneId)).size !== payload.lines.length) return null;
+  return payload.lines.map(line => ({ ...line }));
 }

@@ -1,3 +1,4 @@
+import { isLikelyPhone } from "@/lib/device";
 /**
  * Getting a site to a camera, which is the only thing we actually need.
  *
@@ -111,6 +112,11 @@ export function SiteCaptureStart() {
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
+  // Whether the phone handoff below is worth anything here. This form is
+  // filled in from whatever device is at hand, including the phone that is
+  // about to do the filming -- and a code pointing a phone at itself is not a
+  // handoff, it is noise in front of the button that already works.
+  const onAPhone = isLikelyPhone();
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -246,14 +252,12 @@ export function SiteCaptureStart() {
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. No app and nothing to install."}
             </p>
+            {!onAPhone && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>
-                {state.hasFootage ? "Open the uploader" : "Open the camera"}
+              <a className={onAPhone || state.hasFootage ? "ms-button ms-button-large" : "ms-text-link"} href={state.captureUrl}>
+                {state.hasFootage ? "Open the uploader" : onAPhone ? "Open the camera" : "Open your task page"}
               </a>
             </p>
-            {/* The handoff, because this page is usually open on a laptop and
-                the camera is in their pocket. */}
-            <CaptureHandoffQr url={state.captureUrl} />
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
               Keep this link — it is how you come back to this submission, and it is where the task
               brief we draft from your job description will appear for you to correct. Film the

@@ -30,6 +30,8 @@ export type AgentTaskKind =
   | "adp_run_operator"
   | "external_harness_thread"
   | "site_video_evidence"
+  /** Reads a site's task description into brief proposals the operator confirms. */
+  | "site_task_brief_reading"
   /**
    * Whether the footage covers the work area well enough to build a scene, and
    * which views are missing if not.

@@ -1,3 +1,4 @@
+import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import fs from "node:fs";
@@ -12,6 +13,7 @@ import {
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
 import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
+import { readBriefFromDescription } from "../utils/siteTaskBriefReading";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
@@ -1829,6 +1831,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       .doc(payload.requestId)
       .set(encryptedInboundRequest);
 
+    if (buyerType === "site_operator") {
+      try { await ensureTaskStatusUpdate(payload.requestId, "received"); }
+      catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule initial status update"); }
+    }
+
     // 8a. Draft the task brief, so there is something for the operator to
     // confirm. This is the entry point the Tier 2 mechanism was missing: the
     // brief, the attestation and the readiness ladder all existed, and nothing
@@ -1869,6 +1876,23 @@ export async function submitInboundRequest(req: Request, res: Response) {
           "Could not draft a task brief at submission",
         );
       }
+
+      // 8b. Read the description, rather than echo it. Fire-and-forget: the
+      // operator has their link already, and the brief they open a minute
+      // later carries what the text actually stated, quoted, for them to
+      // confirm or correct. Off unless the lane is on; a failure leaves the
+      // drafted brief exactly as it was.
+      void readBriefFromDescription({
+        requestId: payload.requestId,
+        taskStatement,
+        whatGoesWrong: payload.whatGoesWrong?.trim() || null,
+        captureMode,
+      }).catch((error) => {
+        logger.warn(
+          { error, requestId: payload.requestId },
+          "Brief reading failed after submission; the drafted brief stands",
+        );
+      });
     }
 
     createLifecycleCadenceForInboundRequest({

@@ -479,10 +479,18 @@ app.use((req, res, next) => {
     });
   });
 
-  if (app.get("env") === "development") {
+  // Browser CI exercises the built client without Vite dependency-discovery
+  // reloads resetting in-progress forms. API routes retain the test environment.
+  const staticBrowserTest = process.env.BLUEPRINT_E2E === "1" && process.env.BLUEPRINT_E2E_STATIC === "1";
+  if (app.get("env") === "development" && !staticBrowserTest) {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    serveStatic(
+      app,
+      staticBrowserTest && process.env.BLUEPRINT_E2E_STATIC_DIR
+        ? path.resolve(process.env.BLUEPRINT_E2E_STATIC_DIR)
+        : undefined,
+    );
   }
 
   const PORT = env.PORT;

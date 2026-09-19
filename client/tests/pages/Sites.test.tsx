@@ -48,6 +48,9 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/site-worlds/tasks")) return new Response(JSON.stringify({ items: [{
+        id: "task-1", title: "Move totes between two stations", taskFamily: "Transport", objects: "Totes", region: "Midwest", siteType: "Warehouse", cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "past", stage: "ready", evaluationAvailable: true, costUsd: 25, publishedAtIso: "2026-09-19T00:00:00Z",
+      }] }), { status: 200 });
       if (url.includes("/api/site-worlds/site-live-1")) {
         return new Response(JSON.stringify(liveSite), { status: 200 });
       }
@@ -67,31 +70,31 @@ beforeEach(() => {
 });
 
 describe("Sites", () => {
-  it("renders only Pipeline-backed public inventory", async () => {
+  it("browses owner-approved tasks before requiring a robot setup", async () => {
     render(<Sites />);
-
-    expect(screen.getByRole("heading", { name: /Start with the real workflow/i })).toBeInTheDocument();
-    expect(await screen.findByText("Owner-backed warehouse")).toBeInTheDocument();
-    expect(screen.getByText("Pipeline record")).toBeInTheDocument();
-    expect(screen.queryByText("Invented fallback")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Capture a workflow/i })).toHaveAttribute("href", "/signup/capturer");
-  });
-
-  it("searches only the returned live records", async () => {
-    render(<Sites />);
-    await screen.findByText("Owner-backed warehouse");
-    fireEvent.change(screen.getByLabelText("Search live records"), { target: { value: "hospital" } });
+    expect(screen.getByRole("heading", { name: "Task library" })).toBeInTheDocument();
+    expect(await screen.findByText("Move totes between two stations")).toBeInTheDocument();
+    expect(screen.getByText("Past opportunity")).toBeInTheDocument();
     expect(screen.queryByText("Owner-backed warehouse")).not.toBeInTheDocument();
-    expect(screen.getByText(/No live record matches that search/i)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith("/api/site-worlds/tasks", expect.anything());
   });
 
-  it("shows a request path instead of fixture supply when inventory is empty", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ items: [], count: 0 }), { status: 200 }),
-    );
+  it("filters the public tasks and offers a way to clear an empty search", async () => {
     render(<Sites />);
-    expect(await screen.findByText(/Site access starts with a real capture record/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Request exact-site access/i })).toBeInTheDocument();
+    await screen.findByText("Move totes between two stations");
+    fireEvent.change(screen.getByLabelText("Filter by region"), { target: { value: "Europe" } });
+    expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
+    expect(screen.getByText("No tasks match these filters.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Move totes between two stations")).toBeInTheDocument();
+  });
+
+  it("offers demand capture instead of fixture supply when inventory is empty", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    render(<Sites />);
+    expect(await screen.findByText("No public tasks to browse yet.")).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Task preferences" })).toBeInTheDocument();
+    expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
   });
 
   it("renders a Pipeline-backed site detail with an explicit proof boundary", async () => {

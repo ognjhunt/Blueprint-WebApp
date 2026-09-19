@@ -144,21 +144,7 @@ export function draftBrief(params: {
     : defaultCaptureMode;
 
   const binding = bindingGates(captureMode);
-  const proposedIds = new Set(
-    params.proposed
-      .filter((answer) => CONFIRMABLE_BASES.includes(answer.basis))
-      .map((answer) => answer.fieldId),
-  );
-
-  // An assumption is not an answer, so a gate we guessed at is still
-  // unresolved. This is the line that stops the brief from filling itself in.
-  const unresolved = binding
-    .filter((field) => !proposedIds.has(field.id))
-    // Capture-blocking gates first: those are the ones whose answers change
-    // what we would ask them to film, and therefore the only ones worth
-    // holding a recording for.
-    .sort((a, b) => Number(b.blocks === "capture") - Number(a.blocks === "capture"))
-    .map((field) => field.id);
+  const unresolved = unresolvedGates(captureMode, params.proposed);
 
   return {
     requestId: params.requestId,
@@ -186,6 +172,112 @@ export async function getBrief(requestId: string): Promise<SiteTaskBriefRecord |
   if (!db) return null;
   const snapshot = await db.collection(TASK_BRIEFS_COLLECTION).doc(requestId).get();
   return snapshot.exists ? (snapshot.data() as SiteTaskBriefRecord) : null;
+}
+
+/**
+ * The gates still open, given what is proposed.
+ *
+ * An assumption is not an answer, so a gate we guessed at is still
+ * unresolved. This is the line that stops the brief from filling itself in.
+ * Capture-blocking gates come first: those are the ones whose answers change
+ * what we would ask them to film, and therefore the only ones worth holding a
+ * recording for.
+ */
+export function unresolvedGates(
+  captureMode: CaptureMode,
+  proposed: readonly ProposedGateAnswer[],
+): string[] {
+  const proposedIds = new Set(
+    proposed
+      .filter((answer) => CONFIRMABLE_BASES.includes(answer.basis))
+      .map((answer) => answer.fieldId),
+  );
+  return bindingGates(captureMode)
+    .filter((field) => !proposedIds.has(field.id))
+    .sort((a, b) => Number(b.blocks === "capture") - Number(a.blocks === "capture"))
+    .map((field) => field.id);
+}
+
+/**
+ * How much weight each basis carries, for deciding which proposal stands when
+ * two bear on the same gate. A measurement outranks what we saw, what we saw
+ * outranks what we were told, and a guess outranks nothing.
+ */
+export const BASIS_RANK: Record<BriefBasis, number> = {
+  assumption: 0,
+  description: 1,
+  observation: 2,
+  measurement: 3,
+};
+
+/**
+ * Fold new proposals into existing ones, one per gate.
+ *
+ * A stronger basis replaces a weaker one; a weaker one never replaces a
+ * stronger one; a tie keeps what is there, so a later reading of the same
+ * evidence cannot flip an answer the operator may already be looking at.
+ */
+export function mergeProposals(
+  existing: readonly ProposedGateAnswer[],
+  incoming: readonly ProposedGateAnswer[],
+): ProposedGateAnswer[] {
+  const byField = new Map(existing.map((answer) => [answer.fieldId, answer]));
+  for (const answer of incoming) {
+    const current = byField.get(answer.fieldId);
+    if (!current || BASIS_RANK[answer.basis] > BASIS_RANK[current.basis]) {
+      byField.set(answer.fieldId, answer);
+    }
+  }
+  return [...byField.values()];
+}
+
+/**
+ * Evidence that arrived after the brief was drafted.
+ *
+ * The brief was drafted once, at submit, from what the operator typed. The
+ * model's read of that text and the footage reader's observations both land
+ * later, and this is where they land. A brief the operator has confirmed is
+ * never touched: their statement stands, and anything new is for the record.
+ *
+ * Returns the merged brief, or null when there is nothing to merge into.
+ */
+export async function mergeBriefProposals(params: {
+  requestId: string;
+  proposals: readonly ProposedGateAnswer[];
+}): Promise<SiteTaskBriefRecord | null> {
+  if (!db) return null;
+  const ref = db.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
+  let incoming: ProposedGateAnswer[] = [];
+  const merged = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return null;
+    const brief = snapshot.data() as SiteTaskBriefRecord;
+    if (brief.confirmedAtIso) return null;
+
+    const binding = bindingGates(brief.captureMode);
+    incoming = params.proposals.filter((answer) =>
+      binding.some((field) => field.id === answer.fieldId),
+    );
+    const proposed = mergeProposals(brief.proposed, incoming);
+    const next: SiteTaskBriefRecord = {
+      ...brief,
+      proposed,
+      unresolved: unresolvedGates(brief.captureMode, proposed),
+      draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
+    };
+    transaction.set(ref, next);
+    return next;
+  });
+  if (!merged) return null;
+  logger.info(
+    {
+      requestId: params.requestId,
+      merged: incoming.map((answer) => `${answer.fieldId}:${answer.basis}`),
+      unresolved: merged.unresolved,
+    },
+    "Site task brief updated from later evidence",
+  );
+  return merged;
 }
 
 export interface ConfirmationResult {

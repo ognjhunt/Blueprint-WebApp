@@ -68,7 +68,7 @@ describe("SelfCaptureUpload by device", () => {
     render(<SelfCaptureUpload />);
 
     expect(
-      await screen.findByRole("heading", { name: "This step happens on your phone." }),
+      await screen.findByRole("heading", { name: "Point your phone at this." }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy the link" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload a video file" })).toBeInTheDocument();
@@ -89,11 +89,62 @@ describe("SelfCaptureUpload by device", () => {
 
     expect(await screen.findByRole("button", { name: "Open the camera" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "This step happens on your phone." }),
+      screen.queryByRole("heading", { name: "Point your phone at this." }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy the link" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Choose or record a video" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("SelfCaptureUpload once robot teams have run", () => {
+  const DESKTOP_UA =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
+
+  function mockFetchWithStatus(status: Record<string, unknown>, claimUrl: string | null) {
+    return vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }),
+        });
+      }
+      if (url.includes("/status")) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, status, claimUrl }) });
+      }
+      if (url.includes("/items")) {
+        return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    });
+  }
+
+  const results = {
+    decision: "results",
+    headline: "Results are in from 2 screening runs. Best so far: 41 of 50 episodes.",
+    operatorAction: "Review the results.",
+    missingViews: [],
+    nextUpdateIso: null,
+  };
+
+  it("offers the claim link when results exist and nobody owns the site", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", mockFetchWithStatus(results, "http://localhost/claim/tok-claim"));
+    render(<SelfCaptureUpload />);
+
+    expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
+    const link = screen.getByRole("link", { name: /claim your site to see the results/i });
+    expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
+  });
+
+  it("offers no claim link when the server offered none", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", mockFetchWithStatus(results, null));
+    render(<SelfCaptureUpload />);
+
+    expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
+    expect(screen.queryByRole("link", { name: /claim your site/i })).not.toBeInTheDocument();
   });
 });

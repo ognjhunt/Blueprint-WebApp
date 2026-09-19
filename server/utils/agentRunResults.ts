@@ -40,6 +40,7 @@
  * gain a claim the evidence does not support.
  */
 
+import { isDeepStrictEqual } from "node:util";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
@@ -278,8 +279,17 @@ export async function recordRunResult(params: {
     reportedAtIso: new Date().toISOString(),
   };
 
-  await ref.set({ result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, {
-    merge: true,
+  await db.runTransaction(async transaction => {
+    const current = await transaction.get(ref);
+    const prior = current.data()?.result as EvalRunResult | undefined;
+    if (prior) {
+      const { reportedAtIso: _priorTime, ...priorEvidence } = prior;
+      const { reportedAtIso: _newTime, ...newEvidence } = result;
+      if (!isDeepStrictEqual(priorEvidence, newEvidence)) throw new Error("Run result conflicts with the recorded evidence");
+      result.reportedAtIso = prior.reportedAtIso;
+      return;
+    }
+    transaction.set(ref, { result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
 
   // The registry write. `recordEvaluationOutcome` is the one that also promotes
@@ -302,6 +312,7 @@ export async function recordRunResult(params: {
     // whole exercise exists to find out.
     await recordCohortEpisodes({
       sceneId: run.sceneId,
+      runId: run.runId,
       round: "screening",
       episodes: episodesRun,
       // One entry per checkpoint's first run against this scene. A second run

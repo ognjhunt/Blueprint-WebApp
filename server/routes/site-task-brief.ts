@@ -1,3 +1,4 @@
+import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -51,6 +52,8 @@ import { deliverOutbox } from "../utils/captureOutbox";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
+import { loadSceneScreening } from "../utils/agentEvalRuns";
+import { createSiteClaimToken } from "../utils/request-review-auth";
 
 const router = Router();
 
@@ -66,6 +69,8 @@ async function readRequestForStatus(requestId: string): Promise<{
   site_task_next_update_iso?: string | null;
   contactEmail?: string | null;
   contactFirstName?: string | null;
+  /** Set once the operator has claimed the site into an account. */
+  account_owner_uid?: string | null;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -79,6 +84,10 @@ async function readRequestForStatus(requestId: string): Promise<{
     site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
     contactEmail: typeof contact?.email === "string" ? contact.email : null,
     contactFirstName: typeof contact?.firstName === "string" ? contact.firstName : null,
+    account_owner_uid:
+      typeof data.account_owner_uid === "string" && data.account_owner_uid
+        ? data.account_owner_uid
+        : null,
   };
 }
 
@@ -489,9 +498,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   }
 
   try {
-    const [brief, request] = await Promise.all([
+    const [brief, request, screening] = await Promise.all([
       getBrief(payload.requestId),
       readRequestForStatus(payload.requestId),
+      // Best-effort: an unreadable run queue is a missing rung, not a broken page.
+      loadSceneScreening(payload.requestId).catch(() => null),
     ]);
 
     // The readiness stage, when we can compute it. Absent when there is no
@@ -544,14 +555,33 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         briefDrafted: Boolean(brief),
         hasStoredCapture,
         stage,
+        screening,
       }),
     );
+
+    try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
+    catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
+    // The one moment an account is offered: there is something behind it to
+    // see, and nobody owns the site yet. Only the owner's own link carries
+    // it -- a forwarded film-only link must not hand out a claim.
+    const claimUrl =
+      (status.decision === "screening" || status.decision === "results") &&
+      payload.scope !== "film" &&
+      !request?.account_owner_uid
+        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
+        : null;
 
     // Piggyback delivery on this poll, so a deployment with no scheduler still
     // sends. Never blocks or fails the status read.
     void deliverOutbox({ limit: 5 }).catch(() => undefined);
 
-    return res.status(200).json({ ok: true, scope: payload.scope, status, summary: brief?.summary ?? null });
+    return res.status(200).json({
+      ok: true,
+      scope: payload.scope,
+      status,
+      summary: brief?.summary ?? null,
+      claimUrl,
+    });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
     return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });

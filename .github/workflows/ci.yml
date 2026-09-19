@@ -199,10 +199,28 @@ jobs:
       - name: Verify Playwright install
         run: npx playwright install --dry-run
 
+      - name: Build stable browser-test client
+        env:
+          BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1"
+        run: npm run build
+
+      - name: Build stable fake-auth browser-test client
+        env:
+          BLUEPRINT_E2E: "1"
+          VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH: "1"
+          VITE_GA_MEASUREMENT_ID: "G-XXXXXXXXXX"
+          VITE_FIREBASE_MEASUREMENT_ID: "G-XXXXXXXXXX"
+        # Vite resolves CLI outDir from its client/ root.
+        run: npx vite build --mode development --outDir ../dist/e2e-auth-public
+
       - name: Run E2E tests
+        env:
+          BLUEPRINT_E2E_STATIC: "1"
         run: npm run test:e2e
 
       - name: Run operator-surfaces QA (fake-auth bypass)
+        env:
+          BLUEPRINT_E2E_STATIC: "1"
         run: npm run qa:operator
 
       - name: Verify minimal site and robot-team workspaces

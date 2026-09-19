@@ -44,7 +44,11 @@ export type TaskDecision =
   /** Footage is short of what a scene needs, and we can name the views. */
   | "add_views"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
-  | "assessing";
+  | "assessing"
+  /** Robot teams have runs queued or running against the scene. */
+  | "screening"
+  /** At least one screening run has concluded, with observations or no result. */
+  | "results";
 
 export interface TaskStatus {
   decision: TaskDecision;
@@ -66,6 +70,22 @@ export interface TaskStatus {
   nextUpdateIso: string | null;
 }
 
+/**
+ * What the runs against a scene add up to, for the two rungs past `assessing`.
+ *
+ * Counts only, with no cross-run ranking. `teams` is distinct teams with a
+ * queued, running, observed, or no-result run, so a site is told how many
+ * parties are looking rather than how many holds exist.
+ */
+export interface SceneScreening {
+  teams: number;
+  queued: number;
+  running: number;
+  reported: number;
+  /** Runs that concluded without executing an observable episode. */
+  noResult: number;
+}
+
 interface TaskStatusInput {
   briefDrafted: boolean;
   briefConfirmed: boolean;
@@ -76,7 +96,13 @@ interface TaskStatusInput {
   supplementWouldFinish: boolean;
   /** The walkthrough's completion marker exists. Absent on older callers. */
   hasStoredCapture?: boolean;
+  /** Runs against the scene, when the caller looked. Absent means it did not. */
+  screening?: SceneScreening | null;
   nextUpdateIso: string | null;
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /**
@@ -113,6 +139,38 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: "confirm_brief",
       headline: "We drafted your task brief. Check it and correct anything we got wrong.",
       operatorAction: "Review and confirm the brief.",
+    };
+  }
+
+  // The two rungs the Pipeline gap used to keep off this ladder. A run only
+  // exists against runnable supply, so anything counted here is downstream of
+  // every rung below; a reported result outranks a queued one.
+  const screening = input.screening;
+  if (screening && screening.reported > 0) {
+    const noResult = screening.noResult > 0
+      ? ` ${countLabel(screening.noResult, "other run")} ended without an observed episode.`
+      : "";
+    return {
+      ...base,
+      decision: "results",
+      headline: `Results are in from ${countLabel(screening.reported, "screening run")}.${noResult} Review each run's observed episodes separately.`,
+      operatorAction: "Review the results.",
+    };
+  }
+  if (screening && screening.noResult > 0) {
+    return {
+      ...base,
+      decision: "results",
+      headline: `${countLabel(screening.noResult, "screening run")} ended without an observed episode.`,
+      operatorAction: "Review the run status.",
+    };
+  }
+  if (screening && screening.queued + screening.running > 0) {
+    return {
+      ...base,
+      decision: "screening",
+      headline: `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.`,
+      operatorAction: null,
     };
   }
 
@@ -164,6 +222,7 @@ export function taskStatusInputFrom(record: {
   /** The walkthrough's completion marker exists — footage is in, unreviewed. */
   hasStoredCapture?: boolean;
   stage: ReadinessStage | null;
+  screening?: SceneScreening | null;
 }): TaskStatusInput {
   const coverage = record.capture_coverage;
   return {
@@ -175,5 +234,6 @@ export function taskStatusInputFrom(record: {
     missingViews: Array.isArray(coverage?.missing_coverage) ? coverage!.missing_coverage! : [],
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     nextUpdateIso: record.site_task_next_update_iso ?? null,
+    screening: record.screening ?? null,
   };
 }

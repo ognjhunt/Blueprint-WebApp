@@ -217,3 +217,195 @@ describe("RobotTeamPlanPreview", () => {
     expect(screen.queryByText(/we would run this against/i)).toBeNull();
   });
 });
+
+describe("funding and queueing the plan", () => {
+  const STASH_KEY = "bp-plan-queue";
+  const row = (sceneId: string) => ({
+    sceneId,
+    siteLabel: "Warehouse",
+    costUsd: 25,
+    rationale: "Payload band unknown for this checkpoint.",
+  });
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+    window.history.replaceState({}, "", "/contact/robot-team");
+  });
+
+  it("funds only the actual shortfall without enabling autonomous spend", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, {
+      selected: [row("s1"), row("s2"), row("s3")],
+      totalCostUsd: 75,
+      planToken: "signed-plan",
+      availableBalanceUsd: 55,
+      fundingNeededUsd: 20,
+    });
+    jsonOnce(201, { ok: true, checkoutUrl: "https://checkout.stripe.test/s1" });
+    const onCheckout = vi.fn();
+
+    render(<RobotTeamPlanPreview onCheckout={onCheckout} />);
+    fillAndSubmit();
+    await screen.findByText(/3 sites we would run this against/i);
+
+    // The old ending: "we will be in touch to start them". A queue with a person in it.
+    expect(document.body.textContent).not.toMatch(/be in touch/i);
+    fireEvent.click(screen.getByRole("button", { name: /add \$50 and queue these runs/i }));
+
+    await waitFor(() => expect(onCheckout).toHaveBeenCalledWith("https://checkout.stripe.test/s1"));
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/agent-team/policy");
+    const [fundingUrl, fundingInit] = fetchMock.mock.calls[2];
+    expect(fundingUrl).toBe("/api/agent-team/funding");
+    expect(JSON.parse(String(fundingInit.body))).toEqual({ amountUsd: 50 });
+    expect(screen.getByText(/amount above the \$20 shortfall remains in your balance/i)).toBeInTheDocument();
+    expect(JSON.parse(window.sessionStorage.getItem(STASH_KEY)!)).toMatchObject({
+      agentKey: "bpk_x",
+      checkpointId: "ckpt_1",
+      totalCostUsd: 75,
+      planToken: "signed-plan",
+    });
+  });
+
+  it("uses existing balance to confirm the signed one-time plan directly", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, {
+      selected: [row("s1"), row("s2")],
+      totalCostUsd: 50,
+      planToken: "signed-direct",
+      availableBalanceUsd: 80,
+      fundingNeededUsd: 0,
+    });
+    jsonOnce(202, { started: [], refused: [], reservedUsd: 50 });
+
+    render(<RobotTeamPlanPreview />);
+    fillAndSubmit();
+    await screen.findByText(/2 sites we would run this against/i);
+    fireEvent.click(screen.getByRole("button", { name: /queue these runs from your balance/i }));
+
+    await screen.findByText(/queued 0 runs/i);
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/agent-team/funding");
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toMatchObject({
+      checkpointId: "ckpt_1",
+      confirm: true,
+      spendMode: "one_time",
+      planToken: "signed-direct",
+    });
+  });
+
+  it("confirms the runs once the payment has landed and says what was queued", async () => {
+    window.sessionStorage.setItem(
+      STASH_KEY,
+      JSON.stringify({
+        agentKey: "bpk_x",
+        checkpointId: "ckpt_1",
+        totalCostUsd: 50,
+        planToken: "signed-plan",
+        idempotencyKey: "idem-0001",
+        email: "eng@alpha.example",
+      }),
+    );
+    window.history.replaceState({}, "", "/contact/robot-team?funded=1");
+    jsonOnce(200, { balance: { availableUsd: 50 } });
+    jsonOnce(202, {
+      started: [
+        { runId: "run_a", sceneId: "s1", siteLabel: "Warehouse", costUsd: 25 },
+        { runId: "run_b", sceneId: "s2", siteLabel: "Warehouse", costUsd: 25 },
+      ],
+      refused: [],
+      reservedUsd: 50,
+    });
+
+    render(<RobotTeamPlanPreview />);
+
+    await screen.findByText(/queued 2 runs/i);
+    const [meUrl, meInit] = fetchMock.mock.calls[0];
+    expect(meUrl).toBe("/api/agent-team/me");
+    expect(meInit.headers.Authorization).toBe("Bearer bpk_x");
+    const [runsUrl, runsInit] = fetchMock.mock.calls[1];
+    expect(runsUrl).toBe("/api/agent-team/runs");
+    expect(JSON.parse(String(runsInit.body))).toEqual({
+      checkpointId: "ckpt_1",
+      confirm: true,
+      spendMode: "one_time",
+      planToken: "signed-plan",
+      idempotencyKey: "idem-0001",
+    });
+    expect(screen.getByText(/\$50 is reserved/i)).toBeInTheDocument();
+    // Nothing emails a result today, so nothing here may say it will.
+    expect(document.body.textContent).not.toMatch(/we will email|check your inbox/i);
+    expect(window.sessionStorage.getItem(STASH_KEY)).not.toBeNull();
+  });
+
+  it("names the runs that were refused rather than swallowing them", async () => {
+    window.sessionStorage.setItem(
+      STASH_KEY,
+      JSON.stringify({ agentKey: "bpk_x", checkpointId: "ckpt_1", totalCostUsd: 50, planToken: "signed-plan", idempotencyKey: "idem-2" }),
+    );
+    window.history.replaceState({}, "", "/contact/robot-team?funded=1");
+    jsonOnce(200, { balance: { availableUsd: 50 } });
+    jsonOnce(202, {
+      started: [{ runId: "run_a", sceneId: "s1", siteLabel: "Warehouse", costUsd: 25 }],
+      refused: [{ sceneId: "s2", siteLabel: "Site", costUsd: 25, refusal: "site_no_longer_runnable", detail: "This site is no longer available to evaluate. Nothing was charged for it." }],
+      reservedUsd: 25,
+    });
+
+    render(<RobotTeamPlanPreview />);
+
+    await screen.findByText(/queued 1 run\b/i);
+    expect(screen.getByText(/no longer available to evaluate/i)).toBeInTheDocument();
+  });
+
+  it("shows result receipts inside the UI using the retained session key", async () => {
+    window.sessionStorage.setItem(
+      STASH_KEY,
+      JSON.stringify({ agentKey: "bpk_x", checkpointId: "ckpt_1", totalCostUsd: 50, planToken: "signed-plan", idempotencyKey: "idem-results" }),
+    );
+    window.history.replaceState({}, "", "/contact/robot-team?funded=1");
+    jsonOnce(200, { balance: { availableUsd: 50 } });
+    jsonOnce(202, { started: [{ runId: "run_a", sceneId: "s1", siteLabel: "Warehouse", costUsd: 25 }], refused: [], reservedUsd: 25 });
+    jsonOnce(200, {
+      runs: [{ runId: "run_a", sceneId: "s1", state: "completed", resultStatus: "reported", result: { observed: { episodesRun: 50, episodesSucceeded: 41 } } }],
+    });
+
+    render(<RobotTeamPlanPreview />);
+    await screen.findByText(/queued 1 run/i);
+    fireEvent.click(screen.getByRole("button", { name: /check results/i }));
+
+    await screen.findByText(/41 of 50 episodes/i);
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/agent-team/results");
+    expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe("Bearer bpk_x");
+  });
+
+  it("requires explicit re-review when the signed plan expires", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, {
+      selected: [row("s1")], totalCostUsd: 25, planToken: "expired-plan",
+      availableBalanceUsd: 25, fundingNeededUsd: 0,
+    });
+    jsonOnce(409, { code: "eval_plan_invalid", error: "expired" });
+
+    render(<RobotTeamPlanPreview />);
+    fillAndSubmit();
+    await screen.findByText(/1 site we would run this against/i);
+    fireEvent.click(screen.getByRole("button", { name: /queue these runs from your balance/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/review a fresh plan before spending/i);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it("recovers an expired Stripe-return plan with the same account and explicit review", async () => {
+    window.sessionStorage.setItem("bp-plan-queue", JSON.stringify({ agentKey: "bpk_saved", checkpointId: "ckpt_saved", totalCostUsd: 25, planToken: "expired", idempotencyKey: "saved-key", email: "team@example.test", sceneId: "s1" }));
+    window.history.replaceState({}, "", "/contact/robot-team?funded=1");
+    jsonOnce(200, { balance: { availableUsd: 50 } });
+    jsonOnce(409, { code: "eval_plan_invalid" });
+    render(<RobotTeamPlanPreview />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/review a fresh plan/i);
+    expect(screen.queryByRole("form", { name: "Tell us about your robot" })).not.toBeInTheDocument();
+    jsonOnce(200, { selected: [row("s1")], teamId: "saved-team", totalCostUsd: 25, planToken: "renewed", availableBalanceUsd: 50, fundingNeededUsd: 0 });
+    fireEvent.click(screen.getByRole("button", { name: "Review updated plan" }));
+    await screen.findByRole("button", { name: /queue these runs from your balance/i });
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual(["/api/agent-team/me", "/api/agent-team/runs", "/api/agent-team/plan"]);
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual({ checkpointId: "ckpt_saved", sceneId: "s1" });
+    expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe("Bearer bpk_saved");
+  });
+
+});

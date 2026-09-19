@@ -25,7 +25,31 @@ team sets its own limits     PUT  /api/agent-team/policy
 agent checks it may act      GET  /api/agent-team/me
 agent buys                   POST /api/agent-team/runs            (confirm: true)
 agent watches its holds      GET  /api/agent-team/runs
+Pipeline pulls the queue     GET  /api/internal/pipeline/agent-runs            (Pipeline-signed)
+Pipeline takes a run         POST /api/internal/pipeline/agent-runs/:runId/started
+Pipeline reports the result  POST /api/internal/pipeline/agent-run-results
+Pipeline settles the money   POST /api/internal/pipeline/agent-run-settlements
+agent reads results          GET  /api/agent-team/results         (dispatch says queued vs running)
 ```
+
+A paid run contains a frozen, authorized execution request. The internal queue
+returns unclaimed, unexpired runs with that request, its exact serialized UTF-8
+bytes and SHA-256 digest. These are private service-to-service fields, not public
+listing data. The Pipeline claims a run using a unique durable attempt ID and
+the digest. The first successful claim extends the hold once; retries preserve
+that deadline, competing claims fail, and expired or cancelled holds cannot start.
+A claimed run is read directly by ID during recovery rather than occupying the
+pending queue. The owner sees `screening` and then individual `results`.
+
+The public panel on `/contact/robot-team` confirms a **one-time** signed plan.
+It never changes the recurring spend policy. Existing funds can pay directly;
+otherwise the page shows the actual Stripe top-up (at least $50), and unused
+funds remain in the balance. The exact plan, session credential and retry key
+survive checkout, and the saved receipt provides result access after a reload.
+The 15-minute plan binds team, checkpoint, tasks, prices and execution digests.
+Changed or expired plans require another review; unavailable execution preparation
+blocks payment. A reservation and its immutable run are written in one transaction.
+One prepared canonical request can be purchased once, even with a new client retry key.
 
 **There is no line in this diagram.** Every step is an API call a team's own agent can make, and the only thing that is not an API call is somebody paying — which is a fact about money rather than a queue.
 
@@ -63,7 +87,7 @@ The first real payment is what proves a counterparty exists, which is why open r
 
 `POST /api/agent-team/funding` takes `amountUsd` and returns a Stripe Checkout URL. Ask for $100, pay $100, get $100 of balance.
 
-**No price is invented here**, which is what makes it shippable as self-serve. Run prices still come from `episodePricing` and are quoted per run; a top-up is a number the team chose, charged at face value, and that is not a commercial term anybody has to approve. Bounds are $50 (below the cost of any run we sell) to $25,000 (a decimal-point bug should not move six figures in one call).
+**No price is invented here**, which is what makes it shippable as self-serve. Run prices still come from `episodePricing` and are quoted per run; a top-up is a number the team chose, charged at face value, and that is not a commercial term anybody has to approve. Bounds are $50 (unused funds remain available for later runs) to $25,000 (a decimal-point bug should not move six figures in one call).
 
 **The credit lands on the webhook, not on the redirect.** A success URL is just a URL anyone could open; `checkout.session.completed` with `payment_status: "paid"` is the proof. The checkout session id is the idempotency key, so a redelivered event credits once. The amount credited is `amount_total` — what Stripe actually collected — never what the request metadata claimed.
 
@@ -137,7 +161,7 @@ Every unit test involved passed the whole time, because the ledger was never the
 
 `agentEvalRuns` closes it in three pieces:
 
-1. **A run record, written when the hold is taken.** Keyed `run_<reservationId>`, so a retried confirm rewrites the same run and the Pipeline can name a run from the only identifier both sides agreed on.
+1. **A run record, written when the hold is taken.** Keyed `run_<reservationId>`, so a retried confirm reuses the original run without resetting its outcome and the Pipeline can name a run from the only identifier both sides agreed on.
 2. **A due time, not a flag.** `settlementDueAtMs` is the expiry when the hold is taken, zero the moment an outcome is reported, and **deleted** once the money has moved. The reconciler's query is a range over that field, so a finished run cannot match it. Scanning `moneyResolved == false` instead would let a hundred young holds crowd out the one that expired an hour ago.
 3. **Expiry releases the hold.** A run that reports nothing at all gives its money back and is marked `abandoned`. So the worst case is a team **un-billed** for work we cannot prove happened — which is the right direction for that error to point.
 
@@ -207,9 +231,16 @@ It said an agent "cannot raise its own limit or top up its own balance", and bot
 
 The honest framing is in **A balance is not permission** above: the **balance** is the hard ceiling, because the only entry that raises it is a `credit` and a credit needs a payment that actually landed. The **policy** is a team pacing itself, changeable at any moment with the same key its agent uses. Useful precisely because it is not the thing stopping a runaway.
 
-## Still open
+## Deployment evidence still required
 
-- **The Pipeline does not call settlement yet.** It should, and the endpoint is waiting for it. This is no longer a money problem — expiry and the per-call reconciliation resolve every hold without it — but until the Pipeline reports `episodes_run`, a run that really did execute gets released rather than billed. We under-charge instead of locking funds, which is the safe failure but still a wrong one.
-- **Nothing on our side schedules a team's agent.** "Give it $100 a day" means the team's own agent runs on its own schedule and our limits bound it. That is deliberate — we should not be driving someone else's compute — but it is worth knowing the loop is theirs.
-- **No end-to-end timing.** Nothing measures how long a run takes from authorisation to result.
-- **The public robot-team page still reads as a form-first journey.** The mechanism is now checkpoint-first; the copy at `/for-robot-teams` has not caught up, and until it does a team arriving through the website will still fill in gates it no longer needs.
+The P0/P1 integration includes the private executor contract and a separate Pipeline
+consumer. Their protected merges are source-code milestones. Operational readiness
+still requires deployment of both versions, the Firestore queue index, a configured
+consumer and controller, an authorized task/checkpoint, terminal runtime artifacts,
+and a successful signed result/settlement delivery. Offline tests do not prove any
+of those live states.
+
+There is no result email in this change; the panel and authenticated results API
+provide the receipt. Autonomous agents still use their own schedule and explicitly
+enabled recurring policy. The public task library is browse-first and only shows
+owner-approved listings and thumbnails.

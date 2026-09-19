@@ -10,6 +10,7 @@ const embedTextsMock = vi.hoisted(() =>
 const listPublicSiteWorldsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } },
   dbAdmin: null,
   storageAdmin: null,
 }));

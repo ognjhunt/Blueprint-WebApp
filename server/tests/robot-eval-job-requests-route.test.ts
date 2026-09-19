@@ -183,6 +183,75 @@ afterEach(() => {
 });
 
 describe("robot-eval job request route forwarding", () => {
+  it("preserves a server-entitled canonical request without forwarding prepared execution", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "task-run-route-inbox-"));
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    seedProvisionedEntitlement({ team_id: "robot-team-a" });
+    const digest = `sha256:${"a".repeat(64)}`;
+    const request = {
+      schema_version: "robot_eval_job_request.v1",
+      execution_mode: "prepared_agent_execution",
+      job_id: "prepared-job-1",
+      buyer_request_id: "prepared-decision-1",
+      decision_question: "Can this exact checkpoint execute the selected site task?",
+      customer: { id: "robot-team-a", name: "José Robotics" },
+      site_package: {
+        site_id: "site-001",
+        site_slug: "site-001",
+        site_name: "Receiving cell",
+        capture_id: "capture-001",
+        capture_root: "gs://blueprint/capture-001",
+        package_version: "4",
+        testbed_digest_sha256: digest,
+      },
+      requested_tasks: [{ task_id: "reach-fixture", scenario_ids: ["nominal"] }],
+      robot_profile: { robot_profile_id: "arm-1" },
+      policy_package: { policy_api_endpoint: { endpoint_url: "https://policy.example" } },
+      entitlement: { entitlement_id: "ent-sw-chi-01" },
+      rights_privacy_scope: { external_use_allowed: true },
+      execution_authorization: {
+        authorized_by_user_id: "robot-team-a",
+        principal_team_id: "robot-team-a",
+        task_id: "reach-fixture",
+        scenario_id: "nominal",
+        episodes: 5,
+        max_cost_usd: 25,
+        rights_cleared: true,
+        one_time_purchase: true,
+      },
+      claims: [{ claim_id: "reach", statement: "Reach target", threshold_ids: ["rate"] }],
+      thresholds: [{ threshold_id: "rate", metric: "success", operator: "gte", value: 0.8, unit: "ratio" }],
+      source: { selection_state: { policy_id: "policy-a", task_id: "reach-fixture" } },
+    };
+    const route = await startRobotEvalRoute();
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: csrfHeaders,
+        body: JSON.stringify(request),
+      });
+      expect(response.status).toBe(202);
+      await expect(response.json()).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        status: "prepared_agent_execution",
+        pipelineForward: expect.objectContaining({ performed: false }),
+      }));
+      const stored = firestoreState.collectionDocData.robotEvalJobRequests["prepared-job-1"];
+      expect(stored.canonical_execution_request).toEqual(expect.objectContaining({
+        schema_version: "robot_eval_job_request.v1",
+        customer: { id: "robot-team-a", name: "José Robotics" },
+        entitlement: expect.objectContaining({
+          approved: true,
+          verified_by: "server_marketplace_entitlement",
+        }),
+      }));
+      expect((await fs.readdir(inboxDir))).toHaveLength(0);
+    } finally {
+      await stopServer(route.server);
+      await fs.rm(inboxDir, { recursive: true, force: true });
+    }
+  });
+
   it("requires CSRF protection on authenticated browser intake", async () => {
     const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "task-run-route-inbox-"));
     vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);

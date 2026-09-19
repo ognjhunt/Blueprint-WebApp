@@ -1,3 +1,7 @@
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import type { InboundRequest } from "../types/inbound-request";
+import { createHash } from "node:crypto";
+import { listTaskBrowseCards, projectTaskBrowseCard } from "../utils/taskBrowse";
 import { Request, Response, Router } from "express";
 import { searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
 import { getPublicSiteWorldById, listPublicSiteWorlds } from "../utils/site-worlds";
@@ -25,6 +29,30 @@ function queryList(value: unknown) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+
+router.get("/tasks/:taskId/thumbnail", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.set("X-Content-Type-Options", "nosniff");
+  if (!db) return res.status(503).end();
+  try {
+    const id = String(req.params.taskId);
+    const snap = await db.collection("inboundRequests").doc(id).get();
+    const record = snap.data();
+    if (!record || !projectTaskBrowseCard(id, record as InboundRequest)?.thumbnailUrl) return res.status(404).end();
+    const image = (await db.collection("taskThumbnails").doc(id).get()).data();
+    if (!image || image.consentVersion !== "public-task-thumbnail-v1"
+      || image.digest !== record.public_task_listing.thumbnailDigest) return res.status(404).end();
+    const bytes = Buffer.from(image.pngBase64, "base64");
+    if (createHash("sha256").update(bytes).digest("hex") !== image.digest) return res.status(404).end();
+    return res.type("png").send(bytes);
+  } catch { return res.status(503).end(); }
+});
+
+router.get("/tasks", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try { return res.json({ items: await listTaskBrowseCards() }); }
+  catch { return res.status(503).json({ error: "The task library could not be loaded." }); }
+});
 
 router.get("/", async (req: Request, res: Response) => {
   const limit = Math.max(1, Math.min(Number(req.query.limit || 24), 100));

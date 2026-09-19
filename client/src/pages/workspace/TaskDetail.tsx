@@ -1,3 +1,4 @@
+import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useWorkspace, dateLabel, money, statusLabel } from "@/lib/workspace";
@@ -84,11 +85,7 @@ export default function TaskDetail() {
                 {task.readiness.missingViews.length > 0 && (
                   <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
                 )}
-                {task.readiness.nextUpdateIso && (
-                  <p className="ws-muted">
-                    Next update by {new Date(task.readiness.nextUpdateIso).toLocaleString()}.
-                  </p>
-                )}
+                <NextTaskUpdate nextUpdateIso={task.readiness.nextUpdateIso} />
               </div>
             </div>
           )}

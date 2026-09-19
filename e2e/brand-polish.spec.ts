@@ -50,6 +50,11 @@ type VisibleAnchor = {
 test.describe.configure({ mode: "serial" });
 
 test("brand polish QA sweeps key public routes", async ({ page, request }) => {
+  // The public feed requires Firestore; the layout audit uses an explicit empty
+  // library, while onboarding specs separately cover real cards and outages.
+  await page.route("**/api/site-worlds/tasks", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }),
+  }));
   // 15 routes x 2 viewports of navigation + metrics + screenshot, plus a
   // trailing internal-link audit, comfortably exceeds 180s now that several
   // routes (Sites, Capture) render meaningfully more cards/images than when
@@ -94,7 +99,10 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   try {
     for (const route of publicQaRoutes) {
       for (const viewport of qaViewports) {
-        const result = await auditRouteViewport(page, route, viewport, {
+        const currentRoute = ["/contact/robot-team", "/for-robot-teams", "/robot-team/eval", "/robot-intake"].includes(route.path)
+          ? { ...route, expectedHeading: "Find work your robot could do.", requiredCtas: [{ label: "For agents: API reference", hrefStartsWith: "/agent-access.openapi.json" }] }
+          : route;
+        const result = await auditRouteViewport(page, currentRoute, viewport, {
           consoleErrors,
           pageErrors,
           resourceFailures,

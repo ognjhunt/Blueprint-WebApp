@@ -13,16 +13,13 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
     await page.setViewportSize(viewport);
     const errors: string[] = [];
     page.on("pageerror", (error) => {
-      // Existing Express/Vite middleware emits an invalid dev-only HMR fallback
-      // URL. The standalone preview and production build have no such fallback.
-      if (/Failed to construct 'WebSocket': The URL 'ws:\/\/localhost:undefined\//.test(error.message)) return;
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
       ["home", "/", "Your site."],
       ["how", "/how-it-works", "Find the right fit."],
       ["site", "/contact/site-operator", "Let’s start with your site."],
-      ["robot", "/contact/robot-team", "Bring your robot. Find the fit."],
+      ["robot", "/contact/robot-team", "Find work your robot could do."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -101,39 +98,14 @@ test("site inquiry validates, retains data on failure, then acknowledges a succe
   expect(body.siteTaskGates.accessWindow).toBe("scheduled");
 });
 
-test("robot application answers the robot gates, not the site's", async ({ page }) => {
+test("robot task browsing replaces the retired contact application", async ({ page }) => {
   await page.goto("/contact/robot-team");
   await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
-  // The application now sits behind a disclosure: the page leads with the free
-  // plan, which is the product, and the form is how you reach a person. Open it
-  // before asserting on what it asks -- those facts are unchanged, only where
-  // they live.
-  await page.getByText(/Rather talk to someone/i).click();
-  await page.locator("#gate-hardwareMaturity").selectOption({ index: 1 });
-  await page.locator("#gate-deploymentGeography").selectOption({ index: 1 });
-  await page.locator("#gate-engineerCapacity").selectOption({ index: 1 });
-  await page.locator("#gate-deploymentTimeline").selectOption({ index: 1 });
-  await page.locator("#prose-capabilityDescription").fill("Fixed-arm pick-and-place system; https://example.com/robot");
-  await page.locator("#contact-name").fill("Test Engineer");
-  await page.locator("#contact-email").fill("engineer@example.com");
-  await page.locator("#contact-company").fill("Test Robotics");
-  // Both required on this form: the server has always required
-  // proofPathPreference, and role is real here (not the site path's optional
-  // stand-in) — either missing blocks native submit before React sees it.
-  await page.locator("#contact-role").fill("Deployment Engineer");
-  await page.locator("#proof-path").selectOption("adjacent_site_acceptable");
-  const request = page.waitForRequest((req) => req.url().endsWith("/api/inbound-request") && req.method() === "POST");
-  await page.route("**/api/inbound-request", async (route) => {
-    await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ ok: true }) });
-  });
-  await page.getByRole("button", { name: "Send application" }).click();
-  const payload = (await request).postDataJSON();
-  expect(payload.buyerType).toBe("robot_team");
-  expect(payload.siteTaskGates.hardwareMaturity).toBeTruthy();
-  // The server requires this field for a robot team; pin that the form
-  // actually sends it now instead of failing the request with a 400 for a
-  // field no screen asked.
-  expect(payload.proofPathPreference).toBe("adjacent_site_acceptable");
+  await expect(page.getByRole("region", { name: "Task library" })).toBeVisible();
+  await expect(page.getByText(/Choose a task before connecting your robot/)).toBeVisible();
+  await expect(page.locator("#gate-hardwareMaturity")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send application" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /For agents: API reference/i })).toBeVisible();
 });
 
 test("mobile navigation and keyboard-accessible method disclosure work", async ({ page }) => {
