@@ -71,6 +71,9 @@ export function SiteCaptureStart() {
     return () => { cancelled = true; };
   }, [currentUser]);
   const siteWorkspace = Boolean(currentUser) && workspaceType === "site_operator";
+  // The phone's recording has landed on the server. The laptop then stops
+  // being a handoff and becomes the place to do the next step.
+  const [captureReceived, setCaptureReceived] = useState(false);
   const requestId = useRef(`capture-${crypto.randomUUID()}`);
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
@@ -221,6 +224,18 @@ export function SiteCaptureStart() {
               we would have to delete it unread.
             </p>
           </>
+        ) : state.selfRecording && state.captureUrl && captureReceived ? (
+          <>
+            <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
+            <p className="ms-field-hint">
+              Next, check the task brief we drafted from it. You can do that here or on the phone;
+              it is the same page.
+            </p>
+            <p style={{ marginTop: "20px" }}>
+              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your task brief</a>
+            </p>
+            <CaptureLiveStatus captureUrl={state.captureUrl} />
+          </>
         ) : state.selfRecording && state.captureUrl ? (
           <>
             <h2 style={{ marginTop: 0 }}>
@@ -253,7 +268,7 @@ export function SiteCaptureStart() {
             {/* The laptop, watching the phone through the server's own status
                 rather than guessing. Renders nothing until there is something
                 real to say, and never blocks the capture happening elsewhere. */}
-            <CaptureLiveStatus captureUrl={state.captureUrl} />
+            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => setCaptureReceived(true)} />
           </>
         ) : (
           <>

@@ -45,6 +45,8 @@ type TaskStatus = {
   claimUrl?: string | null;
   /** Owner-only URL projected from a persisted ready reconstruction. */
   sceneViewUrl?: string | null;
+  /** The server holds a recording, whichever device sent it. */
+  captureReceived?: boolean;
 };
 import { useRoute } from "wouter";
 
@@ -427,6 +429,7 @@ export default function SelfCaptureUpload() {
           ...data.status,
           claimUrl: data.claimUrl ?? null,
           sceneViewUrl: data.sceneViewUrl ?? null,
+          captureReceived: data.captureReceived === true,
         });
       } catch { /* The capture remains usable during a status outage. */ }
       if (alive) timer = setTimeout(poll, 6000);
@@ -437,6 +440,12 @@ export default function SelfCaptureUpload() {
 
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
+
+  // Saved on this device, or on another one: the laptop that showed the QR
+  // code reaches the same layout once the phone's recording lands.
+  // A named coverage gap keeps the camera in front instead.
+  const saved = upload.status === "done"
+    || (upload.status === "idle" && status?.captureReceived === true && status.decision !== "add_views");
 
   // "Where this stands", for the operator who has no account. It carries a
   // re-film request when there is one, so it is never dropped -- but on a
@@ -498,7 +507,7 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your task assessment" : upload.status === "done" ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
+        {link.status === "held" ? "Your task assessment" : saved ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -554,6 +563,19 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
+          {upload.status !== "held" && (
+            <input
+              ref={inputRef}
+              type="file"
+              accept={accepts}
+              capture="environment"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void send(file);
+              }}
+            />
+          )}
           {upload.status === "held" ? (
             <div
               style={{
@@ -568,7 +590,7 @@ export default function SelfCaptureUpload() {
                 come back to you about it.
               </p>
             </div>
-          ) : upload.status === "done" ? (
+          ) : saved ? (
             <>
               <div
                 style={{
@@ -580,9 +602,12 @@ export default function SelfCaptureUpload() {
               >
                 <strong>Your capture is saved.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  You can close this page. We check next whether it covers the work area well enough to
-                  build the scene, and we will come back to you either way — including if one more
-                  view would finish the job.
+                  {scope === "owner" && brief && !briefConfirmed
+                    ? "One thing left for you: check the task brief below and confirm it. "
+                    : "Nothing more is needed from you right now. "}
+                  We check whether the video covers the work area well enough to build the scene,
+                  and we will come back to you either way, including if one more view would finish
+                  the job.
                 </p>
               </div>
               {/* Saved is not finished. The brief confirmation is the site's
@@ -593,15 +618,14 @@ export default function SelfCaptureUpload() {
               {statusCard}
 
               {scope === "owner" && brief && !briefConfirmed && (
-                <details style={{ marginBottom: "8px" }}>
-                  <summary>
-                    {briefBlocksCapture
-                      ? "A couple of answers refine what to film"
-                      : "Review your task brief"}
-                  </summary>
+                /* Open, not collapsed: this is the one step left, and a closed
+                   disclosure under a "you can close this page" card read as
+                   optional. */
+                <details open style={{ marginBottom: "8px" }}>
+                  <summary>Next: check your task brief</summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. Confirming the brief is what lets a robot
-                    team be matched to your site.
+                    We drafted this from what you sent. Correct anything wrong, then confirm. That
+                    is what lets a robot team be matched to your site.
                   </p>
                   <TaskBriefReview
                     token={token}
@@ -614,8 +638,10 @@ export default function SelfCaptureUpload() {
               <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
               <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
-                Filmed another angle? It can be added the same way — we will use whichever views
-                cover the work area best.
+                Filmed another angle? We will use whichever views cover the work area best.{" "}
+                <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
+                  Add another video
+                </button>
               </p>
             </>
           ) : !onAPhone ? (
@@ -673,25 +699,13 @@ export default function SelfCaptureUpload() {
             </>
           )}
 
-          {upload.status !== "held" && upload.status !== "done" && (
+          {upload.status !== "held" && !saved && (
             <>
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 {onAPhone
                   ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
-
-              <input
-                ref={inputRef}
-                type="file"
-                accept={accepts}
-                capture="environment"
-                style={{ display: "none" }}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void send(file);
-                }}
-              />
 
               <button
                 type="button"

@@ -59,6 +59,18 @@ describe("the desktop reflecting the phone from server state", () => {
     expect(screen.queryByText(/Where this stands/)).not.toBeInTheDocument();
   });
 
+  it("tells the page when the server holds the recording", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: { headline: "Checking coverage", stage: "review" }, captureReceived: true }),
+    });
+    const received = vi.fn();
+
+    render(<CaptureLiveStatus captureUrl={CAPTURE_URL} onCaptureReceived={received} />);
+
+    await waitFor(() => expect(received).toHaveBeenCalled());
+  });
+
   it("never fetches or renders when the URL carries no capture token", () => {
     const { container } = render(
       <CaptureLiveStatus captureUrl="https://tryblueprint.io/somewhere-else" />,

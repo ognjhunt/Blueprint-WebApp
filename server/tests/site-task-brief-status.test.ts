@@ -92,6 +92,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(body.status.decision).toBe("assessing");
+    expect(body.captureReceived).toBe(false);
     expect(body.claimUrl ?? null).toBeNull();
   });
 
