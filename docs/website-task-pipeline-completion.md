@@ -324,3 +324,36 @@ new immutable attempt directories. A rate-limited sibling cannot force an
 already-finished object to be purchased again. Corrupt retained outputs hold
 that object instead of silently regenerating it. This is hermetic verification;
 no generated object or simulator qualification is claimed from these tests.
+
+## Prepared background and separate object handoff (2026-09-19)
+
+Pipeline commits `aff327e04` and `f5fed6871` connect the website preparation to
+the installed native background adapters. The selected subject's masked depth
+becomes a separate partial surface candidate, retaining the original source
+images and estimated geometry provenance. The candidate contains only triangles
+between adjacent valid masked pixels; it does not invent unseen back faces or
+claim complete or qualified geometry. The existing Astra authoring reader now
+accepts these website observations.
+
+The background collision adapter preserves the normalized collider bytes. The
+appearance adapter uses the existing ParticleField writer and places the splat
+in the same estimated coordinate frame with a USD transform. Neither adapter
+performs a second object removal. Portable observation references let a worker
+consume the candidate and original images without paths on the control-plane
+machine. A test copies the inputs to a different directory, deletes the source
+directory, executes both installed background adapters, and passes their outputs
+to the actual authoring-input reader.
+
+Verification: the initial object handoff passed 51 focused tests plus 27 existing
+runtime/configuration tests. The subsequent appearance and combined handoff
+passed 59 focused tests; changed-file Ruff and diff checks passed. These checks
+use local fixtures and real OpenUSD authoring, not live walkthrough inference or
+Isaac rendering. Missing or unreadable splats remain pending while completed
+collision/object preparation is retained.
+
+Still open: full recipe/source dispatch and provider preflight integration,
+successful real MapAnything and Gemini/SAM outputs, image completion and Marble
+execution, native rendering and controls, and signed website publication and
+robot evaluation readback. The 14-item walkthrough count remains **0/14
+end-to-end verified**. Both Pipeline changes are pushed to the draft PR;
+neither a merge nor a production deployment is claimed.
