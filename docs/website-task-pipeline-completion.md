@@ -234,3 +234,21 @@ estimated nine-point footprint contact check, not physical proof or a substitute
 for native controls. Verification: 26 focused support/compiler/handoff tests
 pass; changed-file Ruff and diff checks pass. The source resolver and native
 execution remain open; the 14-step end-to-end completion count is unchanged.
+
+Pipeline `242d1973c` now feeds the collected website background into the existing
+OpenUSD mesh normalizer during the handoff. It retains the real background prim
+mapping, estimates metres in Z-up using the same transform as subject placement,
+and keeps the original object image references separate. It does not invent a
+subject prim to excise or reconstruct the scene again. A revised scale has a
+separate conversion cache; mismatched task transforms and changed source bytes
+are refused. Missing execution authority does not stop this CPU conversion, but
+missing capture-processing rights does. Twenty-six focused tests pass, including
+actual OpenUSD opening, static collision attributes, coordinate readback, and
+handoff integration. This is native file-format verification, not Isaac proof.
+
+The visual splat remains `awaiting_splat_frame_binding`. The local converter is
+2.7.0 while the repository pins 3.2.0; a bounded install into task-owned scratch
+failed with npm registry DNS `ENOTFOUND` and is parked. No live provider job is
+running. Scene-source dispatch, object authoring, simulator controls, and the
+robot-team website loop remain unfinished; no additional numbered requirement
+is declared end-to-end complete.
