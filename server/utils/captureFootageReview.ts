@@ -34,7 +34,12 @@ import type {
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { selfCaptureObjectPath } from "./captureUploadToken";
-import { bindingGateFieldIds, isCaptureMode, defaultCaptureMode } from "../../client/src/data/siteTaskQualification";
+import {
+  bindingGateFieldIds,
+  defaultCaptureMode,
+  gateFields,
+  isCaptureMode,
+} from "../../client/src/data/siteTaskQualification";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -84,6 +89,7 @@ async function loadOperatorContext(requestId: string): Promise<{
   taskDescription: string | null;
   whatGoesWrong: string | null;
   bindingFieldIds: readonly string[];
+  gateOptions: Record<string, { value: string; label: string }[]>;
 } | null> {
   if (!db || !requestId) return null;
 
@@ -95,11 +101,25 @@ async function loadOperatorContext(requestId: string): Promise<{
     ? request.request.capture_mode
     : defaultCaptureMode;
 
+  const bindingFieldIds = bindingGateFieldIds(captureMode);
+  // The vocabulary the reader may answer in, for the gates footage can settle.
+  // Without it an observation can only agree or disagree with an answer the
+  // operator gave; with it, an observation can propose one they did not.
+  const gateOptions: Record<string, { value: string; label: string }[]> = {};
+  for (const field of gateFields) {
+    if (!field.settledByFootage || !bindingFieldIds.includes(field.id)) continue;
+    gateOptions[field.id] = field.options.map((option) => ({
+      value: option.value,
+      label: option.label,
+    }));
+  }
+
   return {
     operatorAnswers: (request.request?.siteTaskGates as Record<string, string>) || {},
     taskDescription: request.request?.taskDescription ?? null,
     whatGoesWrong: request.request?.whatGoesWrong ?? null,
-    bindingFieldIds: bindingGateFieldIds(captureMode),
+    bindingFieldIds,
+    gateOptions,
   };
 }
 
@@ -154,6 +174,7 @@ export async function buildCaptureFootageReviewer(params: {
           taskDescription: context.taskDescription,
           whatGoesWrong: context.whatGoesWrong,
           operatorAnswers: context.operatorAnswers,
+          gateOptions: context.gateOptions,
         },
         session_key: `capture_review:${params.captureId}`,
         metadata: { capture_id: params.captureId, scene_id: params.sceneId },

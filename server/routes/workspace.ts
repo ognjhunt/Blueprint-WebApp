@@ -30,10 +30,12 @@ import {
   projectWorkspaceTask,
   projectWorkspaceResult,
   teamAlias,
+  projectAgentRunResult,
 } from "../utils/workspace-projection";
 import { getBrief } from "../utils/siteTaskBrief";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
+import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
 import type {
   InboundRequestStored,
   InboundRequest,
@@ -452,6 +454,14 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     };
   }
   task.results = await applicationResults(task);
+  // Agent screening runs against this scene, as anonymised rows beside the
+  // legacy applications. This is what "No team results yet" used to hide.
+  try {
+    const runs = await listRunsForScene(requestId);
+    task.results.push(...runs.map((run) => projectAgentRunResult(run, task.id, task.terms)));
+  } catch {
+    // A missing run list is missing rows, not a failed task load.
+  }
   if (
     task.results.some((result) => result.successRate !== null) &&
     !task.pilot.selectedResultId &&
@@ -488,6 +498,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
         stage,
+        screening: await loadSceneScreening(requestId).catch(() => null),
       }),
     );
     try { task.readiness.nextUpdateIso = await ensureTaskStatusUpdate(requestId, task.readiness.decision) ?? task.readiness.nextUpdateIso; }

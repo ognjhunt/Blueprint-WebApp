@@ -13,6 +13,7 @@ import {
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
 import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
+import { readBriefFromDescription } from "../utils/siteTaskBriefReading";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
@@ -1875,6 +1876,23 @@ export async function submitInboundRequest(req: Request, res: Response) {
           "Could not draft a task brief at submission",
         );
       }
+
+      // 8b. Read the description, rather than echo it. Fire-and-forget: the
+      // operator has their link already, and the brief they open a minute
+      // later carries what the text actually stated, quoted, for them to
+      // confirm or correct. Off unless the lane is on; a failure leaves the
+      // drafted brief exactly as it was.
+      void readBriefFromDescription({
+        requestId: payload.requestId,
+        taskStatement,
+        whatGoesWrong: payload.whatGoesWrong?.trim() || null,
+        captureMode,
+      }).catch((error) => {
+        logger.warn(
+          { error, requestId: payload.requestId },
+          "Brief reading failed after submission; the drafted brief stands",
+        );
+      });
     }
 
     createLifecycleCadenceForInboundRequest({

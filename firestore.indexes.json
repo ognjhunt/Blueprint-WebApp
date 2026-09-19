@@ -4,17 +4,32 @@
       "collectionGroup": "taskEvaluationSceneIntakes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "owner_user_id", "order": "ASCENDING" },
-        { "fieldPath": "organization_id", "order": "ASCENDING" },
-        { "fieldPath": "created_at_iso", "order": "DESCENDING" }
+        {
+          "fieldPath": "owner_user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "organization_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at_iso",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "taskEvaluationSceneIntakes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "next_forward_at_ms", "order": "ASCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "next_forward_at_ms",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -333,6 +348,38 @@
       "fields": [
         {
           "fieldPath": "teamId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "settlementDueAtMs",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "dispatchPending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "settlementDueAtMs",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "dispatchPending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "executionCaptureId",
           "order": "ASCENDING"
         },
         {

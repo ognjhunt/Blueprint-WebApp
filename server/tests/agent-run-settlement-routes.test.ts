@@ -18,7 +18,7 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FAKE_FIELD_DELETE, sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { FAKE_FIELD_DELETE, sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE: del } = await import(
@@ -57,6 +57,21 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
     next(),
 }));
 
+const admissionFixture = vi.hoisted(() => ({
+  digestSha256: `sha256:${"a".repeat(64)}`,
+}));
+
+// Admission construction has dedicated contract tests. These route tests need
+// a stable, already-prepared execution so they can exercise the purchase and
+// settlement seam without weakening the route's new pre-charge gate.
+vi.mock("../utils/agentExecutionAdmission", () => ({
+  discoverAgentExecutionAdmission: vi.fn(async ({ sceneId }: { sceneId: string }) => ({
+    admitted: true as const,
+    digestSha256: admissionFixture.digestSha256,
+    envelope: { source_request_id: `prepared:${sceneId}` },
+  })),
+}));
+
 async function startRoutes(): Promise<{ server: Server; baseUrl: string }> {
   const { default: agentTeam } = await import("../routes/agent-team");
   const { default: settlement } = await import("../routes/internal-agent-run-settlement");
@@ -88,6 +103,47 @@ async function withRoutes<T>(run: (baseUrl: string) => Promise<T>): Promise<T> {
 
 const TEAM = "team-alpha";
 const AUTH = { authorization: "Bearer bpk_test", "content-type": "application/json" };
+
+async function startOneTimeRun(baseUrl: string, idempotencyKey: string) {
+  const plan = await fetch(`${baseUrl}/api/agent-team/plan`, {
+    method: "POST",
+    headers: AUTH,
+    body: JSON.stringify({ checkpointId: "ckpt-1", maxRuns: 1 }),
+  });
+  expect(plan.status).toBe(200);
+  const reviewed = (await plan.json()) as {
+    executionReady: boolean;
+    planToken: string | null;
+  };
+  expect(reviewed.executionReady).toBe(true);
+  expect(reviewed.planToken).toEqual(expect.any(String));
+
+  const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
+    method: "POST",
+    headers: AUTH,
+    body: JSON.stringify({
+      checkpointId: "ckpt-1",
+      confirm: true,
+      spendMode: "one_time",
+      planToken: reviewed.planToken,
+      idempotencyKey,
+      maxRuns: 1,
+    }),
+  });
+  if (response.ok) {
+    const body = (await response.clone().json()) as { started?: { runId: string }[] };
+    for (const run of body.started ?? []) {
+      const key = `evaluationRuns/${run.runId}`;
+      const stored = sharedFakeFirestoreState.docs.get(key) ?? {};
+      sharedFakeFirestoreState.docs.set(key, {
+        ...stored,
+        dispatchPending: false,
+        dispatch: { state: "accepted", pipelineRunId: "pipeline-run-9" },
+      });
+    }
+  }
+  return response;
+}
 
 /** A funded team, an enabled agent, one screened site, one checkpoint. */
 async function seedSpendableTeam() {
@@ -176,26 +232,49 @@ async function seedSpendableTeam() {
 
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
+  admissionFixture.digestSha256 = `sha256:${"a".repeat(64)}`;
   vi.unstubAllEnvs();
 });
 
 /* -------------------------------------------------- the reservation wiring */
 
 describe("confirming a spend leaves something that can settle it", () => {
+  it("refuses a signed plan when the prepared execution changed", async () => {
+    await seedSpendableTeam();
+
+    const result = await withRoutes(async (baseUrl) => {
+      const plan = await fetch(`${baseUrl}/api/agent-team/plan`, {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({ checkpointId: "ckpt-1", maxRuns: 1 }),
+      });
+      const reviewed = (await plan.json()) as { planToken: string };
+      admissionFixture.digestSha256 = `sha256:${"b".repeat(64)}`;
+      const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({ checkpointId: "ckpt-1", confirm: true,
+          spendMode: "one_time", planToken: reviewed.planToken,
+          idempotencyKey: "changed-execution-plan", maxRuns: 1 }),
+      });
+      return { status: response.status, body: await response.json() as {
+        started: unknown[]; refused: { refusal: string }[];
+      } };
+    });
+
+    expect(result.status).toBe(202);
+    expect(result.body.started).toEqual([]);
+    expect(result.body.refused).toEqual([
+      expect.objectContaining({ refusal: "execution_preparation_required" }),
+    ]);
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+  });
+
   it("writes a run record for every hold it takes", async () => {
     await seedSpendableTeam();
 
     const body = await withRoutes(async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "morning-plan-1",
-          maxRuns: 1,
-        }),
-      });
+      const response = await startOneTimeRun(baseUrl, "morning-plan-1");
       expect(response.status).toBe(202);
       return (await response.json()) as {
         started: { runId: string; reservationId: string; costUsd: number }[];
@@ -230,16 +309,7 @@ describe("confirming a spend leaves something that can settle it", () => {
     await seedSpendableTeam();
 
     const body = await withRoutes(async (baseUrl) => {
-      await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "morning-plan-2",
-          maxRuns: 1,
-        }),
-      });
+      await startOneTimeRun(baseUrl, "morning-plan-2");
       const response = await fetch(`${baseUrl}/api/agent-team/runs`, { headers: AUTH });
       expect(response.status).toBe(200);
       return (await response.json()) as {
@@ -258,16 +328,7 @@ describe("confirming a spend leaves something that can settle it", () => {
     await seedSpendableTeam();
 
     const result = await withRoutes(async (baseUrl) => {
-      await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "morning-plan-3",
-          maxRuns: 1,
-        }),
-      });
+      await startOneTimeRun(baseUrl, "morning-plan-3");
 
       // Age the hold past its expiry. No scheduler is running in this test and
       // no env flag is set: the agent's own next call is what clears it.
@@ -293,19 +354,63 @@ describe("confirming a spend leaves something that can settle it", () => {
 /* ------------------------------------------------------- the settlement cap */
 
 describe("the Pipeline cannot charge past what the team authorised", () => {
+  it("returns a conflict when cancellation wins after settlement validation", async () => {
+    await seedSpendableTeam();
+    const result = await withRoutes(async (baseUrl) => {
+      const start = await startOneTimeRun(baseUrl, "cancel-race-plan");
+      const { started } = await start.json() as { started: { reservationId: string; runId: string }[] };
+      const [run] = started;
+      const original = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+      let injectCancellation = true;
+      sharedFakeFirestore.runTransaction = (async (updateFn: (tx: any) => Promise<unknown>) => original(async (tx: any) => updateFn({
+        ...tx,
+        get: async (ref: any) => {
+          if (injectCancellation && ref.__collection === "evaluationRuns" && ref.id === run.runId) {
+            injectCancellation = false;
+            const key = `evaluationRuns/${run.runId}`;
+            sharedFakeFirestoreState.docs.set(key, {
+              ...sharedFakeFirestoreState.docs.get(key),
+              state: "abandoned",
+              cancellationRequested: true,
+              dispatchPending: false,
+            });
+          }
+          return tx.get(ref);
+        },
+      }))) as typeof sharedFakeFirestore.runTransaction;
+      try {
+        const response = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-settlements`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pipeline_run_id: "pipeline-run-9",
+            execution_admission_digest: admissionFixture.digestSha256,
+            team_id: TEAM, reservation_id: run.reservationId, run_id: "pipeline-run-9",
+            episodes_run: 50, rate_usd: 5 }),
+        });
+        const body = await response.json() as { code?: string };
+        const lateResult = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pipeline_run_id: "pipeline-run-9",
+            execution_admission_digest: admissionFixture.digestSha256,
+            reservation_id: run.reservationId, episodes_run: 50, episodes_succeeded: 48 }),
+        });
+        return { status: response.status, body, lateResultStatus: lateResult.status };
+      } finally {
+        sharedFakeFirestore.runTransaction = original as typeof sharedFakeFirestore.runTransaction;
+      }
+    });
+
+    expect(result).toEqual({ status: 409,
+      body: expect.objectContaining({ code: "agent_run_outcome_conflict" }), lateResultStatus: 200 });
+    const ledger = [...sharedFakeFirestoreState.docs.values()].filter(doc => doc.teamId === TEAM && doc.kind === "settle");
+    expect(ledger).toEqual([]);
+  });
+
   async function holdThenSettle(settlementBody: Record<string, unknown>) {
     await seedSpendableTeam();
     return withRoutes(async (baseUrl) => {
-      const start = await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "plan-settle",
-          maxRuns: 1,
-        }),
-      });
+      const start = await startOneTimeRun(baseUrl, "plan-settle");
       const started = (await start.json()) as {
         started: { reservationId: string; runId: string; costUsd: number }[];
       };
@@ -315,6 +420,8 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          pipeline_run_id: "pipeline-run-9",
+          execution_admission_digest: admissionFixture.digestSha256,
           team_id: TEAM,
           reservation_id: run.reservationId,
           run_id: "pipeline-run-9",
@@ -383,16 +490,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     await seedSpendableTeam();
 
     const seen = await withRoutes(async (baseUrl) => {
-      const start = await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "plan-result",
-          maxRuns: 1,
-        }),
-      });
+      const start = await startOneTimeRun(baseUrl, "plan-result");
       const { started } = (await start.json()) as {
         started: { reservationId: string; runId: string }[];
       };
@@ -402,6 +500,8 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          pipeline_run_id: "pipeline-run-9",
+          execution_admission_digest: admissionFixture.digestSha256,
           reservation_id: run.reservationId,
           episodes_run: 200,
           episodes_succeeded: 198,
@@ -436,16 +536,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     await seedSpendableTeam();
 
     const list = await withRoutes(async (baseUrl) => {
-      await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "plan-pending",
-          maxRuns: 1,
-        }),
-      });
+      await startOneTimeRun(baseUrl, "plan-pending");
       const response = await fetch(`${baseUrl}/api/agent-team/results`, { headers: AUTH });
       return (await response.json()) as { runs: { resultStatus: string; result: unknown }[] };
     });
@@ -461,21 +552,14 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     await seedSpendableTeam();
 
     const result = await withRoutes(async (baseUrl) => {
-      const start = await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({
-          checkpointId: "ckpt-1",
-          confirm: true,
-          idempotencyKey: "plan-impossible",
-          maxRuns: 1,
-        }),
-      });
+      const start = await startOneTimeRun(baseUrl, "plan-impossible");
       const { started } = (await start.json()) as { started: { reservationId: string }[] };
       const response = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          pipeline_run_id: "pipeline-run-9",
+          execution_admission_digest: admissionFixture.digestSha256,
           reservation_id: started[0].reservationId,
           episodes_run: 10,
           episodes_succeeded: 40,

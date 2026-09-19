@@ -86,20 +86,17 @@ test("site-operator page leads with the questions that can end a submission", as
   await expect(page.locator("#spec-cycleTime")).toHaveCount(0);
 });
 
-test("robot-team page asks its own gates, not the site's", async ({ page }) => {
+test("robot-team page browses tasks before robot setup and omits the retired contact form", async ({ page }) => {
   await page.goto("/contact/robot-team", { waitUntil: "domcontentloaded" });
 
   await expect(
-    page.getByRole("heading", { name: /Bring your robot. Find the fit/i }),
+    page.getByRole("heading", { name: /Find work your robot could do/i }),
   ).toBeVisible();
   await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
-  // The application now sits behind a disclosure: the page leads with the free
-  // plan, which is the product, and the form is how you reach a person. Open it
-  // before asserting on what it asks -- those facts are unchanged, only where
-  // they live.
-  await page.getByText(/Rather talk to someone/i).click();
-  await expect(page.locator("#gate-hardwareMaturity")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Send application/i })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Task library" })).toBeVisible();
+  await expect(page.locator("#gate-hardwareMaturity")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Send application/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /For agents: API reference/i })).toBeVisible();
 });
 
 test("a blocking answer names the change that would flip it, before submitting", async ({

@@ -152,3 +152,44 @@ test("public photos fall back to illustrations when removed", async ({ page }) =
   await page.reload();
   await expect(page.getByText("Task illustration · not a site photo", { exact: true })).toBeVisible();
 });
+
+
+test("a one-time paid plan keeps its receipt across reload and exposes results", async ({ page }) => {
+  const mutations = await fixtures(page);
+  await page.route("**/api/agent-team/plan", route => route.fulfill({ json: {
+    selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Prepared execution", details: card }],
+    totalCostUsd: 25, planToken: "signed-fixture-plan", availableBalanceUsd: 50, fundingNeededUsd: 0,
+  } }));
+  let confirmations = 0;
+  await page.route("**/api/agent-team/runs", async route => {
+    confirmations += 1;
+    expect(route.request().postDataJSON()).toMatchObject({ checkpointId: "cp-1", spendMode: "one_time", planToken: "signed-fixture-plan", confirm: true });
+    await route.fulfill({ status: 202, json: { started: [{ runId: "local-run", sceneId: card.id, siteLabel: card.title, costUsd: 25 }], refused: [], reservedUsd: 25 } });
+  });
+  await page.route("**/api/agent-team/results", route => route.fulfill({ json: { runs: [{ runId: "local-run", state: "completed", result: { observed: { episodesRun: 50, episodesSucceeded: 41 } } }] } }));
+  await page.goto("/contact/robot-team");
+  await page.getByRole("button", { name: "Evaluate this task · $25" }).first().click();
+  await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
+  await page.getByLabel("Team or company").fill("Local robot team");
+  await page.getByLabel("Where is it?").fill("https://example.test/policy");
+  await page.getByRole("button", { name: "See what we would run" }).click();
+  await page.getByRole("button", { name: "Queue these runs from your balance" }).click();
+  await expect(page.getByRole("button", { name: "Check results" })).toBeVisible();
+  await page.reload();
+  await page.getByText("Already have a robot setup to evaluate?", { exact: true }).click();
+  await page.getByRole("button", { name: "Check results" }).click();
+  await expect(page.getByRole("list", { name: "Run results" })).toContainText("41 of 50 episodes");
+  expect(confirmations).toBe(1);
+  expect(mutations.some(item => item.path.endsWith("/policy") || item.path.endsWith("/funding"))).toBe(false);
+});
+
+test("site owner receives a claim link alongside completed screening status", async ({ page }) => {
+  await fixtures(page);
+  await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: {
+    ok: true, status: { decision: "results", headline: "Results are in from 2 screening runs. Review each run separately.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+    claimUrl: "/sign-in?claim=owner-fixture",
+  } }));
+  await page.goto("/capture-upload/owner-fixture");
+  await expect(page.getByText("Results are in from 2 screening runs. Review each run separately.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
+});

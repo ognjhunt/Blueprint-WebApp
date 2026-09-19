@@ -235,23 +235,15 @@ describe("build output", () => {
     expect(siteHtml).toContain('id="capture-mode"');
     expect(siteHtml).toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Bring your robot. Find the fit.");
-    // The robot persona's own copy, prerendered. It used to assert "applying
-    // does not guarantee either" -- true of the old flow, where a form was
-    // followed by a wait for us. The offer starts immediately now, so what has
-    // to survive prerender is the plan being free and the questions not being
-    // a gate.
-    expect(robotHtml).toContain("ranked, priced, and free to look at");
-    // The form is no longer what this page leads with: the panel that shows a
-    // free ranked plan is, and the application sits behind a disclosure. A
-    // person and their agent now have the same access, which they did not.
+    expect(robotHtml).toContain("Find work your robot could do.");
+    expect(robotHtml).toContain("Choose a task before connecting your robot.");
+    expect(robotHtml).toContain("Already have a robot setup to evaluate?");
+    expect(robotHtml).toContain("Nothing runs or is charged here.");
     expect(robotHtml).toContain("See what we would run");
-    expect(robotHtml).toContain("a later conversation than evaluating one");
-    expect(robotHtml).toContain("Rather talk to someone");
-    expect(robotHtml).toContain("POST /api/agent-team/register");
+    expect(robotHtml).toContain("/agent-access.openapi.json");
     expect(robotHtml).not.toContain('id="capture-mode"');
     expect(robotHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain('id="gate-hardwareMaturity"');
+    expect(robotHtml).not.toContain('id="gate-hardwareMaturity"');
     for (const route of ["index.html", "contact/site-operator/index.html", "contact/robot-team/index.html", "privacy/index.html", "terms/index.html"]) {
       const html = fs.readFileSync(distPath(route), "utf8");
       expect(html).toContain('class="minimal-site"');
@@ -272,7 +264,6 @@ describe("build output", () => {
       "Peachtree Parcel Exchange South",
       "1847 W Fulton St",
       "2550 Lakewood Ave",
-      "Ready to evaluate",
       "api.lindy",
     ].forEach((forbiddenText) => {
       expect(browserJavaScript).not.toContain(forbiddenText);

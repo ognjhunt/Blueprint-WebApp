@@ -92,7 +92,7 @@ export async function startBalanceTopup(params: {
     return {
       created: false,
       refusal: "amount_below_minimum",
-      detail: `The smallest top-up is $${MIN_TOPUP_USD}, which is below the cost of any run we sell.`,
+      detail: `The smallest top-up is $${MIN_TOPUP_USD}. Unused funds remain in your balance.`,
     };
   }
   if (amountUsd > MAX_TOPUP_USD) {
@@ -142,8 +142,8 @@ export async function startBalanceTopup(params: {
         blueprint_team_id: params.teamId,
         blueprint_amount_usd: amountUsd.toFixed(2),
       },
-      success_url: `${origin}/for-robot-teams?funded=1`,
-      cancel_url: `${origin}/for-robot-teams?funded=0`,
+      success_url: `${origin}/contact/robot-team?funded=1`,
+      cancel_url: `${origin}/contact/robot-team?funded=0`,
     });
 
     if (!session.url) {

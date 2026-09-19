@@ -825,3 +825,51 @@ describe("site claim and listing control", () => {
     expect((await api("/tasks/task-1/listing", "site-2", { paused: true })).status).toBe(404);
   });
 });
+
+describe("agent screening runs on the site's task", () => {
+  it("shows a reported run as an anonymised simulation row and moves the ladder to results", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z",
+      capture_coverage: { covers_scene: true, missing_coverage: [], supplement_would_finish: false },
+    });
+    state.records.set("siteTaskBriefs/task-1", {
+      requestId: "task-1",
+      summary: "Pack cartons",
+      proposed: [],
+      unresolved: [],
+      captureMode: "self_capture",
+      draftedAtIso: "2026-09-17T00:00:00Z",
+      draftedFrom: ["description"],
+      confirmedAtIso: "2026-09-18T00:00:00Z",
+      confirmedBy: "Site Owner",
+      operatorAnswers: null,
+      operatorUnknown: null,
+    });
+    state.records.set("evaluationRuns/run_r1", {
+      runId: "run_r1",
+      teamId: "team-alpha",
+      checkpointId: "ckpt-secret",
+      sceneId: "task-1",
+      state: "completed",
+      requestedAtIso: "2026-09-19T00:00:00.000Z",
+      result: {
+        observed: { episodesRun: 50, episodesSucceeded: 41, successRate: 0.82, medianCycleSeconds: 38 },
+      },
+    });
+
+    const body = await (await api("/", "site-1")).json();
+    const siteTask = body.tasks.find((item: any) => item.id === "task-1");
+    const row = siteTask.results.find((item: any) => item.id === "run_r1");
+
+    expect(row).toMatchObject({
+      evidenceLabel: "Simulation",
+      successRate: 82,
+      sampleCount: 50,
+      cycleTimeSeconds: 38,
+    });
+    expect(JSON.stringify(body)).not.toContain("team-alpha");
+    expect(JSON.stringify(body)).not.toContain("ckpt-secret");
+    expect(siteTask.readiness?.decision).toBe("results");
+  });
+});

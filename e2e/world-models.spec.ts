@@ -7,7 +7,7 @@ test("world models catalog route redirects to the Sites library", async ({
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole("heading", { name: /Start with the real workflow\./i }),
+    page.getByRole("heading", { name: "Task library" }),
   ).toBeVisible();
 });
 
@@ -18,7 +18,7 @@ test("world-model detail route redirects to the live Sites library", async ({
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole("heading", { name: /Start with the real workflow/i }),
+    page.getByRole("heading", { name: "Task library" }),
   ).toBeVisible();
 });
 
@@ -29,6 +29,6 @@ test("legacy hosted setup does not expose a fixture site", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole("heading", { name: /Start with the real workflow/i }),
+    page.getByRole("heading", { name: "Task library" }),
   ).toBeVisible();
 });

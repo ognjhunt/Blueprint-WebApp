@@ -187,3 +187,75 @@ describe("pulling inputs off a stored request", () => {
     expect(input.missingViews).toEqual([]);
   });
 });
+
+describe("screening and results rungs", () => {
+  const assessed = { briefDrafted: true, briefConfirmed: true, coversScene: true as const };
+
+  it("reports screening once runs are queued or running against the scene", () => {
+    const status = projectTaskStatus(
+      base({
+        ...assessed,
+        screening: { teams: 2, queued: 1, running: 1, reported: 0, noResult: 0 },
+      }),
+    );
+    expect(status.decision).toBe("screening");
+    expect(status.headline).toContain("2 robot teams");
+    expect(status.operatorAction).toBeNull();
+  });
+
+  it("reports results without comparing observations from different runs", () => {
+    const status = projectTaskStatus(
+      base({
+        ...assessed,
+        screening: { teams: 3, queued: 0, running: 1, reported: 2, noResult: 0 },
+      }),
+    );
+    expect(status.decision).toBe("results");
+    expect(status.headline).toContain("Review each run's observed episodes separately");
+    expect(status.operatorAction).toBe("Review the results.");
+  });
+
+  it("uses the singular for one team", () => {
+    const status = projectTaskStatus(
+      base({ ...assessed, screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }),
+    );
+    expect(status.headline).toContain("1 robot team is");
+  });
+
+  it("stays at assessing when no run exists", () => {
+    const status = projectTaskStatus(
+      base({ ...assessed, screening: { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 } }),
+    );
+    expect(status.decision).toBe("assessing");
+  });
+
+  it("still puts a coverage shortfall ahead of screening", () => {
+    const status = projectTaskStatus(
+      base({
+        ...assessed,
+        coversScene: false,
+        missingViews: ["the pallet position"],
+        screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 },
+      }),
+    );
+    expect(status.decision).toBe("add_views");
+  });
+
+  it("passes screening through taskStatusInputFrom", () => {
+    const input = taskStatusInputFrom({
+      briefDrafted: true,
+      stage: null,
+      screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 },
+    });
+    expect(input.screening?.reported).toBe(1);
+  });
+
+  it("reports a concluded zero-episode run as no result", () => {
+    const status = projectTaskStatus(
+      base({ ...assessed, screening: { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 } }),
+    );
+    expect(status.decision).toBe("results");
+    expect(status.headline).toContain("without an observed episode");
+    expect(status.operatorAction).toBe("Review the run status.");
+  });
+});

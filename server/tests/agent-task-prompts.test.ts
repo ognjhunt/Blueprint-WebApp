@@ -97,6 +97,18 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     taskSummary: "Totes move from the conveyor to a pallet.",
     requestedViews: [{ id: "work-area", label: "The whole work area, from a few steps back" }],
   },
+  site_task_brief_reading: {
+    requestId: "req-1",
+    taskStatement: "Totes come off the line and get stacked onto pallets, about six sizes.",
+    whatGoesWrong: "Shrink wrap snags about twice a shift.",
+    gates: [
+      {
+        id: "objectVariety",
+        question: "How many distinct items does this task handle?",
+        options: [{ value: "under_10", label: "Fewer than ten" }],
+      },
+    ],
+  },
 };
 
 describe("agent task prompts", () => {

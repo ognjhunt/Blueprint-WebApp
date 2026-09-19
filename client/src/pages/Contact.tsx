@@ -197,6 +197,9 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
   const [captureRegion, setCaptureRegion] = useState<CaptureRegion>("us");
   const [consent, setConsent] = useState(false);
   const identity = useMemo(readStoredIdentity, []);
+  // Whether the phone handoff below is worth anything here -- see
+  // SiteCaptureStart, which the same success pattern was copied from.
+  const onAPhone = isLikelyPhone();
 
   // Deep links into this page (from site pages, campaigns, agents) carry the
   // task and the site with them. The visitor should arrive at a half-filled
@@ -433,8 +436,11 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             </span>
             {!blocked && !isLikelyPhone() && (
               /*
-               * Only when they can actually record. A code that carries someone
-               * to a status page is a worse version of the link beside it.
+               * Only when they can actually record, and only when the phone
+               * being scanned for isn't the one this page is already open on.
+               * A code that carries someone to a status page is a worse
+               * version of the link beside it; a code pointing a phone at
+               * itself is worse still.
                */
               <CaptureHandoffQr url={captureUrl} />
             )}

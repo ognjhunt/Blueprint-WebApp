@@ -46,6 +46,8 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { verifyEvalPlanToken } from "./evalPlanToken";
+import { buildRequestedRunRecord, reservationTtlMs, type EvalRunRecord } from "./agentRunRecord";
 
 const LEDGER_COLLECTION = "robotTeamLedger";
 const POLICY_COLLECTION = "robotTeamSpendPolicy";
@@ -345,7 +347,9 @@ export type SpendRefusal =
   | "insufficient_balance"
   | "over_per_run_limit"
   | "over_daily_limit"
-  | "ledger_unavailable";
+  | "ledger_unavailable"
+  | "invalid_approval"
+  | "idempotency_conflict";
 
 export type SpendAuthorization =
   | { authorized: true; reservationId: string }
@@ -363,84 +367,91 @@ export async function authorizeAgentSpend(params: {
   amountUsd: number;
   reason: string;
   idempotencyKey: string;
+  confirmedPlan?: { token: string; checkpointId: string; sceneId: string };
+  requestedRun?: Pick<EvalRunRecord, "checkpointId" | "sceneId" | "taskFamily" | "quotedEpisodes" | "executionAdmission">;
 }): Promise<SpendAuthorization> {
-  if (!db) {
-    return {
-      authorized: false,
-      refusal: "ledger_unavailable",
-      detail: "The ledger could not be read, and unknown funds are not spendable funds.",
-    };
-  }
-
+  if (!db) return { authorized: false, refusal: "ledger_unavailable", detail: "The ledger could not be read." };
   const amountUsd = round2(params.amountUsd);
-  const policy = await getSpendPolicy(params.teamId);
-
-  if (!policy.agentSpendEnabled) {
-    return {
-      authorized: false,
-      refusal: policy.dailyLimitUsd > 0 ? "agent_spend_disabled" : "no_policy_configured",
-      detail:
-        "Autonomous spend is off for this team. A balance alone is not permission; the team sets a daily limit and switches the agent on.",
-    };
+  if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { authorized: false, refusal: "invalid_approval", detail: "A positive quote is required." };
+  if (params.confirmedPlan) {
+    const lines = verifyEvalPlanToken(params.confirmedPlan.token, { teamId: params.teamId, checkpointId: params.confirmedPlan.checkpointId });
+    if (!lines?.some(line => line.sceneId === params.confirmedPlan!.sceneId && line.costUsd === amountUsd)) {
+      return { authorized: false, refusal: "invalid_approval", detail: "Review and approve a current plan before reserving funds." };
+    }
   }
-
-  if (policy.perRunLimitUsd > 0 && amountUsd > policy.perRunLimitUsd) {
-    return {
-      authorized: false,
-      refusal: "over_per_run_limit",
-      detail: `This run quotes $${amountUsd}, above the per-run limit of $${policy.perRunLimitUsd}. One mistake is supposed to be bounded.`,
-    };
-  }
-
-  const spentToday = await getSpendToday(params.teamId);
-  if (policy.dailyLimitUsd > 0 && spentToday + amountUsd > policy.dailyLimitUsd) {
-    return {
-      authorized: false,
-      refusal: "over_daily_limit",
-      detail: `$${spentToday} of today's $${policy.dailyLimitUsd} is already committed; this run needs $${amountUsd}.`,
-    };
-  }
-
-  const balance = await getTeamBalance(params.teamId);
-  if (balance.availableUsd < amountUsd) {
-    return {
-      authorized: false,
-      refusal: "insufficient_balance",
-      detail: `$${balance.availableUsd} available, $${amountUsd} needed. Top up to continue.`,
-    };
-  }
-
-  const reservationId = await reserve({
-    teamId: params.teamId,
-    amountUsd,
-    reason: params.reason,
-    idempotencyKey: params.idempotencyKey,
+  const entryId = `${params.teamId}:${params.idempotencyKey}`;
+  const reservationId = `res_${params.teamId}_${params.idempotencyKey}`;
+  const ledgerRef = db.collection(LEDGER_COLLECTION).doc(entryId);
+  const lockRef = db.collection("robotTeamLedgerLocks").doc(params.teamId);
+  const policyRef = db.collection(POLICY_COLLECTION).doc(params.teamId);
+  const ledgerQuery = db.collection(LEDGER_COLLECTION).where("teamId", "==", params.teamId);
+  return db.runTransaction(async transaction => {
+    // Every ledger writer takes this lock, including credits and resolutions.
+    // Firestore retries this transaction if another writer changes the balance.
+    const lock = await transaction.get(lockRef);
+    const existing = await transaction.get(ledgerRef);
+    if (existing.exists) {
+      const entry = existing.data() as LedgerEntry;
+      if (entry.kind !== "reserve" || entry.amountUsd !== amountUsd || entry.reason !== params.reason) {
+        return { authorized: false, refusal: "idempotency_conflict", detail: "This request key already belongs to a different reservation." } as const;
+      }
+      if (params.requestedRun) {
+        const priorRun = await transaction.get(db!.collection("evaluationRuns").doc(`run_${entry.reservationId}`));
+        const run = priorRun.data() as EvalRunRecord | undefined;
+        if (!run || run.checkpointId !== params.requestedRun.checkpointId || run.sceneId !== params.requestedRun.sceneId || run.executionAdmission?.digestSha256 !== params.requestedRun.executionAdmission?.digestSha256) {
+          return { authorized: false, refusal: "idempotency_conflict", detail: "This preparation already belongs to a different execution." } as const;
+        }
+      }
+      return { authorized: true, reservationId: entry.reservationId! } as const;
+    }
+    const policyDoc = await transaction.get(policyRef);
+    const ledger = await transaction.get(ledgerQuery);
+    const entries = ledger.docs.map(doc => doc.data() as LedgerEntry);
+    if (!params.confirmedPlan) {
+      const policy = { ...DEFAULT_SPEND_POLICY, ...policyDoc.data() };
+      if (!policy.agentSpendEnabled) return { authorized: false, refusal: policy.dailyLimitUsd > 0 ? "agent_spend_disabled" : "no_policy_configured", detail: "Autonomous spending is off. A balance does not authorize recurring runs." } as const;
+      if (policy.perRunLimitUsd > 0 && amountUsd > policy.perRunLimitUsd) return { authorized: false, refusal: "over_per_run_limit", detail: "This quote exceeds the per-run limit." } as const;
+      const spentToday = entries.filter(entry => entry.createdAtIso.slice(0, 10) === utcDayKey() && (entry.kind === "reserve" || (entry.kind === "settle" && !entry.reservationId))).reduce((sum, entry) => sum + entry.amountUsd, 0);
+      if (policy.dailyLimitUsd <= 0 || spentToday + amountUsd > policy.dailyLimitUsd) return { authorized: false, refusal: "over_daily_limit", detail: "This quote exceeds the remaining daily limit." } as const;
+    }
+    const balance = deriveBalance(params.teamId, entries);
+    if (balance.availableUsd < amountUsd) return { authorized: false, refusal: "insufficient_balance", detail: `$${balance.availableUsd} available, $${amountUsd} needed.` } as const;
+    const createdAtIso = nextLedgerTime(lock.data()?.lastEntryAtIso);
+    const record: LedgerEntry = { entryId, teamId: params.teamId, kind: "reserve", amountUsd, reservationId, reason: params.reason, idempotencyKey: params.idempotencyKey, createdAtIso };
+    transaction.set(lockRef, { lastEntryAtIso: createdAtIso });
+    transaction.set(ledgerRef, record);
+    if (params.requestedRun) {
+      const run = buildRequestedRunRecord({ ...params.requestedRun, teamId: params.teamId, reservationId, quotedUsd: amountUsd });
+      transaction.set(db!.collection("evaluationRuns").doc(run.runId), { ...run, settlementDueAtMs: Date.now() + reservationTtlMs() });
+    }
+    return { authorized: true, reservationId } as const;
   });
+}
 
-  return { authorized: true, reservationId };
+function nextLedgerTime(previous: unknown): string {
+  const priorMs = typeof previous === "string" ? Date.parse(previous) : 0;
+  return new Date(Math.max(Date.now(), (Number.isFinite(priorMs) ? priorMs : 0) + 1)).toISOString();
 }
 
 async function writeEntry(entry: Omit<LedgerEntry, "entryId" | "createdAtIso">): Promise<string> {
   if (!db) throw new Error("Ledger is unavailable");
-
-  // The idempotency key is the document id, so a retry is a write of identical
-  // content rather than a second movement. This is the whole protection against
-  // an agent that timed out and tried again.
   const entryId = `${entry.teamId}:${entry.idempotencyKey}`;
   const ref = db.collection(LEDGER_COLLECTION).doc(entryId);
-  const existing = await ref.get();
-  if (existing.exists) {
-    return (existing.data() as LedgerEntry).reservationId || entryId;
-  }
-
-  const record: LedgerEntry = {
-    ...entry,
-    entryId,
-    amountUsd: round2(entry.amountUsd),
-    createdAtIso: nowIso(),
-  };
-  await ref.set({ ...record, createdAt: admin.firestore.FieldValue.serverTimestamp() });
-  return record.reservationId || entryId;
+  const lockRef = db.collection("robotTeamLedgerLocks").doc(entry.teamId);
+  return db.runTransaction(async transaction => {
+    const lock = await transaction.get(lockRef);
+    const existing = await transaction.get(ref);
+    if (existing.exists) {
+      const prior = existing.data() as LedgerEntry;
+      if (prior.kind !== entry.kind || prior.reservationId !== entry.reservationId || prior.amountUsd !== round2(entry.amountUsd)) throw new Error("Ledger idempotency conflict");
+      return prior.reservationId || entryId;
+    }
+    const createdAtIso = nextLedgerTime(lock.data()?.lastEntryAtIso);
+    const record: LedgerEntry = { ...entry, entryId, amountUsd: round2(entry.amountUsd), createdAtIso };
+    transaction.set(lockRef, { lastEntryAtIso: createdAtIso });
+    transaction.set(ref, { ...record, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+    return record.reservationId || entryId;
+  });
 }
 
 export async function creditTeam(params: {
@@ -458,24 +469,6 @@ export async function creditTeam(params: {
     idempotencyKey: params.idempotencyKey,
   });
   return getTeamBalance(params.teamId);
-}
-
-async function reserve(params: {
-  teamId: string;
-  amountUsd: number;
-  reason: string;
-  idempotencyKey: string;
-}): Promise<string> {
-  const reservationId = `res_${params.teamId}_${params.idempotencyKey}`;
-  await writeEntry({
-    teamId: params.teamId,
-    kind: "reserve",
-    amountUsd: params.amountUsd,
-    reservationId,
-    reason: params.reason,
-    idempotencyKey: params.idempotencyKey,
-  });
-  return reservationId;
 }
 
 /**

@@ -256,8 +256,10 @@ describe("a balance is not permission", () => {
   });
 
   it("refuses when the ledger cannot be read, rather than assuming funds", async () => {
-    // No Firestore in this environment, so this exercises the real fail-closed
-    // path: unknown funds are not spendable funds.
+    // Make the unavailable store explicit. Other suites initialize Firebase,
+    // so ambient module state must not decide whether this test is fail-closed.
+    vi.resetModules();
+    vi.doMock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null }));
     const { authorizeAgentSpend } = await import("../utils/robotTeamBalance");
 
     const result = await authorizeAgentSpend({
@@ -269,6 +271,8 @@ describe("a balance is not permission", () => {
 
     expect(result.authorized).toBe(false);
     expect(result.authorized === false && result.refusal).toBe("ledger_unavailable");
+    vi.doUnmock("../../client/src/lib/firebaseAdmin");
+    vi.resetModules();
   });
 
   it("reports zero available when the ledger is unreachable", async () => {

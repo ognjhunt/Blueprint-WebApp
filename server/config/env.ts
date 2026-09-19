@@ -363,6 +363,16 @@ export function isSiteVideoEvidenceApplied(): boolean {
   return isEnvFlagEnabled("BLUEPRINT_SITE_VIDEO_EVIDENCE_APPLY");
 }
 
+/**
+ * Whether a model reads the task description into brief proposals at submit.
+ *
+ * A lane rather than a bare flag, so the all-automation switch carries it. It
+ * only proposes; the operator's confirmation is still the attestation.
+ */
+export function isSiteTaskBriefReadingEnabled(): boolean {
+  return isAutomationLaneEnabled("BLUEPRINT_SITE_TASK_BRIEF_READING_ENABLED");
+}
+
 export function isPhase2LaneEnabled(lane: "waitlist" | "inbound" | "support" | "payout"): boolean {
   const laneKey = `BLUEPRINT_PHASE2_${lane.toUpperCase()}_ENABLED`;
   return isTruthyEnvValue(process.env[laneKey]);

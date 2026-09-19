@@ -7,7 +7,7 @@ test("legacy marketplace route redirects to the Sites library", async ({
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole("heading", { name: /Start with the real workflow\./i }),
+    page.getByRole("heading", { name: "Task library" }),
   ).toBeVisible();
 });
 

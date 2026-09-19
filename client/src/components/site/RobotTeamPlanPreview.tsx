@@ -35,7 +35,7 @@ import { TaskThumbnail } from "./TaskThumbnail";
  */
 import { TaskFacts } from "./TaskFacts";
 import type { TaskListingDetails } from "@/types/taskBrowse";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Row = {
   sceneId: string;
@@ -52,6 +52,9 @@ type PlanResult = {
   checkpointId: string | null;
   rows: Row[];
   totalCostUsd: number;
+  planToken: string | null;
+  availableBalanceUsd: number;
+  fundingNeededUsd: number;
   email: string;
   taskFamilyLabel: string;
   /**
@@ -69,6 +72,77 @@ type State =
   | { status: "working" }
   | { status: "done"; plan: PlanResult }
   | { status: "failed"; message: string };
+
+/**
+ * What the page keeps across the Stripe redirect.
+ *
+ * The key is shown once and lives in this panel's state, and a redirect to
+ * checkout loses that state. Session storage carries the three things the
+ * return trip needs -- the key, signed plan, checkpoint, and idempotency key so
+ * a reload cannot buy the plan twice. It remains available for result receipts.
+ * Nothing in it can credit a balance: that takes a payment.
+ */
+type QueueStash = {
+  agentKey: string;
+  checkpointId: string;
+  totalCostUsd: number;
+  planToken: string;
+  idempotencyKey: string;
+  email?: string;
+  receipt?: Extract<QueueState, { status: "queued" }>;
+  plan?: PlanResult;
+  sceneId?: string;
+};
+
+type StartedRun = { runId: string; sceneId: string; siteLabel: string; costUsd: number };
+type RefusedRun = {
+  sceneId: string;
+  siteLabel: string;
+  costUsd: number;
+  refusal: string;
+  detail: string;
+};
+
+type QueueState =
+  | { status: "idle" }
+  /** Switching the agent on and opening checkout. */
+  | { status: "funding" }
+  /** Back from checkout; waiting for the credit, then confirming. */
+  | { status: "resuming" }
+  | { status: "queued"; started: StartedRun[]; refused: RefusedRun[]; reservedUsd: number }
+  | { status: "failed"; message: string };
+
+const QUEUE_STASH_KEY = "bp-plan-queue";
+/** Mirrors the server's smallest self-serve top-up. */
+const MIN_TOPUP_USD = 50;
+/** How long the return trip waits for Stripe's webhook to credit the balance. */
+const BALANCE_POLL_ATTEMPTS = 24;
+const BALANCE_POLL_INTERVAL_MS = 2500;
+
+type ResultReceipt = {
+  runId: string;
+  sceneId?: string;
+  state?: string;
+  dispatch?: { startedAtIso?: string } | null;
+  resultStatus?: string;
+  result?: { observed?: { episodesRun?: number; episodesSucceeded?: number } } | null;
+};
+
+function readQueueStash(): QueueStash | null {
+  try {
+    const raw = window.sessionStorage.getItem(QUEUE_STASH_KEY);
+    return raw ? (JSON.parse(raw) as QueueStash) : null;
+  } catch {
+    return null;
+  }
+}
+
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `idem-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 const EMBODIMENTS = [
   { value: "Fixed arm", label: "Fixed arm" },
@@ -98,10 +172,198 @@ function familyLabel(value: string) {
   return TASK_FAMILIES.find((family) => family.value === value)?.label ?? "this kind of work";
 }
 
-export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
+export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string; onCheckout?: (url: string) => void } = {}) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
   const [showKey, setShowKey] = useState(false);
+  const [queue, setQueue] = useState<QueueState>({ status: "idle" });
+  const [results, setResults] = useState<{ status: "idle" | "loading" | "failed"; rows: ResultReceipt[] }>({
+    status: "idle",
+    rows: [],
+  });
+
+  async function confirmPlan(stash: QueueStash, cancelled = false) {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${stash.agentKey}`,
+    };
+    const response = await fetch("/api/agent-team/runs", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        checkpointId: stash.checkpointId,
+        confirm: true,
+        spendMode: "one_time",
+        planToken: stash.planToken,
+        idempotencyKey: stash.idempotencyKey,
+      }),
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      started?: StartedRun[];
+      refused?: RefusedRun[];
+      reservedUsd?: number;
+      error?: string;
+      code?: string;
+    };
+    if (cancelled) return;
+    if (!response.ok) {
+      setQueue({
+        status: "failed",
+        message:
+          response.status === 409 || body.code === "eval_plan_invalid"
+            ? "This signed plan has expired or changed. Review a fresh plan before spending."
+            : body.error || "We could not confirm the runs. Check your balance and run history before retrying.",
+      });
+      return;
+    }
+    const receipt: Extract<QueueState, { status: "queued" }> = {
+      status: "queued",
+      started: Array.isArray(body.started) ? body.started : [],
+      refused: Array.isArray(body.refused) ? body.refused : [],
+      reservedUsd: Number(body.reservedUsd || 0),
+    };
+    try { window.sessionStorage.setItem(QUEUE_STASH_KEY, JSON.stringify({ ...stash, receipt })); } catch { /* Receipt remains in this page. */ }
+    setQueue(receipt);
+  }
+
+  async function loadResults(agentKey: string) {
+    setResults((current) => ({ ...current, status: "loading" }));
+    try {
+      const response = await fetch("/api/agent-team/results", {
+        headers: { Authorization: `Bearer ${agentKey}` },
+      });
+      const body = (await response.json().catch(() => ({}))) as { runs?: ResultReceipt[]; results?: ResultReceipt[] };
+      if (!response.ok) throw new Error("results unavailable");
+      setResults({ status: "idle", rows: Array.isArray(body.results) ? body.results : Array.isArray(body.runs) ? body.runs : [] });
+    } catch {
+      setResults((current) => ({ ...current, status: "failed" }));
+    }
+  }
+
+  // The return trip from checkout. Stripe sends the payer back here with
+  // `funded=1`; the credit itself lands on the webhook, so the page waits for
+  // the balance to move before confirming. `funded=0` is a cancelled checkout:
+  // the stash is dropped and nothing else happens.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = readQueueStash();
+    if (saved?.plan) setState({ status: "done", plan: saved.plan });
+    if (saved?.receipt?.status === "queued") { setQueue(saved.receipt); return; }
+    const funded = new URLSearchParams(window.location.search).get("funded");
+    if (funded === "0") {
+      if (saved) setQueue({ status: "failed", message: "Checkout was cancelled. Review your saved plan or check your results before continuing." });
+      return;
+    }
+    if (funded !== "1") return;
+    const stash = readQueueStash();
+    if (!stash) return;
+
+    let cancelled = false;
+    setQueue({ status: "resuming" });
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${stash.agentKey}`,
+    };
+
+    void (async () => {
+      let availableUsd = 0;
+      for (let attempt = 0; attempt < BALANCE_POLL_ATTEMPTS; attempt += 1) {
+        const me = await fetch("/api/agent-team/me", { headers });
+        const body = (await me.json().catch(() => ({}))) as {
+          balance?: { availableUsd?: number };
+        };
+        availableUsd = Number(body.balance?.availableUsd || 0);
+        if (me.ok && availableUsd >= stash.totalCostUsd) break;
+        if (cancelled) return;
+        await new Promise((resolve) => setTimeout(resolve, BALANCE_POLL_INTERVAL_MS));
+      }
+      if (cancelled) return;
+      if (availableUsd < stash.totalCostUsd) {
+        setQueue({
+          status: "failed",
+          message:
+            "The payment has not reached your available balance yet. Check your results or retry this same request shortly.",
+        });
+        return;
+      }
+
+      if (cancelled) return;
+      await confirmPlan(stash, cancelled);
+    })().catch(() => {
+      if (!cancelled) {
+        setQueue({
+          status: "failed",
+          message:
+            "We could not reach Blueprint. Check your run history before retrying with the same request.",
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Fund the plan and go to checkout.
+   *
+   * A one-time purchase never enables autonomous spend. Existing balance can
+   * confirm immediately; otherwise Stripe adds only the shortfall (subject to
+   * its $50 minimum), and the signed plan is confirmed on return.
+   */
+  async function fundAndQueue(plan: PlanResult) {
+    if (queue.status === "funding" || !plan.checkpointId) return;
+    setQueue({ status: "funding" });
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${plan.agentKey}`,
+    };
+    try {
+      if (!plan.planToken) {
+        setQueue({ status: "failed", message: "This plan is missing its signature. Review a fresh plan before spending." });
+        return;
+      }
+
+      const stash: QueueStash = {
+        agentKey: plan.agentKey,
+        checkpointId: plan.checkpointId,
+        totalCostUsd: plan.totalCostUsd,
+        planToken: plan.planToken,
+        idempotencyKey: newIdempotencyKey(),
+        email: plan.email,
+        plan, sceneId,
+      };
+      window.sessionStorage.setItem(QUEUE_STASH_KEY, JSON.stringify(stash));
+
+      if (plan.fundingNeededUsd <= 0) {
+        await confirmPlan(stash);
+        return;
+      }
+
+      const topupUsd = Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD);
+
+      const funding = await fetch("/api/agent-team/funding", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ amountUsd: topupUsd }),
+      });
+      const body = (await funding.json().catch(() => ({}))) as {
+        checkoutUrl?: string;
+        error?: string;
+      };
+      if (!funding.ok || !body.checkoutUrl) {
+        setQueue({
+          status: "failed",
+          message: body.error || "Payments are not available right now. Check your balance before retrying.",
+        });
+        return;
+      }
+
+      (onCheckout ?? ((url: string) => window.location.assign(url)))(body.checkoutUrl);
+    } catch {
+      setQueue({ status: "failed", message: "We could not complete that request. Check your balance and run history before retrying." });
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,6 +433,9 @@ export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
       // and we can tell them when something fits.
       let rows: Row[] = [];
       let totalCostUsd = 0;
+      let planToken: string | null = null;
+      let availableBalanceUsd = 0;
+      let fundingNeededUsd = 0;
       let planUnavailable = false;
       const checkpointId = account.checkpoint?.checkpointId ?? null;
 
@@ -186,10 +451,17 @@ export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
         const plan = (await planned.json().catch(() => ({}))) as {
           selected?: Row[];
           totalCostUsd?: number;
+          planToken?: string;
+          availableBalanceUsd?: number;
+          spendableNowUsd?: number;
+          fundingNeededUsd?: number;
         };
         if (planned.ok) {
           rows = Array.isArray(plan.selected) ? plan.selected : [];
           totalCostUsd = Number(plan.totalCostUsd || 0);
+          planToken = typeof plan.planToken === "string" ? plan.planToken : null;
+          availableBalanceUsd = Number(plan.availableBalanceUsd ?? plan.spendableNowUsd ?? 0);
+          fundingNeededUsd = Number(plan.fundingNeededUsd ?? totalCostUsd);
         } else {
           planUnavailable = true;
         }
@@ -203,6 +475,9 @@ export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
           checkpointId,
           rows,
           totalCostUsd,
+          planToken,
+          availableBalanceUsd,
+          fundingNeededUsd,
           email,
           taskFamilyLabel: familyLabel(taskFamily),
           planUnavailable,
@@ -211,6 +486,108 @@ export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
     } catch {
       setState({ status: "failed", message: "We could not reach Blueprint. Try again shortly." });
     }
+  }
+
+  async function reviewSavedPlan() {
+    const stash = readQueueStash();
+    if (!stash) return;
+    try {
+      const response = await fetch("/api/agent-team/plan", { method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${stash.agentKey}` },
+        body: JSON.stringify({ checkpointId: stash.checkpointId, ...(stash.sceneId ? { sceneId: stash.sceneId } : {}) }) });
+      if (!response.ok) throw new Error("Plan unavailable");
+      const body = await response.json();
+      const plan: PlanResult = { teamId: body.teamId || stash.plan?.teamId || "", agentKey: stash.agentKey,
+        checkpointId: stash.checkpointId, rows: Array.isArray(body.selected) ? body.selected : [],
+        totalCostUsd: Number(body.totalCostUsd || 0), planToken: body.planToken || null,
+        availableBalanceUsd: Number(body.availableBalanceUsd || 0), fundingNeededUsd: Number(body.fundingNeededUsd || 0),
+        email: stash.email || "", taskFamilyLabel: stash.plan?.taskFamilyLabel || "this task", planUnavailable: false };
+      setState({ status: "done", plan }); setQueue({ status: "idle" });
+    } catch { setQueue({ status: "failed", message: "The updated plan could not be loaded. Your saved result access remains available." }); }
+  }
+
+  if (queue.status === "failed") {
+    return <div className="ms-form">
+      <h2>Review your run request</h2><p role="alert">{queue.message}</p>
+      <button className="ms-button" type="button" onClick={() => void reviewSavedPlan()}>Review updated plan</button>
+      <button className="ms-text-link" type="button" onClick={() => { const stash = readQueueStash(); if (stash) void loadResults(stash.agentKey); }}>Check results</button>
+      {results.status === "failed" && <p role="alert">Results could not be loaded. Try again.</p>}
+      {results.rows.length > 0 && <ul aria-label="Run results">{results.rows.map(result => <li key={result.runId}>
+        {result.result?.observed ? `${result.result.observed.episodesSucceeded || 0} of ${result.result.observed.episodesRun || 0} episodes` : result.dispatch?.startedAtIso ? "Running" : "Queued"}
+      </li>)}</ul>}
+    </div>;
+  }
+
+  if (queue.status === "resuming") {
+    return (
+      <div className="ms-form" aria-live="polite">
+        <h2 style={{ marginTop: 0 }}>Confirming your runs…</h2>
+        <p className="ms-field-hint">
+          Waiting for the payment to reach your balance, then queueing the runs you approved.
+        </p>
+      </div>
+    );
+  }
+
+  if (queue.status === "queued") {
+    const count = queue.started.length;
+    return (
+      <div className="ms-form" aria-live="polite">
+        <h2 style={{ marginTop: 0 }}>
+          Queued {count} run{count === 1 ? "" : "s"}.
+        </h2>
+        <p className="ms-field-hint">
+          ${queue.reservedUsd} is reserved and settles only for episodes that actually run. Anything
+          that does not run is released.
+        </p>
+        {queue.started.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: "16px 0" }}>
+            {queue.started.map((run) => (
+              <li key={run.runId} style={{ borderTop: "1px solid var(--ms-rule)", padding: "10px 0" }}>
+                <strong>{run.siteLabel}</strong> <span className="ms-field-hint">${run.costUsd}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {queue.refused.length > 0 && (
+          <>
+            <p style={{ marginBottom: "6px" }}>Not started:</p>
+            <ul style={{ paddingLeft: "20px", margin: "0 0 16px" }}>
+              {queue.refused.map((run) => (
+                <li key={run.sceneId} className="ms-field-hint">
+                  {run.siteLabel}: {run.detail}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {/* What happens next, stated as it is. Nothing emails a result today,
+            so nothing here says one is coming. */}
+        <p className="ms-field-hint">
+          The runs are queued for the evaluation pipeline. This page can read the result receipt
+          when it is ready.
+        </p>
+        <button className="ms-button" type="button" onClick={() => {
+          const stash = readQueueStash();
+          if (stash) void loadResults(stash.agentKey);
+        }} disabled={results.status === "loading"}>
+          {results.status === "loading" ? "Checking results…" : "Check results"}
+        </button>
+        {results.status === "failed" && <p role="alert">Results could not be loaded. Try again.</p>}
+        {results.rows.length > 0 && (
+          <ul aria-label="Run results">
+            {results.rows.map((result) => (
+              <li key={result.runId}>
+                <strong>{queue.started.find(run => run.runId === result.runId)?.siteLabel || "Evaluation run"}</strong>: {result.result ? "Result received" : result.state === "blocked" ? "Ended without a result" : result.state === "abandoned" ? "Hold released" : result.dispatch?.startedAtIso ? "Running" : "Queued"}
+                {result.result?.observed?.episodesRun
+                  ? ` — ${result.result.observed.episodesSucceeded || 0} of ${result.result.observed.episodesRun} episodes`
+                  : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   }
 
   if (state.status === "done") {
@@ -241,10 +618,32 @@ export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
               ))}
             </ul>
 
-            <p style={{ borderTop: "1px solid var(--ms-rule)", paddingTop: "16px", marginBottom: 0 }}>
-              <strong>${plan.totalCostUsd} to run all of them.</strong> We have your details at{" "}
-              {plan.email} and will be in touch to start them. Nothing is charged until you say so.
+            <p style={{ borderTop: "1px solid var(--ms-rule)", paddingTop: "16px", marginBottom: "12px" }}>
+              <strong>${plan.totalCostUsd} to run all of them.</strong> Nothing is charged until you
+              confirm this signed plan.
             </p>
+            {/* The action that replaced "we will be in touch": the same three
+                calls an agent makes, with a person holding the card. */}
+            <button
+              className="ms-button ms-button-large"
+              type="button"
+              onClick={() => void fundAndQueue(plan)}
+              disabled={queue.status === "funding" || !plan.planToken}
+            >
+              {queue.status === "funding"
+                ? "Opening checkout…"
+                : plan.fundingNeededUsd > 0
+                  ? `Add $${Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD)} and queue these runs`
+                  : "Queue these runs from your balance"}
+            </button>
+            <p className="ms-field-hint" style={{ marginTop: "10px" }}>
+              {plan.fundingNeededUsd > 0
+                ? `Your balance covers $${plan.availableBalanceUsd}. Stripe adds $${Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD)}; any amount above the $${plan.fundingNeededUsd} shortfall remains in your balance.`
+                : `Your existing $${plan.availableBalanceUsd} balance covers this one-time plan.`}
+              {" "}The signed selection expires after 15 minutes; if it expires, you will review a fresh plan before spending.
+            </p>
+            {!plan.planToken && <p role="status">This task needs an authorized execution setup before payment. Review the task with us to continue.</p>}
+
           </>
         ) : (
           <>

@@ -36,6 +36,13 @@ type TaskStatus = {
   operatorAction: string | null;
   missingViews: string[];
   nextUpdateIso: string | null;
+  /**
+   * Offered by the server at exactly one moment: robot teams have run against
+   * the scene and nobody owns the site yet. Everything before that stays
+   * account-free; everything after it (results, listing control) needs an
+   * authority a forwardable link cannot carry.
+   */
+  claimUrl?: string | null;
 };
 import { useRoute } from "wouter";
 
@@ -415,7 +422,7 @@ export default function SelfCaptureUpload() {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
         const data = await response.json();
-        if (alive && response.ok && data?.status) setStatus(data.status);
+        if (alive && response.ok && data?.status) setStatus({ ...data.status, claimUrl: data.claimUrl ?? null });
       } catch { /* The capture remains usable during a status outage. */ }
       if (alive) timer = setTimeout(poll, 6000);
     }
@@ -446,6 +453,16 @@ export default function SelfCaptureUpload() {
         </p>
       )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      {status.claimUrl && (
+        /* The account moment, and the only one on this page: there is now
+           something behind it to see. The link is minted server-side for the
+           owner's link alone; a film-only link never receives one. */
+        <p style={{ margin: "10px 0 0" }}>
+          <a className="ms-text-link" href={status.claimUrl}>
+            Claim your site to see the results
+          </a>
+        </p>
+      )}
     </div>
   ) : null;
 

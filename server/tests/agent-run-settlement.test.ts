@@ -80,6 +80,7 @@ function makeQuery(name: string, filters: [string, string, unknown][], order: st
 function docRef(name: string, id: string) {
   return {
     id,
+    __collection: name,
     get: async () => {
       const doc = collectionStore(name).get(id);
       return { exists: doc !== undefined, data: () => (doc ? { ...doc } : undefined) };
@@ -99,6 +100,28 @@ const dbAdmin = {
     orderBy: (field: string) => makeQuery(name, [], field, null),
     limit: (n: number) => makeQuery(name, [], null, n),
   }),
+  runTransaction: async <T>(updateFn: (transaction: {
+    get: (ref: ReturnType<typeof docRef> | ReturnType<typeof makeQuery>) => Promise<any>;
+    set: (ref: ReturnType<typeof docRef>, patch: Doc, options?: { merge?: boolean }) => void;
+  }) => Promise<T>): Promise<T> => {
+    const writes: Array<() => void> = [];
+    const transaction = {
+      get: async (ref: ReturnType<typeof docRef> | ReturnType<typeof makeQuery>) => {
+        if (!("__collection" in ref)) return ref.get();
+        const doc = collectionStore(ref.__collection).get(ref.id);
+        return { exists: doc !== undefined, data: () => (doc ? { ...doc } : undefined) };
+      },
+      set: (ref: ReturnType<typeof docRef>, patch: Doc, options?: { merge?: boolean }) => {
+        writes.push(() => {
+          const current = options?.merge ? collectionStore(ref.__collection).get(ref.id) ?? {} : {};
+          collectionStore(ref.__collection).set(ref.id, applyMerge(current, patch));
+        });
+      },
+    };
+    const result = await updateFn(transaction);
+    for (const write of writes) write();
+    return result;
+  },
 };
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -126,6 +149,7 @@ const {
   reconcileAgentRunSettlements,
   reconcileTeamHolds,
   reportRunOutcome,
+  RunOutcomeConflictError,
   runIdForReservation,
   settlementAmountUsd,
 } = await import("../utils/agentEvalRuns");
@@ -300,6 +324,50 @@ describe("money comes back without anyone going looking for it", () => {
 });
 
 describe("a reported run settles for what it ran", () => {
+  it("keeps the first outcome immutable and leaves an identical retry resolved", async () => {
+    const { run } = await fundedTeamWithOneHold();
+    await reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 25 });
+    await reconcileAgentRunSettlements();
+    const resolved = collectionStore("evaluationRuns").get(run.runId);
+
+    await expect(reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 25 }))
+      .resolves.toBe(true);
+    await expect(reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 50 }))
+      .rejects.toBeInstanceOf(RunOutcomeConflictError);
+
+    expect(collectionStore("evaluationRuns").get(run.runId)).toEqual(resolved);
+    expect((await getTeamBalance(TEAM)).spentUsd).toBe(125);
+  });
+
+  it("refuses a financial outcome after cancellation without blocking late result evidence", async () => {
+    const { run } = await fundedTeamWithOneHold();
+    collectionStore("evaluationRuns").set(run.runId, {
+      ...collectionStore("evaluationRuns").get(run.runId),
+      state: "abandoned",
+      cancellationRequested: true,
+      dispatchPending: false,
+    });
+
+    await expect(reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 10 }))
+      .rejects.toBeInstanceOf(RunOutcomeConflictError);
+    expect((await getTeamBalance(TEAM)).spentUsd).toBe(0);
+    expect((await getTeamBalance(TEAM)).reservedUsd).toBe(QUOTE_USD);
+  });
+
+  it("refuses settlement episodes that disagree with the accepted result receipt", async () => {
+    const { run } = await fundedTeamWithOneHold();
+    const runs = collectionStore("evaluationRuns");
+    runs.set(run.runId, {
+      ...runs.get(run.runId),
+      result: { observed: { episodesRun: 20, episodesSucceeded: 19 } },
+    });
+
+    await expect(reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 25 }))
+      .rejects.toBeInstanceOf(RunOutcomeConflictError);
+    expect((runs.get(run.runId)?.result as { observed: { episodesRun: number } }).observed.episodesRun).toBe(20);
+    expect((await getTeamBalance(TEAM)).reservedUsd).toBe(QUOTE_USD);
+  });
+
   it("bills every episode when the run completed in full", async () => {
     const { run } = await fundedTeamWithOneHold();
 

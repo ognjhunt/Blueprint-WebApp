@@ -94,7 +94,6 @@ function splitName(value: string) {
 }
 
 export function SiteCaptureStart() {
-  const onAPhone = isLikelyPhone();
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
   // Defaulted to the one region we are cleared for, because that is where
@@ -113,6 +112,11 @@ export function SiteCaptureStart() {
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
+  // Whether the phone handoff below is worth anything here. This form is
+  // filled in from whatever device is at hand, including the phone that is
+  // about to do the filming -- and a code pointing a phone at itself is not a
+  // handoff, it is noise in front of the button that already works.
+  const onAPhone = isLikelyPhone();
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

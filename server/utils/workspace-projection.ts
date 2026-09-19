@@ -160,3 +160,61 @@ export function projectWorkspaceTask(
     createdAt: iso(record.createdAt),
   };
 }
+
+/** The fields of an agent evaluation run this projection reads. Whitelist. */
+export interface AgentRunForSite {
+  runId: string;
+  teamId: string;
+  state: string;
+  result?: {
+    observed: {
+      episodesRun: number;
+      episodesSucceeded: number;
+      successRate: number | null;
+      medianCycleSeconds: number | null;
+    };
+  } | null;
+}
+
+/**
+ * An agent run as a row in the site's results table.
+ *
+ * Same whitelist rule as `projectWorkspaceResult`: the site sees an alias, the
+ * observed numbers, and the evidence label. Never the team's name, checkpoint
+ * or reference. A queued run is shown as queued rather than hidden, because a
+ * site that can see it is being screened is the point of the row.
+ */
+export function projectAgentRunResult(
+  run: AgentRunForSite,
+  taskId: string,
+  terms: TaskTerms,
+): WorkspaceResult {
+  const observed = run.result?.observed ?? null;
+  const hasSamples = Boolean(observed && observed.episodesRun > 0);
+  const status = hasSamples
+    ? "completed"
+    : run.state === "blocked"
+      ? "blocked"
+      : run.state === "completed"
+        ? "no_result"
+        : run.state || "requested";
+  const result: WorkspaceResult = {
+    id: run.runId,
+    teamAlias: teamAlias(taskId, run.teamId),
+    status,
+    successRate:
+      hasSamples && observed!.successRate !== null
+        ? Math.round(observed!.successRate * 10000) / 100
+        : null,
+    cycleTimeSeconds:
+      hasSamples && observed!.medianCycleSeconds !== null && observed!.medianCycleSeconds >= 0
+        ? observed!.medianCycleSeconds
+        : null,
+    sampleCount: hasSamples ? observed!.episodesRun : null,
+    evidenceLabel: "Simulation",
+    targetsMet: null,
+    selected: false,
+  };
+  result.targetsMet = targetsMet(result, terms);
+  return result;
+}

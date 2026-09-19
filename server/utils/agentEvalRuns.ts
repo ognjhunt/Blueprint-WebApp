@@ -38,57 +38,31 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import type { SceneScreening } from "./taskStatusProjection";
 import {
   releaseReservation,
   settleReservation,
 } from "./robotTeamBalance";
+import {
+  buildRequestedRunRecord,
+  reservationTtlMs,
+  runIdForReservation,
+  type EvalRunRecord,
+  type EvalRunState,
+  type RequestedRunParams,
+  type RunDispatch,
+} from "./agentRunRecord";
+export {
+  buildRequestedRunRecord,
+  reservationTtlMs,
+  runIdForReservation,
+  type EvalRunRecord,
+  type EvalRunState,
+  type RequestedRunParams,
+  type RunDispatch,
+} from "./agentRunRecord";
 
 const RUNS_COLLECTION = "evaluationRuns";
-
-/**
- * How long a hold may sit unresolved before it is given back.
- *
- * Six hours is well past any real screening run and well short of a team
- * noticing its balance is wrong. Configurable because the right number is an
- * operational fact about the Pipeline, not a constant.
- */
-const DEFAULT_RESERVATION_TTL_MS = 6 * 60 * 60 * 1000;
-
-export function reservationTtlMs(): number {
-  const raw = Number(process.env.BLUEPRINT_AGENT_RESERVATION_TTL_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_RESERVATION_TTL_MS;
-}
-
-export type EvalRunState =
-  /** Reserved and handed on. Nothing has reported back. */
-  | "requested"
-  /** Episodes executed. Billable, whatever the robot did in them. */
-  | "completed"
-  /** The environment failed before any episode ran. Not billable. */
-  | "blocked"
-  /** Nothing reported for longer than the hold was allowed to sit. */
-  | "abandoned";
-
-export interface EvalRunRecord {
-  runId: string;
-  teamId: string;
-  checkpointId: string;
-  sceneId: string;
-  /** What `teamEvalCandidates` reads to reward variety. */
-  taskFamily: string | null;
-  reservationId: string;
-  quotedUsd: number;
-  /** Episodes the quote was priced for, so a partial run can be pro-rated. */
-  quotedEpisodes: number;
-  state: EvalRunState;
-  /** Episodes that actually executed. Null until something reports. */
-  episodesRun: number | null;
-  /** True once the reservation has been settled or released. */
-  moneyResolved: boolean;
-  requestedAtIso: string;
-  resolvedAtIso: string | null;
-  note: string | null;
-}
 
 function nowIso() {
   return new Date().toISOString();
@@ -105,43 +79,20 @@ function round2(value: number) {
  * thing that can later be settled and a run that cannot name its own hold is
  * exactly the orphan this module exists to prevent.
  */
-export async function createRequestedRun(params: {
-  teamId: string;
-  checkpointId: string;
-  sceneId: string;
-  taskFamily: string | null;
-  reservationId: string;
-  quotedUsd: number;
-  quotedEpisodes: number;
-}): Promise<EvalRunRecord | null> {
+export async function createRequestedRun(params: RequestedRunParams): Promise<EvalRunRecord | null> {
   if (!db) return null;
-
-  const record: EvalRunRecord = {
-    runId: runIdForReservation(params.reservationId),
-    teamId: params.teamId,
-    checkpointId: params.checkpointId,
-    sceneId: params.sceneId,
-    taskFamily: params.taskFamily,
-    reservationId: params.reservationId,
-    quotedUsd: round2(params.quotedUsd),
-    quotedEpisodes: Math.max(1, Math.round(params.quotedEpisodes)),
-    state: "requested",
-    episodesRun: null,
-    moneyResolved: false,
-    requestedAtIso: nowIso(),
-    resolvedAtIso: null,
-    note: null,
-  };
-
-  await db.collection(RUNS_COLLECTION).doc(record.runId).set(
-    {
-      ...record,
-      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-      settlementDueAtMs: Date.now() + reservationTtlMs(),
-    },
-    { merge: true },
-  );
-  return record;
+  const record = buildRequestedRunRecord(params);
+  const ref = db.collection(RUNS_COLLECTION).doc(record.runId);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (snapshot.exists) {
+      const prior = snapshot.data() as EvalRunRecord;
+      if (["teamId", "checkpointId", "sceneId", "reservationId", "quotedUsd", "quotedEpisodes"].some(key => prior[key as keyof EvalRunRecord] !== record[key as keyof EvalRunRecord]) || prior.executionAdmission?.digestSha256 !== record.executionAdmission?.digestSha256) throw new Error("Run idempotency conflict");
+      return prior;
+    }
+    transaction.set(ref, { ...record, settlementDueAtMs: Date.now() + reservationTtlMs() });
+    return record;
+  });
 }
 
 /**
@@ -151,10 +102,6 @@ export async function createRequestedRun(params: {
  * rewrites the same run instead of creating a second one beside it, and so the
  * Pipeline can name a run it was told about without us keeping a second map.
  */
-export function runIdForReservation(reservationId: string): string {
-  return `run_${reservationId}`;
-}
-
 /**
  * Report what happened to a run.
  *
@@ -163,6 +110,13 @@ export function runIdForReservation(reservationId: string): string {
  * twice, and an outcome that arrives while the ledger is unavailable is not
  * lost: it sits on the record, due, until the next pass picks it up.
  */
+export class RunOutcomeConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RunOutcomeConflictError";
+  }
+}
+
 export async function reportRunOutcome(params: {
   runId: string;
   state: Extract<EvalRunState, "completed" | "blocked">;
@@ -172,24 +126,43 @@ export async function reportRunOutcome(params: {
   if (!db) return false;
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
-  const snapshot = await ref.get();
-  // An outcome for a run we never reserved money for has nothing to settle.
-  // Recording it anyway would put a row in the queue that no reconciliation
-  // pass could ever clear.
-  if (!snapshot.exists) return false;
-
-  await ref.set(
-    {
+  const episodesRun = Math.max(0, Math.round(params.episodesRun));
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    // An outcome for a run we never reserved money for has nothing to settle.
+    if (!snapshot.exists) return false;
+    const run = snapshot.data() as EvalRunRecord & {
+      result?: { observed?: { episodesRun?: number } } | null;
+    };
+    const observedEpisodes = run.result?.observed?.episodesRun;
+    if (typeof observedEpisodes === "number" && observedEpisodes !== episodesRun) {
+      throw new RunOutcomeConflictError("Settlement episodes conflict with the recorded result evidence");
+    }
+    const outcomeAlreadyReported = run.state === "completed" || run.state === "blocked";
+    if (outcomeAlreadyReported) {
+      if (run.state !== params.state || run.episodesRun !== episodesRun) {
+        throw new RunOutcomeConflictError("Settlement conflicts with the recorded run outcome");
+      }
+      // An identical delivery is an idempotent acknowledgement. In particular,
+      // do not put an already-resolved run back into the due queue.
+      return true;
+    }
+    if (run.cancellationRequested || run.state === "abandoned" || run.moneyResolved) {
+      throw new RunOutcomeConflictError("The run was cancelled or financially resolved before this outcome arrived");
+    }
+    if (run.state !== "requested") {
+      throw new RunOutcomeConflictError("The run cannot accept a financial outcome in its current state");
+    }
+    transaction.set(ref, {
       state: params.state,
-      episodesRun: Math.max(0, Math.round(params.episodesRun)),
+      dispatchPending: false,
+      episodesRun,
       note: params.note ?? null,
       reportedAtIso: nowIso(),
-      // Due now. The next pass resolves the money.
       settlementDueAtMs: 0,
-    },
-    { merge: true },
-  );
-  return true;
+    }, { merge: true });
+    return true;
+  });
 }
 
 export interface ReconciliationSummary {
@@ -334,18 +307,26 @@ async function resolveDueRuns(
         continue;
       }
 
-      if (run.state === "requested" && Date.parse(run.requestedAtIso) <= expiryCutoff) {
-        await releaseReservation({
-          teamId: run.teamId,
-          reservationId: run.reservationId,
-          reason: `Run ${run.runId} reported nothing before its hold expired`,
-          idempotencyKey: `settle-release:${run.reservationId}`,
+      // A run the Pipeline has started is measured from when it started, not
+      // from when it was queued: a queue can legitimately hold a run for longer
+      // than one TTL, and releasing a run that is executing would un-bill work
+      // that is happening.
+      const holdAnchorMs = Date.parse(run.dispatch?.startedAtIso || run.requestedAtIso);
+      if (run.cancellationRequested || (run.state === "requested" && holdAnchorMs <= expiryCutoff)) {
+        const expired = await db!.runTransaction(async transaction => {
+          const current = await transaction.get(doc.ref);
+          const latest = current.data() as EvalRunRecord | undefined;
+          if (!latest || latest.moneyResolved) return false;
+          const anchor = Date.parse(latest.dispatch?.startedAtIso || latest.requestedAtIso);
+          if (!latest.cancellationRequested && (latest.state !== "requested" || anchor > expiryCutoff)) return false;
+          transaction.set(doc.ref, { state: "abandoned", cancellationRequested: true, dispatchPending: false, settlementDueAtMs: 0 }, { merge: true });
+          return true;
         });
-        await markResolved(
-          doc.id,
-          "abandoned",
-          "Released on expiry: nothing reported, so the work cannot be billed",
-        );
+        if (!expired) continue;
+        await releaseReservation({ teamId: run.teamId, reservationId: run.reservationId,
+          reason: `Run ${run.runId} cancelled or expired before a billable report`,
+          idempotencyKey: `release:${run.reservationId}` });
+        await markResolved(doc.id, "abandoned", "Hold released after cancellation or expiry");
         summary.abandoned += 1;
         continue;
       }
@@ -354,7 +335,7 @@ async function resolveDueRuns(
       // which happens when the TTL is shortened under it. Push it out to the
       // expiry it should have had rather than re-reading it every pass.
       await doc.ref.set(
-        { settlementDueAtMs: Date.parse(run.requestedAtIso) + reservationTtlMs() },
+        { settlementDueAtMs: holdAnchorMs + reservationTtlMs() },
         { merge: true },
       );
     } catch (error) {
@@ -386,6 +367,7 @@ export async function markResolved(docId: string, state: EvalRunState, note: str
   await db.collection(RUNS_COLLECTION).doc(docId).set(
     {
       state,
+      dispatchPending: false,
       moneyResolved: true,
       resolvedAtIso: nowIso(),
       note,
@@ -426,7 +408,7 @@ export type ReleaseEligibility =
   | { allowed: true; alreadyResolved: boolean; run: EvalRunRecord | null }
   | {
       allowed: false;
-      reason: "outcome_reported" | "not_your_reservation";
+      reason: "outcome_reported" | "not_your_reservation" | "execution_started";
       run: EvalRunRecord;
     };
 
@@ -457,11 +439,30 @@ export async function checkReleaseEligibility(
   // leaves `requested` at the same moment, so either one is enough -- both are
   // checked because they are written together and a partial write should fail
   // closed.
+  if (run.dispatch?.startedAtIso) return { allowed: false, reason: "execution_started", run };
   if (run.state !== "requested" || run.episodesRun !== null) {
     return { allowed: false, reason: "outcome_reported", run };
   }
 
   return { allowed: true, alreadyResolved: false, run };
+}
+
+/** Atomically close the cancellation window before returning a hold. */
+export async function claimRunCancellation(teamId: string, reservationId: string): Promise<ReleaseEligibility> {
+  if (!db) throw new Error("Run store unavailable");
+  const ref = db.collection(RUNS_COLLECTION).doc(runIdForReservation(reservationId));
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return { allowed: true, alreadyResolved: false, run: null };
+    const run = snapshot.data() as EvalRunRecord;
+    if (run.teamId !== teamId) return { allowed: false, reason: "not_your_reservation", run };
+    if (run.moneyResolved) return { allowed: true, alreadyResolved: true, run };
+    if (run.cancellationRequested) return { allowed: true, alreadyResolved: false, run };
+    if (run.dispatch?.startedAtIso) return { allowed: false, reason: "execution_started", run };
+    if (run.state !== "requested" || run.episodesRun !== null) return { allowed: false, reason: "outcome_reported", run };
+    transaction.set(ref, { cancellationRequested: true, dispatchPending: false, state: "abandoned", settlementDueAtMs: 0 }, { merge: true });
+    return { allowed: true, alreadyResolved: false, run };
+  });
 }
 
 /** The run attached to a hold, or null if nothing was ever recorded for it. */
@@ -490,4 +491,147 @@ export async function listUnsettledRuns(teamId: string, limit = 50): Promise<Eva
     .filter((run) => !run.moneyResolved)
     .sort((a, b) => (a.requestedAtIso < b.requestedAtIso ? 1 : -1))
     .slice(0, limit);
+}
+
+/* ------------------------------------------------ the seam the Pipeline reads */
+
+/**
+ * Runs waiting to be executed, oldest first.
+ *
+ * This is the list the Pipeline pulls. A run stays on it while it is being
+ * executed too -- `dispatch` says which ones are already taken -- so a Pipeline
+ * that restarts can see what it was in the middle of rather than only what is
+ * new.
+ */
+export async function listRequestedRuns(limit = 50, captureId?: string): Promise<EvalRunRecord[]> {
+  if (!db) return [];
+  let query = db.collection(RUNS_COLLECTION).where("dispatchPending", "==", true);
+  if (captureId) query = query.where("executionCaptureId", "==", captureId);
+  const snapshot = await query
+    .where("settlementDueAtMs", ">", Date.now())
+    .orderBy("settlementDueAtMs", "asc")
+    .limit(clampLimit(limit))
+    .get();
+  return snapshot.docs
+    .map((doc) => doc.data() as EvalRunRecord)
+    .filter(run => run.state === "requested" && !run.moneyResolved && !run.cancellationRequested && !run.dispatch?.startedAtIso && Date.parse(run.requestedAtIso) + reservationTtlMs() > Date.now());
+}
+
+/**
+ * The Pipeline has taken a run.
+ *
+ * Records who took it and when, and pushes the settlement due time out by a
+ * full TTL from now, so a run that is executing is not released as abandoned
+ * because it waited in a queue first. Only a queued run can be started; a run
+ * that already concluded, or that we hold no record of, is refused.
+ */
+export async function markRunStarted(params: {
+  runId: string;
+  pipelineRunId?: string | null;
+  executionAdmissionDigest?: string;
+}): Promise<boolean> {
+  if (!db || !params.pipelineRunId?.trim()) return false;
+  const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return false;
+    const run = snapshot.data() as EvalRunRecord & { settlementDueAtMs?: number };
+    if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return false;
+    if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return false;
+    const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+    if (!Number.isFinite(due) || due <= Date.now()) return false;
+    if (run.dispatch?.startedAtIso) return run.dispatch.pipelineRunId === params.pipelineRunId;
+    const dispatch: RunDispatch = { startedAtIso: nowIso(), pipelineRunId: params.pipelineRunId! };
+    transaction.set(ref, { dispatch, dispatchPending: false, settlementDueAtMs: Date.now() + reservationTtlMs() }, { merge: true });
+    return true;
+  });
+}
+
+/**
+ * What the runs against one scene add up to, for the site that owns it.
+ *
+ * Counts only. Observed runs are counted without comparing their outcomes:
+ * different protocols and resets are not proven comparable. A blocked or
+ * zero-episode completion is counted explicitly as no result.
+ */
+export async function loadSceneScreening(sceneId: string): Promise<SceneScreening> {
+  const empty: SceneScreening = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 };
+  if (!db || !sceneId) return empty;
+
+  const snapshot = await db
+    .collection(RUNS_COLLECTION)
+    .where("sceneId", "==", sceneId)
+    .limit(500)
+    .get();
+
+  const teams = new Set<string>();
+  const screening: SceneScreening = { ...empty };
+
+  for (const doc of snapshot.docs) {
+    const run = doc.data() as EvalRunRecord & {
+      result?: { observed?: { episodesRun?: number; episodesSucceeded?: number } } | null;
+    };
+    const observed = run.result?.observed;
+    const episodes = Math.max(0, Math.round(observed?.episodesRun ?? 0));
+
+    if (observed && episodes > 0) {
+      screening.reported += 1;
+      teams.add(run.teamId);
+      continue;
+    }
+
+    if (run.state === "blocked" || run.state === "completed") {
+      screening.noResult += 1;
+      teams.add(run.teamId);
+      continue;
+    }
+
+    if (run.state === "requested") {
+      if (run.dispatch?.startedAtIso) screening.running += 1;
+      else screening.queued += 1;
+      teams.add(run.teamId);
+    }
+  }
+
+  screening.teams = teams.size;
+  return screening;
+}
+
+/** One run by id, or null. The result block rides along when one was reported. */
+export async function getRun(
+  runId: string,
+): Promise<(EvalRunRecord & { result?: unknown }) | null> {
+  if (!db || !runId) return null;
+  const snapshot = await db.collection(RUNS_COLLECTION).doc(runId).get();
+  return snapshot.exists ? (snapshot.data() as EvalRunRecord & { result?: unknown }) : null;
+}
+
+/**
+ * The runs a site can be shown for its scene: queued, running, or reported.
+ *
+ * Abandoned runs are left out. Blocked and zero-episode completed runs remain
+ * visible because they are real concluded outcomes, but carry no metrics.
+ */
+export async function listRunsForScene(sceneId: string): Promise<
+  (EvalRunRecord & {
+    result?: {
+      observed: {
+        episodesRun: number;
+        episodesSucceeded: number;
+        successRate: number | null;
+        medianCycleSeconds: number | null;
+      };
+    } | null;
+  })[]
+> {
+  if (!db || !sceneId) return [];
+  const snapshot = await db
+    .collection(RUNS_COLLECTION)
+    .where("sceneId", "==", sceneId)
+    .limit(500)
+    .get();
+  return snapshot.docs
+    .map((doc) => doc.data() as EvalRunRecord & { result?: never })
+    .filter((run) => ["requested", "completed", "blocked"].includes(run.state))
+    .sort((a, b) => (a.requestedAtIso || "").localeCompare(b.requestedAtIso || ""));
 }

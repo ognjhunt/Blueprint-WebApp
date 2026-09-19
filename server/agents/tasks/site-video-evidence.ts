@@ -101,6 +101,13 @@ const observationSchema = z
     observation: z.string().min(1).max(1200),
     confidence: z.number().finite().min(0).max(1),
     moments: z.array(momentSchema).max(12),
+    /**
+     * The gate option the footage plainly supports, when `gateOptions` listed
+     * options for the field. Null when it does not settle the question. This
+     * is what lets an observation become a proposal in the brief for a gate
+     * the operator never answered; it is never taken from the description.
+     */
+    implied_value: z.string().max(80).nullish(),
   })
   .strict();
 
@@ -189,6 +196,12 @@ export type SiteVideoEvidenceInput = {
   whatGoesWrong?: string | null;
   /** The operator's own gate answers, as `{fieldId: label}` — what to check against. */
   operatorAnswers: Record<string, string>;
+  /**
+   * The option values each observable gate can take, as `{fieldId: [{value, label}]}`.
+   * Present so `implied_value` can name one of them; absent means the model
+   * reports observations without proposing a value.
+   */
+  gateOptions?: Record<string, { value: string; label: string }[]>;
 };
 
 export const siteVideoEvidenceTask: StructuredTaskDefinition<
@@ -246,6 +259,7 @@ Scoring each observation:
 - stance="corroborates" when the footage agrees. This deliberately changes nothing; say it plainly rather than inflating it.
 - stance="not_visible" when the clip does not settle the question. This is the honest answer most of the time. Prefer it over a low-confidence guess.
 - Emit an observation only for fields you actually considered. Omitting a field entirely and reporting it as not_visible mean the same thing; do not pad.
+- implied_value: when gateOptions lists options for the field and the footage plainly supports one of them, give that option's value. Otherwise null. Never take it from taskDescription, and never guess one to fill the field.
 
 Measuring cycles:
 - A cycle runs from the start of one repetition to the start of the next.
@@ -274,6 +288,7 @@ Hard limits:
             observation: "",
             confidence: 0.0,
             moments: [{ at_seconds: 0, note: "" }],
+            implied_value: "an option value from gateOptions, or null",
           },
         ],
         cycle_measurement: {

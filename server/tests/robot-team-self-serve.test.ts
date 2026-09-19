@@ -24,6 +24,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState, fakeArrayUnion } from "./helpers/fake-firestore";
 
+// Runtime admission has its own contract suite. These exercise the authenticated
+// plan/payment wiring with an explicitly prepared execution fixture.
+vi.mock("../utils/agentExecutionAdmission", () => ({
+  discoverAgentExecutionAdmission: async ({ sceneId }: { sceneId: string }) => ({
+    admitted: true, envelope: { source_request_id: `prepared-${sceneId}` },
+    canonicalJson: JSON.stringify({ source_request_id: `prepared-${sceneId}` }), digestSha256: `sha256:${"a".repeat(64)}`,
+  }),
+}));
+
 const sendEmail = vi.hoisted(() =>
   vi.fn(async () => ({ sent: true, provider: "test" as const, messageId: "test" })),
 );
@@ -373,8 +382,8 @@ describe("registration to plan, without an operator", () => {
     expect(plan.spendableNowUsd).toBe(0);
     // And it is honest about why it cannot be bought yet, and what to do.
     expect(plan.fundingNeededUsd).toBe(plan.totalCostUsd);
-    expect(plan.blockedBy).toBe("agent_spend_disabled");
-    expect(plan.next).toContain("PUT /api/agent-team/policy");
+    expect(plan.blockedBy).toBe("insufficient_balance");
+    expect(plan.next).toContain("spendMode:one_time");
   });
 
   it("refuses to spend before the team has funded and switched its agent on", async () => {

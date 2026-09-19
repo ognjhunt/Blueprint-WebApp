@@ -15,7 +15,14 @@ export async function setupVite(app: Express, server: Server) {
     configFile: false,
     server: {
       middlewareMode: true,
-      hmr: { server },
+      // Middleware mode has no standalone Vite listener from which to infer a
+      // browser port. Pin the client to the Express listener used by local and
+      // CI Playwright runs so the injected HMR URL is never `:undefined`.
+      hmr: {
+        server,
+        port: Number(process.env.PORT || 5000),
+        clientPort: Number(process.env.PORT || 5000),
+      },
     },
     appType: "custom",
   });

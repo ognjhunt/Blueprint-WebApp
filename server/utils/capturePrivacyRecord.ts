@@ -19,6 +19,7 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { notifySlackCapturePrivacyEscalation } from "./slack";
+import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
 
 export async function recordCapturePrivacyScreen(params: {
@@ -71,6 +72,22 @@ export async function recordCapturePrivacyScreen(params: {
         },
         { merge: true },
       );
+
+    // What the footage showed, into the brief the operator will confirm. Only
+    // for a capture that cleared the screen: a held capture derives nothing,
+    // and that rule is the screen's, not repeated here. Fire-and-forget, so a
+    // brief that cannot be updated never fails an upload that succeeded.
+    if (params.result.proceed && params.result.evidence) {
+      void mergeFootageIntoBrief({
+        requestId: params.requestId,
+        evidence: params.result.evidence,
+      }).catch((error) =>
+        logger.warn(
+          { error, requestId: params.requestId },
+          "Footage observations could not be merged into the brief",
+        ),
+      );
+    }
 
     // A rejected reading never retries, so without a bell it waits for
     // nobody: the flag had zero consumers. Fire-and-forget with a logged

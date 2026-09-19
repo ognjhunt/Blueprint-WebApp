@@ -30,6 +30,8 @@
  * reading a JSON body, not a bill.
  */
 
+import { createHash } from "node:crypto";
+import { discoverAgentExecutionAdmission } from "../utils/agentExecutionAdmission";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
@@ -76,10 +78,10 @@ import {
   screeningRunEpisodes,
 } from "../utils/teamEvalCandidates";
 import {
-  createRequestedRun,
+  getRun,
   listUnsettledRuns,
   markResolved,
-  checkReleaseEligibility,
+  claimRunCancellation,
   reconcileTeamHolds,
   reservationTtlMs,
   runIdForReservation,
@@ -567,36 +569,22 @@ router.post("/plan", async (req: Request, res: Response) => {
     maxRuns: parsed.data.maxRuns,
   });
 
-  // Against what the plan actually costs, not against the budget it was sized
-  // by: a $500 plan under a $2,000 ask needs $500, and quoting the ask would
-  // ask a team to fund runs this plan does not contain.
-  const fundingNeededUsd =
-    Math.round(Math.max(0, selection.totalCostUsd - spendableNowUsd) * 100) / 100;
-
+  const admissions = await Promise.all(selection.selected.map(candidate => discoverAgentExecutionAdmission({
+    teamId, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
+    quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+  })));
+  const executable = admissions.every(admission => admission.admitted);
+  const planToken = executable ? createEvalPlanToken({ teamId, checkpointId: parsed.data.checkpointId,
+    lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
+      executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined })) }) : null;
+  const fundingNeededUsd = Math.round(Math.max(0, selection.totalCostUsd - balance.availableUsd) * 100) / 100;
   return res.json({
-    teamId,
-    checkpointId: parsed.data.checkpointId,
-    committed: false,
-    plannedAgainstUsd: budgetUsd,
-    spendableNowUsd,
-    fundingNeededUsd,
-    /** What stops this plan being bought right now, if anything does. */
-    blockedBy:
-      fundingNeededUsd === 0
-        ? null
-        : !policy.agentSpendEnabled
-          ? "agent_spend_disabled"
-          : balance.availableUsd <= 0
-            ? "no_balance"
-            : dailyRemaining <= 0
-              ? "daily_limit_reached"
-              : "insufficient_balance",
-    next:
-      fundingNeededUsd === 0
-        ? "POST /api/agent-team/runs with confirm:true and an idempotencyKey."
-        : !policy.agentSpendEnabled
-          ? "PUT /api/agent-team/policy to set a daily limit and switch the agent on."
-          : `POST /api/agent-team/funding with amountUsd ${fundingNeededUsd} to cover this plan.`,
+    teamId, checkpointId: parsed.data.checkpointId, committed: false, plannedAgainstUsd: budgetUsd,
+    spendableNowUsd, availableBalanceUsd: balance.availableUsd, fundingNeededUsd, planToken,
+    executionReady: executable,
+    blockedBy: !executable ? "execution_preparation_required" : fundingNeededUsd > 0 ? "insufficient_balance" : null,
+    next: !executable ? "The selected task needs an authorized execution setup before payment."
+      : "Confirm this signed plan once with spendMode:one_time. Autonomous spending stays unchanged.",
     ...selection,
   });
 });
@@ -619,7 +607,8 @@ const runsSchema = z
      * happens to look like at confirm time. Absent keeps the old behaviour:
      * confirm reserves a freshly computed selection.
      */
-    planToken: z.string().trim().max(4000).optional(),
+    planToken: z.string().trim().max(16000).optional(),
+    spendMode: z.enum(["autonomous", "one_time"]).default("autonomous"),
   })
   .strict();
 
@@ -639,6 +628,10 @@ router.post("/runs", async (req: Request, res: Response) => {
   const parsed = runsSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Run request is invalid", code: "run_request_invalid" });
+  }
+
+  if (parsed.data.confirm && parsed.data.spendMode === "one_time" && !parsed.data.planToken) {
+    return res.status(400).json({ error: "Review a signed plan before confirming a one-time purchase.", code: "eval_plan_required" });
   }
 
   const [policy, spentToday, balance] = await Promise.all([
@@ -676,14 +669,15 @@ router.post("/runs", async (req: Request, res: Response) => {
   if (!parsed.data.confirm) {
     // Sign the plan we are showing, so a later confirm can reserve exactly
     // this and not whatever supply looks like by then.
-    const planToken = createEvalPlanToken({
-      teamId,
-      checkpointId: parsed.data.checkpointId,
-      lines: selection.selected.map((candidate) => ({
-        sceneId: candidate.sceneId,
-        costUsd: candidate.costUsd,
-      })),
-    });
+    const admissions = await Promise.all(selection.selected.map(candidate => discoverAgentExecutionAdmission({
+      teamId, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
+      quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+    })));
+    const planToken = admissions.every(admission => admission.admitted) ? createEvalPlanToken({
+      teamId, checkpointId: parsed.data.checkpointId,
+      lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
+        executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined })),
+    }) : null;
     return res.status(200).json({
       dryRun: true,
       teamId,
@@ -724,6 +718,7 @@ router.post("/runs", async (req: Request, res: Response) => {
   // and any that is no longer runnable refused by name rather than swapped for
   // another. Without a token, the freshly computed selection, as before.
   let toReserve = selection.selected;
+  const plannedDigests = new Map<string, string | undefined>();
   if (parsed.data.planToken) {
     const plannedLines = verifyEvalPlanToken(parsed.data.planToken, {
       teamId,
@@ -749,7 +744,7 @@ router.post("/runs", async (req: Request, res: Response) => {
     const pinned: typeof selection.selected = [];
     for (const line of plannedLines) {
       const candidate = rankedById.get(line.sceneId);
-      if (!candidate) {
+      if (!candidate || candidate.costUsd !== line.costUsd) {
         // Named in the plan, not runnable now. Refused rather than substituted:
         // the team approved this site, and swapping in another would be
         // spending on something it never saw.
@@ -762,73 +757,39 @@ router.post("/runs", async (req: Request, res: Response) => {
         });
         continue;
       }
+      plannedDigests.set(line.sceneId, line.executionDigest);
       pinned.push(candidate);
     }
     toReserve = pinned;
   }
 
-  for (const [index, candidate] of toReserve.entries()) {
-    const authorization = await authorizeAgentSpend({
-      teamId,
-      amountUsd: candidate.costUsd,
-      reason: `Evaluation of ${parsed.data.checkpointId} against ${candidate.siteLabel}`,
-      idempotencyKey: `${parsed.data.idempotencyKey}:${index}`,
+  for (const candidate of toReserve) {
+    const admission = await discoverAgentExecutionAdmission({ teamId, checkpointId: parsed.data.checkpointId,
+      sceneId: candidate.sceneId, quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd });
+    if (!admission.admitted || (parsed.data.planToken && plannedDigests.get(candidate.sceneId) !== admission.digestSha256)) {
+      refused.push({ sceneId: candidate.sceneId, siteLabel: candidate.siteLabel, costUsd: candidate.costUsd,
+        refusal: "execution_preparation_required", detail: "The execution setup is missing or changed. Review a fresh plan before paying." });
+      continue;
+    }
+    // One prepared execution can be purchased once, even if a client changes
+    // its request key or obtains a fresh quote for the same source request.
+    const requestKey = createHash("sha256").update(JSON.stringify([teamId, parsed.data.checkpointId, candidate.sceneId, admission.envelope.source_request_id])).digest("hex");
+    const authorization = await authorizeAgentSpend({ teamId, amountUsd: candidate.costUsd,
+      reason: `Evaluation ${parsed.data.checkpointId} on ${candidate.sceneId}`, idempotencyKey: `execution:${requestKey}`,
+      ...(parsed.data.spendMode === "one_time" ? { confirmedPlan: { token: parsed.data.planToken!, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId } } : {}),
+      requestedRun: { checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
+        taskFamily: candidate.taskFamily ?? null, quotedEpisodes: screeningRunEpisodes(),
+        executionAdmission: { envelope: admission.envelope, canonicalJson: admission.canonicalJson, digestSha256: admission.digestSha256 } },
     });
-
     if (!authorization.authorized) {
-      refused.push({
-        sceneId: candidate.sceneId,
-        siteLabel: candidate.siteLabel,
-        costUsd: candidate.costUsd,
-        refusal: authorization.refusal,
-        detail: authorization.detail,
-      });
+      refused.push({ sceneId: candidate.sceneId, siteLabel: candidate.siteLabel, costUsd: candidate.costUsd,
+        refusal: authorization.refusal, detail: authorization.detail });
       continue;
     }
-
-    // A hold with nothing attached to it is the bug this replaced: the money
-    // was reserved, the run existed only as a promise, and nothing could ever
-    // conclude it. The run record is what the settlement reconciler reads, so
-    // writing it is part of authorising the spend, not a step after it.
-    const run = await createRequestedRun({
-      teamId,
-      checkpointId: parsed.data.checkpointId,
-      sceneId: candidate.sceneId,
-      taskFamily: candidate.taskFamily ?? null,
-      reservationId: authorization.reservationId,
-      quotedUsd: candidate.costUsd,
-      quotedEpisodes: screeningRunEpisodes(),
-    });
-
-    if (!run) {
-      // The hold exists and the run does not, so nothing downstream could ever
-      // settle it. Give the money straight back rather than leaving a hold the
-      // reconciler has no record of.
-      await releaseReservation({
-        teamId,
-        reservationId: authorization.reservationId,
-        reason: "Run record could not be written; hold returned immediately",
-        idempotencyKey: `release:${authorization.reservationId}`,
-      });
-      refused.push({
-        sceneId: candidate.sceneId,
-        siteLabel: candidate.siteLabel,
-        costUsd: candidate.costUsd,
-        refusal: "run_record_unavailable",
-        detail:
-          "The run could not be recorded, so its hold was released. Nothing was charged. Retry with the same idempotencyKey.",
-      });
-      continue;
-    }
-
-    started.push({
-      runId: run.runId,
-      sceneId: candidate.sceneId,
-      siteLabel: candidate.siteLabel,
-      costUsd: candidate.costUsd,
-      reservationId: authorization.reservationId,
-      rationale: candidate.rationale,
-    });
+    const run = await getRun(runIdForReservation(authorization.reservationId));
+    if (!run) throw new Error("Atomic reservation is missing its run record");
+    started.push({ runId: run.runId, sceneId: candidate.sceneId, siteLabel: candidate.siteLabel,
+      costUsd: candidate.costUsd, reservationId: authorization.reservationId, rationale: candidate.rationale });
   }
 
   return res.status(202).json({
@@ -924,6 +885,8 @@ router.get("/results", async (req: Request, res: Response) => {
       episodesRun: run.episodesRun,
       requestedAtIso: run.requestedAtIso,
       result: run.result ?? null,
+      // Queued or running. Null until the Pipeline takes the run.
+      dispatch: run.dispatch ?? null,
       // Said plainly rather than left to be inferred from a null: a run with no
       // result is not a run that found nothing.
       resultStatus: run.result
@@ -958,6 +921,7 @@ router.get("/results/:runId", async (req: Request, res: Response) => {
     episodesRun: run.episodesRun,
     requestedAtIso: run.requestedAtIso,
     result: run.result ?? null,
+    dispatch: run.dispatch ?? null,
     resultStatus: run.result
       ? "reported"
       : run.state === "abandoned"
@@ -979,14 +943,14 @@ router.post("/runs/:reservationId/release", async (req: Request, res: Response) 
   // A release is a cancellation, and cancellation has a window. This used to
   // take any reservation id and give the hold back without looking at the run,
   // so an agent could reserve, let execution start, release, and keep the work.
-  const eligibility = await checkReleaseEligibility(teamId, reservationId);
+  const eligibility = await claimRunCancellation(teamId, reservationId);
 
   if (!eligibility.allowed) {
     return res.status(409).json({
       error:
         eligibility.reason === "outcome_reported"
           ? "This run has already reported an outcome, so its hold is not yours to cancel."
-          : "That reservation belongs to another team.",
+          : eligibility.reason === "execution_started" ? "This run is executing and can no longer be cancelled." : "That reservation belongs to another team.",
       code: eligibility.reason,
       ...(eligibility.reason === "outcome_reported"
         ? {

@@ -17,8 +17,9 @@ function packageNameFromId(id: string) {
 export default defineConfig({
   plugins: [
     react(),
-    checker({ typescript: true, overlay: false }),
-    runtimeErrorOverlay(),
+    ...(process.env.BLUEPRINT_E2E === "1"
+      ? []
+      : [checker({ typescript: true, overlay: false }), runtimeErrorOverlay()]),
     themePlugin(),
   ],
   resolve: {
