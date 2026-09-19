@@ -18,7 +18,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
 | 4 | Reusable Gemini 3.8 agentic task/coverage/object analysis | API trace of media navigation, validated outputs, one source-bound analysis | In progress |
-| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Unproven |
+| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Selected task object live verified; full task/privacy plan pending |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Consistent observed-background recovery plus conditional image editing; no VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Unproven |
@@ -491,3 +491,23 @@ mapping and depth/camera artifacts. Scale remains model-estimated, not measured.
 Evidence: Pipeline `output/website-task-pipeline/mapanything-vast-attempt-7/geometry-readback.json`
 and `adapter-result.json`. This closes the inference/transport check, not the
 full website-to-evaluation loop.
+
+The continuous-video Meta SAM test also completed: all 406 decoded frames were
+processed, with the selected blue object tracked in 83 frames and matched to
+two retained MapAnything views (5.4 and 8.1 seconds). The spatial selector kept
+the separate blue bag out of the task mask. The anchor was an analyst's visual
+observation, not a successful Gemini result. Source-to-geometry binding retains
+estimated scale. At Meta's published rate, this request represents $0.0812 of
+segmentation usage; that is a rate calculation, not an invoice readback.
+The uploaded provider file was deleted successfully.
+
+Pipeline `0d0a79636` sends the continuous upright video through Meta's Files API,
+preserves frame timestamps, and selects geometry views only after tracking.
+Earlier sparse clips missed this object; full-resolution still segmentation
+worked but did not establish video tracking. The inline full-video attempt
+returned HTTP 413 before the successful file-upload path. Focused tests: 44
+passed. Evidence lives under Pipeline
+`output/website-task-pipeline/meta-sam31-uploaded-video-live/`, including
+`geometry-binding.json`, the provider response and `video-cleanup.json`.
+Neither the remaining Gemini analysis nor Marble/native evaluation is claimed
+complete, and these changes are still on the draft PRs.
