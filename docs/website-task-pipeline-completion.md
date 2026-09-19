@@ -252,3 +252,22 @@ failed with npm registry DNS `ENOTFOUND` and is parked. No live provider job is
 running. Scene-source dispatch, object authoring, simulator controls, and the
 robot-team website loop remain unfinished; no additional numbered requirement
 is declared end-to-end complete.
+
+Owner expansion: task objects may be newly created, including multiple package
+variants. Pipeline `6f0c62d4e` adds generated-object specifications and batch
+authoring through the existing Astra/CAD/Blender executor. Each object has its
+own identity, dimensions, task purpose, geometry and appearance requirements;
+variants name their reference object. Context images are not represented as
+observations of a newly generated object. Physics measurements are not inherited
+from the reference object, generated provenance reaches packaging, and new
+objects still require native qualification. The batch shares one bounded
+invoker and retains per-object success/failure so one failed object does not
+discard siblings. This does not yet implement evaluation asset switching.
+
+The website compiler now also supplies the confirmed task, operator answers,
+destination, original-frame provenance and estimated dimension authority to the
+existing Astra authoring request. Verification: 68 focused tests pass across
+generation, Astra, packaging, and website preparation; Ruff and diff checks pass.
+Both `codex/website-task-pipeline` work branches are now pushed. No merge,
+deployment, generated-object live execution, or walkthrough end-to-end result
+is claimed.
