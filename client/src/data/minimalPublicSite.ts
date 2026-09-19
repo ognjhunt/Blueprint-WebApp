@@ -13,4 +13,4 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/robot-intake": "/contact/robot-team",
 };
 
-export const minimalPublicPaths = ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"] as const;
+export const minimalPublicPaths = ["/", "/sites", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"] as const;

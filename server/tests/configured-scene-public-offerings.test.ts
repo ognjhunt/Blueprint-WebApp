@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } },
   dbAdmin: {
     collection: () => ({
       where: (field: string, _operator: string, value: unknown) => ({

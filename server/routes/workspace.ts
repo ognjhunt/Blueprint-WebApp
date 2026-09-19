@@ -1,3 +1,5 @@
+import { logger } from "../logger";
+import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 import {
   Router,
   type Request,
@@ -488,6 +490,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         stage,
       }),
     );
+    try { task.readiness.nextUpdateIso = await ensureTaskStatusUpdate(requestId, task.readiness.decision) ?? task.readiness.nextUpdateIso; }
+    catch (error) { logger.warn({ error, requestId }, "Could not schedule workspace status update"); }
   } catch {
     task.readiness = null;
   }

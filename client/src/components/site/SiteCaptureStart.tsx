@@ -1,3 +1,4 @@
+import { isLikelyPhone } from "@/lib/device";
 /**
  * Getting a site to a camera, which is the only thing we actually need.
  *
@@ -93,6 +94,7 @@ function splitName(value: string) {
 }
 
 export function SiteCaptureStart() {
+  const onAPhone = isLikelyPhone();
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
   // Defaulted to the one region we are cleared for, because that is where
@@ -246,14 +248,12 @@ export function SiteCaptureStart() {
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. No app and nothing to install."}
             </p>
+            {!onAPhone && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>
-                {state.hasFootage ? "Open the uploader" : "Open the camera"}
+              <a className={onAPhone || state.hasFootage ? "ms-button ms-button-large" : "ms-text-link"} href={state.captureUrl}>
+                {state.hasFootage ? "Open the uploader" : onAPhone ? "Open the camera" : "Open your task page"}
               </a>
             </p>
-            {/* The handoff, because this page is usually open on a laptop and
-                the camera is in their pocket. */}
-            <CaptureHandoffQr url={state.captureUrl} />
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
               Keep this link — it is how you come back to this submission, and it is where the task
               brief we draft from your job description will appear for you to correct. Film the

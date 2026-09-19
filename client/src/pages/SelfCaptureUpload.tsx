@@ -1,3 +1,6 @@
+import { isLikelyPhone } from "@/lib/device";
+import { PublicTaskListing } from "@/components/site/PublicTaskListing";
+import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page a site employee opens from a link in an email.
  *
@@ -19,7 +22,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
-import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
@@ -238,7 +240,7 @@ export default function SelfCaptureUpload() {
   // or one missing QR code on a laptop that can still copy the URL out of its
   // own address bar.
   const onAPhone =
-    typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    isLikelyPhone();
   const pageUrl = typeof window === "undefined" ? "" : window.location.href;
   const inputRef = useRef<HTMLInputElement>(null);
   /** One-tap copy on the desktop handoff, where the QR alone asks too much. */
@@ -263,22 +265,7 @@ export default function SelfCaptureUpload() {
 
     let cancelled = false;
 
-    // Separate request, and deliberately not awaited with the link check: a
-    // brief we cannot load is a missing checklist, not a broken capture page.
-    (async () => {
-      try {
-        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
-        const data = (await response.json().catch(() => null)) as {
-          ok?: boolean;
-          status?: TaskStatus;
-        } | null;
-        if (cancelled || !response.ok || !data?.status) return;
-        setStatus(data.status);
-      } catch {
-        // No status line. The rest of the page still works.
-      }
-    })();
-
+    // A missing brief must not prevent the capture page from opening.
     (async () => {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}`);
@@ -421,6 +408,21 @@ export default function SelfCaptureUpload() {
     [token],
   );
 
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
+        const data = await response.json();
+        if (alive && response.ok && data?.status) setStatus(data.status);
+      } catch { /* The capture remains usable during a status outage. */ }
+      if (alive) timer = setTimeout(poll, 6000);
+    }
+    void poll();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [token, upload.status, briefConfirmed]);
+
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
 
@@ -443,15 +445,7 @@ export default function SelfCaptureUpload() {
           {status.operatorAction}
         </p>
       )}
-      {status.nextUpdateIso ? (
-        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-          Next update by {new Date(status.nextUpdateIso).toLocaleString()}.
-        </p>
-      ) : (
-        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-          We will email you when there is something to say. Nothing to watch here.
-        </p>
-      )}
+      <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
     </div>
   ) : null;
 
@@ -464,14 +458,18 @@ export default function SelfCaptureUpload() {
     // buttons (the "Open the camera" control rendered cream-on-cream). The wrapper
     // carries the theme only -- no header or footer -- so the bare shell is intact.
     <div className="minimal-site">
-      <div className="ms-container" style={{ paddingBlock: "64px", maxWidth: "640px" }}>
+      <header className="ms-container ms-capture-header" style={{ maxWidth: "680px" }}>
+        <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
+        <a className="ms-back" href="/contact/site-operator">Back to Blueprint</a>
+      </header>
+      <div className="ms-container ms-capture-body" style={{ paddingBlock: "24px 48px", maxWidth: "680px" }}>
         <Helmet>
         <title>Upload your walkthrough | Blueprint</title>
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Not yet — here is what is in the way" : "Film the work area"}
+        {link.status === "held" ? "Your task assessment" : upload.status === "done" ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -584,7 +582,7 @@ export default function SelfCaptureUpload() {
                 </details>
               )}
 
-              <TaskItemsPanel token={token} scope={scope} />
+              <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
               <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
                 Filmed another angle? It can be added the same way — we will use whichever views
@@ -601,11 +599,9 @@ export default function SelfCaptureUpload() {
              * camera exists.
              */
             <div className="ms-form" aria-live="polite">
-              <h2 style={{ marginTop: 0 }}>This step happens on your phone.</h2>
+              <h2 style={{ marginTop: 0 }}>Point your phone at this.</h2>
               <p className="ms-field-hint">
-                A walkthrough is filmed with a phone in the work area — a laptop camera cannot
-                show it. Scan the code to open the recorder on your phone, or copy the link and
-                send it to yourself there.
+                Scan to film the work area. Keep this page open to follow progress.
               </p>
               <CaptureHandoffQr url={pageUrl} label="Scan to open the recorder on your phone" />
               <div
@@ -627,14 +623,6 @@ export default function SelfCaptureUpload() {
                   {pageUrl}
                 </span>
               </div>
-              {/* The desktop reflecting what the phone is doing, from the
-                  server's own record rather than a guess. Never blocks the
-                  capture happening elsewhere. */}
-              <CaptureLiveStatus captureUrl={pageUrl} />
-              <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-                Already have the video on this computer? Upload the file below — if it covers the
-                work area we will use it rather than ask anyone to film again.
-              </p>
             </div>
           ) : (
             <>
@@ -657,7 +645,7 @@ export default function SelfCaptureUpload() {
                 <legend className="ms-field-hint" style={{ padding: 0, marginBottom: "6px" }}>
                   Can you move the loose items out of the way first?
                 </legend>
-                <label htmlFor="cap-in-place" style={{ flexDirection: "row", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                <label htmlFor="cap-in-place" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                   <input
                     id="cap-in-place"
                     type="radio"
@@ -668,7 +656,7 @@ export default function SelfCaptureUpload() {
                   />
                   <span style={{ fontWeight: 400 }}>No — film it as it normally is</span>
                 </label>
-                <label htmlFor="cap-cleared" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                <label htmlFor="cap-cleared" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px" }}>
                   <input
                     id="cap-cleared"
                     type="radio"
@@ -700,53 +688,10 @@ export default function SelfCaptureUpload() {
 
           {upload.status !== "held" && upload.status !== "done" && (
             <>
-              {/* A re-film request or "where this stands" lands right under the
-                  camera, so someone who came back to add an angle sees what we
-                  need before the optional sections. */}
-              {statusCard}
-
-              {/* Optional, and never in front of the camera. Permission to
-                  capture, the answers that refine what to film, and task
-                  qualification are three different things, and only the first is
-                  needed to record -- so the brief is a collapsed disclosure here,
-                  not a gate. Confirming it is the attestation that turns the site
-                  into supply, before or after filming. A film-only link never
-                  sees it: attestation is not theirs to make. */}
-              {scope === "owner" && brief && !briefConfirmed && (
-                <details style={{ marginTop: "28px", marginBottom: "8px" }}>
-                  <summary>
-                    {briefBlocksCapture
-                      ? "A couple of answers refine what to film"
-                      : "Review your task brief"}
-                  </summary>
-                  <p className="ms-field-hint">
-                    We drafted this from what you sent. Film whenever you like — confirming the brief
-                    is what lets a robot team be matched to your site, before or after you film.
-                  </p>
-                  <TaskBriefReview
-                    token={token}
-                    brief={brief}
-                    onConfirmed={() => setBriefConfirmed(true)}
-                  />
-                </details>
-              )}
-
-              {/* The room is not the objects. A robot grasps the tote and stacks
-                  the cartons, and those are often filmed clear -- so we list the
-                  items and take a few photos of each to build sim-ready versions.
-                  A film-only link can add the photos; only an owner edits the list. */}
-              <TaskItemsPanel token={token} scope={scope} />
-
-              {/* Least privilege for the person who actually films. An owner who
-                  is handing this to a colleague sends a link that can record and
-                  upload but cannot attest -- so a forwarded QR never carries the
-                  authority to confirm operating facts on the site's behalf. */}
-              {scope === "owner" && <FilmLinkHandoff token={token} />}
-
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 {onAPhone
                   ? "Already have a video? Upload it instead — if it covers the work area we will use it rather than ask you to film again."
-                  : "It needs to be a .mov or .mp4 from a real camera — screen recordings and links to other sites cannot be used."}
+                  : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
 
               <input
@@ -812,10 +757,57 @@ export default function SelfCaptureUpload() {
                   {upload.message} Nothing was saved, so it is safe to pick the video again.
                 </p>
               )}
+
+              {/* A re-film request or "where this stands" lands right under the
+                  camera, so someone who came back to add an angle sees what we
+                  need before the optional sections. */}
+              {statusCard}
+
+              {/* Optional, and never in front of the camera. Permission to
+                  capture, the answers that refine what to film, and task
+                  qualification are three different things, and only the first is
+                  needed to record -- so the brief is a collapsed disclosure here,
+                  not a gate. Confirming it is the attestation that turns the site
+                  into supply, before or after filming. A film-only link never
+                  sees it: attestation is not theirs to make. */}
+              {scope === "owner" && brief && !briefConfirmed && (
+                <details style={{ marginTop: "28px", marginBottom: "8px" }}>
+                  <summary>
+                    {briefBlocksCapture
+                      ? "A couple of answers refine what to film"
+                      : "Review your task brief"}
+                  </summary>
+                  <p className="ms-field-hint">
+                    We drafted this from what you sent. Film whenever you like — confirming the brief
+                    is what lets a robot team be matched to your site, before or after you film.
+                  </p>
+                  <TaskBriefReview
+                    token={token}
+                    brief={brief}
+                    onConfirmed={() => setBriefConfirmed(true)}
+                  />
+                </details>
+              )}
+
+              {/* The room is not the objects. A robot grasps the tote and stacks
+                  the cartons, and those are often filmed clear -- so we list the
+                  items and take a few photos of each to build sim-ready versions.
+                  A film-only link can add the photos; only an owner edits the list. */}
+              <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+
+              {/* Least privilege for the person who actually films. An owner who
+                  is handing this to a colleague sends a link that can record and
+                  upload but cannot attest -- so a forwarded QR never carries the
+                  authority to confirm operating facts on the site's behalf. */}
+              {scope === "owner" && <details className="ms-task-interest"><summary>Ask someone else to film</summary><FilmLinkHandoff token={token} /></details>}
+
+
             </>
           )}
         </>
       )}
+      {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} />}
+      <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage, prepare the scene, and ask you to confirm the task before evaluation. Keep this link to follow progress.</p>
       </div>
     </div>
   );

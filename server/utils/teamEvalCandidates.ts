@@ -26,6 +26,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { matchRobotTeam } from "../../client/src/lib/robotMatch";
 import { getRobotTeam, toMatchCandidate } from "./robotTeamRegistry";
 import { toSiteRequirement } from "./siteMatchRun";
+import { approvedTaskDetails } from "./taskListingDetails";
 import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
 import { operatorListingPaused } from "./operatorListing";
@@ -113,37 +114,7 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
     // runs — listing is the operator's lever, and this is where it bites.
     // Already-committed runs settle by their own contract.
     .filter((request) => operatorListingPaused(request) === false)
-    .filter((request) => {
-      // Measured coverage where we have it, and the old inference where we do
-      // not: a built scene means coverage sufficed, which is true by
-      // construction. What this must never do is read "nobody checked" as
-      // "does not cover", because that would silently drop supply.
-      const measured = coverageEvidenceFrom(request as never);
-      const readiness = assessReadiness({
-        answers: (request.request?.siteTaskGates as Record<string, string> | null) ?? {},
-        captureMode: request.request?.capture_mode ?? null,
-        briefDrafted: true,
-        briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
-        evidence: {
-          hasAny: true,
-          hasVisual: true,
-          explainsTask: true,
-          coversScene: measured?.coversScene ?? true,
-          missingCoverage: measured?.missingCoverage,
-        },
-        reconstructed: hasBuiltScene(request),
-      });
-      if (!readiness.isSupply) return false;
-
-      // Site-ready is not run-ready. `assessReadiness` establishes that the
-      // operator confirmed a scene we could build; it says nothing about
-      // whether our harness can actually load and step that scene. Requiring an
-      // internal runnability proof here is what keeps the first team to buy an
-      // evaluation from being the one who discovers integration works. It fails
-      // closed on purpose -- an unverified scene is held back from supply, not
-      // sold as ready. See `sceneRunnableReadiness`.
-      return sceneRunnableReadiness(request.evaluation_readiness).runnable;
-    });
+    .filter(isRunnableTask);
 }
 
 /**
@@ -217,7 +188,10 @@ export async function buildTeamEvalCandidates(params: {
       // The site's own name is not given to a robot team here. A team browsing
       // the catalogue is not yet a party to anything, and naming customers to
       // an unconfirmed counterparty would leak the relationship.
-      siteLabel: request.request?.targetSiteType || "Site",
+      siteLabel: approvedTaskDetails(request)?.title || `Task ${request.requestId.slice(-6)}`,
+      details: approvedTaskDetails(request),
+      thumbnailUrl: approvedTaskDetails(request) && /^[a-f0-9]{64}$/.test((request as any).public_task_listing?.thumbnailDigest ?? "")
+        ? `/api/site-worlds/tasks/${encodeURIComponent(request.requestId)}/thumbnail` : null,
       match: {
         outcome: match.outcome,
         score: match.score,
@@ -230,4 +204,41 @@ export async function buildTeamEvalCandidates(params: {
       alreadyRunForCheckpoint: history.scenesRun.has(sceneId),
     };
   });
+}
+
+/** The same admission predicate serves discovery and paid evaluation selection. */
+export function isRunnableTask(request: InboundRequest): boolean {
+  if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
+  || request.site_task_triage?.disposition !== "qualified") return false;
+
+  // Measured coverage where we have it, and the old inference where we do
+  // not: a built scene means coverage sufficed, which is true by
+  // construction. What this must never do is read "nobody checked" as
+  // "does not cover", because that would silently drop supply.
+  const measured = coverageEvidenceFrom(request as never);
+  const readiness = assessReadiness({
+    answers: (request.request?.siteTaskGates as Record<string, string> | null) ?? {},
+    captureMode: request.request?.capture_mode ?? null,
+    briefDrafted: true,
+    briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
+    evidence: {
+      hasAny: true,
+      hasVisual: true,
+      explainsTask: true,
+      coversScene: measured?.coversScene ?? true,
+      missingCoverage: measured?.missingCoverage,
+    },
+    reconstructed: hasBuiltScene(request),
+  });
+  if (!readiness.isSupply) return false;
+
+  // Site-ready is not run-ready. `assessReadiness` establishes that the
+  // operator confirmed a scene we could build; it says nothing about
+  // whether our harness can actually load and step that scene. Requiring an
+  // internal runnability proof here is what keeps the first team to buy an
+  // evaluation from being the one who discovers integration works. It fails
+  // closed on purpose -- an unverified scene is held back from supply, not
+  // sold as ready. See `sceneRunnableReadiness`.
+  return sceneRunnableReadiness(request.evaluation_readiness).runnable;
+
 }

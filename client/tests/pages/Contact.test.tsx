@@ -175,12 +175,12 @@ describe("Minimal public screening", () => {
     await waitFor(() => expect(document.querySelector("#spec-cycleTime")).not.toBeNull());
   });
 
-  it("does not ask a robot team the site gates", () => {
+  it("lets a robot team browse before asking about its setup", () => {
     mockLocation = "/contact/robot-team";
     render(<Contact />);
-    expect(document.querySelector("#gate-serviceArea")).toBeNull();
-    expect(document.querySelector("#gate-hardwareMaturity")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Send application" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Task library" })).toBeInTheDocument();
+    expect(screen.queryByText("Rather talk to someone? Send an application instead")).toBeNull();
+    expect(screen.queryByLabelText(/where is the hardware today/i)).toBeNull();
   });
 
   it("refuses to submit until the required fields are there", async () => {

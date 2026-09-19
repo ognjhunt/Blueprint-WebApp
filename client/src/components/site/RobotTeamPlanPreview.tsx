@@ -1,3 +1,4 @@
+import { TaskThumbnail } from "./TaskThumbnail";
 /**
  * Signing up a robot team, for a person.
  *
@@ -32,6 +33,8 @@
  * come back to them when a matching site lands, which is the honest answer when
  * the library has nothing for them yet.
  */
+import { TaskFacts } from "./TaskFacts";
+import type { TaskListingDetails } from "@/types/taskBrowse";
 import { useState } from "react";
 
 type Row = {
@@ -39,6 +42,8 @@ type Row = {
   siteLabel: string;
   costUsd: number;
   rationale: string;
+  thumbnailUrl?: string | null;
+  details?: TaskListingDetails | null;
 };
 
 type PlanResult = {
@@ -93,7 +98,7 @@ function familyLabel(value: string) {
   return TASK_FAMILIES.find((family) => family.value === value)?.label ?? "this kind of work";
 }
 
-export function RobotTeamPlanPreview() {
+export function RobotTeamPlanPreview({ sceneId }: { sceneId?: string }) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
   const [showKey, setShowKey] = useState(false);
@@ -176,7 +181,7 @@ export function RobotTeamPlanPreview() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${account.agentKey}`,
           },
-          body: JSON.stringify({ checkpointId }),
+          body: JSON.stringify({ checkpointId, ...(sceneId ? { sceneId } : {}) }),
         });
         const plan = (await planned.json().catch(() => ({}))) as {
           selected?: Row[];
@@ -225,8 +230,10 @@ export function RobotTeamPlanPreview() {
             <ul style={{ listStyle: "none", padding: 0, margin: "20px 0" }}>
               {plan.rows.map((row) => (
                 <li key={row.sceneId} style={{ borderTop: "1px solid var(--ms-rule)", padding: "14px 0" }}>
-                  <strong>{row.siteLabel}</strong>{" "}
+                  <div className="ms-task-heading"><div><strong>{row.siteLabel}</strong>{" "}
                   <span className="ms-field-hint">${row.costUsd}</span>
+                  </div><TaskThumbnail src={row.thumbnailUrl} title={row.siteLabel} taskFamily={row.details?.taskFamily ?? ""} /></div>
+                  {row.details && <TaskFacts details={row.details} />}
                   {/* The reason, not just the ranking: a team should be able to
                       read why a row is where it is and disagree with it. */}
                   <p style={{ margin: "6px 0 0", color: "var(--ms-muted)" }}>{row.rationale}</p>
@@ -262,6 +269,7 @@ export function RobotTeamPlanPreview() {
                 : `You are registered without a checkpoint, so there is nothing to rank yet. Send
                    us an endpoint, a container image or a model artifact whenever you have one.`}
             </p>
+            <p><a className="ms-text-link" href="/sites">Browse live and past tasks →</a></p>
             <p style={{ color: "var(--ms-muted)" }}>
               We have your details at {plan.email} and will come back to you when a site lands
               that fits — with the price and the reason, the same as you would have seen here.
@@ -297,10 +305,9 @@ export function RobotTeamPlanPreview() {
 
   return (
     <form className="ms-form" onSubmit={submit} aria-label="Tell us about your robot">
-      <h2 style={{ marginTop: 0 }}>Tell us about your robot</h2>
+      <h2 style={{ marginTop: 0 }}>Connect your robot setup</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        Five questions, none of which can turn you away. You will see which real sites we would run
-        against, what each costs, and why — before you pay anything.
+        Add a setup to check compatibility and get a priced plan. Nothing runs or is charged here.
       </p>
 
       <label htmlFor="plan-email">
@@ -372,10 +379,7 @@ export function RobotTeamPlanPreview() {
             <input id="plan-reference" name="planReference" type="text" maxLength={2000} />
           </label>
 
-          <label htmlFor="plan-label">
-            <span>Call it something (optional)</span>
-            <input id="plan-label" name="planLabel" type="text" maxLength={120} placeholder="v1" />
-          </label>
+
         </>
       ) : (
         <p className="ms-field-hint">

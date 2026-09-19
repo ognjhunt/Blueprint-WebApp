@@ -1,3 +1,4 @@
+import { NextTaskUpdate } from "./NextTaskUpdate";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
  *
@@ -22,6 +23,7 @@ import { useEffect, useState } from "react";
 interface LiveStatus {
   headline: string;
   stage: string | null;
+  nextUpdateIso?: string | null;
 }
 
 /** Pull the signed token out of the capture URL the submit handed back. */
@@ -48,7 +50,7 @@ export function CaptureLiveStatus({ captureUrl }: { captureUrl: string }) {
         if (response.ok) {
           const data = (await response.json()) as { status?: LiveStatus };
           if (alive && data?.status?.headline) {
-            setStatus({ headline: data.status.headline, stage: data.status.stage ?? null });
+            setStatus({ headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
           }
         }
       } catch {
@@ -82,6 +84,7 @@ export function CaptureLiveStatus({ captureUrl }: { captureUrl: string }) {
       <p className="ms-field-hint" style={{ marginTop: "4px" }}>
         {status.headline}
       </p>
+      <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
       <p className="ms-field-hint" style={{ marginTop: "4px", opacity: 0.8 }}>
         This updates on its own — you can leave it open, or close it and come back to the link.
       </p>

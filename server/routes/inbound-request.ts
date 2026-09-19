@@ -1,3 +1,4 @@
+import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import fs from "node:fs";
@@ -1828,6 +1829,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       .collection("inboundRequests")
       .doc(payload.requestId)
       .set(encryptedInboundRequest);
+
+    if (buyerType === "site_operator") {
+      try { await ensureTaskStatusUpdate(payload.requestId, "received"); }
+      catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule initial status update"); }
+    }
 
     // 8a. Draft the task brief, so there is something for the operator to
     // confirm. This is the entry point the Tier 2 mechanism was missing: the

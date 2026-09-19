@@ -1,3 +1,4 @@
+import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * A message that is not lost because the request that triggered it succeeded.
  *
@@ -40,12 +41,13 @@ export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
 /** What the message is about. Drives nothing here; for the record and metrics. */
 export type OutboxKind =
+  | "progress_update"
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"
   | "input_needed";
 
-export type OutboxStatus = "pending" | "sent" | "failed";
+export type OutboxStatus = "pending" | "sent" | "failed" | "cancelled";
 
 export interface OutboxEntry {
   idempotencyKey: string;
@@ -141,6 +143,8 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
   if (!db) return summary;
 
   const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
+  try { await enqueueDueTaskStatusUpdates(limit); }
+  catch (error) { logger.warn({ error }, "Could not enqueue due task updates"); }
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
     .where("status", "==", "pending")
@@ -151,6 +155,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const entry = doc.data() as OutboxEntry;
     summary.examined += 1;
 
+    if (!(await taskStatusUpdateIsCurrent(entry))) {
+      await doc.ref.set({ status: "cancelled" }, { merge: true });
+      continue;
+    }
     let result: Awaited<ReturnType<typeof sendEmail>>;
     try {
       result = await sendEmail({
@@ -168,6 +176,8 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         { status: "sent", sentAtIso: nowIso(), attempts: entry.attempts + 1, lastError: null },
         { merge: true },
       );
+      try { await acknowledgeTaskStatusUpdate(entry); }
+      catch (error) { logger.warn({ error }, "Status deadline will advance on the next reconciliation"); }
       summary.sent += 1;
       continue;
     }

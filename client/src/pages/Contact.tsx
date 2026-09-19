@@ -1,3 +1,5 @@
+import { isLikelyPhone } from "@/lib/device";
+import { TaskBrowse } from "@/components/site/TaskBrowse";
 /**
  * The contact screens, now screening.
  *
@@ -429,7 +431,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             <span className="ms-field-hint">
               Keep this link — it is how you come back to this submission.
             </span>
-            {!blocked && (
+            {!blocked && !isLikelyPhone() && (
               /*
                * Only when they can actually record. A code that carries someone
                * to a status page is a worse version of the link beside it.
@@ -767,6 +769,13 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
 export default function Contact() {
   const [location] = useLocation();
   const isSite = location !== "/contact/robot-team";
+  if (!isSite) return <>
+    <SEO title="Find a task for your robot | Blueprint" description="Browse live and past site tasks. Connect your robot setup when you choose an evaluation." canonical="/contact/robot-team" />
+    <section className="ms-container ms-task-page"><p className="ms-eyebrow">For robot teams</p>
+      <h1>Find work your robot could do.</h1><p>Browse live and past tasks. Choose a task before connecting your robot.</p>
+      <TaskBrowse />
+    </section>
+  </>;
   const title = isSite ? "Let’s start with your site." : "Bring your robot. Find the fit.";
   const description = isSite
     ? "A phone video of one work area is all we need to build the 3D scene robot teams evaluate against. It costs you nothing and nothing here can turn you away."

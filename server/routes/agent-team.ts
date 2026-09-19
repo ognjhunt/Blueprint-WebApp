@@ -482,6 +482,7 @@ router.get("/checkpoints", async (req: Request, res: Response) => {
 
 const planSchema = z
   .object({
+    sceneId: z.string().trim().min(1).max(200).optional(),
     checkpointId: z.string().trim().min(1).max(200),
     /** Defaults to whatever the team's daily limit still allows. */
     budgetUsd: z.number().finite().positive().max(100_000).optional(),
@@ -561,7 +562,7 @@ router.post("/plan", async (req: Request, res: Response) => {
   }
 
   const selection = selectEvalsForBudget({
-    candidates,
+    candidates: parsed.data.sceneId ? candidates.filter(candidate => candidate.sceneId === parsed.data.sceneId) : candidates,
     budgetUsd,
     maxRuns: parsed.data.maxRuns,
   });

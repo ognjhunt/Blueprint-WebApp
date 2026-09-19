@@ -1,3 +1,4 @@
+import taskListingsRouter from "./routes/task-listings";
 import type { Express } from "express";
 import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
 import googlePlacesHandler from "./routes/api/google-places";
@@ -145,6 +146,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/slack", slackEventsRouter);
+  app.use("/api/task-listings", taskListingsRouter);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);

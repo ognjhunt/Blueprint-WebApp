@@ -363,3 +363,43 @@
   .ms-price-table td { font-size: 14px; width: 22%; }
   .ms-price-table td:last-child { width: 20%; }
 }
+
+/* Task discovery: one list, a few filters, no dashboard chrome. */
+.ms-task-page { padding-block: 36px 64px; max-width: 920px; }
+.ms-task-page h1 { font-size: clamp(30px, 5vw, 48px); line-height: 1.12; letter-spacing: -1.4px; margin-bottom: 12px; }
+.ms-task-page > p { color: var(--ms-muted); margin-bottom: 28px; }
+.ms-task-filters { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-block: 28px 16px; }
+.ms-task-filters label { display: grid; gap: 8px; font-size: 14px; }
+.ms-task-filters input, .ms-task-filters select { width: 100%; min-width: 0; min-height: 44px; background: var(--ms-paper); border: 1px solid var(--ms-rule); padding: 10px; font-size: 16px; color: var(--ms-ink); }
+.ms-task-list { list-style: none; padding: 0; margin: 0; }
+.ms-task-list > li { padding-block: 24px; border-bottom: 1px solid var(--ms-rule); }
+.ms-task-list h2 { font-size: 24px; line-height: 1.3; margin-block: 12px; overflow-wrap: anywhere; }
+.ms-task-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--ms-muted); }
+.ms-task-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-block: 16px 24px; }
+.ms-task-facts dt { color: var(--ms-muted); font-size: 13px; }
+.ms-task-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.ms-task-interest { border-top: 1px solid var(--ms-rule); padding-block: 18px; margin-top: 24px; }
+.ms-task-interest summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
+.ms-task-preview { border-block: 1px solid var(--ms-rule); padding-block: 16px; margin-block: 16px; }
+.ms-check-row { display: flex !important; flex-direction: row !important; align-items: start; gap: 12px; }
+.ms-check-row input { width: 20px !important; height: 20px; min-height: 20px !important; flex-shrink: 0; margin-top: 3px; }
+.ms-task-empty { padding-block: 20px; }
+.ms-capture-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 20px; }
+@media (max-width: 600px) { .ms-task-filters { grid-template-columns: 1fr; gap: 12px; } .ms-task-page { padding-top: 24px; } }
+
+.ms-capture-body .ms-field-hint { color: var(--ms-muted); font-size: 14px; line-height: 1.6; }
+.ms-capture-body > .ms-button { margin-bottom: 20px; }
+.ms-capture-body .ms-task-interest { margin-top: 12px; padding-block: 8px; }
+.ms-capture-body label { line-height: 1.5; }
+.ms-capture-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { min-height: 44px; padding: 10px; border: 1px solid var(--ms-rule); font-size: 16px; }
+
+.ms-browse-filters { margin-block: 20px; }
+.ms-browse-filters summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.ms-browse-filters .ms-task-filters { margin-top: 8px; }
+
+.ms-task-heading { display: grid; grid-template-columns: minmax(0, 1fr) 216px; align-items: start; gap: 24px; }
+.ms-task-thumbnail { margin: 0; width: 100%; }
+.ms-task-thumbnail img, .ms-task-thumbnail svg { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; border: 1px solid var(--ms-rule); }
+.ms-task-thumbnail figcaption { font-size: 11px; color: var(--ms-muted); line-height: 1.4; margin-top: 5px; }
+.ms-thumbnail-editor img { width: 100%; max-width: 480px; height: auto; margin-block: 16px; border: 1px solid var(--ms-rule); }
+@media (max-width: 600px) { .ms-task-heading { grid-template-columns: minmax(0, 1fr) 112px; gap: 14px; } .ms-task-thumbnail figcaption { font-size: 10px; } .ms-task-list h2 { font-size: 21px; } }

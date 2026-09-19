@@ -1,3 +1,4 @@
+import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -546,6 +547,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         stage,
       }),
     );
+
+    try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
+    catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
 
     // Piggyback delivery on this poll, so a deployment with no scheduler still
     // sends. Never blocks or fails the status read.

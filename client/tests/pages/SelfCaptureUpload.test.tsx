@@ -68,7 +68,7 @@ describe("SelfCaptureUpload by device", () => {
     render(<SelfCaptureUpload />);
 
     expect(
-      await screen.findByRole("heading", { name: "This step happens on your phone." }),
+      await screen.findByRole("heading", { name: "Point your phone at this." }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy the link" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload a video file" })).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("SelfCaptureUpload by device", () => {
 
     expect(await screen.findByRole("button", { name: "Open the camera" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "This step happens on your phone." }),
+      screen.queryByRole("heading", { name: "Point your phone at this." }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy the link" })).not.toBeInTheDocument();
     expect(
