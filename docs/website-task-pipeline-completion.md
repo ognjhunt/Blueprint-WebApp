@@ -271,3 +271,21 @@ generation, Astra, packaging, and website preparation; Ruff and diff checks pass
 Both `codex/website-task-pipeline` work branches are now pushed. No merge,
 deployment, generated-object live execution, or walkthrough end-to-end result
 is claimed.
+
+
+MapAnything worker handoff continuation: CPU frame preparation is now separate
+from inference. The `website_scene_geometry prepare` command processed the
+owner-selected walkthrough into 13 candidate views (294 by 518 model pixels),
+retaining original pixels and excluding the three held-out frames from the
+portable worker input directory. Input digest:
+`sha256:ff03dc806695bcd33abb7d59151ec58b7554be7925a5ecad63e74577037b6ee5`.
+The `infer` command consumes that directory on a model-equipped worker.
+Returned geometry can move hosts and be consumed with
+`BLUEPRINT_WEBSITE_GEOMETRY_RESULT`, without local model weights, after checking
+the original video, input manifest, frame identities and all artifact hashes.
+47 focused geometry, clean-plate and mask tests passed, including relocated
+worker inputs/results and rejection of a different capture or measured-scale
+claim. The real walkthrough has prepared frames, not inferred depth yet.
+Worker installation/allocation and live inference remain open; the end-to-end
+completion count stays 0/14. WebApp PR #622 checks are all green at this point;
+neither draft PR has been merged or deployed.
