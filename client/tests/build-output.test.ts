@@ -215,25 +215,15 @@ describe("build output", () => {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
     expect(siteHtml).toContain("Let’s start with your site.");
-    // Was "paid evaluation". The site page leads with a camera now -- a phone
-    // video of one work area is all a reconstruction needs, and receiving it
-    // costs us nothing -- so what has to survive prerender is the footage
-    // deciding and the screen being available rather than required.
-    // The site page now leads with the job rather than the camera: a
-    // description is enough to get a task brief back, and footage they already
-    // hold is reused rather than re-shot.
-    expect(siteHtml).toContain("Tell us about one repetitive job.");
-    expect(siteHtml).toContain("nothing here can turn you away");
-    expect(siteHtml).toContain("Want the full read first");
-    // Budget moved into the spec tier behind the gates -- it is a matching
-    // parameter, not a screen. The persona distinction in prerendered HTML is
-    // the gate set itself.
-    //
-    // The site form opens on self-capture, where the service-area gate is not
-    // asked at all, so the markers are the capture-mode question (asked only of
-    // sites) and a gate that binds under every mode.
-    expect(siteHtml).toContain('id="capture-mode"');
-    expect(siteHtml).toContain('id="gate-sceneStability"');
+    // The published site form keeps the task and consent, without the retired
+    // screening interview. These assertions inspect actual prerendered HTML.
+    expect(siteHtml).toContain("What is the job?");
+    expect(siteHtml).toContain("Describe a repetitive job, then share footage of the work area.");
+    expect(siteHtml).toContain("How this works");
+    expect(siteHtml).toContain('id="start-self-recording"');
+    expect(siteHtml).toContain('id="start-region"');
+    expect(siteHtml).toContain('id="start-rights"');
+    expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find work your robot could do.");
     expect(robotHtml).toContain("Choose a task before connecting your robot.");
@@ -277,6 +267,6 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A pilot worth running.");
-    expect(browserJavaScript).toContain("what the footage shows is what decides");
+    expect(browserJavaScript).toContain("What the footage shows is what decides");
   });
 });
