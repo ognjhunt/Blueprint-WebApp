@@ -5,6 +5,7 @@ import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrie
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
+import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 
 const money = z.number().finite().positive().max(1000);
 const policySchema = z.object({
@@ -76,6 +77,56 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
     return authority;
+  }));
+}
+
+export const preparationSpendRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  resource_class: z.literal("evaluator_api"), provider: z.literal("meta"),
+  maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
+}).strict();
+
+/** Reserve the full quote once; retries never replenish the preparation cap. */
+export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>) {
+  const command = preparationSpendRequest.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const [request, brief] = await Promise.all([
+      transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+    ]);
+    if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
+    const record = request.data()!;
+    if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+    const authority = websiteSceneSponsorship({ requestId, record,
+      brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
+    if (command.task_context_digest !== authority.task_context_digest)
+      throw new Error("website_scene_sponsorship_binding_invalid");
+    if (sceneProviderTerms().meta?.digest !== authority.consent.provider_terms_reference)
+      throw new Error("provider_terms_not_configured_or_changed");
+    const reservations: Record<string, any> = record.website_preparation_reservations || {};
+    const key = command.allocation_binding_digest.slice(7);
+    if (reservations[key]) {
+      if (reservations[key].command_digest !== digest(command)) throw new Error("idempotency_conflict");
+      // Only the first transaction may dispatch. A retry on another worker
+      // cannot spend again just because it lacks the first worker's files.
+      return { ...reservations[key].admission, status: "already_reserved" };
+    }
+    const previous = Object.values(reservations);
+    const micros = (amount: number) => Math.ceil(amount * 1_000_000);
+    const reserved = previous.reduce((sum, row) => sum + micros(row.admission.maximum_cost_usd), 0);
+    const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
+    if (reserved + micros(command.maximum_cost_usd) > Math.floor(authority.upstream_max_spend_usd * 1_000_000)
+        || attempts + command.request_count > authority.max_paid_attempts)
+      throw new Error("website_scene_preparation_budget_exhausted");
+    const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
+      blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
+      expires_at_epoch: authority.expires_at_epoch };
+    transaction.update(ref, { website_preparation_reservations: { ...reservations,
+      [key]: { command_digest: digest(command), admission } } });
+    return admission;
   }));
 }
 

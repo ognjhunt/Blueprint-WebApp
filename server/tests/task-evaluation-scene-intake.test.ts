@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -274,7 +274,7 @@ function sponsoredCapture() {
     max_paid_attempts: 2, ttl_seconds: 3600, provider_terms_reference: sha("e"),
   });
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(Object.fromEntries(
-    ["vast", "openai"].map(provider => [provider, { digest: sha("e"), label: "terms", url: "https://example.com/terms" }])));
+    ["vast", "openai", "meta"].map(provider => [provider, { digest: sha("e"), label: "terms", url: "https://example.com/terms" }])));
   store.rows.set("inboundRequests/req1", { request: { consent_attestation: { granted: true,
     statement_version: "2026-09-18.v1", recorded_at_iso: new Date().toISOString() } } });
   store.rows.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Pick the box",
@@ -1186,4 +1186,22 @@ describe("registered public scene intake", () => {
     parsed.task.subject.description = "different object";
     expect(() => buildSceneIntake(parsed, sceneOwner({ uid: "owner" }), choice)).toThrow();
   });
+});
+
+
+it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 3, request_count: 1 };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  expect(first).toMatchObject({ status: "admitted", external_disclosure_allowed: true });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(Object.keys(store.rows.get("inboundRequests/req1").website_preparation_reservations)).toHaveLength(1);
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, maximum_cost_usd: 1 })).rejects.toThrow("idempotency_conflict");
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") })).rejects.toThrow("budget_exhausted");
+  await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2"), maximum_cost_usd: 2 });
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"), maximum_cost_usd: .001 })).rejects.toThrow("budget_exhausted");
+  store.rows.get("inboundRequests/req1").consent_revoked = true;
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("source_revoked");
 });

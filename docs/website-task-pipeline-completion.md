@@ -68,7 +68,7 @@ closeout for work already started.
 
 The native allowance is passed to that existing reservation machinery. The
 upstream allowance is reserved within the total policy, but **automatic
-MapAnything/SAM/image-edit/Marble admission from it remains to be connected**;
+MapAnything/image-edit/Marble admission from it remains to be connected**;
 the grant itself cannot replace their paid-resource admission checks.
 The approved development run retains its existing scoped allocator authority.
 
@@ -471,3 +471,23 @@ The MapAnything GPU run reached inference and exposed an adapter bug: requesting
 requests the upstream validity mask, with 22 focused geometry/worker tests passing.
 The failed instance was terminated and the provider confirmed zero resources
 before the corrected run. Runtime completion remains separately verified.
+
+
+Hosted SAM now consumes the Blueprint upstream allowance through the signed
+`preparation-spend` route and a transaction on the existing inbound request.
+Only the first reservation can dispatch; another worker receives
+`already_reserved`, so a missing local cache cannot cause a duplicate charge.
+Completed local responses can be reused without another reservation. Unknown
+submission outcomes stay held for reconciliation. Current capture consent,
+task digest, expiry and configured Meta provider terms are rechecked. The
+`meta` entry in `TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON` must match the
+sponsorship policy's terms digest. No production configuration was changed.
+
+The corrected MapAnything run is now **live verified** for the 13 retained
+walkthrough frames. Run `mapanything-vast-attempt-7` completed in 367 seconds,
+recorded $0.1066, retrieved output before teardown and verified provider zero.
+The production geometry reader checked the saved input/output hashes, frame
+mapping and depth/camera artifacts. Scale remains model-estimated, not measured.
+Evidence: Pipeline `output/website-task-pipeline/mapanything-vast-attempt-7/geometry-readback.json`
+and `adapter-result.json`. This closes the inference/transport check, not the
+full website-to-evaluation loop.

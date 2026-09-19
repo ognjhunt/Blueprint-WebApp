@@ -29,7 +29,8 @@ import {
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 import { getBrief } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
-import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
+  preparationSpendRequest, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, validateSceneProviderTerms } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
@@ -179,11 +180,12 @@ const sponsoredSceneRequest = z.object({
 
 // The Pipeline credential, current site consent and configured Blueprint cap
 // authorize preparation. No robot-team payment or site account is required.
-for (const operation of ["scene-sponsorship", "prepared-scene"] as const) router.post(
+for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spend"] as const) router.post(
   `/creator-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
-      scene_id: z.string(), ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}) })
+      scene_id: z.string(), ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
+      ...(operation === "preparation-spend" ? { spend: preparationSpendRequest } : {}) })
       .strict().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ code: "website_scene_request_invalid" });
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
@@ -193,6 +195,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene"] as const) router
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship");
       res.setHeader("Cache-Control", "no-store");
       if (operation === "scene-sponsorship") return res.json(authority);
+      if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
+        preparationSpendRequest.parse(req.body.spend)));
       const request = sponsoredSceneRequest.parse(req.body.request);
       validateWebsiteSponsoredIntake(request, authority);
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
