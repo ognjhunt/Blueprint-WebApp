@@ -162,6 +162,9 @@ test("the form posts structured gate answers rather than prose", async ({ page }
   await page.locator("#contact-email").fill("dana@example.com");
   await page.locator("#contact-company").fill("Riverside Logistics");
   await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
+  // The rights checkbox is a legal act, not paperwork: unchecked, the browser's
+  // own required-field validation blocks the submit before React ever sees it.
+  await page.locator("#contact-rights").check();
 
   await page.getByRole("button", { name: /Send inquiry/i }).click();
 
@@ -179,6 +182,11 @@ test("the form posts structured gate answers rather than prose", async ({ page }
   expect(payload.siteTaskSpec).toMatchObject({ cycleTime: "thirty_to_two_min" });
   expect(payload.buyerType).toBe("site_operator");
   expect(payload.taskDescription).toContain("Totes come off the conveyor");
+  // The grant this checkbox represents is a legal record, not a UI detail —
+  // pin that checking it actually reaches the request.
+  expect(payload.consentAttestation).toMatchObject({ granted: true });
+  expect(typeof payload.consentAttestation.statementVersion).toBe("string");
+  expect(payload.consentAttestation.statementVersion.length).toBeGreaterThan(0);
 });
 
 test("submission failure keeps the answers so a visitor can retry", async ({ page }) => {
@@ -207,6 +215,7 @@ test("submission failure keeps the answers so a visitor can retry", async ({ pag
   await page.locator("#contact-email").fill("dana@example.com");
   await page.locator("#contact-company").fill("Riverside Logistics");
   await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
+  await page.locator("#contact-rights").check();
   await page.getByRole("button", { name: /Send inquiry/i }).click();
 
   await expect(page.getByRole("alert")).toContainText(/Service temporarily unavailable/i);

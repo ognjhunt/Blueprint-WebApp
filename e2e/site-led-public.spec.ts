@@ -86,6 +86,9 @@ test("site inquiry validates, retains data on failure, then acknowledges a succe
   await page.locator("#contact-email").fill("person@example.com");
   await page.locator("#contact-company").fill("Test Site");
   await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
+  // Legal act, not paperwork: unchecked, the browser's own required-field
+  // validation blocks the submit before it ever reaches the route mock.
+  await page.locator("#contact-rights").check();
   await page.getByRole("button", { name: "Send inquiry" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.locator("#contact-company")).toHaveValue("Test Site");
@@ -114,6 +117,11 @@ test("robot application answers the robot gates, not the site's", async ({ page 
   await page.locator("#contact-name").fill("Test Engineer");
   await page.locator("#contact-email").fill("engineer@example.com");
   await page.locator("#contact-company").fill("Test Robotics");
+  // Both required on this form: the server has always required
+  // proofPathPreference, and role is real here (not the site path's optional
+  // stand-in) — either missing blocks native submit before React sees it.
+  await page.locator("#contact-role").fill("Deployment Engineer");
+  await page.locator("#proof-path").selectOption("adjacent_site_acceptable");
   const request = page.waitForRequest((req) => req.url().endsWith("/api/inbound-request") && req.method() === "POST");
   await page.route("**/api/inbound-request", async (route) => {
     await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ ok: true }) });
@@ -122,6 +130,10 @@ test("robot application answers the robot gates, not the site's", async ({ page 
   const payload = (await request).postDataJSON();
   expect(payload.buyerType).toBe("robot_team");
   expect(payload.siteTaskGates.hardwareMaturity).toBeTruthy();
+  // The server requires this field for a robot team; pin that the form
+  // actually sends it now instead of failing the request with a 400 for a
+  // field no screen asked.
+  expect(payload.proofPathPreference).toBe("adjacent_site_acceptable");
 });
 
 test("mobile navigation and keyboard-accessible method disclosure work", async ({ page }) => {
@@ -167,6 +179,7 @@ test("site owners can share task footage by link", async ({ page }) => {
   await page.locator("#contact-email").fill("video@example.com");
   await page.locator("#contact-company").fill("Test Site");
   await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
+  await page.locator("#contact-rights").check();
   let body: Record<string, any> = {};
   await page.route("**/api/inbound-request", async (route) => {
     body = route.request().postDataJSON();

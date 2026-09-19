@@ -34,6 +34,12 @@ function mockFetch() {
     if (url.includes("/status")) {
       return Promise.resolve({ ok: false, json: async () => ({}) });
     }
+    if (url.includes("/items")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }),
+      });
+    }
     return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
   });
 }
