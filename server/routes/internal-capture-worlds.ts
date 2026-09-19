@@ -27,6 +27,8 @@ import {
   type WorldReconstructionRecord,
 } from "../utils/worldReconstruction";
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
+import { getBrief } from "../utils/siteTaskBrief";
+import { loadWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import {
   enqueueTaskLifecycleNotification,
   reconstructionIsViewable,
@@ -119,6 +121,31 @@ function guard(req: Request, res: Response, next: () => void) {
   next();
 }
 
+// Read at preparation time: the owner may have confirmed after uploading.
+// The raw upload manifest remains immutable historical capture evidence.
+router.post(
+  "/creator-captures/:captureId/task-context",
+  createPipelineSyncRateLimiter(),
+  guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().trim().min(1).max(200),
+      scene_id: z.string().trim().min(1).max(220) }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "task_context_request_invalid" });
+    const { request_id: requestId, scene_id: sceneId } = parsed.data;
+    if (req.params.captureId !== `walkthrough-${requestId}` || sceneId !== `site-${requestId}`) {
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    }
+    try {
+      const brief = await getBrief(requestId);
+      if (!brief) return res.status(404).json({ code: "task_brief_missing" });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId)));
+    } catch {
+      return res.status(503).json({ code: "task_context_unavailable" });
+    }
+  },
+);
+
 router.post(
   "/creator-captures/:captureId/world/reconstruct",
   createPipelineSyncRateLimiter(),
@@ -134,6 +161,14 @@ router.post(
     const captureId = String(req.params.captureId || "").trim();
     if (!captureId) {
       return res.status(400).json({ error: "Capture id is required" });
+    }
+    if (captureId.startsWith("walkthrough-")) {
+      // The extraction trigger already publishes the Pipeline handoff. This
+      // older direct path must not buy a second world from unprepared frames.
+      return res.status(409).json({
+        code: "website_reconstruction_pipeline_owned",
+        error: "Website reconstruction follows confirmed task scene preparation in Pipeline.",
+      });
     }
 
     try {

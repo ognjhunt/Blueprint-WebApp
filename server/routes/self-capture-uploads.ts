@@ -46,6 +46,8 @@ import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
+import { getBrief } from "../utils/siteTaskBrief";
+import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 const router = Router();
 
@@ -199,6 +201,8 @@ export function buildBrowserCaptureManifest(input: {
   objectPath: string;
   video: BrowserVideoMetadata;
   sizeBytes: number;
+  taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
+  captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
 }): Record<string, unknown> {
   return {
     schema_version: "v1",
@@ -212,12 +216,18 @@ export function buildBrowserCaptureManifest(input: {
     // than demanding a job that never existed.
     site_submission_id: input.payload.requestId,
     request_id: input.payload.requestId,
+    ...(input.taskContext ? { site_task_context: {
+      schema_version: "website_site_task_context.v1",
+      request_id: input.payload.requestId,
+      ...input.taskContext,
+    } } : {}),
     video_uri: input.objectPath,
     // Not a device we ever saw. Naming it for what it is beats inventing a
     // handset model to satisfy a required string.
     device_model: "browser_self_capture",
     os_version: "unknown",
     capture_source: "browser_self_capture",
+    capture_rights: input.captureRights ?? projectWebsiteCaptureRights(undefined),
     capture_tier_hint: "video_only",
     has_lidar: false,
     fps_source: input.video.fps,
@@ -345,11 +355,20 @@ async function finishStoredCapture(params: {
   }
   const bucket = storageAdmin.bucket(storageBucketName());
 
+  // Preserve the owner's task alongside the original capture. Upload can finish
+  // before confirmation; Pipeline must hold preparation until it is confirmed.
+  const brief = await getBrief(payload.requestId);
   const manifest = buildBrowserCaptureManifest({
     payload: payload as never,
     objectPath,
     video: params.videoMetadata,
     sizeBytes: params.sizeBytes,
+    captureRights: await loadWebsiteCaptureRights(payload.requestId),
+    taskContext: {
+      description: brief?.summary ?? "",
+      confirmed: Boolean(brief?.confirmedAtIso),
+      confirmed_at: brief?.confirmedAtIso ?? null,
+    },
   });
 
   try {

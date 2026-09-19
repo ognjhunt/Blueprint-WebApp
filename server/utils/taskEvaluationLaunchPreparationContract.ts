@@ -215,6 +215,27 @@ export const rigidDestinationSchema = z.object({
   provider_disclosure_allowed: z.literal(true),
 }).strict();
 
+export const surfaceTargetSchema = z.object({
+  schema_version: z.literal("task_evaluation_surface_target.v1"),
+  shape: z.literal("flat_green_disc"),
+  visible_label: z.string().min(1).max(192),
+  radius_m: z.number().finite().positive().max(0.5),
+  surface_position_world_m: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+  support_prim_path: z.string().min(1).max(512).startsWith("/"),
+  support_source_instance_id: z.string().min(1).max(512),
+  non_colliding: z.literal(true),
+  stable_seconds: z.number().finite().positive(),
+  maximum_linear_speed_m_s: z.number().finite().positive(),
+  maximum_angular_speed_rad_s: z.number().finite().positive(),
+  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  target_digest: digest,
+}).strict().superRefine((value, context) => {
+  if (canonicalArtifactDigest(value, "target_digest") !== value.target_digest) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "surface target digest does not match its placement and success criteria",
+  });
+});
+
 const taskSchema = z.object({
   identity: versionedIdentity,
   binding_mode: z.enum(["define_configuration_template", "reuse_configured_template"]),
@@ -223,6 +244,7 @@ const taskSchema = z.object({
   configured_scene_revision_digest: digest.optional(),
   subject: taskSubjectSchema,
   destination: rigidDestinationSchema.optional(),
+  surface_target: surfaceTargetSchema.optional(),
   definition: immutableReference.optional(),
   success_criteria: immutableReference.optional(),
   execution: immutableReference.optional(),
@@ -246,7 +268,12 @@ const taskSchema = z.object({
       message: "episode evaluation cannot replace configured task semantics",
     });
   }
-  if (value.strategy === "pick_and_place") {
+  if (value.surface_target) {
+    if (value.destination || value.strategy !== "pick_and_place") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "surface targets require pick-and-place and cannot add a destination asset",
+    });
+  } else if (value.strategy === "pick_and_place") {
     const orientation = value.destination?.pose_world.orientation_xyzw;
     const norm = orientation?.reduce((total, component) => total + component ** 2, 0);
     if (
@@ -416,6 +443,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     });
     if (
       value.task.strategy === "pick_and_place"
+      && !value.task.surface_target
       && (!value.task.destination?.native_probe
         || value.task.destination.placement_qualification)
     ) context.addIssue({
@@ -424,6 +452,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
     });
     if (
       value.task.strategy === "pick_and_place"
+      && !value.task.surface_target
       && (value.task.destination?.native_import_qualification
         || value.task.destination?.geometry)
     ) context.addIssue({
@@ -496,7 +525,7 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation requires configured scene, robot, and controller bindings",
     });
-    if (value.task.strategy === "pick_and_place") {
+    if (value.task.strategy === "pick_and_place" && !value.task.surface_target) {
       if (
         !value.task.destination?.native_import_qualification
         || !value.task.destination?.geometry
@@ -517,6 +546,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
         message: "episode evaluation requires the native placement qualification",
       });
     }
+    if (value.task.surface_target && value.run_mode === "destination_qualification") context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "an existing surface has no separate destination asset to qualify",
+    });
     if (value.execution_adapter.kind !== "native_task_arena") context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "episode evaluation requires production native-Arena compilation",
