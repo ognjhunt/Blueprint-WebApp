@@ -42,6 +42,35 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 - App Clip, duplicate full reconstructions, DA3, premium exports and custom CAD
   are conditional, not mandatory dependencies when existing inputs suffice.
 - VIP must be absent from the new website path. Legacy receipts remain readable.
+- Blueprint funds capped scene preparation; a robot-team purchase is not its
+  authorization gate. Capture consent remains separate from Blueprint spending.
+
+### Website preparation sponsorship
+
+`BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` configures the Blueprint service
+owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
+`upstream_max_spend_usd` and `native_max_spend_usd` allowances,
+`max_paid_attempts`, `ttl_seconds` (at most one day), and
+`provider_terms_reference`. The two allowances cannot exceed the total.
+This is server configuration, never an upload form field. Missing configuration
+holds automatic preparation; it does not request payment from the site owner.
+
+The signed `scene-sponsorship` endpoint retains one grant on the existing
+inbound request, bound to the current confirmed task and recorded capture
+consent. Replays preserve its budget and expiry. Pipeline keeps this private
+control record separate from the task context sent to models. Once the prepared
+source is registered, its `prepared-scene` callback records the exact request
+in the existing scene-intake outbox. That worker rechecks sponsorship and
+provider terms, then uses the existing authenticated Pipeline intake and
+reservation machinery. No local registration pretends to authenticate a caller.
+Withdrawal of site consent revokes future execution while retaining result
+closeout for work already started.
+
+The native allowance is passed to that existing reservation machinery. The
+upstream allowance is reserved within the total policy, but **automatic
+MapAnything/SAM/image-edit/Marble admission from it remains to be connected**;
+the grant itself cannot replace their paid-resource admission checks.
+The approved development run retains its existing scoped allocator authority.
 
 ## Evidence log
 
