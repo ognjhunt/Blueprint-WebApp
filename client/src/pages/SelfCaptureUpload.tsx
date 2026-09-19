@@ -226,7 +226,6 @@ export default function SelfCaptureUpload() {
   // ask, so it is offered, not required. Either way the objects themselves come
   // from the item photos, not this walkthrough. Purely a client hint that steers
   // the filming guidance; it changes nothing about how the video is stored.
-  const [clearItems, setClearItems] = useState<"in_place" | "cleared">("in_place");
 
   // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
   // the capture-blocking gates change what to film; if one of those is still
@@ -667,51 +666,9 @@ export default function SelfCaptureUpload() {
                 onSaved={() => setUpload({ status: "done" })}
               />
 
-              {/* The clean-plate option. Clearing the loose items and filming the
-                  empty space rebuilds cleaner than filming around them and having
-                  to remove them later -- but it is a real ask, so it is offered,
-                  not required. Either way the items come from the photos below. */}
-              <fieldset style={{ border: "none", padding: 0, margin: "16px 0 0" }}>
-                <legend className="ms-field-hint" style={{ padding: 0, marginBottom: "6px" }}>
-                  Can you move the loose items out of the way first?
-                </legend>
-                <label htmlFor="cap-in-place" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                  <input
-                    id="cap-in-place"
-                    type="radio"
-                    name="clear-items"
-                    checked={clearItems === "in_place"}
-                    onChange={() => setClearItems("in_place")}
-                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ fontWeight: 400 }}>No — film it as it normally is</span>
-                </label>
-                <label htmlFor="cap-cleared" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px" }}>
-                  <input
-                    id="cap-cleared"
-                    type="radio"
-                    name="clear-items"
-                    checked={clearItems === "cleared"}
-                    onChange={() => setClearItems("cleared")}
-                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ fontWeight: 400 }}>Yes — I’ll clear it and film the empty space</span>
-                </label>
-              </fieldset>
-
-              {/* Coverage is about occlusion, not thoroughness: whatever the camera
-                  never sees gets guessed, so the instruction is overlap and angles,
-                  not "a lap". And the pass is static -- motion is a ghost in the
-                  result. */}
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
-                {clearItems === "cleared"
-                  ? "Clear the loose items, then film the empty space. Move slowly and overlap your "
-                    + "passes — cover every surface from a few heights, especially right around where "
-                    + "the work happens. Keep it still: no people, nothing moving. Photograph the "
-                    + "items themselves below."
-                  : "Move slowly and overlap your passes — cover every surface from a few heights, "
-                    + "especially right around where the work happens. Keep the scene still: no people "
-                    + "or moving items in frame."}
+                Move slowly and overlap your passes. Cover every surface near where the work
+                happens, from a few heights. Keep the scene still, with nobody in frame.
               </p>
             </>
           )}
@@ -720,7 +677,7 @@ export default function SelfCaptureUpload() {
             <>
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 {onAPhone
-                  ? "Already have a video? Upload it instead — if it covers the work area we will use it rather than ask you to film again."
+                  ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
 
