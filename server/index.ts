@@ -485,7 +485,12 @@ app.use((req, res, next) => {
   if (app.get("env") === "development" && !staticBrowserTest) {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    serveStatic(
+      app,
+      staticBrowserTest && process.env.BLUEPRINT_E2E_STATIC_DIR
+        ? path.resolve(process.env.BLUEPRINT_E2E_STATIC_DIR)
+        : undefined,
+    );
   }
 
   const PORT = env.PORT;

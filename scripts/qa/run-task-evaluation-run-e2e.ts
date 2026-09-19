@@ -33,6 +33,9 @@ const child = spawn(
       ...process.env,
       PLAYWRIGHT_PORT: String(port),
       VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH: "1",
+      ...(process.env.BLUEPRINT_E2E_STATIC === "1"
+        ? { BLUEPRINT_E2E_STATIC_DIR: "dist/e2e-auth-public" }
+        : {}),
       BLUEPRINT_TASK_EVAL_E2E: "1",
       BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER: "1",
     },
