@@ -115,7 +115,6 @@ export function CaptureRecorder(props: {
   onSaved?: () => void;
 }) {
   const [state, setState] = useState<State>({ status: "idle" });
-  const [ticked, setTicked] = useState<Set<string>>(new Set());
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -135,6 +134,9 @@ export function CaptureRecorder(props: {
   // retried or dropped part made it wrong.
   const measuredFpsRef = useRef<number | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
+  // Read when recording starts. By completion the stream is stopped, and on
+  // iOS the preview element then reports 0x0, which the server refuses.
+  const dimensionsRef = useRef<{ widthPx: number; heightPx: number } | null>(null);
   /**
    * The drain that is actually running, if any. `finish` has to wait for the
    * drain that a chunk callback started — calling `drainQueue` directly there
@@ -313,6 +315,9 @@ export function CaptureRecorder(props: {
         ? Math.round(settings.frameRate * 100) / 100
         : null;
     recordingStartedAtRef.current = Date.now();
+    const widthPx = settings?.width || videoRef.current?.videoWidth || 0;
+    const heightPx = settings?.height || videoRef.current?.videoHeight || 0;
+    dimensionsRef.current = widthPx && heightPx ? { widthPx, heightPx } : null;
 
     const recorder = new MediaRecorder(stream, { mimeType: mimeRef.current });
     recorderRef.current = recorder;
@@ -377,8 +382,8 @@ export function CaptureRecorder(props: {
           extension: "mp4",
           sizeBytes: sentBytesRef.current,
           metadata: {
-            widthPx: video?.videoWidth ?? 0,
-            heightPx: video?.videoHeight ?? 0,
+            widthPx: dimensionsRef.current?.widthPx || video?.videoWidth || 0,
+            heightPx: dimensionsRef.current?.heightPx || video?.videoHeight || 0,
             // Measured off the camera track at record start; the 30 here is
             // the last resort for a browser that reports no frameRate at
             // all, not the default answer it used to be.
@@ -475,43 +480,14 @@ export function CaptureRecorder(props: {
     );
   }
 
+  // What to show, as one line the person can glance at while filming. Nothing
+  // here is ticked or verified; at one frame a second nothing we run could tell.
+  const shotLine = props.checklist.length > 0 && (
+    <p className="ms-field-hint">Show: {props.checklist.map((item) => item.label).join(" · ")}</p>
+  );
+
   return (
     <div className="ms-form" aria-live="polite">
-      {/* The checklist is the operator's, not ours. Each item is ticked by the
-          person who filmed it, because at one frame a second nothing we could
-          run would know a pallet had been shown -- and a progress bar that
-          guesses is worse than a short honest one. */}
-      {props.checklist.length > 0 && (
-        <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
-          <legend className="ms-field-hint" style={{ padding: 0 }}>
-            What to show. Tick each one as you film it — we are not guessing.
-          </legend>
-          {props.checklist.map((item) => (
-            <label
-              key={item.id}
-              htmlFor={`shot-${item.id}`}
-              style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}
-            >
-              <input
-                id={`shot-${item.id}`}
-                type="checkbox"
-                checked={ticked.has(item.id)}
-                onChange={(event) =>
-                  setTicked((current) => {
-                    const next = new Set(current);
-                    if (event.target.checked) next.add(item.id);
-                    else next.delete(item.id);
-                    return next;
-                  })
-                }
-                style={{ width: "auto", minHeight: 0 }}
-              />
-              <span style={{ fontWeight: 400 }}>{item.label}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
-
       <video
         ref={videoRef}
         playsInline
@@ -540,6 +516,7 @@ export function CaptureRecorder(props: {
           <p className="ms-field-hint">
             Film the work, not the worker. Keep this page open while it uploads.
           </p>
+          {shotLine}
         </>
       )}
 
@@ -553,6 +530,7 @@ export function CaptureRecorder(props: {
             {state.sentParts === 1 ? "" : "s"} saved so far. Finish whenever you have shown what
             you need to; there is no minimum length.
           </p>
+          {shotLine}
         </>
       )}
 
