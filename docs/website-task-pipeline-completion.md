@@ -441,3 +441,33 @@ run identifier. All 90 affected tests passed; changed-file Ruff and diff checks
 passed. The website execution-authority producer and live provider runs remain
 open. This is code-path verification; the walkthrough remains **0/14 end-to-end
 verified**.
+
+### First visual scene and hosted SAM (September 19)
+
+The owner can now claim the site as soon as the reconstruction is viewable,
+with “Save your scene and follow progress.” Pipeline publishes the completed
+World Labs viewer and thumbnail through a signed `visual-scene` callback before
+asset downloads or native construction. WebApp rechecks the confirmed task and
+current capture consent. This milestone does not set simulation or evaluation
+readiness. Focused WebApp coverage: 15 tests, typecheck clean; graphify refreshed.
+
+Website SAM now prefers the Meta Model API (`sam-3.1`). Credentials resolve from
+`META_MODEL_API_KEY`, the canonical `META_MODEL_API_KEY_FILE` override, the
+configured provider secrets directory, or `~/.blueprint-secrets/meta_model_api_key`.
+The official CPU-only mask parser is pinned. Requests retain source-frame
+identity, require bound spend/disclosure admission, and do not automatically
+repeat a submission with an uncertain outcome. Explicit `BLUEPRINT_WEBSITE_SAM31_PROVIDER=local`
+retains the prior GPU profile path; provider failures never silently switch lanes.
+
+The supplied Meta key completed real video and image requests. They returned no
+matches for the selected blue-container prompt, so usable task masks remain
+unverified. Video responses reported 50 processed frames even for short retained
+clips; the adapter conservatively reserves at least 50 frames per request and
+checks reported usage. Pricing reference: https://dev.meta.ai/docs/pricing-rate-limits#sam-pricing.
+No measured Meta latency or mask-quality claim is made.
+
+The MapAnything GPU run reached inference and exposed an adapter bug: requesting
+`apply_mask=False` omits the mask field that the geometry writer requires. It now
+requests the upstream validity mask, with 22 focused geometry/worker tests passing.
+The failed instance was terminated and the provider confirmed zero resources
+before the corrected run. Runtime completion remains separately verified.
