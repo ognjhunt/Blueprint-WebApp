@@ -65,7 +65,12 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const apply = (data: InventoryResponse) => {
-    setItems(data.items);
+    // The panel now mounts alongside the recorder/handoff, not only after a
+    // saved capture, so a response that does not match InventoryResponse
+    // (a stale cache entry, a proxy error page, a mock that never modeled
+    // this endpoint) must not leave `items` as anything but an array — the
+    // render below treats non-null as "safe to call .length on".
+    setItems(Array.isArray(data.items) ? data.items : []);
     if (Array.isArray(data.requestedShots)) setRequestedShots(data.requestedShots);
   };
 

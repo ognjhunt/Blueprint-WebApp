@@ -82,6 +82,20 @@ describe("the operator sees the items and their coverage", () => {
   });
 });
 
+describe("a response that does not match the inventory contract", () => {
+  it("shows the empty state instead of crashing when items is missing", async () => {
+    // The panel now mounts alongside the recorder/handoff (not only after a
+    // saved capture), so it can hit a stale cache entry, a proxy error page,
+    // or a route that never modeled this endpoint — none of which carry an
+    // `items` array. This pins that such a response degrades to "no items"
+    // rather than throwing past the `items.length` read.
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    render(<TaskItemsPanel token="tok" scope="owner" />);
+
+    expect(await screen.findByText(/No items yet/)).toBeInTheDocument();
+  });
+});
+
 describe("scope decides what the link may do", () => {
   it("a film-only link can add photos but cannot change the list", async () => {
     fetchMock.mockResolvedValueOnce(inventory([tote()]));
