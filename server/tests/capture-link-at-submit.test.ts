@@ -38,6 +38,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
+  const { Writable } = await import("node:stream");
   return {
     default: {
       firestore: {
@@ -53,6 +54,22 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
         file: (path: string) => ({
           save: async (body: unknown) => {
             written.set(path, typeof body === "string" ? body : "<binary>");
+          },
+          // The route now streams uploads to disk-backed temp files and into
+          // storage through a write stream, so the fake has to speak that
+          // surface too. The bytes are recorded, not kept.
+          createWriteStream: () => {
+            const chunks: Buffer[] = [];
+            return new Writable({
+              write(chunk, _encoding, callback) {
+                chunks.push(Buffer.from(chunk));
+                callback();
+              },
+              final(callback) {
+                written.set(path, "<binary>");
+                callback();
+              },
+            });
           },
         }),
       }),

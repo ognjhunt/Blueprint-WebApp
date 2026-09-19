@@ -80,6 +80,17 @@ function fillContact() {
   });
 }
 
+/**
+ * The rights checkbox is required and blocks submission — it is a legal act,
+ * and the grant is what the server records. A site submission that has not
+ * made it does not happen.
+ */
+function tickRightsCheckbox() {
+  fireEvent.click(
+    screeningForm().getByLabelText(/I am authorised to record this site/i),
+  );
+}
+
 function sentBody() {
   return JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
 }
@@ -96,16 +107,18 @@ describe("Minimal public screening", () => {
     fireEvent.change(document.querySelector("#prose-taskDescription")!, {
       target: { value: "Totes move from the conveyor to a pallet." },
     });
+    tickRightsCheckbox();
     fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
 
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/inbound-request",
-      expect.objectContaining({
-        method: "POST",
-        credentials: "include",
-        headers: expect.objectContaining({ "X-CSRF-Token": "test-token" }),
-      }),
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/inbound-request",
+        expect.objectContaining({
+          method: "POST",
+          credentials: "include",
+          headers: expect.objectContaining({ "X-CSRF-Token": "test-token" }),
+        }),
+      ),
     );
 
     const body = sentBody();
@@ -114,6 +127,13 @@ describe("Minimal public screening", () => {
     expect(body.buyerType).toBe("site_operator");
     expect(body.firstName).toBe("Test");
     expect(body.taskDescription).toContain("Totes move from the conveyor");
+    // The region and the recorded rights grant ride along: the region decides
+    // whether a camera link can mint, and the attestation is the legal act.
+    expect(body.captureRegion).toBe("us");
+    expect(body.consentAttestation).toEqual({
+      granted: true,
+      statementVersion: "2026-09-18.v1",
+    });
   });
 
   it("shows a blocked site what would flip it, before it submits", async () => {
@@ -170,7 +190,13 @@ describe("Minimal public screening", () => {
     fireEvent.submit(screen.getByRole("form", { name: /screening questions/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/complete all required fields/i);
-    expect(fetch).not.toHaveBeenCalled();
+    // The lead pipeline is never called. (The analytics events that observe
+    // the refusal do go out over fetch, so the assertion is on the specific
+    // endpoint rather than on fetch as a whole.)
+    expect(fetch).not.toHaveBeenCalledWith(
+      "/api/inbound-request",
+      expect.anything(),
+    );
   });
 
   it("retains what was typed when the submission fails", async () => {
@@ -188,6 +214,7 @@ describe("Minimal public screening", () => {
     fireEvent.change(document.querySelector("#prose-taskDescription")!, {
       target: { value: "Totes move from the conveyor to a pallet." },
     });
+    tickRightsCheckbox();
     fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/Service temporarily unavailable/i);

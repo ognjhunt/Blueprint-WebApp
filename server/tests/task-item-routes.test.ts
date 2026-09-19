@@ -18,11 +18,27 @@ const savedObjects: { path: string; bytes: number }[] = [];
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
+  const { Writable } = await import("node:stream");
   const storageAdmin = {
     bucket: () => ({
       file: (path: string) => ({
         save: async (buffer: Buffer) => {
           savedObjects.push({ path, bytes: buffer.length });
+        },
+        // The upload routes stream disk-backed files into storage now, so the
+        // fake speaks the write-stream surface as well as `.save`.
+        createWriteStream: () => {
+          const chunks: Buffer[] = [];
+          return new Writable({
+            write(chunk, _encoding, callback) {
+              chunks.push(Buffer.from(chunk));
+              callback();
+            },
+            final(callback) {
+              savedObjects.push({ path, bytes: Buffer.concat(chunks).length });
+              callback();
+            },
+          });
         },
       }),
     }),

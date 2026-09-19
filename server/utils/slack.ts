@@ -355,6 +355,41 @@ export async function sendSlackMessage(
   }
 }
 
+/**
+ * Tell the inbound channel a capture is stuck on privacy and needs a person.
+ *
+ * The escalation flag on the request is the record; this is the bell. The flag
+ * alone had zero consumers, which meant footage could sit in the bucket — no
+ * marker, no extraction, invisible outside server logs — while the code
+ * promised that "a person" would look at it. Same webhook the lead pipeline
+ * uses, because that is the channel ops actually reads.
+ */
+export async function notifySlackCapturePrivacyEscalation(options: {
+  requestId: string;
+  reason: string;
+  attempts?: number;
+}): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl =
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+
+  if (!webhookUrl) {
+    logger.warn(
+      { requestId: options.requestId },
+      "No Slack webhook configured; privacy escalation has no bell"
+    );
+    return { sent: false };
+  }
+
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
+  const attemptsPart =
+    options.attempts !== undefined ? ` after ${options.attempts} attempts` : "";
+  const text =
+    `:triangular_flag_on_post: *Capture held for privacy review needs a person*` +
+    `${attemptsPart} — request \`${options.requestId}\`\n${options.reason}\nOpen: ${adminUrl}`;
+
+  return sendSlackMessage(text, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {

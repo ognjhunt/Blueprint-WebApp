@@ -62,7 +62,16 @@ import {
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
+import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+
+/**
+ * Same sentence version the screening form records: the attestation names the
+ * exact rights sentence the operator agreed to. Keep the two in lockstep —
+ * bump both together whenever either wording changes.
+ */
+const RIGHTS_STATEMENT_VERSION = "2026-09-18.v1";
+const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
 
 type State =
   | { status: "idle" }
@@ -99,6 +108,9 @@ export function SiteCaptureStart() {
   // reaches an ops lead at a desk — we send the record-only link straight to
   // whoever is on the floor. Blank means the submitter is filming.
   const [filmerContact, setFilmerContact] = useState("");
+  // The rights checkbox is tracked so the grant itself is transmitted — a
+  // required-only checkbox was a legal act the server never heard about.
+  const [consent, setConsent] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,6 +153,15 @@ export function SiteCaptureStart() {
           captureRegion: region,
           hasExistingFootage: hasFootage,
           filmerContact: filmerContact.trim() || undefined,
+          // The grant, not just the ticked box: recorded server-side with the
+          // sentence version, or the submission is refused.
+          consentAttestation: {
+            granted: consent,
+            statementVersion: RIGHTS_STATEMENT_VERSION,
+          },
+          // Bot bait: hidden from people; a filled value is a bot and the
+          // server answers it with a fake success.
+          honeypot: read("honeypot") || undefined,
           context: {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
@@ -153,6 +174,7 @@ export function SiteCaptureStart() {
       };
 
       if (!response.ok) {
+        analyticsEvents.contactFormError("capture_start");
         setState({
           status: "failed",
           message:
@@ -160,6 +182,22 @@ export function SiteCaptureStart() {
             || "We could not save that. Please try again, or email hello@tryblueprint.io.",
         });
         return;
+      }
+
+      analyticsEvents.contactFormSubmit("capture_start");
+      // The screening form lower on the page shares this storage: nobody
+      // types their identity twice on one page.
+      try {
+        window.sessionStorage.setItem(
+          CONTACT_IDENTITY_STORAGE_KEY,
+          JSON.stringify({
+            name: read("startName"),
+            email,
+            company: read("startCompany"),
+          }),
+        );
+      } catch {
+        // Storage can be full or blocked; the forms still work untied.
       }
 
       setState({
@@ -373,16 +411,32 @@ export function SiteCaptureStart() {
         </label>
       </div>
 
+      {/* Bot bait: hidden from people, honoured by the server. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        <label htmlFor="start-website-hp">Leave this field empty</label>
+        <input
+          id="start-website-hp"
+          name="honeypot"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
+
       <label htmlFor="start-rights" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
         <input
           id="start-rights"
           name="startRights"
           type="checkbox"
           required
+          checked={consent}
+          onChange={(event) => setConsent(event.target.checked)}
           style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
         />
         {/* The only thing on this form that blocks, because it is a legal act
-            rather than a judgement about whether the site is any good. */}
+            rather than a judgement about whether the site is any good. The
+            grant is transmitted and stored with the sentence version — a tick
+            the server never heard about protects nobody. */}
         <span style={{ fontWeight: 400 }}>
           I am authorised to record this site and to let Blueprint use the recording to build a
           scene robot teams can evaluate against.

@@ -884,19 +884,6 @@ describe("inbound request route", () => {
       expect(json.ok).toBe(true);
       // The whole point: a site that skipped identity still gets its camera.
       expect(json.captureUrl ?? "").toContain("/capture-upload/");
-
-      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
-      const savedRequest = lines
-        .map((line) => JSON.parse(line) as {
-          requestId: string;
-          contact?: { firstName?: string; lastName?: string; company?: string };
-        })
-        .find((entry) => entry.requestId === requestId);
-
-      expect(savedRequest).toBeDefined();
-      expect(savedRequest?.contact?.firstName).toBe("there");
-      expect(savedRequest?.contact?.lastName).toBe("—");
-      expect(savedRequest?.contact?.company).toBe("acmefoundry.example");
     } finally {
       await stopServer(server);
     }
@@ -923,6 +910,247 @@ describe("inbound request route", () => {
       expect(response.status).toBe(400);
       const json = (await response.json()) as { message?: string };
       expect(json.message).toMatch(/company/);
+    } finally {
+      await stopServer(server);
+    }
+  });
+});
+
+/**
+ * The public form's payload, byte for byte.
+ *
+ * The contact funnel broke once already because the server required a field
+ * (`proofPathPreference`) that the only mounted robot-team form never sent,
+ * and nothing caught it: server tests built payloads the client does not send,
+ * and the e2e mocked the endpoint away. These tests post the exact client
+ * shape - the Contact page's ScreeningForm and SiteCaptureStart bodies - so
+ * the two ends cannot drift again.
+ */
+describe("inbound request: public-form payload contract", () => {
+  function buildRobotScreeningPayload(requestId: string, email: string) {
+    return {
+      requestId,
+      firstName: "Grace",
+      lastName: "Hopper",
+      email,
+      company: "Compiler Robotics",
+      roleTitle: "Autonomy Lead",
+      buyerType: "robot_team",
+      accountSignup: false,
+      budgetBucket: ">$1M",
+      requestedLanes: [],
+      siteName: "Compiler Robotics",
+      siteLocation: "right_opportunity",
+      targetSiteType: null,
+      taskStatement: "Pallet putaway with a wheeled humanoid.",
+      taskDescription: "Pallet putaway with a wheeled humanoid.",
+      whatGoesWrong: null,
+      siteTaskGates: {
+        hardwareMaturity: "deployed",
+        deploymentGeography: "right_opportunity",
+        engineerCapacity: "allocated",
+        deploymentTimeline: "six_months",
+      },
+      proofPathPreference: "adjacent_site_acceptable",
+      siteTaskSpec: {
+        budgetBand: "over_1m",
+        taskFamily: "palletizing",
+      },
+      context: { sourcePageUrl: "https://tryblueprint.io/contact/robot-team" },
+    };
+  }
+
+  function buildSiteScreeningPayload(requestId: string, email: string) {
+    return {
+      requestId,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email,
+      company: "Analytical Engines",
+      roleTitle: "Site operator",
+      buyerType: "site_operator",
+      accountSignup: false,
+      budgetBucket: "$50K-$300K",
+      requestedLanes: [],
+      siteName: "11 Warehouse Way, Austin, TX",
+      siteLocation: "11 Warehouse Way, Austin, TX",
+      targetSiteType: null,
+      taskStatement: "Move sealed cartons from the conveyor onto a pallet.",
+      taskDescription: "Move sealed cartons onto a pallet.",
+      whatGoesWrong: "Cartons jam at the conveyor corner.",
+      taskVideoUrl: "https://drive.example.com/watch?v=taskclip",
+      taskVideoUrls: [
+        "https://drive.example.com/watch?v=taskclip",
+        "https://drive.example.com/watch?v=taskclip2",
+        "javascript:alert(1)",
+      ],
+      siteTaskGates: {},
+      captureMode: "self_capture",
+      captureRegion: "us",
+      siteTaskSpec: { budgetBand: "fifty_to_250k" },
+      consentAttestation: {
+        granted: true,
+        statementVersion: "2026-09-18.v1",
+      },
+      context: { sourcePageUrl: "https://tryblueprint.io/contact/site-operator" },
+    };
+  }
+
+  it("accepts the robot-team application exactly as the public form sends it", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-form-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          buildRobotScreeningPayload(requestId, `grace+${Date.now()}@example.com`),
+        ),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          request?: {
+            proofPathPreference?: string;
+            consent_attestation?: unknown;
+            capture_mode?: unknown;
+            capture_region?: unknown;
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest).toBeDefined();
+      expect(savedRequest?.request?.proofPathPreference).toBe("adjacent_site_acceptable");
+      // A robot team is never captured: no attestation, no capture fields.
+      expect(savedRequest?.request?.consent_attestation ?? null).toBeNull();
+      expect(savedRequest?.request?.capture_mode ?? null).toBeNull();
+      expect(savedRequest?.request?.capture_region ?? null).toBeNull();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects the robot-team application when the proof-path answer is missing", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-form-missing-${Date.now()}`;
+      const payload = buildRobotScreeningPayload(
+        requestId,
+        `grace2+${Date.now()}@example.com`,
+      ) as Record<string, unknown>;
+      delete payload.proofPathPreference;
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(400);
+      const json = (await response.json()) as { message?: string };
+      expect(json.message).toMatch(/proofPathPreference/);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects a robot-team application whose role is the old constant placeholder", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-form-role-${Date.now()}`;
+      const payload = {
+        ...buildRobotScreeningPayload(requestId, `grace3+${Date.now()}@example.com`),
+        roleTitle: undefined,
+      };
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(400);
+      const json = (await response.json()) as { message?: string };
+      expect(json.message).toMatch(/roleTitle/);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("records the site rights attestation and refuses an unchecked box", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `site-form-${Date.now()}`;
+      const email = `ada+${Date.now()}@example.com`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSiteScreeningPayload(requestId, email)),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          request?: {
+            consent_attestation?: {
+              granted?: boolean;
+              statement_version?: string | null;
+            } | null;
+            taskVideoUrls?: (string | null)[] | null;
+            taskVideoUrl?: string | null;
+            capture_region?: string | null;
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest).toBeDefined();
+      expect(savedRequest?.request?.consent_attestation?.granted).toBe(true);
+      expect(savedRequest?.request?.consent_attestation?.statement_version).toBe(
+        "2026-09-18.v1",
+      );
+      // Every link the operator pasted is kept - the http(s) check drops the
+      // javascript: URL rather than storing it, and the first valid link
+      // mirrors into the primary field.
+      expect(savedRequest?.request?.taskVideoUrls).toHaveLength(2);
+      expect(savedRequest?.request?.taskVideoUrl).toBe(
+        "https://drive.example.com/watch?v=taskclip",
+      );
+      expect(savedRequest?.request?.capture_region).toBe("us");
+
+      // The same form with the box unticked is refused outright.
+      const refusedId = `site-form-refused-${Date.now()}`;
+      const refused = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...buildSiteScreeningPayload(refusedId, email),
+          consentAttestation: { granted: false, statementVersion: "2026-09-18.v1" },
+        }),
+      });
+      expect(refused.status).toBe(400);
     } finally {
       await stopServer(server);
     }

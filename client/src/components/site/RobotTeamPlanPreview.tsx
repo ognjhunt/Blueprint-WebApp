@@ -273,7 +273,9 @@ export function RobotTeamPlanPreview() {
           <summary style={{ cursor: "pointer" }}>API access for your agent</summary>
           <p className="ms-field-hint" style={{ marginTop: "12px" }}>
             Your team key. Store it somewhere safe — we keep only a hash, so we cannot show it
-            again, and you can issue another at any time.
+            again. Lost it?{" "}
+            <code>POST /api/agent-team/keys/reissue</code> with your contact email and a new key
+            is emailed to that address.
           </p>
           <button
             type="button"

@@ -14,6 +14,11 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import { createReadStream } from "node:fs";
+import { randomUUID } from "node:crypto";
+import os from "node:os";
+import { unlink } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
 import multer from "multer";
 import {
   composeParts,
@@ -56,16 +61,64 @@ export const ALLOWED_EXTENSIONS = new Set(["mov", "mp4"]);
 
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
+/**
+ * Whole-file uploads land on disk, not in memory.
+ *
+ * `memoryStorage` held the entire video in the process — up to the 2 GiB
+ * limit — so one warehouse Wi-Fi drop retrying a big file could take the
+ * whole service with it. The parts route exists precisely because that
+ * connection is unreliable, but the single-POST path was the memory spike it
+ * was supposed to prevent. Disk-backed multer keeps the byte limit while
+ * capping process memory at the stream buffer; the temp file is unlinked as
+ * soon as the storage write finishes, success or not.
+ */
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, _file, callback) => callback(null, `self-capture-${randomUUID()}`),
+  }),
   limits: {
     fileSize: Number(process.env.SELF_CAPTURE_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_BYTES),
   },
 });
 
 type UploadRequest = Request & {
+  file?: { originalname: string; path: string; mimetype?: string; size: number };
+};
+
+/** The parts route keeps multer's memory storage — parts are capped at 32 MiB. */
+type PartUploadRequest = Request & {
   file?: { originalname: string; buffer: Buffer; mimetype?: string; size: number };
 };
+
+/**
+ * Write a disk-backed upload into Cloud Storage as a stream.
+ *
+ * Same object, same metadata, same result as the buffered `.save` it
+ * replaces — the bytes just never sit whole in process memory.
+ */
+function saveStreamedFile(
+  file: { path: string; mimetype?: string },
+  objectPath: string,
+  options: { contentType?: string; metadata?: Record<string, string> },
+): Promise<void> {
+  const stream = storageAdmin!
+    .bucket(storageBucketName())
+    .file(objectPath)
+    .createWriteStream({
+      contentType: options.contentType,
+      resumable: false,
+      metadata: options.metadata ? { metadata: options.metadata } : undefined,
+    });
+  return pipeline(createReadStream(file.path), stream);
+}
+
+async function discardUploadedFile(file: { path: string } | undefined): Promise<void> {
+  if (!file?.path) return;
+  await unlink(file.path).catch((error) =>
+    logger.warn({ error, path: file.path }, "Could not remove the upload temp file"),
+  );
+}
 
 function safeJsonParse(value: unknown): unknown {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -536,27 +589,23 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   const rawPrefix = objectPath.slice(0, objectPath.lastIndexOf("/"));
 
   try {
-    await storageAdmin
-      .bucket(storageBucketName())
-      .file(objectPath)
-      .save(file.buffer, {
-        contentType: file.mimetype || "video/quicktime",
-        resumable: false,
-        metadata: {
-          metadata: {
-            capture_id: payload.captureId,
-            scene_id: payload.sceneId,
-            request_id: payload.requestId,
-            capture_mode: "self_capture",
-          },
-        },
-      });
+    await saveStreamedFile(file, objectPath, {
+      contentType: file.mimetype || "video/quicktime",
+      metadata: {
+        capture_id: payload.captureId,
+        scene_id: payload.sceneId,
+        request_id: payload.requestId,
+        capture_mode: "self_capture",
+      },
+    });
   } catch (error) {
     logger.error(
       { error, captureId: payload.captureId },
       "Self-capture upload failed to write to storage",
     );
     return res.status(502).json({ error: "The upload did not finish. Try again." });
+  } finally {
+    await discardUploadedFile(file);
   }
 
   logger.info(
@@ -670,7 +719,7 @@ router.get("/:token/parts", async (req: Request, res: Response) => {
 router.put(
   "/:token/parts/:index",
   partUpload.single("part"),
-  async (req: UploadRequest, res: Response) => {
+  async (req: PartUploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
     if (!payload) {
       return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -902,24 +951,20 @@ router.post(
     });
 
     try {
-      await storageAdmin
-        .bucket(storageBucketName())
-        .file(objectPath)
-        .save(file.buffer, {
-          contentType: file.mimetype || "image/jpeg",
-          resumable: false,
-          metadata: {
-            metadata: {
-              request_id: payload.requestId,
-              scene_id: payload.sceneId,
-              item_id: itemId,
-              kind: "task_item_example",
-            },
-          },
-        });
+      await saveStreamedFile(file, objectPath, {
+        contentType: file.mimetype || "image/jpeg",
+        metadata: {
+          request_id: payload.requestId,
+          scene_id: payload.sceneId,
+          item_id: itemId,
+          kind: "task_item_example",
+        },
+      });
     } catch (error) {
       logger.error({ error, requestId: payload.requestId, itemId }, "Failed to store an item image");
       return res.status(502).json({ error: "We could not save that photo. Try again shortly." });
+    } finally {
+      await discardUploadedFile(file);
     }
 
     const record = await recordItemImage(payload.requestId, itemId, {

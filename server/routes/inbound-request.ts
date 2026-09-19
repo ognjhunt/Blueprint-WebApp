@@ -79,6 +79,53 @@ function normalizeTaskVideoUrl(input: unknown): string | null {
   }
 }
 
+/** The visitor was told up to five links; everything past that is capped, not silently kept secret. */
+const MAX_TASK_VIDEO_URLS = 5;
+
+/**
+ * Normalize every footage link the operator pasted, not only the first.
+ *
+ * Each link goes through the same http(s) check as `taskVideoUrl`; malformed
+ * rows are dropped rather than trusted. The first valid link also fills
+ * `taskVideoUrl` at the record build, so every existing consumer sees the
+ * same primary link it always has.
+ */
+function normalizeTaskVideoUrls(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => normalizeTaskVideoUrl(item))
+    .filter((item): item is string => item !== null)
+    .slice(0, MAX_TASK_VIDEO_URLS);
+}
+
+/**
+ * Turn the client's rights-checkbox report into the stored record.
+ *
+ * - `{granted: true}`  → the attestation fact, with the sentence version and
+ *   the moment it was made. This is what a takedown request later proves
+ *   its basis against.
+ * - absent / null      → `null`: the client predated the field. Stored as
+ *   "never asked", which must stay distinguishable from a grant.
+ * - anything else      → `"refused"`: the caller rejects the submission, so
+ *   an unchecked box can never be laundered into consent by a retry.
+ */
+function buildConsentAttestation(
+  input: InboundRequestPayload["consentAttestation"],
+): ConsentAttestationRecord | null | "refused" {
+  if (input === null || input === undefined) return null;
+  if (typeof input !== "object") return "refused";
+  if (input.granted !== true) return "refused";
+  const version =
+    typeof input.statementVersion === "string" && input.statementVersion.trim()
+      ? input.statementVersion.trim().slice(0, 80)
+      : null;
+  return {
+    granted: true,
+    statement_version: version,
+    recorded_at_iso: new Date().toISOString(),
+  };
+}
+
 /**
  * Keep only the provenance markers we understand, and only the honest one.
  *
@@ -122,6 +169,7 @@ import type {
   RequestPriority,
   RequestStatus,
   BudgetBucket,
+  ConsentAttestationRecord,
   HelpWithOption,
   CommercialRequestPath,
   ProofPathPreference,
@@ -1190,6 +1238,21 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    // The rights checkbox is a legal act, so a recorded refusal or an
+    // incoherent attestation stops the submission — a grant nobody made must
+    // never look stored. An absent attestation is the older-client case: it
+    // is stored as null, which is "never asked", and is a different thing
+    // from a grant.
+    const consentAttestation = buildConsentAttestation(payload.consentAttestation);
+    if (consentAttestation === "refused") {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: "The recording-rights box was not ticked, so the request cannot be accepted",
+      } satisfies SubmitInboundRequestResponse);
+    }
+
     const invalidApprovedRobotTeamEmails = (
       pilotOpportunity?.approvedRobotTeamEmails || []
     ).filter((email) => !isValidEmailAddress(email));
@@ -1457,6 +1520,26 @@ export async function submitInboundRequest(req: Request, res: Response) {
           displayCaptureMetadata,
           realSiteRobotEvalFit,
           details: payload.details?.trim() || null,
+          // These mirror the production record below. The dev log exists to
+          // rehearse exactly this contract, so the fields the capture flow
+          // reads — gates, capture mode and region, the attestation, every
+          // footage link — have to survive the dev fallback too, or local
+          // QA passes on a shape production never stores.
+          siteTaskGates: Object.keys(siteTaskGates).length ? siteTaskGates : null,
+          capture_mode: buyerType === "robot_team" ? null : captureMode,
+          capture_region: buyerType === "robot_team" ? null : captureRegion,
+          has_existing_footage:
+            buyerType === "robot_team" ? null : Boolean(payload.hasExistingFootage),
+          siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
+          taskDescription: payload.taskDescription?.trim() || null,
+          whatGoesWrong: payload.whatGoesWrong?.trim() || null,
+          taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
+          // Already past the refusal check above, so this is Record | null.
+          consent_attestation: consentAttestation,
+          taskVideoUrl:
+            normalizeTaskVideoUrl(payload.taskVideoUrl) ??
+            normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??
+            null,
         },
         context: {
           sourcePageUrl: payload.context?.sourcePageUrl || "",
@@ -1607,7 +1690,17 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteTaskSpec: normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string> | null,
         taskDescription: payload.taskDescription?.trim() || null,
         whatGoesWrong: payload.whatGoesWrong?.trim() || null,
-        taskVideoUrl: normalizeTaskVideoUrl(payload.taskVideoUrl),
+        // Every link the visitor pasted, and the first one mirrored into
+        // `taskVideoUrl` so every existing consumer keeps reading the same
+        // primary link. They were told "up to five" and the other four used
+        // to be dropped on the floor here.
+        taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
+        // Already past the refusal check above, so this is Record | null.
+        consent_attestation: consentAttestation,
+        taskVideoUrl:
+          normalizeTaskVideoUrl(payload.taskVideoUrl) ??
+          normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??
+          null,
         targetSiteType: payload.targetSiteType?.trim() || null,
         proofPathPreference,
         existingStackReviewWorkflow:

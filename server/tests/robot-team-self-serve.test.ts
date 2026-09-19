@@ -22,7 +22,11 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedFakeFirestoreState, fakeArrayUnion } from "./helpers/fake-firestore";
+
+const sendEmail = vi.hoisted(() =>
+  vi.fn(async () => ({ sent: true, provider: "test" as const, messageId: "test" })),
+);
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -32,6 +36,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
         FieldValue: {
           serverTimestamp: () => "SERVER_TIMESTAMP",
           delete: () => FAKE_FIELD_DELETE,
+          arrayUnion: (...items: unknown[]) => fakeArrayUnion(...items),
         },
       },
     },
@@ -39,6 +44,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     authAdmin: { verifyIdToken: async () => ({ uid: "nobody" }) },
   };
 });
+
+vi.mock("../utils/email", () => ({
+  sendEmail,
+}));
 
 // Registration is open, so the limiter is the only thing standing in front of
 // it. Pass it through here and test the limit itself where it is configured.
@@ -131,6 +140,7 @@ function seedOneRunnableSite() {
 
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
+  sendEmail.mockClear();
 });
 
 /* ------------------------------------------------------ registration */
@@ -598,5 +608,132 @@ describe("funding needs no operator", () => {
       return response.status;
     });
     expect(status).toBe(401);
+  });
+});
+
+/* ------------------------------------------------ key reissue + store linking */
+
+describe("a lost key is re-issued to the registered address", () => {
+  it("emails a new working key to the registered contact email", async () => {
+    const outcome = await withRoutes(async (baseUrl) => {
+      const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ teamName: "Key Loss Co", contactEmail: "ops@keyloss.example" }),
+      });
+      const account = (await registered.json()) as { teamId: string; agentKey: string };
+
+      const reissue = await fetch(`${baseUrl}/api/agent-team/keys/reissue`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ contactEmail: "ops@keyloss.example" }),
+      });
+      const body = (await reissue.json()) as { ok: boolean; message?: string };
+
+      // The response must never carry a key: the endpoint has no credential,
+      // so its answer has to be safe for anyone to read.
+      expect(reissue.status).toBe(202);
+      expect(body.ok).toBe(true);
+      expect(JSON.stringify(body)).not.toContain("bpk_");
+
+      return { account, body: JSON.stringify(body) };
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailCall = sendEmail.mock.calls[0][0] as { to: string; text: string };
+    expect(emailCall.to).toBe("ops@keyloss.example");
+    expect(emailCall.text).toContain(outcome.account.teamId);
+    // The new key is real, not a replay of the old one.
+    expect(emailCall.text).toMatch(/bpk_[A-Za-z0-9_-]+/);
+    expect(emailCall.text).not.toContain(outcome.account.agentKey);
+  });
+
+  it("answers the same whether or not the address is registered", async () => {
+    const statuses = await withRoutes(async (baseUrl) => {
+      const unknown = await fetch(`${baseUrl}/api/agent-team/keys/reissue`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ contactEmail: "nobody@nowhere.example" }),
+      });
+      return { status: unknown.status, text: await unknown.text() };
+    });
+
+    expect(statuses.status).toBe(202);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(statuses.text).not.toContain("bpk_");
+  });
+
+  it("rejects a body without a valid email", async () => {
+    const status = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/keys/reissue`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ contactEmail: "not-an-email" }),
+      });
+      return response.status;
+    });
+    expect(status).toBe(400);
+  });
+});
+
+describe("self-serve registration links to an intake application", () => {
+  it("cross-links both records when the contact email matches an applied team", async () => {
+    // The application arrived first, through the form: deterministic slug,
+    // status applied.
+    sharedFakeFirestoreState.docs.set("robotTeams/team_compiler-robotics", {
+      id: "team_compiler-robotics",
+      name: "Compiler Robotics",
+      status: "applied",
+      registrationSource: "intake",
+      contactEmail: "grace@compiler.example",
+      capability: {},
+      fieldProvenance: {},
+      createdAt: "2026-09-18T00:00:00.000Z",
+      updatedAt: "2026-09-18T00:00:00.000Z",
+    });
+
+    const linked = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({
+          teamName: "Compiler Robotics",
+          contactEmail: "grace@compiler.example",
+        }),
+      });
+      const account = (await response.json()) as { teamId: string };
+      expect(response.status).toBe(201);
+
+      const selfServe = sharedFakeFirestoreState.docs.get(
+        `robotTeams/${account.teamId}`,
+      ) as { linkedIntakeTeamIds?: string[] };
+      const applied = sharedFakeFirestoreState.docs.get(
+        "robotTeams/team_compiler-robotics",
+      ) as { selfServeTeamIds?: string[] };
+      return {
+        selfServeLinked: selfServe.linkedIntakeTeamIds ?? [],
+        appliedLinked: applied.selfServeTeamIds ?? [],
+      };
+    });
+
+    expect(linked.selfServeLinked).toEqual(["team_compiler-robotics"]);
+    expect(linked.appliedLinked).toHaveLength(1);
+  });
+
+  it("leaves a registration with no matching application unlinked", async () => {
+    const linked = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ teamName: "Lone Wolf", contactEmail: "solo@lone.example" }),
+      });
+      const account = (await response.json()) as { teamId: string };
+      const record = sharedFakeFirestoreState.docs.get(
+        `robotTeams/${account.teamId}`,
+      ) as { linkedIntakeTeamIds?: string[] };
+      return record.linkedIntakeTeamIds ?? null;
+    });
+
+    expect(linked).toBeNull();
   });
 });

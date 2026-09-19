@@ -544,6 +544,16 @@ export async function encryptInboundRequestForStorage<
       taskVideoUrl: await encryptOptionalField(
         request.request.taskVideoUrl ?? null
       ),
+      // Each additional footage link is PII the same way the first one is,
+      // so each is encrypted in place. The attestation is an enum-like fact
+      // (grant, sentence version, moment) and stays queryable for the same
+      // reason capture_region does: a takedown has to prove its basis.
+      taskVideoUrls: await Promise.all(
+        (request.request.taskVideoUrls ?? []).map((link) =>
+          encryptOptionalField(link ?? null)
+        )
+      ),
+      consent_attestation: request.request.consent_attestation ?? null,
       targetSiteType: await encryptOptionalField(
         request.request.targetSiteType ?? null
       ),

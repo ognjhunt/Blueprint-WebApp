@@ -21,6 +21,26 @@ export type StoredDoc = Record<string, unknown>;
  */
 export const FAKE_FIELD_DELETE = "__FAKE_FIRESTORE_FIELD_DELETE__";
 
+/**
+ * What `FieldValue.arrayUnion(...)` resolves to here.
+ *
+ * A sentinel carrying the items; `deepMerge` resolves it against whatever
+ * array is already in the field, the way Firestore does. A plain array would
+ * overwrite, which is the one behaviour a union must not have.
+ */
+export function fakeArrayUnion(...items: unknown[]): Record<string, unknown> {
+  return { __FAKE_ARRAY_UNION__: items };
+}
+
+function resolveArrayUnion(existing: unknown, value: unknown): unknown {
+  const sentinel = value as { __FAKE_ARRAY_UNION__?: unknown[] };
+  const items = Array.isArray(sentinel.__FAKE_ARRAY_UNION__)
+    ? sentinel.__FAKE_ARRAY_UNION__
+    : [];
+  const base = Array.isArray(existing) ? existing : [];
+  return [...base, ...items];
+}
+
 export type FakeFirestoreState = {
   docs: Map<string, StoredDoc>;
 };
@@ -45,6 +65,14 @@ function deepMerge(
   for (const [key, value] of Object.entries(source)) {
     if (value === FAKE_FIELD_DELETE) {
       delete merged[key];
+      continue;
+    }
+    if (
+      value !== null &&
+      typeof value === "object" &&
+      Array.isArray((value as { __FAKE_ARRAY_UNION__?: unknown[] }).__FAKE_ARRAY_UNION__)
+    ) {
+      merged[key] = resolveArrayUnion(merged[key], value);
       continue;
     }
     const existing = merged[key];
@@ -186,6 +214,11 @@ export function createFakeFirestore(state: FakeFirestoreState) {
             data: () => clone(entry.data),
             ref: makeDocRef(collectionName, entry.id),
           })),
+          // Standard QuerySnapshot fields. A route that branches on
+          // `snapshot.empty` against a fake that lacks it falls through to
+          // its "nothing found" error path and reports the wrong thing.
+          empty: entries.length === 0,
+          size: entries.length,
         };
       },
     };

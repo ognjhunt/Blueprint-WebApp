@@ -784,6 +784,14 @@ export default function AdminLeads() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      // The action queue reads qualification_state; a newly requested capture
+      // changes it, so the queue must not keep showing a stale row.
+      queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
+    },
+    onError: () => {
+      window.alert(
+        "Could not create the capture job. Check the lead's site coordinates and rights status, then try again.",
+      );
     },
   });
 
@@ -1842,6 +1850,26 @@ export default function AdminLeads() {
                           disabled={retryActionMutation.isPending}
                         >
                           Retry
+                        </button>
+                      ) : null}
+                      {item.source_collection === "inboundRequests" ? (
+                        /*
+                         * One-click dispatch from the queue. The workflow already
+                         * computed the dispatch decision; this turns "approve,
+                         * then find the lead, then find the button" into one
+                         * click that publishes the capture job. The server
+                         * refuses (409) when the lead has no coordinates or is
+                         * rights-blocked, which surfaces in the catch below.
+                         */
+                        <button
+                          type="button"
+                          onClick={() => createCaptureJobMutation.mutate(item.source_doc_id)}
+                          className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
+                          disabled={createCaptureJobMutation.isPending}
+                        >
+                          {createCaptureJobMutation.isPending
+                            ? "Publishing…"
+                            : "Create capture job"}
                         </button>
                       ) : null}
                     </div>

@@ -128,6 +128,13 @@ export function CaptureRecorder(props: {
   const sendingRef = useRef(false);
   const sentBytesRef = useRef(0);
   const mimeRef = useRef<string>("video/mp4");
+  // Measured, not assumed: when the recording starts we read the frame rate
+  // the camera is actually delivering, and the duration is wall-clock time.
+  // A hardcoded 30 used to ride along in the capture record as though
+  // somebody had observed it, and parts × slice was not a duration — a
+  // retried or dropped part made it wrong.
+  const measuredFpsRef = useRef<number | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
   /**
    * The drain that is actually running, if any. `finish` has to wait for the
    * drain that a chunk callback started — calling `drainQueue` directly there
@@ -297,6 +304,16 @@ export function CaptureRecorder(props: {
     queueRef.current = [];
     sentBytesRef.current = 0;
 
+    // The camera's real frame rate, from the track settings — the same
+    // measurement the file-picker path reads off the video element.
+    const [track] = stream.getVideoTracks();
+    const settings = track?.getSettings?.();
+    measuredFpsRef.current =
+      settings?.frameRate && Number.isFinite(settings.frameRate) && settings.frameRate > 0
+        ? Math.round(settings.frameRate * 100) / 100
+        : null;
+    recordingStartedAtRef.current = Date.now();
+
     const recorder = new MediaRecorder(stream, { mimeType: mimeRef.current });
     recorderRef.current = recorder;
 
@@ -362,8 +379,13 @@ export function CaptureRecorder(props: {
           metadata: {
             widthPx: video?.videoWidth ?? 0,
             heightPx: video?.videoHeight ?? 0,
-            fps: 30,
-            durationSeconds: Math.max(1, Math.round((nextIndexRef.current * TIMESLICE_MS) / 1000)),
+            // Measured off the camera track at record start; the 30 here is
+            // the last resort for a browser that reports no frameRate at
+            // all, not the default answer it used to be.
+            fps: measuredFpsRef.current ?? 30,
+            durationSeconds: recordingStartedAtRef.current
+              ? Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000))
+              : Math.max(1, Math.round((nextIndexRef.current * TIMESLICE_MS) / 1000)),
             recordedAtEpochMs: Date.now(),
           },
         }),
