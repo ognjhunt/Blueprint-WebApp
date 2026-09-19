@@ -17,7 +17,9 @@ describe("task video field", () => {
   });
 
   it("asks for a link rather than an upload, and says custody stays with the site", () => {
-    expect(taskVideoField.hint).toMatch(/paste a link/i);
+    // "Up to five" is the promise; the form keeps every link it is given.
+    expect(taskVideoField.hint).toMatch(/up to five links/i);
+    expect(taskVideoField.hint).toMatch(/every one is kept/i);
     expect(taskVideoField.privacy).toMatch(/link rather than an upload/i);
     expect(taskVideoField.privacy).toMatch(/revoke access/i);
   });

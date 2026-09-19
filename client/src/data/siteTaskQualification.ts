@@ -557,7 +557,7 @@ export const taskVideoField = {
   id: "taskVideoUrl",
   question: "Have a short video of the task being done?",
   optional: "Optional, and the single most useful thing you can send.",
-  hint: "Paste a link — Drive, Dropbox, an unlisted upload, anything you can share and unshare. Thirty seconds of the actual cycle beats any description.",
+  hint: "Paste up to five links, one per line — every one is kept. Drive, Dropbox, an unlisted upload, anything you can share and unshare. Thirty seconds of the actual cycle beats any description.",
   privacy:
     "Film the work, not the worker. Hands and objects are what a robot team needs to see. Do not send footage of identifiable people without their agreement — and because this is a link rather than an upload, you keep custody and can revoke access at any time.",
 } as const;

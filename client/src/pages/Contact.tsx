@@ -47,9 +47,11 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { RobotTeamPlanPreview } from "@/components/site/RobotTeamPlanPreview";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { SEO } from "@/components/SEO";
+import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { parseContactRequestPrefill } from "@/lib/contactRequestPrefill";
 import { parseTaskVideoLinks } from "@/lib/taskVideos";
-import { describeDisposition, triageGateAnswers } from "@/lib/gateTriage";
+import { describeDisposition, triageGateAnswers, type TriageResult } from "@/lib/gateTriage";
 import {
   captureModeField,
   preferredCaptureMode,
@@ -64,13 +66,118 @@ import {
   robotProseFields,
   robotSpecFields,
 } from "@/data/robotTeamQualification";
+import { captureRegionOptions, type CaptureRegion } from "@/data/captureResidency";
 
 type Answers = Record<string, string>;
+
+/**
+ * Version of the rights sentence recorded with every site attestation.
+ *
+ * The checkbox is a legal act, so the stored record has to name the exact
+ * sentence the operator agreed to. Bump this when the wording changes; the
+ * server stores the version beside the grant.
+ */
+const RIGHTS_STATEMENT_VERSION = "2026-09-18.v1";
+
+/** Where the form hands identity to the other form on the same page. */
+const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
+
+/**
+ * The screening budget answer, in the bucket the lead pipeline scores.
+ *
+ * `budgetBand` is what the spec tier asks; `budgetBucket` is what
+ * `computePriority` reads. They were collected and scored in disjoint
+ * vocabularies, which is why every web lead arrived priority "low" no matter
+ * what the visitor picked. Same bands, translated once, here.
+ */
+export function budgetBucketFromBand(band: string | undefined | null): string {
+  switch (band) {
+    case "under_50k":
+      return "<$50K";
+    case "fifty_to_250k":
+      return "$50K-$300K";
+    case "250k_to_1m":
+      return "$300K-$1M";
+    case "over_1m":
+      return ">$1M";
+    default:
+      return "Undecided/Unsure";
+  }
+}
+
+/** What the robot form asks instead of the server's `proofPathPreference`. */
+const proofPathOptions = [
+  {
+    value: "exact_site_required",
+    label: "Only the exact site proves it",
+    detail: "The deployment decision is about this specific facility — its layout, its parts, its flow.",
+  },
+  {
+    value: "adjacent_site_acceptable",
+    label: "An adjacent site would do",
+    detail: "A comparable facility — similar task, similar objects — is enough to commit an engineer-week.",
+  },
+  {
+    value: "need_guidance",
+    label: "Not sure — tell us what to capture",
+    detail: "We will propose the smallest capture that answers your question.",
+  },
+] as const;
 
 function splitName(value: string) {
   const parts = value.trim().split(/\s+/);
   if (parts.length < 2) return { firstName: parts[0] || "", lastName: "—" };
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function readStoredIdentity(): { name?: string; email?: string; company?: string; role?: string } {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.sessionStorage.getItem(CONTACT_IDENTITY_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Robot-flavoured success copy.
+ *
+ * `describeDisposition` is written for a site: its qualified next step tells
+ * the reader to go record a walkthrough, which is nonsense for a team that
+ * just applied with a checkpoint. Same dispositions, different nouns — the
+ * robot form never asks anyone to film anything.
+ */
+function describeRobotDisposition(result: TriageResult): {
+  headline: string;
+  body: string;
+  nextStep: string;
+} {
+  if (result.disposition === "not_now") {
+    const first = result.blockers[0];
+    return {
+      headline: "Not yet — and here is exactly what is in the way.",
+      body: first
+        ? `You told us: ${first.answer.toLowerCase()}. ${first.detail}`
+        : "One of the deployment conditions does not hold on your side today.",
+      nextStep:
+        "Application received and kept. When this changes, reply to the confirmation email and it picks up from there — nothing needs a fresh form.",
+    };
+  }
+  if (result.disposition === "needs_conversation") {
+    return {
+      headline: "Close. A short call settles it.",
+      body: result.openQuestions.length
+        ? `${result.openQuestions.length === 1 ? "One thing" : `${result.openQuestions.length} things`} cannot be decided from a form — we will bring exactly those to the call.`
+        : "We need a little more of the picture before matching you to a site.",
+      nextStep: "About thirty minutes, with the agenda already written.",
+    };
+  }
+  return {
+    headline: "You're on the board.",
+    body: "Deployment intent is clear on your side. We will match your capability against the sites we hold and come back with what fits — the plan panel above already shows today's ranked matches.",
+    nextStep: "Watch your inbox. Registering a checkpoint above gets you a ranked plan without waiting on us.",
+  };
 }
 
 function ScreeningForm({ isSite }: { isSite: boolean }) {
@@ -82,6 +189,20 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
   const pending = useRef(false);
   const [gates, setGates] = useState<Answers>({});
   const [spec, setSpec] = useState<Answers>({});
+  // Where the site is, recorded against the submission. It decides whether a
+  // camera link can be issued in the submit response: the beta's collection
+  // scope is the US, and a visit additionally needs the metro we drive to.
+  const [captureRegion, setCaptureRegion] = useState<CaptureRegion>("us");
+  const [consent, setConsent] = useState(false);
+  const identity = useMemo(readStoredIdentity, []);
+
+  // Deep links into this page (from site pages, campaigns, agents) carry the
+  // task and the site with them. The visitor should arrive at a half-filled
+  // form, not re-type what the link already said.
+  const prefill = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return parseContactRequestPrefill(window.location.search, window.location.pathname);
+  }, []);
 
   const activeGates = isSite ? gateFields : robotGateFields;
   // Only a site chooses this; a robot team is never captured.
@@ -113,9 +234,10 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
 
     const required = isSite
       ? ["name", "email", "company", "siteAddress", "taskDescription"]
-      : ["name", "email", "company", "capabilityDescription"];
+      : ["name", "email", "company", "role", "capabilityDescription", "proofPath"];
     if (!required.every((key) => value(key))) {
       setError("Please complete all required fields.");
+      analyticsEvents.contactFormError(isSite ? "screening_site" : "screening_robot");
       return;
     }
 
@@ -128,6 +250,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
           ? validationError.message
           : "Check your video links.",
       );
+      analyticsEvents.contactFormError(isSite ? "screening_site" : "screening_robot");
       return;
     }
 
@@ -151,28 +274,59 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
           lastName,
           email: value("email").toLowerCase(),
           company: value("company"),
-          roleTitle: value("role") || (isSite ? "Site operator" : "Robot team"),
+          // The role is real for a robot team — the server requires it and a
+          // constant placeholder defeated that. A site keeps the stand-in
+          // because its pipeline never reads the field.
+          roleTitle: value("role") || (isSite ? "Site operator" : undefined),
           buyerType: isSite ? "site_operator" : "robot_team",
           // No account is created here, so no terms gate applies.
           accountSignup: false,
-          budgetBucket: "Undecided/Unsure",
+          // The spec tier's budget answer, translated into the bucket the
+          // lead pipeline scores. Sent as "Undecided" only when the visitor
+          // genuinely did not answer.
+          budgetBucket: budgetBucketFromBand(spec.budgetBand),
           requestedLanes: [],
           // The address is the site's identity: an operator visiting a site
           // needs a street address, not a nickname.
           siteName: isSite ? value("siteAddress") : value("company"),
-          siteLocation: isSite ? value("siteAddress") : value("deploymentGeography"),
+          siteLocation: isSite
+            ? value("siteAddress")
+            : gates.deploymentGeography || value("targetSiteType") || null,
           targetSiteType: isSite ? null : value("targetSiteType") || null,
           // `taskStatement` is what every existing consumer reads, so the
           // description is written to both rather than stranded in a new field.
           taskStatement: description,
           taskDescription: description,
           whatGoesWrong: value("whatGoesWrong") || value("evidenceBar") || null,
+          // Every link the visitor pasted, not only the first — they were
+          // told up to five and the other four used to be dropped on the
+          // floor. `taskVideoUrl` stays for every existing consumer.
           taskVideoUrl: videoLinks[0] ?? null,
+          ...(videoLinks.length > 0 ? { taskVideoUrls: videoLinks } : {}),
           siteTaskGates: gates,
           // Decides whether anyone has to travel, and therefore whether the
           // service-area gate applied at all. Sent for sites only.
-          ...(isSite ? { captureMode } : {}),
+          ...(isSite ? { captureMode, captureRegion } : {}),
+          // How this team would prove capability to themselves — the exact
+          // site, an adjacent one, or guided. The server requires it for a
+          // robot team and the form never used to send it, so every
+          // application from this page failed with a 400 naming a field that
+          // existed on no screen.
+          ...(isSite ? {} : { proofPathPreference: value("proofPath") }),
           siteTaskSpec: spec,
+          // The rights checkbox is a legal act; the grant is recorded
+          // server-side with the sentence version, or it did not happen.
+          ...(isSite
+            ? {
+                consentAttestation: {
+                  granted: consent,
+                  statementVersion: RIGHTS_STATEMENT_VERSION,
+                },
+              }
+            : {}),
+          // Bot bait: a real visitor never sees this field, so a filled one
+          // is a bot. The server already honours it; no client ever sent it.
+          honeypot: value("honeypot") || undefined,
           context: {
             sourcePageUrl:
               typeof window === "undefined" ? null : window.location.href,
@@ -181,6 +335,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
       });
       if (!response.ok) {
         const failure = await response.json().catch(() => ({}));
+        analyticsEvents.contactFormError(isSite ? "screening_site" : "screening_robot");
         throw new Error(
           typeof failure.message === "string"
             ? failure.message
@@ -190,7 +345,38 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
       const result = (await response.json().catch(() => ({}))) as { captureUrl?: string | null };
       setCaptureUrl(typeof result.captureUrl === "string" ? result.captureUrl : null);
       setStatus("sent");
+      analyticsEvents.contactFormSubmit(isSite ? "screening_site" : "screening_robot");
+      analyticsEvents.contactRequestSubmitted({
+        persona: isSite ? "site_operator" : "robot_team",
+        hostedMode: false,
+        requestedLane: "qualification",
+        commercialRequestPath: isSite ? "site_claim" : "hosted_evaluation",
+        authenticated: false,
+        hasJobTitle: Boolean(value("role")),
+        hasSiteName: Boolean(value("siteAddress") || value("company")),
+        hasSiteLocation: Boolean(value("siteAddress") || gates.deploymentGeography),
+        hasTaskStatement: Boolean(description),
+        hasOperatingConstraints: Object.keys(spec).length > 0,
+        hasPrivacySecurityConstraints: false,
+        hasNotes: Boolean(value("whatGoesWrong") || value("evidenceBar")),
+      });
+      // One page, two forms. Whoever filled the first should not re-type
+      // their identity into the second.
+      try {
+        window.sessionStorage.setItem(
+          CONTACT_IDENTITY_STORAGE_KEY,
+          JSON.stringify({
+            name: value("name"),
+            email: value("email"),
+            company: value("company"),
+            role: value("role"),
+          }),
+        );
+      } catch {
+        // Storage can be full or blocked; the forms still work untied.
+      }
     } catch (submitError) {
+      analyticsEvents.contactFormError(isSite ? "screening_site" : "screening_robot");
       setError(
         submitError instanceof Error && !(submitError instanceof TypeError)
           ? submitError.message
@@ -202,13 +388,29 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
     }
   }
 
-  if (status === "sent")
+  if (status === "sent") {
+    /*
+     * The success copy states what actually happened, not what the pre-submit
+     * verdict hoped would happen.
+     *
+     * describeDisposition is the site's verdict wording, and its qualified
+     * next step promises "the link below". Whether a link exists is a server
+     * fact — the US-only collection scope decides — so a held site used to be
+     * congratulated with a link that never rendered. When there is no link,
+     * the next step says what does happen next instead. A robot team gets its
+     * own nouns entirely: nothing on their path involves recording anything.
+     */
+    const successCopy = isSite ? copy : describeRobotDisposition(verdict);
+    const nextStep =
+      isSite && !captureUrl
+        ? "We have your site. A camera link needs a US site today — the beta’s collection scope — so the next step is an email about what happens where you are. Nothing has been recorded and nothing has been shared."
+        : successCopy.nextStep;
     return (
       <div className="ms-success" role="status" aria-live="polite">
         <Check size={30} aria-hidden="true" />
-        <h2>{copy.headline}</h2>
-        <p>{copy.body}</p>
-        <p>{copy.nextStep}</p>
+        <h2>{successCopy.headline}</h2>
+        <p>{successCopy.body}</p>
+        <p>{nextStep}</p>
         {captureUrl && (
           /*
            * The link, on the screen that already knows the verdict.
@@ -241,6 +443,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
         </a>
       </div>
     );
+  }
 
   return (
     <form
@@ -270,6 +473,18 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
           </span>
         </label>
       )}
+
+      {/* Bot bait: hidden from people, checked by the server. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        <label htmlFor="contact-website-hp">Leave this field empty</label>
+        <input
+          id="contact-website-hp"
+          name="honeypot"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
 
       {bindingGates.map((field) => (
         <label key={field.id} htmlFor={`gate-${field.id}`}>
@@ -343,6 +558,39 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
           </label>
         ))}
 
+      {!isSite && (
+        /*
+         * The proof-path question.
+         *
+         * The server has always required an answer — `proofPathPreference`
+         * feeds proof-path triage and the `proof_path_assigned` milestone —
+         * but no screen ever asked it, so every application from this page
+         * was rejected before storage. Asking it directly: it is one click,
+         * it is a real deployment question, and the enum is the product's.
+         */
+        <label htmlFor="proof-path">
+          <span>What would prove the system works to your team?</span>
+          <span className="ms-field-hint">
+            This decides what we point at first: the exact site, one like it, or a capture plan we owe you.
+          </span>
+          <select id="proof-path" name="proofPath" required defaultValue="">
+            <option value="" disabled>
+              Select…
+            </option>
+            {proofPathOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="ms-field-hint">
+            {proofPathOptions.find(
+              (option) => option.value === (prefill?.proofPathPreference ?? ""),
+            )?.detail ?? null}
+          </span>
+        </label>
+      )}
+
       {activeProse.map((field) => (
         <label key={field.id} htmlFor={`prose-${field.id}`}>
           <span>{field.question}</span>
@@ -353,6 +601,11 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             rows={4}
             maxLength={4000}
             required={field.id === "taskDescription" || field.id === "capabilityDescription"}
+            defaultValue={
+              prefill?.taskStatement && (field.id === "taskDescription" || field.id === "capabilityDescription")
+                ? prefill.taskStatement
+                : undefined
+            }
           />
         </label>
       ))}
@@ -372,7 +625,14 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
       <div className="ms-form-row">
         <label htmlFor="contact-name">
           Your name
-          <input id="contact-name" name="name" autoComplete="name" required maxLength={120} />
+          <input
+            id="contact-name"
+            name="name"
+            autoComplete="name"
+            required
+            maxLength={120}
+            defaultValue={identity.name || undefined}
+          />
         </label>
         <label htmlFor="contact-email">
           Work email
@@ -383,6 +643,7 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             autoComplete="email"
             required
             maxLength={254}
+            defaultValue={identity.email || undefined}
           />
         </label>
       </div>
@@ -395,23 +656,87 @@ function ScreeningForm({ isSite }: { isSite: boolean }) {
             autoComplete="organization"
             required
             maxLength={200}
+            defaultValue={identity.company || undefined}
           />
         </label>
         <label htmlFor="contact-role">
           <span>
-            Your role <span className="ms-optional">(optional)</span>
+            Your role
+            {isSite ? (
+              <span className="ms-optional"> (optional)</span>
+            ) : (
+              <span className="ms-field-hint"> — required; it routes the application</span>
+            )}
           </span>
-          <input id="contact-role" name="role" autoComplete="organization-title" maxLength={120} />
+          <input
+            id="contact-role"
+            name="role"
+            autoComplete="organization-title"
+            maxLength={120}
+            required={!isSite}
+            defaultValue={identity.role || undefined}
+          />
         </label>
       </div>
       {isSite ? (
-        <label htmlFor="contact-site-address">
-          <span>Site address</span>
-          <span className="ms-field-hint">
-            Where the work happens. A capture operator needs a street address, not a site nickname.
-          </span>
-          <input id="contact-site-address" name="siteAddress" required maxLength={240} />
-        </label>
+        <>
+          <label htmlFor="contact-site-address">
+            <span>Site address</span>
+            <span className="ms-field-hint">
+              Where the work happens. A capture operator needs a street address, not a site nickname.
+            </span>
+            <input
+              id="contact-site-address"
+              name="siteAddress"
+              required
+              maxLength={240}
+              defaultValue={prefill?.siteName || prefill?.siteLocation || undefined}
+            />
+          </label>
+          <label htmlFor="contact-region">
+            <span>Where is the site?</span>
+            <span className="ms-field-hint">
+              One tap, and it matters for two things only: whether we can lawfully collect a
+              walkthrough there today (the beta records US sites), and whether we could send a
+              person (Austin metro). Recording it yourself is unchanged by which you pick inside
+              the US.
+            </span>
+            <select
+              id="contact-region"
+              name="captureRegion"
+              value={captureRegion}
+              onChange={(event) => setCaptureRegion(event.target.value as CaptureRegion)}
+            >
+              {captureRegionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            htmlFor="contact-rights"
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}
+          >
+            <input
+              id="contact-rights"
+              name="rights"
+              type="checkbox"
+              required
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+              style={{ marginTop: "4px" }}
+            />
+            <span>
+              I am authorised to record this site and to let Blueprint use the recording to build a
+              3D scene of the work area, and I have the right to share any video I link above.{" "}
+              <span className="ms-field-hint">
+                Required — this is a legal act, and the only one on this form. We store that you
+                agreed, when, and to this sentence.
+              </span>
+            </span>
+          </label>
+        </>
       ) : (
         <label htmlFor="contact-target-site">
           <span>
@@ -468,8 +793,8 @@ export default function Contact() {
           <p className="ms-inquiry-description">{description}</p>
           <p className="ms-inquiry-aside">
             {isSite
-              ? "What the footage shows is what decides, so there is nothing to pass first — four of the questions we used to ask up front are things a thirty-second video answers better than any dropdown. We read it before spending anything and tell you exactly what we saw. The six-question screen is still here if you want the full read before filming, or a conversation instead."
-              : "Five questions about your robot, and you will see which real sites we would run it against, what each costs, and why. None of them can turn you away. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
+              ? "What the footage shows is what decides, so there is nothing to pass first — four of the questions we used to ask up front are things a thirty-second video answers better than any dropdown. We read it before spending anything and tell you exactly what we saw. Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you can record the walkthrough yourself; outside the US we set up transfer terms before anything is recorded. The six-question screen is still here if you want the full read before filming, or a conversation instead."
+              : "Five questions about your robot, and you will see which real sites we would run it against, what each costs, and why. None of them can turn you away. The sites we prepare today are all in the Austin metro — that is where supply starts, and it is the honest frame for the deployment questions below. The application form is for talking to a person — its questions describe deploying a robot at a site, which is a later conversation than evaluating one, and seven of them a single run answers better than you can."}
           </p>
           {!isSite && (
             /*

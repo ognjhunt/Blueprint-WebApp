@@ -77,6 +77,26 @@ export type ProofPathPreference =
   | "adjacent_site_acceptable"
   | "need_guidance";
 
+/**
+ * The rights checkbox, as the client reports it.
+ *
+ * The checkbox is a legal act on the site forms; the grant is only real once
+ * it is recorded against the submission. Absent means the client predated the
+ * field, which is stored as null — never as a grant.
+ */
+export interface ConsentAttestationInput {
+  granted?: boolean;
+  statementVersion?: string | null;
+}
+
+/** The attestation fact stored beside the submission. Queryable, not PII. */
+export interface ConsentAttestationRecord {
+  granted: boolean;
+  /** The exact sentence version the operator agreed to. */
+  statement_version: string | null;
+  recorded_at_iso: string;
+}
+
 export type RequestedLane =
   | "qualification"
   | "preview_simulation"
@@ -269,6 +289,10 @@ export interface RequestDetails {
    * `/governance` promises, and a link leaves custody with the site.
    */
   taskVideoUrl?: string | null;
+  /** Every footage link the operator shared — the first also fills `taskVideoUrl`. */
+  taskVideoUrls?: string[] | null;
+  /** The rights-checkbox grant, recorded with the sentence version. Null = never asked. */
+  consent_attestation?: ConsentAttestationRecord | null;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: string | null;
@@ -1094,6 +1118,10 @@ export interface RequestDetailsStored {
   whatGoesWrong?: EncryptableString | null;
   /** Encrypted — a footage link identifies the site and is shared in confidence. */
   taskVideoUrl?: EncryptableString | null;
+  /** Each link encrypted in place, same reason as `taskVideoUrl`. */
+  taskVideoUrls?: (EncryptableString | null)[] | null;
+  /** The attestation fact: enum-like, queryable, and how a takedown proves its basis. */
+  consent_attestation?: ConsentAttestationRecord | null;
   targetSiteType?: EncryptableString | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: EncryptableString | null;
@@ -1181,6 +1209,10 @@ export interface InboundRequestPayload {
   whatGoesWrong?: string | null;
   /** Optional link to footage of the task. Never an upload — see RequestDetails. */
   taskVideoUrl?: string | null;
+  /** Up to five footage links; the first mirrors into `taskVideoUrl`. */
+  taskVideoUrls?: string[] | null;
+  /** The rights-checkbox grant from the site forms. Absent = client predated the field. */
+  consentAttestation?: ConsentAttestationInput | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
   existingStackReviewWorkflow?: string;
