@@ -541,21 +541,56 @@ export default function SelfCaptureUpload() {
                 come back to you about it.
               </p>
             </div>
-          ) : upload.status === "done" ? (
-            <div
-              style={{
-                border: "1px solid var(--ms-rule)",
-                padding: "20px",
-                background: "var(--ms-paper)",
-              }}
-            >
-              <strong>Your capture is saved.</strong>
-              <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                You can close this page. We check next whether it covers the work area well enough to
-                build the scene, and we will come back to you either way — including if one more
-                view would finish the job.
+          {upload.status === "done" ? (
+            <>
+              <div
+                style={{
+                  border: "1px solid var(--ms-rule)",
+                  padding: "20px",
+                  background: "var(--ms-paper)",
+                  marginBottom: "20px",
+                }}
+              >
+                <strong>Your capture is saved.</strong>
+                <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
+                  You can close this page. We check next whether it covers the work area well enough to
+                  build the scene, and we will come back to you either way — including if one more
+                  view would finish the job.
+                </p>
+              </div>
+              {/* Saved is not finished. The brief confirmation is the site's
+                  attestation — the thing that lets a robot team be matched — and
+                  the item photos are the objects the task turns on. Hiding both
+                  the moment a video lands used to end the visit with the
+                  qualification undone, recoverable only by knowing to reload. */}
+              {statusCard}
+
+              {scope === "owner" && brief && !briefConfirmed && (
+                <details style={{ marginBottom: "8px" }}>
+                  <summary>
+                    {briefBlocksCapture
+                      ? "A couple of answers refine what to film"
+                      : "Review your task brief"}
+                  </summary>
+                  <p className="ms-field-hint">
+                    We drafted this from what you sent. Confirming the brief is what lets a robot
+                    team be matched to your site.
+                  </p>
+                  <TaskBriefReview
+                    token={token}
+                    brief={brief}
+                    onConfirmed={() => setBriefConfirmed(true)}
+                  />
+                </details>
+              )}
+
+              <TaskItemsPanel token={token} scope={scope} />
+
+              <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
+                Filmed another angle? It can be added the same way — we will use whichever views
+                cover the work area best.
               </p>
-            </div>
+            </>
           ) : !onAPhone ? (
             /*
              * A desktop cannot film a workcell, and a webcam that can see the
