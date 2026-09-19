@@ -6,6 +6,7 @@ const operatorQaFakeAuthEnabled = process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AU
 const taskEvaluationRunE2eEnabled = process.env.BLUEPRINT_TASK_EVAL_E2E === '1';
 const webServerEnvPrefix = [
   'BLUEPRINT_E2E=1',
+  process.env.BLUEPRINT_E2E_STATIC === '1' ? 'BLUEPRINT_E2E_STATIC=1' : '',
   operatorQaFakeAuthEnabled ? 'VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1' : '',
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === '1'
     ? 'BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER=1'

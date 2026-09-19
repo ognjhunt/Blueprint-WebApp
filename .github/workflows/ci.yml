@@ -199,7 +199,14 @@ jobs:
       - name: Verify Playwright install
         run: npx playwright install --dry-run
 
+      - name: Build stable browser-test client
+        env:
+          BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1"
+        run: npm run build
+
       - name: Run E2E tests
+        env:
+          BLUEPRINT_E2E_STATIC: "1"
         run: npm run test:e2e
 
       - name: Run operator-surfaces QA (fake-auth bypass)
