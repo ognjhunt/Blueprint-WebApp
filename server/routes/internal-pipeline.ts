@@ -54,6 +54,9 @@ import {
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
 import { dispatchTransactionalNotification } from "../utils/transactional-notifications";
+import { decryptFieldValue } from "../utils/field-encryption";
+import { createSiteClaimToken } from "../utils/request-review-auth";
+import { enqueueOutbox } from "../utils/captureOutbox";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -1563,6 +1566,56 @@ router.post(
           },
         }).catch(() => null);
       }
+    }
+
+    // The claim invitation: the first moment of durable value.
+    //
+    // When the site enters supply (a qualification state the catalog lists)
+    // and the operator has no account attached, they are invited to claim
+    // it — verify the email we already hold, and the site becomes theirs in
+    // the workspace. Everything before this moment stayed account-free on
+    // purpose; everything after it (listing control, takedown, results)
+    // needs an authority a forwardable link cannot carry. Idempotent by the
+    // outbox dedup key: one invite per request, ever, however many syncs.
+    try {
+      const claimableStates = new Set(["qualified_ready", "qualified_risky", "needs_refresh"]);
+      const alreadyClaimed = Boolean(currentData?.account_owner_uid);
+      const contactEmail = (currentData?.contact as { email?: unknown } | undefined)?.email;
+      const operatorEmail: string | null =
+        typeof contactEmail === "string" && contactEmail.includes("@")
+          ? contactEmail
+          : contactEmail
+            ? await decryptFieldValue(contactEmail as never)
+            : null;
+      if (
+        claimableStates.has(finalQualificationState) &&
+        !alreadyClaimed &&
+        operatorEmail &&
+        operatorEmail.includes("@")
+      ) {
+        const claimToken = createSiteClaimToken(docRef.id);
+        const claimUrl = `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${claimToken}`;
+        await enqueueOutbox({
+          idempotencyKey: `${docRef.id}:assessment_ready`,
+          requestId: docRef.id,
+          kind: "assessment_ready",
+          to: operatorEmail,
+          subject: "Blueprint — your site's scene is ready. Claim it.",
+          body: [
+            "The 3D scene built from your walkthrough is ready, and your site is entering the",
+            "catalog robot teams evaluate against.",
+            "",
+            `Claim your site to see it, control whether it is listed, and pause it anytime:`,
+            claimUrl,
+            "",
+            "Claiming verifies this email address and attaches the site to your account. Your",
+            "footage, your rights, your call — claiming is also where pausing and removal live.",
+          ].join("\n"),
+        });
+      }
+    } catch (claimInviteError) {
+      // The invitation must never fail the sync that carries the scene.
+      logger.warn({ error: claimInviteError }, "Site claim invite could not be enqueued");
     }
 
     return res.json({

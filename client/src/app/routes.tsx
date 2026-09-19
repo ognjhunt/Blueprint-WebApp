@@ -44,6 +44,7 @@ const Pricing = lazyRoute(() => import("../pages/Pricing"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const Capture = lazyRoute(() => import("../pages/Capture"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
+const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
 const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CapturerAccount = lazyRoute(() => import("../pages/CapturerAccount"));
 const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
@@ -242,6 +243,7 @@ export const appRoutes: AppRoute[] = [
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
+  { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },
   { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },

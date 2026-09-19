@@ -737,3 +737,47 @@ describe("self-serve registration links to an intake application", () => {
     expect(linked).toBeNull();
   });
 });
+
+describe("an operator-paused site leaves runnable supply", () => {
+  it("drops the site from a robot team's plan while paused", async () => {
+    const withAndWithout = await withRoutes(async (baseUrl) => {
+      const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({
+          teamName: "Alpha Robotics",
+          checkpoint: { label: "v3", runtime: "policy_endpoint", reference: "https://policies.example/v3" },
+        }),
+      });
+      const { agentKey, checkpoint } = (await registered.json()) as {
+        agentKey: string;
+        checkpoint: { checkpointId: string };
+      };
+      const plan = async () => {
+        const response = await fetch(`${baseUrl}/api/agent-team/plan`, {
+          method: "POST",
+          headers: json(agentKey),
+          body: JSON.stringify({ checkpointId: checkpoint.checkpointId }),
+        });
+        return (await response.json()) as { selected: { sceneId: string }[] };
+      };
+
+      seedOneRunnableSite();
+      const live = await plan();
+
+      // The operator pauses the listing: the same lever the catalog honors.
+      const site = sharedFakeFirestoreState.docs.get("inboundRequests/site-1") as Record<string, any>;
+      site.workspace_task = { ...(site.workspace_task || {}), paused: true };
+      sharedFakeFirestoreState.docs.set("inboundRequests/site-1", site);
+      const paused = await plan();
+
+      return {
+        liveIds: (live.selected ?? []).map((c) => c.sceneId),
+        pausedIds: (paused.selected ?? []).map((c) => c.sceneId),
+      };
+    });
+
+    expect(withAndWithout.liveIds).toContain("site-1");
+    expect(withAndWithout.pausedIds).not.toContain("site-1");
+  });
+});

@@ -28,6 +28,7 @@ import { getRobotTeam, toMatchCandidate } from "./robotTeamRegistry";
 import { toSiteRequirement } from "./siteMatchRun";
 import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
+import { operatorListingPaused } from "./operatorListing";
 import { screeningRound, episodeRate } from "../../client/src/lib/episodePricing";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { coverageEvidenceFrom } from "./captureCoverageReview";
@@ -108,6 +109,10 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
     .map((doc) => doc.data() as InboundRequest)
     // A robot team's own submission is not a site to evaluate against.
     .filter((request) => request.request?.buyerType !== "robot_team")
+    // A site the operator has paused leaves runnable supply for NEW paid
+    // runs — listing is the operator's lever, and this is where it bites.
+    // Already-committed runs settle by their own contract.
+    .filter((request) => operatorListingPaused(request) === false)
     .filter((request) => {
       // Measured coverage where we have it, and the old inference where we do
       // not: a built scene means coverage sufficed, which is true by

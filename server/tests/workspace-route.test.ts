@@ -2,6 +2,7 @@
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createSiteClaimToken } from "../utils/request-review-auth";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -754,5 +755,73 @@ describe("account workspace setup", () => {
     });
     expect(state.records.get("users/new-user")).not.toHaveProperty("admin");
     expect(state.records.get("users/new-user")).not.toHaveProperty("role");
+  });
+});
+
+describe("site claim and listing control", () => {
+  it("attaches a claimed site to the signed-in operator via the claim token", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      account_owner_uid: undefined,
+      contact: { email: "site-1@example.com" },
+    });
+    const token = createSiteClaimToken("task-1");
+
+    // A review link is not a claim link: kinds are distinct even though the
+    // secret family is shared.
+    const asSite1 = await api("/claim", "site-1", { token });
+    expect(asSite1.status).toBe(200);
+
+    const record = state.records.get("inboundRequests/task-1");
+    expect(record.account_owner_uid).toBe("site-1");
+    expect(record.claimed_at_iso).toBeTruthy();
+    // The legacy operator link is set for the claiming account.
+    expect(state.records.get("users/site-1").structuredIntakeRequestId).toBe("task-1");
+  });
+
+  it("refuses a second claimant once a site is claimed", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      contact: { email: "site-1@example.com" },
+    });
+    const token = createSiteClaimToken("task-1");
+    expect((await api("/claim", "site-2", { token })).status).toBe(409);
+  });
+
+  it("refuses a claim from an account on a different email", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      account_owner_uid: undefined,
+      contact: { email: "someone-else@example.com" },
+    });
+    const token = createSiteClaimToken("task-1");
+    const response = await api("/claim", "site-2", { token });
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.code).toBe("claim_email_mismatch");
+  });
+
+  it("rejects an invalid or foreign-kind token", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(),
+      account_owner_uid: undefined,
+      contact: { email: "site-1@example.com" },
+    });
+    expect((await api("/claim", "site-1", { token: "not-a-token" })).status).toBe(400);
+  });
+
+  it("lets the owning operator pause and resume the site listing", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    const paused = await api("/tasks/task-1/listing", "site-1", { paused: true });
+    expect(paused.status).toBe(200);
+    expect(state.records.get("inboundRequests/task-1").workspace_task.paused).toBe(true);
+
+    const resumed = await api("/tasks/task-1/listing", "site-1", { paused: false });
+    expect(resumed.status).toBe(200);
+    expect(state.records.get("inboundRequests/task-1").workspace_task.paused).toBe(false);
+
+    // A non-owner has no listing control: it reads as not-found, like every
+    // other task route.
+    expect((await api("/tasks/task-1/listing", "site-2", { paused: true })).status).toBe(404);
   });
 });
