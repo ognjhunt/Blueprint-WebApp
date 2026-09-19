@@ -11,7 +11,7 @@ export default defineConfig({
   use: { baseURL: "http://127.0.0.1:5191", trace: "retain-on-failure" },
   webServer: {
     command:
-      "npx vite preview --host 127.0.0.1 --port 5191 --strictPort --outDir dist/e2e-auth-public",
+      "npx vite preview --host 127.0.0.1 --port 5191 --strictPort --outDir ../dist/e2e-auth-public",
     url: "http://127.0.0.1:5191",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
