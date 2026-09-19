@@ -224,3 +224,13 @@ resolver remains open; the existing completed-mesh path still expects a subject
 prim. MapAnything also needs its actual worker run: this Mac has 16 GiB RAM and
 7.8 GiB free disk, so downloading the 4.91 GB model here is not the deployment
 path. These are incomplete requirements, not successful native tests.
+
+Task-dependent placement now checks reconstructed triangles under the subject
+and destination footprint instead of inventing a support area from the object's
+dimensions. It retains the connected surface faces, uses the collider contact
+height, and refuses unsupported edges, disconnected contact islands, remote
+floors, and currently unbound distinct destination surfaces. The check is an
+estimated nine-point footprint contact check, not physical proof or a substitute
+for native controls. Verification: 26 focused support/compiler/handoff tests
+pass; changed-file Ruff and diff checks pass. The source resolver and native
+execution remain open; the 14-step end-to-end completion count is unchanged.
