@@ -573,11 +573,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
     catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
-    // The one moment an account is offered: there is something behind it to
-    // see, and nobody owns the site yet. Only the owner's own link carries
-    // it -- a forwarded film-only link must not hand out a claim.
+    // The account is offered once the brief is confirmed: from there the
+    // operator has a wait to follow, and the workspace task page is the place
+    // to follow it. Never before, so nothing stands in front of filming, and
+    // only on the owner's own link -- a forwarded film-only link must not
+    // hand out a claim. Once an account owns the site there is nothing to claim.
     const claimUrl =
-      (status.decision === "screening" || status.decision === "results") &&
+      Boolean(request?.site_task_brief_confirmed_at) &&
       payload.scope !== "film" &&
       !request?.account_owner_uid
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
