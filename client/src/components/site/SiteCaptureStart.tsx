@@ -288,21 +288,6 @@ export function SiteCaptureStart() {
         shows is what decides, and you will hear exactly what we saw.
       </p>
 
-      <label htmlFor="start-name">
-        <span>Your name</span>
-        <input id="start-name" name="startName" type="text" required maxLength={120} />
-      </label>
-
-      <label htmlFor="start-email">
-        <span>Work email</span>
-        <input id="start-email" name="startEmail" type="email" required maxLength={320} />
-      </label>
-
-      <label htmlFor="start-company">
-        <span>Site or company</span>
-        <input id="start-company" name="startCompany" type="text" required maxLength={200} />
-      </label>
-
       <label htmlFor="start-task">
         <span>What is the job?</span>
         <span className="ms-field-hint">
@@ -345,18 +330,21 @@ export function SiteCaptureStart() {
 
       {selfRecording && (
         <label htmlFor="start-filmer">
-          <span>Who is doing the filming?</span>
+          <span>
+            Who is doing the filming? <span className="ms-optional">(optional)</span>
+          </span>
           <span className="ms-field-hint">
             Filming it yourself? Leave this blank. If someone else on-site will do it, put their
-            phone or email here and we will send them a record-only link — they can film and upload,
+            email here and we will send them a record-only link — they can film and upload,
             and only you can confirm the task brief.
           </span>
           <input
             id="start-filmer"
             name="startFilmer"
-            type="text"
+            type="email"
+            inputMode="email"
             maxLength={320}
-            placeholder="Their phone (+15551234567) or email — optional"
+            placeholder="Their email — optional"
             value={filmerContact}
             onChange={(event) => setFilmerContact(event.target.value)}
           />
@@ -398,6 +386,30 @@ export function SiteCaptureStart() {
           placeholder={selfRecording ? "City, or a full address" : "Street address"}
         />
       </label>
+
+      <label htmlFor="start-email">
+        <span>Work email</span>
+        <span className="ms-field-hint">
+          Where we send the capture link and everything that follows — the scene, the plan, the
+          verdict on your footage.
+        </span>
+        <input id="start-email" name="startEmail" type="email" required maxLength={320} />
+      </label>
+
+      <div className="ms-form-row">
+        <label htmlFor="start-name">
+          <span>
+            Your name <span className="ms-optional">(optional)</span>
+          </span>
+          <input id="start-name" name="startName" type="text" maxLength={120} />
+        </label>
+        <label htmlFor="start-company">
+          <span>
+            Site or company <span className="ms-optional">(optional)</span>
+          </span>
+          <input id="start-company" name="startCompany" type="text" maxLength={200} />
+        </label>
+      </div>
 
       {/* Bot bait: hidden from people, honoured by the server. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>

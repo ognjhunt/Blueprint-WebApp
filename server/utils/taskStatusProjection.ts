@@ -39,6 +39,8 @@ export type TaskDecision =
   | "confirm_brief"
   /** Confirmed. A recording is the next step; some gates may still be open. */
   | "record"
+  /** A recording landed. Coverage has not been measured yet — that is ours. */
+  | "footage_received"
   /** Footage is short of what a scene needs, and we can name the views. */
   | "add_views"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
@@ -72,6 +74,8 @@ interface TaskStatusInput {
   coversScene: boolean | null;
   missingViews: string[];
   supplementWouldFinish: boolean;
+  /** The walkthrough's completion marker exists. Absent on older callers. */
+  hasStoredCapture?: boolean;
   nextUpdateIso: string | null;
 }
 
@@ -123,6 +127,19 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // A recording landed but coverage is not measured yet — the footage review
+  // runs downstream, on its own clock. Telling the operator who just saved a
+  // video to go and film one was the contradiction this state exists to end:
+  // the projection's only other stop here read as though the save had failed.
+  if (input.hasStoredCapture) {
+    return {
+      ...base,
+      decision: "footage_received",
+      headline: "We have your recording and are checking whether it covers the work area.",
+      operatorAction: null,
+    };
+  }
+
   return {
     ...base,
     decision: "record",
@@ -144,10 +161,13 @@ export function taskStatusInputFrom(record: {
   } | null;
   site_task_next_update_iso?: string | null;
   briefDrafted: boolean;
+  /** The walkthrough's completion marker exists — footage is in, unreviewed. */
+  hasStoredCapture?: boolean;
   stage: ReadinessStage | null;
 }): TaskStatusInput {
   const coverage = record.capture_coverage;
   return {
+    hasStoredCapture: Boolean(record.hasStoredCapture),
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,

@@ -3,9 +3,11 @@
  * Getting the record-only link to the person doing the filming.
  *
  * The point of this component is delegation: the owner sends a film-scoped link
- * to whoever is on the floor. These pin that the channel is inferred from the
- * destination, and that when texting is off the operator is told and handed the
- * link to share rather than left thinking it went.
+ * to whoever is on the floor. The field asks for an email, because texting is
+ * not wired into this repo yet — asking for a number that cannot be texted is
+ * how a handoff quietly fails. These pin the email send, the email-only field,
+ * the graceful server-error path that still hands over a shareable link, and
+ * the copy-the-link-yourself route.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,11 +30,11 @@ afterEach(() => {
 });
 
 function type(value: string) {
-  fireEvent.change(screen.getByLabelText(/Phone number or email/), { target: { value } });
+  fireEvent.change(screen.getByLabelText(/Email of whoever is filming/), { target: { value } });
 }
 
-describe("the channel is inferred from what the owner types", () => {
-  it("emails when the destination has an @, and confirms it sent", async () => {
+describe("sending the film link", () => {
+  it("sends the link by email and confirms it", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, channel: "email", sent: true }) });
     render(<FilmLinkHandoff token="tok" />);
 
@@ -45,37 +47,32 @@ describe("the channel is inferred from what the owner types", () => {
     expect(JSON.parse(String(init.body))).toMatchObject({ channel: "email", to: "maria@floor.example" });
   });
 
-  it("texts when the destination is a phone number", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, channel: "sms", sent: true }) });
+  it("asks for an email, not a phone number", () => {
     render(<FilmLinkHandoff token="tok" />);
-
-    type("+15551234567");
-    fireEvent.click(screen.getByRole("button", { name: /Send link/ }));
-
-    await screen.findByText(/Sent to \+15551234567/);
-    expect(JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body))).toMatchObject({
-      channel: "sms",
-    });
+    const input = screen.getByLabelText(/Email of whoever is filming/) as HTMLInputElement;
+    // Texting is not configured in this repo; a phone-number field would
+    // collect destinations the pipeline cannot deliver to.
+    expect(input.type).toBe("email");
+    expect(input.placeholder).toMatch(/email/i);
+    expect(input.placeholder).not.toMatch(/\+1|phone/i);
   });
-});
 
-describe("when texting is off, say so and hand over the link", () => {
-  it("shows the fallback message and a copyable link", async () => {
+  it("shows the server's message and a copyable link when a send fails", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
       json: async () => ({
         ok: false,
-        code: "sms_unavailable",
-        error: "Text messaging is not set up here yet. Send it by email, or copy the link and share it.",
+        code: "email_unavailable",
+        error: "We could not send that email. Copy the link and share it.",
         filmUrl: "https://app.example/capture-upload/filmtoken",
       }),
     });
     render(<FilmLinkHandoff token="tok" />);
 
-    type("+15551234567");
+    type("maria@floor.example");
     fireEvent.click(screen.getByRole("button", { name: /Send link/ }));
 
-    await screen.findByText(/Text messaging is not set up/);
+    await screen.findByText(/We could not send that email/);
     const link = screen.getByLabelText(/Record-only link to copy/) as HTMLInputElement;
     expect(link.value).toBe("https://app.example/capture-upload/filmtoken");
   });

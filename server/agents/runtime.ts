@@ -660,6 +660,7 @@ function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
   switch (provider) {
     case "codex_local":
     case "deepseek_chat":
+    case "zai_glm":
     case "openai_responses":
     case "openai_agents_api":
     case "openai_agents_sdk":
@@ -678,6 +679,8 @@ function defaultModelForProvider(provider: AgentProvider) {
       return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
     case "deepseek_chat":
       return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-pro";
+    case "zai_glm":
+      return process.env.ZAI_DEFAULT_MODEL?.trim() || "glm-5.3";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "openai_agents_api":
@@ -906,7 +909,9 @@ async function executeTask<TInput, TOutput>(
     return runOpenAIResponsesTask(task);
   }
 
-  if (task.provider === "deepseek_chat") {
+  if (task.provider === "deepseek_chat" || task.provider === "zai_glm") {
+    // One OpenAI-compatible chat transport, two destinations: DeepSeek's own
+    // API and Z.ai's GLM endpoint. The adapter picks the client by provider.
     const { runDeepSeekChatTask } = await import("./adapters/deepseek-chat");
     return runDeepSeekChatTask(task);
   }

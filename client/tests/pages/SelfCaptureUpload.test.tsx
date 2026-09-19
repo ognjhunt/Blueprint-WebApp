@@ -1,0 +1,93 @@
+/**
+ * The capture page, split by device.
+ *
+ * A desktop cannot film a workcell, so its page is the handoff: the code, the
+ * copyable link, and the status of the phone — never a camera button that opens
+ * a webcam at the operator's face. A phone gets the camera first. These tests
+ * pin that split, because "a useless button on the laptop" and "no camera on
+ * the phone" are the two ways it silently breaks.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
+
+vi.mock("wouter", () => ({
+  useRoute: () => [true, { token: "tok-e2e" }],
+}));
+
+const TOKEN = "tok-e2e";
+
+function mockFetch() {
+  return vi.fn().mockImplementation((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          state: "open",
+          accepts: ["mov", "mp4"],
+          expiresAt: "2099-01-01T00:00:00Z",
+        }),
+      });
+    }
+    if (url.includes("/status")) {
+      return Promise.resolve({ ok: false, json: async () => ({}) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+  });
+}
+
+const PHONE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1";
+
+function setUserAgent(ua: string) {
+  Object.defineProperty(window.navigator, "userAgent", { value: ua, configurable: true });
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", mockFetch());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setUserAgent("");
+});
+
+describe("SelfCaptureUpload by device", () => {
+  it("shows a phone handoff and no camera on a desktop", async () => {
+    setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
+    );
+    render(<SelfCaptureUpload />);
+
+    expect(
+      await screen.findByRole("heading", { name: "This step happens on your phone." }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy the link" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload a video file" })).toBeInTheDocument();
+    // The one thing a desktop must never offer: a webcam pointed at the operator.
+    expect(screen.queryByRole("button", { name: "Open the camera" })).not.toBeInTheDocument();
+  });
+
+  it("shows the camera first on a phone", async () => {
+    setUserAgent(PHONE_UA);
+    // The recorder offers itself only where an mp4-capable MediaRecorder
+    // exists; a phone browser has one, happy-dom does not.
+    vi.stubGlobal("MediaRecorder", class {
+      static isTypeSupported() {
+        return true;
+      }
+    });
+    render(<SelfCaptureUpload />);
+
+    expect(await screen.findByRole("button", { name: "Open the camera" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "This step happens on your phone." }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy the link" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Choose or record a video" }),
+    ).toBeInTheDocument();
+  });
+});

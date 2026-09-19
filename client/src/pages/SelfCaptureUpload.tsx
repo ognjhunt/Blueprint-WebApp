@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
+import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
@@ -240,6 +241,19 @@ export default function SelfCaptureUpload() {
     typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const pageUrl = typeof window === "undefined" ? "" : window.location.href;
   const inputRef = useRef<HTMLInputElement>(null);
+  /** One-tap copy on the desktop handoff, where the QR alone asks too much. */
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(pageUrl);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 4_000);
+    } catch {
+      // Clipboard unavailable (permissions, non-secure context). The URL is
+      // rendered beside the button, so selecting it by hand still works.
+    }
+  }, [pageUrl]);
 
   useEffect(() => {
     if (!token) {
@@ -513,21 +527,6 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
-          {!onAPhone && upload.status === "idle" && (
-            /*
-             * Opened on a laptop, where the camera button below is useless.
-             * Without this the page is a dead end that asks someone to get a
-             * URL onto their own phone by hand.
-             *
-             * Hidden once an upload is under way, because by then they are on
-             * the device that is doing it.
-             */
-            <div style={{ marginBottom: "32px" }}>
-              <p style={{ marginBottom: 0 }}>Record this on your phone.</p>
-              <CaptureHandoffQr url={pageUrl} label="Scan to open this page on your phone" />
-            </div>
-          )}
-
           {upload.status === "held" ? (
             <div
               style={{
@@ -543,26 +542,106 @@ export default function SelfCaptureUpload() {
               </p>
             </div>
           ) : upload.status === "done" ? (
-            <div
-              style={{
-                border: "1px solid var(--ms-rule)",
-                padding: "20px",
-                background: "var(--ms-paper)",
-              }}
-            >
-              <strong>Your capture is saved.</strong>
-              <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                You can close this page. We check next whether it covers the work area well enough to
-                build the scene, and we will come back to you either way — including if one more
-                view would finish the job.
+            <>
+              <div
+                style={{
+                  border: "1px solid var(--ms-rule)",
+                  padding: "20px",
+                  background: "var(--ms-paper)",
+                  marginBottom: "20px",
+                }}
+              >
+                <strong>Your capture is saved.</strong>
+                <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
+                  You can close this page. We check next whether it covers the work area well enough to
+                  build the scene, and we will come back to you either way — including if one more
+                  view would finish the job.
+                </p>
+              </div>
+              {/* Saved is not finished. The brief confirmation is the site's
+                  attestation — the thing that lets a robot team be matched — and
+                  the item photos are the objects the task turns on. Hiding both
+                  the moment a video lands used to end the visit with the
+                  qualification undone, recoverable only by knowing to reload. */}
+              {statusCard}
+
+              {scope === "owner" && brief && !briefConfirmed && (
+                <details style={{ marginBottom: "8px" }}>
+                  <summary>
+                    {briefBlocksCapture
+                      ? "A couple of answers refine what to film"
+                      : "Review your task brief"}
+                  </summary>
+                  <p className="ms-field-hint">
+                    We drafted this from what you sent. Confirming the brief is what lets a robot
+                    team be matched to your site.
+                  </p>
+                  <TaskBriefReview
+                    token={token}
+                    brief={brief}
+                    onConfirmed={() => setBriefConfirmed(true)}
+                  />
+                </details>
+              )}
+
+              <TaskItemsPanel token={token} scope={scope} />
+
+              <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
+                Filmed another angle? It can be added the same way — we will use whichever views
+                cover the work area best.
+              </p>
+            </>
+          ) : !onAPhone ? (
+            /*
+             * A desktop cannot film a workcell, and a webcam that can see the
+             * operator's face is worse than useless here. So the desktop page
+             * is not the recorder with a handoff bolted on — it IS the
+             * handoff: the code, a copyable link, and a status line that
+             * reflects the phone. The camera button exists only where a rear
+             * camera exists.
+             */
+            <div className="ms-form" aria-live="polite">
+              <h2 style={{ marginTop: 0 }}>This step happens on your phone.</h2>
+              <p className="ms-field-hint">
+                A walkthrough is filmed with a phone in the work area — a laptop camera cannot
+                show it. Scan the code to open the recorder on your phone, or copy the link and
+                send it to yourself there.
+              </p>
+              <CaptureHandoffQr url={pageUrl} label="Scan to open the recorder on your phone" />
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  alignItems: "center",
+                  marginTop: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button type="button" className="ms-button" onClick={copyLink}>
+                  {linkCopied ? "Link copied" : "Copy the link"}
+                </button>
+                <span
+                  className="ms-field-hint"
+                  style={{ wordBreak: "break-all", maxWidth: "100%" }}
+                >
+                  {pageUrl}
+                </span>
+              </div>
+              {/* The desktop reflecting what the phone is doing, from the
+                  server's own record rather than a guess. Never blocks the
+                  capture happening elsewhere. */}
+              <CaptureLiveStatus captureUrl={pageUrl} />
+              <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+                Already have the video on this computer? Upload the file below — if it covers the
+                work area we will use it rather than ask anyone to film again.
               </p>
             </div>
           ) : (
             <>
-              {/* Bare bones: the camera is the page. One hero action -- the guided
+              {/* The phone: the camera is the page. One hero action — the guided
                   recorder, which offers itself only where the browser records a
                   format our reconstruction accepts and steps aside to the file
-                  picker below otherwise -- then one line of how, and everything
+                  picker below otherwise — then one line of how, and everything
                   else optional and beneath it. */}
               <CaptureRecorder
                 token={token}
@@ -578,14 +657,14 @@ export default function SelfCaptureUpload() {
                 <legend className="ms-field-hint" style={{ padding: 0, marginBottom: "6px" }}>
                   Can you move the loose items out of the way first?
                 </legend>
-                <label htmlFor="cap-in-place" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                <label htmlFor="cap-in-place" style={{ flexDirection: "row", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                   <input
                     id="cap-in-place"
                     type="radio"
                     name="clear-items"
                     checked={clearItems === "in_place"}
                     onChange={() => setClearItems("in_place")}
-                    style={{ width: "auto", minHeight: 0 }}
+                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
                   />
                   <span style={{ fontWeight: 400 }}>No — film it as it normally is</span>
                 </label>
@@ -596,7 +675,7 @@ export default function SelfCaptureUpload() {
                     name="clear-items"
                     checked={clearItems === "cleared"}
                     onChange={() => setClearItems("cleared")}
-                    style={{ width: "auto", minHeight: 0 }}
+                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
                   />
                   <span style={{ fontWeight: 400 }}>Yes — I’ll clear it and film the empty space</span>
                 </label>
@@ -616,7 +695,11 @@ export default function SelfCaptureUpload() {
                     + "especially right around where the work happens. Keep the scene still: no people "
                     + "or moving items in frame."}
               </p>
+            </>
+          )}
 
+          {upload.status !== "held" && upload.status !== "done" && (
+            <>
               {/* A re-film request or "where this stands" lands right under the
                   camera, so someone who came back to add an angle sees what we
                   need before the optional sections. */}
@@ -661,8 +744,9 @@ export default function SelfCaptureUpload() {
               {scope === "owner" && <FilmLinkHandoff token={token} />}
 
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-                Already have a video? Upload it instead — if it covers the work area we will use
-                it rather than ask you to film again.
+                {onAPhone
+                  ? "Already have a video? Upload it instead — if it covers the work area we will use it rather than ask you to film again."
+                  : "It needs to be a .mov or .mp4 from a real camera — screen recordings and links to other sites cannot be used."}
               </p>
 
               <input
@@ -691,7 +775,11 @@ export default function SelfCaptureUpload() {
                   cursor: upload.status === "uploading" ? "default" : "pointer",
                 }}
               >
-                {upload.status === "uploading" ? "Uploading…" : "Choose or record a video"}
+                {upload.status === "uploading"
+                  ? "Uploading…"
+                  : onAPhone
+                    ? "Choose or record a video"
+                    : "Upload a video file"}
               </button>
 
               {upload.status === "uploading" && (

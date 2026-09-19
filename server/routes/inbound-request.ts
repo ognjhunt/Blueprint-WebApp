@@ -1053,7 +1053,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
   const ipHash = hashIp(clientIp);
 
   try {
-    const payload = req.body as InboundRequestPayload;
+    let payload = req.body as InboundRequestPayload;
 
     // 1. Check honeypot (anti-bot)
     if (payload.honeypot) {
@@ -1076,6 +1076,20 @@ export async function submitInboundRequest(req: Request, res: Response) {
       payload.helpWith
     );
     const buyerType = normalizeBuyerType(payload.buyerType);
+    // The camera-first site path needs a job, an email, and consent — identity
+    // fields would only slow the walk to the camera, so they are optional
+    // there and the email (required and validated below) stands in: its domain
+    // names the company, "there" greets the confirmation email. A shallow copy
+    // keeps every downstream consumer unchanged. Robot teams keep the strict
+    // required set; they are a business counterpart and these fields matter.
+    if (buyerType === "site_operator") {
+      payload = {
+        ...payload,
+        firstName: payload.firstName?.trim() || "there",
+        lastName: payload.lastName?.trim() || "—",
+        company: payload.company?.trim() || payload.email?.split("@")[1]?.trim() || "unknown",
+      };
+    }
     const commercialRequestPath = normalizeCommercialRequestPath({
       value: payload.commercialRequestPath,
       buyerType,
@@ -1600,6 +1614,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteSubmissionId: payload.requestId,
         status: "submitted",
         message: "Development mode: request saved locally and notifications were skipped.",
+        // The dev fallback rehearses the production contract, and production
+        // hands the capture link back in this response. Omitting it here let
+        // the local path drift from the one real sites take.
+        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -2238,8 +2256,19 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {
+    // Pino renders some thrown values as `{}` — an error with no own
+    // enumerable props hid a FIELD_ENCRYPTION_MASTER_KEY failure long enough
+    // to cost a full debugging session. `inspected` guarantees the shape and
+    // stack are always in the log line.
+    const { inspect } = await import("node:util");
     logger.error(
-      { error, durationMs: Date.now() - startTime },
+      {
+        error,
+        durationMs: Date.now() - startTime,
+        inspected: error instanceof Error
+          ? `${error.name}: ${error.message}\n${error.stack}`
+          : inspect(error, { depth: 4 }),
+      },
       "Error processing inbound request"
     );
     return res.status(500).json({

@@ -48,6 +48,8 @@ import {
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
 import { deliverOutbox } from "../utils/captureOutbox";
+import { storedCaptureMarkerExists } from "../utils/captureParts";
+import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 
 const router = Router();
@@ -513,12 +515,34 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }).stage;
     }
 
+    // The same object the extractor reads: the one truth about whether a
+    // recording landed. Unreadable counts as absent here — the honest answer
+    // below it ("film the work area") is wrong only when this said true.
+    let hasStoredCapture = false;
+    if (storageAdmin) {
+      try {
+        const bucketName =
+          process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
+        const rawPrefix = `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`;
+        hasStoredCapture = await storedCaptureMarkerExists(
+          storageAdmin.bucket(bucketName) as never,
+          rawPrefix,
+        );
+      } catch (error) {
+        logger.warn(
+          { error, requestId: payload.requestId },
+          "Could not check for a stored capture; status will not claim one",
+        );
+      }
+    }
+
     const status = projectTaskStatus(
       taskStatusInputFrom({
         site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
         capture_coverage: request?.capture_coverage ?? null,
         site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
         briefDrafted: Boolean(brief),
+        hasStoredCapture,
         stage,
       }),
     );

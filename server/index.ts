@@ -23,6 +23,7 @@ import {
   getPublicAssetPath,
 } from "./utils/public-artifacts";
 import { buildContentSecurityPolicy } from "./utils/contentSecurityPolicy";
+import { permissionsPolicyForPath } from "./utils/permissionsPolicy";
 import {
   createPipelineTaskEvaluationResultBodyParser,
   DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT,
@@ -198,10 +199,7 @@ app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", cspDirectives);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Permissions-Policy",
-    "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
-  );
+  res.setHeader("Permissions-Policy", permissionsPolicyForPath(req.path));
   if (isProduction) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }

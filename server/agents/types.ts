@@ -2,6 +2,9 @@ import type { z } from "zod";
 
 export type AgentProvider =
   | "deepseek_chat"
+  // Z.ai GLM — the default structured-automation provider. OpenAI-compatible
+  // chat completions served through the shared chat adapter.
+  | "zai_glm"
   | "openclaw"
   | "openai_responses"
   | "openai_agents_api"

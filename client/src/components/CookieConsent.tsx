@@ -22,9 +22,14 @@ export function CookieConsent() {
   });
 
   useEffect(() => {
+    // The capture page is a tool someone was handed a link to, not a marketing
+    // surface: a consent dialog covering the camera or the "saved" state asks a
+    // question the visit does not need answered. Only essential cookies are set
+    // there, so there is nothing on it to consent to.
+    const isCaptureToolPage = window.location.pathname.startsWith("/capture-upload");
     // Check if consent was already given
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (!consent) {
+    if (!consent && !isCaptureToolPage) {
       // Delay showing the banner slightly for better UX
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);

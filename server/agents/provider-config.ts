@@ -9,6 +9,7 @@ import type { AgentProvider, AgentTaskKind } from "./types";
 export type StructuredProvider = Extract<
   AgentProvider,
   | "deepseek_chat"
+  | "zai_glm"
   | "openai_responses"
   | "anthropic_agent_sdk"
   | "acp_harness"
@@ -18,6 +19,7 @@ export type StructuredProvider = Extract<
 
 const STRUCTURED_PROVIDER_VALUES = new Set<StructuredProvider>([
   "deepseek_chat",
+  "zai_glm",
   "openai_responses",
   "anthropic_agent_sdk",
   "acp_harness",
@@ -173,6 +175,7 @@ export function getOpenAiReasoningEffort(
 
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
   deepseek_chat: "deepseek-v4-pro",
+  zai_glm: "glm-5.3",
   openai_responses: "gpt-5.6-luna",
   anthropic_agent_sdk: "claude-sonnet-4-5",
   acp_harness: "codex",
@@ -223,6 +226,8 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
       return isCodexLocalConfigured();
     case "deepseek_chat":
       return Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+    case "zai_glm":
+      return Boolean(process.env.ZAI_API_KEY?.trim());
     case "openai_responses":
       return Boolean(process.env.OPENAI_API_KEY?.trim());
     case "anthropic_agent_sdk":
@@ -338,6 +343,11 @@ function selectGlobalStructuredProvider(): StructuredProvider {
   const candidates = [
     preferred,
     fallback,
+    // Z.ai GLM is the house default; when its key is present it outranks the
+    // remaining key-based candidates. DeepSeek stays behind it as a fallback,
+    // not because anything here prefers it — because a key being set is the
+    // only evidence the deployment still wants it.
+    normalizeProvider(process.env.ZAI_API_KEY ? "zai_glm" : null),
     normalizeProvider(process.env.DEEPSEEK_API_KEY ? "deepseek_chat" : null),
     normalizeProvider(isCodexLocalConfigured() ? "codex_local" : null),
     normalizeProvider(process.env.ACP_HARNESS_URL ? "acp_harness" : null),
@@ -363,6 +373,7 @@ export function getStructuredAutomationFallbackProvider(
   const candidates = [
     preferredFallback,
     "codex_local" as StructuredProvider,
+    "zai_glm" as StructuredProvider,
     "deepseek_chat" as StructuredProvider,
     "anthropic_agent_sdk" as StructuredProvider,
     "openai_responses" as StructuredProvider,
