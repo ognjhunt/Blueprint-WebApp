@@ -117,19 +117,19 @@ for (const type of ["site_operator", "robot_team"] as const) {
       .click();
     await expect(page).toHaveURL(
       type === "site_operator"
-        ? /\/app\/tasks\/new$/
-        : /\/settings\?tab=robots$/,
+        ? /\/contact\/site-operator$/
+        : /\/contact\/robot-team$/,
     );
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "Request a task" : "Saved setups",
+        name: type === "site_operator" ? "Let’s start with your site." : "Find work your robot could do.",
         exact: true,
       }),
     ).toBeVisible();
     await page.reload();
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "Request a task" : "Saved setups",
+        name: type === "site_operator" ? "Let’s start with your site." : "Find work your robot could do.",
         exact: true,
       }),
     ).toBeVisible();
