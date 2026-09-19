@@ -22,7 +22,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
-| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Unproven |
+| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live two-view Marble component completed; actual website-origin loop pending |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (existing `rigid_replacement_authoring` stage; website inputs compiled, GPU run pending) |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (source-to-collider registration and support placement hermetic; `native_task_scene_assembly` pending) |
 | 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds plus grasp-hold screen and escalation; `bounded_physics` cells run on GPU) |
@@ -547,4 +547,35 @@ The real World Labs key authenticated successfully, but its API balance returned
 has been purchased. API credits are separate from Marble website credits.
 Multi-object selection and removal are covered by focused tests; the live
 walkthrough still verifies one selected object. Agentic Gemini, actual Marble
-completion, native simulation and website result publication remain open.
+completion, native simulation and website result publication remained open at that check.
+
+After the owner added API credits, the canonical allocator submitted the reviewed
+pair once. Marble operation `efcc90c5-6f54-40fd-8615-45847ed81a02` completed with
+world `028824aa-764c-4c2a-9baf-dab855efae6a`. Provider-settled cost: 1,600 credits
+($1.28). The collider GLB (5,880,188 bytes) and full-resolution SPZ (30,039,497
+bytes) were downloaded through the existing materializer, with no HQ mesh purchase.
+Evidence: `marble-prepared-views-live/marble-terminal.json`, `asset-collection.json`
+and the materializer's file hashes. This proves visual construction and retained
+assets, not simulation, physical accuracy, or a website-triggered run.
+
+Owner-directed harness rule: fill the selected provider/model's configured,
+verified image allowance, including wider context even when the task is out of
+view. This is not a global eight- or 100-frame cap: future Atlas capabilities may
+be 100+. Pipeline reads `BLUEPRINT_WEBSITE_RECONSTRUCTION_PROFILE_JSON` with
+`provider`, `model`, and `max_input_images`; its current Marble profile supplies
+eight. Unknown selected models require an explicit matching profile. The current
+Marble adapter still enforces its own supported API contract; this does not claim
+Atlas access or an implemented unpublished Atlas API.
+
+The selector retains task anchors, ranks additional frames by clarity
+and temporal separation, skips byte-identical duplicates, and uses all available
+distinct frames when there are fewer than eight. Only selected task regions are
+edited. The rule is also in Pipeline's nested `AGENTS.md`. The walkthrough now
+has an eight-view candidate set: the two accepted edits plus six unchanged context
+frames, without another SAM or image-generation purchase. The first completed
+Marble world still used two images; the eight-view set has not been submitted.
+The complete eight-view candidate set passed the image review. Context decoding
+is independent of the smaller MapAnything batch, and full-video source masks are
+retained for those additional frames. Selection tests exercise 8- and 128-frame
+profiles and fewer available frames. Focused preparation, mask, image completion,
+and Marble coverage passes; no new world has been purchased for the expanded set.
