@@ -85,3 +85,18 @@ materialization and supervisor manager); WebApp 52 passed (manifest, agentic
 adapter, footage evidence and privacy). Changed-file Python lint passed.
 The two new current-task endpoint tests and WebApp typecheck also passed.
 These are hermetic tests, not live reconstruction or simulator proof.
+
+## Parallel work split (2026-09-19, Claude Fable lane)
+
+Claude works in these same worktrees on steps 10–14 so both lanes see each
+other's edits; Astra keeps steps 1–9. Claude-owned files (do not edit in the
+Astra lane without a note here): Pipeline `website_task_assets.py`,
+`website_scene_composition.py`, `website_task_physics.py`,
+`website_task_preflight.py`, `website_task_publication.py` and their tests;
+WebApp changes limited to the pipeline sync acceptance of
+`supported_evaluations` and `proposed_thumbnail`, and the library's
+"Evaluate this task" runtime gate. Interfaces consumed from the Astra lane:
+`clean_plate/removal_manifest.json` (`clean_plate_removal_manifest.v1`),
+`website_task_masks` target bounds, and `website_scene_geometry` estimated
+cameras/scale. Claude commits on `codex/website-task-pipeline` with a
+`[claude]` prefix; pull before editing shared files.
