@@ -11,6 +11,7 @@ import type {
   RobotCapabilityEnvelope,
 } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
+import { operatorListingPaused } from "./operatorListing";
 import { parseGsUri } from "./pipeline-dashboard";
 import { resolvePresentationDemoUiBaseUrl } from "./presentation-demo-runtime";
 import { summarizeWorldLabsPreview } from "./worldlabs";
@@ -939,6 +940,14 @@ async function buildLiveRecord(
   request: InboundRequest,
 ): Promise<SiteWorldCard | null> {
   if (request.debug?.autoCreatedByPipeline === true) {
+    return null;
+  }
+  // The operator's pause lever. Claimed sites can be pulled from public
+  // listing by their owner (`workspace_task.paused`); the catalog honors it
+  // here so a paused site vanishes from the list and from by-id lookup alike.
+  // It is a visibility control, not a takedown — consent remains
+  // authoritative through the rights gates regardless of this flag.
+  if (operatorListingPaused(request)) {
     return null;
   }
   const qualificationState = normalizeQualificationState(request);

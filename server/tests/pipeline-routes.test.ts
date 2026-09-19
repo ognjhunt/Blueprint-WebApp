@@ -143,6 +143,24 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               ...payload,
             };
           },
+          create: async (payload: Record<string, unknown>) => {
+            const existing = state.collectionDocData[name]?.[id || "mock-doc-id"];
+            if (existing) {
+              // Firestore's already-exists: the dedup contract `create` gives
+              // enqueueOutbox.
+              const error = new Error("already exists") as Error & { code?: number };
+              error.code = 6;
+              throw error;
+            }
+            state.collectionWrites.push({
+              collection: name,
+              id: id || "mock-doc-id",
+              payload,
+              options: { create: true },
+            });
+            state.collectionDocData[name] = state.collectionDocData[name] || {};
+            state.collectionDocData[name][id || "mock-doc-id"] = { ...payload };
+          },
         }),
         where: (field: string, _op: string, value: unknown) =>
           buildQuery([{ field, value }]),
@@ -182,11 +200,15 @@ vi.mock("../utils/slack", () => ({
   sendSlackMessage: vi.fn().mockResolvedValue({ sent: true }),
 }));
 
-vi.mock("../utils/request-review-auth", () => ({
-  createRequestReviewToken: () => "valid",
-  getRequestReviewCookieName: () => "blueprint-review",
-  verifyRequestReviewToken: (token: string) => token === "valid",
-}));
+vi.mock("../utils/request-review-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/request-review-auth")>();
+  return {
+    ...actual,
+    createRequestReviewToken: () => "valid",
+    getRequestReviewCookieName: () => "blueprint-review",
+    verifyRequestReviewToken: (token: string) => token === "valid",
+  };
+});
 
 async function startServer(
   loadRouter: () => Promise<{ default: express.Router }>
@@ -1807,6 +1829,37 @@ describe("pipeline integration routes", () => {
           }),
         ]),
       );
+    } finally {
+      await stopServer(server);
+    }
+  });
+  it("invites the operator to claim the site once it enters supply", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.docExists = true;
+    state.docData = {
+      request: { buyerType: "site_operator" },
+      contact: { email: "owner@example.com" },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+    const signedRequest = signedPipelineRequest({
+      ...pipelineAttachmentFixture,
+      authoritative_state_update: true,
+      qualification_state: "qualified_ready",
+    });
+
+    try {
+      const first = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        ...signedRequest,
+      });
+      expect(first.status).toBe(200);
+      await fetch(`${baseUrl}/attachments`, { method: "POST", ...signedRequest });
+
+      const invites = findCollectionWrites("captureOutbox");
+      expect(invites).toHaveLength(1);
+      expect(invites[0].payload.kind).toBe("assessment_ready");
+      expect(invites[0].payload.to).toBe("owner@example.com");
+      expect(String(invites[0].payload.body)).toContain("/claim/");
     } finally {
       await stopServer(server);
     }

@@ -17,6 +17,7 @@ import {
   decryptFieldValue,
 } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
+import { verifySiteClaimToken } from "../utils/request-review-auth";
 import { projectPilotOpportunityForRobotTeam } from "../utils/pilot-opportunity-projection";
 import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
@@ -50,6 +51,7 @@ const id = z
 const short = z.string().trim().min(1).max(160);
 const prose = z.string().trim().max(3000);
 const amount = z.number().finite().min(0).max(1e9).nullable();
+const listingSchema = z.object({ paused: z.boolean() }).strict();
 const termsSchema = z
   .object({
     successRate: z.number().finite().min(0).max(100).nullable(),
@@ -693,6 +695,84 @@ function intakeIdentity(res: Response) {
     context: { sourcePageUrl: "/app", utm: {} },
   };
 }
+/**
+ * Attach a site to the signed-in account, with the claim token as proof.
+ *
+ * This is the identity moment the funnel otherwise lacks: intake, filming,
+ * upload and the brief are all account-free by design, and the operator's
+ * first contact runs on signed links. When the scene is real, the operator is
+ * invited to claim it — verify the email, and the site attaches to their
+ * workspace (`account_owner_uid`, the same ownership every task route reads).
+ * The token proves custody of the invitation email; the signature check is
+ * what stops a forwarded link from being a transfer of ownership, and a
+ * claimed site refuses a second claimant outright.
+ */
+router.post(
+  "/claim",
+  handle(async (req, res) => {
+    requireRole(res, "site_operator");
+    const caller = identity(res);
+    if (!caller.verified)
+      refuse(403, "Verify your email before claiming a site.", "claim_email_unverified");
+    const token = text(String(object(req.body).token ?? ""));
+    const payload = verifySiteClaimToken(token);
+    if (!payload)
+      refuse(400, "That claim link is not valid any more.", "claim_token_invalid");
+
+    const item = await readRequest(payload.requestId);
+    const owner = text(item.record.account_owner_uid);
+    if (owner && owner !== caller.uid)
+      refuse(409, "Someone has already claimed this site.", "site_already_claimed");
+
+    const operatorEmail = text(object(item.record.contact).email).toLowerCase();
+    if (operatorEmail && operatorEmail !== caller.email)
+      refuse(
+        403,
+        `Sign in with ${operatorEmail} to claim this site.`,
+        "claim_email_mismatch",
+      );
+
+    await item.ref.set(
+      {
+        account_owner_uid: caller.uid,
+        claimed_at: admin.firestore.FieldValue.serverTimestamp(),
+        claimed_at_iso: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    // Legacy operator surfaces read the link off the user doc; set it once,
+    // never steal one that is already pointed somewhere.
+    const profileRef = db!.collection("users").doc(caller.uid);
+    await db!.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(profileRef);
+      const user = object(snapshot.data());
+      if (!text(user.structuredIntakeRequestId))
+        transaction.update(profileRef, { structuredIntakeRequestId: payload.requestId });
+    });
+    return res.json({ ok: true, requestId: payload.requestId });
+  }),
+);
+/**
+ * Operator listing control: pause or resume the site's public availability.
+ *
+ * This is the authority the claim exists to carry. A paused site drops out of
+ * the public catalog and out of runnable supply for new paid runs — checked in
+ * `site-worlds.ts` and `teamEvalCandidates.ts` — while the record, footage and
+ * history stay intact. Consent remains authoritative continuously regardless:
+ * pausing is the operator's day-to-day lever, not the takedown mechanism.
+ */
+router.post(
+  "/tasks/:taskId/listing",
+  handle(async (req, res) => {
+    const item = await ownedTask(req.params.taskId, res);
+    const input = listingSchema.parse(req.body);
+    await item.ref.update({
+      "workspace_task.paused": input.paused === true,
+      "workspace_task.listing_updated_at": new Date().toISOString(),
+    });
+    return res.json({ ok: true, paused: input.paused === true });
+  }),
+);
 router.post(
   "/tasks",
   handle(async (req, res) => {

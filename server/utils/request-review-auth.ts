@@ -3,10 +3,13 @@ import crypto from "node:crypto";
 const REQUEST_REVIEW_COOKIE_NAME = "bp_request_review";
 
 interface RequestReviewTokenPayload {
-  kind: "request_review";
+  kind: "request_review" | "site_claim";
   requestId: string;
   exp: number;
 }
+
+/** Claim links live longer than review links: they are the standing way back. */
+const SITE_CLAIM_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 function getSecret() {
   return (
@@ -37,6 +40,43 @@ export function createRequestReviewToken(requestId: string, ttlSeconds = 60 * 60
   };
   const serialized = JSON.stringify(payload);
   return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
+}
+
+export function createSiteClaimToken(requestId: string, ttlSeconds = SITE_CLAIM_TTL_SECONDS) {
+  const payload: RequestReviewTokenPayload = {
+    kind: "site_claim",
+    requestId,
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+  };
+  const serialized = JSON.stringify(payload);
+  return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
+}
+
+export function verifySiteClaimToken(token: string) {
+  const [encodedPayload, signature] = String(token || "").split(".");
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  try {
+    const serializedPayload = fromBase64Url(encodedPayload);
+    const expectedSignature = signPayload(serializedPayload);
+    const actual = Buffer.from(signature);
+    const expected = Buffer.from(expectedSignature);
+
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) {
+      return null;
+    }
+
+    const payload = JSON.parse(serializedPayload) as RequestReviewTokenPayload;
+    if (payload.kind !== "site_claim" || payload.exp * 1000 <= Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 export function verifyRequestReviewToken(token: string, requestId: string) {
