@@ -19,7 +19,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 3 | Metric scale from confirmed SKU/dimension or measurement; optional ARKit escalation | Independent scale/registration checks, no guessed metric promotion | Unproven |
 | 4 | Reusable Gemini 3.8 agentic task/coverage/object analysis | API trace of media navigation, validated outputs, one source-bound analysis | In progress |
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Unproven |
-| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Unproven |
+| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Consistent observed-background recovery plus conditional image editing; no VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Unproven |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Unproven |
@@ -63,3 +63,25 @@ WebApp `npm run check`: passed. Pipeline focused tests: 17 passed. Google GenAI
 responses (local SDK serialization check, no provider call).
 Graphify refresh attempted: runner lacks graphifyy; staged corpus exists but
 canonical graph regeneration is pending.
+
+Task-removal refinement: movability alone never requests removal. The analysis
+records task effect, reason and source observations, and binds manipulated
+objects to a verbatim task-text reference. Unrelated movable objects stay;
+static supports and obstacles request collision geometry without deleting their
+appearance. Ambiguous task objects retain a clarification question and block
+editing. Existing Agents SDK capture supervisor instructions use the same rule.
+Its full website-stage orchestration is not yet connected or live-verified.
+
+Reconstruction admission now rejects blocked/invalid preparation instead of
+falling back to the unedited source. Website uploads carry task context through
+materialization. A signed, read-only WebApp endpoint now returns the current
+brief without owner identity; Pipeline checks its capture binding and digest
+before any preparation, retaining the snapshot beside (not over) the original
+manifest. Unconfirmed tasks hold preparation. The legacy direct WebApp
+reconstruction endpoint rejects website captures, since extraction already
+hands them to Pipeline; there is no second unprepared World Labs purchase.
+Focused verification: Pipeline 80 tests passed (analysis, clean-plate admission,
+materialization and supervisor manager); WebApp 52 passed (manifest, agentic
+adapter, footage evidence and privacy). Changed-file Python lint passed.
+The two new current-task endpoint tests and WebApp typecheck also passed.
+These are hermetic tests, not live reconstruction or simulator proof.

@@ -15,13 +15,12 @@
  * It is the only provider in this stack whose API ingests video directly. The
  * others take pre-extracted frames, which loses the two things this lane is for:
  * the audio track, and real elapsed time between frames — and elapsed time is
- * the whole basis of the cycle measurement. Gemini samples at 1 FPS with audio
- * and returns timestamps that refer to the actual clip. This adapter explicitly
+ * the whole basis of the cycle measurement. Gemini returns timestamps that
+ * refer to the actual clip. This adapter explicitly
  * requests agentic navigation and verifies the returned media-tool trace.
  *
- * `@google/generative-ai` and `GEMINI_API_KEY` are already dependencies of this
- * repo (`server/utils/geminiInteractions.ts`, `server/config/env.ts`), so this
- * introduces a new task, not a new service.
+ * Gemini is already a provider in this repo. The explicit REST request retains
+ * media-processing fields unsupported by the older text SDK dependency.
  *
  * ## Fetching the footage
  *
@@ -70,7 +69,7 @@ export async function analyseAgenticVideo(input: {
           { inline_data: { mime_type: input.contentType, data: input.bytes.toString("base64") },
             media_processing: "AGENTIC" },
         ] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
       }),
     },
   );
@@ -273,7 +272,7 @@ function extractJsonPayload(rawText: string) {
 function readVideoUrl(input: unknown): string {
   const url =
     input && typeof input === "object"
-      ? (input as Record<string, unknown>).taskVideoUrl
+      ? (input as Record<string, unknown>).taskVideoUrl ?? (input as Record<string, unknown>).videoUrl
       : null;
   if (typeof url !== "string" || !url.trim()) {
     throw new GeminiVideoError(

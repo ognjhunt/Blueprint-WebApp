@@ -42,6 +42,18 @@ function manifest() {
 }
 
 describe("a browser capture produces a bundle the extractor will actually process", () => {
+  it("carries the owner's task and confirmation without inventing confirmation", () => {
+    const built = buildBrowserCaptureManifest({
+      payload: { sceneId: "site-req-1", captureId: "walkthrough-req-1", requestId: "req-1" },
+      objectPath: "scenes/site-req-1/captures/walkthrough-req-1/raw/walkthrough.mp4",
+      video: VIDEO, sizeBytes: 100,
+      taskContext: { description: "Pick a small rigid object from the table", confirmed: false, confirmed_at: null },
+    });
+    expect(built.site_task_context).toEqual({
+      schema_version: "website_site_task_context.v1", request_id: "req-1",
+      description: "Pick a small rigid object from the table", confirmed: false, confirmed_at: null,
+    });
+  });
   it("satisfies every field the extractor requires", () => {
     // A manifest missing any of these produces a blocked report rather than a
     // scene, and from the site's side that looks identical to a successful
