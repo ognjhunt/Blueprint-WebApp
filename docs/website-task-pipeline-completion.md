@@ -15,8 +15,8 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | Step | Required behavior | Evidence required to close | State |
 | --- | --- | --- | --- |
 | 1 | Confirm task, work region, success criteria before reconstruction | Browser submission and immutable confirmed task consumed by Pipeline | Unproven |
-| 2 | Browser original retained; optional inferred depth | Source digests unchanged; native depth output with provider identity and uncertainty | Unproven |
-| 3 | Metric scale from confirmed SKU/dimension or measurement; optional ARKit escalation | Independent scale/registration checks, no guessed metric promotion | Unproven |
+| 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
+| 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
 | 4 | Reusable Gemini 3.8 agentic task/coverage/object analysis | API trace of media navigation, validated outputs, one source-bound analysis | In progress |
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Unproven |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
@@ -142,3 +142,64 @@ Still open before rows 10–14 can close:
    Supported evaluations today are the Franka DROID embodiment with
    `pi05_droid` and `groot_n17_droid`; a robot team's own checkpoint is not yet
    an Isaac candidate, so the library must not imply otherwise.
+
+
+2026-09-19 implementation continuation: owner selected MapAnything Apache.
+Pipeline commits `3097c5868` and `b6e6a53c7` retain original-view geometry,
+bind task-specific SAM3.1 masks, recover observed background, and submit only
+prepared images to Marble while reusing its saved operation. `3e58f5114`
+removes VIP from the website path and adds conditional Sunburst image fills
+with exact preservation outside the hole mask, shared reference views, and a
+required model visual review. 123 focused Pipeline tests passed. Native
+MapAnything/SAM inference and image-edit/Marble provider execution are pending.
+The local machine does not have the MapAnything package/checkpoint installed;
+its free disk is about 8 GB and the upstream Apache checkpoint alone is 4.91 GB.
+Do not substitute a synthetic geometry result for a worker inference run.
+
+The stored website consent now travels in the raw manifest and the fresh signed
+task snapshot; Pipeline replaces historical permissions with that current
+snapshot before preparation. Missing, withdrawn, or unknown-version consent
+cannot grant derivation, and scene-building consent does not grant data resale.
+WebApp targeted rights/manifest tests: 22 pass, plus 24 existing capture-upload
+tests. Final WebApp typecheck passed.
+Graphify was attempted and remains unavailable because graphifyy is missing.
+
+The first real Gemini 3.8 agentic call on the owner-provided walkthrough returned
+an incomplete response. Its blocked plan is retained at
+`output/website-task-pipeline/live-analysis/removal-plan.json` in the Pipeline
+worktree. A bounded follow-up with low thinking and a larger output allowance also
+returned incomplete. Provider readback identified TOO_MANY_TOOL_CALLS, including
+a bounded-prompt attempt; a Files API attempt then exposed a local SDK argument
+mismatch, which is fixed against the installed 2.24.0 signature. The live retry
+is parked per the owner instruction to keep progressing on independent steps.
+No reconstruction, simulator proof, or full website loop has completed yet.
+
+Coordination: Fable committed the step 10-14 intake compiler in Pipeline
+`efdf1733d` (`website_task_preparation.py`). Astra owns the clean-plate stage,
+image completion, source geometry and task masks, task-context/rights handoff,
+and `site_package_orchestrator.py`. Neither compiler tests nor a successful
+provider preview alone close steps 10-14.
+
+
+Owner steering: provider rate limits/failures are parked while independent code
+and integration work continues. Do not retry a single provider in a serial loop.
+
+Further integration: the website orchestrator now carries a finished Marble
+world into `website_scene_handoff`, checking world identity and local asset
+hashes before task preparation. Website downloads retain one splat and the
+collider; repeat polls reuse verified files. Partial exports cannot claim
+complete scene assets. The real compiler produces placement, authoring inputs,
+and a thumbnail on hermetic source/collider fixtures. Coordinates now use the
+same Y-up-to-Z-up and unit conversion as the simulator; absent physical scale
+uses the MapAnything registration estimate. Input digests must still match.
+Capture consent no longer fabricates execution consent, owner identity, provider
+terms, or spending permission. Geometry compilation continues with execution
+held until the existing authority is supplied.
+
+Verification for this continuation: 16 handoff/compiler tests, 12 orchestrator
+edge tests, 9 provider/download tests, and 15 Gemini request-contract tests pass;
+changed-file Ruff and diff checks pass. These 52 checks are hermetic, not native
+provider or simulator proof. The production scene-source resolver still needs
+the website-specific path for a subject already removed before reconstruction;
+the older completed-mesh path requires a source object prim to excise and cannot
+be reused unmodified. No execution intent has been queued by this handoff.
