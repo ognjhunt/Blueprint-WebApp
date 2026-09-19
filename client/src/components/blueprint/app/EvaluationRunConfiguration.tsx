@@ -107,9 +107,9 @@ export function EvaluationRunConfiguration({
                 <div>
                   <p className="runway-meta">03 · Variation matrix</p>
                   <h2 id="matrix-title" className="mt-1 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">Choose test depth</h2>
-                  <p className="mt-2 max-w-2xl text-body-s text-ink-500">A scenario count always means the same deterministic, balanced cells and seeds for each policy. Blueprint chooses the cells; you choose only the depth.</p>
+                  <p className="mt-2 max-w-2xl text-body-s text-ink-500">A scenario count always means the same deterministic, balanced cells and seeds for each policy. The published preregistered matrix fixes the cells; you choose only the depth.</p>
                 </div>
-                <StatusChip tone="proof" square>{preset?.scenarioCountPerPolicy ?? 0} paired scenarios</StatusChip>
+                <StatusChip tone="proof" square>{preset?.scenarioCountPerPolicy ?? 0} fixed scenario cells</StatusChip>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Evaluation depth">
                 {setup.presets.map((option) => {
