@@ -28,7 +28,7 @@ import {
 } from "../utils/worldReconstruction";
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 import { getBrief } from "../utils/siteTaskBrief";
-import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { loadWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import {
   enqueueTaskLifecycleNotification,
   reconstructionIsViewable,
@@ -139,7 +139,7 @@ router.post(
       const brief = await getBrief(requestId);
       if (!brief) return res.status(404).json({ code: "task_brief_missing" });
       res.setHeader("Cache-Control", "no-store");
-      return res.json(projectWebsiteTaskContext(brief));
+      return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId)));
     } catch {
       return res.status(503).json({ code: "task_context_unavailable" });
     }

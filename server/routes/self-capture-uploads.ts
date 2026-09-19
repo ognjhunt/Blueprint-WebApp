@@ -47,6 +47,7 @@ import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
 import { getBrief } from "../utils/siteTaskBrief";
+import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 const router = Router();
 
@@ -201,6 +202,7 @@ export function buildBrowserCaptureManifest(input: {
   video: BrowserVideoMetadata;
   sizeBytes: number;
   taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
+  captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
 }): Record<string, unknown> {
   return {
     schema_version: "v1",
@@ -225,6 +227,7 @@ export function buildBrowserCaptureManifest(input: {
     device_model: "browser_self_capture",
     os_version: "unknown",
     capture_source: "browser_self_capture",
+    capture_rights: input.captureRights ?? projectWebsiteCaptureRights(undefined),
     capture_tier_hint: "video_only",
     has_lidar: false,
     fps_source: input.video.fps,
@@ -360,6 +363,7 @@ async function finishStoredCapture(params: {
     objectPath,
     video: params.videoMetadata,
     sizeBytes: params.sizeBytes,
+    captureRights: await loadWebsiteCaptureRights(payload.requestId),
     taskContext: {
       description: brief?.summary ?? "",
       confirmed: Boolean(brief?.confirmedAtIso),

@@ -2,12 +2,14 @@
 import { afterEach, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
-import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 
-const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null }));
+const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief }));
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null }));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: {
+  collection: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => ({ request: { consent_attestation: state.consent } }) }) }) }),
+} }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -23,7 +25,7 @@ function brief(confirmed: boolean): SiteTaskBriefRecord {
     confirmedBy: "private owner identity", operatorAnswers: confirmed ? { item_rigidity: "rigid" } : null,
     operatorUnknown: confirmed ? ["cycle"] : null };
 }
-afterEach(() => { state.authorized = true; state.brief = null; });
+afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; });
 
 it("binds task content and confirmation without disclosing owner identity", () => {
   const draft = projectWebsiteTaskContext(brief(false));
@@ -51,6 +53,13 @@ it("reads confirmation after upload and rejects unsigned or mismatched capture r
     const response = await post();
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toMatchObject({ confirmed: true, capture_id: "walkthrough-req1" });
+    state.consent = grant;
+    const allowed = await (await post()).json();
+    expect(allowed.capture_rights.derived_scene_generation_allowed).toBe(true);
+    state.consent = { ...grant, granted: false };
+    const revoked = await (await post()).json();
+    expect(revoked.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(revoked.context_digest).not.toBe(allowed.context_digest);
     expect((await post("walkthrough-other")).status).toBe(409);
     const reconstruction = await fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/world/reconstruct`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -61,4 +70,17 @@ it("reads confirmation after upload and rejects unsigned or mismatched capture r
     state.authorized = false;
     expect((await post()).status).toBe(401);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+});
+
+const grant = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00Z" };
+it("forwards only the recorded scene-building grant, never data resale or a revoked grant", () => {
+  expect(projectWebsiteCaptureRights({ request: { consent_attestation: grant } })).toMatchObject({
+    derived_scene_generation_allowed: true, data_licensing_allowed: false, consent_status: "granted",
+  });
+  for (const record of [undefined, { request: {} }, { request: { consent_attestation: { ...grant, granted: false } } },
+    { request: { consent_attestation: { ...grant, statement_version: "unknown" } } },
+    { request: { consent_attestation: grant }, consent_revoked: true },
+    { request: { consent_attestation: grant }, future_processing_allowed: false }]) {
+    expect(projectWebsiteCaptureRights(record).derived_scene_generation_allowed).toBe(false);
+  }
 });

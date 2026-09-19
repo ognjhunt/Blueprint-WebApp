@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 import {
   ALLOWED_EXTENSIONS,
@@ -166,4 +167,14 @@ describe("we only accept containers the extractor can open", () => {
     // reported to the site as received.
     expect(ALLOWED_EXTENSIONS.has("m4v")).toBe(false);
   });
+});
+
+it("preserves a recorded scene-building grant without granting resale rights", () => {
+  const captureRights = projectWebsiteCaptureRights({ request: { consent_attestation: {
+    granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00Z",
+  } } });
+  const built = buildBrowserCaptureManifest({ payload: { sceneId: "s", captureId: "c", requestId: "r" },
+    objectPath: "raw/video.mov", video: VIDEO, sizeBytes: 100, captureRights });
+  expect(built.capture_rights).toMatchObject({ derived_scene_generation_allowed: true, data_licensing_allowed: false });
+  expect(manifest().capture_rights).toMatchObject({ derived_scene_generation_allowed: false });
 });
