@@ -203,3 +203,24 @@ provider or simulator proof. The production scene-source resolver still needs
 the website-specific path for a subject already removed before reconstruction;
 the older completed-mesh path requires a source object prim to excise and cannot
 be reused unmodified. No execution intent has been queued by this handoff.
+
+Owner clarification: preparation decisions must depend on the task and observed
+scene, not a universal object-removal, destination, CAD, or physics recipe.
+Pipeline `59372c734` preserves quoted `on` versus `inside` placement intent
+through analysis and masks. Existing surface placement now reuses the native
+surface-target contract and scoring without creating a destination asset.
+Container placement holds for interior geometry instead of changing the task to
+placing on its top. WebApp preparation and offering schemas now share that
+surface-target contract, including digest validation. 48 focused Pipeline tests
+and 62 WebApp contract/route tests pass; WebApp typecheck passes. Graphify remains
+unavailable (missing graphifyy); no install/debugging detour.
+
+A later single Gemini Files API rerun, after the SDK call-shape fix, still
+returned TOO_MANY_TOOL_CALLS. Result: Pipeline ignored output
+`output/website-task-pipeline/live-analysis/removal-plan-file-fixed.json`.
+It is parked again. No provider job from that attempt remains running.
+The website-specific already-removed-subject construction adapter/source
+resolver remains open; the existing completed-mesh path still expects a subject
+prim. MapAnything also needs its actual worker run: this Mac has 16 GiB RAM and
+7.8 GiB free disk, so downloading the 4.91 GB model here is not the deployment
+path. These are incomplete requirements, not successful native tests.
