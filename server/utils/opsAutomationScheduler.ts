@@ -1,6 +1,6 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
-import { isAutomationLaneEnabled } from "../config/env";
+import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
 import {
   runInboundQualificationLoop,
   runPayoutExceptionTriageLoop,
@@ -28,6 +28,7 @@ import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
 import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
 import { reconcileAgentRunSettlements } from "./agentEvalRuns";
+import { deliverOutbox } from "./captureOutbox";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
@@ -42,6 +43,14 @@ type WorkerDefinition = {
   defaultBatchSize: number;
   maxBatchSize?: number;
   defaultStartupDelayMs: number;
+  /**
+   * On when the env is unset. Everything here defaults to the global
+   * automation flag instead, because these lanes are optimisations; a lane
+   * carrying user-facing delivery (the capture outbox) sets this, because
+   * "the deployment forgot a flag" is exactly the failure it exists to
+   * prevent. An explicit `=0` still disables it.
+   */
+  defaultEnabled?: boolean;
   run: (params: { limit: number }) => Promise<WorkerRunResult>;
 };
 
@@ -408,6 +417,32 @@ const workers: WorkerDefinition[] = [
       };
     },
   },
+  {
+    // The capture outbox. `deliverOutbox` already runs opportunistically on
+    // the request paths that write its messages (/confirm, /status), but a
+    // site that never re-opens its link leaves the queued email waiting on a
+    // poll that may never come. This lane is what delivers it anyway.
+    key: "capture_outbox",
+    enabledEnv: "BLUEPRINT_CAPTURE_OUTBOX_ENABLED",
+    intervalEnv: "BLUEPRINT_CAPTURE_OUTBOX_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_CAPTURE_OUTBOX_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_CAPTURE_OUTBOX_STARTUP_DELAY_MS",
+    defaultIntervalMs: 5 * 60 * 1000,
+    defaultBatchSize: 25,
+    maxBatchSize: 200,
+    defaultStartupDelayMs: 30 * 1000,
+    defaultEnabled: true,
+    run: async ({ limit }) => {
+      const summary = await deliverOutbox({ limit });
+      return {
+        processedCount: summary.sent,
+        failedCount: summary.failed + summary.exhausted,
+        reason: summary.exhausted
+          ? `${summary.exhausted} message(s) exhausted their retry budget`
+          : null,
+      };
+    },
+  },
 ];
 
 export function startOpsAutomationScheduler() {
@@ -424,7 +459,11 @@ export function startOpsAutomationScheduler() {
   });
 
   for (const worker of workers) {
-    if (!isAutomationLaneEnabled(worker.enabledEnv)) {
+    const laneEnabled = worker.defaultEnabled
+      ? process.env[worker.enabledEnv] === undefined ||
+        isTruthyEnvValue(process.env[worker.enabledEnv])
+      : isAutomationLaneEnabled(worker.enabledEnv);
+    if (!laneEnabled) {
       void persistWorkerStatus(worker.key, {
         enabled: false,
         status: "disabled",

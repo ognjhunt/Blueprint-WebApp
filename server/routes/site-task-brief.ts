@@ -164,10 +164,28 @@ function presentBrief(brief: SiteTaskBriefRecord) {
   };
 }
 
+/**
+ * What a film-scope link is shown.
+ *
+ * A film link is a forwardable credential: the owner hands it to whoever is
+ * on the floor, and from there we do not control who holds it. The
+ * proposed/unresolved lists are our reading of the OPERATOR's screening
+ * answers — business facts the filmer has no need of and should not receive
+ * just because the link got forwarded. What a filmer needs is the shot list,
+ * the mode, and the one-line task. The owner payload keeps everything.
+ */
+function presentBriefForFilming(brief: SiteTaskBriefRecord) {
+  return {
+    summary: brief.summary,
+    shotList: shotListFor(brief),
+    captureMode: brief.captureMode,
+  };
+}
+
 router.get("/:token", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(401).json({
+    return res.status(404).json({
       error: "That link is not valid any more.",
       code: "capture_token_invalid",
     });
@@ -186,8 +204,14 @@ router.get("/:token", async (req: Request, res: Response) => {
     }
     // The scope travels with the brief so the client shows the confirm UI only
     // for an owner link -- a film-only colleague sees the shot list to record
-    // against, not a button that would 403.
-    return res.status(200).json({ ready: true, scope: payload.scope, brief: presentBrief(brief) });
+    // against, not a button that would 403. The film payload is also filtered:
+    // our reading of the operator's answers stays with the owner's link.
+    return res.status(200).json({
+      ready: true,
+      scope: payload.scope,
+      brief:
+        payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief),
+    });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");
     return res.status(503).json({
@@ -212,7 +236,7 @@ router.get("/:token", async (req: Request, res: Response) => {
 router.get("/:token/film-link", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+    return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
   }
   if (payload.scope !== "owner") {
     return res.status(403).json({
@@ -253,7 +277,7 @@ const filmLinkSendSchema = z
 router.post("/:token/film-link/send", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+    return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
   }
   if (payload.scope !== "owner") {
     return res.status(403).json({
@@ -344,7 +368,7 @@ router.post("/:token/film-link/send", async (req: Request, res: Response) => {
 router.post("/:token/confirm", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(401).json({
+    return res.status(404).json({
       error: "That link is not valid any more.",
       code: "capture_token_invalid",
     });
@@ -459,7 +483,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 router.get("/:token/status", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(401).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+    return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
   }
 
   try {

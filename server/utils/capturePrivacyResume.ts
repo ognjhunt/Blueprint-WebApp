@@ -37,6 +37,7 @@ import {
   type PrivacyScreenResult,
 } from "./capturePrivacyScreen";
 import { recordCapturePrivacyScreen } from "./capturePrivacyRecord";
+import { notifySlackCapturePrivacyEscalation } from "./slack";
 
 /** How many times we ask again before it becomes a person's problem. */
 const DEFAULT_MAX_ATTEMPTS = 5;
@@ -136,6 +137,18 @@ export async function resumeHeldPrivacyScreen(params: {
     logger.error(
       { ...params, attempts, ageMs, reason },
       "Capture held for privacy review needs a person: retries exhausted",
+    );
+    // The flag above is the record; this is the bell. Exhaustion used to end
+    // in a log line nobody reads — now it ends in the channel ops reads.
+    notifySlackCapturePrivacyEscalation({
+      requestId: params.requestId,
+      reason,
+      attempts,
+    }).catch((error) =>
+      logger.error(
+        { error, requestId: params.requestId },
+        "Privacy escalation Slack notification failed",
+      ),
     );
     return { action: "escalated", attempts, reason };
   }

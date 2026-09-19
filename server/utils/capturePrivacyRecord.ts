@@ -18,6 +18,7 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { notifySlackCapturePrivacyEscalation } from "./slack";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
 
 export async function recordCapturePrivacyScreen(params: {
@@ -70,6 +71,23 @@ export async function recordCapturePrivacyScreen(params: {
         },
         { merge: true },
       );
+
+    // A rejected reading never retries, so without a bell it waits for
+    // nobody: the flag had zero consumers. Fire-and-forget with a logged
+    // catch — the record above is the source of truth, and a Slack hiccup
+    // must not fail an upload that already succeeded.
+    if (params.result.eligibility === "rejected") {
+      notifySlackCapturePrivacyEscalation({
+        requestId: params.requestId,
+        reason: params.result.detail || "The privacy review held this capture for a person.",
+        attempts: params.attempts,
+      }).catch((error) =>
+        logger.error(
+          { error, requestId: params.requestId },
+          "Privacy-hold Slack notification failed",
+        ),
+      );
+    }
   } catch (error) {
     logger.warn(
       { error, requestId: params.requestId, captureId: params.captureId },

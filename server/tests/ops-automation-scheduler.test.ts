@@ -17,6 +17,9 @@ const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
 const runOperatingGraphProjectionLoop = vi.hoisted(() => vi.fn());
+const deliverOutbox = vi.hoisted(() =>
+  vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })),
+);
 const sendSlackMessage = vi.hoisted(() => vi.fn());
 const workerStatusSetMock = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
@@ -76,6 +79,10 @@ const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
 
 vi.mock("../utils/ops-alerts", () => ({
   maybeAlertOnWorkerStatusTransition,
+}));
+
+vi.mock("../utils/captureOutbox", () => ({
+  deliverOutbox,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -151,6 +158,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   workerStatusSetMock.mockReset();
   workerFailureAlertState.clear();
+  deliverOutbox.mockClear();
   runWaitlistAutomationLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runInboundQualificationLoop.mockResolvedValue({ processedCount: 2, failedCount: 0 });
   runSupportTriageLoop.mockResolvedValue({ processedCount: 3, failedCount: 0 });
@@ -326,6 +334,10 @@ describe("ops automation scheduler", () => {
     vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_STARTUP_DELAY_MS", "0");
     vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_INTERVAL_MS", "30000");
+    // The capture-outbox lane is on by default and would add its own status
+    // transitions to the alert count; this test is about the worker it drives
+    // into failure, so the unrelated lane stays out of the assertion.
+    vi.stubEnv("BLUEPRINT_CAPTURE_OUTBOX_ENABLED", "0");
 
     runCreativeAssetFactoryLoop
       .mockRejectedValueOnce(new Error("Runway unavailable"))
@@ -340,6 +352,37 @@ describe("ops automation scheduler", () => {
     expect(sendSlackMessage).toHaveBeenCalledTimes(2);
     expect(sendSlackMessage.mock.calls[0]?.[0]).toContain("Blueprint worker failure");
     expect(sendSlackMessage.mock.calls[1]?.[0]).toContain("Blueprint worker recovered");
+
+    stop();
+  });
+
+  it("runs the capture outbox by default, without the global automation flag", async () => {
+    // Delivery of queued operator emails is not an optimisation: the
+    // request-path opportunist pass misses a site that never re-opens the
+    // link, so the lane is on even where every other lane needs a flag.
+    vi.stubEnv("BLUEPRINT_CAPTURE_OUTBOX_STARTUP_DELAY_MS", "0");
+    expect(process.env.BLUEPRINT_ALL_AUTOMATION_ENABLED).toBeUndefined();
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(31_000);
+
+    expect(deliverOutbox).toHaveBeenCalled();
+
+    stop();
+  });
+
+  it("still lets an explicit opt-out disable the capture outbox", async () => {
+    vi.stubEnv("BLUEPRINT_CAPTURE_OUTBOX_ENABLED", "0");
+    vi.stubEnv("BLUEPRINT_CAPTURE_OUTBOX_STARTUP_DELAY_MS", "0");
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(31_000);
+
+    expect(deliverOutbox).not.toHaveBeenCalled();
 
     stop();
   });
