@@ -351,7 +351,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register a robot team and receive an agent key, with no credential.",
           description:
-            "Open self-serve registration. Creates the team (status self_registered, zero balance, agent spend off) and returns the agent key exactly once — only a SHA-256 is stored. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Open self-serve registration. Accepts self-reported hardware maturity and Austin deployment intent as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns the agent key exactly once — only a SHA-256 is stored. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -366,6 +366,9 @@ export function buildRobotAgentOpenApiContract() {
                     website: { type: "string", format: "uri", maxLength: 500 },
                     taskFamily: { type: "string", maxLength: 60 },
                     capabilityDescription: { type: "string", maxLength: 2000 },
+                    embodiment: {"type": "string", "maxLength": 80, "description": "What the robot is, e.g. 'Mobile manipulator'. Ranked and shown, never a gate."},
+                    hardwareMaturity: {"type": "string", "enum": ["deployed", "pilots", "prototype", "development"], "description": "Whether the hardware exists today. A fact about the business; no run measures it."},
+                    deploymentGeography: {"type": "string", "enum": ["yes", "right_opportunity", "size_dependent", "no"], "description": "Whether the team would deploy in the Austin metro. Stored as self-reported context; a past-task evaluation does not establish deployment intent."},
                     checkpoint: {
                       type: "object",
                       properties: {

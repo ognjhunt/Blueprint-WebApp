@@ -19,7 +19,7 @@ test('site-operator signup defers the dossier and permissions to the workspace',
   await page.getByLabel('Your name', { exact: true }).fill('Jordan Lee');
   await page.getByLabel('Organization', { exact: true }).fill('SiteCo Operations');
   await expect(page.getByLabel('Find a robot for my site')).toBeChecked();
-  await expect(page.getByText(/Capture details and permissions are set in your workspace/)).toBeVisible();
+  await expect(page.getByText(/Next, describe one job and film the work area/)).toBeVisible();
   await expect(page.getByText(/Progressive access|Standardized benchmark|Requested lane/)).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(1);
   await expect(page.getByRole('checkbox')).not.toBeChecked();
