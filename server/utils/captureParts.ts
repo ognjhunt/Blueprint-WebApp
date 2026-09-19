@@ -77,6 +77,23 @@ export async function storedPartIndices(
     .sort((a, b) => a - b);
 }
 
+/**
+ * Whether the composed walkthrough for this prefix exists.
+ *
+ * The completion marker is the same signal the extractor reads, so the status
+ * page and the Pipeline cannot disagree about whether a recording landed: one
+ * object, one truth. Absent (false) and unreadable (also false, logged by the
+ * caller) are different conditions the caller may want to tell apart, so the
+ * error is left to the caller's context.
+ */
+export async function storedCaptureMarkerExists(
+  bucket: PartsBucket,
+  rawPrefix: string,
+): Promise<boolean> {
+  const [exists] = await bucket.file(`${rawPrefix}/capture_upload_complete.json`).exists();
+  return Boolean(exists);
+}
+
 export async function savePart(params: {
   bucket: PartsBucket;
   rawPrefix: string;

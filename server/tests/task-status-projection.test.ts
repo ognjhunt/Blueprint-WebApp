@@ -55,6 +55,28 @@ describe("the decision ladder", () => {
     expect(status.decision).toBe("assessing");
     expect(status.operatorAction).toBeNull();
   });
+
+  it("stops telling a satisfied operator to film once a recording has landed", () => {
+    const status = projectTaskStatus(
+      base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true }),
+    );
+    expect(status.decision).toBe("footage_received");
+    expect(status.headline).toMatch(/we have your recording/i);
+    expect(status.operatorAction).toBeNull();
+  });
+
+  it("keeps a measured shortfall above the footage-received state", () => {
+    const status = projectTaskStatus(
+      base({
+        briefDrafted: true,
+        briefConfirmed: true,
+        hasStoredCapture: true,
+        coversScene: false,
+        missingViews: ["the conveyor infeed"],
+      }),
+    );
+    expect(status.decision).toBe("add_views");
+  });
 });
 
 describe("a measured coverage shortfall takes priority, because it is the most actionable", () => {
@@ -106,16 +128,24 @@ describe("what it will not say", () => {
     for (const coversScene of [null, true, false] as const) {
       for (const briefDrafted of [false, true]) {
         for (const briefConfirmed of [false, true]) {
-          reachable.add(
-            projectTaskStatus(
-              base({ briefDrafted, briefConfirmed, coversScene, missingViews: coversScene === false ? ["x"] : [] }),
-            ).decision,
-          );
+          for (const hasStoredCapture of [false, true]) {
+            reachable.add(
+              projectTaskStatus(
+                base({
+                  briefDrafted,
+                  briefConfirmed,
+                  coversScene,
+                  hasStoredCapture,
+                  missingViews: coversScene === false ? ["x"] : [],
+                }),
+              ).decision,
+            );
+          }
         }
       }
     }
     expect([...reachable].sort()).toEqual(
-      ["add_views", "assessing", "confirm_brief", "received", "record"].sort(),
+      ["add_views", "assessing", "confirm_brief", "footage_received", "received", "record"].sort(),
     );
   });
 
