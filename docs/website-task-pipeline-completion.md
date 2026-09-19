@@ -21,7 +21,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Selected task object live verified; full task/privacy plan pending |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
-| 8 | Consistent observed-background recovery plus conditional image editing; no VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Unproven |
+| 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Unproven |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (existing `rigid_replacement_authoring` stage; website inputs compiled, GPU run pending) |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (source-to-collider registration and support placement hermetic; `native_task_scene_assembly` pending) |
@@ -511,3 +511,40 @@ passed. Evidence lives under Pipeline
 `geometry-binding.json`, the provider response and `video-cleanup.json`.
 Neither the remaining Gemini analysis nor Marble/native evaluation is claimed
 complete, and these changes are still on the draft PRs.
+
+Owner clarification: step 8 is direct removal of the task objects before Marble,
+not a separate background-recovery algorithm. Pipeline `fef88c658` removes that
+algorithm from the website path, retains full-resolution source masks and images,
+and gives the image editor the actual target descriptions plus another view as
+reference. Multiple selected object masks are combined; unrelated objects remain
+outside the editable region. Same-category targets share one SAM concept request.
+Focused coverage verifies multi-object selection, mask union, original-pixel
+preservation, provider replay and review; 46 tests passed across those seams.
+The earlier low-resolution repairs were rejected by visual review and are not
+accepted reconstruction inputs.
+
+Pipeline `53a636b34` fixes the hard edit boundary with a resolution-scaled object
+margin and blending inside that mask. The two original-resolution walkthrough
+views now pass Gemini's image review: object removed, consistent background,
+surrounding objects preserved, and no people. The white container and framed
+picture remain. Actual returned image usage totals $0.133374 for the successful
+pair. Evidence: Pipeline `output/website-task-pipeline/direct-object-edit-feathered-live/`
+(`completed-frames.json`, provider receipts, and the passed review). These are
+development component inputs, not proof of an actual website-triggered run.
+
+The canonical `paid_resource_allocator provider-reconstruction` command now
+supports `--provider world_labs` with a prepared website descriptor and capture
+root. It checks immutable source identity, the bound grant, image hashes,
+task/privacy preparation, disclosure authority, and the full $2.48 maximum
+Marble 1.1 Plus multi-image generation cost before submission. The existing
+adapter retains one operation and refuses an uncertain duplicate purchase.
+Focused World Labs and Teleport coverage passes (32 tests); the shared admission
+tests also pass (11). No HQ mesh export is requested.
+
+The real World Labs key authenticated successfully, but its API balance returned
+`remaining_credits: 0.0`. The reviewed frames are staged under Pipeline
+`output/website-task-pipeline/marble-prepared-views-live/`; no Marble generation
+has been purchased. API credits are separate from Marble website credits.
+Multi-object selection and removal are covered by focused tests; the live
+walkthrough still verifies one selected object. Agentic Gemini, actual Marble
+completion, native simulation and website result publication remain open.
