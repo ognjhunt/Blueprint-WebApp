@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
-import { rigidDestinationSchema } from "./taskEvaluationLaunchPreparationContract";
+import { rigidDestinationSchema, surfaceTargetSchema } from "./taskEvaluationLaunchPreparationContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const sourceCommit = z.string().regex(/^[0-9a-f]{40}$/);
@@ -39,21 +39,7 @@ const publicDisplayAllowedFields = [
 // supporting instance. Only the probe was modelled, so every offering built on
 // a surface target was refused, and its sealed offering_digest could not even
 // be recomputed because .strict() dropped the key.
-const surfaceTarget = z.object({
-  schema_version: z.literal("task_evaluation_surface_target.v1"),
-  shape: z.string().trim().min(1).max(96),
-  visible_label: z.string().trim().min(1).max(96),
-  radius_m: z.number().positive(),
-  surface_position_world_m: z.tuple([z.number(), z.number(), z.number()]),
-  support_prim_path: z.string().trim().min(1).max(512),
-  support_source_instance_id: identifier,
-  non_colliding: z.literal(true),
-  stable_seconds: z.number().nonnegative(),
-  maximum_linear_speed_m_s: z.number().nonnegative(),
-  maximum_angular_speed_rad_s: z.number().nonnegative(),
-  maximum_tilt_rad: z.number().nonnegative(),
-  target_digest: digest,
-}).strict();
+
 
 const evaluationAdmission = z.object({
   zero_action_required: z.literal(true),
@@ -109,7 +95,7 @@ export const configuredSceneOfferingSchema = z.object({
     kind: z.string().trim().min(1).max(192),
     strategy: z.string().trim().min(1).max(192),
     subject_identity: identity,
-    surface_target: surfaceTarget.optional(),
+    surface_target: surfaceTargetSchema.optional(),
     destination: rigidDestinationSchema
       .omit({ placement_qualification: true })
       .required({ native_import_qualification: true, geometry: true })
