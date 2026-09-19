@@ -123,6 +123,51 @@ function guard(req: Request, res: Response, next: () => void) {
   next();
 }
 
+const previewUrl = z.string().url().max(4000).refine(value => {
+  const url = new URL(value);
+  return url.protocol === "https:" && !url.username && !url.password;
+});
+
+// A viewable reconstruction is an earlier milestone than a runnable testbed.
+// The Pipeline owns website reconstruction; this callback never buys a world.
+router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({
+      request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/), scene_id: z.string(),
+      task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+      world_id: z.string().min(1).max(200), operation_id: z.string().min(1).max(200),
+      model: z.string().min(1).max(120), launch_url: previewUrl,
+      thumbnail_url: previewUrl.nullable(), pano_url: previewUrl.nullable(),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_visual_scene_invalid" });
+    const body = parsed.data;
+    const captureId = String(req.params.captureId);
+    if (captureId !== `walkthrough-${body.request_id}` || body.scene_id !== `site-${body.request_id}`)
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    try {
+      const brief = await getBrief(body.request_id);
+      if (!brief) return res.status(404).json({ code: "task_brief_missing" });
+      const context = projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(body.request_id));
+      if (!context.confirmed || context.context_digest !== body.task_context_digest
+          || !context.capture_rights.derived_scene_generation_allowed)
+        return res.status(409).json({ code: "website_visual_scene_context_changed" });
+      if (!db) return res.status(503).json({ code: "website_visual_scene_store_unavailable" });
+      const record: WorldReconstructionRecord = {
+        state: "ready", operationId: body.operation_id, worldId: body.world_id, model: body.model,
+        preview: null, frameSelection: null, blocker: null, failureReason: null, updatedAtIso: new Date().toISOString(),
+        assets: { worldId: body.world_id, model: body.model, launchUrl: body.launch_url,
+          thumbnailUrl: body.thumbnail_url, panoUrl: body.pano_url, caption: null, spzUrlsByDetail: {},
+          colliderMeshUrl: null, splatPlyUrl: null, meshGlbUrl: null, meshExportOperationId: null },
+      };
+      await persistReconstruction(captureId, record, body.request_id);
+      await notifySceneReady(captureId, record);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ state: "ready", world_id: body.world_id, task_context_digest: body.task_context_digest });
+    } catch {
+      return res.status(503).json({ code: "website_visual_scene_unavailable" });
+    }
+  });
+
 const sponsoredSceneRequest = z.object({
   schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),

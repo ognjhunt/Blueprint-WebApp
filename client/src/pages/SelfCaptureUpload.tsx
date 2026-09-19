@@ -472,7 +472,9 @@ export default function SelfCaptureUpload() {
            owner's link alone; a film-only link never receives one. */
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.claimUrl}>
-            Claim your site to see the results
+            {status.sceneViewUrl && status.decision !== "screening" && status.decision !== "results"
+              ? "Save your scene and follow progress"
+              : "Claim your site to see the results"}
           </a>
         </p>
       )}

@@ -573,15 +573,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
     catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
-    // The one moment an account is offered: there is something behind it to
-    // see, and nobody owns the site yet. Only the owner's own link carries
-    // it -- a forwarded film-only link must not hand out a claim.
-    const claimUrl =
-      (status.decision === "screening" || status.decision === "results") &&
-      payload.scope !== "film" &&
-      !request?.account_owner_uid
-        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
-        : null;
     const reconstruction = captureSession?.exists
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
       : undefined;
@@ -589,6 +580,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       payload.scope !== "film" && reconstruction?.state === "ready"
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
+        : null;
+    // Offer an account at the first viewable result. Robot evaluation can
+    // continue afterward; a visual reconstruction is not an evaluation result.
+    const claimUrl =
+      (sceneViewUrl || status.decision === "screening" || status.decision === "results") &&
+      payload.scope !== "film" && !request?.account_owner_uid
+        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
 
     // Piggyback delivery on this poll, so a deployment with no scheduler still

@@ -5,10 +5,10 @@ import { createServer } from "node:http";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 
-const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null }));
+const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[] }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief }));
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: {
-  collection: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => ({ request: { consent_attestation: state.consent } }) }) }) }),
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } }, dbAdmin: {
+  collection: () => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: true, data: () => ({ request: { consent_attestation: state.consent }, notification_request_id: "req1" }) }) }) }),
 } }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -25,7 +25,7 @@ function brief(confirmed: boolean): SiteTaskBriefRecord {
     confirmedBy: "private owner identity", operatorAnswers: confirmed ? { item_rigidity: "rigid" } : null,
     operatorUnknown: confirmed ? ["cycle"] : null };
 }
-afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; });
+afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; });
 
 it("binds task content and confirmation without disclosing owner identity", () => {
   const draft = projectWebsiteTaskContext(brief(false));
@@ -83,4 +83,35 @@ it("forwards only the recorded scene-building grant, never data resale or a revo
     { request: { consent_attestation: grant }, future_processing_allowed: false }]) {
     expect(projectWebsiteCaptureRights(record).derived_scene_generation_allowed).toBe(false);
   }
+});
+
+
+it("publishes a first visual scene without claiming evaluation readiness and rejects stale consent", async () => {
+  const { default: router } = await import("../routes/internal-capture-worlds");
+  const app = express(); app.use(express.json()); app.use(router);
+  const server = createServer(app);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); if (!address || typeof address === "string") throw new Error("bind failed");
+  state.brief = brief(true); state.consent = grant;
+  const context = projectWebsiteTaskContext(state.brief, projectWebsiteCaptureRights({ request: { consent_attestation: grant } }));
+  const body = { request_id: "req1", scene_id: "site-req1", task_context_digest: context.context_digest,
+    world_id: "world-1", operation_id: "operation-1", model: "marble-1.1-plus",
+    launch_url: "https://marble.worldlabs.ai/world/world-1", thumbnail_url: "https://cdn.example.com/thumbnail.png", pano_url: null };
+  const post = (changes = {}) => fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/visual-scene`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, ...changes }),
+  });
+  try {
+    expect((await post()).status).toBe(200);
+    expect(state.persisted[0]).toMatchObject({ world_reconstruction: { state: "ready", world_id: "world-1",
+      assets: { launchUrl: body.launch_url, thumbnailUrl: body.thumbnail_url } }, notification_request_id: "req1" });
+    expect(JSON.stringify(state.persisted)).not.toContain("simulator_ready");
+    state.persisted = [];
+    expect((await post({ task_context_digest: `sha256:${"0".repeat(64)}` })).status).toBe(409);
+    expect((await post({ launch_url: "javascript:alert(1)" })).status).toBe(400);
+    state.consent = { ...grant, granted: false };
+    expect((await post()).status).toBe(409);
+    state.authorized = false;
+    expect((await post()).status).toBe(401);
+    expect(state.persisted).toEqual([]);
+  } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 });
