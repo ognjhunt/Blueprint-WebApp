@@ -308,7 +308,6 @@ for (const role of ["site_operator", "robot_team"] as const) {
               ["/app/tasks", "Your tasks"],
               ["/app/tasks/task-1", "Pack cartons into totes"],
               ["/app/tasks/task-1?tab=capture", "Pack cartons into totes"],
-              ["/app/tasks/new", "Request a task"],
               ["/app/history", "History"],
               ["/settings", "Settings"],
               ["/app/captures", "New Capture"],
@@ -377,23 +376,18 @@ for (const role of ["site_operator", "robot_team"] as const) {
     });
   }
 }
-test("site can request a task and coordinate a visit without a false completion", async ({
+test("a new task starts from the public capture form, not a second intake", async ({
   page,
 }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/new");
-  await page.getByLabel("Task name", { exact: true }).fill("Pack bottles");
-  await page.getByLabel("Site name", { exact: true }).fill("North line");
-  await page.getByLabel("Site address", { exact: true }).fill("Austin TX");
-  await page
-    .getByLabel("Site type", { exact: true })
-    .selectOption("Manufacturing");
-  await page
-    .getByLabel("Success definition", { exact: true })
-    .fill("Put each bottle in a carton without damage");
-  await page.getByRole("button", { name: "Request task →" }).click();
-  await expect(page).toHaveURL(/\/app\/tasks\/task-/);
-  await expect(page.getByText("In review", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/contact\/site-operator/);
+  await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+});
+test("site can coordinate a visit without a false completion", async ({
+  page,
+}) => {
+  await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1?tab=capture");
   await page.getByRole("button", { name: "Cancel visit", exact: true }).click();
   await page.getByRole("textbox", { name: "Reason" }).fill("Site closed");

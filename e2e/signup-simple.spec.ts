@@ -25,7 +25,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Organization', { exact: true })).toHaveValue('Example Robotics');
   });
 }
-test('site signups defer task details until the workspace', async ({ page }) => {
+test('site signups point at the capture form, not a second intake', async ({ page }) => {
   await page.goto('/signup/business?buyerType=site_operator&intent=pilot-opportunity');
   await page.getByLabel('Work email').fill('preview@example.com');
   await page.getByLabel('Password', { exact: true }).fill('preview-password-123');
@@ -33,5 +33,5 @@ test('site signups defer task details until the workspace', async ({ page }) => 
   await expect(page.getByLabel('Find a robot for my site')).toBeChecked();
   await expect(page.getByRole('textbox')).toHaveCount(2);
   await expect(page.getByRole('checkbox')).not.toBeChecked();
-  await expect(page.getByText(/Capture details and permissions are set in your workspace/)).toBeVisible();
+  await expect(page.getByText(/describe one job and film the work area/)).toBeVisible();
 });

@@ -6,6 +6,7 @@ import { AuthLayout, AuthSteps } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getDemandAttributionFromSearchParams, hasDemandAttribution } from "@/lib/demandAttribution";
+import { onboardingDestination } from "@/lib/onboardingDestination";
 import { workspaceRequest } from "@/lib/workspace";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import type { WorkspaceAccountSetup } from "@/types/workspace";
@@ -53,7 +54,7 @@ export default function BusinessSignUpFlow() {
     setBusy(true);
     workspaceRequest<WorkspaceAccountSetup>(currentUser, "/setup").then(data => {
       if (!active) return;
-      if (data.workspaceType) window.location.assign("/app");
+      if (data.workspaceType) window.location.assign(onboardingDestination(data.workspaceType, window.location.search, true));
       else {
         setName(data.profile.name || currentUser.displayName || "");
         setOrganization(data.profile.organization || "");
@@ -80,7 +81,7 @@ export default function BusinessSignUpFlow() {
       setName(user.displayName || "");
       setStep(2);
       const data = await workspaceRequest<WorkspaceAccountSetup>(user, "/setup");
-      if (data.workspaceType) { window.location.assign("/app"); return; }
+      if (data.workspaceType) { window.location.assign(onboardingDestination(data.workspaceType, window.location.search, true)); return; }
       setName(data.profile.name || user.displayName || "");
       setOrganization(data.profile.organization || "");
     } catch (failure: any) {
@@ -113,13 +114,16 @@ export default function BusinessSignUpFlow() {
         setPassword("");
       }
       const existing = await workspaceRequest<WorkspaceAccountSetup>(account.current, "/setup");
-      if (existing.workspaceType) { window.location.assign("/app"); return; }
+      if (existing.workspaceType) { window.location.assign(onboardingDestination(existing.workspaceType, window.location.search, true)); return; }
       await workspaceRequest(account.current, "/setup", "POST", {
         name: name.trim(), organization: organization.trim(), workspaceType, acceptedTerms: true,
       });
       analyticsEvents.businessSignupCompleted(analytics);
       // Reload the authoritative profile before entering the correct workspace.
-      window.location.assign(workspaceType === "site_operator" ? "/app/tasks/new" : "/app/opportunities");
+      // The public funnels are the front doors. A site goes to the capture
+      // form, a robot team to the task library; the workspace is where a task
+      // is followed once it exists, not a second intake.
+      window.location.assign(onboardingDestination(workspaceType, window.location.search));
     } catch (failure: any) {
       analyticsEvents.businessSignupFailed({ buyerType: workspaceType, requestedLaneCount: 0, stage: "account_creation", stepNumber: 2, errorType: getSafeErrorType(failure) });
       if (account.current) setError("Your account is created, but workspace setup did not save. Your details are still here—try again.");
@@ -147,7 +151,7 @@ export default function BusinessSignUpFlow() {
             <label><input type="radio" name="workspaceType" value="site_operator" checked={workspaceType === "site_operator"} onChange={() => setWorkspaceType("site_operator")} required /><span>Find a robot for my site</span></label>
             <label><input type="radio" name="workspaceType" value="robot_team" checked={workspaceType === "robot_team"} onChange={() => setWorkspaceType("robot_team")} required /><span>Test my robots on site tasks</span></label>
           </fieldset>
-          <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, add your first task. Capture details and permissions are set in your workspace." : workspaceType === "robot_team" ? "Next, browse openings. Add robots, policies, and checkpoints in Settings when you’re ready." : "Add tasks, robots, and permissions in your workspace."}</p>
+          <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, describe one job and film the work area. Your task page follows the assessment." : workspaceType === "robot_team" ? "Next, browse live and past tasks. Connect a robot setup when you choose one to evaluate." : "Next, start with a task or the task library."}</p>
           <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={busy} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
         </>}
         {error && <div className="auth-error" role="alert">{error}{accountCreated && <> <a href="/settings">Open Settings</a></>}</div>}

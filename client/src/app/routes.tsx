@@ -86,7 +86,6 @@ const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityO
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
 const WorkspaceRequestStart = lazyRoute(() => import("../pages/workspace/RequestStart"));
 const WorkspaceTasks = lazyRoute(() => import("../pages/workspace/Tasks"));
-const WorkspaceTaskRequest = lazyRoute(() => import("../pages/workspace/TaskRequest"));
 const WorkspaceTaskDetail = lazyRoute(() => import("../pages/workspace/TaskDetail"));
 const WorkspaceHistory = lazyRoute(() => import("../pages/workspace/History"));
 const WorkspaceOpeningDetail = lazyRoute(() => import("../pages/workspace/OpeningDetail"));
@@ -214,6 +213,8 @@ const LegacyLoginRedirect = () => (
 );
 
 const BuyerAppRedirect = () => <MarketingRedirect to="/app" />;
+
+const SiteOperatorCaptureRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
 const BusinessSignupRedirect = () => <MarketingRedirect to="/signup/business" />;
 
@@ -417,7 +418,9 @@ export const appRoutes: AppRoute[] = [
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/tasks", layout: "protected", shell: "bare", component: WorkspaceTasks },
-  { path: "/app/tasks/new", layout: "protected", shell: "bare", component: WorkspaceTaskRequest },
+  // The second site intake is gone: a task starts from the capture form, and
+  // the workspace follows it once it exists.
+  { path: "/app/tasks/new", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/app/tasks/:taskId", layout: "protected", shell: "bare", component: WorkspaceTaskDetail },
   { path: "/app/history", layout: "protected", shell: "bare", component: WorkspaceHistory },
   { path: "/app/opportunities/:opportunityId", layout: "protected", shell: "bare", component: WorkspaceOpeningDetail },

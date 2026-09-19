@@ -25,9 +25,10 @@ import { TaskThumbnail } from "./TaskThumbnail";
  *
  * An email, a name, what the robot is, what it is for, and a checkpoint. None
  * of it gates anything — a plan comes back either way — and the two robot
- * questions are one click each and feed the ranking directly. `taskFamily` is
- * stored at `self_reported` and the first real run supersedes it, which is the
- * grade ladder working exactly as designed.
+ * questions are one click each and are stored as self-reported facts rather
+ * than facts a past-task run could establish. `taskFamily` is stored at
+ * `self_reported` and the first real run supersedes it, which is the grade
+ * ladder working exactly as designed.
  *
  * The email is what makes this an account rather than a token: it is how we
  * come back to them when a matching site lands, which is the honest answer when
@@ -36,6 +37,8 @@ import { TaskThumbnail } from "./TaskThumbnail";
 import { TaskFacts } from "./TaskFacts";
 import type { TaskListingDetails } from "@/types/taskBrowse";
 import { useEffect, useState } from "react";
+
+import { robotGateFields } from "@/data/robotTeamQualification";
 
 type Row = {
   sceneId: string;
@@ -172,7 +175,26 @@ function familyLabel(value: string) {
   return TASK_FAMILIES.find((family) => family.value === value)?.label ?? "this kind of work";
 }
 
-export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string; onCheckout?: (url: string) => void } = {}) {
+/**
+ * The two physical facts asked here, in the intake's own vocabulary.
+ *
+ * Matching reads geography as a hard constraint. Hardware maturity is carried
+ * into the candidate record for inspection, without pretending that a run on
+ * a past task verifies present hardware. The other intake gates -- engineer
+ * capacity, timeline, budget -- are pilot questions and are not asked here.
+ */
+const HARDWARE_FIELD = robotGateFields.find((field) => field.id === "hardwareMaturity");
+const GEOGRAPHY_FIELD = robotGateFields.find((field) => field.id === "deploymentGeography");
+
+export function RobotTeamPlanPreview({
+  /** Scope the plan to one task the team chose in the library. */
+  sceneId,
+  /** Where checkout opens. Injected so a test can watch it without leaving jsdom. */
+  onCheckout,
+}: {
+  sceneId?: string;
+  onCheckout?: (url: string) => void;
+} = {}) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
   const [showKey, setShowKey] = useState(false);
@@ -375,9 +397,18 @@ export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string
     const teamName = read("planTeamName");
     const taskFamily = read("planTaskFamily");
     const reference = read("planReference");
+    const hardwareMaturity = read("planHardware");
+    const deploymentGeography = read("planGeography");
 
     if (!email || !teamName) {
       setState({ status: "failed", message: "We need a work email and a team name." });
+      return;
+    }
+    if (!hardwareMaturity || !deploymentGeography) {
+      setState({
+        status: "failed",
+        message: "Tell us where the hardware is today and whether you would deploy in Austin.",
+      });
       return;
     }
     if (hasCheckpoint && !reference) {
@@ -399,6 +430,11 @@ export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string
           contactEmail: email,
           taskFamily,
           capabilityDescription: `${read("planEmbodiment")} — ${familyLabel(taskFamily)}`,
+          // Structured, so the matcher reads them rather than a person.
+          embodiment: read("planEmbodiment") || undefined,
+          hardwareMaturity,
+          deploymentGeography,
+          website: read("planWebsite") || undefined,
           ...(hasCheckpoint
             ? {
                 checkpoint: {
@@ -719,6 +755,17 @@ export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string
         <input id="plan-team-name" name="planTeamName" type="text" required maxLength={120} />
       </label>
 
+      <label htmlFor="plan-website">
+        <span>
+          Website or spec sheet <span className="ms-optional">(optional)</span>
+        </span>
+        <span className="ms-field-hint">
+          We read published figures into proposals a person checks. Nothing on a page becomes a
+          claim about your robot without a run or a reviewer.
+        </span>
+        <input id="plan-website" name="planWebsite" type="url" maxLength={500} placeholder="https://" />
+      </label>
+
       <label htmlFor="plan-embodiment">
         <span>What is it?</span>
         <select id="plan-embodiment" name="planEmbodiment" defaultValue="Fixed arm">
@@ -743,6 +790,35 @@ export function RobotTeamPlanPreview({ sceneId, onCheckout }: { sceneId?: string
           ))}
         </select>
       </label>
+
+      {HARDWARE_FIELD && (
+        <label htmlFor="plan-hardware">
+          <span>{HARDWARE_FIELD.question}</span>
+          <select id="plan-hardware" name="planHardware" defaultValue="" required>
+            <option value="">Select…</option>
+            {HARDWARE_FIELD.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {GEOGRAPHY_FIELD && (
+        <label htmlFor="plan-geography">
+          <span>{GEOGRAPHY_FIELD.question}</span>
+          <span className="ms-field-hint">{GEOGRAPHY_FIELD.hint}</span>
+          <select id="plan-geography" name="planGeography" defaultValue="" required>
+            <option value="">Select…</option>
+            {GEOGRAPHY_FIELD.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label htmlFor="plan-has-checkpoint" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
         <input

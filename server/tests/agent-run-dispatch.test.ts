@@ -90,6 +90,9 @@ it("partitions the pending queue before limiting it and excludes expired holds",
 
 describe("marking a run started", () => {
   it("records the dispatch and pushes the settlement due time out by one TTL from now", async () => {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
+      contact: { email: "owner@example.com" },
+    });
     const run = await queue({ reservationId: "r1", teamId: "team-a", sceneId: "req-1" });
     // A run that waited in the queue past its own hold: without the start
     // marker the reconciler would release it as abandoned while it executes.
@@ -107,6 +110,8 @@ describe("marking a run started", () => {
     expect(typeof (after.dispatch as { startedAtIso: string }).startedAtIso).toBe("string");
     expect(Number(after.settlementDueAtMs)).toBeGreaterThanOrEqual(Date.now() + reservationTtlMs() - 5_000);
     expect(after.state).toBe("requested");
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:screening_started"))
+      .toMatchObject({ kind: "screening_started", to: "owner@example.com" });
   });
 
   it("refuses to start a run that already concluded", async () => {
@@ -117,6 +122,7 @@ describe("marking a run started", () => {
       state: "completed",
     });
     expect(await markRunStarted({ runId: "run_done" })).toBe(false);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:screening_started")).toBe(false);
   });
 
   it("refuses a run it holds no record of", async () => {

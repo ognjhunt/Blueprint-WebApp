@@ -144,4 +144,25 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.decision).toBe("screening");
     expect(body.claimUrl ?? null).toBeNull();
   });
+
+  it("projects a persisted safe scene viewer only to the owner link", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: {
+        state: "ready",
+        assets: { launchUrl: "https://viewer.example/world-1", panoUrl: null },
+      },
+    });
+
+    const { body } = await status();
+    expect(body.sceneViewUrl).toBe("https://viewer.example/world-1");
+
+    const filmToken = createCaptureUploadToken({
+      requestId: "req-1",
+      captureId: "cap-1",
+      sceneId: "scene-1",
+      scope: "film",
+    });
+    const filmResponse = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/status`);
+    expect((await filmResponse.json()).sceneViewUrl).toBeNull();
+  });
 });

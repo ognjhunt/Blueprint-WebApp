@@ -20,6 +20,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Suggestion {
   label: string;
+  /** ISO 3166-1 alpha-2, upper case, when the provider knows it. */
+  countryCode: string | null;
+  googlePlaceId?: string;
+}
+
+/** What the form is told when a suggestion is picked. */
+export interface ChosenPlace {
+  label: string;
+  countryCode: string | null;
 }
 
 /** Build one readable line from a Photon feature's address parts. */
@@ -39,10 +48,12 @@ async function photonSuggestions(query: string, signal: AbortSignal): Promise<Su
   const seen = new Set<string>();
   const out: Suggestion[] = [];
   for (const feature of data.features ?? []) {
-    const label = photonLabel(feature.properties ?? {});
+    const properties = feature.properties ?? {};
+    const label = photonLabel(properties);
     if (label && !seen.has(label)) {
       seen.add(label);
-      out.push({ label });
+      const code = typeof properties.countrycode === "string" ? properties.countrycode.trim().toUpperCase() : "";
+      out.push({ label, countryCode: /^[A-Z]{2}$/.test(code) ? code : null });
     }
   }
   return out;
@@ -77,7 +88,7 @@ async function googleSuggestions(query: string, key: string): Promise<Suggestion
     google: { maps: { places: { AutocompleteService: new () => {
       getPlacePredictions: (
         request: { input: string },
-        callback: (predictions: { description: string }[] | null, status: string) => void,
+        callback: (predictions: { description: string; place_id: string }[] | null, status: string) => void,
       ) => void;
     } } } };
   }).google.maps.places;
@@ -91,8 +102,49 @@ async function googleSuggestions(query: string, key: string): Promise<Suggestion
           resolve(status === "ZERO_RESULTS" ? [] : null);
           return;
         }
-        resolve(predictions.map((prediction) => ({ label: prediction.description })));
+        resolve(predictions.map((prediction) => ({
+          label: prediction.description,
+          countryCode: null,
+          googlePlaceId: prediction.place_id,
+        })));
       });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/** Resolve Google's structured address instead of guessing from display text. */
+async function googleCountryCode(placeId: string): Promise<string | null> {
+  const places = (window as unknown as {
+    google: { maps: { places: {
+      PlacesService: new (container: HTMLDivElement) => {
+        getDetails: (
+          request: { placeId: string; fields: string[] },
+          callback: (
+            place: { address_components?: { short_name: string; types: string[] }[] } | null,
+            status: string,
+          ) => void,
+        ) => void;
+      };
+    } } };
+  }).google.maps.places;
+
+  return new Promise((resolve) => {
+    try {
+      const container = document.createElement("div");
+      new places.PlacesService(container).getDetails(
+        { placeId, fields: ["address_components"] },
+        (place, status) => {
+          if (status !== "OK" || !place) {
+            resolve(null);
+            return;
+          }
+          const country = place.address_components?.find((part) => part.types.includes("country"));
+          const code = country?.short_name.trim().toUpperCase() ?? "";
+          resolve(/^[A-Z]{2}$/.test(code) ? code : null);
+        },
+      );
     } catch {
       resolve(null);
     }
@@ -106,6 +158,10 @@ export function LocationAutocomplete(props: {
   required?: boolean;
   maxLength?: number;
   defaultValue?: string;
+  /** Called when a suggestion is picked, never on plain typing. */
+  onSelect?: (place: ChosenPlace) => void;
+  /** Reports both a picked place and its later invalidation by manual editing. */
+  onSelectionChange?: (place: ChosenPlace | null) => void;
 }) {
   const [value, setValue] = useState(props.defaultValue ?? "");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -113,6 +169,7 @@ export function LocationAutocomplete(props: {
   const [active, setActive] = useState(-1);
   const debounce = useRef<number | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const selectionGeneration = useRef(0);
   const googleKey =
     (import.meta.env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() || "";
 
@@ -147,7 +204,9 @@ export function LocationAutocomplete(props: {
   );
 
   function onChange(text: string) {
+    selectionGeneration.current += 1;
     setValue(text);
+    props.onSelectionChange?.(null);
     if (debounce.current) window.clearTimeout(debounce.current);
     if (text.trim().length < 3) {
       setSuggestions([]);
@@ -157,11 +216,20 @@ export function LocationAutocomplete(props: {
     debounce.current = window.setTimeout(() => void query(text), 250);
   }
 
-  function choose(label: string) {
-    setValue(label);
+  async function choose(suggestion: Suggestion) {
+    const generation = ++selectionGeneration.current;
+    setValue(suggestion.label);
     setSuggestions([]);
     setOpen(false);
     setActive(-1);
+    let countryCode = suggestion.countryCode;
+    if (suggestion.googlePlaceId) {
+      countryCode = await googleCountryCode(suggestion.googlePlaceId);
+      if (selectionGeneration.current !== generation) return;
+    }
+    const place = { label: suggestion.label, countryCode };
+    props.onSelect?.(place);
+    props.onSelectionChange?.(place);
   }
 
   useEffect(() => {
@@ -196,7 +264,7 @@ export function LocationAutocomplete(props: {
       // submit here was how the open list ended up covering the button being
       // submitted to.
       event.preventDefault();
-      choose(suggestions[active >= 0 ? active : 0].label);
+      void choose(suggestions[active >= 0 ? active : 0]);
     } else if (event.key === "Escape") {
       setOpen(false);
     }
@@ -250,7 +318,7 @@ export function LocationAutocomplete(props: {
               // onMouseDown, not onClick: it fires before the input's blur.
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(suggestion.label);
+                void choose(suggestion);
               }}
               onMouseEnter={() => setActive(index)}
               style={{

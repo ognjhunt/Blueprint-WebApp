@@ -51,7 +51,9 @@ for (const mobile of [false, true]) {
     await page.getByLabel("Filter by availability").selectOption("open");
     await page.getByRole("button", { name: "Evaluate this task · $25" }).click();
     await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
-    await page.getByLabel("Team or company").fill("Local robot team");
+    await page.locator("#plan-hardware").selectOption("prototype");
+  await page.locator("#plan-geography").selectOption("yes");
+  await page.getByLabel("Team or company").fill("Local robot team");
     await page.getByLabel("Where is it?").fill("https://example.test/policy");
     await page.getByRole("button", { name: "See what we would run" }).click();
     await expect(page.getByText("Payload needs confirmation before execution.")).toBeVisible();
@@ -128,6 +130,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   const form = page.getByRole("form", { name: "Start a site capture" });
   await form.locator("#start-task").fill("Move sealed cartons from conveyor to pallet");
   await form.locator("#start-location").fill("Chicago, Illinois");
+  await form.locator("#start-region").selectOption("us");
   await form.locator("#start-email").fill("owner@example.test");
   await form.locator("#start-rights").check();
   await form.getByRole("button", { name: "Start", exact: true }).click();
@@ -170,6 +173,8 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   await page.goto("/contact/robot-team");
   await page.getByRole("button", { name: "Evaluate this task · $25" }).first().click();
   await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
+  await page.locator("#plan-hardware").selectOption("prototype");
+  await page.locator("#plan-geography").selectOption("yes");
   await page.getByLabel("Team or company").fill("Local robot team");
   await page.getByLabel("Where is it?").fill("https://example.test/policy");
   await page.getByRole("button", { name: "See what we would run" }).click();
@@ -187,9 +192,10 @@ test("site owner receives a claim link alongside completed screening status", as
   await fixtures(page);
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: {
     ok: true, status: { decision: "results", headline: "Results are in from 2 screening runs. Review each run separately.", operatorAction: null, missingViews: [], nextUpdateIso: null },
-    claimUrl: "/sign-in?claim=owner-fixture",
+    claimUrl: "/sign-in?claim=owner-fixture", sceneViewUrl: "https://scene.example.test/view/owner-scene",
   } }));
   await page.goto("/capture-upload/owner-fixture");
   await expect(page.getByText("Results are in from 2 screening runs. Review each run separately.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
+  await expect(page.getByRole("link", { name: "View your scene" })).toHaveAttribute("href", "https://scene.example.test/view/owner-scene");
 });

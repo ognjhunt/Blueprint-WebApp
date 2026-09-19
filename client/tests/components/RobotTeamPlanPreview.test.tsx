@@ -37,6 +37,12 @@ function fillAndSubmit(reference = "https://policies.example/v3") {
   fireEvent.change(screen.getByLabelText(/team or company/i), {
     target: { value: "Alpha Robotics" },
   });
+  fireEvent.change(screen.getByLabelText(/where is the hardware today/i), {
+    target: { value: "pilots" },
+  });
+  fireEvent.change(screen.getByLabelText(/would you deploy in the austin metro/i), {
+    target: { value: "right_opportunity" },
+  });
   if (reference !== null) {
     fireEvent.change(screen.getByLabelText(/where is it/i), { target: { value: reference } });
   }
@@ -52,9 +58,56 @@ describe("RobotTeamPlanPreview", () => {
     expect(screen.getByLabelText(/what is it/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/what does it do/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/work email/i)).toBeInTheDocument();
-    expect(screen.queryByText(/where is the hardware today/i)).toBeNull();
+    // The two deployment facts matching treats as hard and no run can measure
+    // are asked here, in two taps. The rest of the old interview is not.
+    expect(screen.getByLabelText(/where is the hardware today/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/would you deploy in the austin metro/i)).toBeInTheDocument();
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
-    expect(screen.queryByText(/would you deploy/i)).toBeNull();
+    expect(screen.queryByText(/when would you want to be running/i)).toBeNull();
+    expect(screen.queryByText(/what would prove the system works/i)).toBeNull();
+  });
+
+  it("sends the robot's facts structured, so matching stops guessing", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
+
+    render(<RobotTeamPlanPreview />);
+    fireEvent.change(screen.getByLabelText(/what is it/i), { target: { value: "Mobile manipulator" } });
+    fireEvent.change(screen.getByLabelText(/where is the hardware today/i), { target: { value: "pilots" } });
+    fireEvent.change(screen.getByLabelText(/would you deploy in the austin metro/i), {
+      target: { value: "right_opportunity" },
+    });
+    fireEvent.change(screen.getByLabelText(/website or spec sheet/i), {
+      target: { value: "https://alpha.example/specs" },
+    });
+    fillAndSubmit();
+
+    await screen.findByText(/you are in/i);
+    const [, registerInit] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(registerInit.body))).toMatchObject({
+      embodiment: "Mobile manipulator",
+      hardwareMaturity: "pilots",
+      deploymentGeography: "right_opportunity",
+      website: "https://alpha.example/specs",
+    });
+  });
+
+  it("does not register until both non-observable physical facts are answered", async () => {
+    render(<RobotTeamPlanPreview />);
+    fireEvent.change(screen.getByLabelText(/work email/i), {
+      target: { value: "eng@alpha.example" },
+    });
+    fireEvent.change(screen.getByLabelText(/team or company/i), {
+      target: { value: "Alpha Robotics" },
+    });
+    fireEvent.change(screen.getByLabelText(/where is it/i), {
+      target: { value: "https://policies.example/v3" },
+    });
+
+    fireEvent.submit(screen.getByRole("form", { name: /tell us about your robot/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/where the hardware is today/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends the robot details so the first plan is ranked, not generic", async () => {

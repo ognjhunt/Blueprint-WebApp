@@ -78,6 +78,8 @@ export interface RobotCapability {
   objectHandling?: string | null;
   taskFamily?: string | null;
   embodiment?: string | null;
+  /** Where the hardware is today, as reported by the team. */
+  hardwareMaturity?: string | null;
   /** Physical envelope. Not asked at intake; sourced from specs or a run. */
   reachM?: number | null;
   pathWidthM?: number | null;

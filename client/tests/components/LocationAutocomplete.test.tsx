@@ -20,6 +20,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 function photon(labels: { name?: string; city?: string; state?: string; country?: string }[]) {
@@ -100,5 +101,122 @@ describe("the floor is always plain typing", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(input.value).toBe("durham");
     expect(input.getAttribute("name")).toBe("startLocation");
+  });
+});
+
+describe("reporting the chosen place", () => {
+  function photonRaw(properties: Record<string, unknown>[]) {
+    return { ok: true, json: async () => ({ features: properties.map((props) => ({ properties: props })) }) };
+  }
+
+  it("tells the form which country the picked suggestion is in", async () => {
+    fetchMock.mockResolvedValue(photonRaw([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "munich" } });
+
+    fireEvent.mouseDown(await screen.findByText("Munich, Germany"));
+
+    expect(onSelect).toHaveBeenCalledWith({ label: "Munich, Germany", countryCode: "DE" });
+  });
+
+  it("reports no country when the provider gave none", async () => {
+    fetchMock.mockResolvedValue(photonRaw([{ name: "Somewhere" }]));
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "somewhere" } });
+
+    fireEvent.mouseDown(await screen.findByText("Somewhere"));
+
+    expect(onSelect).toHaveBeenCalledWith({ label: "Somewhere", countryCode: null });
+  });
+
+  it("invalidates a picked place when its text is edited or cleared", async () => {
+    fetchMock.mockResolvedValue(photonRaw([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "munich" } });
+    fireEvent.mouseDown(await screen.findByText("Munich, Germany"));
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Munich, Germany", countryCode: "DE" }));
+
+    fireEvent.change(input, { target: { value: "Munich, Bavaria" } });
+    expect(onSelectionChange).toHaveBeenLastCalledWith(null);
+    fireEvent.change(input, { target: { value: "" } });
+    expect(onSelectionChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("resolves a Google pick through Place Details without inferring from its label", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    const getDetails = vi.fn((_request, callback) => callback({
+      address_components: [{ short_name: "GB", types: ["country"] }],
+    }, "OK"));
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "London, United Kingdom", place_id: "london-id" }], "OK");
+        }
+      },
+      PlacesService: class { getDetails = getDetails; },
+    } } });
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "london" } });
+    fireEvent.mouseDown(await screen.findByText("London, United Kingdom"));
+
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
+      label: "London, United Kingdom", countryCode: "GB",
+    }));
+    expect(getDetails).toHaveBeenCalledWith(
+      { placeId: "london-id", fields: ["address_components"] },
+      expect.any(Function),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not label a failed Google details lookup as US", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "Paris, France", place_id: "paris-id" }], "OK");
+        }
+      },
+      PlacesService: class {
+        getDetails(_request: unknown, callback: Function) { callback(null, "REQUEST_DENIED"); }
+      },
+    } } });
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "paris" } });
+    fireEvent.mouseDown(await screen.findByText("Paris, France"));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
+  });
+
+  it("ignores Google details that resolve after the operator changes the text", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "Berlin, Germany", place_id: "berlin-id" }], "OK");
+        }
+      },
+      PlacesService: class {
+        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
+      },
+    } } });
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "berlin" } });
+    fireEvent.mouseDown(await screen.findByText("Berlin, Germany"));
+    fireEvent.change(input, { target: { value: "Berlin manual" } });
+    resolveDetails?.({ address_components: [{ short_name: "DE", types: ["country"] }] }, "OK");
+
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith(null));
+    expect(onSelectionChange).not.toHaveBeenCalledWith({ label: "Berlin, Germany", countryCode: "DE" });
   });
 });

@@ -788,6 +788,37 @@ router.post(
     return res.json({ ok: true, paused: input.paused === true });
   }),
 );
+// Create a new capture owned by the authenticated account. Email verification
+// remains necessary to claim someone else's existing submission; a new draft
+// derives its ownership from Firebase identity, never submitted account fields.
+router.post(
+  "/capture-start",
+  handle(async (req, res) => {
+    requireRole(res, "site_operator");
+    const input = z.object({
+      requestId: id,
+      siteLocation: z.string().trim().min(1).max(300),
+      taskStatement: z.string().trim().min(1).max(2000),
+      captureMode: z.enum(["self_capture", "site_visit"]),
+      captureRegion: z.enum(["us", "non_us"]),
+      hasExistingFootage: z.boolean(),
+      filmerContact: z.string().email().max(320).optional(),
+      consentAttestation: z.object({ granted: z.literal(true), statementVersion: z.literal("2026-09-18.v1") }),
+      honeypot: z.string().optional(),
+    }).parse(req.body);
+    res.locals.workspaceIntake = {
+      account_owner_uid: identity(res).uid,
+      workspace_task: { archived: false, paused: false },
+    };
+    req.body = {
+      ...intakeIdentity(res), ...input,
+      siteName: input.siteLocation,
+      taskDescription: input.taskStatement,
+      siteTaskGates: {}, siteTaskSpec: {},
+    };
+    return submitInboundRequest(req, res);
+  }),
+);
 router.post(
   "/tasks",
   handle(async (req, res) => {

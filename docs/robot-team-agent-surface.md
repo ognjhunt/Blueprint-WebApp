@@ -57,7 +57,16 @@ The admin equivalents still exist (`/api/admin/robot-teams/...`) for support, fo
 
 ## No qualifying questions to register
 
-Registration asks for a team name. That is all.
+Registration asks for a team name. That is all that is required. Two facts
+are accepted alongside it because no run can measure them and matching treats
+one of them as hard: `hardwareMaturity` (does the hardware exist today) and
+`deploymentGeography` (would the team deploy in the Austin metro), both in the
+intake gates' vocabulary and stored at `self_reported` grade. `embodiment` and
+`website` are accepted the same way; the website feeds the capability-refresh
+lane, which proposes figures a person promotes. The human plan form requires the two short answers, including a truthful negative answer;
+the agent API keeps them optional for compatibility. Neither answer grants physical
+readiness or authorizes spending. Engineering capacity and deployment timeline are
+left for pilot discussions.
 
 The intake's four gates — where the hardware is, where they can deploy, engineer capacity, deployment timeline — are every one of them a fact about **deploying a robot at a site**. None is needed to run a policy against a scene we already hold, and running it is what a team came for. Gating evaluation on deployment questions is a category error, and it was the entire delay: a team answered them and still could not act.
 

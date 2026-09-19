@@ -23,6 +23,8 @@ export function TaskBrowse() {
       const data = await response.json();
       if (!Array.isArray(data.items)) throw new Error("invalid library");
       setItems(data.items); setState("ready");
+      const sceneId = new URLSearchParams(window.location.search).get("sceneId");
+      if (sceneId) setSelected(data.items.find((item: TaskBrowseCard) => item.id === sceneId && item.evaluationAvailable) || null);
     }).catch(() => { if (!controller.signal.aborted) setState("error"); });
     return () => controller.abort();
   }, [retry]);

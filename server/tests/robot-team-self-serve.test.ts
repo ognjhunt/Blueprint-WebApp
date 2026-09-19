@@ -98,6 +98,11 @@ function json(key?: string) {
   };
 }
 
+const requiredRobotFacts = {
+  hardwareMaturity: "pilots",
+  deploymentGeography: "right_opportunity",
+} as const;
+
 /**
  * One site that is genuinely runnable supply.
  *
@@ -155,12 +160,12 @@ beforeEach(() => {
 /* ------------------------------------------------------ registration */
 
 describe("a team registers itself", () => {
-  it("asks no qualifying questions and returns a usable key", async () => {
+  it("accepts the two self-reported facts and returns a usable key", async () => {
     const body = await withRoutes(async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Alpha Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics" }),
       });
       expect(response.status).toBe(201);
       return (await response.json()) as Record<string, unknown>;
@@ -179,12 +184,12 @@ describe("a team registers itself", () => {
       const first = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Figure" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Figure" }),
       });
       const second = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Figure" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Figure" }),
       });
       return [
         ((await first.json()) as { teamId: string }).teamId,
@@ -204,7 +209,7 @@ describe("a team registers itself", () => {
       const response = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Vapourware Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Vapourware Robotics" }),
       });
       return ((await response.json()) as { teamId: string }).teamId;
     });
@@ -215,7 +220,7 @@ describe("a team registers itself", () => {
     >;
     expect(record.status).toBe("self_registered");
     expect(record.registrationSource).toBe("self_serve");
-    expect(record.capability).toEqual({});
+    expect(record.capability).toMatchObject(requiredRobotFacts);
 
     const { listMatchableRobotTeams } = await import("../utils/robotTeamRegistry");
     await expect(listMatchableRobotTeams()).resolves.toEqual([]);
@@ -226,7 +231,7 @@ describe("a team registers itself", () => {
       const response = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Alpha Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics" }),
       });
       return ((await response.json()) as { teamId: string }).teamId;
     });
@@ -253,6 +258,7 @@ describe("a team registers itself", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: {
             label: "v3",
@@ -275,6 +281,7 @@ describe("a team registers itself", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: { label: "v3", runtime: "policy_endpoint", reference: "   " },
         }),
@@ -306,6 +313,7 @@ describe("registration to plan, without an operator", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: {
             label: "v3",
@@ -348,6 +356,7 @@ describe("registration to plan, without an operator", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: {
             label: "v3",
@@ -394,6 +403,7 @@ describe("registration to plan, without an operator", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: {
             label: "v3",
@@ -430,7 +440,7 @@ describe("registration to plan, without an operator", () => {
       const response = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Alpha Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics" }),
       });
       return ((await response.json()) as { next: string[] }).next;
     });
@@ -453,6 +463,7 @@ describe("the plan a team saw is what it reserves", () => {
       method: "POST",
       headers: json(),
       body: JSON.stringify({
+        ...requiredRobotFacts,
         teamName: "Alpha Robotics",
         checkpoint: { label: "v3", runtime: "policy_endpoint", reference: "https://policies.example/v3" },
       }),
@@ -563,7 +574,7 @@ describe("funding needs no operator", () => {
       const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Alpha Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics" }),
       });
       const { agentKey } = (await registered.json()) as { agentKey: string };
 
@@ -585,7 +596,7 @@ describe("funding needs no operator", () => {
       const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Alpha Robotics" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics" }),
       });
       const { agentKey } = (await registered.json()) as { agentKey: string };
 
@@ -628,7 +639,7 @@ describe("a lost key is re-issued to the registered address", () => {
       const registered = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Key Loss Co", contactEmail: "ops@keyloss.example" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Key Loss Co", contactEmail: "ops@keyloss.example" }),
       });
       const account = (await registered.json()) as { teamId: string; agentKey: string };
 
@@ -706,6 +717,7 @@ describe("self-serve registration links to an intake application", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Compiler Robotics",
           contactEmail: "grace@compiler.example",
         }),
@@ -734,7 +746,7 @@ describe("self-serve registration links to an intake application", () => {
       const response = await fetch(`${baseUrl}/api/agent-team/register`, {
         method: "POST",
         headers: json(),
-        body: JSON.stringify({ teamName: "Lone Wolf", contactEmail: "solo@lone.example" }),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Lone Wolf", contactEmail: "solo@lone.example" }),
       });
       const account = (await response.json()) as { teamId: string };
       const record = sharedFakeFirestoreState.docs.get(
@@ -754,6 +766,7 @@ describe("an operator-paused site leaves runnable supply", () => {
         method: "POST",
         headers: json(),
         body: JSON.stringify({
+          ...requiredRobotFacts,
           teamName: "Alpha Robotics",
           checkpoint: { label: "v3", runtime: "policy_endpoint", reference: "https://policies.example/v3" },
         }),
@@ -788,5 +801,70 @@ describe("an operator-paused site leaves runnable supply", () => {
 
     expect(withAndWithout.liveIds).toContain("site-1");
     expect(withAndWithout.pausedIds).not.toContain("site-1");
+  });
+});
+
+/* ------------------------------------------- the robot's facts, structured */
+
+describe("the robot's non-observable physical facts", () => {
+  it("stores embodiment, geography, and maturity on the capability at self-reported grade", async () => {
+    const body = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({
+          ...requiredRobotFacts,
+          teamName: "Alpha Robotics",
+          embodiment: "Mobile manipulator",
+          hardwareMaturity: "pilots",
+          deploymentGeography: "right_opportunity",
+          website: "https://alpha.example/specs",
+        }),
+      });
+      expect(response.status).toBe(201);
+      return (await response.json()) as { teamId: string };
+    });
+
+    const team = sharedFakeFirestoreState.docs.get(`robotTeams/${body.teamId}`) as Record<string, any>;
+    expect(team.capability).toMatchObject({
+      embodiment: "Mobile manipulator",
+      hardwareMaturity: "pilots",
+      deploymentGeography: "right_opportunity",
+    });
+    expect(team.fieldProvenance.deploymentGeography.grade).toBe("self_reported");
+    expect(team.fieldProvenance.embodiment.grade).toBe("self_reported");
+    expect(team.fieldProvenance.hardwareMaturity.grade).toBe("self_reported");
+    expect(team.hardwareMaturity).toBeUndefined();
+    expect(team.website).toBe("https://alpha.example/specs");
+  });
+
+  it("keeps agent registration backward compatible when a deployment fact is unknown", async () => {
+    const statuses = await withRoutes(async (baseUrl) => {
+      const requests = [
+        { teamName: "No maturity", deploymentGeography: "yes" },
+        { teamName: "No geography", hardwareMaturity: "prototype" },
+      ];
+      return Promise.all(requests.map(async (body) => {
+        const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+          method: "POST",
+          headers: json(),
+          body: JSON.stringify(body),
+        });
+        return response.status;
+      }));
+    });
+    expect(statuses).toEqual([201, 201]);
+  });
+
+  it("refuses an answer outside the gate's own vocabulary", async () => {
+    const status = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ ...requiredRobotFacts, teamName: "Alpha Robotics", deploymentGeography: "maybe" }),
+      });
+      return response.status;
+    });
+    expect(status).toBe(400);
   });
 });

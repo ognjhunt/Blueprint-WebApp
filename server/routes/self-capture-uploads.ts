@@ -30,6 +30,7 @@ import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import {
   selfCaptureObjectPath,
   verifyCaptureUploadToken,
@@ -366,6 +367,19 @@ async function finishStoredCapture(params: {
         error: "Your video reached us but we could not start processing it. We have been alerted.",
       },
     };
+  }
+
+  // The manifest is the durable proof that the upload is complete. Notify
+  // before privacy review, while saying exactly that review is still pending.
+  // A retried completion reaches this call again and repairs a missed enqueue;
+  // the outbox key keeps that retry from creating a second message.
+  try {
+    await enqueueTaskLifecycleNotification({
+      requestId: payload.requestId,
+      milestone: "video_received",
+    });
+  } catch (error) {
+    logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
   }
 
   const privacy = await screenCaptureForPrivacy({
