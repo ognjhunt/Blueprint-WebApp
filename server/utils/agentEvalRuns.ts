@@ -52,6 +52,7 @@ import {
   type RequestedRunParams,
   type RunDispatch,
 } from "./agentRunRecord";
+import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
 export {
   buildRequestedRunRecord,
   reservationTtlMs,
@@ -532,19 +533,34 @@ export async function markRunStarted(params: {
 }): Promise<boolean> {
   if (!db || !params.pipelineRunId?.trim()) return false;
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
-  return db.runTransaction(async transaction => {
+  const claimed = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return false;
+    if (!snapshot.exists) return null;
     const run = snapshot.data() as EvalRunRecord & { settlementDueAtMs?: number };
-    if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return false;
-    if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return false;
+    if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return null;
+    if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return null;
     const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
-    if (!Number.isFinite(due) || due <= Date.now()) return false;
-    if (run.dispatch?.startedAtIso) return run.dispatch.pipelineRunId === params.pipelineRunId;
+    if (!Number.isFinite(due) || due <= Date.now()) return null;
+    if (run.dispatch?.startedAtIso) {
+      return run.dispatch.pipelineRunId === params.pipelineRunId ? run : null;
+    }
     const dispatch: RunDispatch = { startedAtIso: nowIso(), pipelineRunId: params.pipelineRunId! };
     transaction.set(ref, { dispatch, dispatchPending: false, settlementDueAtMs: Date.now() + reservationTtlMs() }, { merge: true });
-    return true;
+    return { ...run, dispatch };
   });
+  if (!claimed) return false;
+
+  // Only a successful CAS (or its same-owner idempotent retry) reaches here.
+  // The retry repairs an enqueue lost after the run was durably claimed.
+  try {
+    await enqueueTaskLifecycleNotification({
+      requestId: claimed.sceneId,
+      milestone: "screening_started",
+    });
+  } catch (error) {
+    logger.warn({ error, runId: params.runId }, "Could not enqueue screening-started notice");
+  }
+  return true;
 }
 
 /**

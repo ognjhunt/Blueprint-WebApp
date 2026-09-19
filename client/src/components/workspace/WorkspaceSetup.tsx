@@ -95,8 +95,8 @@ function SetupForm({
               manage
                 ? "/settings"
                 : workspaceType === "site_operator"
-                  ? "/app/tasks/new"
-                  : "/settings?tab=robots",
+                  ? "/contact/site-operator"
+                  : "/contact/robot-team",
             );
           } catch (failure) {
             setError(

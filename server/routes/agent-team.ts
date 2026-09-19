@@ -38,6 +38,7 @@ import { z } from "zod";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { robotGateFields } from "../../client/src/data/robotTeamQualification";
 import { sendEmail } from "../utils/email";
 import { createRateLimitRedisStore } from "../utils/rate-limit-redis";
 import {
@@ -127,6 +128,13 @@ const registrationRateLimiter = rateLimit({
   },
 });
 
+/** A gate's option values, as the enum registration accepts for it. */
+function gateValues(fieldId: string): [string, ...string[]] {
+  const values = robotGateFields.find((field) => field.id === fieldId)?.options.map((o) => o.value) ?? [];
+  if (!values.length) throw new Error(`No robot gate named ${fieldId}`);
+  return values as [string, ...string[]];
+}
+
 const registerSchema = z
   .object({
     teamName: z.string().trim().min(2).max(120),
@@ -136,34 +144,30 @@ const registerSchema = z
     taskFamily: z.string().trim().max(60).optional(),
     /** What they build, in their words. For a person, never parsed. */
     capabilityDescription: z.string().trim().max(2000).optional(),
+    /** What the robot is, structured. Ranked and shown, never a gate. */
+    embodiment: z.string().trim().min(1).max(80).optional(),
+    /** Human-supplied physical facts that a past-task evaluation cannot establish. */
+    hardwareMaturity: z.enum(gateValues("hardwareMaturity")).optional(),
+    deploymentGeography: z.enum(gateValues("deploymentGeography")).optional(),
     /** Optional, so one call can get a team from nothing to a plan. */
     checkpoint: checkpointSchema.optional(),
   })
   .strict();
 
 /**
- * Register a robot team and get a key, in one call, with no questions.
+ * Register a robot team and get a key in one call.
  *
  * ## Why there are no gates here
  *
  * The intake asks four gates before a team is in the registry: where the
  * hardware is, where they can deploy, engineer capacity, deployment timeline.
- * Every one of those is a fact about deploying a robot at a site. None of them
- * is needed to run a policy against a scene we already hold, and running it is
- * what a team came for. Gating evaluation on deployment questions is what made
- * the old flow end in "we will be in touch".
+ * Hardware maturity and deployment geography are retained because a past-task
+ * evaluation cannot establish either fact. Engineer capacity and deployment
+ * timeline remain pilot-conversation questions rather than front-door gates.
  *
  * They are still the right questions — for a pilot, where somebody is about to
  * spend real weeks. Asked then, they are due diligence. Asked here, they were
  * a queue.
- *
- * ## Why answering nothing costs a team nothing
- *
- * `evalSelection` ranks an unknown hard constraint above everything else: a
- * team we know nothing about has the most to learn from a run, by our own
- * scoring. So a blank team does not get a worse plan — it gets the most
- * informative one, and the run measures what the form used to ask it to
- * predict.
  *
  * ## What this grants
  *
@@ -181,6 +185,9 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
         teamName: "string",
         contactEmail: "email (optional)",
         website: "url (optional)",
+        embodiment: "string (optional)",
+        hardwareMaturity: gateValues("hardwareMaturity").join(" | "),
+        deploymentGeography: gateValues("deploymentGeography").join(" | "),
         checkpoint: "{ label, runtime, reference } (optional)",
       },
     });
@@ -192,6 +199,9 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     website: parsed.data.website ?? null,
     taskFamily: parsed.data.taskFamily ?? null,
     capabilityDescription: parsed.data.capabilityDescription ?? null,
+    embodiment: parsed.data.embodiment ?? null,
+    hardwareMaturity: parsed.data.hardwareMaturity ?? null,
+    deploymentGeography: parsed.data.deploymentGeography ?? null,
   });
   if (!team) {
     return res.status(503).json({

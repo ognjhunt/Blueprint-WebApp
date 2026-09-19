@@ -873,3 +873,33 @@ describe("agent screening runs on the site's task", () => {
     expect(siteTask.readiness?.decision).toBe("results");
   });
 });
+
+
+describe("capture-first workspace intake", () => {
+  const capture = {
+    requestId: "capture-owned", siteLocation: "Austin, TX", taskStatement: "Pack cartons",
+    captureMode: "self_capture", captureRegion: "us", hasExistingFootage: false,
+    consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
+  };
+  it("binds new capture to the authenticated account, ignoring forged identity and permissions", async () => {
+    const response = await api("/capture-start", "site-1", { ...capture, email: "forged@example.com", account_owner_uid: "site-2", siteTaskGates: { cleared: true } });
+    expect(response.status).toBe(201);
+    expect(state.intakes.at(-1)).toMatchObject({
+      body: { email: "site-1@example.com", buyerType: "site_operator", siteTaskGates: {}, consentAttestation: capture.consentAttestation },
+      metadata: { account_owner_uid: "site-1" },
+    });
+    expect((await api("/tasks/capture-owned", "site-1")).status).toBe(200);
+    expect((await api("/tasks/capture-owned", "site-2")).status).toBe(404);
+  });
+  it("allows a new account to create its own draft before email verification", async () => {
+    const response = await fetch(`${base}/capture-start`, { method: "POST", headers: { "Content-Type": "application/json", "x-user": "site-1", "x-unverified": "1" }, body: JSON.stringify(capture) });
+    expect(response.status).toBe(201);
+    expect(state.intakes.at(-1).metadata.account_owner_uid).toBe("site-1");
+  });
+  it("requires explicit country and recording consent and refuses robot accounts", async () => {
+    expect((await api("/capture-start", "robot-1", capture)).status).toBe(403);
+    expect((await api("/capture-start", "site-1", { ...capture, captureRegion: "" })).status).toBe(400);
+    expect((await api("/capture-start", "site-1", { ...capture, consentAttestation: { ...capture.consentAttestation, granted: false } })).status).toBe(400);
+    expect(state.intakes).toHaveLength(0);
+  });
+});

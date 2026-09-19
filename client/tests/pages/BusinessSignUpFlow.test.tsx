@@ -41,7 +41,7 @@ describe("minimal business signup", () => {
     it(`creates only an account and ${role} workspace, without a sales intake or permissions grant`, async () => {
       render(<BusinessSignUpFlow />); accountStep(); workspaceStep(role);
       fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith(role === "robot_team" ? "/app/opportunities" : "/app/tasks/new"));
+      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith(role === "robot_team" ? "/contact/robot-team" : "/contact/site-operator"));
       expect(mocks.create).toHaveBeenCalledTimes(1);
       expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true });
       expect(mocks.request.mock.calls.every(call => call[1] === "/setup")).toBe(true);
@@ -62,7 +62,7 @@ describe("minimal business signup", () => {
     expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Test Team");
     fail = false;
     fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app/opportunities"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
     expect(mocks.create).toHaveBeenCalledTimes(1);
   });
   it("prefills Google identity and requires workspace details and consent", async () => {
@@ -71,7 +71,7 @@ describe("minimal business signup", () => {
     expect(screen.getByRole("checkbox")).not.toBeChecked();
     expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
     workspaceStep();fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app/opportunities"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
     expect(mocks.create).not.toHaveBeenCalled();
   });
   it("routes an existing Google customer to their workspace without changing its type", async () => {
@@ -98,7 +98,7 @@ describe("minimal business signup", () => {
     workspaceStep();
     await waitFor(() => expect(screen.getByRole("button", { name: "Open workspace" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app/opportunities"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
     expect(mocks.create).not.toHaveBeenCalled();
   });
   it("does not overwrite a workspace after an ambiguous save succeeded", async () => {

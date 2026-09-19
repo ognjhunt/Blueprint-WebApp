@@ -27,6 +27,10 @@ import {
   type WorldReconstructionRecord,
 } from "../utils/worldReconstruction";
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
+import {
+  enqueueTaskLifecycleNotification,
+  reconstructionIsViewable,
+} from "../utils/taskLifecycleNotifications";
 
 const router = Router();
 
@@ -60,7 +64,11 @@ const advanceBody = z
  * always with the blocker, so a capture that stalled is distinguishable from
  * one still working.
  */
-async function persistReconstruction(captureId: string, record: WorldReconstructionRecord) {
+async function persistReconstruction(
+  captureId: string,
+  record: WorldReconstructionRecord,
+  requestId?: string | null,
+) {
   if (!db) {
     return;
   }
@@ -80,11 +88,27 @@ async function persistReconstruction(captureId: string, record: WorldReconstruct
           failure_reason: record.failureReason,
           updated_at_iso: record.updatedAtIso,
         },
+        ...(requestId ? { notification_request_id: requestId } : {}),
+        ...(reconstructionIsViewable(record) ? { scene_notification_pending: true } : {}),
         updated_at_iso: record.updatedAtIso,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true },
     );
+}
+
+async function notifySceneReady(captureId: string, record: WorldReconstructionRecord) {
+  if (!db || !reconstructionIsViewable(record)) return;
+  try {
+    const snapshot = await db.collection("captureUploadSessions").doc(captureId).get();
+    const requestId = String(snapshot.data()?.notification_request_id ?? "").trim();
+    if (!requestId) return;
+    await enqueueTaskLifecycleNotification({ requestId, milestone: "scene_ready" });
+  } catch (error) {
+    // The ready record is authoritative and already persisted. A repeated
+    // advance call retries this deterministic enqueue without rebuilding it.
+    logger.warn({ error, captureId }, "Could not enqueue scene-ready notice");
+  }
 }
 
 function guard(req: Request, res: Response, next: () => void) {
@@ -142,7 +166,8 @@ router.post(
         },
       });
 
-      await persistReconstruction(captureId, record);
+      await persistReconstruction(captureId, record, parsed.data.site_submission_id);
+      await notifySceneReady(captureId, record);
       // A blocker is a real outcome the trigger has to see, but it is not a
       // transport error: the call succeeded and the state is recorded.
       return res.status(record.blocker ? 409 : 202).json({ ok: !record.blocker, reconstruction: record });
@@ -178,6 +203,7 @@ router.post(
       });
 
       await persistReconstruction(captureId, record);
+      await notifySceneReady(captureId, record);
       return res.status(200).json({ ok: record.state !== "failed", reconstruction: record });
     } catch (error) {
       logger.error({ error, captureId }, "Autonomous world reconstruction failed to advance");

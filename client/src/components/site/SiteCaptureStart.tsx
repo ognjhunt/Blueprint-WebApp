@@ -1,57 +1,6 @@
 import { isLikelyPhone } from "@/lib/device";
-/**
- * Getting a site to a camera, which is the only thing we actually need.
- *
- * ## What this replaces
- *
- * The site intake led with six questions whose own copy said what they were
- * for: "These questions are the screen, not a survey. Six of them can end a
- * submission." A screen is a mechanism for turning people away, and it made
- * sense while a capture meant sending a person and a reconstruction was billed
- * on our account.
- *
- * Neither holds now. A site recording on its own phone costs us nothing to
- * receive; the privacy screen reads the footage before anything is derived from it;
- * and the footage review refuses to reconstruct anything unusable. The money is
- * guarded after the video, by the video.
- *
- * Which leaves the screen protecting nothing, and doing it badly: four of the
- * five gates that bind a self-recorded capture -- whether the area stays put,
- * whether one job repeats, how many item types, when the station is clear --
- * are things `VIDEO_OBSERVABLE_FIELD_IDS` says the footage shows. We were
- * asking a site to describe a room in dropdowns before we would accept a film
- * of the same room.
- *
- * ## The verdict did not disappear, it moved
- *
- * `disposition === "qualified"` still decides whether a site is offered to
- * robot teams -- `loadRunnableSites` enforces that, unchanged. What changed is
- * that it is no longer a toll gate in front of our own supply. The gates get
- * resolved with the footage in hand, which is both later and easier.
- *
- * ## Why this is not a signup
- *
- * There is no account here, deliberately: the submit path carries
- * `accountSignup: false`, and the signed capture link is the credential. A
- * password and a verification email would be a second toll on someone who just
- * needs to point a phone at a pallet.
- *
- * ## The one thing that is still required
- *
- * Consent. We need permission to record the site and to let robot teams
- * evaluate against the scene, and that is a legal act rather than a
- * qualification — so it is a checkbox that blocks, and the only one.
- *
- * ## And the one thing that can still withhold a camera link
- *
- * Where the site is. Not a judgement about the site: the beta's basis for
- * collecting a walkthrough is region-scoped, and the privacy policy says
- * non-US participation needs transfer terms signed *before capture*. So an
- * out-of-region site submits, we keep the lead, and the answer is a
- * conversation instead of a link. What we do not do is invite someone to film
- * footage we would then have to refuse — which is what this page did before.
- */
-import { useState } from "react";
+/** Start with a task and capture permission; assess the work from its evidence. */
+import { useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
@@ -65,6 +14,8 @@ import {
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Same sentence version the screening form records: the attestation names the
@@ -80,6 +31,7 @@ type State =
   | {
       status: "done";
       captureUrl: string | null;
+      workspaceUrl: string | null;
       selfRecording: boolean;
       email: string;
       regionApproved: boolean;
@@ -94,13 +46,12 @@ function splitName(value: string) {
 }
 
 export function SiteCaptureStart() {
+  const { currentUser, loading } = useAuth();
+  const requestId = useRef(`capture-${crypto.randomUUID()}`);
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
-  // Defaulted to the one region we are cleared for, because that is where
-  // almost every site will be and a required empty select is a speed bump for
-  // the common case. The default is not what grants the clearance: the server
-  // re-reads this and holds on anything else, and on nothing at all.
-  const [region, setRegion] = useState<CaptureRegion>("us");
+  const [region, setRegion] = useState<CaptureRegion | "">("");
+  const [regionManuallySet, setRegionManuallySet] = useState(false);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
@@ -120,23 +71,23 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state.status === "working") return;
+    if (state.status === "working" || loading || !region || !consent) return;
 
     const data = new FormData(event.currentTarget);
     const read = (key: string) => String(data.get(key) ?? "").trim();
-    const email = read("startEmail");
+    const email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
 
     setState({ status: "working" });
 
     try {
       const { firstName, lastName } = splitName(read("startName"));
-      const response = await fetch("/api/inbound-request", {
+      const response = await fetch(currentUser ? "/api/workspace/capture-start" : "/api/inbound-request", {
         method: "POST",
         credentials: "include",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
         body: JSON.stringify({
-          requestId: `capture-${crypto.randomUUID()}`,
+          requestId: requestId.current,
           firstName,
           lastName,
           email: email.toLowerCase(),
@@ -177,6 +128,7 @@ export function SiteCaptureStart() {
       const result = (await response.json().catch(() => ({}))) as {
         captureUrl?: string | null;
         message?: string;
+        error?: string;
       };
 
       if (!response.ok) {
@@ -184,7 +136,7 @@ export function SiteCaptureStart() {
         setState({
           status: "failed",
           message:
-            result.message
+            result.message || result.error
             || "We could not save that. Please try again, or email hello@tryblueprint.io.",
         });
         return;
@@ -208,6 +160,7 @@ export function SiteCaptureStart() {
 
       setState({
         status: "done",
+        workspaceUrl: currentUser ? `/app/tasks/${requestId.current}` : null,
         captureUrl: typeof result.captureUrl === "string" ? result.captureUrl : null,
         selfRecording,
         email,
@@ -225,6 +178,7 @@ export function SiteCaptureStart() {
   if (state.status === "done") {
     return (
       <div className="ms-form" aria-live="polite">
+        {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {!state.regionApproved ? (
           <>
             <h2 style={{ marginTop: 0 }}>We have your site.</h2>
@@ -284,20 +238,10 @@ export function SiteCaptureStart() {
 
   return (
     <form className="ms-form" onSubmit={submit} aria-label="Start a site capture">
-      <h2 style={{ marginTop: 0 }}>Tell us about one repetitive job.</h2>
-      <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        Start with a description. If you already have footage, tell us below; if not, you will film
-        it later with our instructions — either way we will use whatever you give us and tell you
-        what, if anything, is missing. No question here is a test of whether your site is good enough: what the footage
-        shows is what decides, and you will hear exactly what we saw.
-      </p>
-
       <label htmlFor="start-task">
         <span>What is the job?</span>
         <span className="ms-field-hint">
-          One line is enough to start — "move sealed cartons from the conveyor onto a pallet".
-          More is better: what the items are, what varies, and what makes a cycle go wrong all
-          save us asking.
+          For example, “move sealed cartons from the conveyor onto a pallet.”
         </span>
         <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} />
       </label>
@@ -355,26 +299,6 @@ export function SiteCaptureStart() {
         </label>
       )}
 
-      <label htmlFor="start-region">
-        <span>Which country is the site in?</span>
-        {/* Asked rather than parsed out of the free-text location below. A
-            residency decision made on a guess reads as a clearance we never
-            had, and this one decides whether we may collect at all. */}
-        <span className="ms-field-hint">{captureRegionNotice}</span>
-        <select
-          id="start-region"
-          name="startRegion"
-          value={region}
-          onChange={(event) => setRegion(event.target.value as CaptureRegion)}
-        >
-          {captureRegionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <label htmlFor="start-location">
         <span>{selfRecording ? "Where is it?" : "Site address"}</span>
         <span className="ms-field-hint">
@@ -388,9 +312,34 @@ export function SiteCaptureStart() {
           required
           maxLength={300}
           placeholder={selfRecording ? "City, or a full address" : "Street address"}
+          onSelectionChange={(place) => {
+            if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+          }}
         />
       </label>
 
+      <label htmlFor="start-region">
+        <span>Which country is the site in?</span>
+        <span className="ms-field-hint">
+          Set from the address you pick; change it if that is wrong. {captureRegionNotice}
+        </span>
+        <select
+          id="start-region"
+          name="startRegion"
+          value={region}
+          required
+          onChange={(event) => { setRegion(event.target.value as CaptureRegion); setRegionManuallySet(!!event.target.value); }}
+        >
+          <option value="">Choose country</option>
+          {captureRegionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {!currentUser && <>
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
@@ -414,6 +363,9 @@ export function SiteCaptureStart() {
           <input id="start-company" name="startCompany" type="text" maxLength={200} />
         </label>
       </div>
+
+      </>}
+      {currentUser && <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>}
 
       {/* Bot bait: hidden from people, honoured by the server. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
@@ -453,7 +405,7 @@ export function SiteCaptureStart() {
         </p>
       )}
 
-      <button className="ms-button ms-button-large" type="submit" disabled={state.status === "working"}>
+      <button className="ms-button ms-button-large" type="submit" disabled={state.status === "working" || loading}>
         {state.status === "working" ? "Working…" : "Start"}
       </button>
     </form>

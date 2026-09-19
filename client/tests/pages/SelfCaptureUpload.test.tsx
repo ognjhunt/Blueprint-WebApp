@@ -102,7 +102,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
-  function mockFetchWithStatus(status: Record<string, unknown>, claimUrl: string | null) {
+  function mockFetchWithStatus(status: Record<string, unknown>, claimUrl: string | null, sceneViewUrl: string | null = null) {
     return vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
@@ -112,7 +112,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
         });
       }
       if (url.includes("/status")) {
-        return Promise.resolve({ ok: true, json: async () => ({ ok: true, status, claimUrl }) });
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, status, claimUrl, sceneViewUrl }) });
       }
       if (url.includes("/items")) {
         return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
@@ -146,5 +146,14 @@ describe("SelfCaptureUpload once robot teams have run", () => {
 
     expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
     expect(screen.queryByRole("link", { name: /claim your site/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the owner-only persisted scene viewer returned by status", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", mockFetchWithStatus(results, null, "https://viewer.example/world-1"));
+    render(<SelfCaptureUpload />);
+
+    const link = await screen.findByRole("link", { name: /view your scene/i });
+    expect(link).toHaveAttribute("href", "https://viewer.example/world-1");
   });
 });

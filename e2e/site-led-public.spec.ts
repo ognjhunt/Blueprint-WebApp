@@ -37,77 +37,6 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
   });
 }
 
-const clearSiteGates = async (page: import("@playwright/test").Page) => {
-  // The form opens on self-capture, where the service-area gate is not asked at
-  // all. These tests exercise the full six-gate set, so they ask for a visit.
-  await page.locator("#capture-mode").selectOption("site_visit");
-  await page.locator("#gate-serviceArea").selectOption("austin_metro");
-  await page.locator("#gate-sceneStability").selectOption("stable");
-  await page.locator("#gate-taskShape").selectOption("single");
-  await page.locator("#gate-objectVariety").selectOption("under_10");
-  await page.locator("#gate-deploymentTimeline").selectOption("this_quarter");
-  await page.locator("#gate-accessWindow").selectOption("scheduled");
-};
-
-/**
- * Open the six-question screen.
- *
- * The site page leads with a camera now: a phone video of one work area is all
- * a reconstruction needs, and four of the gates below are things the footage
- * shows better than a dropdown. The screen still exists for a site that wants
- * the full read before filming, one click in — so these tests open it rather
- * than drop the assertions, because what it asks is unchanged.
- */
-async function openSiteScreen(page: Page) {
-  const summary = page.getByText(/Want the full read first/i);
-  await expect(summary).toBeVisible();
-  await summary.click();
-}
-
-test("site inquiry validates, retains data on failure, then acknowledges a successful retry", async ({ page }) => {
-  await page.goto("/contact/site-operator");
-  await openSiteScreen(page);
-  let attempts = 0;
-  let body: Record<string, any> = {};
-  await page.route("**/api/inbound-request", async (route) => {
-    attempts++;
-    body = route.request().postDataJSON();
-    expect(route.request().headers()["x-csrf-token"]).toBe("local-review-token");
-    await route.fulfill({ status: attempts === 1 ? 503 : 202, contentType: "application/json", body: JSON.stringify(attempts === 1 ? { message: "temporarily unavailable" } : { ok: true }) });
-  });
-  await page.getByRole("button", { name: "Send inquiry" }).click();
-  expect(attempts).toBe(0);
-  await clearSiteGates(page);
-  await page.locator("#prose-taskDescription").fill("A Raleigh pick-and-place workcell with two candidate configurations.");
-  await page.locator("#contact-name").fill("Test Person");
-  await page.locator("#contact-email").fill("person@example.com");
-  await page.locator("#contact-company").fill("Test Site");
-  await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
-  // Legal act, not paperwork: unchecked, the browser's own required-field
-  // validation blocks the submit before it ever reaches the route mock.
-  await page.locator("#contact-rights").check();
-  await page.getByRole("button", { name: "Send inquiry" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.locator("#contact-company")).toHaveValue("Test Site");
-  await page.getByRole("button", { name: "Send inquiry" }).click();
-  await expect(page.getByRole("status").getByText(/clears the screen/i)).toBeVisible();
-  expect(attempts).toBe(2);
-  expect(body.buyerType).toBe("site_operator");
-  // Enum answers, so the verdict on them is reproducible.
-  expect(body.siteTaskGates.serviceArea).toBe("austin_metro");
-  expect(body.siteTaskGates.accessWindow).toBe("scheduled");
-});
-
-test("robot task browsing replaces the retired contact application", async ({ page }) => {
-  await page.goto("/contact/robot-team");
-  await expect(page.locator("#gate-serviceArea")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Task library" })).toBeVisible();
-  await expect(page.getByText(/Choose a task before connecting your robot/)).toBeVisible();
-  await expect(page.locator("#gate-hardwareMaturity")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Send application" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /For agents: API reference/i })).toBeVisible();
-});
-
 test("mobile navigation and keyboard-accessible method disclosure work", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -138,26 +67,21 @@ test("old marketing links resolve to the minimal website without losing source c
   await expect(page).toHaveURL(/\/contact\/site-operator/);
 });
 
-test("site owners can share task footage by link", async ({ page }) => {
-  // Link rather than upload, deliberately: taking worker footage before a
-  // consent record exists would bypass what /governance promises, and a link
-  // leaves custody with the site.
-  await page.goto("/contact/site-operator");
-  await openSiteScreen(page);
-  await clearSiteGates(page);
-  await page.locator("#prose-taskDescription").fill("Two related pick-and-place tasks.");
-  await page.locator("#taskVideoUrl").fill("https://example.com/task-demo");
-  await page.locator("#contact-name").fill("Video Reviewer");
-  await page.locator("#contact-email").fill("video@example.com");
-  await page.locator("#contact-company").fill("Test Site");
-  await page.locator("#contact-site-address").fill("1100 E 5th St, Austin, TX");
-  await page.locator("#contact-rights").check();
-  let body: Record<string, any> = {};
-  await page.route("**/api/inbound-request", async (route) => {
-    body = route.request().postDataJSON();
-    await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ ok: true }) });
-  });
-  await page.getByRole("button", { name: "Send inquiry" }).click();
-  await expect(page.getByRole("status").getByText(/clears the screen/i)).toBeVisible();
-  expect(body.taskVideoUrl).toBe("https://example.com/task-demo");
+test("the site page puts the capture form before the explanation, on a phone too", async ({ page }) => {
+  for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/contact/site-operator");
+    const form = page.getByRole("form", { name: "Start a site capture" });
+    await expect(form).toBeVisible();
+    const how = page.getByText("How this works", { exact: true });
+    await expect(how).toBeVisible();
+    // Form above the disclosure, and the disclosure closed.
+    const formBox = await form.boundingBox();
+    const howBox = await how.boundingBox();
+    expect(formBox!.y).toBeLessThan(howBox!.y);
+    expect(await how.evaluate((node) => (node.closest("details") as HTMLDetailsElement).open)).toBe(false);
+    // Nothing from the old screen.
+    await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);
+  }
 });

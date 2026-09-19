@@ -18,7 +18,7 @@ export default function Tasks() {
       active="tasks"
       title="Your tasks"
       action={
-        <ActionLink href="/app/tasks/new" primary>
+        <ActionLink href="/contact/site-operator" primary>
           Request a task
         </ActionLink>
       }
@@ -46,7 +46,7 @@ export default function Tasks() {
           ) : (
             <Empty
               title={search ? "No matching tasks" : "Start with one task"}
-              href={search ? undefined : "/app/tasks/new"}
+              href={search ? undefined : "/contact/site-operator"}
               action="Request a task"
             >
               {search

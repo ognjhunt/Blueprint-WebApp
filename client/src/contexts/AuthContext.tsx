@@ -42,6 +42,8 @@ function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
 }
 
 const authSensitivePathPatterns = [
+  /^\/claim(?:\/|$)/,
+  /^\/contact\/site-operator(?:\/|$)/,
   /^\/portal(?:\/|$)/,
   /^\/settings(?:\/|$)/,
   /^\/requests\/[^/]+(?:\/|$)/,

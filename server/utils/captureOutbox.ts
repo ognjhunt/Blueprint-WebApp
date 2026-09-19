@@ -42,6 +42,9 @@ export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 /** What the message is about. Drives nothing here; for the record and metrics. */
 export type OutboxKind =
   | "progress_update"
+  | "video_received"
+  | "scene_ready"
+  | "screening_started"
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"
@@ -76,7 +79,7 @@ function nowIso() {
  *
  * Returns whether a *new* entry was written. A duplicate key is not an error --
  * it means the event was already recorded, and the caller has done its job by
- * asking. The delivery pass will send it exactly once.
+ * asking. Delivery retries use the same durable intent.
  */
 export async function enqueueOutbox(entry: {
   idempotencyKey: string;
@@ -132,11 +135,9 @@ export interface OutboxDeliverySummary {
  * which point it is marked `failed` and stops -- an unsendable address should
  * not be retried into the heat death of the universe.
  *
- * The status transition is what makes delivery exactly-once: an entry is marked
- * `sent` before the next pass could pick it up, so two overlapping passes send
- * one email rather than two. (A crash between the send and the mark can still
- * resend -- at-least-once is the honest guarantee of an outbox over a
- * non-transactional send, and one duplicate email beats a lost one.)
+ * Delivery is at-least-once: a provider success followed by a failed status
+ * write, or overlapping delivery passes, can resend an email. The document
+ * id deduplicates enqueue intents, not non-transactional provider delivery.
  */
 export async function deliverOutbox(params?: { limit?: number }): Promise<OutboxDeliverySummary> {
   const summary: OutboxDeliverySummary = { examined: 0, sent: 0, failed: 0, exhausted: 0 };
@@ -145,6 +146,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
   const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
   try { await enqueueDueTaskStatusUpdates(limit); }
   catch (error) { logger.warn({ error }, "Could not enqueue due task updates"); }
+  try {
+    const { reconcileSceneReadyNotifications } = await import("./taskLifecycleNotifications");
+    await reconcileSceneReadyNotifications(limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
     .where("status", "==", "pending")

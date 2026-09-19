@@ -108,6 +108,8 @@ export interface RobotCandidate {
    */
   capability: Readonly<Record<string, string | number | null | undefined>>;
   deploymentGeography?: string | null;
+  /** Self-reported physical maturity. Carried for truthful inspection; a past-task evaluation does not verify it. */
+  hardwareMaturity?: string | null;
   taskFamily?: string | null;
 }
 

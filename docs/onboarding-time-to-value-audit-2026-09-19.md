@@ -328,8 +328,9 @@ Implemented on 2026-09-19 (design in
   (`GET /api/internal/pipeline/agent-runs`, `POST .../agent-runs/:runId/started`),
   a started run's hold clock restarts, teams see queued versus running on
   `GET /api/agent-team/results`, and the public plan panel funds and confirms
-  the runs instead of promising a call. The Pipeline-side puller is still to be
-  written in `BlueprintCapturePipeline`.
+  the runs instead of promising a call. The Pipeline executor is implemented and merged in
+  `BlueprintCapturePipeline` PR #1981. Operator activation and a paid live run
+  are separate from this code-level verification.
 - F2: the status ladder gained `screening` and `results`, the account-free
   page offers the claim link at that moment, and the workspace results table
   includes agent runs as anonymised simulation rows.
@@ -346,3 +347,41 @@ Implemented on 2026-09-19 (design in
 intended: the QR renders on the desktop success state and is absent on the
 phone success state (verified with an iPhone user agent, `m-site-success.png`).
 They were not modified by this audit.
+
+
+## 8. Reviewed P2 implementation
+
+The reviewed implementation builds on P0/P1 and keeps the two public funnels
+small. Fable's original P2 patch was preserved in its checkout; the reviewed
+branch adds the missing ownership, residency and evidence protections.
+
+- F9 / item 8: the site page puts the task field immediately after one sentence;
+  the explanation is closed. The robot page starts with task cards, with actual
+  owner-approved thumbnails or explicitly labeled task illustrations.
+- F10 / item 9: claim uses the account shell, sites use the minimal shell.
+  Capturer/ops styling and the legacy site-record route remain outside this scope.
+- F11 / item 12: duplicate site and robot interviews are removed. The plan form
+  asks maturity and Austin deployment intent; embodiment and those answers have
+  self-reported provenance. A website/spec URL feeds the existing proposal lane.
+  The agent API remains backward compatible. These facts do not prove physical
+  readiness or create a new gate on historical simulation evaluation.
+- F12 / item 11: signup enters the capture form or task library, preserving a
+  validated task/claim return path. `/app/tasks/new` forwards to capture.
+  Authenticated capture submissions bind to the verified Firebase identity;
+  newly created drafts can precede email verification, while claiming an
+  existing submission still requires a verified matching email. Claim supports
+  verification/retry and an existing session without asking for its password again.
+- F13 / item 10: Google Place Details and Photon supply an ISO country code.
+  Unknown country stays unset. Editing an address clears stale inference; an
+  explicit country correction remains authoritative.
+- F14 / remaining item 7: durable deduplicated notices follow persisted footage,
+  a viewable reconstructed scene, and worker pickup of a screening run. Existing
+  deadline/check-in and result messages remain in place. Tests mock delivery;
+  this change does not establish live inbox receipt. Outbox delivery is
+  at-least-once; overlapping delivery passes can resend the same email.
+
+Agreed deferrals: parsing a datasheet inside the form, agent-result pilot
+invitations, a unified workspace pilot-feed projection, and capturer-page
+restyling. The broader proof-of-task and physical-pilot vision in section 4 is
+not a claim that a real robot, payment, deployment or inbox delivery has been
+qualified by these UI and integration tests.

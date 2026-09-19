@@ -20,8 +20,11 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
+  type User,
 } from "firebase/auth";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
 import { WorkspaceRequestError, workspaceRequest } from "@/lib/workspace";
 
@@ -40,8 +43,10 @@ interface ClaimSummary {
 
 type Stage =
   | { status: "loading" }
+  | { status: "load-error"; message: string }
   | { status: "invalid"; message: string }
   | { status: "ready"; summary: ClaimSummary }
+  | { status: "verify"; summary: ClaimSummary; user: User }
   | { status: "claimed"; summary: ClaimSummary };
 
 async function attachClaim(token: string, user: import("firebase/auth").User, summary: ClaimSummary, terms: boolean) {
@@ -67,6 +72,10 @@ async function attachClaim(token: string, user: import("firebase/auth").User, su
   }
 }
 
+function verificationActionUrl(token: string) {
+  return new URL(`/claim/${encodeURIComponent(token)}`, window.location.origin).toString();
+}
+
 export function ClaimSite() {
   const { token = "" } = useParams();
   const [stage, setStage] = useState<Stage>({ status: "loading" });
@@ -76,22 +85,56 @@ export function ClaimSite() {
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(() => auth.currentUser);
 
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      const response = await fetch(`/api/site-claim/${encodeURIComponent(token)}`).catch(() => null);
-      const body = (await response?.json().catch(() => ({}))) as ClaimSummary & { error?: string };
-      if (!live) return;
-      if (!response?.ok) {
+  useEffect(() => onAuthStateChanged(auth, (user) => {
+    setAuthUser(user);
+    if (user) setMode("signin");
+  }), []);
+
+  async function loadClaim() {
+    setStage({ status: "loading" });
+    setError(null);
+    try {
+      const response = await fetch(`/api/site-claim/${encodeURIComponent(token)}`);
+      const body = (await response.json().catch(() => ({}))) as ClaimSummary & { error?: string };
+      if (!response.ok) {
         setStage({ status: "invalid", message: body?.error || "This claim link is not valid or has expired." });
         return;
       }
       setStage({ status: "ready", summary: body });
       if (body.claimEmail) setEmail(body.claimEmail);
-      // Already signed in with the right address? One click finishes it.
-      const user = auth.currentUser;
-      if (user) setMode("signin");
+      if (auth.currentUser) setMode("signin");
+    } catch {
+      setStage({
+        status: "load-error",
+        message: "We could not check this claim link. Check your connection and try again.",
+      });
+    }
+  }
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const response = await fetch(`/api/site-claim/${encodeURIComponent(token)}`);
+        const body = (await response.json().catch(() => ({}))) as ClaimSummary & { error?: string };
+        if (!live) return;
+        if (!response.ok) {
+          setStage({ status: "invalid", message: body?.error || "This claim link is not valid or has expired." });
+          return;
+        }
+        setStage({ status: "ready", summary: body });
+        if (body.claimEmail) setEmail(body.claimEmail);
+        if (auth.currentUser) setMode("signin");
+      } catch {
+        if (live) {
+          setStage({
+            status: "load-error",
+            message: "We could not check this claim link. Check your connection and try again.",
+          });
+        }
+      }
     })();
     return () => {
       live = false;
@@ -105,13 +148,18 @@ export function ClaimSite() {
     setBusy(true);
     setError(null);
     try {
-      const existing = auth.currentUser;
+      const existing = authUser || auth.currentUser;
       const user =
         existing && existing.email?.toLowerCase() === email.trim().toLowerCase()
           ? existing
           : mode === "create"
             ? (await createUserWithEmailAndPassword(getAuth(), email.trim(), password)).user
             : (await signInWithEmailAndPassword(getAuth(), email.trim(), password)).user;
+      if (!user.emailVerified) {
+        await sendEmailVerification(user, { url: verificationActionUrl(token) });
+        setStage({ status: "verify", summary, user });
+        return;
+      }
       await attachClaim(token, user, summary, terms);
       setStage({ status: "claimed", summary });
     } catch (submitError) {
@@ -122,6 +170,47 @@ export function ClaimSite() {
             ? submitError.message.replace("Firebase: ", "")
             : "We could not complete the claim. Please try again.";
       setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmVerification() {
+    if (busy || stage.status !== "verify") return;
+    setBusy(true);
+    setError(null);
+    try {
+      await stage.user.reload();
+      await stage.user.getIdToken(true);
+      if (!stage.user.emailVerified) {
+        setError("Your email is not verified yet. Open the verification link, then try again.");
+        return;
+      }
+      await attachClaim(token, stage.user, stage.summary, terms);
+      setStage({ status: "claimed", summary: stage.summary });
+    } catch (verificationError) {
+      setError(
+        verificationError instanceof Error
+          ? verificationError.message.replace("Firebase: ", "")
+          : "We could not refresh your verification status. Please try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendVerification() {
+    if (busy || stage.status !== "verify") return;
+    setBusy(true);
+    setError(null);
+    try {
+      await sendEmailVerification(stage.user, { url: verificationActionUrl(token) });
+    } catch (verificationError) {
+      setError(
+        verificationError instanceof Error
+          ? verificationError.message.replace("Firebase: ", "")
+          : "We could not resend the verification email. Please try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -138,6 +227,38 @@ export function ClaimSite() {
         <p className="ms-field-hint">
           {stage.message} Request a fresh one from your workspace, or email hello@tryblueprint.io.
         </p>
+      </Shell>
+    );
+  }
+
+  if (stage.status === "load-error") {
+    return (
+      <Shell>
+        <h1>We couldn’t check this link.</h1>
+        <p className="ms-field-hint">{stage.message}</p>
+        <button className="ms-button ms-button-large" type="button" onClick={loadClaim}>
+          Try again
+        </button>
+      </Shell>
+    );
+  }
+
+  if (stage.status === "verify") {
+    return (
+      <Shell>
+        <p className="ms-eyebrow">Verify your email</p>
+        <h1>Check your inbox.</h1>
+        <p className="ms-field-hint">
+          We sent a verification link to {stage.user.email}. Return here after verifying to attach
+          this site to your workspace.
+        </p>
+        {error && <p className="ms-error" role="alert">{error}</p>}
+        <button className="ms-button ms-button-large" type="button" disabled={busy} onClick={confirmVerification}>
+          {busy ? "Checking…" : "I’ve verified my email"}
+        </button>
+        <button className="ms-text-link" type="button" disabled={busy} onClick={resendVerification}>
+          Resend verification email
+        </button>
       </Shell>
     );
   }
@@ -160,14 +281,29 @@ export function ClaimSite() {
   }
 
   const site = stage.summary.site;
+  if (stage.summary.alreadyClaimed) {
+    return (
+      <Shell>
+        <Check size={30} aria-hidden="true" />
+        <h1>This site is already in a workspace.</h1>
+        <p className="ms-field-hint">Open your workspace to review the task, progress, and available results.</p>
+        <a className="ms-button ms-button-large" href="/app">
+          Open your workspace <ArrowRight size={18} aria-hidden="true" />
+        </a>
+      </Shell>
+    );
+  }
+  const matchingSignedInUser = Boolean(
+    authUser && authUser.email?.toLowerCase() === email.trim().toLowerCase(),
+  );
   return (
     <Shell>
       <p className="ms-eyebrow">Claim your site</p>
-      <h1>{site.siteName || "Your site"} is ready.</h1>
+      <h1>Keep track of {site.siteName || "your site"}.</h1>
       <p className="ms-field-hint">
         {site.taskStatement
-          ? `The scene built from your walkthrough of “${site.taskStatement}” is ready, and robot teams can now evaluate against it.`
-          : "The scene built from your walkthrough is ready, and robot teams can now evaluate against it."}
+          ? `Claim the workspace for “${site.taskStatement}” to follow its progress and review results when they are available.`
+          : "Claim the workspace to follow task progress and review results when they are available."}
       </p>
       <p className="ms-field-hint">
         Claiming attaches the site to your account — it is how you see results, control whether the
@@ -191,7 +327,7 @@ export function ClaimSite() {
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
-        <label htmlFor="claim-password">
+        {!matchingSignedInUser && <label htmlFor="claim-password">
           <span>Password</span>
           <span className="ms-field-hint">
             {mode === "create"
@@ -208,7 +344,7 @@ export function ClaimSite() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-        </label>
+        </label>}
         <label htmlFor="claim-terms" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
           <input
             id="claim-terms"
@@ -252,10 +388,13 @@ export function ClaimSite() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  // The same shell as sign-in and sign-up: this is the one account moment in
+  // the site funnel, and it should look like the account pages, not like an
+  // unstyled bare route.
   return (
-    <section className="ms-inquiry ms-container">
+    <AuthLayout>
       <div className="ms-inquiry-intro">{children}</div>
-    </section>
+    </AuthLayout>
   );
 }
 

@@ -57,6 +57,15 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 
 const router = Router();
 
+function safeSceneViewUrl(value: unknown): string | null {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Just the fields status needs, so this route does not decrypt a whole lead. */
 async function readRequestForStatus(requestId: string): Promise<{
   siteTaskGates?: Record<string, string> | null;
@@ -498,11 +507,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   }
 
   try {
-    const [brief, request, screening] = await Promise.all([
+    const [brief, request, screening, captureSession] = await Promise.all([
       getBrief(payload.requestId),
       readRequestForStatus(payload.requestId),
       // Best-effort: an unreadable run queue is a missing rung, not a broken page.
       loadSceneScreening(payload.requestId).catch(() => null),
+      db
+        ? db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     // The readiness stage, when we can compute it. Absent when there is no
@@ -570,6 +582,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       !request?.account_owner_uid
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
+    const reconstruction = captureSession?.exists
+      ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
+      : undefined;
+    const sceneViewUrl =
+      payload.scope !== "film" && reconstruction?.state === "ready"
+        ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
+          || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
+        : null;
 
     // Piggyback delivery on this poll, so a deployment with no scheduler still
     // sends. Never blocks or fails the status read.
@@ -581,6 +601,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       status,
       summary: brief?.summary ?? null,
       claimUrl,
+      sceneViewUrl,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

@@ -1267,6 +1267,48 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    const captureMode = isCaptureMode(payload.captureMode)
+      ? payload.captureMode
+      : defaultCaptureMode;
+    // Stored as the operator stated it, including when they did not state it.
+    // `decideCaptureDispatch` holds on both an unapproved region and an absent
+    // one, so normalising an absent value into a default here would invent a
+    // clearance. Null is the honest token for "nobody was asked".
+    const captureRegion = isCaptureRegion(payload.captureRegion)
+      ? payload.captureRegion
+      : null;
+
+    // Preserve idempotent retries without charging the same request against
+    // the intake rate limit again. This read is only a retry fast path; the
+    // create precondition below is still the authority when two new owners
+    // race after both observing absence here.
+    if (db) {
+      const existingRequestRef = db.collection("inboundRequests").doc(payload.requestId);
+      const existingRequestDoc = await existingRequestRef.get();
+      if (existingRequestDoc.exists) {
+        const existingData = existingRequestDoc.data() as InboundRequest;
+        const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
+        if (
+          !requestedOwner
+          || (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner
+        ) {
+          return res.status(409).json({
+            ok: false,
+            message: "This request identifier is already in use.",
+          });
+        }
+
+        logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
+        return res.status(HTTP_STATUS.OK).json({
+          ok: true,
+          requestId: payload.requestId,
+          siteSubmissionId: payload.requestId,
+          status: existingData.status,
+          captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
+        } satisfies SubmitInboundRequestResponse);
+      }
+    }
+
     // 5. Check rate limits
     const ipRateLimit = await checkRateLimit(
       `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
@@ -1323,16 +1365,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // only thing the service-area gate was ever about. An unrecognised or
     // absent value falls back to `site_visit`, the stricter reading, so a
     // submission can never relax a gate by omitting the field.
-    const captureMode = isCaptureMode(payload.captureMode)
-      ? payload.captureMode
-      : defaultCaptureMode;
-    // Stored as the operator stated it, including when they did not state it.
-    // `decideCaptureDispatch` holds on both an unapproved region and an absent
-    // one, so normalising an absent value into a default here would invent a
-    // clearance. Null is the honest token for "nobody was asked".
-    const captureRegion = isCaptureRegion(payload.captureRegion)
-      ? payload.captureRegion
-      : null;
     const siteTaskVerdict = triageGateAnswers(
       siteTaskGates,
       buyerType === "robot_team" ? robotGateFields : undefined,
@@ -1623,30 +1655,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    const existingDoc = await db
-      .collection("inboundRequests")
-      .doc(payload.requestId)
-      .get();
-
-    if (existingDoc.exists) {
-      logger.info(
-        { requestId: payload.requestId },
-        "Duplicate request - returning existing"
-      );
-      const existingData = existingDoc.data() as InboundRequest;
-      const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
-      if (requestedOwner && (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner) {
-        return res.status(409).json({ ok: false, message: "This request identifier is already in use." });
-      }
-      return res.status(HTTP_STATUS.OK).json({
-        ok: true,
-        requestId: payload.requestId,
-        siteSubmissionId: payload.requestId,
-        status: existingData.status,
-        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
-      } satisfies SubmitInboundRequestResponse);
-    }
-
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
     const reviewToken = createRequestReviewToken(payload.requestId);
@@ -1825,11 +1833,39 @@ export async function submitInboundRequest(req: Request, res: Response) {
       inboundRequest
     );
 
-    // 8. Write to Firestore
-    await db
-      .collection("inboundRequests")
-      .doc(payload.requestId)
-      .set(encryptedInboundRequest);
+    // 8. Claim the request id atomically. A get followed by set lets two
+    // owners both observe absence and lets the later writer replace the first
+    // owner's record. Firestore create carries the absence precondition.
+    const requestRef = db.collection("inboundRequests").doc(payload.requestId);
+    try {
+      await requestRef.create(encryptedInboundRequest);
+    } catch (error) {
+      const code = (error as { code?: number | string }).code;
+      if (code !== 6 && code !== "already-exists") throw error;
+
+      const existingDoc = await requestRef.get();
+      if (!existingDoc.exists) throw error;
+      const existingData = existingDoc.data() as InboundRequest;
+      const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
+      if (
+        !requestedOwner
+        || (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner
+      ) {
+        return res.status(409).json({
+          ok: false,
+          message: "This request identifier is already in use.",
+        });
+      }
+
+      logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
+      return res.status(HTTP_STATUS.OK).json({
+        ok: true,
+        requestId: payload.requestId,
+        siteSubmissionId: payload.requestId,
+        status: existingData.status,
+        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
+      } satisfies SubmitInboundRequestResponse);
+    }
 
     if (buyerType === "site_operator") {
       try { await ensureTaskStatusUpdate(payload.requestId, "received"); }

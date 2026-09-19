@@ -43,6 +43,8 @@ type TaskStatus = {
    * authority a forwardable link cannot carry.
    */
   claimUrl?: string | null;
+  /** Owner-only URL projected from a persisted ready reconstruction. */
+  sceneViewUrl?: string | null;
 };
 import { useRoute } from "wouter";
 
@@ -422,7 +424,11 @@ export default function SelfCaptureUpload() {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
         const data = await response.json();
-        if (alive && response.ok && data?.status) setStatus({ ...data.status, claimUrl: data.claimUrl ?? null });
+        if (alive && response.ok && data?.status) setStatus({
+          ...data.status,
+          claimUrl: data.claimUrl ?? null,
+          sceneViewUrl: data.sceneViewUrl ?? null,
+        });
       } catch { /* The capture remains usable during a status outage. */ }
       if (alive) timer = setTimeout(poll, 6000);
     }
@@ -453,6 +459,13 @@ export default function SelfCaptureUpload() {
         </p>
       )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      {status.sceneViewUrl && (
+        <p style={{ margin: "10px 0 0" }}>
+          <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
+            View your scene
+          </a>
+        </p>
+      )}
       {status.claimUrl && (
         /* The account moment, and the only one on this page: there is now
            something behind it to see. The link is minted server-side for the

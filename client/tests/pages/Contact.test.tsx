@@ -1,227 +1,73 @@
+// @vitest-environment jsdom
 /**
- * The contact screens, as a screen.
+ * The two front doors, after the screens came down.
  *
- * These pin the properties that make the form worth filling in: gate answers
- * leave as enums rather than prose, a blocked site is told what would flip it
- * before submitting, and the expensive questions stay hidden until the cheap
- * ones pass.
+ * The site page used to carry a six-question screen behind a disclosure and
+ * three paragraphs before the first field; the robot page carried a six-question
+ * application. Both are gone: the brief reads the description, the plan form
+ * asks the two facts matching needs, and everything else belongs to the pilot
+ * conversation. These pin the order of what remains: the form first, the
+ * explanation closed, and each persona pointing at the other.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockLocation = "/contact/site-operator";
 vi.mock("wouter", () => ({ useLocation: () => [mockLocation, vi.fn()] }));
 vi.mock("@/lib/csrf", () => ({
-  withCsrfHeader: async (headers: Record<string, string>) => ({
-    ...headers,
-    "X-CSRF-Token": "test-token",
-  }),
+  withCsrfHeader: async (headers: Record<string, string>) => headers,
 }));
 
 beforeEach(() => {
   mockLocation = "/contact/site-operator";
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
-  vi.stubGlobal("crypto", { ...globalThis.crypto, randomUUID: () => "test-uuid" });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, items: [] }) }),
+  );
 });
 
-/** Answers that clear every site gate. */
-const CLEAR_GATES: Record<string, string> = {
-  serviceArea: "austin_metro",
-  sceneStability: "stable",
-  taskShape: "single",
-  objectVariety: "under_10",
-  deploymentTimeline: "this_quarter",
-  accessWindow: "scheduled",
-};
-
-/**
- * Choose who records the walkthrough. The form opens on self-capture, where the
- * service-area gate is not asked at all, so a test that cares about geography
- * has to say it wants a visit first.
- */
-function chooseCaptureMode(mode: "self_capture" | "site_visit") {
-  fireEvent.change(document.querySelector("#capture-mode")!, { target: { value: mode } });
-}
-
-function answerGates(answers: Record<string, string>) {
-  for (const [fieldId, value] of Object.entries(answers)) {
-    const field = document.querySelector(`#gate-${fieldId}`);
-    // A gate that does not bind under the chosen mode is not rendered.
-    if (field) {
-      fireEvent.change(field, { target: { value } });
-    }
-  }
-}
-
-/**
- * The screening form, specifically.
- *
- * Both personas now lead with the thing that is actually the product -- a
- * camera for a site, a free ranked plan for a robot team -- and keep the
- * screening form one click in. So there are two forms on the page and two
- * fields called "Your name", and a global query picks whichever it finds
- * first rather than the one under test.
- */
-function screeningForm() {
-  return within(screen.getByRole("form", { name: /screening questions/i }));
-}
-
-function fillContact() {
-  const form = screeningForm();
-  fireEvent.change(form.getByLabelText("Your name"), {
-    target: { value: "  Test Person  " },
-  });
-  fireEvent.change(form.getByLabelText("Work email"), {
-    target: { value: "person@example.com" },
-  });
-  fireEvent.change(form.getByLabelText("Company"), {
-    target: { value: "Example Company" },
-  });
-}
-
-/**
- * The rights checkbox is required and blocks submission — it is a legal act,
- * and the grant is what the server records. A site submission that has not
- * made it does not happen.
- */
-function tickRightsCheckbox() {
-  fireEvent.click(
-    screeningForm().getByLabelText(/I am authorised to record this site/i),
-  );
-}
-
-function sentBody() {
-  return JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
-}
-
-describe("Minimal public screening", () => {
-  it("posts gate answers as enums to the inbound-request pipeline with CSRF", async () => {
+describe("the site page", () => {
+  it("leads with the capture form and keeps the explanation behind a closed disclosure", () => {
     render(<Contact />);
-    chooseCaptureMode("site_visit");
-    answerGates(CLEAR_GATES);
-    fillContact();
-    fireEvent.change(document.querySelector("#contact-site-address")!, {
-      target: { value: "1100 E 5th St, Austin, TX" },
-    });
-    fireEvent.change(document.querySelector("#prose-taskDescription")!, {
-      target: { value: "Totes move from the conveyor to a pallet." },
-    });
-    tickRightsCheckbox();
-    fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
+    const form = screen.getByRole("form", { name: "Start a site capture" });
+    const how = screen.getByText("How this works");
+    expect(form.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((how.closest("details") as HTMLDetailsElement).open).toBe(false);
+  });
 
-    await waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({
-          method: "POST",
-          credentials: "include",
-          headers: expect.objectContaining({ "X-CSRF-Token": "test-token" }),
-        }),
-      ),
+  it("no longer carries the six-question screen", () => {
+    render(<Contact />);
+    expect(screen.queryByRole("form", { name: /screening questions/i })).toBeNull();
+    expect(screen.queryByText(/Want the full read first/i)).toBeNull();
+    expect(document.querySelector("#gate-sceneStability")).toBeNull();
+  });
+
+  it("points at the other persona and at a person", () => {
+    render(<Contact />);
+    expect(screen.getByRole("link", { name: /building robots\? find a task/i })).toHaveAttribute(
+      "href",
+      "/contact/robot-team",
     );
-
-    const body = sentBody();
-    // The point of the change: structured answers, not a prose blob.
-    expect(body.siteTaskGates).toEqual(CLEAR_GATES);
-    expect(body.buyerType).toBe("site_operator");
-    expect(body.firstName).toBe("Test");
-    expect(body.taskDescription).toContain("Totes move from the conveyor");
-    // The region and the recorded rights grant ride along: the region decides
-    // whether a camera link can mint, and the attestation is the legal act.
-    expect(body.captureRegion).toBe("us");
-    expect(body.consentAttestation).toEqual({
-      granted: true,
-      statementVersion: "2026-09-18.v1",
-    });
+    expect(screen.getByRole("link", { name: /talk to a person/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^mailto:/),
+    );
   });
+});
 
-  it("shows a blocked site what would flip it, before it submits", async () => {
-    render(<Contact />);
-    chooseCaptureMode("site_visit");
-    answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
-
-    expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
-    // A rejection that names the change is a reason to come back. Since capture
-    // mode became a choice, the change that flips this one is immediate and in
-    // the site's own hands: record the walkthrough themselves, no visit needed.
-    expect(screen.getAllByText(/Recording the walkthrough yourself/i).length).toBeGreaterThan(0);
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("stops blocking an out-of-state site once it says it will record itself", async () => {
-    // The change that opens the product beyond Austin. The service area gate is
-    // about whether someone has to drive, so a site holding its own phone is
-    // not held to it.
-    render(<Contact />);
-    chooseCaptureMode("site_visit");
-    answerGates({ ...CLEAR_GATES, serviceArea: "outside_texas" });
-    expect(await screen.findByText(/Not yet/i)).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText(/Who records the walkthrough/i), {
-      target: { value: "self_capture" },
-    });
-
-    expect(await screen.findByText(/This clears the screen/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Recording the walkthrough yourself/i)).not.toBeInTheDocument();
-  });
-
-  it("keeps the spec questions hidden until the gates pass", async () => {
-    render(<Contact />);
-    expect(document.querySelector("#spec-cycleTime")).toBeNull();
-
-    chooseCaptureMode("site_visit");
-    answerGates(CLEAR_GATES);
-    await waitFor(() => expect(document.querySelector("#spec-cycleTime")).not.toBeNull());
-  });
-
-  it("lets a robot team browse before asking about its setup", () => {
+describe("the robot page", () => {
+  it("leads with the task library, points back at sites, and asks for no application", () => {
     mockLocation = "/contact/robot-team";
     render(<Contact />);
     expect(screen.getByRole("region", { name: "Task library" })).toBeInTheDocument();
-    expect(screen.queryByText("Rather talk to someone? Send an application instead")).toBeNull();
-    expect(screen.queryByLabelText(/where is the hardware today/i)).toBeNull();
-  });
-
-  it("refuses to submit until the required fields are there", async () => {
-    render(<Contact />);
-    chooseCaptureMode("site_visit");
-    answerGates(CLEAR_GATES);
-    fireEvent.submit(screen.getByRole("form", { name: /screening questions/i }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/complete all required fields/i);
-    // The lead pipeline is never called. (The analytics events that observe
-    // the refusal do go out over fetch, so the assertion is on the specific
-    // endpoint rather than on fetch as a whole.)
-    expect(fetch).not.toHaveBeenCalledWith(
-      "/api/inbound-request",
-      expect.anything(),
+    expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
+      "href",
+      "/contact/site-operator",
     );
-  });
-
-  it("retains what was typed when the submission fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, json: async () => ({ message: "Service temporarily unavailable" }) }),
-    );
-    render(<Contact />);
-    chooseCaptureMode("site_visit");
-    answerGates(CLEAR_GATES);
-    fillContact();
-    fireEvent.change(document.querySelector("#contact-site-address")!, {
-      target: { value: "1100 E 5th St, Austin, TX" },
-    });
-    fireEvent.change(document.querySelector("#prose-taskDescription")!, {
-      target: { value: "Totes move from the conveyor to a pallet." },
-    });
-    tickRightsCheckbox();
-    fireEvent.click(screen.getByRole("button", { name: "Send inquiry" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Service temporarily unavailable/i);
-    // The form stays filled so the visitor can retry without starting over.
-    expect(screen.getByLabelText("Company")).toHaveValue("Example Company");
-    expect(document.querySelector<HTMLSelectElement>("#gate-serviceArea")!.value).toBe(
-      "austin_metro",
-    );
+    expect(screen.queryByRole("button", { name: "Send application" })).toBeNull();
+    expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
   });
 });
+
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: null, loading: false }) }));
