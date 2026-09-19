@@ -54,6 +54,32 @@ describe("suggestions from the free provider", () => {
     expect(input.value).toBe("Durham, North Carolina, United States");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
+
+  it("chooses the first suggestion on Enter instead of submitting the form", async () => {
+    fetchMock.mockResolvedValue(photon([{ name: "Austin", state: "Texas", country: "United States" }]));
+    const input = field();
+    fireEvent.change(input, { target: { value: "austin" } });
+
+    await screen.findByText("Austin, Texas, United States");
+    // Nothing is highlighted (active = -1): Enter still picks the first match
+    // rather than falling through to the form submit the open list was covering.
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.value).toBe("Austin, Texas, United States");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("closes the list when the page scrolls, leaving the typed text alone", async () => {
+    fetchMock.mockResolvedValue(photon([{ name: "Durham", state: "North Carolina", country: "United States" }]));
+    const input = field();
+    fireEvent.change(input, { target: { value: "durham" } });
+    await screen.findByText("Durham, North Carolina, United States");
+
+    // The list is absolutely positioned; scrolling would otherwise park it over
+    // whichever field — often the submit button — scrolled beneath it.
+    fireEvent.scroll(window);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input.value).toBe("durham");
+  });
 });
 
 describe("the floor is always plain typing", () => {

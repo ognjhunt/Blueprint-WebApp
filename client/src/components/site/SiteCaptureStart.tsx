@@ -297,15 +297,16 @@ export function SiteCaptureStart() {
           </span>
           <span className="ms-field-hint">
             Filming it yourself? Leave this blank. If someone else on-site will do it, put their
-            phone or email here and we will send them a record-only link — they can film and upload,
+            email here and we will send them a record-only link — they can film and upload,
             and only you can confirm the task brief.
           </span>
           <input
             id="start-filmer"
             name="startFilmer"
-            type="text"
+            type="email"
+            inputMode="email"
             maxLength={320}
-            placeholder="Their phone (+15551234567) or email — optional"
+            placeholder="Their email — optional"
             value={filmerContact}
             onChange={(event) => setFilmerContact(event.target.value)}
           />

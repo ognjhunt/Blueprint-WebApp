@@ -8,9 +8,10 @@
  * ever being able to confirm the brief (which stays the owner's to attest).
  *
  * The link can still be copied and shared by hand; sending it is the one-step
- * version of the same thing. Text messaging is best effort — it is off unless
- * Twilio is configured — so when it is unavailable this says so and falls back
- * to the copyable link rather than pretending.
+ * version of the same thing. The field asks for an email: texting is not wired
+ * into this repo yet (the server answers sms_unavailable without Twilio), and
+ * asking for a number that cannot be texted is how a handoff quietly fails.
+ * The server still accepts the sms channel for the day it is configured.
  */
 import { useState } from "react";
 
@@ -84,14 +85,14 @@ export function FilmLinkHandoff({ token }: { token: string }) {
 
       <form onSubmit={sendLink} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         <input
-          type="text"
-          inputMode="text"
+          type="email"
+          inputMode="email"
           value={to}
           maxLength={320}
-          placeholder="their phone (+15551234567) or email"
+          placeholder="their email"
           onChange={(event) => setTo(event.target.value)}
           style={{ flex: "1 1 220px", minWidth: 0 }}
-          aria-label="Phone number or email of whoever is filming"
+          aria-label="Email of whoever is filming"
         />
         <button type="submit" className="ms-button" disabled={send.status === "sending" || !to.trim()}>
           {send.status === "sending" ? "Sending…" : "Send link"}

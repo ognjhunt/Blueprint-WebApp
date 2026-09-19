@@ -171,6 +171,17 @@ export function LocationAutocomplete(props: {
     };
   }, []);
 
+  // The list is absolutely positioned, so it does not scroll with the page:
+  // leaving it open while the operator scrolls parks it over whichever field —
+  // often the submit button — scrolled beneath it. Closing on any scroll costs
+  // one refocus and keeps the form readable; the text stays in the input.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [open]);
+
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (!open || suggestions.length === 0) return;
     if (event.key === "ArrowDown") {
@@ -179,9 +190,13 @@ export function LocationAutocomplete(props: {
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActive((current) => (current - 1 + suggestions.length) % suggestions.length);
-    } else if (event.key === "Enter" && active >= 0) {
+    } else if (event.key === "Enter") {
+      // Enter picks the highlighted suggestion, or the first one when none is
+      // highlighted: "type, press Enter, done". Falling through to the form's
+      // submit here was how the open list ended up covering the button being
+      // submitted to.
       event.preventDefault();
-      choose(suggestions[active].label);
+      choose(suggestions[active >= 0 ? active : 0].label);
     } else if (event.key === "Escape") {
       setOpen(false);
     }
