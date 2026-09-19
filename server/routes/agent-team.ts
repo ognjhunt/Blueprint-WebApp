@@ -34,8 +34,14 @@ import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { sendEmail } from "../utils/email";
 import { createRateLimitRedisStore } from "../utils/rate-limit-redis";
+import {
+  ROBOT_TEAMS_COLLECTION,
+  type RobotTeamRecord,
+} from "../types/robot-team-registry";
 import {
   authorizeAgentSpend,
   getSpendPolicy,
@@ -238,6 +244,130 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
           "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
         ],
   });
+});
+
+/**
+ * Re-issue a lost key, delivered to the address the team registered with.
+ *
+ * ## Why this route has to exist
+ *
+ * Registration says "issue another at any time", but the only issuer was
+ * registration itself — which creates a NEW team. A team that lost its key had
+ * no way back to its own record, and the copy was a promise the API broke.
+ *
+ * ## Why the key travels by email, not by response
+ *
+ * There is no credential on this call — anyone can reach it — so the response
+ * can never contain a key, and it says the same thing whether or not the
+ * address is registered, so the endpoint cannot be used to enumerate teams.
+ * The key goes only to the address on the team record, which is the one
+ * channel a registrant has already demonstrated they receive.
+ */
+const reissueRateLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRateLimitRedisStore("rl:agent-team-reissue:"),
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many re-issue requests from this address. Try again shortly.",
+      code: "reissue_rate_limited",
+    });
+  },
+});
+
+const reissueSchema = z
+  .object({
+    contactEmail: z.string().trim().email().max(320),
+  })
+  .strict();
+
+router.post("/keys/reissue", reissueRateLimiter, async (req: Request, res: Response) => {
+  const parsed = reissueSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "A valid contactEmail is required.",
+      code: "reissue_invalid",
+    });
+  }
+
+  if (!db) {
+    return res.status(503).json({
+      error: "The registry is unavailable.",
+      code: "registry_unavailable",
+    });
+  }
+
+  const genericResponse = {
+    ok: true,
+    message:
+      "If any registered team uses that address, new keys are on their way to it. Delivery can take a few minutes.",
+  };
+
+  const email = parsed.data.contactEmail.toLowerCase();
+  const snap = await db
+    .collection(ROBOT_TEAMS_COLLECTION)
+    .where("contactEmail", "==", email)
+    .where("registrationSource", "==", "self_serve")
+    .limit(3)
+    .get();
+
+  if (snap.empty) {
+    return res.status(202).json(genericResponse);
+  }
+
+  const issued: { teamId: string; teamName: string; key: string }[] = [];
+  for (const doc of snap.docs) {
+    const team = doc.data() as RobotTeamRecord;
+    const result = await issueAgentKey({ teamId: doc.id, label: "reissue" });
+    if (result) {
+      issued.push({ teamId: doc.id, teamName: team.name, key: result.key });
+    }
+  }
+
+  if (issued.length === 0) {
+    return res.status(503).json({
+      error: "No key could be issued right now.",
+      code: "agent_key_unavailable",
+    });
+  }
+
+  const body = [
+    "A new Blueprint agent key was issued for:",
+    ...issued.map((entry) => `- ${entry.teamName} (${entry.teamId}): ${entry.key}`),
+    "",
+    "Each key works from now on. Store them somewhere safe — we cannot show them again.",
+    "If you did not request this, revoke the new key or contact hello@tryblueprint.io.",
+  ].join("\n");
+
+  // A provider throw must answer 503, not hang the response or leak the key
+  // into an error page.
+  let sent: { sent: boolean };
+  try {
+    sent = await sendEmail({
+      to: email,
+      subject: "Your Blueprint agent key",
+      text: body,
+    });
+  } catch (error) {
+    logger.warn({ error, to: email }, "Agent-key reissue email threw");
+    return res.status(503).json({
+      error: "The key was issued but the email could not be sent. Try again shortly.",
+      code: "reissue_email_unavailable",
+    });
+  }
+
+  if (!sent?.sent) {
+    logger.warn({ to: email, teams: issued.length }, "Agent-key reissue email failed to send");
+    return res.status(503).json({
+      error: "The key was issued but the email could not be sent. Try again shortly.",
+      code: "reissue_email_unavailable",
+    });
+  }
+
+  logger.info({ teams: issued.map((entry) => entry.teamId) }, "Agent key reissued by email");
+  return res.status(202).json(genericResponse);
 });
 
 /** Resolve the key to a team, or answer 401 without saying why. */

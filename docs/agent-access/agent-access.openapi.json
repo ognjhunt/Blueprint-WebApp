@@ -30,6 +30,10 @@
       "description": "Public site-world catalog and detail endpoints."
     },
     {
+      "name": "Team",
+      "description": "Register a robot team, plan evaluations, and buy runs. Register needs no credential; everything spend-shaped needs the team's agent key."
+    },
+    {
       "name": "Legacy commerce",
       "description": "Read-only compatibility for historical orders and entitlements; new quote and checkout writes are retired."
     },
@@ -57,6 +61,374 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AgentAccessManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-team/register": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "operationId": "registerRobotTeam",
+        "summary": "Register a robot team and receive an agent key, with no credential.",
+        "description": "Open self-serve registration. Creates the team (status self_registered, zero balance, agent spend off) and returns the agent key exactly once — only a SHA-256 is stored. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "teamName"
+                ],
+                "properties": {
+                  "teamName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 320
+                  },
+                  "website": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 500
+                  },
+                  "taskFamily": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "capabilityDescription": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "checkpoint": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "runtime": {
+                        "type": "string",
+                        "enum": [
+                          "endpoint",
+                          "container",
+                          "artifact"
+                        ]
+                      },
+                      "reference": {
+                        "type": "string",
+                        "description": "A URL, an image reference, or an artifact location."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Team registered. `agentKey` is returned once; funding and a spend policy are required before any run is bought.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Registration rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-team/keys/reissue": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "operationId": "reissueRobotTeamKey",
+        "summary": "Re-issue a lost agent key to the team's registered contact email.",
+        "description": "No credential: anyone can call it, so the response never contains a key and says the same thing whether or not the address is registered. New keys are emailed to the address on the team record. Rate limited per address.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contactEmail"
+                ],
+                "properties": {
+                  "contactEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 320
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted. Keys, if any, are delivered by email to the registered address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Re-issue rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-team/plan": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "operationId": "planRobotTeamEvals",
+        "summary": "Rank which sites a checkpoint should be evaluated against, for a budget. Free.",
+        "description": "Requires the team's agent key (Bearer). Builds evaluation candidates from the public site catalogue and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
+        "security": [
+          {
+            "BlueprintBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "budgetUsd": {
+                    "type": "number",
+                    "description": "Optional planning budget in USD."
+                  },
+                  "runLimit": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A ranked plan with per-run costs. Nothing is committed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated account is not allowed to launch protected hosted sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Requested site world or session was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Launch or runtime operation is blocked by current readiness, access, or session state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchBlockedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-team/runs": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "operationId": "startRobotTeamRun",
+        "summary": "Buy and start evaluations from a plan. Dry run unless confirm is true.",
+        "description": "Requires the team's agent key (Bearer), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+        "security": [
+          {
+            "BlueprintBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "True to commit spend. Omit for a dry run."
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  },
+                  "siteWorldIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Run accepted (or the priced dry run when confirm is omitted).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated account is not allowed to launch protected hosted sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Requested site world or session was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Launch or runtime operation is blocked by current readiness, access, or session state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchBlockedResponse"
                 }
               }
             }

@@ -270,6 +270,54 @@ export async function registerSelfServeTeam(params: {
     record.fieldProvenance = merged.fieldProvenance;
   }
 
+  // Cross-link to any intake application from the same contact email, so a
+  // team that used both doors does not become two unlinked rows for ops to
+  // dedupe by hand. Pointers only, on both sides: the new key binds to this
+  // random-suffixed record exactly as before, and nothing about the intake
+  // record's answers or status becomes reachable through a key — the link
+  // names the match, it does not merge capabilities or balances.
+  const normalizedEmail = params.contactEmail?.trim().toLowerCase() || null;
+  if (normalizedEmail && db) {
+    try {
+      const snap = await db
+        .collection(ROBOT_TEAMS_COLLECTION)
+        .where("contactEmail", "==", normalizedEmail)
+        .limit(10)
+        .get();
+      const intakeIds = snap.docs
+        .filter((doc) => (doc.data() as { registrationSource?: string }).registrationSource !== "self_serve")
+        .map((doc) => doc.id);
+      if (intakeIds.length > 0) {
+        record.linkedIntakeTeamIds = intakeIds;
+        await Promise.all(
+          intakeIds.map((intakeId) =>
+            db!
+              .collection(ROBOT_TEAMS_COLLECTION)
+              .doc(intakeId)
+              .set(
+                {
+                  selfServeTeamIds: admin.firestore.FieldValue.arrayUnion(id),
+                  updatedAt: nowIso(),
+                },
+                { merge: true },
+              ),
+          ),
+        );
+        logger.info(
+          { robotTeamId: id, linkedIntakeTeamIds: intakeIds },
+          "Self-serve registration linked to intake record by contact email",
+        );
+      }
+    } catch (error) {
+      // The registration must not fail because linking did. An unlinked pair
+      // is the state that existed before this code; a failed signup is not.
+      logger.warn(
+        { robotTeamId: id, error },
+        "Robot-team intake linking failed; continuing unlinked",
+      );
+    }
+  }
+
   await writeRecord(record);
   logger.info({ robotTeamId: id }, "Robot team self-registered");
   return record;

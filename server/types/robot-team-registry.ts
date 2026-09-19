@@ -125,6 +125,18 @@ export interface RobotTeamRecord {
   /** The team's own words, kept for a human rather than for matching. */
   capabilityDescription?: string | null;
   evidenceBar?: string | null;
+  /**
+   * Intake-created records for the same contact email, when this self-serve
+   * registration landed after an application. Pointers only: the key stays
+   * bound to this record, and the intake record's answers are never readable
+   * through it.
+   */
+  linkedIntakeTeamIds?: string[] | null;
+  /**
+   * The mirror pointer on the intake record. Ops reads either side and finds
+   * the other, instead of deduping two unlinked rows by hand later.
+   */
+  selfServeTeamIds?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }
