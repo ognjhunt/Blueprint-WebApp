@@ -541,7 +541,7 @@ export default function SelfCaptureUpload() {
                 come back to you about it.
               </p>
             </div>
-          {upload.status === "done" ? (
+          ) : upload.status === "done" ? (
             <>
               <div
                 style={{
