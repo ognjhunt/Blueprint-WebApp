@@ -22,7 +22,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
-| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live two-view Marble component completed; actual website-origin loop pending |
+| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (existing `rigid_replacement_authoring` stage; website inputs compiled, GPU run pending) |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (source-to-collider registration and support placement hermetic; `native_task_scene_assembly` pending) |
 | 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds plus grasp-hold screen and escalation; `bounded_physics` cells run on GPU) |
@@ -569,7 +569,7 @@ Atlas access or an implemented unpublished Atlas API.
 
 The selector retains task anchors, ranks additional frames by clarity
 and temporal separation, skips byte-identical duplicates, and uses all available
-distinct frames when there are fewer than eight. Only selected task regions are
+distinct frames when there are fewer than the configured allowance. Only selected task regions are
 edited. The rule is also in Pipeline's nested `AGENTS.md`. The walkthrough now
 has an eight-view candidate set: the two accepted edits plus six unchanged context
 frames, without another SAM or image-generation purchase. The first completed
@@ -579,3 +579,35 @@ is independent of the smaller MapAnything batch, and full-video source masks are
 retained for those additional frames. Selection tests exercise 8- and 128-frame
 profiles and fewer available frames. Focused preparation, mask, image completion,
 and Marble coverage passes; no new world has been purchased for the expanded set.
+
+The owner-requested eight-view reconstruction subsequently completed: operation
+`ba93dd50-73b2-429c-baea-d74b866d34e3`, world
+`b917976e-d2c1-4d4f-b690-3afc630af1df`, provider-settled cost 1,600 credits
+($1.28). The existing materializer retained the collider and full-resolution
+splat with zero download failures. Evidence is under Pipeline
+`output/website-task-pipeline/marble-eight-view-live/` (`marble-terminal.json`,
+`asset-collection.json`, and the referenced materialized asset manifest).
+
+Real registration replay still refuses this world with
+`website_registration_ambiguous`; no task placement or native evaluation is
+claimed. The replay exposed two implementation issues: registration only tried
+axis permutations, and the handoff assumed World Labs GLBs were Y-up. The
+registration now includes principal-axis orientation seeds and bounded trimmed
+similarity refinement while preserving the fit and ambiguity refusals. World
+Labs documents OpenCV Y-down exports, so the website path now carries `-Y`
+through support probes, object observations, collision normalization and splat
+conversion. The actual eight-view collider was converted to Z-up USD with its
+provider-estimated scale, preserving source bytes; this is a format/coordinate
+check, not source-to-world registration or simulator proof. Its receipt is
+`marble-eight-view-live/native-coordinate-check/mesh_normalization.v1.json`.
+Pipeline commit `32eba106e` contains those fixes. Verification: 52 focused tests
+passed across preparation, runtime inputs, appearance, handoff, support geometry
+and mesh inspection; the additional noisy arbitrary-orientation regression and
+its exact counterpart both passed; two shared mesh-normalization checks passed.
+Changed-file lint and diff checks passed. These checks do not close the live
+registration refusal.
+
+The panorama/source feature check found limited correspondences (20 in the first
+low-resolution geometry frame and 0–3 in each remaining frame), which does not
+establish a reliable multi-view pose. The retained panorama remains a visual
+result only. No further reconstruction purchase or GPU allocation was made.
