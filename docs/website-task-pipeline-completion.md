@@ -18,8 +18,8 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
 | 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | Live website-origin verified: Gemini 3.8 Flash, static 2 FPS, 13.525-second original, task-bound validated output; prior failed agentic receipt retained |
-| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Selected task object live verified; full task/privacy plan pending |
-| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task container, keep the white support container and dresser destination; geometry/contact validation remains in steps 11–12 |
+| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | In progress: website controller received full-video Meta results (406 frames per concept); exact task-instance selection is still pending |
+| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task object and keep unrelated/support objects; latest plan uses the white support as destination. Geometry/contact validation remains in steps 11–12 |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
@@ -778,3 +778,31 @@ those cheap local records on retry while retaining completed provider stages.
 Both fixes are merged; their combined deployment is in progress. No
 website-origin SAM, edited-frame, Marble or native-evaluation completion is
 claimed by this update.
+
+
+## Website-origin tracking and exact-frame recovery (2026-09-20 UTC)
+
+The same website capture reached Meta SAM3.1. Both latest concept requests
+(`blue container`, `white container`) processed all 406 frames of the 13.525-second
+video. These are whole-video API calls; local CPU work prepares video and decodes
+returned masks, rather than running a second SAM model. The latest blue track
+contains frames 244–254. The controller stopped with
+`task_target_track_ambiguous:blue_container` because the coarse Gemini video
+boxes do not match those moving-camera frames closely enough.
+
+Pipeline PR #1997 (`6b8a4ed6d6583cd69377efd80964abd2c257382d`) is merged and deployed.
+It adds one budgeted, retained exact-frame grounding step on ambiguous matching,
+one evidence-derived concept refinement if necessary, decoded-mask reuse, and
+task-visible reconstruction frames. PR #1998
+(`584f624adeb952b2d7e70c8b8c4179dc42081a1f`) is merged and deploying. It preserves an
+observed task frame in the bounded geometry batch when uniform sampling misses
+the target. Its isolated retained-input replay added frame 254 to the 13-view
+batch, yielding 14 views without provider calls or production output injection.
+
+Three acceptance rows are website-origin verified: 1, 4, 6. Row 5 is not closed by
+receiving API responses alone. The current execution order defers geometry and
+scale (rows 2–3) until the first visual reconstruction, so row numbers are not a
+linear completed-stage count. Website-origin edited views, Marble completion,
+CAD, native evaluation, and robot-team result delivery remain unproven. The
+controller owns the next attempts after deployment; all evidence remains
+`development_only`.
