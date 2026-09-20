@@ -18,10 +18,10 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
 | 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | Live website-origin verified: Gemini 3.8 Flash, static 2 FPS, 13.525-second original, task-bound validated output; prior failed agentic receipt retained |
-| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | In progress: website controller received full-video Meta results (406 frames per concept); exact task-instance selection is still pending |
+| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | In progress: website controller matched the blue task object across frames 244–254; kept white support remains unresolved and is deferred until after visual reconstruction |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task object and keep unrelated/support objects; latest plan uses the white support as destination. Geometry/contact validation remains in steps 11–12 |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
-| 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
+| 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Website controller completed two original-resolution edits; background/cross-view/privacy review pending because the configured request allowance is exhausted |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (retained failure replayed offline: two contract violations identified, contract-conforming replay of the same envelope passes pinned CLI and readback; controller-origin authoring run still pending) |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (registration now anchored to Marble's declared scale, ground plane and first input view; retained walkthrough registers at 0.31 m global / 0.39 m task-region residual, surfaced as placement uncertainty; `native_task_scene_assembly` pending) |
@@ -806,3 +806,38 @@ linear completed-stage count. Website-origin edited views, Marble completion,
 CAD, native evaluation, and robot-team result delivery remain unproven. The
 controller owns the next attempts after deployment; all evidence remains
 `development_only`.
+
+## Website-origin frame edits and current request guard (2026-09-20 UTC)
+
+On deployed Pipeline `f9afed3bbe0975865de397e798d81aaeb2f55b49` (PR #2001),
+the controller selected `meta-sam31-blue_container-0`, retaining its 11 observed
+frames (244–254), and produced `task_masks.object_removal.json` with status
+`object_removal_ready`. The kept white support is explicitly deferred. It was
+not silently assigned an unrelated mask: whole-video and source-image SAM
+attempts did not identify the intended support. PRs #1999 and #2000 retain
+those failures and the exact-frame observations.
+
+Visual preparation can proceed because the kept support is not edited. After
+Marble returns its assets, the controller must resolve the complete target set
+before geometry and simulation. Both geometry binding and simulation preparation
+reject a mask manifest with deferred targets. This changes execution order,
+not the fourteen-item acceptance scope or the simulator-readiness boundary.
+
+The controller then completed edits for source frames 244 and 254. Retained
+receipts are `pipeline/clean_plate/image_completion/`
+`90fbc02f8d703da4cc20e676bac42ed1fa6d8cf38450eb43fb8ff1a3335d5511/4.json`
+and `5.json`, each with status `completed` and a digest-bound PNG. Original
+frames remain in `object_removal_frames/000007.png` and `000008.png`. These
+are website-origin controller outputs, not manually supplied component assets.
+
+The subsequent background-review authorization was refused before Gemini was
+called. Read-only inspection of the owning WebApp record confirms 16 of 16
+requests reserved and $2.3097 reserved against the $5 preparation cap; the grant
+has not expired. The $20 native allowance is separate. Owner authorization to
+extend only this scene's preparation request limit to 32 has been requested;
+no allowance has been raised and no new paid work is authorized by this note.
+
+Rows 1, 4, and 6 remain the three completed website-origin acceptance rows.
+Row 8 now has actual edited views but cannot close until its automated review
+passes. Marble, full support geometry, CAD, native evaluation, and robot-team
+result delivery remain unverified for this website-origin run.
