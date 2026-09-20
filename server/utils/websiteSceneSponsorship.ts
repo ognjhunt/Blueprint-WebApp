@@ -92,6 +92,61 @@ export const preparationSpendRequest = z.object({
   || (value.provider === "vast" && value.resource_class === "gpu_render"),
   "website_preparation_provider_resource_mismatch");
 
+const preparationLimitAmendment = z.object({
+  authority_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  max_requests: z.number().int().min(1).max(32),
+  approved_by: z.string().trim().min(1),
+  approval_reference: z.string().trim().min(1).max(1000),
+}).strict();
+
+function preparationRequestLimit(record: Record<string, any>, authority: Record<string, any>) {
+  const amendment = record.website_preparation_limit_amendment;
+  if (!amendment) return authority.max_paid_attempts;
+  const { amendment_digest, approved_at_epoch, ...raw } = amendment;
+  const value = preparationLimitAmendment.parse(raw);
+  if (digest({ ...value, approved_at_epoch }) !== amendment_digest
+    || !Number.isFinite(approved_at_epoch)
+    || value.authority_digest !== authority.authority_digest
+    || value.approved_by !== authority.owner.user_id
+    || value.max_requests < authority.max_paid_attempts)
+    throw new Error("website_preparation_amendment_invalid");
+  return value.max_requests;
+}
+
+/** Operator-only amendment: never exposed as a public or Pipeline API. */
+export async function amendWebsitePreparationRequestLimit(
+  requestId: string, input: z.infer<typeof preparationLimitAmendment>, apply = false,
+) {
+  const command = preparationLimitAmendment.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const snapshot = await transaction.get(ref);
+    const record = snapshot.data();
+    const authority = record?.website_scene_sponsorship;
+    if (!authority) throw new Error("website_scene_sponsorship_missing");
+    const { authority_digest, ...payload } = authority;
+    if (digest(payload) !== authority_digest || command.authority_digest !== authority_digest
+      || authority.request_id !== requestId || command.approved_by !== authority.owner.user_id)
+      throw new Error("website_scene_sponsorship_binding_invalid");
+    if (authority.expires_at_epoch <= Date.now() / 1000) throw new Error("consent_expired");
+    if (!projectWebsiteCaptureRights(record!).derived_scene_generation_allowed) throw new Error("source_revoked");
+    const previous = record!.website_preparation_limit_amendment;
+    const current = preparationRequestLimit(record!, authority);
+    if (previous) {
+      if (previous.max_requests === command.max_requests && previous.approval_reference === command.approval_reference)
+        return previous;
+      throw new Error("website_preparation_amendment_conflict");
+    }
+    if (command.max_requests <= current) throw new Error("website_preparation_limit_not_increased");
+    const value = { ...command, approved_at_epoch: Date.now() / 1000 };
+    const receipt = { ...value, amendment_digest: digest(value) };
+    if (apply) transaction.update(ref, { website_preparation_limit_amendment: receipt });
+    return receipt;
+  }));
+}
+
 /** Reserve the full quote once; retries never replenish the preparation cap. */
 export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>) {
   const command = preparationSpendRequest.parse(input);
@@ -124,7 +179,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const reserved = previous.reduce((sum, row) => sum + micros(row.admission.maximum_cost_usd), 0);
     const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
     if (reserved + micros(command.maximum_cost_usd) > Math.floor(authority.upstream_max_spend_usd * 1_000_000)
-        || attempts + command.request_count > authority.max_paid_attempts)
+        || attempts + command.request_count > preparationRequestLimit(record, authority))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
