@@ -84,9 +84,9 @@ export const preparationSpendRequest = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   resource_class: z.enum(["evaluator_api", "openai_api_candidate", "provider_reconstruction_api", "gpu_render"]),
-  provider: z.enum(["meta", "openai", "world_labs", "vast"]),
+  provider: z.enum(["meta", "google", "openai", "world_labs", "vast"]),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
-}).strict().refine(value => (value.provider === "meta" && value.resource_class === "evaluator_api")
+}).strict().refine(value => (["meta", "google"].includes(value.provider) && value.resource_class === "evaluator_api")
   || (value.provider === "openai" && value.resource_class === "openai_api_candidate")
   || (value.provider === "world_labs" && value.resource_class === "provider_reconstruction_api")
   || (value.provider === "vast" && value.resource_class === "gpu_render"),

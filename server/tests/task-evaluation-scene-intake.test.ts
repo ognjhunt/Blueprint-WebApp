@@ -1246,3 +1246,19 @@ it("reserves MapAnything GPU work under the same website cap without a robot-tea
   expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
   await expect(reserveWebsitePreparationSpend("req1", { ...spend, provider: "openai" })).rejects.toThrow("provider_resource_mismatch");
 });
+
+
+it("bounds Gemini analysis and review by the shared preparation cap and Google terms", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("9"),
+    resource_class: "evaluator_api" as const, provider: "google" as const, maximum_cost_usd: 1.04, request_count: 1 };
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("provider_terms_not_configured_or_changed");
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, google: terms.openai });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "admitted", provider: "google" });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, resource_class: "gpu_render" })).rejects.toThrow("provider_resource_mismatch");
+  await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("a"), maximum_cost_usd: .27 });
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("b"), maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+});
