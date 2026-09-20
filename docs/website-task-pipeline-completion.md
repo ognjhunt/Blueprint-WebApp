@@ -23,11 +23,11 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
-| 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (existing `rigid_replacement_authoring` stage; website inputs compiled, GPU run pending) |
-| 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (source-to-collider registration and support placement hermetic; `native_task_scene_assembly` pending) |
-| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds plus grasp-hold screen and escalation; `bounded_physics` cells run on GPU) |
+| 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (retained failure replayed offline: two contract violations identified, contract-conforming replay of the same envelope passes pinned CLI and readback; controller-origin authoring run still pending) |
+| 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (registration now anchored to Marble's declared scale, ground plane and first input view; retained walkthrough registers at 0.31 m global / 0.39 m task-region residual, surfaced as placement uncertainty; `native_task_scene_assembly` pending) |
+| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds, grasp-hold screen, escalation and a feasibility-claim flag now travel in the submitted task definition; `bounded_physics` cells run on GPU) |
 | 13 | Real simulator loads, steps, controls, observes, resets and scores | Native preflight and positive/negative controls, media and receipts | Unproven (existing native Isaac import and ADP-009D hold/scripted-positive controls; needs a paid Vast run) |
-| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | In progress (existing configured-scene offering readback; thumbnail proposal compiled; no run yet) |
+| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | In progress (dispatcher can serve a capture partition, so website captures need no per-capture reconfiguration; existing configured-scene offering readback; no run yet) |
 
 ## Execution constraints
 
@@ -670,3 +670,57 @@ Focused Pipeline verification: 59 tests passed. WebApp: 33 intake tests and
 TypeScript check passed. Runtime profile deployment and a controller-origin
 MapAnything run remain open, as do CAD recovery and the full fourteen-step
 website/evaluation demonstration.
+
+## Fable lane offline replays and fixes for steps 10–14 (2026-09-19)
+
+Worktree `claude/website-steps-10-14` in BlueprintCapturePipeline, branched
+from main `5624bdd9`. Everything below is offline and deterministic: no
+provider call, no GPU, no controller-origin proof. Retained outputs live under
+that worktree's `output/website-task-pipeline/` and are not part of any
+website run.
+
+Step 11, registration. The unconstrained 24-rotation similarity fit of the
+MapAnything estimate against the generative Marble collider was ambiguous on
+the retained walkthrough. Marble's terminal response declares an estimated
+metric factor (1.4772) and ground plane offset (1.6066 m) and generates the
+world from the prepared views in submission order, so the first view's camera
+anchors the pose. `website_scene_handoff` now carries those declarations into
+`base_scene` (`scale_authority: provider_declared_estimate`), and
+`register_source_to_runtime` refines that prior over four roll candidates,
+reports rotation/translation/scale deviation from it, checks the declared
+ground plane against the estimated floor, refuses a world whose unconstrained
+fit is materially better elsewhere, and reports a task-region residual as
+`placement_uncertainty_m`. Retained replay (`registration-anchor-replay/`):
+0.31 m global trimmed RMSE, 18.8° from the prior, scale ratio 1.077, ground
+residual 0.22 m, task-region residual 0.39 m, runner-up ratio 1.69. Still an
+estimate; `physical_registration_proven` stays false.
+
+Step 10, CAD. The retained attempt-2 program was replayed through the pinned
+text-to-cad `step` CLI at `4fd71ea7`. It fails before any export for two
+contract reasons: `gen_step` returns a dictionary, and its self-written
+validation calls `Shell.is_closed`, which does not exist in build123d 0.11.1.
+The current `_CAD_PROGRAM_CONTRACT` forbids both. A contract-conforming
+program with the same nominal envelope returns a Shape only and passes the
+CLI and the production readback exactly (282.379 × 126.343 × 64.178 mm, one
+solid). Receipt: `cad-contract-replay/receipt.json`. The controller-origin
+authoring run, Content Agents review and SimReady qualification remain
+unproven.
+
+Step 12, physics. The preparation's estimated mass/friction ranges,
+grasp-hold sensitivity against the Robotiq 2F-85 reference, measurement
+escalation, `feasibility_claim_allowed`, placement uncertainty and scale
+authority now travel in the submitted task definition
+(`configuration/task.json`) so a result can abstain where the estimate cannot
+carry a claim.
+
+Step 14, dispatch. `agent_run_executor` accepts `--capture-partition-root`
+and resolves each admitted run's capture from its canonical request, refusing
+roots outside the partition, roots that are not a real
+`scenes/<scene>/captures/<id>` directory, or ids that differ from the admitted
+binding. The systemd unit and env example expose
+`BLUEPRINT_AGENT_RUN_CAPTURE_PARTITION_ROOT`; single-capture scope is
+unchanged. This removes the per-capture reconfiguration the timer needed, but
+the timer still has to be enabled and configured on the host.
+
+Step 13 has no offline change. Native import, controls and the two frozen
+policy candidates require the paid Vast run that Astra coordinates.
