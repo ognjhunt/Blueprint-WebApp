@@ -481,8 +481,13 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
       const openai = externalCaps.openai;
       const stageCaps = openai.stage_max_cost_usd;
       const budgetProfile = sceneConfigurationBudgetProfile(value.replacement_authoring_backend);
-      const minimumExternal = SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD
-        + SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD + budgetProfile.authoring_minimum;
+      // Pipeline verifies the prepared-background references against the sealed
+      // construction recipe before it can issue paid execution authority.
+      const preparedWebsite = value.scene.mode === "configure_source_scene"
+        && value.scene.website_native_inputs !== undefined;
+      const semanticMinimum = preparedWebsite ? 0 : SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD;
+      const reviewMinimum = preparedWebsite ? 0 : SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD;
+      const minimumExternal = semanticMinimum + reviewMinimum + budgetProfile.authoring_minimum;
       const stageTotal = Object.values(openai.stage_max_cost_usd)
         .reduce((total, amount) => total + amount, 0);
       if (
@@ -498,9 +503,9 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
           < minimumExternal
         || openai.maximum_cost_usd > budgetProfile.external_maximum
         || stageCaps.artifixer_semantic_teacher + 1e-9
-          < SCENE_CONFIGURATION_MIN_ARTIFIXER_SEMANTIC_TEACHER_SPEND_USD
+          < semanticMinimum
         || stageCaps.artifixer_visual_review + 1e-9
-          < SCENE_CONFIGURATION_MIN_ARTIFIXER_VISUAL_REVIEW_SPEND_USD
+          < reviewMinimum
         || stageCaps.content_agents + 1e-9
           < budgetProfile.authoring_minimum
         || stageCaps.content_agents > budgetProfile.authoring_maximum
