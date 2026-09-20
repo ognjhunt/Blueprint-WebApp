@@ -14,10 +14,10 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 
 | Step | Required behavior | Evidence required to close | State |
 | --- | --- | --- | --- |
-| 1 | Confirm task, work region, success criteria before reconstruction | Browser submission and immutable confirmed task consumed by Pipeline | Unproven |
+| 1 | Confirm task, work region, success criteria before reconstruction | Browser submission and immutable confirmed task consumed by Pipeline | Live website-origin verified (confirmed task digest `fdfae972b0c607fd7289150d761f62bdfb5077cc296c9752cfb36c1e8b775930`) |
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
-| 4 | Reusable Gemini 3.8 agentic task/coverage/object analysis | API trace of media navigation, validated outputs, one source-bound analysis | In progress |
+| 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | In progress (website-origin agentic attempt failed with `too_many_tool_calls`; owner approved automatic short-clip single-pass mode in Pipeline #1991) |
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Selected task object live verified; full task/privacy plan pending |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
@@ -724,3 +724,33 @@ the timer still has to be enabled and configured on the host.
 
 Step 13 has no offline change. Native import, controls and the two frozen
 policy candidates require the paid Vast run that Astra coordinates.
+
+
+### Actual website-origin controller run — 2026-09-19 CDT
+
+The account-free website upload and confirmed brief are now consumed by the
+deployed controller for capture
+`walkthrough-capture-ae539f2c-f6aa-4cbd-9f99-3ed72017791e` and scene
+`site-capture-ae539f2c-f6aa-4cbd-9f99-3ed72017791e`. The original video digest is
+unchanged, and 68 extracted frames were staged. The confirmed task is moving
+the small blue rigid container to a clear nearby position on the same support;
+unrelated objects stay. Step 1 is proven through this website-origin path.
+
+This run reached step 4. Its Gemini agentic attempt returned
+`gemini_clean_plate_analysis_incomplete_too_many_tool_calls`. It has not yet
+produced SAM masks, edited frames, a reconstructed world, CAD, or native
+simulation. Earlier component receipts above remain component evidence.
+
+Merged Pipeline #1990 fixes the fresh sponsorship timing comparison and the
+incorrect successful job receipt after required-lane failure. Recovery of that
+specific old failed completion is encoded in the listener; normal completed
+jobs remain idempotent. Merged #1991 implements the owner-approved static
+single-pass mode at 2 FPS for clips up to five minutes, with unchanged evidence
+validation and conservative bounded spend. Both fixes are being deployed
+before resuming the same capture. Tests do not establish live stage completion.
+
+Pipeline #1988's anchored registration and partition dispatch are already in
+the active release `091933c49d88e99a5a29bdca20a3b249edd3be79`. The dispatcher
+uses the website capture partition, its timer is enabled, and both required
+Firestore queue indexes are READY. The empty queue read succeeds; this does
+not establish a robot-team evaluation or result delivery.
