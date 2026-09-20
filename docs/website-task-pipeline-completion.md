@@ -35,6 +35,10 @@ adds the website precursor without upgrading synthetic evidence to physical proo
   named `website-task-pipeline` on `codex/website-task-pipeline`.
 - Reuse existing admission, allocator, immutable requests, callbacks and result
   delivery. Do not add a competing queue, datastore or reconstruction owner.
+- Completion requires the deployed controller to run the website-origin stages
+  hands off on merged main. Manual component launches, local asset handoffs and
+  branch-only fixes do not satisfy this requirement. Encode any missing
+  transition or recovery in the existing controller before retrying that stage.
 - Keep originals distinct from generated repair, depth estimates and simulation.
 - Owner explicitly authorized Marble on 2026-09-19 because Atlas access is not
   available. Final reconstruction proof uses Marble; do not claim Atlas tested.
@@ -68,7 +72,7 @@ closeout for work already started.
 
 The native allowance is passed to that existing reservation machinery. The
 upstream allowance is reserved within the total policy, but **automatic
-MapAnything/image-edit/Marble admission from it remains to be connected**;
+MapAnything/Marble admission from it remains to be connected**;
 the grant itself cannot replace their paid-resource admission checks.
 The approved development run retains its existing scoped allocator authority.
 
@@ -611,3 +615,22 @@ The panorama/source feature check found limited correspondences (20 in the first
 low-resolution geometry frame and 0–3 in each remaining frame), which does not
 establish a reliable multi-view pose. The retained panorama remains a visual
 result only. No further reconstruction purchase or GPU allocation was made.
+
+
+### Controller ownership correction
+
+Owner clarified that the end-to-end demonstration must be controller-driven,
+with the fixes merged to main, rather than Codex manually filling stage gaps.
+The existing two-view/eight-view Marble runs and standalone CAD attempt remain
+component evidence only. They do not close any website-origin acceptance row.
+
+Image preparation now obtains its exact OpenAI image-edit grant through the
+same signed WebApp preparation-spend endpoint and Blueprint upstream cap used
+by hosted SAM. Provider/resource pairs and current provider terms are checked.
+Completed frame receipts can be reused on a controller restart without a new
+key or grant; uncertain calls and already-reserved work on another worker do
+not authorize another purchase. The existing clean-plate stage supplies the
+confirmed task context, so no manually supplied image admission is necessary.
+Focused checks: 43 Pipeline tests and 31 WebApp intake tests pass. These are
+hermetic checks, not live controller proof. MapAnything/Marble admission,
+controller recovery, deployment and the full website-origin run remain open.

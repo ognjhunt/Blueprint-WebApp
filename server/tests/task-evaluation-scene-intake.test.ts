@@ -1205,3 +1205,20 @@ it("reserves hosted SAM from the Blueprint cap once and rejects overspend, chang
   store.rows.get("inboundRequests/req1").consent_revoked = true;
   await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("source_revoked");
 });
+
+it("reserves image edits and SAM against the same sponsor cap and checks the selected provider terms", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const image = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("4"),
+    resource_class: "openai_api_candidate" as const, provider: "openai" as const, maximum_cost_usd: 4, request_count: 1 };
+  const receipt = await reserveWebsitePreparationSpend("req1", image);
+  expect(receipt).toMatchObject({ status: "admitted", resource_class: "openai_api_candidate", provider: "openai" });
+  expect(await reserveWebsitePreparationSpend("req1", image)).toEqual({ ...receipt, status: "already_reserved" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...image, provider: "meta" })).rejects.toThrow("provider_resource_mismatch");
+  await expect(reserveWebsitePreparationSpend("req1", { ...image, allocation_binding_digest: sha("5"),
+    resource_class: "evaluator_api", provider: "meta", maximum_cost_usd: 2 })).rejects.toThrow("budget_exhausted");
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  terms.openai.digest = sha("f");
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  await expect(reserveWebsitePreparationSpend("req1", image)).rejects.toThrow("provider_terms_not_configured_or_changed");
+});

@@ -83,9 +83,11 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
 export const preparationSpendRequest = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-  resource_class: z.literal("evaluator_api"), provider: z.literal("meta"),
+  resource_class: z.enum(["evaluator_api", "openai_api_candidate"]), provider: z.enum(["meta", "openai"]),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
-}).strict();
+}).strict().refine(value => (value.provider === "meta" && value.resource_class === "evaluator_api")
+  || (value.provider === "openai" && value.resource_class === "openai_api_candidate"),
+  "website_preparation_provider_resource_mismatch");
 
 /** Reserve the full quote once; retries never replenish the preparation cap. */
 export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>) {
@@ -104,7 +106,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
-    if (sceneProviderTerms().meta?.digest !== authority.consent.provider_terms_reference)
+    if (sceneProviderTerms()[command.provider]?.digest !== authority.consent.provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");
     const reservations: Record<string, any> = record.website_preparation_reservations || {};
     const key = command.allocation_binding_digest.slice(7);
