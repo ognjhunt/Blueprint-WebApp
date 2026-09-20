@@ -138,9 +138,13 @@ function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecor
     || canaryReproducibility?.task_id
     || canaryScope?.task_id
     || "Policy canary";
+  const developmentSurface = /-development(?:-configured)?$/.test(canaryScene);
   const packages = delivery?.artifacts.filter((artifact) => artifact.content_type === "application/zip") || [];
   return (
     <>
+      {developmentSurface && (
+        <p className="mb-4 text-body-s text-ink-700">Development test on an authored surface; captured scene integration pending.</p>
+      )}
       <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
         <div>
           <Eyebrow tone="brass" rule>{canary ? "Internal policy canary" : "Sealed Task Evaluation Result"}</Eyebrow>

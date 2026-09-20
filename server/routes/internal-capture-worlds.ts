@@ -173,7 +173,7 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
 const sponsoredSceneRequest = z.object({
   schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
-  source: z.object({ kind: z.literal("gaussian_splat"), binding_id: z.string(), content_digest: z.string() }).strict(),
+  source: z.object({ kind: z.enum(["gaussian_splat", "mesh"]), binding_id: z.string(), content_digest: z.string() }).strict(),
   task: sceneIntakeCommand.shape.task, execution: sceneIntakeCommand.shape.execution,
   consent: sceneIntakeCommand.shape.consent.extend({ rights_reference: z.string(),
     accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),

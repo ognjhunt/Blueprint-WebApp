@@ -33,6 +33,8 @@ const unitQuaternion = z
 const taskDestination = z
   .object({
     relation: z.enum(["on", "inside"]),
+    mode: z.literal("existing_support_surface").optional(),
+    basis: z.enum(["registered_estimated_visible_bounds_and_collider_contact", "registered_estimated_visible_bounds"]).optional(),
     visible_label: z.string().trim().min(1).max(200),
     position_world_m: vector3,
     orientation_xyzw: unitQuaternion,

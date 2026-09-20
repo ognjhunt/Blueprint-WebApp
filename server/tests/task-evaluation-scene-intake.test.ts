@@ -265,6 +265,7 @@ afterEach(async () => {
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
   delete process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON;
+  delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS;
 });
 
 function sponsoredCapture() {
@@ -1355,4 +1356,46 @@ it("cannot release a reservation using missing, mismatched or excessive provider
   await expect(settleWebsitePreparationSpend("req1", { ...settlement, total_credits: 3101 })).rejects.toThrow("settlement_invalid");
   await expect(settleWebsitePreparationSpend("req1", { ...settlement, operation_done: false as any })).rejects.toThrow();
   expect(store.rows.get("inboundRequests/req1").website_preparation_reservations["1".repeat(64)].settlement).toBeUndefined();
+});
+
+
+it("admits only explicitly authorized development surfaces without creating a second native budget", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const test = {
+    kind: "authored_surface_component_test",
+    label: "Development test on an authored surface; captured scene integration pending.",
+    claim_scope: "development_only", source_task_context_digest: grant.task_context_digest,
+    source_preparation_digest: sha("b"), captured_scene_integration: "pending",
+    captured_scene_evaluation_allowed: false, source_scene_blockers: ["support_surface_not_found_under_subject"],
+  };
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "mesh", binding_id: `website-development-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}-development`,
+      subject: { description: "blue object", geometry_origin: "removed_before_reconstruction", test_environment: test },
+      destination: { ...command().task.destination, mode: "existing_support_surface" } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"] },
+  };
+  expect((await post("prepared-scene", { request })).status).toBe(409);
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = JSON.stringify([grant.task_context_digest]);
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect([...store.rows.keys()].filter(k => k.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
+  expect((await post("prepared-scene", { request: { ...request, submission_id: `${request.submission_id}-extra` } })).status).toBe(409);
+  expect((await post("prepared-scene", { request: { ...request, task: { ...request.task,
+    subject: { ...request.task.subject, test_environment: { ...test, captured_scene_evaluation_allowed: true } } } } })).status).toBe(409);
+  const originalRequest = { ...request, source: { ...request.source, kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}` },
+    task: { ...request.task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "blue object", geometry_origin: "removed_before_reconstruction" } } };
+  // Same grant/submission cannot fund both the synthetic test and a second scene.
+  expect((await post("prepared-scene", { request: originalRequest })).status).toBe(409);
 });

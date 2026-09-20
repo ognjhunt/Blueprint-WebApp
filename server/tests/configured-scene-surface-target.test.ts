@@ -89,3 +89,21 @@ describe("pick-and-place place target", () => {
     expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
   });
 });
+
+
+it("accepts a private development scene but rejects promotion to public captured-scene supply", () => {
+  const value = surfaceTargetOffering();
+  value.scene_identity.id = "site-capture-example-development-configured";
+  value.proof_boundary.test_environment = {
+    kind: "authored_surface_component_test",
+    label: "Development test on an authored surface; captured scene integration pending.",
+    claim_scope: "development_only", source_task_context_digest: `sha256:${"a".repeat(64)}`,
+    source_preparation_digest: `sha256:${"b".repeat(64)}`, captured_scene_integration: "pending",
+    captured_scene_evaluation_allowed: false, source_scene_blockers: ["support_surface_not_found_under_subject"],
+  };
+  value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(true);
+  value.scene_identity.id = "site-capture-example-configured";
+  value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(false);
+});

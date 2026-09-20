@@ -897,3 +897,20 @@ the registered blue object's bounds. No support was fabricated, no CAD or native
 evaluation completion is claimed, and rows 10–14 remain open. The completed GPU
 attempt must be replayed from retained output rather than rented again while
 this CPU preparation boundary is corrected.
+
+## Owner-authorized component continuation — 2026-09-20
+
+Step 11 stays pending: no Marble contact tolerance or support repair is added.
+The controller can explicitly admit this task to a separate authored-surface
+component test for steps 10, 12, 13 and 14. It preserves source dimensions and
+frames, uses the existing CAD/Blender, native qualification, controls and signed
+result path, and leaves the original captured-scene refusal intact. The exact
+context-digest allowlist must be configured on both services; failure alone
+never selects this mode. It reuses the same native sponsorship/submission, so
+it cannot silently create a second $20 allowance.
+
+Development offerings/results are labeled as authored-surface tests and remain
+private. The captured room cannot become evaluation-ready from this test.
+Host replay of retained inputs passed without network/provider access and was
+idempotent; this is CPU preparation evidence only. No new live completion row
+is closed by the implementation or mocked controller tests.

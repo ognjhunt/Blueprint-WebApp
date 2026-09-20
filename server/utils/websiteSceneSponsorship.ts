@@ -1,3 +1,4 @@
+import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -227,14 +228,27 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
 }
 
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
+  const test = request.task?.subject?.test_environment;
+  const development = test !== undefined;
+  if (development) {
+    const parsed = websiteDevelopmentTestEnvironment.safeParse(test);
+    let allowed: unknown;
+    try { allowed = JSON.parse(process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS || "[]"); }
+    catch { throw new Error("website_scene_development_test_not_authorized"); }
+    if (!parsed.success || !Array.isArray(allowed) || !allowed.includes(authority.task_context_digest)
+      || test.source_task_context_digest !== authority.task_context_digest)
+      throw new Error("website_scene_development_test_not_authorized");
+  }
+  const prefix = development ? "website-development-" : "website-splat-";
+
   if (request.submission_id !== authority.capture_id
     || digest(request.owner) !== digest(authority.owner)
     || digest(request.consent) !== digest(authority.consent)
-    || request.source?.kind !== "gaussian_splat"
-    || !/^website-splat-[0-9a-f]{32}$/.test(request.source?.binding_id || "")
+    || request.source?.kind !== (development ? "mesh" : "gaussian_splat")
+    || typeof request.source?.binding_id !== "string"
     || !/^sha256:[0-9a-f]{64}$/.test(request.source?.content_digest || "")
-    || request.source.binding_id !== `website-splat-${request.source.content_digest.slice(7, 39)}`
-    || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}`
+    || request.source.binding_id !== `${prefix}${request.source.content_digest.slice(7, 39)}`
+    || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}${development ? "-development" : ""}`
     || request.task?.subject?.geometry_origin !== "removed_before_reconstruction"
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
