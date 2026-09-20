@@ -17,9 +17,9 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 1 | Confirm task, work region, success criteria before reconstruction | Browser submission and immutable confirmed task consumed by Pipeline | Live website-origin verified (confirmed task digest `fdfae972b0c607fd7289150d761f62bdfb5077cc296c9752cfb36c1e8b775930`) |
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
-| 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | In progress (website-origin agentic attempt failed with `too_many_tool_calls`; owner approved automatic short-clip single-pass mode in Pipeline #1991) |
+| 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | Live website-origin verified: Gemini 3.8 Flash, static 2 FPS, 13.525-second original, task-bound validated output; prior failed agentic receipt retained |
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Selected task object live verified; full task/privacy plan pending |
-| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | In progress |
+| 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task container, keep the white support container and dresser destination; geometry/contact validation remains in steps 11–12 |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live two-view component verified; automatic website-origin loop pending |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
@@ -754,3 +754,27 @@ the active release `091933c49d88e99a5a29bdca20a3b249edd3be79`. The dispatcher
 uses the website capture partition, its timer is enabled, and both required
 Firestore queue indexes are READY. The empty queue read succeeds; this does
 not establish a robot-team evaluation or result delivery.
+
+## Website-origin Gemini and retry evidence (2026-09-19 local)
+
+For capture `walkthrough-capture-ae539f2c-f6aa-4cbd-9f99-3ed72017791e`,
+controller attempt 12 on deployed Pipeline `b74be93f3ba51e772b0c929bacae9a7b7b4e47fd`
+completed static Gemini analysis. The retained result is
+`pipeline/clean_plate/gemini_analysis/b6de2dd45be4bdc740eaab3f805cc144bf1ca1d827a14e02e9c4d9a0cd118696.json`.
+It records 2 FPS, 13.525 seconds, 3,331 prompt tokens and 788 completion tokens.
+The validated targets distinguish `small_blue_container` (task object, remove),
+`white_support_container` (support, keep), and `dresser_support_surface`
+(destination, keep, placement relation `on`). The original task and source
+identities above are unchanged. This is development evidence, not measured
+geometry or physical robot proof.
+
+The next stage timed out during CPU video conversion before calling Meta SAM.
+Pipeline #1993 fixes conversion and validated artifact reuse; its exact-source,
+zero-provider host replay preserved all 406 frames and timestamps, completed in
+73.62 seconds, and reused the result in 0.18 seconds. Attempt 13 then exposed a
+separate handoff-redelivery bug: original cloud metadata replaced derived local
+metadata while the materialization stage was skipped. Pipeline #1994 rebuilds
+those cheap local records on retry while retaining completed provider stages.
+Both fixes are merged; their combined deployment is in progress. No
+website-origin SAM, edited-frame, Marble or native-evaluation completion is
+claimed by this update.
