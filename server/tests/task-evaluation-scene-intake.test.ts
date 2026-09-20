@@ -1222,3 +1222,17 @@ it("reserves image edits and SAM against the same sponsor cap and checks the sel
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
   await expect(reserveWebsitePreparationSpend("req1", image)).rejects.toThrow("provider_terms_not_configured_or_changed");
 });
+
+it("funds a single Marble operation from the same upstream cap with explicit World Labs terms", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("7"),
+    resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
+    maximum_cost_usd: 2.48, request_count: 1 };
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "admitted", provider: "world_labs" });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("provider_terms_not_configured_or_changed");
+});

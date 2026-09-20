@@ -83,10 +83,12 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
 export const preparationSpendRequest = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-  resource_class: z.enum(["evaluator_api", "openai_api_candidate"]), provider: z.enum(["meta", "openai"]),
+  resource_class: z.enum(["evaluator_api", "openai_api_candidate", "provider_reconstruction_api"]),
+  provider: z.enum(["meta", "openai", "world_labs"]),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
 }).strict().refine(value => (value.provider === "meta" && value.resource_class === "evaluator_api")
-  || (value.provider === "openai" && value.resource_class === "openai_api_candidate"),
+  || (value.provider === "openai" && value.resource_class === "openai_api_candidate")
+  || (value.provider === "world_labs" && value.resource_class === "provider_reconstruction_api"),
   "website_preparation_provider_resource_mismatch");
 
 /** Reserve the full quote once; retries never replenish the preparation cap. */

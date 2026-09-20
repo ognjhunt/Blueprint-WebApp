@@ -72,7 +72,7 @@ closeout for work already started.
 
 The native allowance is passed to that existing reservation machinery. The
 upstream allowance is reserved within the total policy, but **automatic
-MapAnything/Marble admission from it remains to be connected**;
+MapAnything admission from it remains to be connected**;
 the grant itself cannot replace their paid-resource admission checks.
 The approved development run retains its existing scoped allocator authority.
 
@@ -634,3 +634,19 @@ confirmed task context, so no manually supplied image admission is necessary.
 Focused checks: 43 Pipeline tests and 31 WebApp intake tests pass. These are
 hermetic checks, not live controller proof. MapAnything/Marble admission,
 controller recovery, deployment and the full website-origin run remain open.
+
+
+The preview controller now sends website reconstruction through the canonical
+paid allocator. Before a fresh Marble request it checks the admitted main release,
+reserves the exact prepared-view request against the same sponsorship cap,
+checks configured World Labs terms, and passes the issued grant to the existing
+provider adapter. Restarting a retained operation performs no new purchase;
+unknown submission outcomes remain held for reconciliation. Focused tests cover
+this automatic entry and the refusal to allocate from unmerged code. This closes
+the code connection for Marble admission, not the live website-origin run.
+
+The standalone CAD attempt stopped at `cad_geometry_or_upstream_qa_failed`.
+Its five model reservations are terminal, with no unknown in-flight calls;
+the budget manifest reports $1.266402 reserved/settled accounting. No CAD
+completion or hands-off controller proof is claimed, and no manual retry was
+launched after the controller-ownership correction.
