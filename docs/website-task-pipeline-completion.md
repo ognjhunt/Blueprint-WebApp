@@ -783,25 +783,25 @@ claimed by this update.
 ## Website-origin tracking and exact-frame recovery (2026-09-20 UTC)
 
 The same website capture reached Meta SAM3.1. Both latest concept requests
-(`blue container`, `white container`) processed all406 frames of the13.525-second
+(`blue container`, `white container`) processed all 406 frames of the 13.525-second
 video. These are whole-video API calls; local CPU work prepares video and decodes
 returned masks, rather than running a second SAM model. The latest blue track
-contains frames244–254. The controller stopped with
+contains frames 244–254. The controller stopped with
 `task_target_track_ambiguous:blue_container` because the coarse Gemini video
 boxes do not match those moving-camera frames closely enough.
 
-Pipeline PR#1997 (`6b8a4ed6d6583cd69377efd80964abd2c257382d`) is merged and deployed.
+Pipeline PR #1997 (`6b8a4ed6d6583cd69377efd80964abd2c257382d`) is merged and deployed.
 It adds one budgeted, retained exact-frame grounding step on ambiguous matching,
 one evidence-derived concept refinement if necessary, decoded-mask reuse, and
-task-visible reconstruction frames. PR#1998
+task-visible reconstruction frames. PR #1998
 (`584f624adeb952b2d7e70c8b8c4179dc42081a1f`) is merged and deploying. It preserves an
 observed task frame in the bounded geometry batch when uniform sampling misses
-the target. Its isolated retained-input replay added frame254 to the13-view
-batch, yielding14 views without provider calls or production output injection.
+the target. Its isolated retained-input replay added frame 254 to the 13-view
+batch, yielding 14 views without provider calls or production output injection.
 
-Three acceptance rows are website-origin verified:1,4,6. Row5 is not closed by
+Three acceptance rows are website-origin verified: 1, 4, 6. Row 5 is not closed by
 receiving API responses alone. The current execution order defers geometry and
-scale (rows2–3) until the first visual reconstruction, so row numbers are not a
+scale (rows 2–3) until the first visual reconstruction, so row numbers are not a
 linear completed-stage count. Website-origin edited views, Marble completion,
 CAD, native evaluation, and robot-team result delivery remain unproven. The
 controller owns the next attempts after deployment; all evidence remains
