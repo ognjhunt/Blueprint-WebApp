@@ -15,12 +15,12 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | Step | Required behavior | Evidence required to close | State |
 | --- | --- | --- | --- |
 | 1 | Confirm task, work region, success criteria before reconstruction | Browser submission and immutable confirmed task consumed by Pipeline | Live website-origin verified (confirmed task digest `fdfae972b0c607fd7289150d761f62bdfb5077cc296c9752cfb36c1e8b775930`) |
-| 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
-| 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
+| 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | Live website-origin verified: actual MapAnything Apache GPU output for 14 views; source image and geometry digests validated |
+| 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | Live website-origin verified: estimated geometry registered to Marble; scale ratio to provider declaration 1.008, physical scale and registration remain unproven |
 | 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | Live website-origin verified: Gemini 3.8 Flash, static 2 FPS, 13.525-second original, task-bound validated output; prior failed agentic receipt retained |
 | 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Live website-origin verified: blue track has 11 observations (frames 244–254); deferred kept white support resolved from a grounded source-image mask; full target manifest completed |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task object and keep unrelated/support objects; latest plan uses the white support as destination. Geometry/contact validation remains in steps 11–12 |
-| 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
+| 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Live website-origin verified: 14 digest-checked original/model views, depth arrays, intrinsics, camera transforms, and task-mask geometry bindings retained |
 | 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live website-origin verified: two original-resolution edits; complete eight-view background, cross-view, removal and privacy review passed |
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live website-origin verified: eight-view Marble operation completed; collider and full-resolution splat downloaded with digests |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (retained failure replayed offline: two contract violations identified, contract-conforming replay of the same envelope passes pinned CLI and readback; controller-origin authoring run still pending) |
@@ -866,3 +866,34 @@ that file into its service and reconciles terminal Marble billing through the
 signed WebApp endpoint before geometry allocation. Neither the $5 preparation
 cap nor the $20 simulation cap changes. The owner-approved request-only
 amendment to 32 is already live. No simulation or robot-team result is claimed.
+
+## Website-origin estimated geometry completed (2026-09-20 UTC)
+
+Pipeline main `cf7d618d15cc0cd4ba771509ca75aab1c3b8d62f` ran the existing
+website capture through controller-owned MapAnything dispatch. Vast instance
+`51770652` completed on an A100 SXM4. The controller validated the 46,169,828-byte
+output bundle, retained 14 frames of depth, confidence, validity masks, intrinsics
+and camera poses, terminated the instance, and verified provider absence. The
+execution receipt reports 279.29 seconds and an estimated $0.0775 runtime cost;
+model execution itself reports 41.35 seconds. This is not an invoice claim.
+
+All 14 source/model image and geometry-file digests were independently checked.
+Every frame has finite camera matrices; the minimum valid-depth fraction is
+0.9009. The original video binding remains
+`037df5b58150ff4e00b90eaecd4cc0f883722432f5045a916c2a1a30be47295d`.
+Output explicitly declares `estimated_meters`, `model_estimated`,
+`metric_measurement_proven: false`, and `physical_evidence: false`.
+
+The subsequent controller registration completed with 0.195 m global trimmed
+residual, 0.305 m task-region residual, scale ratio 1.008 to Marble's declaration,
+and 0.0105 m ground-plane residual. Placement uncertainty remains in the prepared
+task. Source mask geometry was rebound to these retained outputs. These receipts
+close rows 2, 3 and 7: nine of fourteen acceptance rows are now website-origin
+verified.
+
+Scene preparation then stopped at `support_surface_not_found_under_subject`.
+The generated collider did not satisfy the existing support-contact query at
+the registered blue object's bounds. No support was fabricated, no CAD or native
+evaluation completion is claimed, and rows 10–14 remain open. The completed GPU
+attempt must be replayed from retained output rather than rented again while
+this CPU preparation boundary is corrected.
