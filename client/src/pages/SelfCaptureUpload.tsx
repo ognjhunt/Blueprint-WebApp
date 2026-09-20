@@ -483,7 +483,9 @@ export default function SelfCaptureUpload() {
           <a className="ms-text-link" href={status.claimUrl}>
             {status.decision === "results" || status.decision === "screening"
               ? "Claim your site to see the results"
-              : "Claim your site to follow this task"}
+              : status.sceneViewUrl
+                ? "Save your scene and follow progress"
+                : "Claim your site to follow this task"}
           </a>
           {status.decision !== "results" && status.decision !== "screening" && (
             <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>

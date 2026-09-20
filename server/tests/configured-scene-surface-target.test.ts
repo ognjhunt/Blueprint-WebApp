@@ -41,6 +41,7 @@ function surfaceTargetOffering() {
 }
 
 function reseal(value: any) {
+  if (value.task.surface_target) value.task.surface_target.target_digest = canonicalArtifactDigest(value.task.surface_target, "target_digest");
   value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
   return value;
 }

@@ -573,17 +573,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
     catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
-    // The account is offered once the brief is confirmed: from there the
-    // operator has a wait to follow, and the workspace task page is the place
-    // to follow it. Never before, so nothing stands in front of filming, and
-    // only on the owner's own link -- a forwarded film-only link must not
-    // hand out a claim. Once an account owns the site there is nothing to claim.
-    const claimUrl =
-      Boolean(request?.site_task_brief_confirmed_at) &&
-      payload.scope !== "film" &&
-      !request?.account_owner_uid
-        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
-        : null;
     const reconstruction = captureSession?.exists
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
       : undefined;
@@ -591,6 +580,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       payload.scope !== "film" && reconstruction?.state === "ready"
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
+        : null;
+    // Keep the optional claim from brief confirmation onward, including the
+    // first visual scene. A reconstruction is not an evaluation result.
+    const claimUrl =
+      (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
+        || status.decision === "screening" || status.decision === "results") &&
+      payload.scope !== "film" && !request?.account_owner_uid
+        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
 
     // Piggyback delivery on this poll, so a deployment with no scheduler still

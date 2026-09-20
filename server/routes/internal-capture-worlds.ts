@@ -27,6 +27,11 @@ import {
   type WorldReconstructionRecord,
 } from "../utils/worldReconstruction";
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
+import { getBrief } from "../utils/siteTaskBrief";
+import { loadWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
+  preparationSpendRequest, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, validateSceneProviderTerms } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
   reconstructionIsViewable,
@@ -119,6 +124,136 @@ function guard(req: Request, res: Response, next: () => void) {
   next();
 }
 
+const previewUrl = z.string().url().max(4000).refine(value => {
+  const url = new URL(value);
+  return url.protocol === "https:" && !url.username && !url.password;
+});
+
+// A viewable reconstruction is an earlier milestone than a runnable testbed.
+// The Pipeline owns website reconstruction; this callback never buys a world.
+router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({
+      request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/), scene_id: z.string(),
+      task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+      world_id: z.string().min(1).max(200), operation_id: z.string().min(1).max(200),
+      model: z.string().min(1).max(120), launch_url: previewUrl,
+      thumbnail_url: previewUrl.nullable(), pano_url: previewUrl.nullable(),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_visual_scene_invalid" });
+    const body = parsed.data;
+    const captureId = String(req.params.captureId);
+    if (captureId !== `walkthrough-${body.request_id}` || body.scene_id !== `site-${body.request_id}`)
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    try {
+      const brief = await getBrief(body.request_id);
+      if (!brief) return res.status(404).json({ code: "task_brief_missing" });
+      const context = projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(body.request_id));
+      if (!context.confirmed || context.context_digest !== body.task_context_digest
+          || !context.capture_rights.derived_scene_generation_allowed)
+        return res.status(409).json({ code: "website_visual_scene_context_changed" });
+      if (!db) return res.status(503).json({ code: "website_visual_scene_store_unavailable" });
+      const record: WorldReconstructionRecord = {
+        state: "ready", operationId: body.operation_id, worldId: body.world_id, model: body.model,
+        preview: null, frameSelection: null, blocker: null, failureReason: null, updatedAtIso: new Date().toISOString(),
+        assets: { worldId: body.world_id, model: body.model, launchUrl: body.launch_url,
+          thumbnailUrl: body.thumbnail_url, panoUrl: body.pano_url, caption: null, spzUrlsByDetail: {},
+          colliderMeshUrl: null, splatPlyUrl: null, meshGlbUrl: null, meshExportOperationId: null },
+      };
+      await persistReconstruction(captureId, record, body.request_id);
+      await notifySceneReady(captureId, record);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ state: "ready", world_id: body.world_id, task_context_digest: body.task_context_digest });
+    } catch {
+      return res.status(503).json({ code: "website_visual_scene_unavailable" });
+    }
+  });
+
+const sponsoredSceneRequest = z.object({
+  schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
+  submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
+  source: z.object({ kind: z.literal("gaussian_splat"), binding_id: z.string(), content_digest: z.string() }).strict(),
+  task: sceneIntakeCommand.shape.task, execution: sceneIntakeCommand.shape.execution,
+  consent: sceneIntakeCommand.shape.consent.extend({ rights_reference: z.string(),
+    accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),
+}).strict();
+
+// The Pipeline credential, current site consent and configured Blueprint cap
+// authorize preparation. No robot-team payment or site account is required.
+for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spend"] as const) router.post(
+  `/creator-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+      scene_id: z.string(), ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
+      ...(operation === "preparation-spend" ? { spend: preparationSpendRequest } : {}) })
+      .strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_scene_request_invalid" });
+    const { request_id: requestId, scene_id: sceneId } = parsed.data;
+    if (req.params.captureId !== `walkthrough-${requestId}` || sceneId !== `site-${requestId}`)
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    try {
+      const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship");
+      res.setHeader("Cache-Control", "no-store");
+      if (operation === "scene-sponsorship") return res.json(authority);
+      if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
+        preparationSpendRequest.parse(req.body.spend)));
+      const request = sponsoredSceneRequest.parse(req.body.request);
+      validateWebsiteSponsoredIntake(request, authority);
+      const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
+      const command = { submission_id: request.submission_id, source_session_id: request.submission_id,
+        task: request.task, execution: request.execution, consent };
+      validateSceneProviderTerms(command);
+      if (!db) throw new Error("website_capture_rights_store_unavailable");
+      const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
+      const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
+      await db.runTransaction(async transaction => {
+        const prior = await transaction.get(ref);
+        if (prior.exists) {
+          if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
+          return;
+        }
+        transaction.create(ref, {
+          owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
+          source_session_id: request.submission_id, website_request_id: requestId,
+          sponsorship_digest: authority.authority_digest, command, command_digest: sceneDigest(command),
+          request, request_digest: sceneDigest(request), state: "forward_pending",
+          forward_attempt_count: 0, next_forward_at_ms: 0, created_at_iso: new Date().toISOString(),
+        });
+      });
+      return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";
+      const known = /^(website_scene_|website_task_context_|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
+      return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_sponsorship_unavailable" });
+    }
+  },
+);
+
+// Read at preparation time: the owner may have confirmed after uploading.
+// The raw upload manifest remains immutable historical capture evidence.
+router.post(
+  "/creator-captures/:captureId/task-context",
+  createPipelineSyncRateLimiter(),
+  guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().trim().min(1).max(200),
+      scene_id: z.string().trim().min(1).max(220) }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "task_context_request_invalid" });
+    const { request_id: requestId, scene_id: sceneId } = parsed.data;
+    if (req.params.captureId !== `walkthrough-${requestId}` || sceneId !== `site-${requestId}`) {
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    }
+    try {
+      const brief = await getBrief(requestId);
+      if (!brief) return res.status(404).json({ code: "task_brief_missing" });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId)));
+    } catch {
+      return res.status(503).json({ code: "task_context_unavailable" });
+    }
+  },
+);
+
 router.post(
   "/creator-captures/:captureId/world/reconstruct",
   createPipelineSyncRateLimiter(),
@@ -134,6 +269,14 @@ router.post(
     const captureId = String(req.params.captureId || "").trim();
     if (!captureId) {
       return res.status(400).json({ error: "Capture id is required" });
+    }
+    if (captureId.startsWith("walkthrough-")) {
+      // The extraction trigger already publishes the Pipeline handoff. This
+      // older direct path must not buy a second world from unprepared frames.
+      return res.status(409).json({
+        code: "website_reconstruction_pipeline_owned",
+        error: "Website reconstruction follows confirmed task scene preparation in Pipeline.",
+      });
     }
 
     try {

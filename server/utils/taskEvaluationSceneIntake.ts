@@ -5,6 +5,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
+import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake } from "./websiteSceneSponsorship";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -178,7 +179,7 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
   );
 export function sceneProviderTerms() {
   const schema = z.record(
-    z.enum(["vast", "runpod", "openai"]),
+    z.enum(["vast", "runpod", "openai", "meta", "world_labs"]),
     z
       .object({
         digest,
@@ -531,7 +532,17 @@ export async function processSceneIntakeQueue(limit = 10) {
       try {
         if (sceneDigest(record.request) !== record.request_digest)
           throw new Error("stored_request_digest_invalid");
-        if (state === "revocation_pending") {
+        let sponsorshipRevoked = false;
+        if (record.website_request_id && state === "accepted") {
+          try { await loadWebsiteSceneSponsorship(record.website_request_id); }
+          catch (error) {
+            const code = error instanceof Error ? error.message : "";
+            if (["source_revoked", "website_scene_sponsorship_changed", "website_scene_sponsorship_not_configured",
+              "website_scene_sponsorship_missing", "website_task_context_not_confirmed", "task_brief_missing"].includes(code)) sponsorshipRevoked = true;
+            else if (code !== "consent_expired") throw error;
+          }
+        }
+        if (state === "revocation_pending" || sponsorshipRevoked) {
           const intentId = record.receipt?.intent_id || row.id;
           const intentDigest =
             record.receipt?.intent_digest ||
@@ -623,7 +634,15 @@ export async function processSceneIntakeQueue(limit = 10) {
           if (record.forward_attempt_count >= 20)
             throw new Error("transport_retry_cap_exhausted");
           const owner = record.request.owner;
-          const access = await resolveExecutionAccessContext({
+          let sponsored = false;
+          if (record.website_request_id) {
+            const authority = await loadWebsiteSceneSponsorship(record.website_request_id);
+            if (record.sponsorship_digest !== authority.authority_digest)
+              throw new Error("website_scene_sponsorship_binding_invalid");
+            validateWebsiteSponsoredIntake(record.request, authority);
+            sponsored = true;
+          }
+          const access = sponsored ? null : await resolveExecutionAccessContext({
             locals: {
               firebaseUser: {
                 uid: owner.user_id,
@@ -633,34 +652,36 @@ export async function processSceneIntakeQueue(limit = 10) {
               },
             },
           } as Response);
-          if (!access.isOps) {
+          if (!sponsored && !access?.isOps) {
             patch = {
               state: "commercial_authorization_required",
               blocker: "commercial_authorization_required",
               next_forward_at_ms: now + 60000,
             };
           } else {
-            const sourceRef = sceneSourceReference(record.source_session_id);
-            const publicChoice = record.source_session_id.startsWith("public-")
-              ? (await scenePublicSourceCatalog()).find((row) => row.binding_id === record.source_session_id)
-              : undefined;
-            if (record.source_session_id.startsWith("public-") && !publicChoice)
-              throw new Error("source_validation_required");
-            const source = publicChoice ? undefined : await storeTimeout(
-              db.collection(sourceRef.collection).doc(sourceRef.id).get(),
-            );
-            const collisionRef = record.command.collision_source_session_id ? sceneSourceReference(record.command.collision_source_session_id) : null;
-            const collision = collisionRef ? await storeTimeout(db.collection(collisionRef.collection).doc(collisionRef.id).get()) : null;
-            const rebuilt = buildSceneIntake(
-              sceneIntakeCommand.parse(record.command),
-              record.request.owner,
-              publicChoice || source?.data() || {},
-              record.request.consent.accepted_at_epoch,
-              collision?.data(),
-            );
+            if (!sponsored) {
+              const sourceRef = sceneSourceReference(record.source_session_id);
+              const publicChoice = record.source_session_id.startsWith("public-")
+                ? (await scenePublicSourceCatalog()).find((row) => row.binding_id === record.source_session_id)
+                : undefined;
+              if (record.source_session_id.startsWith("public-") && !publicChoice)
+                throw new Error("source_validation_required");
+              const source = publicChoice ? undefined : await storeTimeout(
+                db.collection(sourceRef.collection).doc(sourceRef.id).get(),
+              );
+              const collisionRef = record.command.collision_source_session_id ? sceneSourceReference(record.command.collision_source_session_id) : null;
+              const collision = collisionRef ? await storeTimeout(db.collection(collisionRef.collection).doc(collisionRef.id).get()) : null;
+              const rebuilt = buildSceneIntake(
+                sceneIntakeCommand.parse(record.command),
+                record.request.owner,
+                publicChoice || source?.data() || {},
+                record.request.consent.accepted_at_epoch,
+                collision?.data(),
+              );
+              if (sceneDigest(rebuilt) !== record.request_digest)
+                throw new Error("stored_request_digest_invalid");
+            }
             validateSceneProviderTerms(record.command);
-            if (sceneDigest(rebuilt) !== record.request_digest)
-              throw new Error("stored_request_digest_invalid");
             await storeTimeout(
               db.runTransaction(async (transaction) => {
                 const latest = await transaction.get(row.ref);
@@ -706,7 +727,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             "pipeline_intent_digest_invalid",
             "pipeline_status_receipt_missing",
             "revocation_requested_before_delivery",
-          ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode)
+          ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode) || rawCode.startsWith("website_scene_sponsorship_")
             ? rawCode
             : "pipeline_transport_failed";
         const terminal = [
@@ -717,6 +738,8 @@ export async function processSceneIntakeQueue(limit = 10) {
           "source_not_owned",
           "source_validation_required",
           "source_rights_binding_required",
+          "website_scene_sponsorship_changed",
+          "website_scene_sponsorship_binding_invalid",
         ].includes(code);
         const statusPollState = isSceneStatusPollState(state);
         const closeoutPoll = statusPollState && state !== "accepted";

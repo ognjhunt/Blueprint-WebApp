@@ -15,12 +15,12 @@
  * It is the only provider in this stack whose API ingests video directly. The
  * others take pre-extracted frames, which loses the two things this lane is for:
  * the audio track, and real elapsed time between frames — and elapsed time is
- * the whole basis of the cycle measurement. Gemini samples at 1 FPS with audio
- * and returns timestamps that refer to the actual clip.
+ * the whole basis of the cycle measurement. Gemini returns timestamps that
+ * refer to the actual clip. This adapter explicitly
+ * requests agentic navigation and verifies the returned media-tool trace.
  *
- * `@google/generative-ai` and `GEMINI_API_KEY` are already dependencies of this
- * repo (`server/utils/geminiInteractions.ts`, `server/config/env.ts`), so this
- * introduces a new task, not a new service.
+ * Gemini is already a provider in this repo. The explicit REST request retains
+ * media-processing fields unsupported by the older text SDK dependency.
  *
  * ## Fetching the footage
  *
@@ -30,7 +30,7 @@
  * site revokes by unsharing, exactly as `taskVideoField` promises, and that
  * promise stays true only if we never keep a second copy.
  */
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createHash } from "node:crypto";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
@@ -38,6 +38,67 @@ import type { AgentResult, NormalizedAgentTask } from "../types";
 /** Kept below Gemini's 100MB inline ceiling, and well below it on purpose. */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 60_000;
+const ANALYSIS_TIMEOUT_MS = 5 * 60_000;
+
+interface VideoResponsePart {
+  text?: string;
+  thought?: boolean;
+  toolCall?: { toolType?: string };
+  toolResponse?: { toolType?: string };
+  tool_call?: { tool_type?: string };
+  tool_response?: { tool_type?: string };
+}
+
+/** Explicit REST fields avoid silently dropping new fields in the old SDK. */
+export async function analyseAgenticVideo(input: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  bytes: Buffer;
+  contentType: string;
+}, fetcher: typeof fetch = fetch) {
+  const response = await fetcher(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [
+          { text: input.prompt },
+          { inline_data: { mime_type: input.contentType, data: input.bytes.toString("base64") },
+            media_processing: "AGENTIC" },
+        ] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
+      }),
+    },
+  );
+  // Do not include upstream error bodies: they can echo source URLs or tokens.
+  if (!response.ok) throw new GeminiVideoError("gemini_video_provider_failed", `Gemini returned HTTP ${response.status}`);
+  const payload = await response.json() as {
+    candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>;
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+    modelVersion?: string;
+  };
+  const candidate = payload.candidates?.[0];
+  if (candidate?.finishReason !== "STOP") {
+    throw new GeminiVideoError("gemini_video_incomplete", "Gemini did not finish the video analysis");
+  }
+  const parts = candidate.content?.parts ?? [];
+  const calls = parts.filter((part) =>
+    (part.toolCall?.toolType ?? part.tool_call?.tool_type) === "MEDIA_PROCESSING").length;
+  const responses = parts.filter((part) =>
+    (part.toolResponse?.toolType ?? part.tool_response?.tool_type) === "MEDIA_PROCESSING").length;
+  if (!calls || !responses) {
+    throw new GeminiVideoError("gemini_video_agentic_trace_missing", "Video navigation was requested but not evidenced by the response");
+  }
+  return {
+    text: parts.filter((part) => !part.thought && typeof part.text === "string").map((part) => part.text).join("\n"),
+    usage: payload.usageMetadata,
+    processing: { mode: "agentic", media_tool_calls: calls, media_tool_responses: responses,
+      model_version: payload.modelVersion ?? input.model },
+  };
+}
 
 const SUPPORTED_VIDEO_TYPES = [
   "video/mp4",
@@ -211,7 +272,7 @@ function extractJsonPayload(rawText: string) {
 function readVideoUrl(input: unknown): string {
   const url =
     input && typeof input === "object"
-      ? (input as Record<string, unknown>).taskVideoUrl
+      ? (input as Record<string, unknown>).taskVideoUrl ?? (input as Record<string, unknown>).videoUrl
       : null;
   if (typeof url !== "string" || !url.trim()) {
     throw new GeminiVideoError(
@@ -247,28 +308,9 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const videoUrl = readVideoUrl(task.input);
     const { bytes, contentType } = await fetchVideoBytes(videoUrl);
 
-    const client = new GoogleGenerativeAI(apiKey);
-    const model = client.getGenerativeModel({
-      model: task.model,
-      generationConfig: {
-        // The task's Zod schema is the real contract; asking for JSON here just
-        // stops the model wrapping it in prose we would have to slice back out.
-        responseMimeType: "application/json",
-        temperature: 0,
-      },
-    });
-
-    const response = await model.generateContent([
-      { text: task.definition.build_prompt(task.input) },
-      {
-        inlineData: {
-          mimeType: contentType,
-          data: bytes.toString("base64"),
-        },
-      },
-    ]);
-
-    const rawText = response.response.text();
+    const response = await analyseAgenticVideo({ apiKey, model: task.model,
+      prompt: task.definition.build_prompt(task.input), bytes, contentType });
+    const rawText = response.text;
     const parsed = extractJsonPayload(rawText);
     const output = (task.definition.output_schema as ZodType<TOutput>).parse(parsed);
 
@@ -279,7 +321,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       typeof output === "object" &&
       (output as Record<string, unknown>).privacy_flag === true;
 
-    const usage = response.response.usageMetadata;
+    const usage = response.usage;
 
     return {
       ...base,
@@ -292,6 +334,8 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       artifacts: {
         video_bytes: bytes.byteLength,
         video_content_type: contentType,
+        video_sha256: createHash("sha256").update(bytes).digest("hex"),
+        video_processing: response.processing,
         usage: usage
           ? {
               prompt_tokens: usage.promptTokenCount ?? null,

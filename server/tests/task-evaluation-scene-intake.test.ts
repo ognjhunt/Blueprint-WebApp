@@ -3,6 +3,14 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
+vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
+vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
+vi.mock("../utils/pipelineSyncSecurity", () => ({
+  createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  verifyPipelineSyncRequest: () => ({ ok: true }),
+}));
 
 const store = vi.hoisted(() => ({
   rows: new Map<string, any>(),
@@ -173,6 +181,7 @@ async function app() {
     next();
   });
   application.use("/intakes", router);
+  application.use("/internal", (await import("../routes/internal-capture-worlds")).default);
   server = createServer(application);
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as any).port}/intakes`;
@@ -255,6 +264,83 @@ afterEach(async () => {
   server = undefined;
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
+  delete process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON;
+});
+
+function sponsoredCapture() {
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({
+    owner: { user_id: "blueprint-preparation", organization_id: "blueprint" },
+    upstream_max_spend_usd: 5, native_max_spend_usd: 20, max_total_spend_usd: 25,
+    max_paid_attempts: 2, ttl_seconds: 3600, provider_terms_reference: sha("e"),
+  });
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(Object.fromEntries(
+    ["vast", "openai", "meta"].map(provider => [provider, { digest: sha("e"), label: "terms", url: "https://example.com/terms" }])));
+  store.rows.set("inboundRequests/req1", { request: { consent_attestation: { granted: true,
+    statement_version: "2026-09-18.v1", recorded_at_iso: new Date().toISOString() } } });
+  store.rows.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Pick the box",
+    confirmedAtIso: new Date().toISOString(), confirmedBy: "private site owner", operatorAnswers: {}, unresolved: [] });
+  // No site account, balance or ops role is required for Blueprint sponsorship.
+  store.claims = {};
+}
+
+it("retains one Blueprint cap and expiry per upload and refuses changed, expired or revoked grants", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(grant);
+  expect(grant.consent.accepted_by).toBe("blueprint-preparation");
+  expect(JSON.stringify(grant)).not.toContain("private site owner");
+  const input = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+    record: store.rows.get("inboundRequests/req1"), now: grant.expires_at_epoch };
+  expect(() => websiteSceneSponsorship(input)).toThrow("consent_expired");
+  expect(() => websiteSceneSponsorship({ ...input, now: grant.consent.accepted_at_epoch,
+    brief: { ...input.brief, summary: "Move the chair" } })).toThrow("sponsorship_changed");
+  expect(() => websiteSceneSponsorship({ ...input, record: { ...input.record, consent_revoked: true } }))
+    .toThrow("source_revoked");
+  const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_total_spend_usd: 24 });
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
+it("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const response = await post("scene-sponsorship");
+  expect(response.status).toBe(200);
+  const grant = await response.json();
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"] },
+  };
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
+  expect((await post("prepared-scene", { request: { ...request, execution: {
+    ...request.execution, max_total_spend_usd: 100 } } })).status).toBe(409);
+  const fetcher = vi.fn(async (_url: any, init: any) => {
+    const payload = JSON.parse(init.body);
+    return new Response(JSON.stringify(payload.intent_digest ? revocationReceipt(request) : accepted(payload)));
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("accepted");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  store.rows.get("inboundRequests/req1").consent_revoked = true;
+  stored()[1].next_forward_at_ms = 0;
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("closeout_pending");
+  expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
+  expect(fetcher).toHaveBeenCalledTimes(2);
 });
 describe("persistent authenticated scene intake", () => {
   it("matches the Python RFC 8785 fixture for numeric and Unicode packet fields", () => {
@@ -1100,4 +1186,53 @@ describe("registered public scene intake", () => {
     parsed.task.subject.description = "different object";
     expect(() => buildSceneIntake(parsed, sceneOwner({ uid: "owner" }), choice)).toThrow();
   });
+});
+
+
+it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 3, request_count: 1 };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  expect(first).toMatchObject({ status: "admitted", external_disclosure_allowed: true });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(Object.keys(store.rows.get("inboundRequests/req1").website_preparation_reservations)).toHaveLength(1);
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, maximum_cost_usd: 1 })).rejects.toThrow("idempotency_conflict");
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") })).rejects.toThrow("budget_exhausted");
+  await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2"), maximum_cost_usd: 2 });
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"), maximum_cost_usd: .001 })).rejects.toThrow("budget_exhausted");
+  store.rows.get("inboundRequests/req1").consent_revoked = true;
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("source_revoked");
+});
+
+it("reserves image edits and SAM against the same sponsor cap and checks the selected provider terms", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const image = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("4"),
+    resource_class: "openai_api_candidate" as const, provider: "openai" as const, maximum_cost_usd: 4, request_count: 1 };
+  const receipt = await reserveWebsitePreparationSpend("req1", image);
+  expect(receipt).toMatchObject({ status: "admitted", resource_class: "openai_api_candidate", provider: "openai" });
+  expect(await reserveWebsitePreparationSpend("req1", image)).toEqual({ ...receipt, status: "already_reserved" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...image, provider: "meta" })).rejects.toThrow("provider_resource_mismatch");
+  await expect(reserveWebsitePreparationSpend("req1", { ...image, allocation_binding_digest: sha("5"),
+    resource_class: "evaluator_api", provider: "meta", maximum_cost_usd: 2 })).rejects.toThrow("budget_exhausted");
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  terms.openai.digest = sha("f");
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  await expect(reserveWebsitePreparationSpend("req1", image)).rejects.toThrow("provider_terms_not_configured_or_changed");
+});
+
+it("funds a single Marble operation from the same upstream cap with explicit World Labs terms", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("7"),
+    resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
+    maximum_cost_usd: 2.48, request_count: 1 };
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "admitted", provider: "world_labs" });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("provider_terms_not_configured_or_changed");
 });

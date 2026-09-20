@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 import {
   ALLOWED_EXTENSIONS,
@@ -42,6 +43,18 @@ function manifest() {
 }
 
 describe("a browser capture produces a bundle the extractor will actually process", () => {
+  it("carries the owner's task and confirmation without inventing confirmation", () => {
+    const built = buildBrowserCaptureManifest({
+      payload: { sceneId: "site-req-1", captureId: "walkthrough-req-1", requestId: "req-1" },
+      objectPath: "scenes/site-req-1/captures/walkthrough-req-1/raw/walkthrough.mp4",
+      video: VIDEO, sizeBytes: 100,
+      taskContext: { description: "Pick a small rigid object from the table", confirmed: false, confirmed_at: null },
+    });
+    expect(built.site_task_context).toEqual({
+      schema_version: "website_site_task_context.v1", request_id: "req-1",
+      description: "Pick a small rigid object from the table", confirmed: false, confirmed_at: null,
+    });
+  });
   it("satisfies every field the extractor requires", () => {
     // A manifest missing any of these produces a blocked report rather than a
     // scene, and from the site's side that looks identical to a successful
@@ -154,4 +167,14 @@ describe("we only accept containers the extractor can open", () => {
     // reported to the site as received.
     expect(ALLOWED_EXTENSIONS.has("m4v")).toBe(false);
   });
+});
+
+it("preserves a recorded scene-building grant without granting resale rights", () => {
+  const captureRights = projectWebsiteCaptureRights({ request: { consent_attestation: {
+    granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00Z",
+  } } });
+  const built = buildBrowserCaptureManifest({ payload: { sceneId: "s", captureId: "c", requestId: "r" },
+    objectPath: "raw/video.mov", video: VIDEO, sizeBytes: 100, captureRights });
+  expect(built.capture_rights).toMatchObject({ derived_scene_generation_allowed: true, data_licensing_allowed: false });
+  expect(manifest().capture_rights).toMatchObject({ derived_scene_generation_allowed: false });
 });

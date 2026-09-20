@@ -204,4 +204,15 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     const link = await screen.findByRole("link", { name: /view your scene/i });
     expect(link).toHaveAttribute("href", "https://viewer.example/world-1");
   });
+
+  it("offers signup at the visual scene milestone before any robot evaluation", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", mockFetchWithStatus({ ...results, decision: "assessing",
+      headline: "Preparing your task", operatorAction: null }, "/claim/scene-owner", "https://viewer.example/world-1"));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("link", { name: "Save your scene and follow progress" }))
+      .toHaveAttribute("href", "/claim/scene-owner");
+    expect(screen.getByRole("link", { name: "View your scene" })).toBeInTheDocument();
+    expect(screen.queryByText(/41 of 50 episodes/)).not.toBeInTheDocument();
+  });
 });

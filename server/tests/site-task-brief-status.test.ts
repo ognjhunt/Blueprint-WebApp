@@ -167,6 +167,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     const { body } = await status();
     expect(body.sceneViewUrl).toBe("https://viewer.example/world-1");
+    expect(body.claimUrl).toMatch(/\/claim\/.+/);
+    expect(body.status.decision).toBe("assessing");
 
     const filmToken = createCaptureUploadToken({
       requestId: "req-1",
@@ -175,6 +177,10 @@ describe("GET /api/site-task-brief/:token/status", () => {
       scope: "film",
     });
     const filmResponse = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/status`);
-    expect((await filmResponse.json()).sceneViewUrl).toBeNull();
+    expect(await filmResponse.json()).toMatchObject({ sceneViewUrl: null, claimUrl: null });
+
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, account_owner_uid: "uid-dana" });
+    expect((await status()).body.claimUrl).toBeNull();
   });
 });
