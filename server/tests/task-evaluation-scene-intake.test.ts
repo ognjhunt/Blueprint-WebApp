@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit } from "../utils/websiteSceneSponsorship";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -1261,4 +1261,49 @@ it("bounds Gemini analysis and review by the shared preparation cap and Google t
   await expect(reserveWebsitePreparationSpend("req1", { ...spend, resource_class: "gpu_render" })).rejects.toThrow("provider_resource_mismatch");
   await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("a"), maximum_cost_usd: .27 });
   await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("b"), maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+});
+
+
+it("amends only preparation request count while retaining money, native authority, expiry and reservations", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "evaluator_api" as const, provider: "meta" as const,
+    maximum_cost_usd: 1, request_count: grant.max_paid_attempts };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  const next = { ...spend, allocation_binding_digest: sha("2"), request_count: 1 };
+  await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("budget_exhausted");
+  const input = { authority_digest: grant.authority_digest, max_requests: 32,
+    approved_by: grant.owner.user_id, approval_reference: "owner-reply:test-32" };
+  await amendWebsitePreparationRequestLimit("req1", input);
+  expect(store.rows.get("inboundRequests/req1").website_preparation_limit_amendment).toBeUndefined();
+  const receipt = await amendWebsitePreparationRequestLimit("req1", input, true);
+  expect(await amendWebsitePreparationRequestLimit("req1", input, true)).toEqual(receipt);
+  expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+    request_count: 32 })).rejects.toThrow("budget_exhausted");
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+    maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+});
+
+it("rejects stale, unauthorized, revoked and tampered preparation amendments", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const input = { authority_digest: grant.authority_digest, max_requests: 32,
+    approved_by: grant.owner.user_id, approval_reference: "owner-reply:test-32" };
+  await expect(amendWebsitePreparationRequestLimit("req1", { ...input, authority_digest: sha("f") }, true)).rejects.toThrow("binding_invalid");
+  await expect(amendWebsitePreparationRequestLimit("req1", { ...input, approved_by: "stranger" }, true)).rejects.toThrow("binding_invalid");
+  await expect(amendWebsitePreparationRequestLimit("req1", { ...input, max_requests: 33 }, true)).rejects.toThrow();
+  const row = store.rows.get("inboundRequests/req1");
+  row.consent_revoked = true;
+  await expect(amendWebsitePreparationRequestLimit("req1", input, true)).rejects.toThrow("source_revoked");
+  row.consent_revoked = false;
+  await amendWebsitePreparationRequestLimit("req1", input, true);
+  store.rows.get("inboundRequests/req1").website_preparation_limit_amendment.max_requests = 31;
+  await expect(reserveWebsitePreparationSpend("req1", {
+    task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "evaluator_api", provider: "meta", maximum_cost_usd: 1, request_count: 1,
+  })).rejects.toThrow("amendment_invalid");
 });
