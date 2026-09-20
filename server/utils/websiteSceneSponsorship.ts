@@ -92,6 +92,42 @@ export const preparationSpendRequest = z.object({
   || (value.provider === "vast" && value.resource_class === "gpu_render"),
   "website_preparation_provider_resource_mismatch");
 
+export const preparationSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("world_labs"), operation_id: z.string().min(1).max(200),
+  operation_done: z.literal(true), total_credits: z.number().int().min(0).max(1_250_000),
+  provider_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
+
+/** Pipeline-signed final provider billing releases only the unused reservation. */
+export async function settleWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSettlementRequest>) {
+  const command = preparationSettlementRequest.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const record = (await transaction.get(ref)).data();
+    const key = command.allocation_binding_digest.slice(7);
+    const row = record?.website_preparation_reservations?.[key];
+    const actualCost = command.total_credits / 1250;
+    if (!row || row.admission.provider !== command.provider
+      || row.admission.resource_class !== "provider_reconstruction_api"
+      || row.admission.task_context_digest !== command.task_context_digest
+      || actualCost > row.admission.maximum_cost_usd)
+      throw new Error("website_scene_preparation_settlement_invalid");
+    const settlement = { ...command, actual_cost_usd: actualCost, status: "settled" };
+    if (row.settlement) {
+      if (digest(row.settlement) !== digest(settlement)) throw new Error("idempotency_conflict");
+      return row.settlement;
+    }
+    transaction.update(ref, { website_preparation_reservations: {
+      ...record!.website_preparation_reservations, [key]: { ...row, settlement },
+    } });
+    return settlement;
+  }));
+}
+
 const preparationLimitAmendment = z.object({
   authority_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   max_requests: z.number().int().min(1).max(32),
@@ -176,7 +212,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     }
     const previous = Object.values(reservations);
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
-    const reserved = previous.reduce((sum, row) => sum + micros(row.admission.maximum_cost_usd), 0);
+    const reserved = previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
     const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
     if (reserved + micros(command.maximum_cost_usd) > Math.floor(authority.upstream_max_spend_usd * 1_000_000)
         || attempts + command.request_count > preparationRequestLimit(record, authority))

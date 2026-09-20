@@ -18,11 +18,11 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 2 | Browser original retained; MapAnything Apache estimates depth and cameras | Source digests unchanged; native depth output with provider identity and uncertainty | In progress |
 | 3 | Continue with MapAnything estimated scale for this development test; retain measurement provenance | Native estimated geometry and registration, no promotion to measured scale | In progress |
 | 4 | Reusable Gemini 3.8 task/coverage/object analysis; static up to five minutes, agentic above five minutes | Retained actual processing mode, validated task-bound output, source digest; paired navigation trace for agentic mode | Live website-origin verified: Gemini 3.8 Flash, static 2 FPS, 13.525-second original, task-bound validated output; prior failed agentic receipt retained |
-| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | In progress: website controller matched the blue task object across frames 244–254; kept white support remains unresolved and is deferred until after visual reconstruction |
+| 5 | SAM3.1 tracks selected objects and people | Actual tracker outputs for retained frames, masks and identity bindings | Live website-origin verified: blue track has 11 observations (frames 244–254); deferred kept white support resolved from a grounded source-image mask; full target manifest completed |
 | 6 | Task-dependent keep/collider/replace decisions before reconstruction | Confirmed plan distinguishing fixed supports from movable assets | Live website-origin decision verified: remove the blue task object and keep unrelated/support objects; latest plan uses the white support as destination. Geometry/contact validation remains in steps 11–12 |
 | 7 | Original views, cameras, depth and placement preserved | Read-only source evidence and reusable placement references; no mandatory second world | Unproven |
-| 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Website controller completed two original-resolution edits; background/cross-view/privacy review pending because the configured request allowance is exhausted |
-| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live eight-view Marble component completed; actual website-origin loop pending |
+| 8 | Direct task-object removal in original-resolution frames with GPT Image; no depth-based pixel recovery or VIP | Real edited views, original/edited comparison, cross-view checks and residual-person checks | Live website-origin verified: two original-resolution edits; complete eight-view background, cross-view, removal and privacy review passed |
+| 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live website-origin verified: eight-view Marble operation completed; collider and full-resolution splat downloaded with digests |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | In progress (retained failure replayed offline: two contract violations identified, contract-conforming replay of the same envelope passes pinned CLI and readback; controller-origin authoring run still pending) |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | In progress (registration now anchored to Marble's declared scale, ground plane and first input view; retained walkthrough registers at 0.31 m global / 0.39 m task-region residual, surfaced as placement uncertainty; `native_task_scene_assembly` pending) |
 | 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | In progress (estimated bounds, grasp-hold screen, escalation and a feasibility-claim flag now travel in the submitted task definition; `bounded_physics` cells run on GPU) |
@@ -841,3 +841,28 @@ Rows 1, 4, and 6 remain the three completed website-origin acceptance rows.
 Row 8 now has actual edited views but cannot close until its automated review
 passes. Marble, full support geometry, CAD, native evaluation, and robot-team
 result delivery remain unverified for this website-origin run.
+
+
+## Website-origin visual world completed (2026-09-20 13:22 UTC)
+
+On Pipeline main `885ff959171f6821e4e7d775462e083087e7d738`, the controller
+completed World Labs operation `ae543721-6331-48b3-b400-97ca0f6b1cc5` and retained
+world `48c4f4de-c9f6-426b-a81f-3a713fb24af7`. It submitted eight prepared views,
+reusing the two completed edits, after the complete view set passed Gemini
+review. The asset materialization receipt is complete with no blockers and
+contains the collider GLB and full-resolution SPZ, each verified by digest.
+The provider reported 1,600 credits ($1.28), below its $2.48 reservation.
+
+The controller also resolved the deferred white support using grounded
+source-image segmentation. The complete task mask manifest has 11 blue-object
+observations and one white-support observation. This proves selected identity
+and masks, not physical dimensions or contacts.
+
+Six acceptance rows are now website-origin verified: 1, 4, 5, 6, 8, 9.
+Rows 2, 3, 7, 10–14 remain open. The current handoff correctly stops at
+`website_mapanything_runtime_profile_missing`; the capture worker was not
+loading the deployed scene-runtime environment file. The next correction wires
+that file into its service and reconciles terminal Marble billing through the
+signed WebApp endpoint before geometry allocation. Neither the $5 preparation
+cap nor the $20 simulation cap changes. The owner-approved request-only
+amendment to 32 is already live. No simulation or robot-team result is claimed.
