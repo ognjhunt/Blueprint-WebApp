@@ -70,10 +70,9 @@ reservation machinery. No local registration pretends to authenticate a caller.
 Withdrawal of site consent revokes future execution while retaining result
 closeout for work already started.
 
-The native allowance is passed to that existing reservation machinery. The
-upstream allowance is reserved within the total policy, but **automatic
-MapAnything admission from it remains to be connected**;
-the grant itself cannot replace their paid-resource admission checks.
+The native allowance is passed to that existing reservation machinery. The upstream allowance is reserved within the total policy. Image editing,
+Marble and MapAnything now have controller admission connections; each still
+requires its existing paid-resource checks and deployment configuration.
 The approved development run retains its existing scoped allocator authority.
 
 ## Evidence log
@@ -650,3 +649,24 @@ Its five model reservations are terminal, with no unknown in-flight calls;
 the budget manifest reports $1.266402 reserved/settled accounting. No CAD
 completion or hands-off controller proof is claimed, and no manual retry was
 launched after the controller-ownership correction.
+
+
+### MapAnything controller handoff and first merge
+
+WebApp PR #622 merged to main as `059d26fbee9fa59934355995d04ba2280028db12`
+with all five CI jobs passing. This establishes the code merge; Render release
+identity and hands-off execution are separate checks.
+
+The geometry stage now routes confirmed website tasks through the canonical
+allocator rather than relying on a manually provided result path. A service
+runtime profile binds the deployed release, container and four hashed runtime
+files. The existing worker owns execution/retrieval/teardown; the controller
+reserves the same Blueprint upstream allowance, arms the existing exact-name
+watchdog, and preserves uncertain allocations rather than renting again.
+Completed source-bound outputs replay without provider calls. The legacy local
+component path remains available only without a website task context.
+
+Focused Pipeline verification: 59 tests passed. WebApp: 33 intake tests and
+TypeScript check passed. Runtime profile deployment and a controller-origin
+MapAnything run remain open, as do CAD recovery and the full fourteen-step
+website/evaluation demonstration.

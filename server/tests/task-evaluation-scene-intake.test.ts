@@ -1236,3 +1236,13 @@ it("funds a single Marble operation from the same upstream cap with explicit Wor
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
   await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("provider_terms_not_configured_or_changed");
 });
+
+it("reserves MapAnything GPU work under the same website cap without a robot-team payment", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("8"),
+    resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: 2, request_count: 1 };
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "admitted", provider: "vast" });
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...spend, provider: "openai" })).rejects.toThrow("provider_resource_mismatch");
+});
