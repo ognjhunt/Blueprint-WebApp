@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -1306,4 +1306,53 @@ it("rejects stale, unauthorized, revoked and tampered preparation amendments", a
     task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "evaluator_api", provider: "meta", maximum_cost_usd: 1, request_count: 1,
   })).rejects.toThrow("amendment_invalid");
+});
+
+
+it("settles final Marble billing without resetting request count or granting another generation", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
+    maximum_cost_usd: 2.48, request_count: 1 };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  const next = { ...spend, allocation_binding_digest: sha("2"), resource_class: "gpu_render" as const,
+    provider: "vast" as const, maximum_cost_usd: 3 };
+  await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("budget_exhausted");
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    provider: "world_labs" as const, operation_id: "op-one", operation_done: true as const,
+    total_credits: 1600, provider_receipt_digest: sha("a") };
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement }) });
+  expect(response.status).toBe(200);
+  const receipt = await response.json();
+  expect(receipt).toMatchObject({ status: "settled", actual_cost_usd: 1.28 });
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toEqual(receipt);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, total_credits: 1 })).rejects.toThrow("idempotency_conflict");
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+    maximum_cost_usd: .01 })).rejects.toThrow("budget_exhausted");
+  expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
+});
+
+it("cannot release a reservation using missing, mismatched or excessive provider billing", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    provider: "world_labs" as const, operation_id: "op-one", operation_done: true as const,
+    total_credits: 1600, provider_receipt_digest: sha("a") };
+  await expect(settleWebsitePreparationSpend("req1", settlement)).rejects.toThrow("settlement_invalid");
+  await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha("1"), resource_class: "provider_reconstruction_api", provider: "world_labs",
+    maximum_cost_usd: 2.48, request_count: 1 });
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, task_context_digest: sha("b") })).rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, total_credits: 3101 })).rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, operation_done: false as any })).rejects.toThrow();
+  expect(store.rows.get("inboundRequests/req1").website_preparation_reservations["1".repeat(64)].settlement).toBeUndefined();
 });
