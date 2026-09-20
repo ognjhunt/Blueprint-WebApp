@@ -179,7 +179,7 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
   );
 export function sceneProviderTerms() {
   const schema = z.record(
-    z.enum(["vast", "runpod", "openai", "meta", "world_labs"]),
+    z.enum(["vast", "runpod", "openai", "meta", "world_labs", "google"]),
     z
       .object({
         digest,
