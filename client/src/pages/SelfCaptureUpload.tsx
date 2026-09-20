@@ -45,6 +45,8 @@ type TaskStatus = {
   claimUrl?: string | null;
   /** Owner-only URL projected from a persisted ready reconstruction. */
   sceneViewUrl?: string | null;
+  /** The server holds a recording, whichever device sent it. */
+  captureReceived?: boolean;
 };
 import { useRoute } from "wouter";
 
@@ -226,7 +228,6 @@ export default function SelfCaptureUpload() {
   // ask, so it is offered, not required. Either way the objects themselves come
   // from the item photos, not this walkthrough. Purely a client hint that steers
   // the filming guidance; it changes nothing about how the video is stored.
-  const [clearItems, setClearItems] = useState<"in_place" | "cleared">("in_place");
 
   // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
   // the capture-blocking gates change what to film; if one of those is still
@@ -428,6 +429,7 @@ export default function SelfCaptureUpload() {
           ...data.status,
           claimUrl: data.claimUrl ?? null,
           sceneViewUrl: data.sceneViewUrl ?? null,
+          captureReceived: data.captureReceived === true,
         });
       } catch { /* The capture remains usable during a status outage. */ }
       if (alive) timer = setTimeout(poll, 6000);
@@ -438,6 +440,12 @@ export default function SelfCaptureUpload() {
 
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
+
+  // Saved on this device, or on another one: the laptop that showed the QR
+  // code reaches the same layout once the phone's recording lands.
+  // A named coverage gap keeps the camera in front instead.
+  const saved = upload.status === "done"
+    || (upload.status === "idle" && status?.captureReceived === true && status.decision !== "add_views");
 
   // "Where this stands", for the operator who has no account. It carries a
   // re-film request when there is one, so it is never dropped -- but on a
@@ -467,15 +475,23 @@ export default function SelfCaptureUpload() {
         </p>
       )}
       {status.claimUrl && (
-        /* The account moment, and the only one on this page: there is now
-           something behind it to see. The link is minted server-side for the
-           owner's link alone; a film-only link never receives one. */
+        /* The account moment. Offered from the confirmed brief onward, as an
+           option: the link keeps working without it. The URL is minted
+           server-side for the owner's link alone; a film-only link never
+           receives one. */
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.claimUrl}>
-            {status.sceneViewUrl && status.decision !== "screening" && status.decision !== "results"
-              ? "Save your scene and follow progress"
-              : "Claim your site to see the results"}
+            {status.decision === "results" || status.decision === "screening"
+              ? "Claim your site to see the results"
+              : status.sceneViewUrl
+                ? "Save your scene and follow progress"
+                : "Claim your site to follow this task"}
           </a>
+          {status.decision !== "results" && status.decision !== "screening" && (
+            <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
+              Optional. This link keeps working; an account adds a task page that tracks every step.
+            </span>
+          )}
         </p>
       )}
     </div>
@@ -501,7 +517,7 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your task assessment" : upload.status === "done" ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
+        {link.status === "held" ? "Your task assessment" : saved ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -557,6 +573,19 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
+          {upload.status !== "held" && (
+            <input
+              ref={inputRef}
+              type="file"
+              accept={accepts}
+              capture="environment"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void send(file);
+              }}
+            />
+          )}
           {upload.status === "held" ? (
             <div
               style={{
@@ -571,7 +600,7 @@ export default function SelfCaptureUpload() {
                 come back to you about it.
               </p>
             </div>
-          ) : upload.status === "done" ? (
+          ) : saved ? (
             <>
               <div
                 style={{
@@ -583,9 +612,12 @@ export default function SelfCaptureUpload() {
               >
                 <strong>Your capture is saved.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  You can close this page. We check next whether it covers the work area well enough to
-                  build the scene, and we will come back to you either way — including if one more
-                  view would finish the job.
+                  {scope === "owner" && brief && !briefConfirmed
+                    ? "One thing left for you: check the task brief below and confirm it. "
+                    : "Nothing more is needed from you right now. "}
+                  We check whether the video covers the work area well enough to build the scene,
+                  and we will come back to you either way, including if one more view would finish
+                  the job.
                 </p>
               </div>
               {/* Saved is not finished. The brief confirmation is the site's
@@ -596,15 +628,14 @@ export default function SelfCaptureUpload() {
               {statusCard}
 
               {scope === "owner" && brief && !briefConfirmed && (
-                <details style={{ marginBottom: "8px" }}>
-                  <summary>
-                    {briefBlocksCapture
-                      ? "A couple of answers refine what to film"
-                      : "Review your task brief"}
-                  </summary>
+                /* Open, not collapsed: this is the one step left, and a closed
+                   disclosure under a "you can close this page" card read as
+                   optional. */
+                <details open style={{ marginBottom: "8px" }}>
+                  <summary>Next: check your task brief</summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. Confirming the brief is what lets a robot
-                    team be matched to your site.
+                    We drafted this from what you sent. Correct anything wrong, then confirm. That
+                    is what lets a robot team be matched to your site.
                   </p>
                   <TaskBriefReview
                     token={token}
@@ -617,8 +648,10 @@ export default function SelfCaptureUpload() {
               <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
               <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
-                Filmed another angle? It can be added the same way — we will use whichever views
-                cover the work area best.
+                Filmed another angle? We will use whichever views cover the work area best.{" "}
+                <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
+                  Add another video
+                </button>
               </p>
             </>
           ) : !onAPhone ? (
@@ -669,74 +702,20 @@ export default function SelfCaptureUpload() {
                 onSaved={() => setUpload({ status: "done" })}
               />
 
-              {/* The clean-plate option. Clearing the loose items and filming the
-                  empty space rebuilds cleaner than filming around them and having
-                  to remove them later -- but it is a real ask, so it is offered,
-                  not required. Either way the items come from the photos below. */}
-              <fieldset style={{ border: "none", padding: 0, margin: "16px 0 0" }}>
-                <legend className="ms-field-hint" style={{ padding: 0, marginBottom: "6px" }}>
-                  Can you move the loose items out of the way first?
-                </legend>
-                <label htmlFor="cap-in-place" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                  <input
-                    id="cap-in-place"
-                    type="radio"
-                    name="clear-items"
-                    checked={clearItems === "in_place"}
-                    onChange={() => setClearItems("in_place")}
-                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ fontWeight: 400 }}>No — film it as it normally is</span>
-                </label>
-                <label htmlFor="cap-cleared" style={{ display: "flex", minHeight: "44px", alignItems: "center", gap: "10px" }}>
-                  <input
-                    id="cap-cleared"
-                    type="radio"
-                    name="clear-items"
-                    checked={clearItems === "cleared"}
-                    onChange={() => setClearItems("cleared")}
-                    style={{ width: "auto", minHeight: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ fontWeight: 400 }}>Yes — I’ll clear it and film the empty space</span>
-                </label>
-              </fieldset>
-
-              {/* Coverage is about occlusion, not thoroughness: whatever the camera
-                  never sees gets guessed, so the instruction is overlap and angles,
-                  not "a lap". And the pass is static -- motion is a ghost in the
-                  result. */}
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
-                {clearItems === "cleared"
-                  ? "Clear the loose items, then film the empty space. Move slowly and overlap your "
-                    + "passes — cover every surface from a few heights, especially right around where "
-                    + "the work happens. Keep it still: no people, nothing moving. Photograph the "
-                    + "items themselves below."
-                  : "Move slowly and overlap your passes — cover every surface from a few heights, "
-                    + "especially right around where the work happens. Keep the scene still: no people "
-                    + "or moving items in frame."}
+                Move slowly and overlap your passes. Cover every surface near where the work
+                happens, from a few heights. Keep the scene still, with nobody in frame.
               </p>
             </>
           )}
 
-          {upload.status !== "held" && upload.status !== "done" && (
+          {upload.status !== "held" && !saved && (
             <>
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
                 {onAPhone
-                  ? "Already have a video? Upload it instead — if it covers the work area we will use it rather than ask you to film again."
+                  ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
-
-              <input
-                ref={inputRef}
-                type="file"
-                accept={accepts}
-                capture="environment"
-                style={{ display: "none" }}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void send(file);
-                }}
-              />
 
               <button
                 type="button"

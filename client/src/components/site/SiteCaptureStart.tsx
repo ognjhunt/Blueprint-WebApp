@@ -1,6 +1,6 @@
 import { isLikelyPhone } from "@/lib/device";
 /** Start with a task and capture permission; assess the work from its evidence. */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
@@ -32,6 +32,9 @@ type State =
       status: "done";
       captureUrl: string | null;
       workspaceUrl: string | null;
+      // Set when a signed-in account could not own the site (it is not a site
+      // workspace) and the save fell back to the emailed link instead.
+      linkOnlyNote: string | null;
       selfRecording: boolean;
       email: string;
       regionApproved: boolean;
@@ -47,6 +50,30 @@ function splitName(value: string) {
 
 export function SiteCaptureStart() {
   const { currentUser, loading } = useAuth();
+  // Which workspace the signed-in account holds. A robot-team account can
+  // still start a site: it is saved to the emailed link rather than blocked.
+  const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/workspace/setup", {
+          credentials: "include",
+          headers: await withFirebaseAuthHeaders(currentUser),
+        });
+        const data = (await response.json().catch(() => ({}))) as { workspaceType?: string | null };
+        if (!cancelled) setWorkspaceType(response.ok ? data.workspaceType ?? null : null);
+      } catch {
+        if (!cancelled) setWorkspaceType(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentUser]);
+  const siteWorkspace = Boolean(currentUser) && workspaceType === "site_operator";
+  // The phone's recording has landed on the server. The laptop then stops
+  // being a handoff and becomes the place to do the next step.
+  const [captureReceived, setCaptureReceived] = useState(false);
   const requestId = useRef(`capture-${crypto.randomUUID()}`);
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
@@ -82,11 +109,8 @@ export function SiteCaptureStart() {
 
     try {
       const { firstName, lastName } = splitName(read("startName"));
-      const response = await fetch(currentUser ? "/api/workspace/capture-start" : "/api/inbound-request", {
-        method: "POST",
-        credentials: "include",
-        headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({
+      const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
+      const body = JSON.stringify({
           requestId: requestId.current,
           firstName,
           lastName,
@@ -122,8 +146,16 @@ export function SiteCaptureStart() {
           context: {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
-        }),
       });
+      const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
+      // Unknown type (the lookup is still in flight or failed) still tries the
+      // workspace first; a refusal falls back with the same answers intact.
+      let savedToWorkspace = Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
+      let response = await post(savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request");
+      if (savedToWorkspace && response.status === 403) {
+        savedToWorkspace = false;
+        response = await post("/api/inbound-request");
+      }
 
       const result = (await response.json().catch(() => ({}))) as {
         captureUrl?: string | null;
@@ -160,7 +192,10 @@ export function SiteCaptureStart() {
 
       setState({
         status: "done",
-        workspaceUrl: currentUser ? `/app/tasks/${requestId.current}` : null,
+        workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
+        linkOnlyNote: currentUser && !savedToWorkspace
+          ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
+          : null,
         captureUrl: typeof result.captureUrl === "string" ? result.captureUrl : null,
         selfRecording,
         email,
@@ -179,6 +214,7 @@ export function SiteCaptureStart() {
     return (
       <div className="ms-form" aria-live="polite">
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
+        {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.regionApproved ? (
           <>
             <h2 style={{ marginTop: 0 }}>We have your site.</h2>
@@ -187,6 +223,18 @@ export function SiteCaptureStart() {
               We will reply to {state.email}. If you already have footage, do not send it yet —
               we would have to delete it unread.
             </p>
+          </>
+        ) : state.selfRecording && state.captureUrl && captureReceived ? (
+          <>
+            <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
+            <p className="ms-field-hint">
+              Next, check the task brief we drafted from it. You can do that here or on the phone;
+              it is the same page.
+            </p>
+            <p style={{ marginTop: "20px" }}>
+              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your task brief</a>
+            </p>
+            <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
         ) : state.selfRecording && state.captureUrl ? (
           <>
@@ -220,7 +268,7 @@ export function SiteCaptureStart() {
             {/* The laptop, watching the phone through the server's own status
                 rather than guessing. Renders nothing until there is something
                 real to say, and never blocks the capture happening elsewhere. */}
-            <CaptureLiveStatus captureUrl={state.captureUrl} />
+            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => setCaptureReceived(true)} />
           </>
         ) : (
           <>
@@ -365,7 +413,9 @@ export function SiteCaptureStart() {
       </div>
 
       </>}
-      {currentUser && <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>}
+      {currentUser && workspaceType !== undefined && (siteWorkspace
+        ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
+        : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. This site will be saved to the link we email you, and you can claim it later.</p>)}
 
       {/* Bot bait: hidden from people, honoured by the server. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>

@@ -88,10 +88,22 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
-  it("reads assessing while nobody has run against the scene, and offers no claim", async () => {
+  it("reads assessing while nobody has run against the scene, and already offers the claim", async () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(body.status.decision).toBe("assessing");
+    expect(body.captureReceived).toBe(false);
+    expect(body.claimUrl).toMatch(/\/claim\/.+/);
+  });
+
+  it("offers no claim before the brief is confirmed", async () => {
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    const { site_task_brief_confirmed_at: _confirmed, ...unconfirmed } = record;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", unconfirmed);
+
+    const { body } = await status();
+
+    expect(body.status.decision).toBe("confirm_brief");
     expect(body.claimUrl ?? null).toBeNull();
   });
 

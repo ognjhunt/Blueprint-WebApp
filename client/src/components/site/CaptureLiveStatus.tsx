@@ -35,7 +35,14 @@ function tokenFromCaptureUrl(captureUrl: string): string | null {
   return token || null;
 }
 
-export function CaptureLiveStatus({ captureUrl }: { captureUrl: string }) {
+export function CaptureLiveStatus({
+  captureUrl,
+  onCaptureReceived,
+}: {
+  captureUrl: string;
+  /** Fired once the server holds the recording, so the page can move past the handoff. */
+  onCaptureReceived?: () => void;
+}) {
   const [status, setStatus] = useState<LiveStatus | null>(null);
   const token = tokenFromCaptureUrl(captureUrl);
 
@@ -48,7 +55,8 @@ export function CaptureLiveStatus({ captureUrl }: { captureUrl: string }) {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token!)}/status`);
         if (response.ok) {
-          const data = (await response.json()) as { status?: LiveStatus };
+          const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean };
+          if (alive && data?.captureReceived === true) onCaptureReceived?.();
           if (alive && data?.status?.headline) {
             setStatus({ headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
           }

@@ -581,10 +581,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
-    // Offer an account at the first viewable result. Robot evaluation can
-    // continue afterward; a visual reconstruction is not an evaluation result.
+    // Keep the optional claim from brief confirmation onward, including the
+    // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =
-      (sceneViewUrl || status.decision === "screening" || status.decision === "results") &&
+      (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
+        || status.decision === "screening" || status.decision === "results") &&
       payload.scope !== "film" && !request?.account_owner_uid
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
@@ -597,6 +598,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ok: true,
       scope: payload.scope,
       status,
+      // The completion marker, as a fact: the laptop that showed the QR code
+      // reads this to know the phone's recording landed.
+      captureReceived: hasStoredCapture,
       summary: brief?.summary ?? null,
       claimUrl,
       sceneViewUrl,
