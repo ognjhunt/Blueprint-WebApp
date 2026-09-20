@@ -871,6 +871,9 @@ export default function AdminTaskEvaluationLaunches() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="runway-num text-sm font-semibold text-runway-text">{offering.scene_identity.id}</p>
+                        {offering.proof_boundary?.test_environment && (
+                          <p className="mt-2 text-sm text-runway-muted">{offering.proof_boundary.test_environment.label}</p>
+                        )}
                         <p className="mt-1 text-sm text-runway-mute">
                           {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
                         </p>

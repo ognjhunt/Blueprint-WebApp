@@ -75,3 +75,17 @@ describe("SitePacks configured offering", () => {
     expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
   });
 });
+
+
+it("labels the authored-surface development test separately from captured-scene readiness", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [{
+    ...offering("configured_controls_pending", "development-launch"),
+    proof_boundary: { test_environment: {
+      label: "Development test on an authored surface; captured scene integration pending.",
+      captured_scene_evaluation_allowed: false,
+    } },
+  }] }), { status: 200, headers: { "content-type": "application/json" } }));
+  render(<SitePacks />);
+  expect(await screen.findByText("Development test on an authored surface; captured scene integration pending.")).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /configure evaluation/i })).not.toBeInTheDocument();
+});

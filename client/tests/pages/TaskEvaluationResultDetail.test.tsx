@@ -103,3 +103,11 @@ it("offers anonymous sign-in without revealing a private pending run", () => {
   expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   expect(screen.queryByText("Run registered · results pending")).not.toBeInTheDocument();
 });
+
+
+it("identifies synthetic development results without implying captured-room evaluation", () => {
+  const value = result();
+  value.publication.scene = { id: "site-capture-example-development-configured", revision_digest: `sha256:${"a".repeat(64)}` };
+  show(value);
+  expect(screen.getByText("Development test on an authored surface; captured scene integration pending.")).toBeInTheDocument();
+});

@@ -1,3 +1,4 @@
+import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
@@ -142,6 +143,7 @@ export const configuredSceneOfferingSchema = z.object({
     configured_scene_bundle: artifactReference,
   }).strict(),
   proof_boundary: z.object({
+    test_environment: websiteDevelopmentTestEnvironment.optional(),
     thumbnail_is_derived_appearance_evidence: z.literal(true),
     thumbnail_is_capture_or_physical_evidence: z.literal(false),
     appearance_visual_review_completed: z.boolean().optional(),
@@ -159,6 +161,10 @@ export const configuredSceneOfferingSchema = z.object({
   public_display: publicDisplay.optional(),
   offering_digest: digest,
 }).strict().superRefine((offering, context) => {
+  if (offering.proof_boundary.test_environment && (offering.public_display
+    || !offering.scene_identity.id.endsWith("-development-configured"))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "development test must remain a separate private scene" });
+  }
   if (offering.task.strategy === "pick_and_place") {
     // The object needs somewhere to go, and that somewhere must not be the
     // object. A destination probe and a surface target both satisfy that.

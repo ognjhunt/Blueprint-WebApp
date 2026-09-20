@@ -130,6 +130,9 @@ export default function SitePacks() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="runway-num font-semibold text-ink-900">{offering.scene_identity.id}</h2>
+                      {offering.proof_boundary?.test_environment && (
+                        <p className="mt-2 text-sm text-ink-700">{offering.proof_boundary.test_environment.label}</p>
+                      )}
                       <p className="runway-num mt-1 text-caption text-ink-500">
                         {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
                       </p>

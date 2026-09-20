@@ -32,6 +32,12 @@ export type ConfiguredSceneOfferingCard = {
     configured_scene_bundle: { uri: string; digest: string; size_bytes: number };
   };
   proof_boundary: {
+    test_environment?: {
+      kind: "authored_surface_component_test";
+      label: string;
+      captured_scene_integration: "pending";
+      captured_scene_evaluation_allowed: false;
+    };
     thumbnail_is_derived_appearance_evidence: true;
     thumbnail_is_capture_or_physical_evidence: false;
     configuration_is_policy_evaluation: false;
