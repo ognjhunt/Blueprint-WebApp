@@ -122,6 +122,8 @@ export default function SitePacks() {
               const controlsPending = offering.status === "configured_controls_pending";
               const appearanceUngraded = offering.presentation.appearance_review_status
                 === "paused_ungraded";
+              const objectPreview = offering.presentation.appearance_review_status
+                === "prepared_scene_ungraded";
               const ownerAccepted = offering.presentation.appearance_review_status
                 === "human_accepted_with_known_artifacts";
               return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
@@ -148,6 +150,11 @@ export default function SitePacks() {
                   {ownerAccepted ? (
                     <p className="mt-3 text-caption text-ink-700" title={`Owner-acknowledged artifacts: ${offering.presentation.known_artifacts?.join("; ") ?? ""}`}>
                       Owner accepted; AI review rejected
+                    </p>
+                  ) : null}
+                  {objectPreview ? (
+                    <p className="mt-3 text-caption text-ink-700">
+                      Generated task-object preview; scene appearance ungraded
                     </p>
                   ) : null}
                   {appearanceUngraded ? (
