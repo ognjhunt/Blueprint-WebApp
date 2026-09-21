@@ -83,6 +83,7 @@ export async function loadConfiguredSceneOffering(launchId: string) {
 export async function policyCanarySetupFor(
   sourceLaunchId: string,
   offering: ConfiguredSceneOffering,
+  setupDigest?: string,
 ) {
   const catalog = await resolvePublishedLaunchProfileCatalog();
   if (catalog.blocker) return {
@@ -95,6 +96,7 @@ export async function policyCanarySetupFor(
     return Boolean(
       profile.source_commit
       && setup
+      && (!setupDigest || setup.setup_digest === setupDigest)
       && setup.source_launch_id === sourceLaunchId
       && setup.offering_digest === offering.offering_digest
       && setup.scene_revision_digest
@@ -174,7 +176,7 @@ export async function submitPolicyCanaryRun(params: {
       "Notification email must match the authenticated account or an admin-approved internal recipient.",
     ));
   }
-  const setup = await policyCanarySetupFor(launchId, offering);
+  const setup = await policyCanarySetupFor(launchId, offering, selection.setup_digest);
   if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
     setup.code,
     "A verified runnable policy-canary setup is not published for this exact configured revision.",
