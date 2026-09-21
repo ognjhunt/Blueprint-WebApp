@@ -15,6 +15,8 @@ function publicCard(
   const display = offering.public_display;
   if (
     !display
+    || offering.presentation.appearance_review_status === "prepared_scene_ungraded"
+    || offering.presentation.warning_label === "Generated task-object preview; scene appearance ungraded"
     || display.status !== "authorized"
     || (
       offering.status !== "configured_controls_pending"
