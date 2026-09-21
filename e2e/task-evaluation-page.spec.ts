@@ -10,6 +10,7 @@ for (const width of [390, 1440]) {
     const runId = report.publication.run_id;
     let submissions=0;
     let resultReads=0;
+    let savedModel:Record<string,unknown>|null=null;
     let receipt:Record<string,unknown>={id:`scene-${"a".repeat(64)}`,state:"forward_pending"};
     await page.clock.install();
     await page.route("**/api/**",async route=>{
@@ -26,6 +27,10 @@ for (const width of [390, 1440]) {
       if(path===`/api/task-evaluation-results/${report.record_id}`) {
         resultReads++;
         return route.fulfill({json:report});
+      }
+      if(path==="/api/workspace/setups") {
+        savedModel=route.request().postDataJSON();
+        return route.fulfill({json:savedModel});
       }
       if(path==="/api/csrf") return route.fulfill({json:{csrfToken:"fixture"}});
       if(path.endsWith("/team-evaluation-context")) return route.fulfill({json:{
@@ -53,6 +58,20 @@ for (const width of [390, 1440]) {
     await expect(page.getByText("30 seconds")).toBeVisible();
     await page.getByText("Task data",{exact:true}).click();
     await expect(page.getByText(/Configured scene and task assets/)).toBeVisible();
+    await page.getByRole("button",{name:"Add a setup",exact:true}).click();
+    for(const [label,value] of [["Setup name","Private mobile setup"],["Robot / embodiment","Mobile robot"],["Policy name","Private policy"],["Version or checkpoint","v1"],["Reference URL","https://example.test/inference"]])
+      await page.getByLabel(label,{exact:true}).fill(value);
+    await page.getByRole("combobox",{name:"Delivery method",exact:true}).selectOption("endpoint");
+    await page.getByRole("combobox",{name:"Robot model",exact:true}).selectOption("model");
+    await page.getByLabel("Robot model URL",{exact:true}).fill("https://example.test/mobile.urdf");
+    await page.getByRole("combobox",{name:"Robot type",exact:true}).selectOption("mobile");
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({animations:"disabled",path:`output/qa/result-consumer/robot-setup-${width}.png`,fullPage:true});
+    await page.getByRole("button",{name:"Save setup",exact:true}).click();
+    await expect(page.getByText(/needs simulation validation/)).toBeVisible();
+    expect(savedModel).toMatchObject({delivery:"endpoint",robotDescription:{source:"model",format:"urdf",mobility:"mobile"}});
+    await expect(page.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+    expect(submissions).toBe(0);
     await page.getByLabel("Saved robot and policy").selectOption("saved-one");
     await expect(page.getByRole("spinbutton")).toHaveCount(0);
     await expect(page.getByText(/you won’t be charged/)).toBeVisible();

@@ -83,6 +83,7 @@ it("adds a missing saved setup inline without submitting an evaluation",async()=
   fireEvent.click(screen.getByRole("button",{name:"Add a setup"}));
   for (const [label,value] of [["Setup name","New robot"],["Robot / embodiment","Franka"],["Policy name","GR00T"],["Version or checkpoint","1.7"],["Reference URL","https://example.test/checkpoint"]])
     fireEvent.change(screen.getByLabelText(label),{target:{value}});
+  fireEvent.change(screen.getByLabelText("Robot model",{exact:true}),{target:{value:"franka"}});
   fireEvent.submit(screen.getByRole("button",{name:"Save setup"}).closest("form")!);
   await screen.findByText("New robot · GR00T");
   expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({name:"New robot",reference:"https://example.test/checkpoint"}));
@@ -96,4 +97,36 @@ it("does not offer the development payment bypass to ordinary accounts",async()=
     expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
     expect(screen.queryByText(/you won’t be charged/)).not.toBeInTheDocument();
   } finally {context.checkout.developmentNoCharge=true;}
+});
+
+
+it("saves a custom physical model independently of a private endpoint policy",async()=>{
+  render(<TeamEvaluationSelection/>);await screen.findByText("My saved robot · GR00T");
+  fireEvent.click(screen.getByRole("button",{name:"Add a setup"}));
+  for (const [label,value] of [["Setup name","Mobile robot"],["Robot / embodiment","Custom"],["Policy name","Private policy"],["Version or checkpoint","v2"],["Reference URL","https://example.test/inference"]])
+    fireEvent.change(screen.getByLabelText(label),{target:{value}});
+  fireEvent.change(screen.getByLabelText("Delivery method"),{target:{value:"endpoint"}});
+  fireEvent.change(screen.getByLabelText("Robot model",{exact:true}),{target:{value:"model"}});
+  fireEvent.change(screen.getByLabelText("Robot model URL"),{target:{value:"https://example.test/robot.urdf"}});
+  fireEvent.change(screen.getByLabelText("Robot type"),{target:{value:"mobile"}});
+  fireEvent.submit(screen.getByRole("button",{name:"Save setup"}).closest("form")!);
+  await screen.findByText("Mobile robot · Private policy");
+  expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({delivery:"endpoint",robotDescription:{source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:""}}));
+  expect(screen.getByText(/needs simulation validation/)).toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+  expect(posts).toHaveLength(0);
+});
+
+
+it("requires refreshing a saved catalog model after its execution configuration changes",async()=>{
+  const original=context.setups;
+  context.setups=[{...original[0],executionBindingId:"franka",robotDescription:{source:"catalog",configurationId:"franka",configurationDigest:"old"}}] as any;
+  try {
+    render(<TeamEvaluationSelection/>);await screen.findByText("My saved robot · GR00T");
+    fireEvent.change(screen.getByLabelText("Saved robot and policy"),{target:{value:"saved-one"}});
+    expect(screen.getByText(/robot configuration has changed/)).toBeInTheDocument();
+    expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+    expect(posts).toHaveLength(0);
+  } finally {context.setups=original;}
 });

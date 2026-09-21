@@ -12,6 +12,7 @@ import {
   Tag,
   useAction,
 } from "@/components/workspace/WorkspaceUI";
+import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
@@ -256,6 +257,7 @@ function WorkspaceSettings() {
                     delivery: value("delivery"),
                     reference: value("reference"),
                     notes: value("notes"),
+                    robotDescription: readRobotDescription(values,editing!=="new" && editing.robotDescription?.source==="catalog" ? [{id:editing.robotDescription.configurationId,label:"Saved robot model",binding_digest:editing.robotDescription.configurationDigest}] : []),
                     ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
                   },
                   () => setEditing(null),
@@ -263,6 +265,7 @@ function WorkspaceSettings() {
               }}
             >
               <h2>{editing === "new" ? "Add a setup" : "Edit setup"}</h2>
+              <RobotDescriptionFields value={editing==="new"?undefined:editing.robotDescription} />
               <div className="ws-fields ws-section">
                 {[
                   ["name", "Setup name", "e.g. Atlas M2"],
@@ -279,7 +282,7 @@ function WorkspaceSettings() {
                       defaultValue={
                         editing === "new"
                           ? ""
-                          : editing[name as keyof RobotSetup]
+                          : String(editing[name as keyof RobotSetup] || "")
                       }
                     />
                   </Field>

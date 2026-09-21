@@ -89,3 +89,19 @@ it("refuses a mismatched worker key and reads the same ciphertext once configura
   await expect(loadRobotSetups("owner")).resolves.toEqual([{id:"saved-one",name:"My robot",executionBindingId:"franka"}]);
   expect(setupPayload.value).toEqual(original);
 });
+
+
+it("does not route a custom robot model through a saved Franka binding",()=>{
+  const {context,command,setup}=fixture();
+  const custom={...setup,robotDescription:{source:"model" as const,format:"urdf" as const,
+    reference:"https://example.test/custom.urdf",mobility:"mobile" as const,details:""}};
+  expect(()=>buildTeamEvaluationRequest(command,context,custom,owner,1000)).toThrow("robot_model_validation_required");
+});
+it("refuses a robot configuration version changed since the setup was saved",()=>{
+  const {context,command,setup}=fixture();
+  const saved={...setup,robotDescription:{source:"catalog" as const,configurationId:command.configurationId,
+    configurationDigest:sha("1")}};
+  expect(()=>buildTeamEvaluationRequest(command,context,saved,owner,1000)).toThrow("robot_configuration_changed");
+  saved.robotDescription.configurationDigest=command.configurationDigest;
+  expect(buildTeamEvaluationRequest(command,context,saved,owner,1000).task.robot_binding_digest).toBe(command.configurationDigest);
+});
