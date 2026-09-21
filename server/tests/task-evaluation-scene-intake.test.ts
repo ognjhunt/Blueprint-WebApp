@@ -1483,3 +1483,14 @@ it("reopens a team selection in the durable outbox and refuses a changed setup b
     expect(JSON.parse(fetcher.mock.calls[0][1].body).task.evaluation_source.evaluation_run_id).toBe("team-one");
   } finally {rebuild.mockRestore();}
 });
+
+
+it("reads one retained request for its exact owner only",async()=>{
+  const url=await app();
+  const created=await realFetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(command())});
+  const receipt=await created.json();
+  const read=await realFetch(`${url}/${receipt.id}`);
+  expect(read.status).toBe(200);
+  expect(await read.json()).toMatchObject({id:receipt.id,request_digest:receipt.request_digest});
+  expect((await realFetch(`${url}/${receipt.id}`,{headers:{"x-user":"other"}})).status).toBe(404);
+});

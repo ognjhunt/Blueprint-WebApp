@@ -273,6 +273,18 @@ router.get("/options", async (_req, res) => {
     policy_catalog_blocker: catalog.blocker || null,
   });
 });
+router.get("/:id", async (req, res) => {
+  if (!db) return res.status(503).json({error:"Intake store unavailable"});
+  if (!/^scene-[0-9a-f]{64}$/.test(req.params.id)) return res.status(404).json({error:"Intake not found"});
+  try {
+    const owner=sceneOwner(res.locals.firebaseUser || {});
+    const snapshot=await storeTimeout(db.collection(SCENE_INTAKE_COLLECTION).doc(req.params.id).get());
+    const value=snapshot.data();
+    if (!value || sceneDigest(value.request.owner)!==sceneDigest(owner))
+      return res.status(404).json({error:"Intake not found"});
+    return res.json(projection(req.params.id,value));
+  } catch {return res.status(503).json({error:"Intake status unavailable"});}
+});
 router.post("/:id/revoke", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Intake store unavailable" });
   if (!/^scene-[0-9a-f]{64}$/.test(req.params.id))

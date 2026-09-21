@@ -22,7 +22,10 @@ export default function TeamEvaluationSelection() {
   const [cap,setCap]=useState(20);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
-  const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string}}|null>(null);
+  const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string}}|null>(()=>{
+    const id=new URLSearchParams(window.location.search).get("intake");
+    return id && /^scene-[a-f0-9]{64}$/.test(id)?{id,state:"forward_pending"}:null;
+  });
   const runId=useMemo(()=>`team-eval-${crypto.randomUUID()}`,[sourceLaunchId]);
   const expires=useMemo(()=>Math.floor(Date.now()/1000)+86400,[sourceLaunchId]);
   async function request(path:string,body?:unknown) {
@@ -73,6 +76,9 @@ export default function TeamEvaluationSelection() {
         consent:{provider_terms_reference:openai.digest,private_processing_authorized:true,
           provider_training_authorized:false,task_confirmed:true,spend_authorized:true},
       });
+      const url=new URL(window.location.href);
+      url.searchParams.set("intake",result.id);
+      window.history.replaceState(null,"",url);
       setReceipt(result);
     } catch(reason) { setError(reason instanceof Error?reason.message:"Could not queue the evaluation."); }
     finally {setBusy(false);}
