@@ -6,6 +6,24 @@ const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1).max(240);
 const finiteNonnegative = z.number().finite().nonnegative();
 
+// Pipeline validates the native target seal; the web contract digest below
+// binds every target field and must match the published setup unchanged.
+const surfaceTargetSchema = z.object({
+  schema_version: z.literal("task_evaluation_surface_target.v1"),
+  shape: z.literal("flat_green_disc"),
+  non_colliding: z.literal(true),
+  visible_label: nonEmpty,
+  radius_m: z.number().finite().positive().max(0.5),
+  surface_position_world_m: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+  support_prim_path: z.string().startsWith("/"),
+  support_source_instance_id: nonEmpty,
+  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  stable_seconds: z.number().finite().positive(),
+  maximum_linear_speed_m_s: z.number().finite().positive(),
+  maximum_angular_speed_rad_s: z.number().finite().positive(),
+  target_digest: digest,
+}).strict();
+
 const destinationContainmentSchema = z.object({
   mode: z.enum(["required", "ignored"]),
   position_bounds_world_m: z.object({
@@ -85,6 +103,7 @@ const temporalInvariantsSchema = z.object({
 }).strict();
 
 export const rigidTaskSuccessCriteriaSchema = z.object({
+  surface_target: surfaceTargetSchema.optional(),
   destination_containment: destinationContainmentSchema,
   orientation: orientationSchema,
   support: supportSchema,
