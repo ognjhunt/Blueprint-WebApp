@@ -1028,7 +1028,7 @@ const fundingSchema = z
  * ## No price is invented here
  *
  * A top-up is face value: ask for $100, pay $100, get $100 of balance. Run
- * prices still come from `episodePricing` and are quoted per run. That is why
+ * prices still come from `evaluationPricing` and are quoted per run. That is why
  * this can be self-serve at all — a number the team chose, charged at face
  * value, is not a commercial term that needs approving.
  *

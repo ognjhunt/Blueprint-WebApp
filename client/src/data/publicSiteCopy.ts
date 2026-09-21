@@ -559,8 +559,8 @@ export const howItWorksSplit = {
 
 // `pricingHero` was here, carrying "$1,000 to evaluate a site-task. Win it and
 // the total is $10,000" -- a different commercial model from the one /pricing
-// ships, which computes every figure from `@/lib/episodePricing` ($0.50 an
-// episode, 50 to screen a checkpoint, finalist round funded by Blueprint).
+// ships, which computes every figure from `@/lib/evaluationPricing` ($99 an
+// entry, where an entry is one policy on one embodiment against one task).
 //
 // Deleted rather than corrected. Nothing imported it, so it was not a live
 // contradiction; it was a loaded one, sitting in a file called

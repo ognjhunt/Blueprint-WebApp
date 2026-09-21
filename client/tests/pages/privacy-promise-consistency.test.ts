@@ -14,7 +14,7 @@
 import { describe, expect, it } from "vitest";
 
 import { capturePrivacyAnnex } from "@/pages/Privacy";
-import { siteAssessment } from "@/lib/episodePricing";
+import { siteAssessment } from "@/lib/evaluationPricing";
 
 function annexRow(label: string): string {
   const row = capturePrivacyAnnex.find((entry) => entry[0] === label);

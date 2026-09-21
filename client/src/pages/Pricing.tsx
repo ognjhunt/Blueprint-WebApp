@@ -1,50 +1,41 @@
 /**
  * Pricing, in the minimal public design language.
  *
- * The page keeps two bills apart, and keeps one of them out of a reader's way
- * entirely. A site is buying a decision and pays once, all-in; it should never
- * have to learn what an episode is to understand its own invoice, so no
- * per-unit rate appears anywhere in the site column. A robot team is buying
- * execution, and buys exactly one thing: screening.
+ * One number a robot team has to read, and one a site has to read. The page
+ * that stood here sold episodes — a rate, two round sizes, the gap each count
+ * could resolve, and the audit literature behind the choice — which asked the
+ * buyer to solve a statistics problem before it could read a price. The
+ * episode counts still exist; they are ours to set now, and they live in
+ * `@/lib/evaluationPricing` below its operating-constants line, off this page
+ * entirely.
  *
- * The four-tier ladder this page used to carry is gone. A menu of budgets asks
- * the buyer to solve a statistics problem in order to pick a line item, and the
- * honest answer — how many episodes separate two candidates — does not vary by
- * customer. Two fixed rounds answer it once.
+ * What is left is the arithmetic: entries × tasks × $99, with the definition of
+ * an entry next to it, because "one policy on one embodiment" is the only part
+ * of this model a buyer can get wrong.
  *
- * Every figure is computed from `@/lib/episodePricing`, so the rate, the quote
- * table and the round counts cannot drift apart. What each round resolves is
- * stated next to what it costs, including where it stops: screening never names
- * a winner, and the finalist round reports a tie it cannot separate rather than
- * inventing one.
+ * Every figure is still computed from the pricing module, so nothing here can
+ * drift from what the API quotes.
  */
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
 import {
-  balanceModel,
   billingRules,
-  episodeBoundaries,
-  episodeDefinition,
-  episodeRate,
-  episodesForBalance,
-  finalistRound,
-  formatCount,
+  entryBoundaries,
+  entryDefinition,
+  entryModel,
+  entryPrice,
   formatPrice,
-  quoteScreening,
+  included,
+  includedLimit,
+  quoteEntries,
   quoteExamples,
-  rounds,
-  screeningRound,
-  shortlistRule,
   siteAssessment,
-} from "@/lib/episodePricing";
+} from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Sites pay nothing to find out whether a robot can do the job. Robot teams pay $0.50 per episode to screen checkpoints against real sites — and nothing more if they are shortlisted.";
-
-const sampleBalance = 200;
-const perCheckpoint = quoteScreening(1);
+  "Sites pay nothing to find out whether a robot can do the job. Robot teams pay $99 for each policy they put on a site task — and nothing more.";
 
 export default function Pricing() {
   return (
@@ -65,10 +56,10 @@ export default function Pricing() {
       <article className="ms-pricing ms-container">
         <header className="ms-pricing-intro">
           <p className="ms-eyebrow">Pricing</p>
-          <h1>Sites pay nothing to find out.<br />Robot teams pay to be screened.</h1>
+          <h1>Sites pay nothing.<br />Robot teams pay {formatPrice(entryPrice)} an entry.</h1>
           <p>
-            One payer. A site records a walkthrough and gets an answer; robot teams pay for
-            access to real sites, and that is what funds it.
+            One payer. A site records a walkthrough and gets an answer; robot teams pay for each
+            policy they put on a task, and that is what funds it.
           </p>
         </header>
 
@@ -102,99 +93,63 @@ export default function Pricing() {
           <section aria-labelledby="team-price-title">
             <p className="ms-eyebrow">If you build robots</p>
             <p className="ms-price">
-              <span className="ms-price-figure">{formatPrice(episodeRate)}</span>
-              <span className="ms-price-unit">per episode</span>
+              <span className="ms-price-figure">{formatPrice(entryPrice)}</span>
+              <span className="ms-price-unit">per entry</span>
             </p>
-            <h2 id="team-price-title">{balanceModel.summary}</h2>
-            <p className="ms-price-note">
-              {balanceModel.detail} Screening one checkpoint is{" "}
-              {formatCount(screeningRound.episodes)} episodes —{" "}
-              <strong>{formatPrice(perCheckpoint.usd)}</strong>.
-            </p>
+            <h2 id="team-price-title">{entryModel.summary}</h2>
+            <p className="ms-price-note">{entryModel.detail}</p>
             <ul className="ms-price-list">
-              {balanceModel.notCharged.map((item) => <li key={item}>{item}</li>)}
+              {entryModel.notCharged.map((item) => <li key={item}>{item}</li>)}
             </ul>
             {/*
-              The first question a team should ask about a model where vendors
-              fund the system: can a richer rival buy a longer run? Answered
-              here rather than left to be discovered.
+              The first question a team should ask about a model where the
+              seller sizes the run: can a richer rival buy a longer one?
+              Answered here rather than left to be discovered.
             */}
-            <p className="ms-price-note"><strong>{balanceModel.fairness}</strong></p>
-            <p className="ms-price-note">
-              Your balance is held in dollars, so a rate that differs for an unusual workload stays
-              honest. {formatPrice(sampleBalance)} is {formatCount(episodesForBalance(sampleBalance))}{" "}
-              standard episodes.
-            </p>
+            <p className="ms-price-note"><strong>{entryModel.fairness}</strong></p>
             <a className="ms-text-link" href="/contact/robot-team">
               Apply as a robot team <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
         </div>
 
-        <section className="ms-price-block" aria-labelledby="rounds-title">
-          <h2 id="rounds-title">The two rounds</h2>
-          <p className="ms-price-lede">
-            Every task runs the same two rounds, at the same two episode counts, for everyone. There
-            is no budget to choose and no tier to upgrade.
-          </p>
-          <div className="ms-round-pair">
-            {rounds.map((round) => (
-              <article key={round.id} className="ms-round">
-                <p className="ms-eyebrow">{round.name}</p>
-                <p className="ms-round-count">
-                  <span>{formatCount(round.episodes)}</span> episodes per candidate
-                </p>
-                <p className="ms-round-funder">{round.funder}</p>
-                {/* Only the finalist round carries this, and it has to be on
-                    the page rather than in the data: a subsidy whose
-                    sustainability is unmeasured must not read as a settled
-                    permanent feature. */}
-                {"commitment" in round ? (
-                  <p className="ms-round-funder">{round.commitment}</p>
-                ) : null}
-                <p className="ms-round-purpose">{round.purpose}</p>
-                <p className="ms-round-resolves">{round.resolves}</p>
-                <p className="ms-round-limit">{round.limit}</p>
-              </article>
-            ))}
-          </div>
-          <p className="ms-round-rule">
-            <strong>{shortlistRule.statement}</strong> {shortlistRule.detail}
-          </p>
-          <p className="ms-price-note">
-            These are Blueprint's budgets, not an industry standard. Published protocols range from
-            about ten trials per task on real hardware to five hundred per suite in simulation, and
-            audits of that work find most reported improvements are not separable at the counts
-            used. We state ours by what they resolve instead. A simulated ranking is still not a
-            real-world ranking, and no episode count closes that gap.
-          </p>
-        </section>
-
-        <section className="ms-price-block" aria-labelledby="episode-title">
-          <h2 id="episode-title">What one episode is</h2>
-          <p className="ms-price-definition">{episodeDefinition}</p>
+        {/*
+          The only part of a flat price a buyer can get wrong: whether a second
+          embodiment, or a second policy, is a second bill. Both are. So the
+          definition sits directly under the number rather than in the rules.
+        */}
+        <section className="ms-price-block" aria-labelledby="entry-title">
+          <h2 id="entry-title">What one entry is</h2>
+          <p className="ms-price-definition">{entryDefinition}</p>
           <ul className="ms-price-list">
-            {episodeBoundaries.map((item) => <li key={item}>{item}</li>)}
+            {entryBoundaries.map((item) => <li key={item}>{item}</li>)}
           </ul>
         </section>
 
         <section className="ms-price-block" aria-labelledby="quote-title">
-          <h2 id="quote-title">What screening comes to</h2>
+          <h2 id="quote-title">What it comes to</h2>
           <div className="ms-price-table">
             <table>
               <thead>
-                <tr><th scope="col">Checkpoints entered</th><th scope="col">Episodes</th><th scope="col">Price</th></tr>
+                <tr>
+                  <th scope="col">What you enter</th>
+                  <th scope="col">Entries</th>
+                  <th scope="col">Price</th>
+                </tr>
               </thead>
               <tbody>
                 {quoteExamples.map((example) => {
-                  const quote = quoteScreening(example.checkpoints);
+                  const quote = quoteEntries(example.entries, example.tasks);
                   return (
                     <tr key={example.label}>
                       <th scope="row">
                         {example.label}
-                        <span>{example.checkpoints} × {formatCount(screeningRound.episodes)} episodes</span>
+                        <span>
+                          {example.entries} {example.entries === 1 ? "entry" : "entries"} ×{" "}
+                          {example.tasks} {example.tasks === 1 ? "task" : "tasks"}
+                        </span>
                       </th>
-                      <td>{formatCount(quote.episodes)}</td>
+                      <td>{quote.units}</td>
                       <td>{formatPrice(quote.usd)}</td>
                     </tr>
                   );
@@ -203,11 +158,23 @@ export default function Pricing() {
             </table>
           </div>
           <p className="ms-price-note">
-            Checkpoints × {formatCount(screeningRound.episodes)} × {formatPrice(episodeRate)}. You
-            see that arithmetic and the balance it leaves before anything runs. If your checkpoint
-            reaches the shortlist, the {formatCount(finalistRound.episodes)}-episode finalist round
-            is run at Blueprint's cost and adds nothing to this bill.
+            Entries × tasks × {formatPrice(entryPrice)}. You see that arithmetic and the balance it
+            leaves before anything runs.
           </p>
+        </section>
+
+        <section className="ms-price-block" aria-labelledby="included-title">
+          <h2 id="included-title">What {formatPrice(entryPrice)} covers</h2>
+          <p className="ms-price-lede">
+            We handle the evaluation itself. There is no budget to choose, no episode count to size,
+            and no tier to upgrade.
+          </p>
+          <ul className="ms-price-list">
+            {included.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          {/* A flat price is a promise about cost, not about certainty. The
+              difference is the easiest thing here for a buyer to misread. */}
+          <p className="ms-price-note"><strong>{includedLimit}</strong></p>
         </section>
 
         <section className="ms-price-block" aria-labelledby="rules-title">
@@ -223,9 +190,8 @@ export default function Pricing() {
         </section>
 
         <p className="ms-price-basis">
-          These are starting prices we intend to test with buyers, not an industry rate. No
-          independent source establishes a market price for site-task robot evaluation, and neither
-          number is derived from one.
+          This is a starting price we intend to test with buyers, not an industry rate. No
+          independent source establishes a market price for site-task robot evaluation.
         </p>
 
         <div className="ms-how-cta">

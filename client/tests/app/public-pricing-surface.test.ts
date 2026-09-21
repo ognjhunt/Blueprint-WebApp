@@ -1,9 +1,9 @@
 /**
  * One price, on one surface.
  *
- * Two commercial models exist in this repo. The one that ships is per-episode:
- * `@/lib/episodePricing` says $0.50 an episode, 50 episodes to screen a
- * checkpoint, and a finalist round Blueprint funds. The other is
+ * Two commercial models exist in this repo. The one that ships is the flat
+ * entry price: `@/lib/evaluationPricing` says $99 per entry, where an entry is
+ * one policy on one embodiment against one task. The other is
  * `@/lib/deploymentPricing`: $1,000 to evaluate a site-task, $10,000 on award.
  *
  * The second one was reachable. `/internal/opportunity-board` and its five
@@ -16,6 +16,7 @@
  * opportunity board is not public, and no module feeding a public page names
  * the other model's numbers.
  */
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -69,8 +70,8 @@ describe("the public surface carries one pricing model", () => {
     }
   });
 
-  it("states the per-episode model the API actually quotes", async () => {
-    const { episodeRate, screeningRound } = await import("@/lib/episodePricing");
+  it("states the flat entry price the API actually quotes", async () => {
+    const { entryPrice, quoteEntries } = await import("@/lib/evaluationPricing");
     const { faqItems } = await import("@/pages/FAQ");
 
     const paymentAnswer = faqItems.find((item) => item.question === "How is Blueprint paid?");
@@ -78,10 +79,42 @@ describe("the public surface carries one pricing model", () => {
 
     // The figures in the answer have to be the figures in the module, or the
     // FAQ becomes the third price.
-    expect(paymentAnswer?.answer).toContain(`$${episodeRate.toFixed(2)}`);
-    expect(paymentAnswer?.answer).toContain(String(screeningRound.episodes));
-    expect(paymentAnswer?.answer).toContain(
-      `$${(screeningRound.episodes * episodeRate).toFixed(0)}`,
+    expect(paymentAnswer?.answer).toContain(`$${entryPrice}`);
+    expect(paymentAnswer?.answer).toContain(`$${quoteEntries(3, 1).usd}`);
+    expect(paymentAnswer?.answer).toContain(`$${quoteEntries(3, 2).usd}`);
+  });
+
+  it("quotes a robot team the same price the server charges it", async () => {
+    // The two had to be derived from one constant when the price was episodes
+    // times a rate, and they still do now that it is a flat number -- a public
+    // page and a server quote that disagree is the same bug either way.
+    const { entryPrice } = await import("@/lib/evaluationPricing");
+    const { screeningRunCostUsd } = await import("../../../server/utils/teamEvalCandidates");
+
+    expect(screeningRunCostUsd()).toBe(entryPrice);
+  });
+
+  it("leaves no import of the renamed pricing module behind", async () => {
+    // A stale `episodePricing` import would resolve to nothing, but a stale
+    // *reference in prose* points the next reader at a file that no longer
+    // exists, which is how a second price gets reintroduced by someone acting
+    // in good faith.
+    const tracked = execFileSync("git", ["ls-files", "client", "server", "e2e"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter((file) => /\.(ts|tsx)$/.test(file));
+
+    // This file names the old module in order to search for it, so it is the
+    // one legitimate hit and is excluded by path rather than by a cuter needle.
+    const selfPath = path.relative(repoRoot, __filename);
+    const offenders = tracked.filter(
+      (file) =>
+        file !== selfPath
+        && fs.readFileSync(path.join(repoRoot, file), "utf8").includes("episodePricing"),
     );
+
+    expect(offenders).toEqual([]);
   });
 });

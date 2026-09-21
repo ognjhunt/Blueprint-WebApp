@@ -3,11 +3,11 @@
  *
  * ## Why a balance and not an invoice
  *
- * `episodePricing.ts` has published this model for a while — "add funds, screen
- * the checkpoints you want to put forward, top up when the balance gets low" —
- * and nothing implemented it. `episodeRate`, `quoteScreening` and
- * `episodesForBalance` appeared in exactly two files: the pricing module and the
- * pricing page. A revenue model with no collection mechanism.
+ * The pricing module has published this model for a while — "add funds, enter the
+ * policies you want evaluated, top up when the balance gets low" — and nothing
+ * implemented it. Its price and quote helpers appeared in exactly two files: the
+ * pricing module and the pricing page. A revenue model with no collection
+ * mechanism.
  *
  * It matters more now than it did. The site side is free, so robot teams are the
  * only payer, and an agent spending on a team's behalf needs something it can
@@ -23,11 +23,12 @@
  *   racing cannot both spend the last dollar, because the first reservation
  *   already removed it.
  * - **Settle** turns a hold into a spend, for the amount actually consumed,
- *   which may be less than reserved. Episodes that never ran are released.
+ *   which may be less than reserved. Entries that never ran are released.
  * - **Release** returns a hold untouched, for a run that never happened.
  *
- * This is also what `billingRules` already promises publicly: "the full quote is
- * shown and reserved before a run starts, unrun episodes are released."
+ * This is also what `billingRules` already promises publicly: the full quote is
+ * shown and reserved before a run starts, and anything that never runs is
+ * released.
  *
  * ## The ledger is append-only
  *

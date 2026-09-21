@@ -576,7 +576,7 @@ export function RobotTeamPlanPreview({
           Queued {count} run{count === 1 ? "" : "s"}.
         </h2>
         <p className="ms-field-hint">
-          ${queue.reservedUsd} is reserved and settles only for episodes that actually run. Anything
+          ${queue.reservedUsd} is reserved and settles only for runs that actually happen. Anything
           that does not run is released.
         </p>
         {queue.started.length > 0 && (

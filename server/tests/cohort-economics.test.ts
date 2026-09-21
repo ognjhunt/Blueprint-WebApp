@@ -3,11 +3,11 @@
  * The arithmetic that forced the shortlist floor, and the metering that will
  * eventually settle whether the offer works at all.
  *
- * A screening entry is 50 episodes at $0.50, paid by the team. A finalist round
- * is 500 at ours. So every advancing candidate carries ten unpaid episodes for
- * each paid one -- and the shortlist rule advances a close field intact, which
- * is exactly the field screening cannot separate. Three indistinguishable
- * entrants means $75 of revenue against 1,650 executed episodes.
+ * An entry is $99 flat, paid by the team. It is screened at 50 episodes and, if
+ * it advances, runs 500 more at our cost -- and the shortlist rule advances a
+ * close field intact, which is exactly the field screening cannot separate. So
+ * three indistinguishable entrants means $297 of revenue against 1,650 executed
+ * episodes, and the entry price no longer moves when that number does.
  *
  * None of that is a measurement. The per-episode cost is the unknown, and these
  * tests pin the shape of the answer rather than pretending to know it.
@@ -42,7 +42,7 @@ const {
   projectedBreakEvenEpisodeCostUsd,
 } = await import("../utils/cohortEconomics");
 const { finalistRoundRuns, shortlistRule } = await import(
-  "../../client/src/lib/episodePricing"
+  "../../client/src/lib/evaluationPricing"
 );
 
 function cohort(overrides: Record<string, number> = {}) {
@@ -66,21 +66,22 @@ beforeEach(() => {
 });
 
 describe("the ceiling the published offer implies", () => {
-  it("leaves under five cents an episode at a thin field", () => {
-    // Three entrants, three finalists: $75 against 1,650 episodes. This is the
-    // number that makes a cold start dangerous -- the least liquid sites are
-    // the least profitable ones even when execution is cheap.
+  it("leaves eighteen cents an episode at a thin field", () => {
+    // Three entrants, three finalists: $297 against 1,650 episodes. The flat
+    // entry price bought real headroom over the 4.5c the per-episode model
+    // left here, but a cold start is still nothing but thin fields, and $297
+    // still has to fund 1,650 episodes plus the site itself.
     const ceiling = projectedBreakEvenEpisodeCostUsd({ paidEntries: 3, finalists: 3 });
 
-    expect(ceiling).toBeCloseTo(0.0455, 4);
+    expect(ceiling).toBeCloseTo(0.18, 4);
   });
 
   it("improves with entries and worsens with finalists", () => {
     const fifteenThree = projectedBreakEvenEpisodeCostUsd({ paidEntries: 15, finalists: 3 })!;
     const fifteenFive = projectedBreakEvenEpisodeCostUsd({ paidEntries: 15, finalists: 5 })!;
 
-    expect(fifteenThree).toBeCloseTo(0.1667, 4);
-    expect(fifteenFive).toBeCloseTo(0.1154, 4);
+    expect(fifteenThree).toBeCloseTo(0.66, 4);
+    expect(fifteenFive).toBeCloseTo(0.4569, 4);
     // More entries pay for more of the subsidy; more finalists spend it.
     expect(fifteenThree).toBeGreaterThan(fifteenFive);
   });
@@ -92,13 +93,15 @@ describe("the ceiling the published offer implies", () => {
 });
 
 describe("contribution, once somebody supplies a measured cost", () => {
-  it("loses money at three entrants and a dime an episode", () => {
-    // 3 × 50 + 3 × 500 = 1,650 episodes at $0.10 is $165 against $75.
+  it("clears a thin field at a dime an episode, which the old price did not", () => {
+    // 3 × 50 + 3 × 500 = 1,650 episodes at $0.10 is $165 against $297. The same
+    // field lost $90 when three entries brought in $75, so this is the single
+    // biggest thing the flat price changed.
     const result = cohortContribution({
       cohort: cohort({
         paidEntries: 3,
         finalists: 3,
-        revenueUsd: 75,
+        revenueUsd: 297,
         screeningEpisodes: 150,
         finalistEpisodes: 1_500,
       }),
@@ -106,15 +109,33 @@ describe("contribution, once somebody supplies a measured cost", () => {
       finalistEpisodeCostUsd: 0.1,
     });
 
-    expect(result.contributionUsd).toBeCloseTo(-90, 2);
+    expect(result.contributionUsd).toBeCloseTo(132, 2);
   });
 
-  it("leaves a little at fifteen entrants, before the site is prepared", () => {
+  it("still loses a thin field once execution passes its ceiling", () => {
+    // The ceiling at three entrants is 18c. At 20c the same field is underwater
+    // again, which is why the flat price bought headroom rather than immunity.
+    const result = cohortContribution({
+      cohort: cohort({
+        paidEntries: 3,
+        finalists: 3,
+        revenueUsd: 297,
+        screeningEpisodes: 150,
+        finalistEpisodes: 1_500,
+      }),
+      screeningEpisodeCostUsd: 0.2,
+      finalistEpisodeCostUsd: 0.2,
+    });
+
+    expect(result.contributionUsd).toBeCloseTo(-33, 2);
+  });
+
+  it("leaves real margin at fifteen entrants, before the site is prepared", () => {
     const result = cohortContribution({
       cohort: cohort({
         paidEntries: 15,
         finalists: 5,
-        revenueUsd: 375,
+        revenueUsd: 1_485,
         screeningEpisodes: 750,
         finalistEpisodes: 2_500,
       }),
@@ -122,30 +143,32 @@ describe("contribution, once somebody supplies a measured cost", () => {
       finalistEpisodeCostUsd: 0.1,
     });
 
-    expect(result.contributionUsd).toBeCloseTo(50, 2);
+    expect(result.contributionUsd).toBeCloseTo(1_160, 2);
   });
 
-  it("subtracts the site's own cost, which is where the margin usually goes", () => {
+  it("subtracts the site's own cost, which is where a thin field's margin goes", () => {
+    // $132 of contribution does not survive $200 of capture, review and
+    // acquisition. Execution was never the expensive part at a thin field.
     const result = cohortContribution({
       cohort: cohort({
-        paidEntries: 15,
-        finalists: 5,
-        revenueUsd: 375,
-        screeningEpisodes: 750,
-        finalistEpisodes: 2_500,
+        paidEntries: 3,
+        finalists: 3,
+        revenueUsd: 297,
+        screeningEpisodes: 150,
+        finalistEpisodes: 1_500,
         siteCostUsd: 200,
       }),
       screeningEpisodeCostUsd: 0.1,
       finalistEpisodeCostUsd: 0.1,
     });
 
-    expect(result.contributionUsd).toBeCloseTo(-150, 2);
+    expect(result.contributionUsd).toBeCloseTo(-68, 2);
   });
 
   it("reports the ten-to-one ratio that is the thing to watch", () => {
     const result = cohortContribution({
       cohort: cohort({
-        revenueUsd: 75,
+        revenueUsd: 297,
         screeningEpisodes: 150,
         finalistEpisodes: 1_500,
       }),
@@ -153,13 +176,16 @@ describe("contribution, once somebody supplies a measured cost", () => {
       finalistEpisodeCostUsd: 0.05,
     });
 
+    // Ten final-comparison episodes per screening episode, whatever the price
+    // is. The flat entry fee changed the revenue side of this and not this.
     expect(result.unpaidEpisodesPerPaidEpisode).toBe(10);
   });
 
-  it("even five cents loses money on three entrants", () => {
+  it("clears three entrants comfortably at five cents", () => {
+    // The same field that lost $7.50 at $75 of revenue.
     const result = cohortContribution({
       cohort: cohort({
-        revenueUsd: 75,
+        revenueUsd: 297,
         screeningEpisodes: 150,
         finalistEpisodes: 1_500,
       }),
@@ -167,7 +193,7 @@ describe("contribution, once somebody supplies a measured cost", () => {
       finalistEpisodeCostUsd: 0.05,
     });
 
-    expect(result.contributionUsd).toBeCloseTo(-7.5, 2);
+    expect(result.contributionUsd).toBeCloseTo(214.5, 2);
   });
 });
 
