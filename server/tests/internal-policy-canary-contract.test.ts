@@ -1,3 +1,4 @@
+import websiteSurfaceSelection from "./fixtures/website-surface-policy-selection.json";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -11,6 +12,7 @@ import {
   confirmRigidTaskSuccessContract,
   sealRigidTaskSuccessContract,
   rigidTaskSuccessContractSchema,
+  rigidTaskSuccessContractMatchesSelection,
 } from "../utils/rigidTaskSuccessContract";
 import {
   rigidTaskSuccessContractSchema as clientSuccessSchema,
@@ -412,5 +414,42 @@ describe("required per-cell controls contract", () => {
     missing.contract_digest = canonicalArtifactDigest(missing, "contract_digest");
     expect(rigidTaskSuccessContractSchema.safeParse(missing).success).toBe(false);
     expect(clientSuccessSchema.safeParse(missing).success).toBe(false);
+  });
+});
+
+
+describe("website surface policy submission", () => {
+  it("preserves the controller surface target and disabled interpretation", () => {
+    const parsed = internalPolicyCanarySelectionSchema.parse(websiteSurfaceSelection);
+    expect(parsed).toEqual(websiteSurfaceSelection);
+    expect(clientSuccessSchema.parse(parsed.task_success_contract)).toEqual(parsed.task_success_contract);
+  });
+
+  it("rejects changed target thresholds even if the outer contract is resealed", () => {
+    const changed = structuredClone(websiteSurfaceSelection);
+    changed.task_success_contract.criteria.surface_target.radius_m += 0.01;
+    expect(internalPolicyCanarySelectionSchema.safeParse(changed).success).toBe(false);
+    changed.task_success_contract.contract_digest = canonicalArtifactDigest(changed.task_success_contract, "contract_digest");
+    const selected = internalPolicyCanarySelectionSchema.parse(changed).task_success_contract;
+    const published = internalPolicyCanarySelectionSchema.parse(websiteSurfaceSelection).task_success_contract;
+    expect(rigidTaskSuccessContractMatchesSelection({
+      published, selected, expectedSiteId: published.scope.site_id,
+      expectedTaskId: published.scope.task_id, expectedTeamId: published.provenance.confirmed_by_team_id || "",
+    })).toBe(false);
+  });
+
+  it("does not grant disclosure or interpreter spending when interpretation is disabled", () => {
+    const setupValue = setup();
+    const selected = internalPolicyCanarySelectionSchema.parse({ ...selection(setupValue), episode_interpretation: { enabled: false } });
+    const request = buildInternalPolicyCanaryLaunchRequest({
+      selection: selected, setup: setupValue, profile: {},
+      actor: { id: "owner", role: "ops" }, teamNamespace: "blueprint",
+      controlsStatusAtSubmission: "configured_controls_pending", authorizedAt: "2026-09-21T00:00:00Z",
+    });
+    expect(request).not.toHaveProperty("episode_interpretation_authority");
+    expect(request).not.toHaveProperty("episode_interpretation_source_rights_admission");
+    expect(request.policy_candidate_ids).toEqual(selected.policy_candidate_ids);
+    expect(request.task_success_contract).toEqual(selected.task_success_contract);
+    expect(internalPolicyCanarySelectionSchema.safeParse({ ...selected, episode_interpretation: { enabled: false, external_disclosure_authorized: true } }).success).toBe(false);
   });
 });

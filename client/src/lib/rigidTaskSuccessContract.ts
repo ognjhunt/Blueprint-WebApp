@@ -4,6 +4,22 @@ const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1);
 const nonnegative = z.number().finite().nonnegative();
 
+const surfaceTargetSchema = z.object({
+  schema_version: z.literal("task_evaluation_surface_target.v1"),
+  shape: z.literal("flat_green_disc"),
+  non_colliding: z.literal(true),
+  visible_label: nonEmpty,
+  radius_m: z.number().finite().positive().max(0.5),
+  surface_position_world_m: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+  support_prim_path: z.string().startsWith("/"),
+  support_source_instance_id: nonEmpty,
+  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  stable_seconds: z.number().finite().positive(),
+  maximum_linear_speed_m_s: z.number().finite().positive(),
+  maximum_angular_speed_rad_s: z.number().finite().positive(),
+  target_digest: digest,
+}).strict();
+
 export const rigidTaskSuccessContractSchema = z.object({
   schema_version: z.literal("rigid_task_success_contract.v1"),
   scope: z.object({ site_id: nonEmpty, task_id: nonEmpty }).strict(),
@@ -17,6 +33,7 @@ export const rigidTaskSuccessContractSchema = z.object({
     proposal_digest: digest.nullable(),
   }).strict(),
   criteria: z.object({
+    surface_target: surfaceTargetSchema.optional(),
     destination_containment: z.object({
       mode: z.enum(["required", "ignored"]),
       position_bounds_world_m: z.object({

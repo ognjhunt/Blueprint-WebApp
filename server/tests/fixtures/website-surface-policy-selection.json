@@ -1,0 +1,150 @@
+{
+  "authorization": {
+    "hard_ttl_seconds": 9000,
+    "maximum_cost_usd": 4.0,
+    "maximum_provider_allocations": 1,
+    "retry_cap": 0
+  },
+  "claim_ceiling": "diagnostic_policy_execution",
+  "confirm_unqualified_execution": true,
+  "episode_interpretation": {
+    "enabled": false
+  },
+  "episode_preset_id": "quick_10",
+  "notification": {
+    "email": "team@example.invalid",
+    "notify_on": [
+      "completed",
+      "blocked",
+      "cancelled"
+    ]
+  },
+  "offering_digest": "sha256:a1d5e2f0abc1d5c8fcbe175beb3d07898388516143107f21ccd078249f00eaff",
+  "policy_candidate_ids": [
+    "pi05_droid",
+    "groot_n17_droid"
+  ],
+  "robot_preset_id": "droid_franka_panda_robotiq_2f85_v1",
+  "run_id": "team-eval-7b5d46d97dae6175714134ada374a7d2-policy-canary-534922a96f9c",
+  "run_kind": "internal_policy_canary",
+  "scene_revision_digest": "sha256:5add360c996dd4b9eee83d0a45edba48afc3cc690b2c92d24211e4b4ae01b2e6",
+  "schema_version": "task_evaluation_policy_canary_selection.v1",
+  "setup_digest": "sha256:534922a96f9c45ac5ec83e0defe8f7f0594d76076b9c9d2c596a4b9d1af4626e",
+  "task_success_contract": {
+    "contract_digest": "sha256:a84a49da267abd601e3a9b4b1cda1b41f7d1f5ec74c962e16659925069f81c32",
+    "criteria": {
+      "destination_containment": {
+        "mode": "required",
+        "position_bounds_world_m": {
+          "maximum": [
+            0.2479116566609651,
+            0.05,
+            0.7730450156331062
+          ],
+          "minimum": [
+            0.14791165666096512,
+            -0.05,
+            0.7630450156331062
+          ]
+        }
+      },
+      "gripper_state": {
+        "mode": "released",
+        "threshold_m": 0.06
+      },
+      "motion": {
+        "minimum_lift_m": 0.05,
+        "minimum_translation_m": 0.1,
+        "movement_epsilon_m": 0.005
+      },
+      "orientation": {
+        "mode": "ignored",
+        "reference_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "tolerance_rad": 0.2617993877991494
+      },
+      "retreat": {
+        "minimum_clearance_m": 0.05,
+        "mode": "required",
+        "withdrawal_unit_destination_frame": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "safety": {
+        "mode": "required"
+      },
+      "settling": {
+        "mode": "required",
+        "orientation_tolerance_rad": 0.1,
+        "position_tolerance_m": 0.02,
+        "window_samples": 16
+      },
+      "support": {
+        "contact_mode": "required",
+        "height_interval_m": [
+          0.7630450156331062,
+          0.7730450156331062
+        ],
+        "height_mode": "required"
+      },
+      "surface_target": {
+        "maximum_angular_speed_rad_s": 0.1,
+        "maximum_linear_speed_m_s": 0.02,
+        "maximum_tilt_rad": 0.2617993877991494,
+        "non_colliding": true,
+        "radius_m": 0.1348922958265048,
+        "schema_version": "task_evaluation_surface_target.v1",
+        "shape": "flat_green_disc",
+        "stable_seconds": 1.0,
+        "support_prim_path": "/Root",
+        "support_source_instance_id": "website-support",
+        "surface_position_world_m": [
+          0.1979116566609651,
+          0,
+          0.75
+        ],
+        "target_digest": "sha256:b0f5d584e40d447ad23c205208baefd28cf1fe44e203161c0270351295932e11",
+        "visible_label": "development test target on authored surface"
+      },
+      "temporal_invariants": {
+        "containment_excursions": "forbidden",
+        "forbidden_contact_classes": [
+          "robot_background",
+          "robot_object",
+          "object_background"
+        ],
+        "maximum_regrasps": 0,
+        "maximum_retries": 0,
+        "maximum_task_contact_force_n": 100.0,
+        "no_drop": {
+          "minimum_fall_m": 0.02,
+          "mode": "required"
+        },
+        "schema_version": "rigid_task_event_ledger_expectation.v1",
+        "workspace_excursions": "forbidden"
+      },
+      "terminal_task_contact": {
+        "mode": "cleared"
+      }
+    },
+    "provenance": {
+      "author_id": "scene-intent:sha256:9dda3f7d61e9494954da50c0709803f8b1edbebc17f45d6899a8935f5e81f5a6",
+      "author_source": "task_owner",
+      "confirmation_status": "confirmed",
+      "confirmed_by_team_id": "f8LpkurhpsNmAJhMaSnts8Y3Dkt2",
+      "proposal_digest": null
+    },
+    "schema_version": "rigid_task_success_contract.v1",
+    "scope": {
+      "site_id": "site-capture-f8f79b26-d813-4976-bb0a-43f282a0fc14-development",
+      "task_id": "website-18b3570d88b74d79e906-development"
+    }
+  },
+  "variation_matrix_digest": "sha256:d959cce5d9ec4e52a20ede77f9e8273469364f554173ddf51df7368829eb86ed"
+}
