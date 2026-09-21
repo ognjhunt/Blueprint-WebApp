@@ -215,7 +215,7 @@ export function sceneProviderTerms() {
   }
 }
 export function validateSceneProviderTerms(
-  command: z.infer<typeof sceneIntakeCommand>,
+  command: Pick<z.infer<typeof sceneIntakeCommand>, "execution" | "consent">,
 ) {
   const terms = sceneProviderTerms();
   if (
@@ -680,7 +680,12 @@ export async function processSceneIntakeQueue(limit = 10) {
               next_forward_at_ms: now + 60000,
             };
           } else {
-            if (!sponsored) {
+            if (record.request.task?.evaluation_source) {
+              const { rebuildTeamEvaluation } = await import("./teamEvaluationSelection");
+              const rebuilt = await rebuildTeamEvaluation(record);
+              if (sceneDigest(rebuilt) !== record.request_digest)
+                throw new Error("stored_request_digest_invalid");
+            } else if (!sponsored) {
               const sourceRef = sceneSourceReference(record.source_session_id);
               const publicChoice = record.source_session_id.startsWith("public-")
                 ? (await scenePublicSourceCatalog()).find((row) => row.binding_id === record.source_session_id)
@@ -735,6 +740,11 @@ export async function processSceneIntakeQueue(limit = 10) {
           error instanceof Error ? error.message : "forward_failed";
         const code =
           [
+            "saved_execution_setup_required",
+            "evaluation_selection_changed",
+            "evaluation_policy_selection_changed",
+            "evaluation_context_binding_invalid",
+            "evaluation_context_unavailable",
             "consent_expired",
             "transport_retry_cap_exhausted",
             "stored_request_digest_invalid",

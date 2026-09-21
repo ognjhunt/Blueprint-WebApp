@@ -21,7 +21,14 @@ function stableRunId(sourceLaunchId: string) {
   return `${sourceLaunchId.slice(0, 80)}-policy-run-${suffix}`.replace(/[^A-Za-z0-9._:-]/g, "-");
 }
 
+import TeamEvaluationSelection from "./TeamEvaluationSelection";
+
 export default function EvaluationRunSetup() {
+  return new URLSearchParams(window.location.search).get("select") === "team"
+    ? <TeamEvaluationSelection /> : <PreparedEvaluationRunSetup />;
+}
+
+function PreparedEvaluationRunSetup() {
   const { sourceLaunchId = "" } = useParams<{ sourceLaunchId?: string }>();
   const decodedLaunchId = decodeURIComponent(sourceLaunchId);
   const { currentUser } = useAuth();

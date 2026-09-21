@@ -140,7 +140,7 @@ export default function SitePacks() {
                       </p>
                     </div>
                     <StatusChip tone={controlsPending ? "warn" : "proof"} square>
-                      {controlsPending ? "Controls pending" : "Evaluation ready"}
+                      {objectPreview ? "Choose your robot" : controlsPending ? "Controls pending" : "Evaluation ready"}
                     </StatusChip>
                   </div>
                   <p className="mt-3 text-caption leading-5 text-ink-500">
@@ -162,7 +162,13 @@ export default function SitePacks() {
                       Visual review paused — appearance ungraded
                     </p>
                   ) : null}
-                  {controlsPending ? (
+                  {objectPreview ? (
+                    <Button asChild variant="action" className="mt-4 w-full">
+                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate?select=team`}>
+                        Choose your setup <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  ) : controlsPending ? (
                     <Button asChild variant="action" className="mt-4 w-full">
                       <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/policy-canary`}>
                         Run policy canary <ArrowRight aria-hidden="true" />
@@ -176,7 +182,7 @@ export default function SitePacks() {
                     </Button>
                   )}
                   <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
-                    {controlsPending
+                    {objectPreview ? "Choose a saved robot and policy to start a development evaluation." : controlsPending
                       ? "Run real learned policies now. Results will be marked unqualified until controls pass."
                       : "Choose episode depth, review the exact two-policy matrix, and start. No JSON upload, provider choice, payment, or team field is required."}
                   </p>
