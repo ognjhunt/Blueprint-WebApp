@@ -4,6 +4,7 @@ import {
   buildSceneIntake,
   sceneDigest,
   sceneIntakeCommand,
+  sceneEvaluationPolicyCandidates,
   sceneOwner,
   sceneSourceReference,
   sceneProviderTerms,
@@ -253,7 +254,7 @@ router.get("/options", async (_req, res) => {
   if (!pairs.size) {
     try {
       const configured =
-        sceneIntakeCommand.shape.execution.shape.policy_candidates.parse(
+        sceneEvaluationPolicyCandidates.parse(
           JSON.parse(
             process.env.TASK_EVALUATION_SCENE_POLICY_CANDIDATES_JSON || "null",
           ),
