@@ -96,6 +96,7 @@ interface TaskStatusInput {
   supplementWouldFinish: boolean;
   /** The walkthrough's completion marker exists. Absent on older callers. */
   hasStoredCapture?: boolean;
+  scenePreviewReady?: boolean;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   nextUpdateIso: string | null;
@@ -174,6 +175,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  if (input.scenePreviewReady) {
+    return {
+      ...base,
+      decision: "assessing",
+      headline: "Your scene preview is ready. We are preparing the task for simulation.",
+      operatorAction: null,
+    };
+  }
+
   // Confirmed. If coverage is measured and sufficient, we are assessing;
   // otherwise the next step is a recording.
   if (input.coversScene === true) {
@@ -221,12 +231,14 @@ export function taskStatusInputFrom(record: {
   briefDrafted: boolean;
   /** The walkthrough's completion marker exists — footage is in, unreviewed. */
   hasStoredCapture?: boolean;
+  scenePreviewReady?: boolean;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
 }): TaskStatusInput {
   const coverage = record.capture_coverage;
   return {
     hasStoredCapture: Boolean(record.hasStoredCapture),
+    scenePreviewReady: Boolean(record.scenePreviewReady),
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,

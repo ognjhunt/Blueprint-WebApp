@@ -559,20 +559,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }
     }
 
-    const status = projectTaskStatus(
-      taskStatusInputFrom({
-        site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
-        capture_coverage: request?.capture_coverage ?? null,
-        site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
-        briefDrafted: Boolean(brief),
-        hasStoredCapture,
-        stage,
-        screening,
-      }),
-    );
-
-    try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
-    catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
     const reconstruction = captureSession?.exists
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
       : undefined;
@@ -581,6 +567,22 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
+
+    const status = projectTaskStatus(
+      taskStatusInputFrom({
+        site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
+        capture_coverage: request?.capture_coverage ?? null,
+        site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
+        briefDrafted: Boolean(brief),
+        hasStoredCapture,
+        scenePreviewReady: Boolean(sceneViewUrl),
+        stage,
+        screening,
+      }),
+    );
+
+    try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
+    catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =

@@ -259,3 +259,11 @@ describe("screening and results rungs", () => {
     expect(status.operatorAction).toBe("Review the run status.");
   });
 });
+
+
+it("shows a completed visual preview while keeping simulation readiness separate", () => {
+  const input = base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, scenePreviewReady: true });
+  expect(projectTaskStatus(input)).toMatchObject({decision: "assessing", operatorAction: null,
+    headline: "Your scene preview is ready. We are preparing the task for simulation."});
+  expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).decision).toBe("results");
+});
