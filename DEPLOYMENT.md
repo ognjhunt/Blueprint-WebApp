@@ -569,3 +569,17 @@ Post-signup automation also requires:
 - `client/public/robots.txt` must exist at build time and be served in production.
 - `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
 - `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the selected structured automation provider, inbound qualification, and post-signup workflows.
+
+### Saved robot setup readback
+
+The web service encrypts saved robot setups; the launch-forward worker reopens
+those same records before authorizing a selected evaluation. Both services must
+use the same `FIELD_ENCRYPTION_MASTER_KEY`, or the same
+`FIELD_ENCRYPTION_KMS_KEY_NAME` with existing decrypt access. Independently
+creating a key for the worker makes valid web-created setups unreadable.
+
+`saved_setup_unreadable` means setup payload decryption or parsing failed. Check
+web/worker encryption configuration against one retained setup before retrying;
+do not change its ciphertext, remove the saved-setup check, or submit another
+run. A failed readback remains retryable and does not consume a provider POST
+attempt. Configuration repair lets the existing outbox resume.

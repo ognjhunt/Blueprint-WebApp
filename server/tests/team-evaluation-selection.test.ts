@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:null}));
-import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, teamEvaluationTaskDetails, type TeamEvaluationContext } from "../utils/teamEvaluationSelection";
+const setupPayload=vi.hoisted(()=>({value:null as any}));
+vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{collection:()=>({doc:()=>({collection:()=>({limit:()=>({get:async()=>({docs:[{id:"saved-one",data:()=>({payload:setupPayload.value})}]})})})})})}}));
+import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups, teamEvaluationTaskDetails, type TeamEvaluationContext } from "../utils/teamEvaluationSelection";
 import { sceneDigest } from "../utils/taskEvaluationSceneIntake";
 const sha=(c:string)=>`sha256:${c.repeat(64)}`;
 const owner={user_id:"owner",organization_id:"user:owner"};
@@ -74,4 +75,17 @@ it("shows only supplied task requirements without exposing storage or inventing 
     {label:"Object",value:"Blue container"},{label:"Destination",value:"Green target"},
     {label:"Time limit",value:"30 seconds"},{label:"Minimum lift",value:"0.02 m"},{label:"Retries",value:"0"}]});
   expect(JSON.stringify(details)).not.toContain("s3://");
+});
+
+it("refuses a mismatched worker key and reads the same ciphertext once configuration matches",async()=>{
+  const {encryptFieldValue}=await import("../utils/field-encryption");
+  vi.stubEnv("FIELD_ENCRYPTION_KMS_KEY_NAME","");
+  vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY",Buffer.alloc(32,1).toString("base64"));
+  setupPayload.value=await encryptFieldValue(JSON.stringify({name:"My robot",executionBindingId:"franka"}));
+  const original=structuredClone(setupPayload.value);
+  vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY",Buffer.alloc(32,2).toString("base64"));
+  await expect(loadRobotSetups("owner")).rejects.toThrow("saved_setup_unreadable");
+  vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY",Buffer.alloc(32,1).toString("base64"));
+  await expect(loadRobotSetups("owner")).resolves.toEqual([{id:"saved-one",name:"My robot",executionBindingId:"franka"}]);
+  expect(setupPayload.value).toEqual(original);
 });

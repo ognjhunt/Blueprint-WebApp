@@ -1460,19 +1460,20 @@ it("accepts the Pipeline's signed cumulative budget readback without rewriting c
   await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
 });
 
-it("reopens a team selection in the durable outbox and refuses a changed setup before delivery", async () => {
+it.each(["saved_execution_setup_required", "saved_setup_unreadable"])("reopens a team selection and retries %s without reserving a provider attempt", async (failure) => {
   const url=await app();
   await realFetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(command())});
   const row=stored()[1];
   row.request.task.evaluation_source={evaluation_run_id:"team-one",source_launch_id:"source-one"};
   row.request_digest=sceneDigest(row.request);
   const selection=await import("../utils/teamEvaluationSelection");
-  const rebuild=vi.spyOn(selection,"rebuildTeamEvaluation").mockRejectedValueOnce(new Error("saved_execution_setup_required"));
+  const rebuild=vi.spyOn(selection,"rebuildTeamEvaluation").mockRejectedValueOnce(new Error(failure));
   const fetcher=vi.fn(async(_url:any,init:any)=>new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
   vi.stubGlobal("fetch",fetcher);
   try {
     await processSceneIntakeQueue();
-    expect(stored()[1].blocker).toBe("saved_execution_setup_required");
+    expect(stored()[1].blocker).toBe(failure);
+    expect(stored()[1].forward_attempt_count).toBe(0);
     expect(fetcher).not.toHaveBeenCalled();
     expect(rebuild).toHaveBeenCalledTimes(1);
     stored()[1].next_forward_at_ms=0;
