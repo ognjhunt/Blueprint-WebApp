@@ -269,6 +269,9 @@ export function RobotTeamPlanPreview({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = readQueueStash();
+    // A checkout/receipt belongs to its selected task, including on return.
+    // Preserve another task's saved access without displaying or buying it here.
+    if (sceneId && saved && saved.sceneId !== sceneId) return;
     if (saved?.plan) setState({ status: "done", plan: saved.plan });
     if (saved?.receipt?.status === "queued") { setQueue(saved.receipt); return; }
     const funded = new URLSearchParams(window.location.search).get("funded");
