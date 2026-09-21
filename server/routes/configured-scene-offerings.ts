@@ -42,7 +42,7 @@ import {
 } from "../utils/taskEvaluationLaunchPreparationContract";
 
 import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups,
-  teamEvaluationCommand } from "../utils/teamEvaluationSelection";
+  teamEvaluationCommand, teamEvaluationTaskDetails, TEAM_EVALUATION_PRICE_CENTS, TEAM_EVALUATION_PROVIDER_CAP_USD } from "../utils/teamEvaluationSelection";
 import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms,
   SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
 
@@ -317,6 +317,13 @@ router.get("/:launchId/team-evaluation-context", async (req, res) => {
     return res.json({sourceLaunchId:context.source_launch_id, sourceProfileDigest:context.source_profile_digest,
       sceneRevisionDigest:context.configured_scene_revision_digest, configurations:context.configurations,
       setups:await loadRobotSetups(owner.user_id), providerTerms:sceneProviderTerms(),
+      taskDetails:teamEvaluationTaskDetails(context),
+      thumbnailUrl:`/api/configured-scene-offerings/${encodeURIComponent(req.params.launchId)}/thumbnail`,
+      dataSummary:{sceneVersion:resolved.offering.scene_identity.version,
+        sceneRevisionDigest:context.configured_scene_revision_digest,
+        bundleSizeBytes:resolved.offering.evaluation_preparation_binding.configured_scene_bundle.size_bytes},
+      checkout:{priceCents:TEAM_EVALUATION_PRICE_CENTS,currency:"USD",
+        developmentNoCharge:resolved.access.isOps, paymentsEnabled:false},
       developmentOnly:true, testEnvironment:resolved.offering.proof_boundary?.test_environment || null});
   } catch (error) {
     return res.status(409).json({error:error instanceof Error ? error.message : "Evaluation setup unavailable"});
@@ -325,7 +332,7 @@ router.get("/:launchId/team-evaluation-context", async (req, res) => {
 
 router.post("/:launchId/team-evaluations", async (req, res) => {
   const parsed=teamEvaluationCommand.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({error:"Choose a saved setup and confirm the evaluation limit."});
+  if (!parsed.success) return res.status(400).json({error:"Choose a saved setup and confirm the evaluation."});
   try {
     const resolved=await accessibleOffering(req.params.launchId,res);
     if (!resolved || parsed.data.sourceLaunchId!==req.params.launchId || !db)
@@ -340,6 +347,12 @@ router.post("/:launchId/team-evaluations", async (req, res) => {
       if (value.command_digest!==commandDigest) throw new Error("idempotency_conflict");
       return res.status(202).json({id,runId:command.id,state:value.state});
     }
+    // Retained requests keep their original authority. New website requests use
+    // a fixed internal cap and an operator-only, no-customer-charge test lane.
+    if (command.execution.max_total_spend_usd !== TEAM_EVALUATION_PROVIDER_CAP_USD)
+      return res.status(400).json({error:"The evaluation budget is set by Blueprint."});
+    if (!resolved.access.isOps)
+      return res.status(402).json({error:"Payment is not enabled for this task yet."});
     validateSceneProviderTerms(command);
     const context=await fetchTeamEvaluationContext(req.params.launchId,owner);
     if (context.configured_scene_revision_digest!==resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
@@ -349,6 +362,7 @@ router.post("/:launchId/team-evaluations", async (req, res) => {
     const request=buildTeamEvaluationRequest(command,context,setup,owner);
     const record={owner_user_id:owner.user_id,organization_id:owner.organization_id,
       source_session_id:String(context.source.binding_id),source_launch_id:context.source_launch_id,
+      purchase:{price_cents:TEAM_EVALUATION_PRICE_CENTS,currency:"USD",status:"development_no_charge"},
       setup_id:setup.id,setup_name:setup.name,command,command_digest:commandDigest,request,
       request_digest:sceneDigest(request),state:"forward_pending",forward_attempt_count:0,
       next_forward_at_ms:0,created_at_iso:new Date().toISOString()};

@@ -10,7 +10,7 @@ process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH = "1";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: "policy-canary-result-ux.spec.ts",
+  testMatch: ["policy-canary-result-ux.spec.ts", "task-evaluation-page.spec.ts"],
   workers: 1,
   fullyParallel: false,
   timeout: 60_000,

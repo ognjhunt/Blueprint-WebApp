@@ -5,13 +5,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { workspaceRequest } from "@/lib/workspace";
+import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
 import type { RobotSetup } from "@/types/workspace";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
 type Context={sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
   configurations:Configuration[];setups:RobotSetup[];
   providerTerms:Record<string,{digest:string;label:string;url:string}>;
-  testEnvironment:{label?:string}|null};
+  testEnvironment:{label?:string}|null;
+  taskDetails:{title:string;description:string;requirements:Array<{label:string;value:string}>};
+  thumbnailUrl:string;
+  dataSummary:{sceneVersion:string;sceneRevisionDigest:string;bundleSizeBytes:number};
+  checkout:{priceCents:number;currency:string;developmentNoCharge:boolean;paymentsEnabled:boolean}};
 
 export default function TeamEvaluationSelection() {
   const {sourceLaunchId=""}=useParams<{sourceLaunchId?:string}>();
@@ -19,7 +24,7 @@ export default function TeamEvaluationSelection() {
   const [context,setContext]=useState<Context|null>(null);
   const [setupId,setSetupId]=useState("");
   const [configurationId,setConfigurationId]=useState("");
-  const [cap,setCap]=useState(20);
+  const [addingSetup,setAddingSetup]=useState(false);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string}}|null>(()=>{
@@ -71,7 +76,7 @@ export default function TeamEvaluationSelection() {
         id:runId,sourceLaunchId,setupId:setup.id,configurationId:configuration.id,
         configurationDigest:configuration.binding_digest,sourceProfileDigest:context.sourceProfileDigest,
         sceneRevisionDigest:context.sceneRevisionDigest,
-        execution:{max_total_spend_usd:cap,max_paid_attempts:8,max_retries:1,expires_at_epoch:expires,
+        execution:{max_total_spend_usd:20,max_paid_attempts:8,max_retries:1,expires_at_epoch:expires,
           allowed_providers:["vast","openai"],policy_candidates:configuration.policy_candidates,claim_scope:"development_only"},
         consent:{provider_terms_reference:openai.digest,private_processing_authorized:true,
           provider_training_authorized:false,task_confirmed:true,spend_authorized:true},
@@ -83,46 +88,102 @@ export default function TeamEvaluationSelection() {
     } catch(reason) { setError(reason instanceof Error?reason.message:"Could not queue the evaluation."); }
     finally {setBusy(false);}
   }
+  async function saveSetup(event:React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values=new FormData(event.currentTarget);
+    const value=(name:string)=>String(values.get(name) || "");
+    const saved={id:`setup-${crypto.randomUUID()}`,name:value("name"),embodiment:value("embodiment"),
+      policyName:value("policyName"),version:value("version"),delivery:value("delivery") as RobotSetup["delivery"],
+      reference:value("reference"),notes:""};
+    setBusy(true);setError("");
+    try {
+      await workspaceRequest(currentUser,"/setups","POST",saved);
+      setContext(previous=>previous?{...previous,setups:[...previous.setups,{...saved,updatedAt:new Date().toISOString()}]}:previous);
+      setSetupId(saved.id);setConfigurationId("");setAddingSetup(false);
+    } catch(reason) {setError(reason instanceof Error?reason.message:"Could not save the setup.");}
+    finally {setBusy(false);}
+  }
   const status=receipt?.pipeline_status?.status || receipt?.state;
-  return <AppShell active="runs" breadcrumb="task / evaluation">
-    <div className="mx-auto max-w-2xl px-5 py-10">
-      <Link href="/app/packs" className="text-sm underline">Back to tasks</Link>
-      <h1 className="mt-6 text-3xl font-medium">Test your robot on this task</h1>
-      <p className="mt-3 text-sm text-ink-600">{context?.testEnvironment?.label || "Development simulation. Results describe this test setup."}</p>
+  const canStart=context?.checkout.developmentNoCharge || context?.checkout.paymentsEnabled;
+  return <AppShell active="runs" breadcrumb="task">
+    <div className="mx-auto max-w-3xl px-5 py-10">
+      <Link href="/app/packs" className="ws-link text-sm">Back to tasks</Link>
+      <h1 className="mt-6 text-3xl font-medium">{context?.taskDetails.title || "Task evaluation"}</h1>
       {error && <p role="alert" className="mt-5 text-sm text-red-700">{error}</p>}
-      {!context && !error && <p className="mt-6">Loading saved setups…</p>}
+      {!context && !error && <p className="mt-6">Loading task…</p>}
+      {context && <>
+        <div className="mt-6 overflow-hidden rounded">
+          <OfferingThumbnail thumbnailUrl={context.thumbnailUrl} label="Task preview" currentUser={currentUser} />
+        </div>
+        <p className="mt-5 text-ink-700">{context.taskDetails.description}</p>
+        <section aria-label="Task requirements" className="mt-6">
+          <h2 className="text-lg font-medium">Requirements</h2>
+          {context.taskDetails.requirements.length ? <dl className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+            {context.taskDetails.requirements.map(row=><div key={row.label}>
+              <dt className="text-sm text-ink-500">{row.label}</dt><dd>{row.value}</dd>
+            </div>)}
+          </dl> : <p className="mt-2 text-sm text-ink-500">Requirements have not been provided.</p>}
+        </section>
+        <details className="mt-6 border-y border-line py-4">
+          <summary className="cursor-pointer">Task data</summary>
+          <p className="mt-3 text-sm">Configured scene and task assets · {(context.dataSummary.bundleSizeBytes/1024/1024).toFixed(1)} MB</p>
+          <p className="mt-2 text-sm">{context.testEnvironment?.label || "Development simulation. Results describe this test setup."}</p>
+          <p className="mt-2 text-sm text-ink-500">Generated geometry and estimated physics are not measured real-world performance.</p>
+          <dl className="mt-3 text-xs text-ink-500">
+            <dt>Scene version</dt><dd className="break-all">{context.dataSummary.sceneVersion}</dd>
+            <dt className="mt-2">Revision</dt><dd className="break-all">{context.dataSummary.sceneRevisionDigest}</dd>
+          </dl>
+        </details>
+      </>}
       {receipt ? <div role="status" className="mt-6 border-t pt-5">
         <h2 className="text-xl">{status==="completed"?"Evaluation complete":status==="commercial_authorization_required"?"Funding required":status==="blocked"?"Evaluation paused":"Evaluation queued"}</h2>
         <p className="mt-2 text-sm">{status==="commercial_authorization_required"?"Execution will begin after funding is authorized.":"Your request is saved. This page will update as the evaluation progresses."}</p>
-      </div> : context && <form onSubmit={submit} className="mt-7 space-y-5">
-        <label className="block">Saved robot and policy
-          <select required value={setupId} onChange={e=>{setSetupId(e.target.value);setConfigurationId("");}}
-            className="mt-2 block w-full rounded border border-line bg-white p-3">
-            <option value="">Choose a saved setup</option>
-            {context.setups.map(s=><option key={s.id} value={s.id}>{s.name} · {s.policyName}</option>)}
-          </select>
-        </label>
-        <Link href="/settings?tab=robots" className="inline-block text-sm underline">Manage saved setups</Link>
-        {setup && !setup.executionBindingId && <label className="block">Simulation configuration
-          <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}
-            className="mt-2 block w-full rounded border border-line bg-white p-3">
-            <option value="">Connect this saved setup</option>
-            {context.configurations.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-          <span className="mt-1 block text-sm text-ink-500">Saved for your next evaluation.</span>
-        </label>}
-        {configuration && <p className="text-sm">Policies: {configuration.policy_candidates.map(p=>p.id.replaceAll("_"," ")).join(" and ")}</p>}
-        <label className="block">Maximum evaluation spend (USD)
-          <input type="number" min="1" max="1000" step="0.01" required value={cap}
-            onChange={e=>setCap(Number(e.target.value))} className="mt-2 block w-full rounded border border-line p-3" />
-        </label>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
-          <span>I authorize this development evaluation up to ${cap.toFixed(2)} using the selected setup.</span>
-        </label>
-        <button disabled={busy || !configuration} className="rounded bg-ink-900 px-5 py-3 text-white disabled:opacity-40">
-          {busy?"Queueing…":"Run evaluation"}
-        </button>
-      </form>}
+      </div> : context && <section aria-label="Run this task" className="mt-7">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-xl font-medium">Test your robot</h2>
+          <p className="text-xl font-medium">$25 <span className="text-sm font-normal text-ink-500">per evaluation</span></p>
+        </div>
+        {addingSetup && <form onSubmit={saveSetup} className="mt-5 space-y-4 rounded border border-line p-4">
+          <h3 className="font-medium">Add a setup</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[["name","Setup name"],["embodiment","Robot / embodiment"],["policyName","Policy name"],["version","Version or checkpoint"]].map(([name,label])=>
+              <label className="block text-sm" key={name}>{label}<input name={name} required maxLength={160} className="mt-1 block w-full rounded border border-line p-2" /></label>)}
+            <label className="block text-sm">Delivery method<select name="delivery" className="mt-1 block w-full rounded border border-line p-2">
+              <option value="checkpoint">Checkpoint</option><option value="container">Container</option><option value="endpoint">Endpoint</option>
+            </select></label>
+            <label className="block text-sm">Reference URL<input name="reference" required maxLength={1000} className="mt-1 block w-full rounded border border-line p-2" /></label>
+          </div>
+          <button disabled={busy} className="ws-primary">Save setup</button>
+          <button type="button" onClick={()=>setAddingSetup(false)} className="ml-4 text-sm underline">Cancel</button>
+        </form>}
+        <form onSubmit={submit} className="mt-5 space-y-5">
+          <label className="block">Saved robot and policy
+            <select required value={setupId} onChange={e=>{setSetupId(e.target.value);setConfigurationId("");}}
+              className="mt-2 block w-full rounded border border-line bg-white p-3">
+              <option value="">Choose a saved setup</option>
+              {context.setups.map(s=><option key={s.id} value={s.id}>{s.name} · {s.policyName}</option>)}
+            </select>
+          </label>
+          {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
+          {setup && !setup.executionBindingId && <label className="block">Simulation configuration
+            <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}
+              className="mt-2 block w-full rounded border border-line bg-white p-3">
+              <option value="">Connect this saved setup</option>
+              {context.configurations.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            <span className="mt-1 block text-sm text-ink-500">Saved for your next evaluation.</span>
+          </label>}
+          {configuration && <p className="text-sm">Policies: {configuration.policy_candidates.map(p=>p.id.replaceAll("_"," ")).join(" and ")}</p>}
+          {context.checkout.developmentNoCharge && <p className="text-sm">Development test — you won’t be charged.</p>}
+          {!canStart && <p className="text-sm">Payment is not enabled for this task yet.</p>}
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
+            <span>I confirm the task and authorize evaluation with this setup.</span>
+          </label>
+          <button disabled={busy || !configuration || !canStart} className="ws-primary">
+            {busy?"Queueing…":"Start evaluation · $25"}
+          </button>
+        </form>
+      </section>}
     </div>
   </AppShell>;
 }
