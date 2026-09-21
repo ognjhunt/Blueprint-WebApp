@@ -30,28 +30,30 @@ import { approvedTaskDetails } from "./taskListingDetails";
 import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
 import { operatorListingPaused } from "./operatorListing";
-import { screeningRound, episodeRate } from "../../client/src/lib/episodePricing";
+import { entryPrice, screeningRound } from "../../client/src/lib/evaluationPricing";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { coverageEvidenceFrom } from "./captureCoverageReview";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 
 /**
- * What one screening run costs at the published rate.
+ * What one entry costs: one policy on one embodiment, against one task.
  *
- * Read from `episodePricing` rather than restated, so the number an agent is
- * quoted and the number on the pricing page cannot drift apart.
+ * Read from `evaluationPricing` rather than restated, so the number an agent is
+ * quoted and the number on the pricing page cannot drift apart. It is now a
+ * flat price rather than episodes times a rate, which is exactly why the
+ * episode count below is a separate function: the two used to be the same
+ * arithmetic and are no longer.
  */
 export function screeningRunCostUsd(): number {
-  return Math.round(screeningRound.episodes * episodeRate * 100) / 100;
+  return entryPrice;
 }
 
 /**
- * How many episodes that quote buys.
+ * How many episodes that entry is run for.
  *
- * Recorded on the run alongside the price so a run that executed half its
- * episodes can be billed for half. Without it the only honest options are
- * charging the whole quote for partial work or giving partial work away, and
- * both are worse than arithmetic.
+ * Recorded on the run alongside the price because the price no longer implies
+ * it. It is what the execution side and the cohort ledger meter against, and
+ * it is ours to set — a team pays the same whatever we choose.
  */
 export function screeningRunEpisodes(): number {
   return screeningRound.episodes;

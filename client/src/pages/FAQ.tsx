@@ -43,7 +43,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Robot teams pay per episode: 50 episodes to screen one checkpoint, at $0.50 each, so $25 a checkpoint. If a checkpoint is shortlisted, Blueprint funds and runs the finalist round rather than billing for it. Nothing recurring, no seat or listing fee, and sites pay nothing.",
+      "Robot teams pay $99 per entry — one policy, on one embodiment, against one task at one site. Three policies on one task is $297; three policies on two tasks is $594. We decide how much evaluation an entry gets and run it, so there is nothing more to pay later. Nothing recurring, no seat or listing fee, and sites pay nothing.",
   },
 ];
 

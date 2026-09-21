@@ -6,7 +6,7 @@ describe("Pricing", () => {
   it("splits the site's bill from the robot team's", () => {
     render(<Pricing />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Robot teams pay to be screened/i }),
+      screen.getByRole("heading", { level: 1, name: /Robot teams pay \$99 an entry/i }),
     ).toBeInTheDocument();
 
     const site = screen
@@ -15,30 +15,55 @@ describe("Pricing", () => {
     expect(within(site).getByText("$0")).toBeInTheDocument();
     // The claim that makes ten-minute onboarding possible: nothing to approve,
     // so nothing to route through procurement.
-    expect(within(site).getByText(/No fee, no per-episode charge, and no card/i)).toBeInTheDocument();
+    expect(within(site).getByText(/No fee, no card, and nothing per run/i)).toBeInTheDocument();
 
     const team = screen
-      .getByRole("heading", { name: /Screening is the only thing a robot team buys/i })
+      .getByRole("heading", { name: /One price for each policy you put on a task/i })
       .closest("section") as HTMLElement;
-    expect(within(team).getByText("$0.50")).toBeInTheDocument();
+    expect(within(team).getByText("$99")).toBeInTheDocument();
   });
 
-  it("keeps per-episode pricing out of the site's column entirely", () => {
+  it("keeps the site's column free of anything it has to price", () => {
     render(<Pricing />);
     const site = screen
       .getByRole("heading", { name: /assessment of one task at one site/i })
       .closest("section") as HTMLElement;
-    // A site operator should never have to learn what an episode is.
-    expect(site.textContent).not.toMatch(/\$0\.50|per episode/i);
-    expect(within(site).getByText(/No per-episode charge/i)).toBeInTheDocument();
-    expect(within(site).getByText(/up to five finalists/i)).toBeInTheDocument();
+    // A site operator should never have to learn what an entry costs, let
+    // alone what an episode is.
+    expect(site.textContent).not.toMatch(/\$99|per entry|episode/i);
+    expect(within(site).getByText(/up to five candidates/i)).toBeInTheDocument();
   });
 
-  it("states the finalist comparison is covered", () => {
+  it("defines an entry as one policy on one embodiment", () => {
+    // The only part of a flat price a buyer can get wrong.
     render(<Pricing />);
+    const entry = screen
+      .getByRole("heading", { name: "What one entry is" })
+      .closest("section") as HTMLElement;
     expect(
-      screen.getByText(/finalist comparison run for every shortlisted candidate/i),
+      within(entry).getByText(/one policy, running on one embodiment, against one task/i),
     ).toBeInTheDocument();
+    expect(
+      within(entry).getByText(/same policy on a second embodiment is a second entry/i),
+    ).toBeInTheDocument();
+    expect(
+      within(entry).getByText(/second policy on the same embodiment is a second entry/i),
+    ).toBeInTheDocument();
+    expect(within(entry).getByText(/one new entry, not two/i)).toBeInTheDocument();
+  });
+
+  it("prices the examples straight off entries times tasks", () => {
+    render(<Pricing />);
+    const threeOnTwo = screen
+      .getByRole("rowheader", { name: /Three policies on two tasks/i })
+      .closest("tr") as HTMLElement;
+    expect(within(threeOnTwo).getByText("6")).toBeInTheDocument();
+    expect(within(threeOnTwo).getByText("$594")).toBeInTheDocument();
+
+    const oneOnThree = screen
+      .getByRole("rowheader", { name: /One policy on three tasks/i })
+      .closest("tr") as HTMLElement;
+    expect(within(oneOnThree).getByText("$297")).toBeInTheDocument();
   });
 
   it("tells a free site what it is giving and what is not free", () => {
@@ -51,67 +76,44 @@ describe("Pricing", () => {
   });
 
   it("promises a robot team that money cannot buy a longer run", () => {
-    // The first objection to vendors funding the system, answered on the page.
+    // The first objection to a model where the seller sizes the run, answered
+    // on the page.
     render(<Pricing />);
-    expect(screen.getByText(/You cannot buy more episodes than a rival/i)).toBeInTheDocument();
+    expect(screen.getByText(/You cannot buy a longer run than a rival/i)).toBeInTheDocument();
   });
 
-  it("offers exactly two rounds and names who funds each", () => {
+  it("says Blueprint sizes the run, and nothing is owed later", () => {
     render(<Pricing />);
-    const rounds = screen.getByRole("heading", { name: "The two rounds" }).closest("section") as HTMLElement;
-    expect(within(rounds).getByText("Screening")).toBeInTheDocument();
-    expect(within(rounds).getByText("Finalist comparison")).toBeInTheDocument();
-    expect(within(rounds).getByText("50")).toBeInTheDocument();
-    expect(within(rounds).getByText("500")).toBeInTheDocument();
-    expect(within(rounds).getByText(/Paid by the robot team/i)).toBeInTheDocument();
-    expect(within(rounds).getByText(/Funded and run by Blueprint/i)).toBeInTheDocument();
-  });
-
-  it("states the shortlist rule where the rounds are described", () => {
-    render(<Pricing />);
+    const covers = screen
+      .getByRole("heading", { name: /What \$99 covers/i })
+      .closest("section") as HTMLElement;
     expect(
-      screen.getByText(/Everything screening cannot separate from the leader goes forward, up to five/i),
+      within(covers).getByText(/no budget to choose, no episode count to size/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/only cuts a candidate it can rule out/i),
-    ).toBeInTheDocument();
+    expect(within(covers).getByText(/the same for every entry on the task/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing more later, including if you are shortlisted/i)).toBeInTheDocument();
   });
 
-  it("says what each round cannot do, next to what it costs", () => {
+  it("says where the answer stops, next to what it costs", () => {
+    // A flat price is a promise about cost, not about certainty.
     render(<Pricing />);
-    expect(screen.getByText(/It never names a winner, and it is not a ranking/i)).toBeInTheDocument();
-    expect(screen.getByText(/too close to separate rather than naming a winner/i)).toBeInTheDocument();
-  });
-
-  it("tells a shortlisted team it owes nothing more", () => {
-    render(<Pricing />);
-    expect(
-      screen.getByRole("heading", { name: /Being shortlisted never costs you more/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/no top-up to make and no deadline to miss/i)).toBeInTheDocument();
-    expect(screen.getByText(/Nothing more if you are shortlisted/i)).toBeInTheDocument();
-  });
-
-  it("prices screening straight off checkpoints times fifty", () => {
-    render(<Pricing />);
-    const six = screen
-      .getByRole("rowheader", { name: /Six checkpoints/i })
-      .closest("tr") as HTMLElement;
-    expect(within(six).getByText("300")).toBeInTheDocument();
-    expect(within(six).getByText("$150")).toBeInTheDocument();
-  });
-
-  it("marks the budgets as Blueprint's own rather than a standard", () => {
-    render(<Pricing />);
-    expect(
-      screen.getByText(/Blueprint's budgets, not an industry standard/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/too close to separate/i)).toBeInTheDocument();
     expect(
       screen.getByText(/simulated ranking is still not a real-world ranking/i),
     ).toBeInTheDocument();
+  });
+
+  it("marks the price as our own starting price rather than a market rate", () => {
+    render(<Pricing />);
     expect(
-      screen.getByText(/starting prices we intend to test with buyers, not an industry rate/i),
+      screen.getByText(/starting price we intend to test with buyers, not an industry rate/i),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the retired per-episode model off the page entirely", () => {
+    // The whole point of the change: one number, and no meter behind it.
+    const { container } = render(<Pricing />);
+    expect(container.textContent).not.toMatch(/\$0\.50|per episode|50 episodes|500 episodes/i);
   });
 
   it("routes each side to its own intake", () => {
@@ -124,29 +126,5 @@ describe("Pricing", () => {
       "href",
       "/contact/robot-team",
     );
-  });
-});
-
-describe("the finalist subsidy is not presented as settled", () => {
-  it("says on the page that it is the current offer rather than an entitlement", () => {
-    // A subsidy of ten unpaid episodes per paid one, whose sustainability is
-    // unmeasured, must not read as a permanent feature. It also must not read
-    // as a threat to people who already entered -- the commitment is kept for
-    // whoever entered under it.
-    render(<Pricing />);
-
-    expect(screen.getByText(/current offer rather than a permanent entitlement/i)).toBeInTheDocument();
-    expect(screen.getByText(/A team that enters under it keeps it/i)).toBeInTheDocument();
-  });
-
-  it("states the floor where a team reads the rule", () => {
-    render(<Pricing />);
-
-    // Stated in two places -- the shortlist rule and the billing rules -- which
-    // is right: a team reading either one should learn it.
-    expect(
-      screen.getAllByText(/more than one candidate to separate/i).length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByText(/field of one is not a comparison/i)).toBeInTheDocument();
   });
 });

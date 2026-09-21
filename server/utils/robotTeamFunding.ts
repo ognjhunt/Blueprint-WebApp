@@ -6,7 +6,7 @@
  * The rest of this repo is careful about inventing prices, and rightly. This
  * invents none: a top-up is face value. A team asking to add $100 is charged
  * $100 and gets $100 of balance. There is no rate here, no discount, no
- * package — the price of a run lives in `episodePricing` and is applied when
+ * package — the price of a run lives in `evaluationPricing` and is applied when
  * the run is quoted, exactly as it was before.
  *
  * That is what makes this buildable as self-serve. A number the team chose,

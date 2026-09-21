@@ -3,29 +3,31 @@
  *
  * ## The arithmetic nobody had run
  *
- * A screening entry is 50 episodes at $0.50, paid by the team: $25. A finalist
- * round is 500 episodes at Blueprint's cost. So every candidate that advances
- * carries ten unpaid episodes for each paid one — and the shortlist rule
- * advances a *close* field intact, which is precisely the field screening
- * cannot separate.
+ * An entry costs the team $99 flat. It is screened at 50 episodes, and if it
+ * reaches the final comparison it runs another 500 — all at Blueprint's cost,
+ * because the price no longer moves with the episode count. So the entire
+ * execution risk of sizing a run sits on this side of the ledger, and the
+ * shortlist rule advances a *close* field intact, which is precisely the field
+ * screening cannot separate.
  *
- * Let `M` be paid screening entries at a site, `F` finalists, `c_s` and `c_f`
- * our real cost per episode in each round, and `A` the site-specific
- * preparation, review, support and acquisition cost:
+ * Let `M` be paid entries at a site, `F` finalists, `c_s` and `c_f` our real
+ * cost per episode in each round, and `A` the site-specific preparation,
+ * review, support and acquisition cost:
  *
- *     contribution = 25M − 50M·c_s − 500F·c_f − A
+ *     contribution = 99M − 50M·c_s − 500F·c_f − A
  *
  * Which gives break-even ceilings on average episode cost, before a penny of
  * `A`:
  *
- *     M=3,  F=3  →   $75 revenue, 1,650 episodes →  4.5¢
- *     M=15, F=3  →  $375 revenue, 2,250 episodes → 16.7¢
- *     M=15, F=5  →  $375 revenue, 3,250 episodes → 11.5¢
+ *     M=3,  F=3  →   $297 revenue, 1,650 episodes → 18.0¢
+ *     M=15, F=3  →  $1,485 revenue, 2,250 episodes → 66.0¢
+ *     M=15, F=5  →  $1,485 revenue, 3,250 episodes → 45.7¢
  *
- * At a hypothetical 10¢ an episode, three entrants and three finalists lose
- * $90 before the site is prepared at all. The least liquid sites are the least
- * profitable ones even when execution is cheap, and a cold start is nothing but
- * least-liquid sites.
+ * The flat price bought real headroom — the old per-episode model left 4.5¢ at
+ * a thin field, which almost nothing fits under. It did not remove the shape of
+ * the problem: the least liquid sites are still the least profitable ones, a
+ * cold start is nothing but least-liquid sites, and a field of three entrants
+ * still funds 1,650 episodes out of $297.
  *
  * ## Why this module exists rather than a spreadsheet
  *
@@ -42,7 +44,7 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { episodeRate, finalistRound, screeningRound } from "../../client/src/lib/episodePricing";
+import { entryPrice, finalistRound, screeningRound } from "../../client/src/lib/evaluationPricing";
 
 export const COHORT_LEDGER_COLLECTION = "siteCohortEconomics";
 
@@ -64,9 +66,9 @@ export type CohortCostKind =
 export interface CohortRecord {
   /** The site. One cohort per prepared scene. */
   sceneId: string;
-  /** Paid screening entries: `M`. */
+  /** Paid entries: `M`. */
   paidEntries: number;
-  /** What teams actually paid, which is not `25 × M` if anything was released. */
+  /** What teams actually paid, which is not `99 × M` if anything was released. */
   revenueUsd: number;
   /** Episodes executed, by round. The denominators for `c_s` and `c_f`. */
   screeningEpisodes: number;
@@ -107,8 +109,9 @@ function emptyCohort(sceneId: string): CohortRecord {
  * Record episodes that executed against a site.
  *
  * Called from the result path, where the episode count is a report from the
- * Pipeline rather than the quote. A run billed for fewer episodes than it
- * reserved consumed fewer, and the cost side has to use what ran.
+ * Pipeline rather than the quote — and under a flat entry price it could never
+ * have come from the quote, because the quote no longer mentions episodes. The
+ * cost side has to use what ran.
  */
 export async function recordCohortEpisodes(params: {
   sceneId: string;
@@ -214,7 +217,7 @@ export interface ContributionResult {
   finalistCostUsd: number;
   siteCostUsd: number;
   contributionUsd: number;
-  /** Ten unpaid episodes per paid one is the thing to watch. */
+  /** Final-comparison episodes per screening episode is the thing to watch. */
   unpaidEpisodesPerPaidEpisode: number | null;
 }
 
@@ -249,8 +252,8 @@ export function cohortContribution(input: ContributionInput): ContributionResult
  * before any site-specific cost.
  *
  * The ceiling, not a target. Reconstruction and human work still have to fit
- * underneath it, and at a thin field there is very little room: three entrants
- * and three finalists leaves 4.5¢.
+ * underneath it, and a thin field is where it bites: three entrants and three
+ * finalists leaves 18¢ an episode for everything, `A` included.
  */
 export function breakEvenEpisodeCostUsd(cohort: CohortRecord): number | null {
   const episodes = cohort.screeningEpisodes + cohort.finalistEpisodes;
@@ -268,7 +271,7 @@ export function projectedBreakEvenEpisodeCostUsd(params: {
   paidEntries: number;
   finalists: number;
 }): number | null {
-  const revenue = params.paidEntries * screeningRound.episodes * episodeRate;
+  const revenue = params.paidEntries * entryPrice;
   const episodes =
     params.paidEntries * screeningRound.episodes + params.finalists * finalistRound.episodes;
   if (episodes <= 0) return null;

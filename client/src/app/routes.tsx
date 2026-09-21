@@ -358,7 +358,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
   // The opportunity board carries a different commercial model from the one
   // that ships: $1,000 to evaluate a site-task and $10,000 on award, against
-  // /pricing's $0.50 per episode with a Blueprint-funded finalist round. It was
+  // /pricing's flat $99 an entry, with the run length ours to set. It was
   // reachable by URL on a public layout, with an offer flow attached, so a
   // robot team could read one price here and be quoted another by the API.
   //
