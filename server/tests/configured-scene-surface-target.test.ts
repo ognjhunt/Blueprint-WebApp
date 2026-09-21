@@ -103,6 +103,9 @@ it("accepts a private development scene but rejects promotion to public captured
   };
   value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
   expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(true);
+  value.scene_identity.id = "site-capture-example-development";
+  value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
+  expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(true);
   value.scene_identity.id = "site-capture-example-configured";
   value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
   expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(false);

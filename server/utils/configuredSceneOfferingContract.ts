@@ -162,7 +162,7 @@ export const configuredSceneOfferingSchema = z.object({
   offering_digest: digest,
 }).strict().superRefine((offering, context) => {
   if (offering.proof_boundary.test_environment && (offering.public_display
-    || !offering.scene_identity.id.endsWith("-development-configured"))) {
+    || !/-development(?:-configured)?$/.test(offering.scene_identity.id))) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "development test must remain a separate private scene" });
   }
   if (offering.task.strategy === "pick_and_place") {
