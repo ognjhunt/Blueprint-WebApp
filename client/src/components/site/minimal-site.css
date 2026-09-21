@@ -317,8 +317,12 @@
 .ms-price-table thead th { padding-top: 0; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ms-muted); }
 .ms-price-table tbody th { font-size: 16px; letter-spacing: -.02em; }
 .ms-price-table tbody th span { display: block; margin-top: 4px; font-size: 12px; color: var(--ms-muted); }
-.ms-price-table td { font-size: 16px; letter-spacing: -.02em; width: 20%; }
-.ms-price-table td:last-child { width: 16%; text-align: right; padding-right: 0; }
+.ms-price-table td { font-size: 16px; letter-spacing: -.02em; }
+/* Numeric columns align header and figure on the same edge. Right-aligning
+   only the values left each PRICE under nothing -- header at the left edge of
+   the column, figure at the right -- and spread the two numeric columns wide
+   enough apart that neither read as a pair with its own title. */
+.ms-price-table thead th:nth-child(n+2), .ms-price-table td { width: 13%; text-align: right; padding-left: 20px; padding-right: 0; }
 .ms-price-rules { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 48px; margin-top: 26px; counter-reset: ms-rule; }
 .ms-price-rules li { counter-increment: ms-rule; }
 .ms-price-rules h3 { font-size: 16px; line-height: 1.45; letter-spacing: -.025em; }
@@ -345,8 +349,8 @@
   .ms-price-definition { font-size: 18px; }
   .ms-price-table th, .ms-price-table td { padding: 12px 8px 12px 0; }
   .ms-price-table tbody th { font-size: 14px; }
-  .ms-price-table td { font-size: 14px; width: 22%; }
-  .ms-price-table td:last-child { width: 20%; }
+  .ms-price-table td { font-size: 14px; }
+  .ms-price-table thead th:nth-child(n+2), .ms-price-table td { width: 18%; padding-left: 12px; }
 }
 
 /* Task discovery: one list, a few filters, no dashboard chrome. */
