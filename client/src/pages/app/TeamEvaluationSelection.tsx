@@ -29,7 +29,7 @@ export default function TeamEvaluationSelection() {
   const [busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string}}|null>(()=>{
     const id=new URLSearchParams(window.location.search).get("intake");
-    return id && /^scene-[a-f0-9]{64}$/.test(id)?{id,state:"forward_pending"}:null;
+    return id && /^scene-[a-f0-9]{64}$/.test(id)?{id,state:"loading"}:null;
   });
   const runId=useMemo(()=>`team-eval-${crypto.randomUUID()}`,[sourceLaunchId]);
   const expires=useMemo(()=>Math.floor(Date.now()/1000)+86400,[sourceLaunchId]);
@@ -52,11 +52,13 @@ export default function TeamEvaluationSelection() {
   useEffect(()=>{
     if (!receipt || !currentUser) return;
     let cancelled=false;
-    const timer=setInterval(()=>{
+    const refresh=()=>{
       void request(`/api/task-evaluation-scene-intakes/${encodeURIComponent(receipt.id)}`)
         .then(value=>{if(!cancelled)setReceipt(value);})
         .catch(reason=>{if(!cancelled)setError(reason.message);});
-    },10000);
+    };
+    refresh();
+    const timer=setInterval(refresh,10000);
     return ()=>{cancelled=true;clearInterval(timer);};
   },[receipt?.id,currentUser]);
   const setup=context?.setups.find(s=>s.id===setupId);
@@ -104,6 +106,23 @@ export default function TeamEvaluationSelection() {
     finally {setBusy(false);}
   }
   const status=receipt?.pipeline_status?.status || receipt?.state;
+  const statusCopy:Record<string,[string,string]>={
+    loading:["Checking evaluation", "Loading your saved request."],
+    completed:["Evaluation complete", "Your evaluation has finished."],
+    running:["Evaluation running", "Your robot is being tested. This page will update as results arrive."],
+    preparing:["Preparing evaluation", "The scene and selected robot setup are being prepared."],
+    awaiting_source:["Preparing evaluation", "The scene and selected robot setup are being prepared."],
+    awaiting_execution:["Preparing evaluation", "Your request is admitted and waiting for execution."],
+    forward_blocked:["Evaluation paused", "Your request is saved. It needs attention before execution can continue."],
+    blocked:["Evaluation paused", "Your request is saved. It needs attention before execution can continue."],
+    needs_input:["Evaluation needs attention", "Your request is saved. More information is needed to continue."],
+    expired:["Evaluation authorization expired", "This request can no longer start new execution."],
+    revoked:["Evaluation cancelled", "This request can no longer start new execution."],
+    revocation_pending:["Cancellation requested", "Waiting for the controller to confirm cancellation."],
+    closeout_pending:["Finishing evaluation", "Waiting for final results and execution closeout."],
+    commercial_authorization_required:["Funding required", "Execution will begin after funding is authorized."],
+  };
+  const [statusTitle,statusDescription]=statusCopy[status || ""] || ["Evaluation queued", "Your request is saved. This page will update as the evaluation progresses."];
   const canStart=context?.checkout.developmentNoCharge || context?.checkout.paymentsEnabled;
   return <AppShell active="runs" breadcrumb="task">
     <div className="mx-auto max-w-3xl px-5 py-10">
@@ -136,8 +155,8 @@ export default function TeamEvaluationSelection() {
         </details>
       </>}
       {receipt ? <div role="status" className="mt-6 border-t pt-5">
-        <h2 className="text-xl">{status==="completed"?"Evaluation complete":status==="commercial_authorization_required"?"Funding required":status==="blocked"?"Evaluation paused":"Evaluation queued"}</h2>
-        <p className="mt-2 text-sm">{status==="commercial_authorization_required"?"Execution will begin after funding is authorized.":"Your request is saved. This page will update as the evaluation progresses."}</p>
+        <h2 className="text-xl">{statusTitle}</h2>
+        <p className="mt-2 text-sm">{statusDescription}</p>
       </div> : context && <section aria-label="Run this task" className="mt-7">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-xl font-medium">Test your robot</h2>
