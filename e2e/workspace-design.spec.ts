@@ -416,6 +416,8 @@ test("robot team saves a setup and requests an evaluation from an opening", asyn
   await seed(page, "robot_team");
   await page.goto("/settings?tab=robots");
   await page.getByRole("button", { name: "+ Add setup" }).click();
+  await page.getByRole("combobox", { name: "Robot model", exact: true }).selectOption("model");
+  await page.getByLabel("Robot model URL", { exact: true }).fill("https://example.com/robot.urdf");
   await page.getByLabel("Setup name", { exact: true }).fill("Atlas M3");
   await page.getByLabel("Embodiment", { exact: true }).fill("Fixed arm");
   await page.getByLabel("Policy name", { exact: true }).fill("Packing");
