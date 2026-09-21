@@ -108,6 +108,7 @@ const statusSchema = z
       })
       .strict()
       .nullable(),
+    result_run_id: identifier.optional(),
     effective_execution_budget: z.object({
       max_total_spend_usd: z.number().finite().positive().max(1000),
       max_paid_attempts: z.number().int().min(1).max(100),
