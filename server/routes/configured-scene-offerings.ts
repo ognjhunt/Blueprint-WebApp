@@ -41,6 +41,11 @@ import {
   taskEvaluationLaunchPreparationRequestDigest,
 } from "../utils/taskEvaluationLaunchPreparationContract";
 
+import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups,
+  teamEvaluationCommand } from "../utils/teamEvaluationSelection";
+import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms,
+  SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
+
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
 const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
@@ -298,6 +303,65 @@ router.get("/", async (_req, res) => {
       error: "Configured scene offering store is unavailable",
       offerings: [],
     });
+  }
+});
+
+router.get("/:launchId/team-evaluation-context", async (req, res) => {
+  try {
+    const resolved = await accessibleOffering(req.params.launchId, res);
+    if (!resolved) return res.status(404).json({error:"This task is unavailable."});
+    const owner = sceneOwner(res.locals.firebaseUser || {});
+    const context = await fetchTeamEvaluationContext(req.params.launchId, owner);
+    if (context.configured_scene_revision_digest !== resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
+      throw new Error("evaluation_selection_changed");
+    return res.json({sourceLaunchId:context.source_launch_id, sourceProfileDigest:context.source_profile_digest,
+      sceneRevisionDigest:context.configured_scene_revision_digest, configurations:context.configurations,
+      setups:await loadRobotSetups(owner.user_id), providerTerms:sceneProviderTerms(),
+      developmentOnly:true, testEnvironment:resolved.offering.proof_boundary?.test_environment || null});
+  } catch (error) {
+    return res.status(409).json({error:error instanceof Error ? error.message : "Evaluation setup unavailable"});
+  }
+});
+
+router.post("/:launchId/team-evaluations", async (req, res) => {
+  const parsed=teamEvaluationCommand.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({error:"Choose a saved setup and confirm the evaluation limit."});
+  try {
+    const resolved=await accessibleOffering(req.params.launchId,res);
+    if (!resolved || parsed.data.sourceLaunchId!==req.params.launchId || !db)
+      return res.status(404).json({error:"This task is unavailable."});
+    const owner=sceneOwner(res.locals.firebaseUser || {});
+    const command=parsed.data, commandDigest=sceneDigest(command);
+    const id=`scene-${sceneDigest({owner,submission_id:command.id}).slice(7)}`;
+    const ref=db.collection(SCENE_INTAKE_COLLECTION).doc(id);
+    const prior=await withTaskEvaluationLaunchStoreTimeout(ref.get());
+    if (prior.exists) {
+      const value=prior.data()!;
+      if (value.command_digest!==commandDigest) throw new Error("idempotency_conflict");
+      return res.status(202).json({id,runId:command.id,state:value.state});
+    }
+    validateSceneProviderTerms(command);
+    const context=await fetchTeamEvaluationContext(req.params.launchId,owner);
+    if (context.configured_scene_revision_digest!==resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
+      throw new Error("evaluation_selection_changed");
+    const setup=(await loadRobotSetups(owner.user_id)).find(s=>s.id===command.setupId);
+    if (!setup) throw new Error("saved_execution_setup_required");
+    const request=buildTeamEvaluationRequest(command,context,setup,owner);
+    const record={owner_user_id:owner.user_id,organization_id:owner.organization_id,
+      source_session_id:String(context.source.binding_id),source_launch_id:context.source_launch_id,
+      setup_id:setup.id,setup_name:setup.name,command,command_digest:commandDigest,request,
+      request_digest:sceneDigest(request),state:"forward_pending",forward_attempt_count:0,
+      next_forward_at_ms:0,created_at_iso:new Date().toISOString()};
+    await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async transaction=>{
+      const current=await transaction.get(ref);
+      if (current.exists) {
+        if (current.data()?.command_digest!==commandDigest) throw new Error("idempotency_conflict");
+      } else transaction.create(ref,record);
+    }));
+    return res.status(202).json({id,runId:command.id,state:record.state});
+  } catch (error) {
+    return res.status(409).json({error:error instanceof Error ? error.message : "Evaluation could not be queued",
+      retrySameRunId:true});
   }
 });
 

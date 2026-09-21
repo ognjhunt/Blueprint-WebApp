@@ -80,6 +80,7 @@ const taskSchema = z
   .strict();
 const setupSchema = z
   .object({
+    executionBindingId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/).optional(),
     id,
     name: short,
     embodiment: short,

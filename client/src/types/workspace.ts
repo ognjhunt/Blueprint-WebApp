@@ -10,6 +10,7 @@ export type TaskTerms = TaskTargets & {
   successDefinition: string;
 };
 export type RobotSetup = {
+  executionBindingId?: string;
   id: string;
   name: string;
   embodiment: string;

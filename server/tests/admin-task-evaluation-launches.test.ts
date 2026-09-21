@@ -105,6 +105,11 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
   verifyPipelineSyncRequest: () => ({ ok: true, status: 200, code: "ok", message: "ok" }),
 }));
 
+vi.mock("../utils/teamEvaluationSelection", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../utils/teamEvaluationSelection")>(),
+  fetchTeamEvaluationContext: vi.fn(), loadRobotSetups: vi.fn(),
+}));
+
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
 function taskSuccessContract(siteId = "scene-839873", taskId = "simple-relocation") {
@@ -3798,5 +3803,48 @@ describe("supplemental destination qualifications are produced by the scene-conf
     offering.task.destination.geometry = immutableRef("document-tray-geometry");
     offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
     expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
+  });
+});
+
+
+describe("saved team evaluation admission", () => {
+  it("durably queues one owner request and rejects changed retries", async () => {
+    const {fetchTeamEvaluationContext,loadRobotSetups}=await import("../utils/teamEvaluationSelection");
+    const offering=configuredSceneOffering();
+    state.records.set("source-one", {configured_scene_offering_state:"launch_ready",
+      configured_scene_offering_digest:offering.offering_digest,configured_scene_offering:offering});
+    const owner={user_id:"team-member-001",organization_id:"robot-team-001"};
+    const candidates=[{id:"pi05_droid",artifact_digest:sha("a")},{id:"groot_n17_droid",artifact_digest:sha("b")}];
+    vi.mocked(fetchTeamEvaluationContext).mockResolvedValue({owner,source_launch_id:"source-one",source_profile_digest:sha("c"),
+      configured_scene_revision_digest:offering.evaluation_preparation_binding.configured_scene_revision_digest,
+      source:{binding_id:"capture-one"},task:{task_id:"retained-task"},rights_reference:"retained-rights",
+      configurations:[{id:"franka",label:"Franka",binding_digest:sha("e"),policy_candidates:candidates}]} as any);
+    vi.mocked(loadRobotSetups).mockResolvedValue([{id:"saved-one",executionBindingId:"franka",name:"My Franka"}] as any);
+    vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({
+      vast:{digest:sha("f"),label:"Vast",url:"https://example.test/vast"},
+      openai:{digest:sha("f"),label:"OpenAI",url:"https://example.test/openai"}}));
+    const body={id:"eval-one",setupId:"saved-one",sourceLaunchId:"source-one",configurationId:"franka",
+      configurationDigest:sha("e"),sourceProfileDigest:sha("c"),sceneRevisionDigest:offering.evaluation_preparation_binding.configured_scene_revision_digest,
+      execution:{max_total_spend_usd:20,max_paid_attempts:8,max_retries:1,expires_at_epoch:Math.floor(Date.now()/1000)+3600,
+        allowed_providers:["vast","openai"],policy_candidates:candidates,claim_scope:"development_only"},
+      consent:{provider_terms_reference:sha("f"),private_processing_authorized:true,provider_training_authorized:false,
+        task_confirmed:true,spend_authorized:true}};
+    const {server,url}=await startTeamOfferingServer();
+    try {
+      const post=(value:any)=>realFetch(`${url}/source-one/team-evaluations`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(value)});
+      const first=await post(body);expect(first.status).toBe(202);
+      const receipt=await first.json();
+      const stored=structuredClone(state.records.get(receipt.id));
+      expect(stored).toMatchObject({state:"forward_pending",owner_user_id:"team-member-001",
+        request:{task:{task_id:"retained-task",robot_binding_id:"franka",evaluation_source:{evaluation_run_id:"eval-one"}}}});
+      const retry=await post(body);expect(retry.status).toBe(202);
+      expect(await retry.json()).toEqual(receipt);
+      expect(state.records.get(receipt.id)).toEqual(stored);
+      expect((await post({...body,execution:{...body.execution,max_total_spend_usd:30}})).status).toBe(409);
+      expect(state.records.get(receipt.id)).toEqual(stored);
+      const context=await realFetch(`${url}/source-one/team-evaluation-context`);
+      expect(context.status).toBe(200);
+      expect(await context.json()).toMatchObject({sourceLaunchId:"source-one",setups:[{id:"saved-one"}]});
+    } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
   });
 });

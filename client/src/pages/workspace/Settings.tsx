@@ -256,6 +256,7 @@ function WorkspaceSettings() {
                     delivery: value("delivery"),
                     reference: value("reference"),
                     notes: value("notes"),
+                    ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
                   },
                   () => setEditing(null),
                 );
