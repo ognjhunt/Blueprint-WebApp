@@ -101,3 +101,34 @@ describe("Task Evaluation policy-canary activation contract", () => {
       .toBe(true);
   });
 });
+
+
+describe("Policy activation without scripted controls", () => {
+  const directActivation = () => ({
+    ...canaryActivation(),
+    lineage: {
+      kind: "initial_project",
+      project_spend_reconciliation: reference("6"),
+      initial_provider_zero: reference("7"),
+      construction_result: reference("8"),
+    },
+  });
+
+  it("admits a compiled-scene diagnostic run with spending and teardown references", () => {
+    expect(taskEvaluationLaunchActivationInputSchema.safeParse(directActivation()).success).toBe(true);
+  });
+
+  it.each(["project_spend_reconciliation", "initial_provider_zero", "construction_result"])(
+    "rejects missing %s", (field) => {
+      const request = directActivation();
+      Reflect.deleteProperty(request.lineage, field);
+      expect(taskEvaluationLaunchActivationInputSchema.safeParse(request).success).toBe(false);
+    },
+  );
+
+  it("does not turn skipped controls into qualified authority", () => {
+    const request = directActivation();
+    request.run_kind = "qualified_evaluation";
+    expect(taskEvaluationLaunchActivationInputSchema.safeParse(request).success).toBe(false);
+  });
+});

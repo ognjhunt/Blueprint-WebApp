@@ -16,6 +16,7 @@ const initialLineage = z.object({
   kind: z.literal("initial_project"),
   project_spend_reconciliation: reference,
   initial_provider_zero: reference,
+  construction_result: reference.optional(),
 }).strict();
 const predecessorLineage = z.object({
   kind: z.literal("predecessor"),
@@ -85,7 +86,11 @@ export const taskEvaluationLaunchActivationInputSchema = z.object({
       value.lane,
     )
       ? value.lineage.kind !== "initial_project"
-      : value.lineage.kind !== "predecessor"
+      : value.lineage.kind !== "predecessor" && !(
+        value.lane === "native_task_arena_policy_evaluation"
+        && value.run_kind === "internal_policy_canary"
+        && value.lineage.construction_result
+      )
   ) context.addIssue({ code: z.ZodIssueCode.custom, message: "activation lineage does not match lane" });
   if (
     value.lane === "native_task_arena_scripted_positive"
