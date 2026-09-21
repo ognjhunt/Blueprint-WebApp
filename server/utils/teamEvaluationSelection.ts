@@ -25,9 +25,13 @@ export type TeamEvaluationContext = z.infer<typeof teamContextSchema>;
 export async function loadRobotSetups(uid:string):Promise<RobotSetup[]> {
   if (!db) throw new Error("intake_store_unavailable");
   const snapshot=await db.collection("users").doc(uid).collection("robotSetups").limit(50).get();
-  return Promise.all(snapshot.docs.map(async doc=>({
-    ...JSON.parse(await decryptFieldValue(doc.data().payload)), id:doc.id,
-  })));
+  return Promise.all(snapshot.docs.map(async doc=>{
+    try {
+      return {...JSON.parse(await decryptFieldValue(doc.data().payload)),id:doc.id};
+    } catch {
+      throw new Error("saved_setup_unreadable");
+    }
+  }));
 }
 
 export async function fetchTeamEvaluationContext(sourceLaunchId:string, owner:ReturnType<typeof sceneOwner>) {

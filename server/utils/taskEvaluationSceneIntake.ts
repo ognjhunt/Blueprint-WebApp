@@ -741,6 +741,7 @@ export async function processSceneIntakeQueue(limit = 10) {
         const code =
           [
             "saved_execution_setup_required",
+            "saved_setup_unreadable",
             "evaluation_selection_changed",
             "evaluation_policy_selection_changed",
             "evaluation_context_binding_invalid",
