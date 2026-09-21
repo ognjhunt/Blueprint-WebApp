@@ -16,9 +16,9 @@ const context={sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRe
 let posts:any[];
 let fail:boolean;
 beforeEach(()=>{
-  posts=[];fail=false;vi.clearAllMocks();
+  posts=[];fail=false;vi.clearAllMocks();window.history.replaceState(null,"","/");
   vi.stubGlobal("fetch",vi.fn(async(_url:any,options:any)=>{
-    if(options.method==="POST") {posts.push(JSON.parse(options.body));return new Response(JSON.stringify(fail?{error:"Retry this request"}:{id:"scene-one",state:"forward_pending"}),{status:fail?409:202});}
+    if(options.method==="POST") {posts.push(JSON.parse(options.body));return new Response(JSON.stringify(fail?{error:"Retry this request"}:{id:`scene-${"a".repeat(64)}`,state:"forward_pending"}),{status:fail?409:202});}
     return new Response(JSON.stringify(context));
   }));
 });
@@ -50,4 +50,16 @@ describe("team evaluation choice",()=>{
     await screen.findByText("Evaluation queued");
     expect(posts).toHaveLength(2);expect(posts[0]).toEqual(posts[1]);
   });
+});
+
+
+it("reopens the queued request from its page URL without another submission",async()=>{
+  const first=render(<TeamEvaluationSelection/>);await select();
+  fireEvent.submit(screen.getByRole("button",{name:"Run evaluation"}).closest("form")!);
+  await screen.findByText("Evaluation queued");
+  expect(new URLSearchParams(window.location.search).get("intake")).toBe(`scene-${"a".repeat(64)}`);
+  first.unmount();render(<TeamEvaluationSelection/>);
+  await screen.findByText("Evaluation queued");
+  expect(posts).toHaveLength(1);
+  expect(screen.queryByRole("button",{name:"Run evaluation"})).not.toBeInTheDocument();
 });
