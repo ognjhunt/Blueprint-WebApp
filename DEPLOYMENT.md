@@ -66,6 +66,16 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   commit SHA for both services, waits for both deploy records to become live
   at that SHA, then verifies `/version.json`, `/health`, and `/health/ready`.
 
+Website scene preparation uses both services: the web service accepts the
+prepared scene and `blueprint-webapp-worker` forwards it. Keep
+`BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON`,
+`BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS`, and
+`TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON` identical in both runtime
+environments. A development-capture authorization change must be applied to
+both services; otherwise the worker retains the request with
+`website_scene_development_test_not_authorized` and retries after configuration
+is corrected, without consuming a Pipeline delivery attempt.
+
 Render should hold all application secrets in the service environment, not in
 `render.yaml`. GitHub Actions holds the Render control-plane credential as the
 `RENDER_API_KEY` secret and the production service identifiers as the

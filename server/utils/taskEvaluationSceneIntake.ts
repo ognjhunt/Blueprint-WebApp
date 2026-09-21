@@ -108,6 +108,12 @@ const statusSchema = z
       })
       .strict()
       .nullable(),
+    effective_execution_budget: z.object({
+      max_total_spend_usd: z.number().finite().positive().max(1000),
+      max_paid_attempts: z.number().int().min(1).max(100),
+      extension_digest: digest.nullable(),
+      extension_count: z.number().int().nonnegative(),
+    }).strict().optional(),
     provider_mutation_performed_by_status_read: z.literal(false),
     status_digest: digest,
   })
@@ -467,7 +473,9 @@ export async function scenePipelineRequest(
       throw new Error("pipeline_revocation_receipt_invalid");
     return raw;
   }
-  const value = intentId ? statusSchema.parse(raw) : raw;
+  const status = intentId ? statusSchema.safeParse(raw) : null;
+  if (status && !status.success) throw new Error("pipeline_status_receipt_invalid");
+  const value = status?.success ? status.data : raw;
   const field = intentId ? "status_digest" : "receipt_digest";
   if (
     value.request_digest !== sceneDigest(request) ||
@@ -541,6 +549,7 @@ export async function processSceneIntakeQueue(limit = 10) {
       );
       if (!record) continue;
       let patch: Record<string, any>;
+      let deliveryReserved = false;
       try {
         if (sceneDigest(record.request) !== record.request_digest)
           throw new Error("stored_request_digest_invalid");
@@ -694,6 +703,9 @@ export async function processSceneIntakeQueue(limit = 10) {
                 throw new Error("stored_request_digest_invalid");
             }
             validateSceneProviderTerms(record.command);
+            // Count a possibly dispatched POST, not a failed local precheck or
+            // a read-only status poll. Reservation failures stay conservative.
+            deliveryReserved = true;
             await storeTimeout(
               db.runTransaction(async (transaction) => {
                 const latest = await transaction.get(row.ref);
@@ -738,6 +750,8 @@ export async function processSceneIntakeQueue(limit = 10) {
             "pipeline_revocation_receipt_invalid",
             "pipeline_intent_digest_invalid",
             "pipeline_status_receipt_missing",
+            "pipeline_status_receipt_invalid",
+            "website_scene_development_test_not_authorized",
             "revocation_requested_before_delivery",
           ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode) || rawCode.startsWith("website_scene_sponsorship_")
             ? rawCode
@@ -771,7 +785,7 @@ export async function processSceneIntakeQueue(limit = 10) {
           state: closeoutPollExhausted ? "blocked" : fallbackState,
           blocker: closeoutPollExhausted ? "terminal_closeout_poll_cap_exhausted" : code,
           next_forward_at_ms: now + 60000,
-          forward_attempt_count: (record.forward_attempt_count || 0) + 1,
+          forward_attempt_count: (record.forward_attempt_count || 0) + Number(deliveryReserved),
           ...(closeoutPoll ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
         };
       }

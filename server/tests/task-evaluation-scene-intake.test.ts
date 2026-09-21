@@ -1399,6 +1399,25 @@ it("admits only explicitly authorized development surfaces without creating a se
       subject: { description: "blue object", geometry_origin: "removed_before_reconstruction" } } };
   // Same grant/submission cannot fund both the synthetic test and a second scene.
   expect((await post("prepared-scene", { request: originalRequest })).status).toBe(409);
+
+  // Web and worker can have different runtime config. Preserve the real
+  // refusal, don't spend a transport attempt, and resume the same grant.
+  const fetcher = vi.fn(async (_url: any, init: any) =>
+    new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
+  vi.stubGlobal("fetch", fetcher);
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = "[]";
+  await processSceneIntakeQueue();
+  expect(stored()[1].blocker).toBe("website_scene_development_test_not_authorized");
+  expect(stored()[1].state).toBe("forward_blocked");
+  expect(stored()[1].forward_attempt_count).toBe(0);
+  expect(fetcher).not.toHaveBeenCalled();
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = JSON.stringify([grant.task_context_digest]);
+  stored()[1].next_forward_at_ms = 0;
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("accepted");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
 });
 
 
@@ -1420,4 +1439,23 @@ describe("site-only scene preparation", () => {
       execution: { ...value.execution, purpose: "anything", policy_candidates: [] } }).success).toBe(false);
     expect(sceneIntakeCommand.safeParse(value).success).toBe(true);
   });
+});
+
+
+it("accepts the Pipeline's signed cumulative budget readback without rewriting consent", async () => {
+  const request = { owner: { user_id: "owner", organization_id: "user:owner" } };
+  const status = pipelineStatus(request, { effective_execution_budget: {
+    max_total_spend_usd: 60, max_paid_attempts: 16,
+    extension_digest: sha("c"), extension_count: 1,
+  } });
+  const fetcher = vi.fn(async () => new Response(JSON.stringify(status)));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await scenePipelineRequest(request, "scene-one")).toEqual(status);
+  fetcher.mockImplementation(async () => new Response(JSON.stringify({ ...status,
+    effective_execution_budget: { ...status.effective_execution_budget, max_total_spend_usd: 61 } })));
+  await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_receipt_binding_invalid");
+  fetcher.mockImplementation(async () => new Response(JSON.stringify(pipelineStatus(request, {
+    effective_execution_budget: { ...status.effective_execution_budget, max_paid_attempts: 0 },
+  }))));
+  await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
 });
