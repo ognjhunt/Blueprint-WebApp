@@ -285,6 +285,18 @@ describe("funding and queueing the plan", () => {
     window.history.replaceState({}, "", "/contact/robot-team");
   });
 
+  it.each(["", "?funded=1"])("never restores or buys another task's saved plan (%s)", async (query) => {
+    const saved = JSON.stringify({ agentKey: "bpk_saved", checkpointId: "ckpt_saved",
+      sceneId: "old-task", totalCostUsd: 25, planToken: "old-plan", idempotencyKey: "old-key",
+      receipt: { status: "queued", started: [{ runId: "old-run", ...row("old-task") }], refused: [], reservedUsd: 25 } });
+    window.sessionStorage.setItem(STASH_KEY, saved);
+    window.history.replaceState({}, "", `/contact/robot-team${query}`);
+    render(<RobotTeamPlanPreview sceneId="new-task" />);
+    expect(screen.getByRole("form", { name: "Tell us about your robot" })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(STASH_KEY)).toBe(saved);
+  });
+
   it("funds only the actual shortfall without enabling autonomous spend", async () => {
     jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
     jsonOnce(200, {
