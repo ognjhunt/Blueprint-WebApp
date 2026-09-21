@@ -167,6 +167,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     const { body } = await status();
     expect(body.sceneViewUrl).toBe("https://viewer.example/world-1");
+    expect(body.status.headline).toBe("Your scene preview is ready. We are preparing the task for simulation.");
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
     expect(body.status.decision).toBe("assessing");
 

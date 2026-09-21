@@ -491,12 +491,20 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         reconstructed: false,
       }).stage;
     }
+    const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
+    const reconstruction = captureSession.data()?.world_reconstruction;
+    const scenePreviewReady = reconstruction?.state === "ready"
+      && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
+        try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
+        catch { return false; }
+      });
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
         site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
+        scenePreviewReady,
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
       }),
