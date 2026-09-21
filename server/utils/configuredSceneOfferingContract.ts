@@ -109,7 +109,7 @@ export const configuredSceneOfferingSchema = z.object({
       camera_id: z.string().trim().min(1).max(192),
       frame_digest: digest,
       rationale: z.string().trim().min(1).max(1_000),
-      appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+      appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts", "prepared_scene_ungraded"]).optional(),
       ai_visual_review_status: z.literal("rejected").optional(),
       human_approval_digest: digest.optional(),
       human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
@@ -122,13 +122,13 @@ export const configuredSceneOfferingSchema = z.object({
         model: z.string().trim().min(1).max(200),
       }).strict(),
     }).strict(),
-    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts", "prepared_scene_ungraded"]).optional(),
     ai_visual_review_status: z.literal("rejected").optional(),
     human_approval_digest: digest.optional(),
       human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
     known_artifacts: z.array(z.string().trim().min(1).max(1000)).min(1).max(64).optional(),
     selected_from_exact_reviewed_frame_count: z.number().int().nonnegative().max(64),
-    warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
+    warning_label: z.enum(["Visual review paused - appearance ungraded", "Generated task-object preview; scene appearance ungraded"]).optional(),
     derived_appearance_evidence: z.literal(true),
     capture_or_physical_evidence: z.literal(false),
     image_bytes_modified_after_selection: z.literal(false),
@@ -148,12 +148,12 @@ export const configuredSceneOfferingSchema = z.object({
     thumbnail_is_capture_or_physical_evidence: z.literal(false),
     appearance_visual_review_completed: z.boolean().optional(),
     appearance_quality_graded: z.boolean().optional(),
-    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts"]).optional(),
+    appearance_review_status: z.enum(["accepted", "paused_ungraded", "human_accepted_with_known_artifacts", "prepared_scene_ungraded"]).optional(),
     ai_visual_review_status: z.literal("rejected").optional(),
     human_approval_digest: digest.optional(),
       human_reviewer_identity: z.string().trim().min(1).max(200).optional(),
     known_artifacts: z.array(z.string().trim().min(1).max(1000)).min(1).max(64).optional(),
-    appearance_warning_label: z.literal("Visual review paused - appearance ungraded").optional(),
+    appearance_warning_label: z.enum(["Visual review paused - appearance ungraded", "Generated task-object preview; scene appearance ungraded"]).optional(),
     configuration_is_policy_evaluation: z.literal(false),
     configuration_is_deployment_or_safety_approval: z.literal(false),
   }).strict(),
@@ -202,7 +202,17 @@ export const configuredSceneOfferingSchema = z.object({
     code: z.ZodIssueCode.custom,
     message: "appearance review status bindings must match",
   });
-  if (reviewStatus === "paused_ungraded") {
+  if (reviewStatus === "prepared_scene_ungraded") {
+    if (offering.presentation.selected_from_exact_reviewed_frame_count !== 0
+      || offering.presentation.selection.reviewer.kind !== "system"
+      || offering.presentation.warning_label !== "Generated task-object preview; scene appearance ungraded"
+      || offering.proof_boundary.appearance_warning_label !== offering.presentation.warning_label
+      || offering.proof_boundary.appearance_visual_review_completed !== false
+      || offering.proof_boundary.appearance_quality_graded !== false
+      || offering.public_display !== undefined) {
+      context.addIssue({code: z.ZodIssueCode.custom, message: "website preview must preserve ungraded private-scene boundary"});
+    }
+  } else if (reviewStatus === "paused_ungraded") {
     if (
       offering.presentation.selected_from_exact_reviewed_frame_count !== 0
       || offering.presentation.selection.reviewer.kind !== "system"

@@ -14,13 +14,13 @@ export type ConfiguredSceneOfferingCard = {
   presentation: {
     thumbnail_url: string;
     selection: { camera_id: string; rationale: string };
-    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
+    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts" | "prepared_scene_ungraded";
     selected_from_exact_reviewed_frame_count: number;
     ai_visual_review_status?: "rejected";
     human_approval_digest?: string;
     human_reviewer_identity?: string;
     known_artifacts?: string[];
-    warning_label?: "Visual review paused - appearance ungraded";
+    warning_label?: "Visual review paused - appearance ungraded" | "Generated task-object preview; scene appearance ungraded";
   };
   evaluation_preparation_binding: {
     configuration_source_commit: string;
@@ -44,12 +44,12 @@ export type ConfiguredSceneOfferingCard = {
     configuration_is_deployment_or_safety_approval: false;
     appearance_visual_review_completed?: boolean;
     appearance_quality_graded?: boolean;
-    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts";
+    appearance_review_status?: "accepted" | "paused_ungraded" | "human_accepted_with_known_artifacts" | "prepared_scene_ungraded";
     ai_visual_review_status?: "rejected";
     human_approval_digest?: string;
     human_reviewer_identity?: string;
     known_artifacts?: string[];
-    appearance_warning_label?: "Visual review paused - appearance ungraded";
+    appearance_warning_label?: "Visual review paused - appearance ungraded" | "Generated task-object preview; scene appearance ungraded";
   };
   evaluation_admission?: {
     zero_action_required: true;
