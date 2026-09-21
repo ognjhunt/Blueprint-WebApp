@@ -6,6 +6,8 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({width,height:900});
     const policies=[{id:"pi05_droid",artifact_digest:"pi"},{id:"groot_n17_droid",artifact_digest:"groot"}];
     let submissions=0;
+    let receipt:Record<string,unknown>={id:`scene-${"a".repeat(64)}`,state:"forward_pending"};
+    await page.clock.install();
     await page.route("**/api/**",async route=>{
       const path=new URL(route.request().url()).pathname;
       if(path==="/api/csrf") return route.fulfill({json:{csrfToken:"fixture"}});
@@ -19,6 +21,7 @@ for (const width of [390, 1440]) {
         providerTerms:{openai:{digest:"terms"},vast:{digest:"terms"}},testEnvironment:{label:"Development surface; room integration pending"},
       }});
       if(path==="/api/task-thumbnail") return route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"><rect width="960" height="540" fill="#ecebe4"/><rect x="330" y="185" width="300" height="170" rx="12" fill="#397bcb"/></svg>'});
+      if(path.startsWith("/api/task-evaluation-scene-intakes/")) return route.fulfill({json:receipt});
       if(path.endsWith("/team-evaluations")) {
         submissions++;
         expect(route.request().postDataJSON().execution.max_total_spend_usd).toBe(20);
@@ -44,6 +47,21 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading",{name:"Evaluation queued"})).toBeVisible();
     await expect(page.getByRole("heading",{name:"Move the blue container"})).toBeVisible();
     await expect(page).toHaveURL(/packs\/source-one\/evaluate\?select=team&intake=scene-/);
+    expect(submissions).toBe(1);
+    for (const [state,pipelineStatus,title] of [
+      ["forward_blocked",null,"Evaluation paused"],
+      ["accepted","awaiting_execution","Preparing evaluation"],
+      ["accepted","running","Evaluation running"],
+      ["completed","completed","Evaluation complete"],
+      ["expired","expired","Evaluation authorization expired"],
+    ]) {
+      receipt={...receipt,state,pipeline_status:pipelineStatus?{status:pipelineStatus}:null};
+      await page.clock.fastForward(10000);
+      await expect(page.getByRole("heading",{name:title!,exact:true})).toBeVisible();
+      expect(submissions).toBe(1);
+    }
+    await page.reload();
+    await expect(page.getByRole("heading",{name:"Evaluation authorization expired",exact:true})).toBeVisible();
     expect(submissions).toBe(1);
   });
 }
