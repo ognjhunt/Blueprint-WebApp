@@ -46,6 +46,8 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 
+import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
+
 const router = Router();
 const id = z
   .string()
@@ -80,6 +82,7 @@ const taskSchema = z
   .strict();
 const setupSchema = z
   .object({
+    robotDescription: robotDescriptionSchema.optional(),
     executionBindingId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/).optional(),
     id,
     name: short,
@@ -876,6 +879,18 @@ router.post(
     requireRole(res, "robot_team");
     const input = setupSchema.parse(req.body),
       caller = identity(res);
+    const document=db!.collection("users").doc(caller.uid).collection("robotSetups").doc(input.id);
+    const existing=await document.get();
+    if (!input.robotDescription && existing.exists) {
+      const previous=JSON.parse(await decryptFieldValue(existing.data()!.payload));
+      if (previous.robotDescription) input.robotDescription=robotDescriptionSchema.parse(previous.robotDescription);
+    }
+    // A description cannot inherit an executable configuration for a different robot.
+    if (input.robotDescription?.source === "catalog") {
+      input.executionBindingId = input.robotDescription.configurationId;
+    } else if (input.robotDescription?.source === "model") {
+      delete input.executionBindingId;
+    }
     const payload = { ...input, updatedAt: new Date().toISOString() };
     await db!
       .collection("users")

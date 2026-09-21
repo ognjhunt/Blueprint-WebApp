@@ -7,6 +7,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { workspaceRequest } from "@/lib/workspace";
 import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
 import type { RobotSetup } from "@/types/workspace";
+import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import { TeamEvaluationResults } from "@/components/blueprint/app/TeamEvaluationResults";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
@@ -63,10 +64,12 @@ export default function TeamEvaluationSelection() {
     return ()=>{cancelled=true;clearInterval(timer);};
   },[receipt?.id,currentUser]);
   const setup=context?.setups.find(s=>s.id===setupId);
-  const configuration=context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
+  const configuration=setup?.robotDescription?.source==="model" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
+  const robotVersionChanged=setup?.robotDescription?.source==="catalog"
+    && setup.robotDescription.configurationDigest!==configuration?.binding_digest;
   async function submit(event:React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!context || !setup || !configuration) return;
+    if (!context || !setup || !configuration || robotVersionChanged) return;
     setBusy(true);setError("");
     try {
       const openai=context.providerTerms.openai, vast=context.providerTerms.vast;
@@ -100,8 +103,11 @@ export default function TeamEvaluationSelection() {
       reference:value("reference"),notes:""};
     setBusy(true);setError("");
     try {
-      await workspaceRequest(currentUser,"/setups","POST",saved);
-      setContext(previous=>previous?{...previous,setups:[...previous.setups,{...saved,updatedAt:new Date().toISOString()}]}:previous);
+      const robotDescription=readRobotDescription(values,context?.configurations || []);
+      if (!robotDescription) throw new Error("Choose a robot model.");
+      const payload={...saved,robotDescription,...(robotDescription.source==="catalog"?{executionBindingId:robotDescription.configurationId}:{})};
+      await workspaceRequest(currentUser,"/setups","POST",payload);
+      setContext(previous=>previous?{...previous,setups:[...previous.setups,{...payload,updatedAt:new Date().toISOString()}]}:previous);
       setSetupId(saved.id);setConfigurationId("");setAddingSetup(false);
     } catch(reason) {setError(reason instanceof Error?reason.message:"Could not save the setup.");}
     finally {setBusy(false);}
@@ -176,6 +182,7 @@ export default function TeamEvaluationSelection() {
             </select></label>
             <label className="block text-sm">Reference URL<input name="reference" required maxLength={1000} className="mt-1 block w-full rounded border border-line p-2" /></label>
           </div>
+          <RobotDescriptionFields configurations={context.configurations} />
           <button disabled={busy} className="ws-primary">Save setup</button>
           <button type="button" onClick={()=>setAddingSetup(false)} className="ml-4 text-sm underline">Cancel</button>
         </form>}
@@ -188,7 +195,9 @@ export default function TeamEvaluationSelection() {
             </select>
           </label>
           {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
-          {setup && !setup.executionBindingId && <label className="block">Simulation configuration
+          {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this task can run. Your setup is saved.</p>}
+          {robotVersionChanged && <p className="text-sm">This robot configuration has changed. Update your saved setup before starting.</p>}
+          {setup && !setup.executionBindingId && !setup.robotDescription && <label className="block">Simulation configuration
             <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}
               className="mt-2 block w-full rounded border border-line bg-white p-3">
               <option value="">Connect this saved setup</option>
@@ -202,7 +211,7 @@ export default function TeamEvaluationSelection() {
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
             <span>I confirm the task and authorize evaluation with this setup.</span>
           </label>
-          <button disabled={busy || !configuration || !canStart} className="ws-primary">
+          <button disabled={busy || !configuration || robotVersionChanged || !canStart} className="ws-primary">
             {busy?"Queueing…":"Start evaluation · $25"}
           </button>
         </form>

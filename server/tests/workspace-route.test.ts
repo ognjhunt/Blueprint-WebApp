@@ -459,6 +459,26 @@ describe("workspace requests and lifecycle", () => {
     await api("/setups/setup-1", "robot-2", undefined, "DELETE");
     expect(state.records.has("users/robot-1/robotSetups/setup-1")).toBe(true);
   });
+  it("keeps model descriptions private and prevents arbitrary runtime binding", async () => {
+    const robotDescription={source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:"Wrist camera"};
+    const response=await api("/setups","robot-1",{...setup,robotDescription,executionBindingId:"franka"});
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({robotDescription});
+    const saved=await (await api("/","robot-1")).json();
+    expect(saved.setups[0].executionBindingId).toBeUndefined();
+    expect((await (await api("/","robot-2")).json()).setups).toEqual([]);
+    // Older clients cannot strip the physical model and reattach a different robot.
+    const legacy=await api("/setups","robot-1",{...setup,executionBindingId:"franka"});
+    expect(await legacy.json()).toMatchObject({robotDescription});
+    const again=await (await api("/","robot-1")).json();
+    expect(again.setups[0].executionBindingId).toBeUndefined();
+  });
+  it("rejects credentials and caller-supplied readiness in robot descriptions", async () => {
+    const robotDescription={source:"model",format:"usd",reference:"https://example.test/robot.usd",mobility:"fixed",details:""};
+    for(const change of [{reference:"https://example.test/robot.usd?key=secret"},{ready:true}]) {
+      expect((await api("/setups","robot-1",{...setup,robotDescription:{...robotDescription,...change}})).status).toBe(400);
+    }
+  });
   it("rejects credential-bearing and executable references", async () => {
     for (const reference of [
       "javascript:alert(1)",

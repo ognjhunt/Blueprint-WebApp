@@ -1,3 +1,4 @@
+import type { RobotDescription } from "./robotDescription";
 export type WorkspaceRole = "site_operator" | "robot_team";
 export type TaskTargets = {
   successRate: number | null;
@@ -10,6 +11,7 @@ export type TaskTerms = TaskTargets & {
   successDefinition: string;
 };
 export type RobotSetup = {
+  robotDescription?: RobotDescription;
   executionBindingId?: string;
   id: string;
   name: string;

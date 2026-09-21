@@ -60,6 +60,11 @@ export function buildTeamEvaluationRequest(raw:unknown, context:TeamEvaluationCo
   setup:RobotSetup, owner:ReturnType<typeof sceneOwner>, acceptedAt=Date.now()/1000) {
   const command=teamEvaluationCommand.parse(raw);
   const configuration=context.configurations.find(c=>c.id===command.configurationId);
+  const robot=setup.robotDescription;
+  if (robot?.source==="model") throw new Error("robot_model_validation_required");
+  if (robot?.source==="catalog" && (robot.configurationId!==command.configurationId
+      || robot.configurationDigest!==configuration?.binding_digest))
+    throw new Error("robot_configuration_changed");
   if (setup.id!==command.setupId || setup.executionBindingId!==command.configurationId)
     throw new Error("saved_execution_setup_required");
   if (!configuration || configuration.binding_digest!==command.configurationDigest
