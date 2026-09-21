@@ -302,7 +302,7 @@ it("retains one Blueprint cap and expiry per upload and refuses changed, expired
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
 });
 
-it("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent", async () => {
+it.each([false, true])("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent (preparation only: %s)", async (preparationOnly) => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
@@ -320,7 +320,8 @@ it("queues the signed prepared website scene once, forwards without team payment
       subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
     execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
       max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
-      allowed_providers: ["vast", "openai"] },
+      allowed_providers: ["vast", "openai"],
+      ...(preparationOnly ? { purpose: "scene_preparation", policy_candidates: [] } : {}) },
   };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   expect((await post("prepared-scene", { request })).status).toBe(202);
@@ -1398,4 +1399,25 @@ it("admits only explicitly authorized development surfaces without creating a se
       subject: { description: "blue object", geometry_origin: "removed_before_reconstruction" } } };
   // Same grant/submission cannot fund both the synthetic test and a second scene.
   expect((await post("prepared-scene", { request: originalRequest })).status).toBe(409);
+});
+
+
+describe("site-only scene preparation", () => {
+  it("accepts preparation without selecting robot-team policies", () => {
+    const value = command();
+    const parsed = sceneIntakeCommand.parse({ ...value,
+      execution: { ...value.execution, purpose: "scene_preparation", policy_candidates: [] } });
+    expect(parsed.execution.purpose).toBe("scene_preparation");
+    expect(parsed.execution.policy_candidates).toEqual([]);
+  });
+  it("keeps policy evaluation and preparation scopes distinct", () => {
+    const value = command();
+    expect(sceneIntakeCommand.safeParse({ ...value,
+      execution: { ...value.execution, policy_candidates: [] } }).success).toBe(false);
+    expect(sceneIntakeCommand.safeParse({ ...value,
+      execution: { ...value.execution, purpose: "scene_preparation" } }).success).toBe(false);
+    expect(sceneIntakeCommand.safeParse({ ...value,
+      execution: { ...value.execution, purpose: "anything", policy_candidates: [] } }).success).toBe(false);
+    expect(sceneIntakeCommand.safeParse(value).success).toBe(true);
+  });
 });
