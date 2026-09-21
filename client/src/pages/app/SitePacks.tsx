@@ -20,51 +20,11 @@ import {
   useBuyerAppEntitlements,
 } from "@/lib/buyerAppData";
 import {
-  fetchAuthenticatedConfiguredSceneThumbnail,
   type ConfiguredSceneOfferingCard,
 } from "@/lib/configuredSceneOffering";
+import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
-function OfferingThumbnail({
-  offering,
-  currentUser,
-}: {
-  offering: ConfiguredSceneOfferingCard;
-  currentUser: Parameters<typeof withFirebaseAuthHeaders>[0];
-}) {
-  const [source, setSource] = useState("");
-  useEffect(() => {
-    if (!currentUser) return undefined;
-    let objectUrl = "";
-    let cancelled = false;
-    void withFirebaseAuthHeaders(currentUser)
-      .then((headers) => fetchAuthenticatedConfiguredSceneThumbnail(
-        offering.presentation.thumbnail_url,
-        headers,
-      ))
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSource(objectUrl);
-      })
-      .catch(() => setSource(""));
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [currentUser, offering.presentation.thumbnail_url]);
-  return source ? (
-    <img
-      src={source}
-      alt={`Selected configured-scene view for ${offering.scene_identity.id}`}
-      className="aspect-video w-full bg-ink-50 object-cover"
-    />
-  ) : (
-    <div className="flex aspect-video items-center justify-center bg-ink-50 text-caption text-ink-400">
-      Loading private thumbnail…
-    </div>
-  );
-}
 
 export default function SitePacks() {
   const { entitlements, isLoading, error } = useBuyerAppEntitlements();
@@ -127,7 +87,7 @@ export default function SitePacks() {
               const ownerAccepted = offering.presentation.appearance_review_status
                 === "human_accepted_with_known_artifacts";
               return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
-                <OfferingThumbnail offering={offering} currentUser={currentUser} />
+                <OfferingThumbnail thumbnailUrl={offering.presentation.thumbnail_url} label={`Selected configured-scene view for ${offering.scene_identity.id}`} currentUser={currentUser} />
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -165,7 +125,7 @@ export default function SitePacks() {
                   {objectPreview ? (
                     <Button asChild variant="action" className="mt-4 w-full">
                       <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate?select=team`}>
-                        Choose your setup <ArrowRight aria-hidden="true" />
+                        View task · $25 <ArrowRight aria-hidden="true" />
                       </Link>
                     </Button>
                   ) : controlsPending ? (

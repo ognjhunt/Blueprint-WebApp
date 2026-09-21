@@ -3844,7 +3844,15 @@ describe("saved team evaluation admission", () => {
       expect(state.records.get(receipt.id)).toEqual(stored);
       const context=await realFetch(`${url}/source-one/team-evaluation-context`);
       expect(context.status).toBe(200);
-      expect(await context.json()).toMatchObject({sourceLaunchId:"source-one",setups:[{id:"saved-one"}]});
+      expect(await context.json()).toMatchObject({sourceLaunchId:"source-one",setups:[{id:"saved-one"}],
+        taskDetails:{title:"Task evaluation"},checkout:{priceCents:2500,developmentNoCharge:true,paymentsEnabled:false}});
+      expect(stored.purchase).toEqual({price_cents:2500,currency:"USD",status:"development_no_charge"});
+      expect((await post({...body,id:"new-price",execution:{...body.execution,max_total_spend_usd:30}})).status).toBe(400);
+      state.isOps=false;
+      expect((await post({...body,id:"unpaid-team"})).status).toBe(402);
+      // A browser flag cannot enable the operator-only no-charge lane.
+      expect((await post({...body,id:"forged-free",developmentNoCharge:true})).status).toBe(400);
+      expect([...state.records.values()].filter(row=>row.purchase)).toHaveLength(1);
     } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
   });
 });
