@@ -89,3 +89,14 @@ it("labels the authored-surface development test separately from captured-scene 
   expect(await screen.findByText("Development test on an authored surface; captured scene integration pending.")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: /configure evaluation/i })).not.toBeInTheDocument();
 });
+
+
+it("labels the generated object thumbnail without implying reviewed scene appearance", async () => {
+  const value = offering("configured_controls_pending", "website-launch");
+  value.presentation.appearance_review_status = "prepared_scene_ungraded";
+  value.presentation.selected_from_exact_reviewed_frame_count = 0;
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [value] }), { status: 200 }));
+  render(<SitePacks />);
+  expect(await screen.findByText("Generated task-object preview; scene appearance ungraded")).toBeInTheDocument();
+  expect(screen.queryByText(/Visual review paused/)).not.toBeInTheDocument();
+});
