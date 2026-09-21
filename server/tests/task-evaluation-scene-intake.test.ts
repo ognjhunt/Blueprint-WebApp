@@ -623,6 +623,7 @@ describe("persistent authenticated scene intake", () => {
         ? pipelineStatus(record.request)
         : pipelineStatus(record.request, {
           status: "completed",
+          result_run_id: "selected-policy-result",
           phase: "terminal",
           blockers: [],
           result_reference: {
@@ -642,6 +643,7 @@ describe("persistent authenticated scene intake", () => {
     stored()[1].next_forward_at_ms = 0;
     await processSceneIntakeQueue();
     expect(stored()[1].state).toBe("completed");
+    expect(stored()[1].pipeline_status.result_run_id).toBe("selected-policy-result");
     expect(stored()[1].pipeline_status.result_reference.uri).toBe("s3://example/late-result.tar");
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
   });

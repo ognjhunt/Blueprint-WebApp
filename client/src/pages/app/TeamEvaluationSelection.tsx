@@ -7,6 +7,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { workspaceRequest } from "@/lib/workspace";
 import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
 import type { RobotSetup } from "@/types/workspace";
+import { TeamEvaluationResults } from "@/components/blueprint/app/TeamEvaluationResults";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
 type Context={sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
@@ -27,7 +28,7 @@ export default function TeamEvaluationSelection() {
   const [addingSetup,setAddingSetup]=useState(false);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
-  const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string}}|null>(()=>{
+  const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string;result_run_id?:string}}|null>(()=>{
     const id=new URLSearchParams(window.location.search).get("intake");
     return id && /^scene-[a-f0-9]{64}$/.test(id)?{id,state:"loading"}:null;
   });
@@ -157,6 +158,9 @@ export default function TeamEvaluationSelection() {
       {receipt ? <div role="status" className="mt-6 border-t pt-5">
         <h2 className="text-xl">{statusTitle}</h2>
         <p className="mt-2 text-sm">{statusDescription}</p>
+        {receipt.pipeline_status?.result_run_id && <TeamEvaluationResults
+          key={`${currentUser?.uid}:${currentUser?.tenantId}:${sourceLaunchId}:${receipt.pipeline_status.result_run_id}`}
+          runId={receipt.pipeline_status.result_run_id} sourceLaunchId={sourceLaunchId} />}
       </div> : context && <section aria-label="Run this task" className="mt-7">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-xl font-medium">Test your robot</h2>

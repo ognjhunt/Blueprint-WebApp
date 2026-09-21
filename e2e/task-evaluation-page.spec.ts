@@ -1,15 +1,32 @@
 import { expect, test } from "@playwright/test";
+import { resultFixture, sha } from "./fixtures/policy-canary-result";
 
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture authentication");
 for (const width of [390, 1440]) {
   test(`task details and fixed-price evaluation stay on one page at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:900});
     const policies=[{id:"pi05_droid",artifact_digest:"pi"},{id:"groot_n17_droid",artifact_digest:"groot"}];
+    const report = resultFixture();
+    const runId = report.publication.run_id;
     let submissions=0;
+    let resultReads=0;
     let receipt:Record<string,unknown>={id:`scene-${"a".repeat(64)}`,state:"forward_pending"};
     await page.clock.install();
     await page.route("**/api/**",async route=>{
       const path=new URL(route.request().url()).pathname;
+      if(path===`/api/task-evaluation-runs/${runId}/status`) return route.fulfill({json:{
+        schema_version:"task_evaluation_policy_run_projection.v1",run_id:runId,source_launch_id:"source-one",
+        offering_digest:sha("a"),configuration_digest:sha("b"),state:"results_ready",terminal:true,phase:"Results available",
+        progress:{completed_episodes:20,total_episodes:20},
+        episode_counts:{learned_episode_count:20,control_episode_count:20,total_episode_count:40},
+        result:{record_id:report.record_id,href:`/app/results/${report.record_id}`,api_href:`/api/task-evaluation-results/${report.record_id}`},
+        result_summary:null,error:null,created_at_iso:"2026-09-21T12:00:00Z",updated_at_iso:"2026-09-21T12:05:00Z",
+        proof_boundary:{simulation_is_physical_success:false,deployment_or_safety_approved:false,cross_team_leaderboard_authorized:false},
+      }});
+      if(path===`/api/task-evaluation-results/${report.record_id}`) {
+        resultReads++;
+        return route.fulfill({json:report});
+      }
       if(path==="/api/csrf") return route.fulfill({json:{csrfToken:"fixture"}});
       if(path.endsWith("/team-evaluation-context")) return route.fulfill({json:{
         sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRevisionDigest:"revision",
@@ -30,6 +47,7 @@ for (const width of [390, 1440]) {
       return route.fulfill({json:{}});
     });
     await page.goto("/app/packs/source-one/evaluate?select=team");
+    await page.getByRole("button",{name:"Reject all",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Move the blue container"})).toBeVisible();
     await expect(page.getByRole("img",{name:"Task preview"})).toBeVisible();
     await expect(page.getByText("30 seconds")).toBeVisible();
@@ -55,10 +73,16 @@ for (const width of [390, 1440]) {
       ["completed","completed","Evaluation complete"],
       ["expired","expired","Evaluation authorization expired"],
     ]) {
-      receipt={...receipt,state,pipeline_status:pipelineStatus?{status:pipelineStatus}:null};
+      receipt={...receipt,state,pipeline_status:pipelineStatus?{status:pipelineStatus,...(state==="completed"?{result_run_id:runId}:{})}:null};
       await page.clock.fastForward(10000);
       await expect(page.getByRole("heading",{name:title!,exact:true})).toBeVisible();
       expect(submissions).toBe(1);
+      if(state==="completed") {
+        await page.getByText("Results and episode videos",{exact:true}).click();
+        await expect(page.getByRole("heading",{name:"Head-to-head policy test",exact:true})).toBeVisible();
+        await expect(page).toHaveURL(/packs\/source-one\/evaluate\?select=team&intake=scene-/);
+        expect(resultReads).toBeGreaterThan(0);
+      }
     }
     await page.reload();
     await expect(page.getByRole("heading",{name:"Evaluation authorization expired",exact:true})).toBeVisible();

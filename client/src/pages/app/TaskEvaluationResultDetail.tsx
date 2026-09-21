@@ -124,7 +124,7 @@ function EpisodeCard({
   );
 }
 
-function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser | null }) {
+export function ResultContent({ result, user }: { result: TaskEvaluationResultSiteRecord; user: FirebaseUser | null }) {
   const delivery = result.publication.result_delivery;
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
