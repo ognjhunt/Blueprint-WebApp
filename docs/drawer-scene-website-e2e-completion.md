@@ -628,3 +628,23 @@ WebApp PR #669 already merged the articulated success/results contract as
 remaining file changes after reconciliation and was closed as superseded.
 This proves deployed code availability, not that this scene has policy
 episodes or visible results; step 14 still needs its own readback.
+
+### Parser recovery started, 2026-09-22 ~20:51 UTC
+
+At nearly two hours of live mask conversion, the second hosted SAM response
+remained unparsed. The exact retained response contains 462 masks. On the same
+local machine, the merged official JavaScript parser path converted it to the
+same deterministic track JSON in 32.08 seconds, compared with 1257.88 seconds
+for the improved single-pass Python candidate. The active release uses an older
+path with two decode passes. These are parser timings, not a host end-to-end
+completion estimate.
+
+The owner asked to interrupt the prolonged conversion if the faster approach
+would avoid further hours. The response receipt is durable; merged Pipeline
+commit `1bb21d0c70ac88f578f9e33894c5af78c6023522` validates and reuses it
+without another hosted SAM request. The GPU spend guard reported zero live
+instances. The canonical deploy started as
+`blueprint-drawer-parser-deploy-1bb21d0c.service` on a clean host clone, with
+receipt target `iteration_1bb21d0c_dwr.json`. The existing listener continued
+running while the deployment started. Deployment, listener restart, parser
+completion, masks, and all subsequent steps remain pending proof.
