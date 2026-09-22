@@ -737,9 +737,9 @@ export default function CapturerSignUpFlow() {
                           signup. Approval is not guaranteed; Blueprint reviews each submission for
                           market fit, device availability, privacy fit, and cohort capacity before
                           granting capture access. Assignments show payout before work starts, but
-                          payout eligibility requires an accepted capture after review. Actual
-                          capture sessions, verification, and payout setup happen in Blueprint
-                          Capture. I agree to Blueprint&apos;s{" "}
+                          payout eligibility requires an accepted capture after review. Blueprint
+                          Capture only films a space from a Blueprint capture link; payout setup
+                          happens in your capturer account on the web. I agree to Blueprint&apos;s{" "}
                           <a href="/terms" className="font-semibold text-runway-signal underline-offset-4 hover:underline">
                             Terms
                           </a>{" "}
@@ -832,7 +832,7 @@ export default function CapturerSignUpFlow() {
                       <p className="mt-1 text-sm leading-6 text-runway-body">
                         {successSummary?.isSupportedLaunchCity === false
                           ? "Your submission is in the future-city queue. We will only send access instructions if that city becomes part of the approved launch rollout."
-                          : "Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. In the meantime, the Blueprint Capture app is where actual capture sessions, review steps, and payout setup live."}
+                          : "Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. The Blueprint Capture app films a space from a Blueprint capture link, so there is nothing to set up in it before then. Payout setup opens in your capturer account on the web after approval."}
                       </p>
                     </div>
                   </div>

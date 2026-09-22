@@ -140,6 +140,29 @@ Launch-critical note:
 - `VITE_GOOGLE_APP_ID`
 - Optional: `VITE_GOOGLE_MAPS_API_KEY`
 
+### iOS App + App Clip (server)
+The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an
+iPhone once it is published; everywhere else, and until then, it opens the
+browser recorder. The server side of that is two things:
+
+- `/.well-known/apple-app-site-association` (and `/apple-app-site-association`)
+  needs `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID` (`Public.BlueprintCapture`) and
+  `IOS_APP_CLIP_BUNDLE_ID` (`Public.BlueprintCapture.Clip`). Unset answers 503;
+  placeholder values answer 204. The applinks paths are `/go`, `/go/*` and
+  `/capture-upload/*`, plus any in `APP_CLIP_ADDITIONAL_PATHS` (comma-separated).
+  Apple fetches the file from both `www.tryblueprint.io` and `tryblueprint.io`;
+  each must answer 200 JSON directly, with no redirect.
+- `IOS_APP_STORE_ID` (the full app's numeric App Store ID), together with
+  `IOS_APP_CLIP_BUNDLE_ID`, adds the App Clip Smart App Banner to
+  `/capture-upload/:token` only. Leave it unset until the app has an App Store
+  record; with it unset no banner is served.
+
+App bundle uploads through the capture link take optional limits:
+`SELF_CAPTURE_MAX_BUNDLE_FILES` (20000), `SELF_CAPTURE_MAX_BUNDLE_BYTES`
+(2 GiB), `SELF_CAPTURE_MAX_BUNDLE_SIDECAR_BYTES` (256 MiB) and
+`SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT` (`8mb`). The browser recorder keeps
+`SELF_CAPTURE_MAX_UPLOAD_BYTES` and `SELF_CAPTURE_MAX_PART_BYTES`.
+
 ### Stripe (server)
 - `STRIPE_SECRET_KEY`
 - `STRIPE_CONNECT_ACCOUNT_ID`

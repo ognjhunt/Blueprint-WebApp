@@ -4,7 +4,7 @@ import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page a site employee opens from a link in an email.
  *
- * They have no account, no app, and no reason to trust a long form. The link is
+ * They have no account, and no reason to trust a long form. The link is
  * the credential and the video is the payload, so this page is deliberately one
  * screen: what to film, a file picker, and a progress bar.
  *

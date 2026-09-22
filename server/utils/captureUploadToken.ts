@@ -1,9 +1,10 @@
 /**
  * The link a site uses to hand us a walkthrough.
  *
- * Self-capture means the person uploading has no account, no app, and no
- * reason to make one — they are a warehouse manager who filmed one aisle
- * because we asked. So the link itself has to be the credential.
+ * Self-capture means the person uploading has no account and no reason to
+ * make one — they are a warehouse manager who filmed one aisle
+ * because we asked. So the link itself has to be the credential — for the
+ * browser recorder and for the App Clip alike.
  *
  * Deliberately the same construction as `request-review-auth.ts`: same secret
  * resolution, same base64url payload plus HMAC, same shape. What differs is the
