@@ -839,7 +839,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     }
   });
 
-  it.each(["legacy-compatible", "mixed-case"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
+  it.each(["legacy-compatible", "mixed-case", "website-controls-omitted"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
     state.sendEmail.mockResolvedValue({
@@ -853,6 +853,11 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     const offeringRecord = configuredOfferingRecord({
       configurationRunId: body.intake_id,
     });
+    if (variant === "website-controls-omitted") {
+      operatorRegistration(body, offeringRecord);
+      delete body.operator_registration_digest;
+      delete body.plan_digest;
+    }
     state.collections.set("taskEvaluationLaunches", new Map([[
       body.capture_session_id,
       offeringRecord,
@@ -862,6 +867,8 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       run_id: body.run_id,
       run_kind: "internal_policy_canary",
       request_digest: body.request_digest,
+      task_success_contract: body.policy_canary_result.task_success_contract,
+      task_success_contract_digest: body.policy_canary_result.task_success_contract?.contract_digest,
       pipeline_configuration_digest: body.configuration_digest,
       owner_user_id: "buyer-1",
       team_namespace: "team-1",
@@ -897,6 +904,18 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       .not.toBe(offeringRecord.configured_scene_offering_digest);
     const { server, socketPath } = await startServer();
     try {
+      if (variant === "website-controls-omitted") {
+        const saved = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+        const contract = saved.task_success_contract;
+        delete saved.task_success_contract;
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        saved.task_success_contract = contract;
+        saved.task_success_contract_digest = sha("b");
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        saved.task_success_contract_digest = contract.contract_digest;
+        expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+        expect(state.sendEmail).not.toHaveBeenCalled();
+      }
       const first = await postSigned(socketPath, body);
       expect(first.status).toBe(201);
       expect(first.body).toMatchObject({
