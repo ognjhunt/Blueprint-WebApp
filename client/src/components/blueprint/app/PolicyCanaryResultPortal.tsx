@@ -9,16 +9,16 @@ import {
   pairedCanaryComparison,
 } from "@/lib/policyCanaryResultPortal";
 import {
-  describeRigidTaskSuccessContract,
-  findPublishedTaskSuccessContract,
-  type RigidTaskSuccessContract,
-} from "@/lib/rigidTaskSuccessContract";
+  describeTaskSuccessContract,
+  type AnyTaskSuccessContract,
+} from "@/lib/articulatedTaskSuccessContract";
+import { findPublishedTaskSuccessContract } from "@/lib/rigidTaskSuccessContract";
 import { PolicyCanaryControls } from "./PolicyCanaryControls";
 import { PolicyCanaryEvidenceInventory } from "./PolicyCanaryEvidenceInventory";
 import { PolicyCanaryEpisodeExplorer } from "./PolicyCanaryEpisodeExplorer";
 import { PolicyCanaryPrimarySummary } from "./PolicyCanaryPrimarySummary";
 
-const authorLabels: Record<RigidTaskSuccessContract["provenance"]["author_source"], string> = {
+const authorLabels: Record<AnyTaskSuccessContract["provenance"]["author_source"], string> = {
   compatibility_default: "Task registry default",
   site_robot_team: "Site / robot team",
   task_owner: "Task owner",
@@ -30,7 +30,7 @@ function sentenceCase(value: string) {
   return !value || value.includes("_") ? value : value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function CriteriaList({ contract }: { contract: RigidTaskSuccessContract }) {
+function CriteriaList({ contract }: { contract: AnyTaskSuccessContract }) {
   const provenance = contract.provenance;
   const confirmation = provenance.confirmation_status === "proposal_only"
     ? "proposal, not confirmed by a team"
@@ -39,7 +39,7 @@ function CriteriaList({ contract }: { contract: RigidTaskSuccessContract }) {
       : `confirmed by team ${provenance.confirmed_by_team_id || "(not recorded)"}`;
   return <>
     <dl className="grid gap-x-8 sm:grid-cols-2">
-      {describeRigidTaskSuccessContract(contract).map((row) => <div key={row.label} className="border-t border-line py-2.5">
+      {describeTaskSuccessContract(contract).map((row) => <div key={row.label} className="border-t border-line py-2.5">
         <dt className="text-ink-500">{row.label}</dt>
         <dd>{sentenceCase(row.value)}<span className="block text-ink-500">{row.detail}</span></dd>
       </div>)}
@@ -56,7 +56,7 @@ function ScoringDetails({
   correctedContract,
 }: {
   result: TaskEvaluationResultSiteRecord;
-  contract: RigidTaskSuccessContract | null;
+  contract: AnyTaskSuccessContract | null;
   correctedContract: NonNullable<TaskEvaluationResultSiteRecord["corrected_scoring_contract"]> | null;
 }) {
   const comparison = pairedCanaryComparison(result);

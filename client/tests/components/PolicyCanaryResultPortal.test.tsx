@@ -393,6 +393,40 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.queryByText(/may be submitted unchanged/)).toBeNull();
   });
 
+  it("explains an open/close task with its own criteria, not the rigid placement rules", () => {
+    const value = result();
+    value.publication.policy_canary_result!.task_success_contract = {
+      schema_version: "articulated_task_success_contract.v1",
+      scope: { site_id: "site-capture-drawer", task_id: "website-drawer-open" },
+      provenance: { author_source: "task_owner", author_id: "owner", confirmation_status: "confirmed", confirmed_by_team_id: "team-1", proposal_digest: null },
+      criteria: {
+        target_joint: { joint_id: "task_part_joint", joint_ids: ["task_part_joint"] },
+        opening: { mode: "required", success_interval: [0.18, 0.3], joint_hard_limits: [0, 0.3], reset_position: 0 },
+        hold: { mode: "required", window_samples: 15, maximum_settled_target_speed: 0.02 },
+        locked_joints: { mode: "required", joint_ids: ["drawer_0_fixed"], motion_tolerance: 0.01 },
+        reset: { tolerance: 0.005 },
+        motion: { movement_epsilon: 0.003 },
+        assembly_root: { mode: "required" },
+        safety: { mode: "required" },
+        temporal_invariants: {
+          schema_version: "articulated_task_event_ledger_expectation.v1",
+          rebound_below_threshold_allowed: false,
+          forbidden_collision_allowed: false,
+          joint_limit_violation_allowed: false,
+          assembly_root_excursion_allowed: false,
+        },
+      },
+      contract_digest: sha("7"),
+    } as any;
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.queryByText(/Success criteria weren't delivered/)).toBeNull();
+    const scoring = openDrawer("How this was scored");
+    expect(within(scoring).getByText("Part opened")).toBeTruthy();
+    expect(within(scoring).getByText("Held open")).toBeTruthy();
+    expect(within(scoring).queryByText("Destination containment")).toBeNull();
+    expect(within(scoring).getByText(/confirmed by team team-1/)).toBeTruthy();
+  });
+
   it("loads video only on request and shows retry and playback states", async () => {
     createArtifactTicket
       .mockRejectedValueOnce(new Error("technical ticket detail"))
