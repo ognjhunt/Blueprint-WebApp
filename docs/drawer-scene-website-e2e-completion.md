@@ -762,3 +762,30 @@ there is no hosted-SAM speed or end-to-end result claim for that path. The
 current fresh capture remains on the verified continuous-video path. Fresh
 step 5 has a retained cabinet mask but awaits corroboration and clean-plate
 completion; steps 6–14 and both room/fixture outcomes remain unproven.
+
+### Fresh capture attempt 5: mask check passed, clean-plate review blocked
+
+The hotfix deploy receipt for `1022228cf65ac717b9003552eee853db71951633`
+completed with both surfaces verified. The live version endpoint proved that
+commit with no blockers, and the listener resumed. The controller claimed
+attempt 5 and reused the retained full-video cabinet track. Independent
+single-frame SAM corroboration on original frame 173 compared a 21.3993% tracked
+mask with a 20.7911% fresh mask, passed, and retained all 14 candidate views.
+This closes the cabinet mask/corroboration substep, not the clean-plate stage.
+
+The configured `gpt-image-2.5-sunburst` image backend retained five edited
+outputs. Independent Gemini review then blocked the prepared views:
+`consistent_background`, `people_absent` and `unrelated_objects_preserved` were
+true, but `task_objects_removed` was false because the cabinet remained in the
+first selected view. That view is original frame 0 and had zero cabinet-mask
+pixels, so the editor could not remove it. No room reconstruction or GPU stage
+started. Attempt 5 is `failed_retryable`, and the listener timer is paused.
+
+Pipeline PR #2119 asks the reviewer to return exact frame IDs for remaining
+task objects. If all other checks pass, the controller may exclude only
+identified views that were never edited, retain both review receipts, and run
+one final review. It still blocks if an edited view fails or the second review
+fails. Focused tests cover both cases. The pushed canary source
+`35fda8ad43a63242a0add78ac286e606146fb095` is being deployed with the
+listener inactive and GPU guard at zero. Steps 6–14 and captured-room/fixture
+completion remain unproven.
