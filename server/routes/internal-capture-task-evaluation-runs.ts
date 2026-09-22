@@ -23,6 +23,7 @@ import {
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
+import { confirmedRigidTaskSuccessContractSchema } from "../utils/rigidTaskSuccessContract";
 import { persistOperatorPolicyCanaryPreproviderBlocked } from "../utils/operatorPolicyCanaryPreproviderBlocked";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
@@ -216,8 +217,17 @@ async function handlePolicyCanaryPublication(
         scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
         if (!scope) return { outcome: "owner_team_mismatch" as const, policyRun: null };
       } else {
-        if (publication.operator_registration_digest || publication.policy_canary_result.control_omission) {
+        if (publication.operator_registration_digest || publication.plan_digest) {
           return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        }
+        if (publication.policy_canary_result.control_omission) {
+          const savedTask = confirmedRigidTaskSuccessContractSchema.safeParse(policyRun.task_success_contract);
+          if (!savedTask.success
+            || savedTask.data.criteria.controls?.mode === "required_per_cell"
+            || policyRun.task_success_contract_digest !== savedTask.data.contract_digest
+            || stableJson(savedTask.data) !== stableJson(publication.policy_canary_result.task_success_contract)) {
+            return { outcome: "binding_mismatch" as const, policyRun: null };
+          }
         }
         const offeringSnapshot = await transaction.get(offeringRef);
         if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };

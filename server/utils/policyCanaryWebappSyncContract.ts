@@ -358,7 +358,9 @@ export function parsePipelinePolicyCanaryPublication(value: unknown) {
   if (projection.control_omission) {
     const omission = projection.control_omission;
     const inventory = Array.isArray(delivery.artifacts) ? delivery.artifacts as Array<Record<string, unknown>> : [];
-    if (!publication.operator_registration_digest || !publication.plan_digest
+    // Operator runs bind both operator fields. Website runs instead bind the
+    // saved, confirmed task contract when the publication is stored.
+    if (Boolean(publication.operator_registration_digest) !== Boolean(publication.plan_digest)
       || delivery.scene_controls_status !== projection.scene_controls_status || delivery.warning !== projection.warning
       || canonicalArtifactDigest({ value: omission }, "comparison_digest") !== canonicalArtifactDigest({ value: delivery.control_omission }, "comparison_digest")
       || inventory.filter((row) => row.artifact_id === omission.artifact.artifact_id && row.digest === omission.artifact.digest && row.size_bytes === omission.artifact.size_bytes).length !== 1) {
