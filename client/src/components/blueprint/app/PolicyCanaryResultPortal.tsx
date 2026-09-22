@@ -10,9 +10,9 @@ import {
 } from "@/lib/policyCanaryResultPortal";
 import {
   describeTaskSuccessContract,
+  findPublishedTaskSuccessContract,
   type AnyTaskSuccessContract,
 } from "@/lib/articulatedTaskSuccessContract";
-import { findPublishedTaskSuccessContract } from "@/lib/rigidTaskSuccessContract";
 import { PolicyCanaryControls } from "./PolicyCanaryControls";
 import { PolicyCanaryEvidenceInventory } from "./PolicyCanaryEvidenceInventory";
 import { PolicyCanaryEpisodeExplorer } from "./PolicyCanaryEpisodeExplorer";
