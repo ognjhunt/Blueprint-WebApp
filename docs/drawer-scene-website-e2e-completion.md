@@ -789,3 +789,31 @@ fails. Focused tests cover both cases. The pushed canary source
 `35fda8ad43a63242a0add78ac286e606146fb095` is being deployed with the
 listener inactive and GPU guard at zero. Steps 6–14 and captured-room/fixture
 completion remain unproven.
+
+### Fresh capture attempt 6: clean plate passed, Marble admission blocked
+
+The controller reused the retained cabinet track and five image edits. The
+new structured review identified only `decoded-000000000` as an unedited view
+still showing the cabinet; the controller excluded it, retained the failed
+review, and independently reviewed the remaining five prepared views. That
+second review passed. The clean-plate stage manifest now reports
+`objects_removed`, `prepared_images`, no blockers, and the excluded original
+frame ID. This closes task-object background recovery for the prepared views;
+it does not prove room geometry or simulation.
+
+The same attempt then failed before a World Labs request:
+`website_reconstruction_release_not_admitted:gpu_canary_deployed_release_receipt_unverified`.
+The active release receipt is valid and the live intake endpoint proves its
+commit, but the paid-release checker expected the older fixed source checkout
+path. Canonical deployments in this lane use clean root-owned clones under
+`/opt/blueprint/control-plane-config-tools`, and the receipt accurately names
+that clone. Pipeline PR #2120 limits admission to the exact receipt-bound clone
+under that approved root (or the fixed canonical checkout), rejects outside,
+nested and symlink paths, and preserves the development-only claim. Thirty-five
+focused admission/allocator tests passed. A read-only replay on the host with
+the candidate source and current receipt returned `verified_active_release`,
+zero blockers, `development_iteration`, and `promotion_eligible: false`.
+The pushed source `5d7bcdb8b` is in canonical canary deployment. Listener
+service/timer remain inactive; GPU guard reports zero live instances. No
+Marble operation or provider spend was admitted on attempt 6. Steps 8–14 and
+captured-room/fixture outcomes remain unproven.
