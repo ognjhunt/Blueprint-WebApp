@@ -453,6 +453,13 @@ resuming, and the two defects it exposed are fixed and deployed:
 - WebApp #662 (open) carries the articulated success contract end to end, so a
   drawer run has something to submit and something to show.
 
-The capture listener is running and will keep refusing cheaply on the spend
-guard, which means the scene resumes by itself within minutes of the amendment
-landing. Nothing is waiting on a person except that one command.
+Two commands resume it, and nothing else is waiting on a person. The amendment
+above, and then the capture listener, which a later control-plane deploy
+quiesced while a paid GPU run was in flight:
+
+```bash
+systemctl start blueprint-pubsub-handoff-listener.timer
+```
+
+The fix is live either way: the active release `41d9ce6cb` carries it, having
+been cut from a commit that descends from the one it shipped in.
