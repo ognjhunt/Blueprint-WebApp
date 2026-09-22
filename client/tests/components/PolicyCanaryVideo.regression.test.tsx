@@ -17,12 +17,13 @@ describe('media lifecycle isolation',()=>{
   view.rerender(<EvidenceVideo {...props} user={{uid:'owner-b'}} recordId='run-b'/>);
   await act(async()=>finish('/api/local-expiring-media'));
   expect(screen.queryByLabelText('External camera evidence for A')).toBeNull();
-  expect(screen.getByText('Not loaded')).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Load External camera video for A'})).toBeTruthy();
  });
  it('bounds stalled metadata loading and offers an explicit fresh authorization',async()=>{
   ticket.mockResolvedValue('/api/slow-fixture');
   render(<EvidenceVideo {...props}/>);fireEvent.click(screen.getByRole('button',{name:'Load External camera video for A'}));await flush();
-  expect(screen.queryByText('Ready')).toBeNull();await flush(30000);
+  expect(screen.getByLabelText('External camera evidence for A')).toBeTruthy();await flush(30000);
+  expect(screen.queryByLabelText('External camera evidence for A')).toBeNull();
   expect(screen.getByText(/Media loading timed out/)).toBeTruthy();
   expect(screen.getByRole('button',{name:'Retry External camera video for A'})).toBeTruthy();
   await flush(120000);expect(ticket).toHaveBeenCalledTimes(1);

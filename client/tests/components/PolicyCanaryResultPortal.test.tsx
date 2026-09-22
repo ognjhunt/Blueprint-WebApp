@@ -9,7 +9,6 @@ vi.mock("@/lib/taskEvaluationResults", async (importOriginal) => ({
 }));
 
 import { applyPolicyCanaryScoreCorrection, pairedCanaryComparison } from "@/lib/policyCanaryResultPortal";
-import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
 import { TaskEvaluationArtifactTicketError } from "@/lib/taskEvaluationResults";
 import type { TaskEvaluationResultSiteRecord } from "@/lib/taskEvaluationResults";
@@ -207,12 +206,23 @@ function result(): TaskEvaluationResultSiteRecord {
   };
 }
 
+/** Drawers render closed; open one the way a reader would before inspecting it. */
+function openDrawer(name: RegExp | string) {
+  const details = screen.getByText(name, { selector: "summary" }).closest("details")!;
+  expect(details.open).toBe(false);
+  details.open = true;
+  return details;
+}
+
+const viewer = () => screen.getByRole("group", { name: /Scenario viewer/ });
+const episodeCard = (policy: string) => screen.getByRole("region", { name: `${policy} episode` });
+
 describe("PolicyCanaryResultPortal", () => {
   beforeEach(() => {
     createArtifactTicket.mockReset().mockResolvedValue("/api/download/video");
   });
 
-  it("leads with the Quick-10 summary, primary downloads, and ordered cell navigator", () => {
+  it("leads with a plain verdict, the counts behind it, and downloads, then a scenario viewer", () => {
     const interpreted = result();
     interpreted.publication.result_delivery!.episodes[0].interpretation = {
       status: "completed",
@@ -231,46 +241,56 @@ describe("PolicyCanaryResultPortal", () => {
     };
     render(<PolicyCanaryResultPortal result={interpreted} user={{ uid: "member-1" } as any} />);
 
-    expect(screen.getByRole("heading", {
-      name: "10 scenario cells · 2 policies · 20 episodes",
-    })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Success criteria used for this result" })).toBeTruthy();
-    expect(screen.getByText("Eventual placement")).toBeTruthy();
-    expect(screen.getByText("20/20 episode records")).toBeTruthy();
-    expect(screen.getByText("12 reported completed · 8 other delivered records")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Policy A succeeded more often." })).toBeTruthy();
+    expect(screen.getByText("On the 9 scenarios where both were scored, the gap is unlikely to be chance (sign test p ≈ 0.004).")).toBeTruthy();
+    const counts = screen.getAllByRole("row").slice(1, 3).map((row) => row.textContent);
+    expect(counts).toEqual(["Policy A101010", "Policy B1090"]);
+    expect(screen.getByText("Policy B: 1 of 10 episodes wasn't scored — a camera or sensor problem.")).toBeTruthy();
+    expect(screen.getByText("Control runs weren't delivered, so it isn't confirmed that the task can be completed in this scene.")).toBeTruthy();
+    expect(screen.getByText(/no winner is declared, and this isn't evidence of real-world performance or safety/)).toBeTruthy();
+    expect(screen.queryByText(/Success criteria weren't delivered/)).toBeNull();
     const primaryDownloads = screen.getByLabelText("Primary result downloads");
     for (const label of ["Summary CSV", "Episode CSV", "Full JSON", "Evidence manifest"]) {
       expect(within(primaryDownloads).getByRole("button", { name: label })).toBeTruthy();
     }
 
-    expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Cell 1 of 10 · Episodes 1–2 of 20")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Baseline anchor 1" })).toBeTruthy();
+    // One row per scenario, in preregistered order, with both policies' outcomes.
+    expect(screen.getByRole("heading", { name: "Episodes", level: 2 })).toBeTruthy();
+    const firstRow = screen.getByRole("button", { name: "Baseline anchor 1" }).closest("tr")!;
+    expect(within(firstRow).getByText("Completed")).toBeTruthy();
+    expect(within(firstRow).getByText("Not scored")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Held-out composition" })).toBeTruthy();
+
+    expect(screen.getByRole("heading", { name: "Baseline anchor 1", level: 3 })).toBeTruthy();
+    expect(screen.getByText("Scenario 1 of 10 · seed 900")).toBeTruthy();
+    expect(within(episodeCard("Policy B")).getByText("Not scored — a camera or sensor problem. Camera evidence was not interpretable.")).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText(/An AI review disagrees with this score/)).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText(/The mug appears to reach the target after one recovery\./)).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText("It doesn't change the score.")).toBeTruthy();
     expect(screen.getAllByText(/quick10\.00\.canonical_anchor/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Uninterpretable").length).toBeGreaterThan(0);
-    expect(screen.getByText("Independent learned interpretation")).toBeTruthy();
-    expect(screen.getByText(/deterministic score unchanged/i)).toBeTruthy();
-    expect(screen.getByText(/disagrees with deterministic scoring/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Cell 2 of 10 · Episodes 3–4 of 20")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Baseline anchor 2" })).toBeTruthy();
-    const navigator = screen.getByRole("group", { name: /Scenario cell navigator/ });
-    fireEvent.keyDown(navigator, { key: "ArrowRight" });
-    expect(screen.getByText("Cell 3 of 10 · Episodes 5–6 of 20")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Placement and approach 1" })).toBeTruthy();
+    expect(screen.getByText("Scenario 2 of 10 · seed 899")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Baseline anchor 2", level: 3 })).toBeTruthy();
+    fireEvent.keyDown(viewer(), { key: "ArrowRight" });
+    expect(screen.getByRole("heading", { name: "Placement and approach 1", level: 3 })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Held-out composition" }));
+    expect(screen.getByRole("heading", { name: "Held-out composition", level: 3 })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Held-out composition" }).getAttribute("aria-current")).toBe("true");
 
-    const wrist = screen.getByRole("tab", { name: "Wrist camera" });
+    const wrist = screen.getByRole("tab", { name: "Wrist" });
     fireEvent.click(wrist);
     expect(wrist.getAttribute("aria-selected")).toBe("true");
 
-    const evidence = screen.getByText("Evidence and provenance").closest("details");
-    expect(evidence).toBeTruthy();
-    expect((evidence as HTMLDetailsElement).open).toBe(false);
-    expect(within(evidence!).getByText("Published artifact inventory")).toBeTruthy();
-    expect(within(evidence!).getByText("$0.379")).toBeTruthy();
-    expect(within(evidence!).getByText("vast · 49609705")).toBeTruthy();
+    const scoring = screen.getByText("How this was scored", { selector: "summary" }).closest("details")!;
+    expect(scoring.open).toBe(false);
+    expect(within(scoring).getByText("Eventual placement")).toBeTruthy();
+    const evidence = openDrawer("Run details and all files");
+    expect(within(evidence).getByText("Published artifact inventory")).toBeTruthy();
+    expect(within(evidence).getByText("scene-839873")).toBeTruthy();
+    expect(within(evidence).getByText("Simple relocation · relocation")).toBeTruthy();
+    expect(within(evidence).getByText("$0.379")).toBeTruthy();
+    expect(within(evidence).getByText("vast · 49609705")).toBeTruthy();
   });
 
   it("applies the verified score sidecar while preserving the unqualified boundary", () => {
@@ -345,36 +365,46 @@ describe("PolicyCanaryResultPortal", () => {
     expect(rejected.publication).toEqual(stale.publication);
     render(<PolicyCanaryResultPortal result={corrected} user={{ uid: "member-1" } as any} />);
 
-    expect(screen.getByText("Post-publication adjustments applied")).toBeTruthy();
-    expect(screen.getByText(/Scoring was corrected after publication/)).toBeTruthy();
-    expect(screen.getByText("Task completed after an unsupported fall")).toBeTruthy();
-    expect(screen.getByText("1 unsupported fall · recovery allowed")).toBeTruthy();
-    expect(screen.getAllByText(/No winner/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("No corrected episode failed a task criterion.")).toBeTruthy();
-    expect(screen.getByRole("heading", {name: "Equal observed success on matched pairs"})).toBeTruthy();
+    expect(screen.getByText(/Scoring was corrected after publication\. The same fix applies to both policies/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "The policies tied." })).toBeTruthy();
+    expect(screen.getByText("They had the same outcome on all 9 scenarios where both were scored.")).toBeTruthy();
+    expect(screen.getByText(/no winner is declared/)).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText(/Task completed after an unsupported fall/)).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText("1 unsupported fall · recovery allowed")).toBeTruthy();
   });
 
-  it("keeps registry criteria inspectable without displaying team confirmation or submission authority", () => {
+  it("does not apply a correction bound to another delivery", () => {
+    const value = result();
+    value.score_correction = { correction: { source_run_id: "another-run" } } as any;
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getByText("A score correction didn't match this result, so the original scores are shown.")).toBeTruthy();
+    expect(screen.queryByText(/Scoring was corrected after publication/)).toBeNull();
+  });
+
+  it("keeps registry criteria inspectable without claiming team confirmation", () => {
+    const value = result();
     const contract = structuredClone(taskSuccessContract);
     contract.provenance = { ...contract.provenance, author_source: "compatibility_default", confirmed_by_team_id: null } as any;
-    render(<TaskSuccessContractPanel contract={contract} title="Criteria used for corrected scores" resultReview />);
-    expect(screen.getByText("Registry default · not team-confirmed")).toBeTruthy();
-    expect(screen.getByText(/grants no execution or field-trial authorization/)).toBeTruthy();
+    value.publication.policy_canary_result!.task_success_contract = contract as any;
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    const scoring = openDrawer("How this was scored");
+    expect(within(scoring).getByText(/registry default, not confirmed by your team/)).toBeTruthy();
+    expect(within(scoring).queryByText(/confirmed by team/)).toBeNull();
     expect(screen.queryByText(/may be submitted unchanged/)).toBeNull();
   });
 
-  it("shows explicit video load, retry, and ready states", async () => {
+  it("loads video only on request and shows retry and playback states", async () => {
     createArtifactTicket
       .mockRejectedValueOnce(new Error("technical ticket detail"))
       .mockResolvedValueOnce("/api/download/video");
     render(<PolicyCanaryResultPortal result={result()} user={{ uid: "member-1" } as any} />);
 
-    expect(screen.getAllByText("Not loaded")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Load External camera video for/ })).toHaveLength(2);
+    expect(createArtifactTicket).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", {
       name: "Load External camera video for Policy A",
     }));
-    expect(await screen.findByText("Load failed")).toBeTruthy();
-    expect(screen.getByText("The video could not be loaded. Try again.")).toBeTruthy();
+    expect(await screen.findByText("The video could not be loaded. Try again.")).toBeTruthy();
     expect(screen.queryByText("technical ticket detail")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", {
@@ -383,9 +413,9 @@ describe("PolicyCanaryResultPortal", () => {
     await waitFor(() => expect(screen.getByLabelText(
       "External camera evidence for Policy A",
     )).toBeTruthy());
-    expect(screen.queryByText("Ready")).toBeNull();
     fireEvent.loadedData(screen.getByLabelText("External camera evidence for Policy A"));
-    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(screen.queryByText("The video could not be loaded. Try again.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Load External camera video for Policy B" })).toBeTruthy();
   });
 
   it("recovers an expired or unreadable media response through a fresh authorized ticket", async () => {
@@ -398,7 +428,7 @@ describe("PolicyCanaryResultPortal", () => {
     fireEvent.click(screen.getByRole("button",{name:"Retry External camera video for Policy A"}));
     await waitFor(() => expect(screen.getByLabelText("External camera evidence for Policy A").getAttribute("src")).toBe("/api/download/fresh"));
     fireEvent.loadedData(screen.getByLabelText("External camera evidence for Policy A"));
-    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(screen.queryByText(/media could not be read or its access expired/)).toBeNull();
     expect(createArtifactTicket).toHaveBeenCalledTimes(2);
   });
 
@@ -411,11 +441,12 @@ describe("PolicyCanaryResultPortal", () => {
     value.publication.result_delivery!.artifacts = [];
     value.publication.policy_canary_result!.reproducibility = {};
     render(<PolicyCanaryResultPortal result={value} user={null} />);
-    expect(screen.getByRole("heading",{name:"No mutually scorable pairs"})).toBeTruthy();
-    expect(screen.getByText("Success criteria not verified")).toBeTruthy();
-    expect(screen.getByText(/Missing manifests, frames, or incomplete episodes/)).toBeTruthy();
+    expect(screen.getByRole("heading",{name:"No episodes were delivered."})).toBeTruthy();
+    expect(screen.getByText("Success criteria weren't delivered with this result, so it can't serve as an acceptance test.")).toBeTruthy();
+    expect(screen.getByText("No policy episodes were delivered.")).toBeTruthy();
+    expect(screen.getByText("Anyone with this link can view this result and its files.")).toBeTruthy();
+    expect(within(screen.getByLabelText("Primary result downloads")).getByRole("button", { name: "Summary CSV unavailable" })).toBeTruthy();
     expect(screen.queryByText(/one captured scene|trail for every episode|files are hash-verified/)).toBeNull();
-    expect(screen.getByText(/Anyone with this unlisted link/)).toBeTruthy();
   });
 
   it("keeps an absent score and missing media visible as unknown evidence", () => {
@@ -424,9 +455,12 @@ describe("PolicyCanaryResultPortal", () => {
     delete episode.score;
     episode.evidence = {};
     render(<PolicyCanaryResultPortal result={value} user={null} />);
-    expect(screen.getByText("Status unavailable")).toBeTruthy();
-    expect(screen.getAllByText("Interpretability unknown").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Typed evidence gap/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Policy A: 1 of 10 episodes wasn't scored — no score was recorded.")).toBeTruthy();
+    const firstRow = screen.getByRole("button", { name: "Baseline anchor 1" }).closest("tr")!;
+    expect(within(firstRow).getAllByText("Not scored")).toHaveLength(2);
+    expect(within(episodeCard("Policy A")).getByText("Not scored — no score was recorded.")).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText("No external camera video was delivered.")).toBeTruthy();
+    expect(within(episodeCard("Policy A")).getByText("No files were delivered for this episode.")).toBeTruthy();
   });
 
   it("shows both duplicate episode records instead of selecting the last outcome", () => {
@@ -435,9 +469,31 @@ describe("PolicyCanaryResultPortal", () => {
     duplicate.episode_id = "conflicting-duplicate"; duplicate.score.task_succeeded = false;
     value.publication.result_delivery!.episodes.push(duplicate);
     render(<PolicyCanaryResultPortal result={value} user={null} />);
-    expect(screen.getAllByText("Ambiguous duplicate episodes").length).toBeGreaterThan(0);
-    expect(screen.getByText(/conflicting-duplicate · Task not complete/)).toBeTruthy();
-    expect(screen.getByText(/They are excluded from the comparison/)).toBeTruthy();
+    const firstRow = screen.getByRole("button", { name: "Baseline anchor 1" }).closest("tr")!;
+    expect(within(firstRow).getByText("Ambiguous")).toBeTruthy();
+    const card = episodeCard("Policy A");
+    expect(within(card).getByText("2 records exist for this scenario, so neither is used in the counts.")).toBeTruthy();
+    expect(within(card).getByText("policy-a-cell-0 · Completed")).toBeTruthy();
+    expect(within(card).getByText("conflicting-duplicate · Failed")).toBeTruthy();
+    expect(screen.getByText("Policy A: 2 of 11 episodes weren't scored — duplicate records for one scenario.")).toBeTruthy();
+  });
+
+  it("marks scenarios whose variation was not applied at runtime", () => {
+    const value = result();
+    value.publication.policy_canary_result!.episodes = value.publication.result_delivery!.episodes.map((episode) => ({
+      episode_id: episode.episode_id,
+      runtime_coverage_gaps: episode.variation!.family_id === "bounded_physics" ? ["unapplied_scenario:bounded_physics"] : [],
+    }));
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    const physicsRow = screen.getByRole("button", { name: "Bounded physics variation" }).closest("tr")!;
+    expect(within(physicsRow).getByText("variation not applied")).toBeTruthy();
+    expect(screen.getAllByText("variation not applied")).toHaveLength(1);
+    expect(screen.queryByText(/wasn't reported for this run/)).toBeNull();
+  });
+
+  it("says when runtime variation coverage was not reported", () => {
+    render(<PolicyCanaryResultPortal result={result()} user={null} />);
+    expect(screen.getByText("Whether each scenario's variation was actually applied wasn't reported for this run.")).toBeTruthy();
   });
 
   it("shows the actionable retry window when video authorization is throttled", async () => {
@@ -459,7 +515,7 @@ describe("PolicyCanaryResultPortal", () => {
   });
 });
 
-describe("per-cell controls", () => {
+describe("control runs", () => {
   it("shows separate control outcomes and loads control videos only on demand", async () => {
     createArtifactTicket.mockReset().mockResolvedValue("/api/download/control-video");
     const value = result();
@@ -479,23 +535,32 @@ describe("per-cell controls", () => {
     value.publication.policy_canary_result!.controls_summary = { expected_count: 20, recorded_count: 20, completed_count: 20, passed_count: 20, verified_cell_count: 10 };
     value.publication.result_delivery!.artifacts.push(artifact("a", "controls_csv", "text/csv"));
     render(<PolicyCanaryResultPortal result={value} user={null} />);
-    const section = screen.getByRole("region", { name: "Per-cell controls" });
+    expect(screen.queryByText(/Control runs (were skipped|weren't delivered|failed)/)).toBeNull();
+    openDrawer("Control runs · all 20 passed");
+    const section = screen.getByRole("region", { name: "Control runs" });
     expect(within(section).getAllByRole("row")).toHaveLength(21);
-    expect(within(section).getByText("20 / 20 controls verified")).toBeTruthy();
-    expect(within(section).getByText(/zero-action control should leave the task incomplete/)).toBeTruthy();
-    expect(screen.queryByText(/no reference baseline has run/)).toBeNull();
+    expect(within(section).getByText(/do-nothing run that should\s+fail and a scripted run that should succeed/)).toBeTruthy();
     expect(createArtifactTicket).not.toHaveBeenCalled();
-    fireEvent.click(within(section).getByRole("button", { name: "Load External camera video for Zero-action negative" }));
+    fireEvent.click(within(section).getByRole("button", { name: "Load External camera video for Do-nothing run" }));
     await waitFor(() => expect(createArtifactTicket).toHaveBeenCalledWith(null, value.record_id, controls[0].videos.external.artifact_id, { signal: expect.any(AbortSignal) }));
-    expect((await within(section).findByLabelText("External camera evidence for Zero-action negative")).getAttribute("src")).toBe("/api/download/control-video");
-    fireEvent.click(within(section).getByRole("button", { name: "Inspect Scripted positive for cell-1" }));
-    expect(within(section).getByRole("heading", { name: "Scripted positive · cell-1" })).toBeTruthy();
+    expect((await within(section).findByLabelText("External camera evidence for Do-nothing run")).getAttribute("src")).toBe("/api/download/control-video");
+    fireEvent.click(within(section).getByRole("button", { name: "Inspect Scripted run for cell-1" }));
+    expect(within(section).getByRole("heading", { name: "Scripted run · cell-1" })).toBeTruthy();
     expect(within(section).getByRole("button", { name: "Cell evidence ZIP" })).toBeTruthy();
     expect(within(section).getByRole("button", { name: "Controls CSV" })).toBeTruthy();
   });
-  it("reports absent controls without treating them as policy failures", () => {
+
+  it("reports absent controls as an unverified setup, not as policy failures", () => {
     render(<PolicyCanaryResultPortal result={result()} user={null} />);
-    expect(screen.getByText("No control episode receipts were delivered for this run.")).toBeTruthy();
-    expect(screen.getByText("0 / 20 controls passed")).toBeTruthy();
+    expect(screen.getByText("Control runs weren't delivered, so it isn't confirmed that the task can be completed in this scene.")).toBeTruthy();
+    expect(screen.queryByText(/Control runs ·/)).toBeNull();
+    expect(screen.getAllByRole("row").slice(1, 3).map((row) => row.textContent)).toEqual(["Policy A101010", "Policy B1090"]);
+  });
+
+  it("says plainly when control runs were skipped", () => {
+    const value = result();
+    value.publication.scene_controls_status = "controls_omitted_by_user";
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getByText("Control runs were skipped, so it isn't confirmed that the task can be completed in this scene.")).toBeTruthy();
   });
 });
