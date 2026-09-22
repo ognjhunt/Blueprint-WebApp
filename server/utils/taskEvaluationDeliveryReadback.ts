@@ -3,7 +3,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import { evaluationResultWebsiteUrl } from "./evaluationReadyRunContract";
-import { configuredOfferingForTerminalSync, offeringScope, policyRunBelongsToOffering } from "./taskEvaluationPublicationScope";
+import { configuredOfferingForTerminalSync, normalOwnerControlOmissionMatches, offeringScope, policyRunBelongsToOffering } from "./taskEvaluationPublicationScope";
 import { operatorPolicyCanaryPublicationScope } from "./operatorPolicyCanaryRegistration";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { resultArtifactMetadata } from "./taskEvaluationArtifactIntegrity";
@@ -85,7 +85,7 @@ export async function readTaskEvaluationDelivery(db: Firestore, expected: Readba
   const normalOwner = expected.schema_version === "task_evaluation_delivery_readback_request.v2";
   let scope;
   if (normalOwner) {
-    if (policyRun.operator_registration !== undefined || publication.policy_canary_result.control_omission) {
+    if (policyRun.operator_registration !== undefined || !normalOwnerControlOmissionMatches(policyRun, publication)) {
       throw new TaskEvaluationDeliveryReadbackError(409, "delivery_readback_normal_owner_required");
     }
     const offeringSnapshot = await db.collection("taskEvaluationLaunches").doc(publication.capture_session_id).get();

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { resultFixture, sha, videoBytes, videoDigest } from "./fixtures/policy-canary-result";
 import { createHash } from "node:crypto";
 
-test("policy canary result defaults to the simple cell-by-cell review", async ({ page }, testInfo) => {
+test("policy canary result leads with a plain verdict and a scenario-by-scenario viewer", async ({ page }, testInfo) => {
   test.skip(
     process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1",
     "local fixture requires the dev-only operator QA identity",
@@ -38,20 +38,25 @@ test("policy canary result defaults to the simple cell-by-cell review", async ({
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/app/results/result-ux-fixture");
   await page.getByRole("button", { name: "Reject all" }).click().catch(() => undefined);
-  await expect(page.getByRole("heading", { name: "10 scenario cells · 2 policies · 20 episodes" })).toBeVisible();
-  await expect(page.getByText("20/20 episode records")).toBeVisible();
-  await expect(page.getByText("12 reported completed · 8 other delivered records")).toBeVisible();
-  await expect(page.getByText("Cell 1 of 10 · Episodes 1–2 of 20")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Baseline anchor 1" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "π0.5 DROID succeeded more often." })).toBeVisible();
+  await expect(page.getByText("On the 6 scenarios where both were scored, the gap is unlikely to be chance (sign test p ≈ 0.03).")).toBeVisible();
+  await expect(page.getByText("π0.5 DROID: 4 of 10 episodes weren't scored — a camera or sensor problem.")).toBeVisible();
+  await expect(page.getByText(/no winner is declared/)).toBeVisible();
+  await expect(page.getByText("Scenario 1 of 10 · seed 900")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Baseline anchor 1", level: 3 })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("policy-canary-result-simple.png"), fullPage: true });
   await page.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByText("Cell 2 of 10 · Episodes 3–4 of 20")).toBeVisible();
-  await page.getByRole("tab", { name: "Wrist camera" }).click();
-  await expect(page.getByRole("tab", { name: "Wrist camera" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText("Scenario 2 of 10 · seed 899")).toBeVisible();
+  await page.getByRole("button", { name: "Held-out composition" }).click();
+  await expect(page.getByRole("heading", { name: "Held-out composition", level: 3 })).toBeVisible();
+  await page.getByRole("button", { name: "Previous" }).click();
+  await expect(page.getByText("Scenario 9 of 10 · seed 892")).toBeVisible();
+  await page.getByRole("tab", { name: "Wrist" }).click();
+  await expect(page.getByRole("tab", { name: "Wrist" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Load Wrist camera video for π0.5 DROID" }).click();
   await expect(page.getByRole("button", { name: "Retry Wrist camera video for π0.5 DROID" })).toBeVisible();
   await expect(page.getByText("Failed to authorize result artifact (503)")).toBeVisible();
-  await expect(page.getByText("Evidence and provenance")).toBeVisible();
+  await expect(page.getByText("Run details and all files")).toBeVisible();
   await expect(page.getByText("Published artifact inventory")).toBeHidden();
   await page.screenshot({ path: testInfo.outputPath("policy-canary-video-retry.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
@@ -84,8 +89,8 @@ test("mobile result retries unreadable media with a fresh ticket and reads a rea
   await page.setViewportSize({width:390,height:844});
   await page.goto('/app/results/result-ux-fixture');
   await page.getByRole('button',{name:'Reject all'}).click().catch(()=>undefined);
-  await expect(page.getByRole('heading',{name:/higher observed paired success/})).toBeVisible();
-  await expect(page.getByText(/No winner declared/)).toBeVisible();
+  await expect(page.getByRole('heading',{name:/succeeded more often/})).toBeVisible();
+  await expect(page.getByText(/no winner is declared/)).toBeVisible();
   await expect(page.getByText(/one captured scene|trail for every episode/)).toHaveCount(0);
   await page.getByRole('button',{name:'Load External camera video for π0.5 DROID'}).click();
   await expect(page.getByText(/media could not be read or its access expired/)).toBeVisible();
@@ -118,7 +123,7 @@ test("real progress page recovers a transient status failure and stops after ter
   await expect(page.getByText(/Displayed data may be stale/)).toBeVisible();
   await expect(page.getByText('Running fixture episodes')).toBeVisible();
   await page.clock.fastForward(8000);
-  await expect(page.getByRole('link',{name:/Open complete results/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/View results/})).toBeVisible();
   await expect(page.getByText(/Displayed data may be stale/)).toHaveCount(0);
   await page.clock.fastForward(120000); expect(calls).toBe(3);
   await page.screenshot({path:testInfo.outputPath('polling-recovered.png'),fullPage:true});
@@ -153,7 +158,7 @@ test("full evidence inventory recovers after a failed read without claiming ever
   await page.setViewportSize({width:390,height:844});
   await page.goto('/app/results/result-ux-fixture');
   await page.getByRole('button',{name:'Reject all'}).click().catch(()=>undefined);
-  await page.getByText('Evidence and provenance',{exact:true}).click();
+  await page.getByText('Run details and all files',{exact:true}).click();
   await expect(page.getByText(/compact publication omits 2 additional descriptors/)).toBeVisible();
   await page.getByRole('button',{name:'Load full evidence manifest'}).click();
   await expect(page.getByText(/Inline descriptors remain available/)).toBeVisible();
@@ -190,7 +195,7 @@ test("an explicit email retry recovers a lost response using the same request wi
   });
   await page.goto('/app/results/result-ux-fixture');
   await page.getByRole('button',{name:'Reject all'}).click().catch(()=>undefined);
-  await page.getByText('Evidence and provenance',{exact:true}).click();
+  await page.getByText('Run details and all files',{exact:true}).click();
   await expect(page.getByRole('button',{name:'Retry result email'})).toBeVisible();
   expect(retries).toHaveLength(0);
   await page.getByRole('button',{name:'Retry result email'}).click();

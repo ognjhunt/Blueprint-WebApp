@@ -80,6 +80,28 @@ export const anyTaskSuccessContractSchema = z.union([
 
 export type AnyTaskSuccessContract = z.infer<typeof anyTaskSuccessContractSchema>;
 
+/**
+ * The contract a publication carries, of either kind. It lives here, beside the
+ * union, so the rigid module never imports this one back: that cycle left the
+ * union holding an undefined member whenever the rigid module loaded first.
+ */
+export function findPublishedTaskSuccessContract(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const publication = value as Record<string, any>;
+  const candidates = [
+    publication.policy_canary_result?.task_success_contract,
+    publication.task_success_contract,
+    publication.result_delivery?.reproducibility?.task_success_contract,
+  ];
+  for (const candidate of candidates) {
+    // Either admitted kind: an articulated result would otherwise render no
+    // criteria panel at all, which reads as "no scoring authority published".
+    const parsed = anyTaskSuccessContractSchema.safeParse(candidate);
+    if (parsed.success) return parsed.data;
+  }
+  return null;
+}
+
 export function isArticulatedTaskSuccessContract(
   contract: AnyTaskSuccessContract,
 ): contract is ArticulatedTaskSuccessContract {

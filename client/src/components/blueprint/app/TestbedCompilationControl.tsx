@@ -1,11 +1,7 @@
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
 
-import { Button, Card, ProofBoundary } from "@/components/blueprint";
+import { Field } from "@/components/workspace/WorkspaceUI";
 import type { CaptureTestbedCompilationCommand } from "@/lib/captureUploads";
-
-const fieldClass = "runway-input mt-1.5";
-const labelClass = "text-body-s font-semibold text-runway-text";
 
 function defaultDeadline() {
   return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -52,71 +48,69 @@ export function TestbedCompilationControl({
   ].every((value) => value.trim()) && Number(radius) > 0 && Number(maximumReach) > Number(minimumReach);
 
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="testbed-compile-heading">
-      <div>
-        <h2 id="testbed-compile-heading" className="font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
-          Compile the maintained testbed
-        </h2>
-        <p className="mt-2 max-w-3xl text-body-s text-runway-mute">
-          Bind the approved task to the exact robot and decision limits. Pipeline owns
-          SimReady, placement, qualification, and verdict calculations.
-        </p>
+    <section aria-labelledby="testbed-compile-heading">
+      <h2 id="testbed-compile-heading">Build the testbed</h2>
+      <p className="mt-2 text-ink-600">
+        Describe the robot for the approved task. These details don't confirm where it can stand; if placement
+        can't be checked yet, Blueprint asks for the capture it needs.
+      </p>
+      <div className="ws-fields mt-6">
+        <Field label="Robot ID"><input value={robotId} onChange={(event) => setRobotId(event.target.value)} placeholder="franka-panda" /></Field>
+        <Field label="Embodiment version"><input value={embodimentVersion} onChange={(event) => setEmbodimentVersion(event.target.value)} placeholder="1" /></Field>
+        <Field label="Footprint radius (m)"><input type="number" min="0.001" step="0.001" value={radius} onChange={(event) => setRadius(event.target.value)} /></Field>
+        <Field label="Primary sensor ID"><input value={sensorId} onChange={(event) => setSensorId(event.target.value)} placeholder="wrist-rgb-v1" /></Field>
+        <Field label="Controller ID"><input value={controllerId} onChange={(event) => setControllerId(event.target.value)} placeholder="joint-position-v1" /></Field>
+        <Field label="End effector ID"><input value={endEffectorId} onChange={(event) => setEndEffectorId(event.target.value)} placeholder="parallel-gripper-v1" /></Field>
+        <Field label="Minimum reach (m)"><input type="number" min="0" step="0.001" value={minimumReach} onChange={(event) => setMinimumReach(event.target.value)} /></Field>
+        <Field label="Maximum reach (m)"><input type="number" min="0.001" step="0.001" value={maximumReach} onChange={(event) => setMaximumReach(event.target.value)} /></Field>
       </div>
-      <ProofBoundary level="warn" title="Placement remains evidence-gated" icon={AlertTriangle}>
-        These fields identify the robot and customer decision constraints. They do not
-        assert a valid base placement. Pipeline will abstain and request the cheapest
-        missing evidence until a qualified placement method has enough captured coverage.
-      </ProofBoundary>
-      <Card pad="lg" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <label><span className={labelClass}>Robot ID</span><input className={fieldClass} value={robotId} onChange={(event) => setRobotId(event.target.value)} placeholder="franka-panda" /></label>
-        <label><span className={labelClass}>Embodiment version</span><input className={fieldClass} value={embodimentVersion} onChange={(event) => setEmbodimentVersion(event.target.value)} placeholder="1" /></label>
-        <label><span className={labelClass}>Circular footprint radius (m)</span><input className={fieldClass} type="number" min="0.001" step="0.001" value={radius} onChange={(event) => setRadius(event.target.value)} /></label>
-        <label><span className={labelClass}>Primary sensor ID</span><input className={fieldClass} value={sensorId} onChange={(event) => setSensorId(event.target.value)} placeholder="wrist-rgb-v1" /></label>
-        <label><span className={labelClass}>Controller ID</span><input className={fieldClass} value={controllerId} onChange={(event) => setControllerId(event.target.value)} placeholder="joint-position-v1" /></label>
-        <label><span className={labelClass}>End effector ID</span><input className={fieldClass} value={endEffectorId} onChange={(event) => setEndEffectorId(event.target.value)} placeholder="parallel-gripper-v1" /></label>
-        <label><span className={labelClass}>Minimum reach (m)</span><input className={fieldClass} type="number" min="0" step="0.001" value={minimumReach} onChange={(event) => setMinimumReach(event.target.value)} /></label>
-        <label><span className={labelClass}>Maximum reach (m)</span><input className={fieldClass} type="number" min="0.001" step="0.001" value={maximumReach} onChange={(event) => setMaximumReach(event.target.value)} /></label>
-        <label><span className={labelClass}>False-safe consequence</span><select className={fieldClass} value={falseSafeConsequence} onChange={(event) => setFalseSafeConsequence(event.target.value as typeof falseSafeConsequence)}><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option><option value="critical">Critical</option></select></label>
-        <label><span className={labelClass}>Maximum false-safe risk</span><input className={fieldClass} type="number" min="0" max="1" step="0.01" value={maxRisk} onChange={(event) => setMaxRisk(event.target.value)} /></label>
-        <label><span className={labelClass}>Minimum evidence coverage</span><input className={fieldClass} type="number" min="0.01" max="1" step="0.01" value={minimumCoverage} onChange={(event) => setMinimumCoverage(event.target.value)} /></label>
-        <label><span className={labelClass}>Minimum independent methods</span><input className={fieldClass} type="number" min="1" max="8" step="1" value={minimumMethods} onChange={(event) => setMinimumMethods(event.target.value)} /></label>
-        <label><span className={labelClass}>Maximum evidence cost (USD)</span><input className={fieldClass} type="number" min="0" step="0.01" value={maxCost} onChange={(event) => setMaxCost(event.target.value)} /></label>
-        <label><span className={labelClass}>Maximum latency (seconds)</span><input className={fieldClass} type="number" min="1" step="1" value={maxLatency} onChange={(event) => setMaxLatency(event.target.value)} /></label>
-        <label><span className={labelClass}>Decision deadline</span><input className={fieldClass} value={deadline} onChange={(event) => setDeadline(event.target.value)} /></label>
-        <div className="flex items-end">
-          <Button
-            type="button"
-            variant="action"
-            disabled={busy || !valid}
-            onClick={() => onCompile({
-              schema_version: "capture_testbed_compilation_command.v1",
-              testbed_id: `testbed-${sceneId}`.slice(0, 128),
-              version: "1",
-              robot_binding: {
-                robot_id: robotId.trim(),
-                embodiment_version: embodimentVersion.trim(),
-                base_footprint: { shape: "circle", radius_m: Number(radius) },
-                sensors: { primary: sensorId.trim() },
-                controller_id: controllerId.trim(),
-                end_effector_id: endEffectorId.trim(),
-                reach_envelope: {
-                  minimum_m: Number(minimumReach),
-                  maximum_m: Number(maximumReach),
-                },
-              },
-              false_safe_consequence: falseSafeConsequence,
-              acceptable_false_safe_risk: Number(maxRisk),
-              minimum_coverage: Number(minimumCoverage),
-              minimum_independent_methods: Number(minimumMethods),
-              max_cost_usd: Number(maxCost),
-              max_latency_seconds: Number(maxLatency),
-              deadline,
-              requested_result_audience: "design_partner",
-              idempotency_key: idempotencyKey,
-            })}
-          >{busy ? "Compiling…" : "Compile testbed"}</Button>
+      <details className="mt-8">
+        <summary>Decision limits</summary>
+        <div className="ws-fields">
+          <Field label="False-safe consequence" hint="How bad it is if a result says the robot is fine when it isn't.">
+            <select value={falseSafeConsequence} onChange={(event) => setFalseSafeConsequence(event.target.value as typeof falseSafeConsequence)}><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option><option value="critical">Critical</option></select>
+          </Field>
+          <Field label="Maximum false-safe risk"><input type="number" min="0" max="1" step="0.01" value={maxRisk} onChange={(event) => setMaxRisk(event.target.value)} /></Field>
+          <Field label="Minimum evidence coverage"><input type="number" min="0.01" max="1" step="0.01" value={minimumCoverage} onChange={(event) => setMinimumCoverage(event.target.value)} /></Field>
+          <Field label="Minimum independent methods"><input type="number" min="1" max="8" step="1" value={minimumMethods} onChange={(event) => setMinimumMethods(event.target.value)} /></Field>
+          <Field label="Maximum evidence cost (USD)"><input type="number" min="0" step="0.01" value={maxCost} onChange={(event) => setMaxCost(event.target.value)} /></Field>
+          <Field label="Maximum latency (seconds)"><input type="number" min="1" step="1" value={maxLatency} onChange={(event) => setMaxLatency(event.target.value)} /></Field>
+          <Field label="Decision deadline" wide><input value={deadline} onChange={(event) => setDeadline(event.target.value)} /></Field>
         </div>
-      </Card>
+      </details>
+      <div className="ws-form-actions">
+        <button
+          type="button"
+          className="ws-primary"
+          disabled={busy || !valid}
+          onClick={() => onCompile({
+            schema_version: "capture_testbed_compilation_command.v1",
+            testbed_id: `testbed-${sceneId}`.slice(0, 128),
+            version: "1",
+            robot_binding: {
+              robot_id: robotId.trim(),
+              embodiment_version: embodimentVersion.trim(),
+              base_footprint: { shape: "circle", radius_m: Number(radius) },
+              sensors: { primary: sensorId.trim() },
+              controller_id: controllerId.trim(),
+              end_effector_id: endEffectorId.trim(),
+              reach_envelope: {
+                minimum_m: Number(minimumReach),
+                maximum_m: Number(maximumReach),
+              },
+            },
+            false_safe_consequence: falseSafeConsequence,
+            acceptable_false_safe_risk: Number(maxRisk),
+            minimum_coverage: Number(minimumCoverage),
+            minimum_independent_methods: Number(minimumMethods),
+            max_cost_usd: Number(maxCost),
+            max_latency_seconds: Number(maxLatency),
+            deadline,
+            requested_result_audience: "design_partner",
+            idempotency_key: idempotencyKey,
+          })}
+        >{busy ? "Building…" : "Build the testbed"}</button>
+      </div>
     </section>
   );
 }

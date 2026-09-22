@@ -102,7 +102,7 @@ export const siteAssessment = {
 export const entryModel = {
   summary: "One price for each policy you put on a task.",
   detail:
-    "Add funds, enter the policies you want evaluated, top up when the balance gets low. Entries × tasks × the entry price, and there is no other term.",
+    "Add funds, enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.",
   notCharged: [
     "No subscription and no monthly minimum.",
     "No listing fee, seat fee, or fee to apply.",
@@ -149,7 +149,7 @@ export const billingRules = [
   {
     rule: "You see the quote before the run.",
     detail:
-      "Entries × tasks × the entry price, reserved against your balance rather than charged. Anything that never runs is released.",
+      "The quote is held against your balance rather than charged. Anything that never runs is released.",
   },
   {
     rule: "Top-ups and spend caps are separate settings.",

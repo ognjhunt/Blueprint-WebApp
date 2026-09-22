@@ -252,6 +252,8 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
 
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/app/captures", { waitUntil: "networkidle" });
+  // With a capture already on file, the list leads and the form waits behind one button.
+  await page.getByRole("button", { name: "Upload a capture", exact: true }).click();
   await page.getByLabel("Capture type", { exact: true }).selectOption("provided_scene_splat");
   await page.getByRole("combobox", { name: "Asset units", exact: true }).selectOption("1");
   await page.getByRole("combobox", { name: "Up axis", exact: true }).selectOption("Z");
@@ -261,26 +263,29 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     await expect(page.getByRole("combobox", { name: "Up axis", exact: true })).toHaveValue("Z");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
-  await page.getByRole("button", { name: "Review tasks" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Review proposed tasks" }),
+    page.getByRole("heading", { name: "Proposed tasks" }),
   ).toBeVisible();
+  await expect(
+    page.getByText(/doesn't show the\s+task will succeed/i),
+  ).toBeVisible();
+  // What the capture showed sits one click away, under the proposed tasks.
+  await page.getByText("What Blueprint saw in the capture", { exact: true }).click();
   await expect(page.getByText("Direct observations")).toBeVisible();
   await expect(
     page.getByText("Inferred objects and affordances"),
   ).toBeVisible();
-  await expect(
-    page.getByText(/does not prove the task succeeds/i),
-  ).toBeVisible();
 
-  const approve = page.getByRole("button", { name: "Approve candidate" });
+  const approve = page.getByRole("button", { name: "Approve this task" });
   await expect(approve).toBeDisabled();
   await page
     .getByPlaceholder(/Why this task is correct/i)
     .fill("This is the exact task we want evaluated.");
   await approve.click();
-  await expect(page.getByText("Decision command recorded")).toBeVisible();
-  await expect(page.getByText(/pending Pipeline validation/i)).toBeVisible();
+  await expect(
+    page.getByText(/Your decision \(approve\) is recorded and being checked/),
+  ).toBeVisible();
   expect(submittedCommand).toMatchObject({
     discovery_digest: discovery.discovery_digest,
     task_candidate_id: candidate.task_candidate_id,
@@ -399,6 +404,9 @@ test("owner submits bounded scene intent and sees source verification without a 
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/app/captures", { waitUntil: "networkidle" });
   await page
+    .getByText("Request an evaluation on a completed scene", { exact: true })
+    .click();
+  await page
     .getByRole("combobox", { name: "Source", exact: true })
     .selectOption("provided-splat-one");
   await page.getByLabel("Object to move", { exact: true }).fill("blue tote");
@@ -418,7 +426,7 @@ test("owner submits bounded scene intent and sees source verification without a 
     .getByRole("button", { name: "Confirm task and submit run", exact: true })
     .click();
   await expect(
-    page.getByText("awaiting source", { exact: true }),
+    page.getByText("Awaiting source", { exact: true }),
   ).toBeVisible();
   expect(submitted).toMatchObject({
     source_session_id: "provided-splat-one",

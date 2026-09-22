@@ -1,4 +1,18 @@
 import { configuredSceneOfferingSchema } from "./configuredSceneOfferingContract";
+import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
+import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
+import { stableJson } from "./taskCandidateContract";
+
+export function normalOwnerControlOmissionMatches(
+  policyRun: Record<string, any>, publication: PipelinePolicyCanaryPublication,
+) {
+  if (!publication.policy_canary_result.control_omission) return true;
+  const savedTask = confirmedRigidTaskSuccessContractSchema.safeParse(policyRun.task_success_contract);
+  return savedTask.success
+    && savedTask.data.criteria.controls?.mode !== "required_per_cell"
+    && policyRun.task_success_contract_digest === savedTask.data.contract_digest
+    && stableJson(savedTask.data) === stableJson(publication.policy_canary_result.task_success_contract);
+}
 
 export function configuredOfferingForTerminalSync(record: Record<string, any>) {
   const parsed = configuredSceneOfferingSchema.safeParse(record.configured_scene_offering);
@@ -35,4 +49,3 @@ export function policyRunBelongsToOffering(
     && /^sha256:[0-9a-f]{64}$/.test(String(policyRun.offering_digest || ""))
     && policyRun.team_namespace === offering.team_namespace;
 }
-

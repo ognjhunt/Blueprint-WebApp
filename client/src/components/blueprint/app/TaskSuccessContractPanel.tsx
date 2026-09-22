@@ -1,7 +1,6 @@
 import { useId } from "react";
-import { Bot, CheckCircle2 } from "lucide-react";
 
-import { ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Tag } from "@/components/workspace/WorkspaceUI";
 import {
   describeTaskSuccessContract,
   type AnyTaskSuccessContract,
@@ -14,65 +13,53 @@ const sourceLabels: Record<AnyTaskSuccessContract["provenance"]["author_source"]
   agent_proposal: "Agent proposal",
 };
 
+/** The rules that score each episode; a proposal needs the team's explicit confirmation. */
 export function TaskSuccessContractPanel({
   contract,
   confirmationTeamId,
   proposalConfirmed = false,
   onProposalConfirmed,
   title = "Task success criteria",
-  resultReview = false,
 }: {
   contract: AnyTaskSuccessContract;
   confirmationTeamId?: string;
   proposalConfirmed?: boolean;
   onProposalConfirmed?: (confirmed: boolean) => void;
   title?: string;
-  resultReview?: boolean;
 }) {
   const rows = describeTaskSuccessContract(contract);
   const headingId = useId();
-  const registryDefault = contract.provenance.author_source === "compatibility_default";
   const isProposal = contract.provenance.confirmation_status === "proposal_only";
-  return <section className="runway-panel p-5" aria-labelledby={headingId}>
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <p className="runway-meta">Scoring authority</p>
-        <h2 id={headingId} className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">{title}</h2>
-        <p className="mt-2 max-w-3xl text-body-s text-ink-500">These task- and site-bound rules decide completion. Terminal state and whole-episode events are evaluated separately, so a later recovery does not erase a prohibited earlier event.</p>
-      </div>
-      <StatusChip tone={isProposal || (resultReview && registryDefault) ? "warn" : "proof"} square>
-        {isProposal ? "Proposal — team confirmation required" : resultReview && registryDefault ? "Registry default · not team-confirmed" : "Confirmed"}
-      </StatusChip>
+  return <section aria-labelledby={headingId}>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 id={headingId}>{title}</h2>
+      <Tag tone={isProposal ? "neutral" : "green"}>{isProposal ? "Needs your confirmation" : "Confirmed"}</Tag>
     </div>
-
-    <dl className="mt-5 grid gap-px border border-line bg-line sm:grid-cols-2">
-      {rows.map((row) => <div key={row.label} className="bg-paper-0 p-3">
-        <dt className="runway-meta">{row.label}</dt>
-        <dd className="mt-1 text-body-s font-semibold capitalize text-ink-900">{row.value}</dd>
-        <p className="mt-1 text-caption text-ink-500">{row.detail}</p>
-      </div>)}
-    </dl>
-
-    <div className="mt-4 grid gap-2 border-t border-line pt-4 text-caption text-ink-500 sm:grid-cols-2">
-      <p><span className="font-semibold text-ink-700">Source:</span> {sourceLabels[contract.provenance.author_source]} · {contract.provenance.author_id}</p>
-      <p className="runway-num break-all"><span className="font-sans font-semibold text-ink-700">Contract:</span> {contract.contract_digest}</p>
-      <p><span className="font-semibold text-ink-700">Scope:</span> {contract.scope.site_id} · {contract.scope.task_id}</p>
-      <p><span className="font-semibold text-ink-700">Confirmed by:</span> {contract.provenance.confirmed_by_team_id || (isProposal ? "Pending team confirmation" : "Registry-owned compatibility default")}</p>
-    </div>
-
-    {isProposal && onProposalConfirmed && !resultReview ? <div className="mt-5">
-      <ProofBoundary level="warn" title="Agent interpretation is a proposal, not scoring authority" icon={Bot}>
-        The agent-authored criteria cannot launch or grade an episode by themselves. Confirmation creates a new immutable document bound to the proposal digest and team identity.
-      </ProofBoundary>
-      <label className="mt-4 flex gap-3 text-body-s text-ink-700">
-        <input
-          type="checkbox"
-          className="mt-1 size-4"
-          checked={proposalConfirmed}
-          onChange={(event) => onProposalConfirmed(event.target.checked)}
-        />
-        <span><span className="font-semibold">Confirm these exact criteria for this run.</span> I am acting for team <span className="runway-num">{confirmationTeamId || "unavailable"}</span>, and I understand this seals a new digest-bound contract.</span>
-      </label>
-    </div> : !isProposal ? <p className="mt-4 flex items-center gap-2 text-caption text-ink-600"><CheckCircle2 className="size-4 text-runway-signal" />{resultReview ? "Recorded scoring criteria; this panel grants no execution or field-trial authorization." : "This immutable contract is already confirmed and may be submitted unchanged."}</p> : null}
+    <p className="mt-2 text-sm text-ink-600">
+      These rules decide whether an episode succeeded. Anything forbidden that happens during the episode still counts,
+      even if the robot recovers later.
+    </p>
+    {/* A proposal opens its rules, since confirming them is the next step; confirmed rules stay one click away. */}
+    <details className="mt-4" open={isProposal}>
+      <summary>The {rows.length} rules</summary>
+      <dl className="ws-facts">
+        {rows.map((row) => <div key={row.label}>
+          <dt>{row.label}</dt>
+          <dd>{row.value.replace(/^./, (letter) => letter.toUpperCase())}<span className="block text-xs text-ink-500">{row.detail}</span></dd>
+        </div>)}
+      </dl>
+      <p className="mt-3 break-all text-xs text-ink-500">
+        Source: {sourceLabels[contract.provenance.author_source]} ({contract.provenance.author_id}) · Scope: {contract.scope.site_id} · {contract.scope.task_id}
+        {" "}· Confirmed by: {contract.provenance.confirmed_by_team_id || (isProposal ? "not yet" : "registry default")} · {contract.contract_digest}
+      </p>
+    </details>
+    {isProposal && onProposalConfirmed ? <label className="ws-check">
+      <input type="checkbox" checked={proposalConfirmed} onChange={(event) => onProposalConfirmed(event.target.checked)} />
+      <span>
+        These criteria were proposed by an agent and can't score anything until your team confirms them. I confirm these
+        exact criteria for this run on behalf of team {confirmationTeamId || "unavailable"}; this saves them as a new,
+        unchangeable version.
+      </span>
+    </label> : null}
   </section>;
 }

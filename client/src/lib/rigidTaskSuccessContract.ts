@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { anyTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
-
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1);
 const nonnegative = z.number().finite().nonnegative();
@@ -260,21 +258,4 @@ export function describeRigidTaskSuccessContract(
       detail: "Limits apply across the complete episode event ledger.",
     },
   ];
-}
-
-export function findPublishedTaskSuccessContract(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const publication = value as Record<string, any>;
-  const candidates = [
-    publication.policy_canary_result?.task_success_contract,
-    publication.task_success_contract,
-    publication.result_delivery?.reproducibility?.task_success_contract,
-  ];
-  for (const candidate of candidates) {
-    // Either admitted kind: an articulated result would otherwise render no
-    // criteria panel at all, which reads as "no scoring authority published".
-    const parsed = anyTaskSuccessContractSchema.safeParse(candidate);
-    if (parsed.success) return parsed.data;
-  }
-  return null;
 }

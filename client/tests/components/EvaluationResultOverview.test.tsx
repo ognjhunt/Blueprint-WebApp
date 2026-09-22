@@ -51,11 +51,15 @@ describe("EvaluationResultOverview", () => {
     const comparison = screen.getByRole("table", { name: "Candidate comparison" });
     expect(within(comparison).getByText("π0.5 DROID")).toBeInTheDocument();
     expect(within(comparison).getByText("GR00T N1.7 DROID")).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Per-variation results" })).toBeInTheDocument();
-    expect(screen.getByText("Failure modes")).toBeInTheDocument();
-    expect(screen.getByText("Paired outcomes")).toBeInTheDocument();
-    expect(screen.getAllByText(/Δ canonical/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/missed target/)).toBeInTheDocument();
-    expect(screen.getAllByText("Evidence complete")).toHaveLength(2);
+    expect(screen.getByText(/Paired outcomes: \d+ scenarios run by both policies/)).toBeInTheDocument();
+
+    // Variation, failure, and evidence detail sits in one closed drawer.
+    const detail = screen.getByText("By variation, failure, and evidence", { selector: "summary" }).closest("details")!;
+    expect(detail.open).toBe(false);
+    expect(within(detail).getByRole("table", { name: "Per-variation results", hidden: true })).toBeInTheDocument();
+    expect(within(detail).getAllByText(/Δ canonical/).length).toBeGreaterThan(0);
+    expect(within(detail).getByText("Failure modes")).toBeInTheDocument();
+    expect(within(detail).getByText(/missed target/)).toBeInTheDocument();
+    expect(within(detail).getByText("Evidence complete")).toBeInTheDocument();
   });
 });

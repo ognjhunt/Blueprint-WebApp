@@ -1,15 +1,81 @@
+import { controlsVerified } from "@/lib/policyCanaryControls";
 import type {
   TaskEvaluationResultArtifact,
   TaskEvaluationResultEpisode,
   TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
 
-export type EpisodeFilters = {
-  family: string;
-  seed: string;
-  outcome: "all" | "success" | "failure";
-  interpretability: "all" | "interpretable" | "uninterpretable" | "unknown";
-};
+/** Control runs, their summary and status, from the projection first, then the delivery. */
+export function canaryControlsState(result: TaskEvaluationResultSiteRecord) {
+  const publication = result.publication;
+  const projection = publication.policy_canary_result;
+  const controls = projection?.controls || publication.result_delivery?.controls || [];
+  const summary = projection?.controls_summary || publication.result_delivery?.controls_summary;
+  const status = publication.scene_controls_status
+    || projection?.scene_controls_status
+    || "configured_controls_pending";
+  return {
+    controls,
+    summary,
+    status,
+    verified: controlsVerified({ scene_controls_status: status, controls, controls_summary: summary }),
+  };
+}
+
+export function runtimeCanaryCoverage(episodes: Array<{ runtime_coverage_gaps?: string[] }>) {
+  const counts = new Map<string, number>();
+  let reported = 0;
+  for (const episode of episodes) {
+    if (!Array.isArray(episode.runtime_coverage_gaps)) continue;
+    reported += 1;
+    for (const code of new Set(episode.runtime_coverage_gaps)) {
+      counts.set(code, (counts.get(code) || 0) + 1);
+    }
+  }
+  return {
+    reported, total: episodes.length,
+    gaps: [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([code, count]) => ({
+      code, count,
+      label: code.startsWith("unapplied_scenario:")
+        ? `${code.slice("unapplied_scenario:".length).replaceAll("_", " ")}: variation not applied`
+        : code.replaceAll("_", " "),
+    })),
+  };
+}
+
+/** Per-episode runtime gaps; an episode without a reported list stays absent from the map. */
+export function runtimeCoverageGapsByEpisode(
+  episodes: Array<{ episode_id?: unknown; runtime_coverage_gaps?: string[] }>,
+) {
+  const gaps = new Map<string, string[]>();
+  for (const episode of episodes) {
+    if (typeof episode.episode_id !== "string" || !Array.isArray(episode.runtime_coverage_gaps)) continue;
+    gaps.set(episode.episode_id, [...new Set(episode.runtime_coverage_gaps)]);
+  }
+  return gaps;
+}
+
+/** Short notes for one aligned cell, e.g. "variation not applied". */
+export function canaryCellCoverageNotes(row: AlignedCanaryCell, gapsByEpisode: Map<string, string[]>) {
+  const episodes = [
+    ...Object.values(row.episodesByCandidate),
+    ...Object.values(row.duplicateEpisodesByCandidate).flat(),
+  ].filter((episode): episode is TaskEvaluationResultEpisode => Boolean(episode));
+  return [...new Set(episodes.flatMap((episode) => gapsByEpisode.get(episode.episode_id) || [])
+    .map((code) => code.startsWith("unapplied_scenario:") ? "variation not applied" : code.replaceAll("_", " ")))];
+}
+
+/** Scene and task identifiers bound to a canary result; never invents a value. */
+export function canaryRunLabels(result: TaskEvaluationResultSiteRecord) {
+  const publication = result.publication;
+  const reproducibility = publication.result_delivery?.reproducibility;
+  const scope = publication.policy_canary_result?.task_success_contract?.scope;
+  return {
+    scene: publication.scene?.id || reproducibility?.scene_id || scope?.site_id || null,
+    task: publication.task?.id || reproducibility?.task_id || scope?.task_id || null,
+    taskLabel: publication.task?.label || null,
+  };
+}
 
 export type AlignedCanaryCell = {
   key: string;
@@ -108,7 +174,7 @@ export function applyPolicyCanaryScoreCorrection(
       (episode.policy_candidate_id || episode.subject_id) === candidateId
     ));
     const interpretable = rows.filter((episode) => (
-      isScorable(episode)
+      isScorableCanaryEpisode(episode)
     ));
     const successes = interpretable.filter((episode) => episode.score?.task_succeeded === true).length;
     const failureCounts: Record<string, number> = {};
@@ -145,7 +211,7 @@ export function applyPolicyCanaryScoreCorrection(
   }
   if (corrected.publication.result_delivery) {
     corrected.publication.result_delivery.summary.successful_episode_count = episodes.filter(
-      (episode) => isScorable(episode) && episode.score?.task_succeeded === true,
+      (episode) => isScorableCanaryEpisode(episode) && episode.score?.task_succeeded === true,
     ).length;
   }
   // A scoring correction cannot turn a delivered record into a completed execution.
@@ -245,7 +311,7 @@ export function resolvedCanaryCandidates(result: TaskEvaluationResultSiteRecord)
   const projected = publication.policy_canary_result?.candidate_results || [];
   return projected.map((candidate: Record<string, any>) => {
     const metrics = candidate.metrics || {};
-    const episode = publication.result_delivery?.episodes.find((row) => (
+    const episode = (publication.result_delivery?.episodes || []).find((row) => (
       row.policy_candidate_id === candidate.candidate_id
     ));
     return {
@@ -275,28 +341,9 @@ export function wilson95(successes: number, attempts: number) {
   };
 }
 
-function episodeMatches(episode: TaskEvaluationResultEpisode, filters: EpisodeFilters) {
-  if (filters.family !== "all" && episode.variation?.family_id !== filters.family) return false;
-  if (filters.seed !== "all" && String(episode.variation?.seed) !== filters.seed) return false;
-  if (filters.outcome === "success" && episode.score?.task_succeeded !== true) return false;
-  if (filters.outcome === "failure" && episode.score?.task_succeeded !== false && !episode.failure) return false;
-  if (
-    filters.interpretability === "interpretable"
-    && episode.score?.policy_outcome_interpretable !== true
-  ) return false;
-  if (
-    filters.interpretability === "uninterpretable"
-    && episode.score?.policy_outcome_interpretable !== false
-  ) return false;
-  if (filters.interpretability === "unknown"
-    && typeof episode.score?.policy_outcome_interpretable === "boolean") return false;
-  return true;
-}
-
 export function buildAlignedCanaryCells(
   episodes: TaskEvaluationResultEpisode[],
   candidateIds: string[],
-  filters: EpisodeFilters,
 ) {
   const rows = new Map<string, AlignedCanaryCell>();
   for (const episode of episodes) {
@@ -329,17 +376,16 @@ export function buildAlignedCanaryCells(
     const match = cellId.match(/(?:^|\.)quick10\.(\d{1,3})(?:\.|$)/);
     return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
   };
-  return [...rows.values()].filter((row) => [
-    ...Object.values(row.episodesByCandidate),
-    ...Object.values(row.duplicateEpisodesByCandidate).flat(),
-  ].some((episode) => episode && episodeMatches(episode, filters))).sort((left, right) => (
+  return [...rows.values()].sort((left, right) => (
     quickCellIndex(left.cellId) - quickCellIndex(right.cellId)
     || left.cellId.localeCompare(right.cellId)
     || (left.seed ?? Number.MAX_SAFE_INTEGER) - (right.seed ?? Number.MAX_SAFE_INTEGER)
   ));
 }
 
-function failureCohort(episode: TaskEvaluationResultEpisode): typeof canaryFailureCohorts[number] | null {
+export type CanaryEpisodeProblem = typeof canaryFailureCohorts[number];
+
+export function canaryEpisodeProblem(episode: TaskEvaluationResultEpisode): CanaryEpisodeProblem | null {
   const material = [
     episode.failure?.code,
     episode.failure?.phase,
@@ -348,6 +394,7 @@ function failureCohort(episode: TaskEvaluationResultEpisode): typeof canaryFailu
     episode.evidence?.typed_media_gap?.code,
   ].filter(Boolean).join(" ").toLowerCase();
   if (episode.score?.collision === true || material.includes("collision")) return "collision";
+  if (material.includes("droidactionexecutionerror")) return "action_delivery";
   if (material.includes("no_motion") || material.includes("no motion") || (
     episode.action_delivery?.actions_reached_robot === true
     && episode.action_delivery.arm_moved === false
@@ -362,18 +409,58 @@ function failureCohort(episode: TaskEvaluationResultEpisode): typeof canaryFailu
   return episode.failure ? "task_miss" : null;
 }
 
-export function buildFailureAnalysis(episodes: TaskEvaluationResultEpisode[]) {
-  const cohorts = new Map<typeof canaryFailureCohorts[number], string[]>();
-  for (const cohort of canaryFailureCohorts) cohorts.set(cohort, []);
-  for (const episode of episodes) {
-    const cohort = failureCohort(episode);
-    if (cohort) cohorts.get(cohort)?.push(episode.episode_id);
+const unscoredProblemReasons: Partial<Record<CanaryEpisodeProblem, string>> = {
+  collision: "a collision occurred",
+  no_motion: "the robot didn't move",
+  action_delivery: "the policy's actions couldn't be executed",
+  contact_loss: "contact with the object was lost",
+  timeout: "the episode timed out",
+  camera_sensor: "a camera or sensor problem",
+  runtime_provider: "a simulator or provider error",
+  evidence_gap: "evidence is missing",
+};
+
+/** Why an episode has no usable score, as a short phrase. A task miss is a scored outcome, never a reason. */
+export function canaryUnscoredReason(episode: TaskEvaluationResultEpisode) {
+  if (!episode.score) return "no score was recorded";
+  if (String(episode.score.status || "").toLowerCase().includes("cancel")) return "the episode was cancelled";
+  const problem = canaryEpisodeProblem(episode);
+  const reason = problem ? unscoredProblemReasons[problem] : undefined;
+  if (reason) return reason;
+  if (episode.failure?.code) return episode.failure.code.replaceAll("_", " ");
+  return episode.score.policy_outcome_interpretable === false
+    ? "the outcome couldn't be interpreted"
+    : "no score was recorded";
+}
+
+/** Reasons, grouped, for every delivered record left out of a candidate's scored count. */
+export function canaryUnscoredReasons(result: TaskEvaluationResultSiteRecord, candidateId: string) {
+  const { rows, unique } = uniqueCandidateEpisodes(result.publication.result_delivery?.episodes || [], candidateId);
+  const uniqueRows = new Set(unique);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (uniqueRows.has(row) && isScorableCanaryEpisode(row)) continue;
+    const reason = uniqueRows.has(row)
+      ? canaryUnscoredReason(row)
+      : boundCellKey(row) ? "duplicate records for one scenario" : "no scenario was recorded";
+    counts.set(reason, (counts.get(reason) || 0) + 1);
   }
-  return canaryFailureCohorts.map((cohort) => ({
-    cohort,
-    count: cohorts.get(cohort)?.length || 0,
-    representativeEpisodeIds: (cohorts.get(cohort) || []).slice(0, 3),
-  }));
+  return [...counts].map(([reason, count]) => ({ reason, count }))
+    .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
+}
+
+export type CanaryEpisodeOutcome = {
+  label: "Completed" | "Failed" | "Not scored" | "Missing";
+  tone: "green" | "red" | "neutral";
+};
+
+/** The outcome shown for one episode; it matches the scored counts exactly. */
+export function canaryEpisodeOutcome(episode?: TaskEvaluationResultEpisode): CanaryEpisodeOutcome {
+  if (!episode) return { label: "Missing", tone: "neutral" };
+  if (!isScorableCanaryEpisode(episode)) return { label: "Not scored", tone: "neutral" };
+  return episode.score.task_succeeded
+    ? { label: "Completed", tone: "green" }
+    : { label: "Failed", tone: "red" };
 }
 
 function episodeArtifacts(episode: TaskEvaluationResultEpisode) {
@@ -484,13 +571,6 @@ export function primaryCanaryDownloads(result: TaskEvaluationResultSiteRecord) {
   }));
 }
 
-export function availableCanaryFilters(episodes: TaskEvaluationResultEpisode[]) {
-  return {
-    families: [...new Set(episodes.map((episode) => episode.variation?.family_id).filter(Boolean) as string[])].sort(),
-    seeds: [...new Set(episodes.map((episode) => episode.variation?.seed).filter((seed): seed is number => typeof seed === "number"))].sort((a, b) => a - b),
-  };
-}
-
 // --- Answer-first comparison helpers ---------------------------------------
 // The metrics a robot team reads first: each policy's success rate (k/N) with a
 // Wilson interval, and a paired verdict that says whether the observed gap is
@@ -510,7 +590,7 @@ export type CanaryCandidateSummary = {
 };
 
 // Unknown interpretability and missing boolean outcomes are not scored failures.
-function isScorable(episode: TaskEvaluationResultEpisode) {
+export function isScorableCanaryEpisode(episode: TaskEvaluationResultEpisode) {
   return episode.score?.policy_outcome_interpretable === true
     && typeof episode.score?.task_succeeded === "boolean";
 }
@@ -545,7 +625,7 @@ export function canaryCandidateSummaries(
   const episodes = result.publication.result_delivery?.episodes || [];
   return resolvedCanaryCandidates(result).map((candidate) => {
     const { rows, unique } = uniqueCandidateEpisodes(episodes, candidate.candidate_id);
-    const scored = unique.filter(isScorable);
+    const scored = unique.filter(isScorableCanaryEpisode);
     const successCount = scored.filter((episode) => episode.score?.task_succeeded === true).length;
     const interpretable = scored.length;
     return {
@@ -566,6 +646,12 @@ function choose(n: number, k: number): number {
   let result = 1;
   for (let i = 0; i < k; i += 1) result = (result * (n - i)) / (i + 1);
   return result;
+}
+
+/** "p < 0.001", "p ≈ 0.004", "p ≈ 0.06": never rounds a small p to zero. */
+export function formatCanaryPValue(pValue: number) {
+  if (pValue < 0.001) return "p < 0.001";
+  return `p ≈ ${pValue.toFixed(pValue < 0.01 ? 3 : 2)}`;
 }
 
 // Two-sided exact sign test on discordant pairs — the correct paired comparison
@@ -612,7 +698,7 @@ export function pairedCanaryComparison(
   let bothFailed = 0;
   for (const a of aRows) {
     const b = bRows.get(boundCellKey(a));
-    if (!b || !isScorable(a) || !isScorable(b)) continue;
+    if (!b || !isScorableCanaryEpisode(a) || !isScorableCanaryEpisode(b)) continue;
     comparablePairs += 1;
     const aWin = a.score.task_succeeded;
     const bWin = b.score.task_succeeded;
@@ -634,23 +720,32 @@ export function pairedCanaryComparison(
   const leaderWins = leader?.candidate_id === candidateA.candidate_id ? aOnlyWins : bOnlyWins;
   const laggardWins = leader?.candidate_id === candidateA.candidate_id ? bOnlyWins : aOnlyWins;
 
-  const pText = pValue === null
-    ? null
-    : pValue < 0.001
-      ? "p < 0.001"
-      : `p ≈ ${pValue.toFixed(2)}`;
+  const pText = pValue === null ? null : formatCanaryPValue(pValue);
+  const scenarios = (count: number) => `${count} scenario${count === 1 ? "" : "s"}`;
 
+  // Plain statements of what was observed. None declares a winner.
   let headline: string;
-  let verdict: string;
-  if (leader) {
-    headline = `${leader.display_name}: ${deltaPoints} pp higher observed paired success`;
-    verdict = `On ${comparablePairs} mutually scorable cell/seed pairs, the paired difference is ${distinguishable ? "" : "not "}statistically distinguishable (two-sided exact sign test ${pText}). No winner, ranking, selection, or readiness claim is authorized by this diagnostic comparison.`;
-  } else if (deltaPoints === 0) {
-    headline = "Equal observed success on matched pairs";
-    verdict = `On ${comparablePairs} mutually scorable cell/seed pairs, the paired difference is zero. ${pText ? `Two-sided exact sign test ${pText}.` : "No discordant pairs; the sign test is not informative."} No winner or readiness claim is authorized.`;
+  let verdict = "";
+  if (candidateA.delivered_count + candidateB.delivered_count === 0) {
+    headline = "No episodes were delivered.";
+  } else if (candidateA.interpretable_count + candidateB.interpretable_count === 0) {
+    headline = "No episodes could be scored.";
+    verdict = "Every episode stopped before it could be scored, so the policies can't be compared.";
+  } else if (candidateA.success_count + candidateB.success_count === 0) {
+    headline = "Neither policy completed the task.";
+  } else if (!comparablePairs) {
+    headline = "Not enough scored episodes to compare.";
+    verdict = "The two policies were never both scored on the same scenario.";
+  } else if (leader) {
+    headline = `${leader.display_name} succeeded more often.`;
+    verdict = distinguishable
+      ? `On the ${scenarios(comparablePairs)} where both were scored, the gap is unlikely to be chance (sign test ${pText}).`
+      : `With only ${scenarios(comparablePairs)} where both were scored, the gap could be chance (sign test ${pText}).`;
   } else {
-    headline = "No mutually scorable pairs";
-    verdict = "Paired difference and uncertainty are unavailable. Overall candidate rates use separate denominators and cannot establish a paired comparison.";
+    headline = "The policies tied.";
+    verdict = discordantPairs
+      ? `On the ${scenarios(comparablePairs)} where both were scored, each succeeded ${leaderWins === 1 ? "once" : `${leaderWins} times`} where the other failed.`
+      : `They had the same outcome on all ${scenarios(comparablePairs)} where both were scored.`;
   }
 
   return {
@@ -668,8 +763,4 @@ export function pairedCanaryComparison(
     headline,
     verdict,
   };
-}
-
-export function formatCanaryPercent(rate: number | null): string {
-  return rate === null ? "Not scored" : `${Math.round(rate * 100)}%`;
 }

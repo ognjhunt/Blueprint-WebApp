@@ -72,6 +72,9 @@ The dominant problems were ordering and language, not capability.
 
 ## 3. Presentation cleanups shipped in this PR (no new pipeline data)
 
+> Superseded on 2026-09-22 by the simplification in section 5. The honesty
+> content below still ships; section 5 records where each piece now lives.
+
 - **Answer-first hero verdict** (`PolicyCanaryPrimarySummary.tsx`): leads with
   the comparative outcome ("GR00T N1.7 DROID led by 50 pp"), two `PolicyRankBar`
   comparison bars with each policy's k/N and Wilson interval, and the honest
@@ -141,3 +144,64 @@ to deliver new content. Ranked by buyer impact.
 The page now renders (2)–(11) as honest "not captured / not delivered" states
 rather than blanks, and the UI is structured so each can be populated in place
 as the pipeline delivers it.
+
+## 5. 2026-09-22 simplification — bare page, same evidence
+
+Owner feedback on a real run: far too much text, confusing even to the team.
+The page had grown to ~1,200 visible words and ~6,200 px on desktop (~11,000 px
+on a phone) before any drawer was opened, with the verdict, the paired
+statistics, and the "no winner" boundary each stated three or more times.
+
+The page now matches the rest of the workspace (plain type, `ws-*` styles) and
+reads top to bottom as three things, ~250 visible words and ~2,200 px:
+
+1. **Result.** One plain verdict as the heading ("Neither policy completed the
+   task.", "π0.5 DROID succeeded more often.", "The policies tied."), a
+   significance line only when one policy leads, a four-column table (Episodes /
+   Scored / Completed per policy), a short list of the caveats that apply to this
+   run, and the four primary downloads as links.
+2. **Episodes.** One row per scenario with each policy's outcome
+   (Completed / Failed / Not scored / Ambiguous). Selecting a row opens a
+   side-by-side viewer: camera tabs, one line saying why each episode failed or
+   was not scored, the on-demand video, and a closed "Details and files" drawer
+   (measurements, AI review, episode id, files).
+3. **Three closed drawers.** "How this was scored" (rules, paired sign test,
+   Wilson intervals, criteria provenance), "Control runs" (only when control runs
+   exist), and "Run details and all files" (run bindings, scene/task ids, exact
+   result record, telemetry, full inventory, closure receipts, email retry).
+
+Where each boundary now lives (nothing was dropped):
+
+| Boundary | Now |
+| --- | --- |
+| Simulation only, no winner, not safety/deployment evidence | One line under the result table |
+| Unscored episodes are not failures, and why they were not scored | Per-policy line under the table ("9 of 10 episodes weren't scored — the policy's actions couldn't be executed"); scorable-only counts |
+| Control runs skipped, pending, or failed | One line under the table (the setup, not the policies, is unverified) |
+| Success criteria missing or only a registry default | Line under the table / criteria provenance in "How this was scored" |
+| Post-publication score correction applied or rejected | Line under the table |
+| Unlisted-link visibility | Line under the table (unlisted results only) |
+| Runtime variation not applied / not reported | Marked on the scenario row / one line under the scenario table |
+| Duplicate records for a scenario | "Ambiguous" in the row; both records listed in the viewer; excluded from counts |
+| Paired sign test and Wilson intervals | "How this was scored" |
+| AI interpretation never changes the score | Episode details; a visible line only when it disagrees with the score |
+
+Removed as duplication or noise: the "How to read this canary" block (every
+point is one of the lines above), the separate metrics table (it repeated the
+verdict and showed "Action delivery 100%" beside nine unexecuted episodes), the
+four-filter variation matrix (ten rows need no filters), the nine-row failure
+cohort table (seven rows read "None delivered"; the cohorts now drive the
+one-line reasons), the always-open 14-row criteria panel, the delivery-stage
+chips, the eyebrow, and the run id and JSON button in the header (both are in
+"Run details and all files"). Two small fixes rode along: p-values below 0.01 no
+longer print as "p ≈ 0.00", and candidate resolution no longer throws when a
+compact delivery omits its episode list.
+
+
+## 6. 2026-09-22 round 2 — every other kind of result
+
+Results that are not head-to-head policy tests now use the same plain layout
+(one visibility-and-simulation line, a counts list, one comparison table, one
+closed drawer per episode, downloads, and a run-details drawer). The run
+progress, run record, runs list, tasks, setup, and captures pages were
+simplified in the same pass; see
+[`workspace-simplification-2026-09-22.md`](workspace-simplification-2026-09-22.md).

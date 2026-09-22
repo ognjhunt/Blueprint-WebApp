@@ -1,8 +1,18 @@
-import { Download, ShieldCheck } from "lucide-react";
-
-import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Tag } from "@/components/workspace/WorkspaceUI";
 import type { CaptureSiteTaskTestbedInspection } from "@/lib/captureUploads";
 
+function humanize(value: string) {
+  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function metricVector(value: unknown, digits = 3) {
+  if (!Array.isArray(value) || value.length !== 3) return null;
+  const numbers = value.map(Number);
+  if (!numbers.every(Number.isFinite)) return null;
+  return numbers.map((item) => item.toFixed(digits)).join(", ");
+}
+
+/** What the testbed doesn't cover up front; objects, evidence, and the exact file stay in drawers. */
 export function SiteTaskTestbedInspection({
   inspection,
 }: {
@@ -19,13 +29,6 @@ export function SiteTaskTestbedInspection({
     ? testbed.semantic_object_inventory
     : [];
 
-  function metricVector(value: unknown, digits = 3) {
-    if (!Array.isArray(value) || value.length !== 3) return null;
-    const numbers = value.map(Number);
-    if (!numbers.every(Number.isFinite)) return null;
-    return numbers.map((item) => item.toFixed(digits)).join(", ");
-  }
-
   function download() {
     const blob = new Blob([`${JSON.stringify(testbed, null, 2)}\n`], {
       type: "application/json",
@@ -39,109 +42,66 @@ export function SiteTaskTestbedInspection({
   }
 
   return (
-    <section className="flex flex-col gap-5" aria-labelledby="site-task-testbed-heading">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <StatusChip tone="proof" square>Testbed ready</StatusChip>
-          <h2 id="site-task-testbed-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
-            Maintained Site-Task Testbed
-          </h2>
-          <p className="runway-num mt-2 text-[0.72rem] text-runway-faint">
-            {String(testbed.testbed_id)} · {String(testbed.version)} · {String(testbed.testbed_digest)}
-          </p>
-        </div>
-        <Button type="button" variant="secondary" size="sm" iconLeft={<Download />} onClick={download}>
-          Download exact JSON
-        </Button>
+    <section aria-labelledby="site-task-testbed-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="site-task-testbed-heading">Testbed</h2>
+        <Tag tone="green">Ready</Tag>
       </div>
+      <p className="mt-2 break-all text-sm text-ink-500">{String(testbed.testbed_id)} · version {String(testbed.version)}</p>
 
-      <ProofBoundary level="proof" title="Inspectable evidence boundary" icon={ShieldCheck}>
-        This immutable version is bound to the approved task and source capture. Its appearance, generated regions, and simulation outputs do not establish collision truth, physical success, deployment readiness, safety certification, or comparative policy-ranking support.
-      </ProofBoundary>
-
-      <Card pad="lg" className="grid gap-5 md:grid-cols-2">
-        <div>
-          <h3 className="runway-meta font-semibold">Evidence inventory</h3>
-          <ul className="mt-2 space-y-2 text-body-s text-runway-body">
-            {evidence.map((row, index) => (
-              <li key={`${String(row.evidence_id || "evidence")}-${index}`}>
-                <strong>{String(row.evidence_id || "evidence")}</strong> · {String(row.status || row.authority || "recorded")}
-              </li>
-            ))}
+      {unsupported.length ? (
+        <>
+          <h3 className="mt-6 text-lg">Not covered</h3>
+          <ul className="mt-2 list-disc pl-5">
+            {unsupported.map((item) => <li key={item}>{humanize(item)}</li>)}
           </ul>
-        </div>
-        <div>
-          <h3 className="runway-meta font-semibold">Unsupported conditions</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
-            {unsupported.map((item) => <li key={item}>{item.replace(/_/g, " ")}</li>)}
-          </ul>
-        </div>
-      </Card>
+        </>
+      ) : null}
 
       {semanticObjects.length ? (
-        <Card pad="lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h3 className="runway-meta font-semibold">
-                Semantic object candidates
-              </h3>
-              <p className="mt-2 max-w-3xl text-body-s text-runway-body">
-                Pipeline-projected object hypotheses and metric boxes from observed multi-view support. These candidates remain separate from collision geometry and physics qualification.
-              </p>
-            </div>
-            <StatusChip tone="warn" square>Candidate evidence only</StatusChip>
-          </div>
-          <ul className="mt-5 grid gap-3 lg:grid-cols-2">
+        <details className="mt-6">
+          <summary>Objects found ({semanticObjects.length})</summary>
+          <p className="text-sm text-ink-600">Object boxes are estimates from the capture, kept separate from collision geometry.</p>
+          <ul className="mt-3 flex flex-col">
             {semanticObjects.map((object) => {
               const center = metricVector(object.center_world_m);
               const dimensions = metricVector(object.dimensions_m);
-              const qualified = object.semantic_status === "qualified_metric_obb_candidate";
+              const measured = object.semantic_status === "qualified_metric_obb_candidate";
               return (
-                <li key={object.track_id} className="border border-runway-line bg-runway-black p-4">
+                <li key={object.track_id} className="border-t border-line py-3 text-sm">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-display uppercase text-body-s font-semibold tracking-[0.005em] text-runway-text">
-                        {object.label || "Unlabeled object"}
-                      </h4>
-                      <p className="runway-num mt-1 text-[0.68rem] text-runway-faint">{object.track_id}</p>
-                    </div>
-                    <StatusChip tone={qualified ? "proof" : "warn"} square>
-                      {qualified ? "Metric box candidate" : "Abstained"}
-                    </StatusChip>
+                    <strong className="font-medium">{object.label || "Unlabeled object"}</strong>
+                    <Tag tone={measured ? "green" : "neutral"}>{measured ? "Box measured" : "Not measured"}</Tag>
                   </div>
-                  {qualified && center && dimensions ? (
-                    <dl className="mt-4 grid gap-3 text-body-s sm:grid-cols-2">
-                      <div>
-                        <dt className="runway-meta">Center (m, Z-up)</dt>
-                        <dd className="runway-num mt-1 text-runway-text">{center}</dd>
-                      </div>
-                      <div>
-                        <dt className="runway-meta">Dimensions (m)</dt>
-                        <dd className="runway-num mt-1 text-runway-text">{dimensions}</dd>
-                      </div>
-                    </dl>
+                  {measured && center && dimensions ? (
+                    <p className="mt-1 tabular-nums">Center {center} m (Z up) · size {dimensions} m</p>
                   ) : null}
-                  <p className="mt-4 text-body-s text-runway-body">
-                    Collision consistency: {object.collision_consistency_status.replace(/_/g, " ")}.
-                    {" "}This does not establish collision, contact, physical success, or deployment readiness.
-                  </p>
+                  <p className="mt-1 text-ink-600">Collision check: {humanize(object.collision_consistency_status).toLowerCase()}.</p>
                   {typeof object.next_experiment === "string" && object.next_experiment ? (
-                    <p className="mt-2 text-body-s text-runway-body">
-                      <strong>Next experiment:</strong> {object.next_experiment.replace(/_/g, " ")}
-                    </p>
+                    <p className="mt-1 text-ink-600">Next: {humanize(object.next_experiment)}</p>
                   ) : null}
+                  <p className="mt-1 break-all text-xs text-ink-500">{object.track_id}</p>
                 </li>
               );
             })}
           </ul>
-        </Card>
+        </details>
       ) : null}
 
-      <details className="runway-panel p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-runway-text">Inspect exact Cards, layers, transforms, and provenance</summary>
-        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto border border-runway-line bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">
-          {JSON.stringify(testbed, null, 2)}
-        </pre>
+      <details className={semanticObjects.length ? undefined : "mt-6"}>
+        <summary>Evidence and files</summary>
+        {evidence.length ? (
+          <ul className="text-sm">
+            {evidence.map((row, index) => (
+              <li key={`${String(row.evidence_id || "evidence")}-${index}`}>
+                {String(row.evidence_id || "evidence")} · {humanize(String(row.status || row.authority || "recorded"))}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mt-3 break-all text-xs text-ink-500">{String(testbed.testbed_digest)}</p>
+        <button type="button" className="ws-link mt-3" onClick={download}>Download the testbed (JSON)</button>
+        <pre className="mt-3 max-h-[32rem] overflow-auto text-xs leading-relaxed">{JSON.stringify(testbed, null, 2)}</pre>
       </details>
     </section>
   );

@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Download } from "lucide-react";
 
-import { Button, PolicyRankBar, StatusChip } from "@/components/blueprint";
 import {
   canaryCandidateSummaries,
-  formatCanaryPercent,
+  canaryControlsState,
+  canaryUnscoredReasons,
   pairedCanaryComparison,
   primaryCanaryDownloads,
-  resolvedCanaryCandidates,
 } from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
@@ -16,6 +15,13 @@ import {
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
+
+/** Lets identifiers such as groot_n17_droid wrap at underscores rather than mid-word. */
+export function WrapAtUnderscores({ text }: { text: string }) {
+  return <>{text.split("_").map((part, index) => index
+    ? <span key={index}>_<wbr />{part}</span>
+    : part)}</>;
+}
 
 export function PrimaryDownload(props: Parameters<typeof PrimaryDownloadContent>[0]) {
   return <PrimaryDownloadContent key={`${props.user?.uid || "anonymous"}:${props.user?.tenantId || ""}:${props.recordId}:${props.artifact?.artifact_id || "missing"}`} {...props} />;
@@ -76,125 +82,109 @@ function PrimaryDownloadContent({
       : state === "failed"
         ? `Retry ${label}`
         : label;
-  return <span className="inline-flex max-w-full flex-col items-start gap-1"><Button
-    type="button"
-    size="sm"
-    variant={label === "Full JSON" ? "action" : "secondary"}
-    iconLeft={<Download aria-hidden="true" />}
-    disabled={!artifact || state === "loading" || Boolean(retryWait)}
-    onClick={() => void download()}
-  >
-    {text}
-  </Button>{error ? <span role="status" className="max-w-xs text-caption text-runway-red">{error}</span> : null}</span>;
+  return <span className="inline-flex max-w-full flex-col items-start gap-1">
+    <button
+      type="button"
+      className="ws-link"
+      disabled={!artifact || state === "loading" || Boolean(retryWait)}
+      onClick={() => void download()}
+    >
+      <Download size={16} aria-hidden="true" />
+      {text}
+    </button>
+    {error ? <span role="status" className="max-w-xs text-sm text-runway-red">{error}</span> : null}
+  </span>;
 }
 
-function ciCaption(wilson: { lower: number; upper: number } | null) {
-  if (!wilson) return "Interval not meaningful at this count";
-  return `95% CI ${Math.round(wilson.lower * 100)}–${Math.round(wilson.upper * 100)}%`;
+function episodes(count: number) {
+  return `${count} episode${count === 1 ? "" : "s"}`;
 }
 
+/** One short caveat when the control runs cannot vouch for the scene and scorer. */
+function controlsCaveat(result: TaskEvaluationResultSiteRecord) {
+  const { controls, status, verified } = canaryControlsState(result);
+  if (verified) return null;
+  if (status === "controls_omitted_by_user") {
+    return "Control runs were skipped, so it isn't confirmed that the task can be completed in this scene.";
+  }
+  if (status === "controls_failed") {
+    return "Control runs failed, so the scene or scorer may not be working as intended.";
+  }
+  return controls.length
+    ? "Not every control run passed, so it isn't confirmed that the task can be completed in this scene."
+    : "Control runs weren't delivered, so it isn't confirmed that the task can be completed in this scene.";
+}
+
+/** The answer first: a plain verdict, the counts behind it, and what limits it. */
 export function PolicyCanaryPrimarySummary({
   result,
   user,
+  contractDelivered,
+  correctionApplied,
+  correctionRejected,
 }: {
   result: TaskEvaluationResultSiteRecord;
   user: FirebaseUser | null;
+  contractDelivered: boolean;
+  correctionApplied: boolean;
+  correctionRejected: boolean;
 }) {
-  const publication = result.publication;
-  const canary = publication.policy_canary_result || {};
-  const candidates = resolvedCanaryCandidates(result);
-  const cellCount = Number(canary.counts?.episodes_per_policy || 10);
-  const policyCount = Number(canary.counts?.policy_count || candidates.length || 2);
-  const episodeCount = Number(canary.counts?.learned_policy_rollout_count || cellCount * policyCount);
-  const completed = Number(
-    canary.counts?.completed_learned_policy_rollout_count
-      ?? 0,
-  );
-  const episodeRecords = (publication.result_delivery?.episodes || [])
-    .filter((episode) => episode.episode_kind === "learned_candidate").length;
-  const otherRecords = Math.max(episodeRecords - completed, 0);
-  const downloads = primaryCanaryDownloads(result);
   const summaries = canaryCandidateSummaries(result);
   const comparison = pairedCanaryComparison(result);
-  const hasVerdict = Boolean(comparison);
+  const downloads = primaryCanaryDownloads(result);
+  const unscored = summaries.filter((summary) => summary.excluded_count > 0).map((summary) => {
+    const reasons = canaryUnscoredReasons(result, summary.candidate_id);
+    const why = reasons.length === 1
+      ? reasons[0].reason
+      : reasons.map((row) => `${row.reason} (${row.count})`).join(", ");
+    return `${summary.display_name}: ${summary.excluded_count} of ${episodes(summary.delivered_count)} ${summary.excluded_count === 1 ? "wasn't" : "weren't"} scored — ${why}.`;
+  });
+  const controls = controlsCaveat(result);
 
-  return <section
-    className="runway-panel overflow-hidden border-t-2 border-t-runway-signal"
-    aria-labelledby="canary-primary-summary"
-  >
-    <div className="flex flex-col gap-6 p-5 lg:p-6">
-      <div className="flex flex-col gap-2">
-        <p className="runway-meta text-runway-signal">Head-to-head policy test · simulation</p>
-        {hasVerdict && comparison ? <>
-          <h2 className="font-display text-[clamp(1.4rem,3.2vw,2.15rem)] font-semibold leading-tight tracking-[0.005em] text-ink-900">
-            {comparison.headline}
-          </h2>
-          <p className="max-w-3xl text-body-s text-ink-600">{comparison.verdict}</p>
-        </> : <h2 id="canary-primary-summary" className="font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
-          {cellCount} scenario cells · {policyCount} policies · {episodeCount} episodes
-        </h2>}
-      </div>
+  return <section aria-labelledby="canary-verdict">
+    <p className="ws-kicker">Result</p>
+    <h2 id="canary-verdict">{comparison?.headline || "These results can't be compared."}</h2>
+    {comparison?.verdict ? <p className="mt-2 max-w-3xl text-ink-600">{comparison.verdict}</p> : null}
 
-      {hasVerdict ? <div className="flex flex-col gap-4 border-t border-line pt-5">
-        <p className="runway-meta">Overall candidate rates · separate scored denominators · Wilson 95% intervals</p>
-        <div className="flex flex-col gap-4">
-          {summaries.map((summary) => {
-            return <div key={summary.candidate_id} className="flex flex-col gap-1">
-              <PolicyRankBar
-                label={summary.display_name}
-                value={summary.success_rate ?? 0}
-                winner={false}
-                style={{ gridTemplateColumns: "minmax(10rem,16rem) minmax(0,1fr) auto" }}
-                metric={<span>
-                  {formatCanaryPercent(summary.success_rate)}
-                  <span className="ml-1 text-ink-400">{summary.success_count}/{summary.interpretable_count}</span>
-                </span>}
-              />
-              <p className="runway-num pl-2 text-[0.66rem] text-ink-400">
-                {ciCaption(summary.wilson)} · {summary.delivered_count} delivered records · {summary.excluded_count} unscored or ambiguous records
-              </p>
-            </div>;
-          })}
-        </div>
-        <p className="text-caption text-ink-500">
-          Paired headline and sign test use only unique matching cell/seed records with explicit
-          interpretability and boolean outcomes for both candidates. Overall rates include each
-          candidate’s other scorable cells; missing or ambiguous records remain excluded and visible.
-          These diagnostic observations do not settle a winner.
-        </p>
-      </div> : null}
-
-      <div className="flex flex-col gap-3 border-t border-line pt-5">
-        {hasVerdict ? <h2
-          id="canary-primary-summary"
-          className="runway-meta text-ink-500"
-        >
-          {cellCount} scenario cells · {policyCount} policies · {episodeCount} episodes
-        </h2> : null}
-        <p className="text-body-s text-ink-600">
-          {candidates.map((candidate) => candidate.display_name).join(" versus ")}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusChip tone={episodeRecords === episodeCount ? "proof" : "warn"} square>
-            {episodeRecords}/{episodeCount} episode records
-          </StatusChip>
-          <StatusChip tone={otherRecords ? "warn" : "neutral"} square>{completed} reported completed · {otherRecords} other delivered records</StatusChip>
-          {publication.result_status ? <StatusChip tone="warn" square>{publication.result_status.replaceAll("_", " ")}</StatusChip> : null}
-          <StatusChip tone="warn" square>No winner declared · diagnostic</StatusChip>
-        </div>
-      </div>
+    <div className="mt-6 max-w-2xl overflow-x-auto">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr className="text-sm text-ink-500">
+            <th scope="col" className="py-2 pr-3 font-normal sm:pr-6">Policy</th>
+            <th scope="col" className="py-2 pr-3 text-right font-normal sm:pr-6">Episodes</th>
+            <th scope="col" className="py-2 pr-3 text-right font-normal sm:pr-6">Scored</th>
+            <th scope="col" className="py-2 text-right font-normal">Completed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {summaries.map((summary) => <tr key={summary.candidate_id} className="border-t border-line">
+            <th scope="row" className="py-3 pr-3 font-medium [overflow-wrap:anywhere] sm:pr-6"><WrapAtUnderscores text={summary.display_name} /></th>
+            <td className="py-3 pr-3 text-right tabular-nums sm:pr-6">{summary.delivered_count}</td>
+            <td className="py-3 pr-3 text-right tabular-nums sm:pr-6">{summary.interpretable_count}</td>
+            <td className="py-3 text-right tabular-nums">{summary.success_count}</td>
+          </tr>)}
+        </tbody>
+      </table>
     </div>
-    <div className="border-t border-line bg-inset px-5 py-4 lg:px-6">
-      <p className="runway-meta mb-3">Primary downloads</p>
-      <div className="flex flex-wrap gap-2" aria-label="Primary result downloads">
-        {downloads.map((download) => <PrimaryDownload
-          key={download.key}
-          artifact={download.artifact}
-          label={download.label}
-          recordId={result.record_id}
-          user={user}
-        />)}
-      </div>
+
+    <ul className="mt-4 flex max-w-3xl flex-col gap-1.5 text-sm text-ink-600">
+      {unscored.map((line) => <li key={line}>{line}</li>)}
+      {controls ? <li>{controls}</li> : null}
+      {!contractDelivered ? <li>Success criteria weren't delivered with this result, so it can't serve as an acceptance test.</li> : null}
+      {correctionApplied ? <li>Scoring was corrected after publication. The same fix applies to both policies, and the original scores are kept.</li> : null}
+      {correctionRejected ? <li>A score correction didn't match this result, so the original scores are shown.</li> : null}
+      {result.access_visibility === "unlisted_public" ? <li>Anyone with this link can view this result and its files.</li> : null}
+      <li>Simulation only: no winner is declared, and this isn't evidence of real-world performance or safety.</li>
+    </ul>
+
+    <div role="group" aria-label="Primary result downloads" className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+      {downloads.map((download) => <PrimaryDownload
+        key={download.key}
+        artifact={download.artifact}
+        label={download.label}
+        recordId={result.record_id}
+        user={user}
+      />)}
     </div>
   </section>;
 }

@@ -20,6 +20,7 @@ import {
   registerOperatorPolicyCanary,
 } from "../utils/operatorPolicyCanaryRegistration";
 import type { Response } from "express";
+import { evaluationOwnerFixture } from "./fixtures/policy-canary-evaluation-owner";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, any>>>(),
@@ -839,7 +840,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     }
   });
 
-  it.each(["legacy-compatible", "mixed-case"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
+  it.each(["legacy-compatible", "mixed-case", "website-controls-omitted", "controller-owned"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
     state.sendEmail.mockResolvedValue({
@@ -847,12 +848,27 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       provider: "sendgrid",
       messageId: "message-canary-1",
     });
-    const body = variant === "mixed-case"
+    let body = variant === "mixed-case"
       ? structuredClone(mixedCaseCanaryPublicationFixture) as Record<string, any>
       : policyCanaryPublication();
     const offeringRecord = configuredOfferingRecord({
       configurationRunId: body.intake_id,
     });
+    const owner = evaluationOwnerFixture(body.capture_session_id,
+      offeringRecord.configured_scene_offering.evaluation_preparation_binding.configured_scene_revision_digest,
+      "simple-relocation");
+    if (variant === "controller-owned") {
+      body = JSON.parse(JSON.stringify(body).replaceAll(body.run_id, owner.runId));
+      body.result_delivery.delivery_digest = canonicalArtifactDigest(body.result_delivery, "delivery_digest");
+      body.policy_canary_result.result_delivery_digest = body.result_delivery.delivery_digest;
+      body.policy_canary_result.projection_digest = canonicalArtifactDigest(body.policy_canary_result, "projection_digest");
+      state.collections.set("taskEvaluationSceneIntakes", new Map([[owner.id, owner.record]]));
+    }
+    if (variant === "website-controls-omitted") {
+      operatorRegistration(body, offeringRecord);
+      delete body.operator_registration_digest;
+      delete body.plan_digest;
+    }
     state.collections.set("taskEvaluationLaunches", new Map([[
       body.capture_session_id,
       offeringRecord,
@@ -862,6 +878,8 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       run_id: body.run_id,
       run_kind: "internal_policy_canary",
       request_digest: body.request_digest,
+      task_success_contract: body.policy_canary_result.task_success_contract,
+      task_success_contract_digest: body.policy_canary_result.task_success_contract?.contract_digest,
       pipeline_configuration_digest: body.configuration_digest,
       owner_user_id: "buyer-1",
       team_namespace: "team-1",
@@ -880,6 +898,12 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       episode_plan: { episodes_per_policy: 10 },
       state: "aggregating",
     }]]));
+    if (variant === "controller-owned") Object.assign(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!, {
+      owner_user_id: "blueprint-production-runner", submission_channel: "production_webapp_service_api",
+      setup_digest: owner.setupDigest,
+      scene_revision_digest: owner.record.request.task.evaluation_source.configured_scene_revision_digest,
+      request: { authorization: { actor: { id: "blueprint-production-runner", role: "ops" } } },
+    });
     const evolvedOfferingRecord = structuredClone(offeringRecord);
     evolvedOfferingRecord.configured_scene_offering.status = "launch_ready";
     evolvedOfferingRecord.configured_scene_offering.offering_digest = canonicalArtifactDigest(
@@ -897,6 +921,18 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       .not.toBe(offeringRecord.configured_scene_offering_digest);
     const { server, socketPath } = await startServer();
     try {
+      if (variant === "website-controls-omitted") {
+        const saved = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+        const contract = saved.task_success_contract;
+        delete saved.task_success_contract;
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        saved.task_success_contract = contract;
+        saved.task_success_contract_digest = sha("b");
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        saved.task_success_contract_digest = contract.contract_digest;
+        expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
+        expect(state.sendEmail).not.toHaveBeenCalled();
+      }
       const first = await postSigned(socketPath, body);
       expect(first.status).toBe(201);
       expect(first.body).toMatchObject({
@@ -930,6 +966,14 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
           notification_delivery: { status: "accepted", attempts: 1 },
         });
 
+      if (variant === "controller-owned") {
+        const result = [...state.collections.get("captureTaskEvaluationRuns")!.values()][0];
+        const policy = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
+        expect(result.owner_user_id).toBe("buyer-1");
+        expect(policy.owner_user_id).toBe("buyer-1");
+        // Replay a legacy result stored under its authenticated service actor.
+        result.owner_user_id = policy.owner_user_id = "blueprint-production-runner";
+      }
       const replay = await postSigned(socketPath, body);
       expect(replay.status).toBe(200);
       expect(replay.body).toMatchObject({
@@ -937,6 +981,11 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
         notification_delivery: { status: "accepted", attempts: 1 },
       });
       expect(state.sendEmail).toHaveBeenCalledTimes(1);
+      if (variant === "controller-owned") {
+        expect([...state.collections.get("captureTaskEvaluationRuns")!.values()][0]).toMatchObject({
+          owner_user_id: "buyer-1", prior_service_owner_user_id: "blueprint-production-runner",
+        });
+      }
 
       const terminalBeforeLateBlocker = structuredClone(state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id));
       const lateBlocker = policyCanaryPreproviderBlocked();
