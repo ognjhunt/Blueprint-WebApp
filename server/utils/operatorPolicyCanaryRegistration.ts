@@ -4,7 +4,7 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { configuredSceneOfferingSchema } from "./configuredSceneOfferingContract";
-import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
+import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
 import { policyCanaryNotificationRecipientAllowed } from "./internalPolicyCanaryContract";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID } from "./taskEvaluationLaunchSubmissionAuth";
@@ -38,7 +38,7 @@ export const operatorPolicyCanaryRegistrationSchema = z.object({
   source_commit: z.string().regex(/^[0-9a-f]{40}$/),
   operator_authorization_digest: digest,
   control_omission_authority_digest: digest,
-  task_success_contract: confirmedRigidTaskSuccessContractSchema,
+  task_success_contract: confirmedTaskSuccessContractSchema,
   policy_candidates: z.tuple([candidate, candidate]),
   notification: z.object({ email: z.string().email().max(254) }).strict(),
   registration_digest: digest,

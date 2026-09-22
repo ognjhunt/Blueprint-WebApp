@@ -1,3 +1,7 @@
+import {
+  anyTaskSuccessContractSchema,
+  type AnyTaskSuccessContract,
+} from "./articulatedTaskSuccessContract";
 import { controlsStatuses, controlsWarnings } from "./policyCanaryControls";
 import { z } from "zod";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -107,7 +111,7 @@ export const policyCanarySetupViewSchema = z.object({
     zero_action: z.enum(["nonblocking", "not_configured"]),
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
-  task_success_contract: rigidTaskSuccessContractSchema,
+  task_success_contract: anyTaskSuccessContractSchema,
   task_success_contract_digest: digest,
   setup_digest: digest,
   offering: z.object({
@@ -181,7 +185,7 @@ export type PolicyCanarySelection = {
   policy_candidate_ids: [string, string];
   episode_preset_id: "quick_10";
   variation_matrix_digest: string;
-  task_success_contract: RigidTaskSuccessContract;
+  task_success_contract: AnyTaskSuccessContract;
   notification: {
     email: string;
     notify_on: ["completed", "blocked", "cancelled"];
