@@ -596,6 +596,10 @@ control-plane deployment or paid launch was started.
 Fresh-capture evidence matrix: step 1 is **partial** (website API intake and
 confirmed task, but the browser form failed); step 2 is **done via the website
 upload API** with exact storage readback, though no browser file-picker claim is
-made. Capture review artifacts for step 3 are present but not yet adjudicated.
-Steps 4–14 are **unproven**. Captured-room integration and development-fixture
-execution are both **unproven**.
+made. Capture QA artifacts for step 3 are present, but the separate
+`gemini_capture_fidelity_review.json` reports `not_run`, so step 3 is **partial**.
+Step 4 is **done**: this scene's completed Gemini removal analysis names
+`pedestal_cabinet` as the task object, `middle drawer` as its prismatic part,
+and retains `teal_backpack` as a collision-required obstacle. Steps 5–14 are
+**unproven**. Captured-room integration and development-fixture execution are
+both **unproven**.
