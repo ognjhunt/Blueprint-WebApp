@@ -14,6 +14,14 @@ describe('bounded verified score receipts',()=>{
   vi.stubGlobal('crypto',webcrypto);
   expect(await readVerifiedResultArtifactJson(new Response(bytes),descriptor(bytes))).toEqual({task_succeeded:false,status:'scored'});
  });
+ it.each(['br','gzip'])('verifies decoded bytes when the edge uses %s compression',async encoding=>{
+  vi.stubGlobal('crypto',webcrypto);
+  // Fetch decodes the body but retains the encoded Content-Length header.
+  const response=new Response(bytes,{headers:{'content-encoding':encoding,'content-length':'23'}});
+  expect(await readVerifiedResultArtifactJson(response,descriptor(bytes))).toEqual({task_succeeded:false,status:'scored'});
+  await expect(readVerifiedResultArtifactJson(new Response(bytes,{headers:{'content-encoding':encoding,'content-length':'23'}}),
+   {...descriptor(bytes),digest:'sha256:'+'0'.repeat(64)})).rejects.toThrow(/digest/);
+ });
  it('refuses an invalid or oversized descriptor before authorizing a request',()=>{
   expect(()=>fetchVerifiedResultArtifactJson(null,'run',{artifact_id:'score',sha256:'invalid',size_bytes:20})).toThrow(/metadata/);
   expect(()=>fetchVerifiedResultArtifactJson(null,'run',{...descriptor(bytes),size_bytes:256001})).toThrow(/metadata/);
