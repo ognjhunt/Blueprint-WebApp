@@ -660,3 +660,12 @@ timer; it and the new listener were stopped before the old lease expired. The
 timer will be restored after that lease expires so normal controller redelivery
 can resume from the retained response without repeated active-lease nacks.
 There is still no parsed-response-1 receipt or completed step 5.
+
+The selected part is independently visible in original decoded frames
+`decoded-000000150` (5.00 s) and `decoded-000000170` (5.67 s) of the
+SHA-256-bound video above. Frame 170 shows all three closed wood fronts, their
+silver handles, the middle handle between the upper keyed drawer and larger
+lower drawer, and the teal backpack on the floor in front. Frame 150 shows the
+same three-front pedestal under the desk from a wider angle. These references
+identify the middle drawer and an observed obstacle; they do not measure the
+drawer stroke, cabinet dimensions, friction, or clearance.
