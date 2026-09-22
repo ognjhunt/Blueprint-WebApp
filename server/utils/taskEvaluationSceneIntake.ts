@@ -64,6 +64,48 @@ const taskSuccess = z
         "control_frequency_hz * maximum_episode_seconds must be a whole number of steps",
     },
   );
+// An articulated open/close task keeps the moving part inside its assembly:
+// no destination pose exists. The mechanism block carries the estimated
+// travel and front direction; the numeric opening threshold is frozen by
+// Pipeline from the qualified asset's joint limit before any episode.
+const articulationJointType = z.enum(["prismatic", "revolute"]);
+const taskArticulation = z
+  .object({
+    assembly_label: z.string().trim().min(1).max(200),
+    part_label: z.string().trim().min(1).max(200),
+    joint_type: articulationJointType,
+    estimated_usable_stroke_m: positiveMeasure.max(2).optional(),
+    estimated_usable_swing_rad: positiveMeasure.max(Math.PI).optional(),
+    travel_authority: z.string().trim().min(1).max(200),
+    estimated_front_normal_world: vector3,
+    front_normal_basis: z.string().trim().min(1).max(200).optional(),
+    lock_status: z.enum(["unknown", "locked", "unlocked"]),
+    part_observed_open_in_footage: z.literal(false),
+    observation_timestamps_seconds: z.array(z.number().finite().nonnegative()).max(2000).optional(),
+    physical_measurement_proven: z.literal(false),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const travel = value.joint_type === "prismatic" ? value.estimated_usable_stroke_m : value.estimated_usable_swing_rad;
+    if (travel === undefined) context.addIssue({ code: z.ZodIssueCode.custom, path: ["joint_type"],
+      message: "articulation travel estimate must match the joint type" });
+  });
+const articulatedTaskSuccess = z
+  .object({
+    control_frequency_hz: positiveMeasure,
+    maximum_episode_seconds: positiveMeasure,
+    minimum_opening_fraction_of_estimated_stroke: z.number().finite().gt(0).lte(1),
+    minimum_hold_seconds: positiveMeasure,
+    maximum_retries: z.literal(0),
+  })
+  .strict()
+  .refine(
+    (s) => Number.isInteger(s.control_frequency_hz * s.maximum_episode_seconds),
+    {
+      message:
+        "control_frequency_hz * maximum_episode_seconds must be a whole number of steps",
+    },
+  );
 const statusSchema = z
   .object({
     schema_version: z.literal("task_evaluation_scene_intent_status.v1"),
@@ -152,16 +194,28 @@ export const sceneIntakeCommand = z
     source_session_id: identifier,
     collision_source_session_id: identifier.optional(),
     collision_same_frame_confirmed: z.literal(true).optional(),
-    task: z
-      .object({
-        task_id: identifier,
-        strategy: z.literal("pick_and_place"),
-        subject: mapping,
-        support: mapping,
-        destination: taskDestination,
-        success: taskSuccess,
-      })
-      .strict(),
+    task: z.discriminatedUnion("strategy", [
+      z
+        .object({
+          task_id: identifier,
+          strategy: z.literal("pick_and_place"),
+          subject: mapping,
+          support: mapping,
+          destination: taskDestination,
+          success: taskSuccess,
+        })
+        .strict(),
+      z
+        .object({
+          task_id: identifier,
+          strategy: z.literal("articulated_open_close"),
+          subject: mapping,
+          support: mapping,
+          articulation: taskArticulation,
+          success: articulatedTaskSuccess,
+        })
+        .strict(),
+    ]),
     execution: sceneExecution,
     consent: z
       .object({
