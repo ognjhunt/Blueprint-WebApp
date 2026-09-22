@@ -275,7 +275,7 @@ export function runStatusLabel(status: string | null | undefined) {
   if (status === "pipeline_forward_failed") {
     return "Forward failed";
   }
-  return status.replace(/_/g, " ");
+  return status.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export function runStatusTone(

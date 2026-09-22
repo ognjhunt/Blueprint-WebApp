@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import EvaluationRunProgress from "@/pages/app/EvaluationRunProgress";
@@ -80,10 +80,18 @@ describe("EvaluationRunProgress", () => {
 
     render(<EvaluationRunProgress />);
 
-    await waitFor(() => expect(screen.getAllByText("Provider allocating")).toHaveLength(2));
-    expect(screen.getByText("0 / 20 episodes")).toBeInTheDocument();
-    expect(screen.getAllByText("0/20")).toHaveLength(2);
-    expect(screen.getAllByText("Running")).toHaveLength(2);
+    // The runtime stage reads as a plain phase; the raw name stays in the closed run-details drawer.
+    await waitFor(() => expect(screen.getByText("Starting a simulator")).toBeInTheDocument());
+    expect(screen.getByText(/0 \/ 20 episodes · 0%/)).toBeInTheDocument();
+    expect(screen.getByText(/Policies: 0 of 20 episodes · control runs: 0 of 20/)).toBeInTheDocument();
+    const steps = screen.getByRole("list", { name: "Evaluation progress" });
+    expect(within(steps).getByText("Preparing")).toHaveAttribute("aria-current", "step");
+    const runDetails = screen.getByText("Run details", { selector: "summary" }).closest("details")!;
+    expect(runDetails.open).toBe(false);
+    expect(within(runDetails).getByText(/provider_allocating/)).toBeInTheDocument();
+    expect(screen.getAllByText(/provider_allocating/)).toHaveLength(1);
+    // No repeated result caveats while nothing has been scored yet.
+    expect(screen.queryByText(/unqualified|not physical success|safety approval/i)).not.toBeInTheDocument();
   });
 
   it("shows a terminal paired comparison and the private result link", async () => {
@@ -141,12 +149,16 @@ describe("EvaluationRunProgress", () => {
     render(<EvaluationRunProgress />);
 
     await waitFor(() => expect(screen.getByText("Results sealed")).toBeInTheDocument());
-    expect(screen.getByText("67%")).toBeInTheDocument();
-    expect(screen.getByText("33%")).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Per-family policy results" })).toBeInTheDocument();
-    expect(screen.getByText(/π0.5 DROID selected/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /open complete results/i })).toHaveAttribute("href", "/app/results/result-001");
-    expect(screen.getByText(/simulation results are not physical success/i)).toBeInTheDocument();
+    const summary = screen.getByRole("heading", { name: "π0.5 DROID selected" }).closest("section")!;
+    const baseline = within(summary).getAllByRole("listitem");
+    expect(baseline[0]).toHaveTextContent(/π0\.5 DROID\s*67%/);
+    expect(baseline[1]).toHaveTextContent(/GR00T N1\.7 DROID\s*33%/);
+    expect(screen.getByRole("link", { name: /view results/i })).toHaveAttribute("href", "/app/results/result-001");
+    // The simulation boundary is stated once, in plain words.
+    expect(screen.getAllByText(/Simulation only: it doesn't show real-world performance or safety\./)).toHaveLength(1);
+    const details = within(summary).getByText("Details", { selector: "summary" }).closest("details")!;
+    expect(details.open).toBe(false);
+    expect(within(details).getByRole("table", { name: "Per-family policy results", hidden: true })).toBeInTheDocument();
   });
 });
 

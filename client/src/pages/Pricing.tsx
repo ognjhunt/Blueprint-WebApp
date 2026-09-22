@@ -158,8 +158,8 @@ export default function Pricing() {
             </table>
           </div>
           <p className="ms-price-note">
-            Entries × tasks × {formatPrice(entryPrice)}. You see that arithmetic and the balance it
-            leaves before anything runs.
+            Entries × tasks × {formatPrice(entryPrice)}. You see the total and the balance it leaves
+            before anything runs.
           </p>
         </section>
 

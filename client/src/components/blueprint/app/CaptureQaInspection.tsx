@@ -1,17 +1,22 @@
-import { Download, ScanSearch, ShieldAlert } from "lucide-react";
-
-import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Tag } from "@/components/workspace/WorkspaceUI";
 import type { CaptureQaInspection as CaptureQaInspectionValue } from "@/lib/captureUploads";
 
-function tone(status: CaptureQaInspectionValue["status"]): "proof" | "warn" | "block" | "neutral" {
-  if (status === "accepted") return "proof";
-  if (status === "rejected") return "block";
-  if (status === "recapture_required") return "warn";
-  return "neutral";
+const statusLabels: Record<CaptureQaInspectionValue["status"], [string, "green" | "red" | "neutral"]> = {
+  accepted: ["Accepted", "green"],
+  recapture_required: ["Recapture needed", "red"],
+  rejected: ["Rejected", "red"],
+  analysis_required: ["Needs more analysis", "neutral"],
+};
+
+function humanize(value: string) {
+  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+/** The check result and what to recapture; the raw checks stay in a closed drawer. */
 export function CaptureQaInspection({ inspection }: { inspection: CaptureQaInspectionValue }) {
   const report = inspection.publication.report;
+  const [label, tone] = statusLabels[inspection.status] || [humanize(inspection.status), "neutral"];
+  const next = report.next_cheapest_experiment;
 
   function download() {
     const blob = new Blob([`${JSON.stringify(inspection.publication, null, 2)}\n`], {
@@ -26,65 +31,38 @@ export function CaptureQaInspection({ inspection }: { inspection: CaptureQaInspe
   }
 
   return (
-    <section className="flex flex-col gap-5" aria-labelledby="capture-qa-heading">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <StatusChip tone={tone(inspection.status)} square>{inspection.status.replace(/_/g, " ")}</StatusChip>
-          <h2 id="capture-qa-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
-            Capture QA
-          </h2>
-          <p className="runway-num mt-2 text-[0.72rem] text-runway-faint">
-            {inspection.publication.qa_report_digest}
-          </p>
-        </div>
-        <Button type="button" variant="secondary" size="sm" iconLeft={<Download />} onClick={download}>
-          Download exact QA JSON
-        </Button>
+    <section aria-labelledby="capture-qa-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="capture-qa-heading">Capture check</h2>
+        <Tag tone={tone}>{label}</Tag>
       </div>
-
-      <ProofBoundary level="warn" title="Capture boundary" icon={ShieldAlert}>
-        Capture acceptance means this exact input passed the named QA envelope. It is not reconstruction, task success, physical success, deployment readiness, safety certification, or comparative policy-ranking support.
-      </ProofBoundary>
+      <p className="mt-2 text-sm text-ink-600">Passing means this file is good enough to work from.</p>
 
       {report.recapture_plan.length ? (
-        <Card pad="lg">
-          <h3 className="flex items-center gap-2 font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text"><ScanSearch className="size-5" /> Exact recapture request</h3>
-          <ol className="mt-4 space-y-4">
+        <>
+          <h3 className="mt-6 text-lg">What to recapture</h3>
+          <ol className="mt-3 flex flex-col">
             {report.recapture_plan.map((step) => (
-              <li key={step.code} className="border border-runway-line bg-runway-black p-4">
-                <p className="runway-num text-[0.7rem] text-runway-faint">{step.code}</p>
-                <p className="mt-1 text-body-s font-semibold text-runway-text">{step.instruction}</p>
-                <p className="mt-1 text-body-xs text-runway-mute">{step.reason}</p>
+              <li key={step.code} className="border-t border-line py-3">
+                <p className="font-medium">{step.instruction}</p>
+                <p className="mt-1 text-sm text-ink-500">{step.reason}</p>
               </li>
             ))}
           </ol>
-        </Card>
+        </>
+      ) : null}
+      {report.missing_evidence.length ? (
+        <p className="mt-4">Missing: {report.missing_evidence.map(humanize).join(", ")}.</p>
+      ) : null}
+      {next ? (
+        <p className="mt-2">Next: {String(next.instruction || humanize(String(next.kind || "see the full check")))}</p>
       ) : null}
 
-      <Card pad="lg" className="grid gap-5 md:grid-cols-2">
-        <div>
-          <h3 className="runway-meta font-semibold">Missing evidence</h3>
-          {report.missing_evidence.length ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
-              {report.missing_evidence.map((item) => <li key={item}>{item.replace(/_/g, " ")}</li>)}
-            </ul>
-          ) : <p className="mt-2 text-body-s text-runway-body">No missing evidence recorded for this QA envelope.</p>}
-        </div>
-        <div>
-          <h3 className="runway-meta font-semibold">Next cheapest experiment</h3>
-          <p className="mt-2 text-body-s text-runway-body">
-            {report.next_cheapest_experiment
-              ? String(report.next_cheapest_experiment.instruction || report.next_cheapest_experiment.kind || "Inspect the exact report.")
-              : "No additional capture experiment requested by this QA report."}
-          </p>
-        </div>
-      </Card>
-
-      <details className="runway-panel p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-runway-text">Inspect all deterministic QA checks</summary>
-        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto border border-runway-line bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">
-          {JSON.stringify(report, null, 2)}
-        </pre>
+      <details className="mt-6">
+        <summary>All checks</summary>
+        <button type="button" className="ws-link" onClick={download}>Download the check (JSON)</button>
+        <p className="mt-2 break-all text-xs text-ink-500">{inspection.publication.qa_report_digest}</p>
+        <pre className="mt-3 max-h-[32rem] overflow-auto text-xs leading-relaxed">{JSON.stringify(report, null, 2)}</pre>
       </details>
     </section>
   );

@@ -1,38 +1,33 @@
-import { Link } from "wouter";
-import { Loader2, ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { Button, Card, ProofBoundary } from "@/components/blueprint";
-
-export function BuyerAppLoadingState() {
-  return (
-    <div className="runway-panel flex min-h-[18rem] items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-runway-signal" aria-label="Loading buyer access" />
-    </div>
-  );
+export function BuyerAppLoadingState({ label = "Loading…" }: { label?: string }) {
+  return <p className="ws-loading" role="status">{label}</p>;
 }
+
+/** Shows what actually failed; callers pass the request's own error message. */
 export function BuyerAppErrorState({ message }: { message: string }) {
   return (
-    <ProofBoundary level="block" title="Access state unavailable">
-      {message}
-    </ProofBoundary>
+    <div className="ws-alert" role="alert">
+      <p>{message}</p>
+      <p className="mt-1 text-sm">Reload the page to try again.</p>
+    </div>
   );
 }
 
 export function BuyerAppEmptyState({
-  title = "No buyer entitlements yet",
-  body = "Paid orders and approved access windows appear here after Stripe webhook provisioning writes a marketplace entitlement for this account.",
+  title = "Nothing here yet",
+  body,
+  action,
 }: {
   title?: string;
-  body?: string;
+  body?: ReactNode;
+  action?: ReactNode;
 }) {
   return (
-    <Card pad="lg" className="flex flex-col gap-4">
-      <ProofBoundary level="info" title={title} icon={ShieldCheck}>
-        {body}
-      </ProofBoundary>
-      <Button asChild variant="action" className="w-fit">
-        <Link href="/pricing">Review pricing</Link>
-      </Button>
-    </Card>
+    <section className="ws-empty">
+      <h2>{title}</h2>
+      {body ? <p>{body}</p> : null}
+      {action}
+    </section>
   );
 }

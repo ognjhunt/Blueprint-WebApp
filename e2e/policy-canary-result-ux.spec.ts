@@ -123,7 +123,7 @@ test("real progress page recovers a transient status failure and stops after ter
   await expect(page.getByText(/Displayed data may be stale/)).toBeVisible();
   await expect(page.getByText('Running fixture episodes')).toBeVisible();
   await page.clock.fastForward(8000);
-  await expect(page.getByRole('link',{name:/Open complete results/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/View results/})).toBeVisible();
   await expect(page.getByText(/Displayed data may be stale/)).toHaveCount(0);
   await page.clock.fastForward(120000); expect(calls).toBe(3);
   await page.screenshot({path:testInfo.outputPath('polling-recovered.png'),fullPage:true});

@@ -1,20 +1,23 @@
-import { Download, FlaskConical, ShieldAlert } from "lucide-react";
-
-import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Tag } from "@/components/workspace/WorkspaceUI";
 import type { CaptureTaskEvaluationRunInspection } from "@/lib/captureUploads";
 
-const outcomeLabel = {
-  decided: "Decision ready",
+const outcomeLabels = {
+  decided: "Decision",
   partially_decided: "Partial decision",
-  abstained: "Abstained",
+  abstained: "No decision",
 } as const;
 
-function verdictTone(verdict: string): "proof" | "warn" | "block" {
-  if (verdict === "supported") return "proof";
-  if (verdict === "not_supported") return "block";
-  return "warn";
+const verdictLabels: Record<string, [string, "green" | "red" | "neutral"]> = {
+  supported: ["Supported", "green"],
+  not_supported: ["Not supported", "red"],
+  abstention: ["Undecided", "neutral"],
+};
+
+function humanize(value: string) {
+  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+/** The per-claim answers, the next step, and what isn't covered; the exact plan stays in a drawer. */
 export function TaskEvaluationRunInspection({
   inspection,
 }: {
@@ -37,76 +40,69 @@ export function TaskEvaluationRunInspection({
   }
 
   return (
-    <section className="flex flex-col gap-5" aria-labelledby="task-evaluation-run-heading">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <StatusChip tone={inspection.status === "decided" ? "proof" : "warn"} square>
-            {outcomeLabel[inspection.status]}
-          </StatusChip>
-          <h2 id="task-evaluation-run-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">
-            Task Evaluation Run
-          </h2>
-          <p className="runway-num mt-2 text-[0.72rem] text-runway-faint">
-            {publication.run_id} · {envelope.decision_envelope_digest}
-          </p>
-        </div>
-        <Button type="button" variant="secondary" size="sm" iconLeft={<Download />} onClick={download}>
-          Download exact run JSON
-        </Button>
+    <section aria-labelledby="task-evaluation-run-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="task-evaluation-run-heading">Result</h2>
+        <Tag tone={inspection.status === "decided" ? "green" : "neutral"}>{outcomeLabels[inspection.status]}</Tag>
       </div>
+      <p className="mt-2 text-sm text-ink-600">
+        These answers apply only inside this testbed, and they don't rank policies against each other.
+      </p>
 
-      <ProofBoundary level="warn" title="Decision boundary" icon={ShieldAlert}>
-        These claim-level decisions apply only inside the named testbed and evidence envelope. Simulation is not physical success; this run does not approve deployment or safety; comparative policy ranking remains thesis_not_supported.
-      </ProofBoundary>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {envelope.per_claim_verdicts.map((claim) => (
-          <Card key={claim.claim_id} pad="md">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="runway-meta font-semibold">{claim.claim_type.replace(/_/g, " ")}</p>
-                <h3 className="runway-num mt-1 text-body-s font-semibold text-runway-text">{claim.claim_id}</h3>
+      <ul className="mt-5 flex flex-col">
+        {envelope.per_claim_verdicts.map((claim) => {
+          const [label, tone] = verdictLabels[claim.verdict] || [humanize(claim.verdict), "neutral"];
+          return (
+            <li key={claim.claim_id} className="border-t border-line py-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <strong className="font-medium">{humanize(claim.claim_type)}</strong>
+                <Tag tone={tone}>{label}</Tag>
               </div>
-              <StatusChip tone={verdictTone(claim.verdict)} square>{claim.verdict.replace(/_/g, " ")}</StatusChip>
-            </div>
-            <p className="mt-3 text-body-s text-runway-body">{claim.rationale.replace(/_/g, " ")}</p>
-          </Card>
-        ))}
-      </div>
+              <p className="mt-1">{humanize(claim.rationale)}</p>
+            </li>
+          );
+        })}
+      </ul>
 
-      <Card pad="lg" className="grid gap-5 md:grid-cols-2">
-        <div>
-          <h3 className="runway-meta flex items-center gap-2 font-semibold"><FlaskConical className="size-4" /> Next cheapest experiment</h3>
-          <p className="mt-2 text-body-s font-semibold text-runway-text">{envelope.next_cheapest_experiment.replace(/_/g, " ")}</p>
-          {physicalRequests.length ? (
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-body-s text-runway-body">
-              {physicalRequests.map((request, index) => (
-                <li key={`${String(request.request_id || request.claim_id || "physical-request")}-${index}`}>
-                  {String(request.description || request.evidence_needed || request.claim_id || "Physical evidence required")}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-        <div>
-          <h3 className="runway-meta font-semibold">Unsupported conditions</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
-            {envelope.unsupported_conditions.map((condition) => (
-              <li key={condition}>{condition.replace(/_/g, " ")}</li>
+      <h3 className="mt-8 text-lg">Next step</h3>
+      <p className="mt-2">{humanize(envelope.next_cheapest_experiment)}</p>
+      {physicalRequests.length ? (
+        <>
+          <p className="mt-3 text-sm text-ink-600">Physical evidence still needed:</p>
+          <ul className="mt-1 list-disc pl-5 text-sm">
+            {physicalRequests.map((request, index) => (
+              <li key={`${String(request.request_id || request.claim_id || "physical-request")}-${index}`}>
+                {String(request.description || request.evidence_needed || request.claim_id || "Physical evidence")}
+              </li>
             ))}
           </ul>
-        </div>
-      </Card>
-
-      {envelope.cross_method_disagreements.length ? (
-        <ProofBoundary level="warn" title="Evidence disagreement">
-          The Pipeline recorded {envelope.cross_method_disagreements.length} cross-method disagreement(s). Inspect the exact artifact and run the next experiment before upgrading the affected claim.
-        </ProofBoundary>
+        </>
       ) : null}
 
-      <details className="runway-panel p-4">
-        <summary className="cursor-pointer text-body-s font-semibold text-runway-text">Inspect deterministic Evidence Plan and Decision Envelope</summary>
-        <pre className="runway-num mt-4 max-h-[32rem] overflow-auto border border-runway-line bg-runway-black p-4 text-[0.7rem] leading-relaxed text-runway-body">
+      {envelope.unsupported_conditions.length ? (
+        <>
+          <h3 className="mt-8 text-lg">Not covered</h3>
+          <ul className="mt-2 list-disc pl-5">
+            {envelope.unsupported_conditions.map((condition) => <li key={condition}>{humanize(condition)}</li>)}
+          </ul>
+        </>
+      ) : null}
+
+      {envelope.cross_method_disagreements.length ? (
+        <p className="mt-6">
+          The test methods disagreed {envelope.cross_method_disagreements.length === 1 ? "once" : `${envelope.cross_method_disagreements.length} times`}.
+          Run the next step before relying on the affected answers.
+        </p>
+      ) : null}
+
+      <details className="mt-8">
+        <summary>Full plan and decision</summary>
+        <button type="button" className="ws-link" onClick={download}>Download the run (JSON)</button>
+        <p className="mt-2 break-all text-xs text-ink-500">{publication.run_id} · {envelope.decision_envelope_digest}</p>
+        <ul className="mt-2 text-xs text-ink-500">
+          {envelope.per_claim_verdicts.map((claim) => <li key={claim.claim_id} className="break-all">{claim.claim_id}: {claim.verdict}</li>)}
+        </ul>
+        <pre className="mt-3 max-h-[32rem] overflow-auto text-xs leading-relaxed">
           {JSON.stringify({ evidence_plan: publication.evidence_plan, decision_envelope: envelope }, null, 2)}
         </pre>
       </details>

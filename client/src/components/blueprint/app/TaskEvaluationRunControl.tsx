@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { ListChecks, LockKeyhole } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
 import type {
   TaskEvaluationRunControlSummary,
   TaskEvaluationRunPreparedControl,
@@ -40,55 +38,41 @@ export function TaskEvaluationRunControl({
     setSelected(control.authorization_candidates.map((candidate) => candidate.adapter_reference));
   }, [control]);
 
+  const frame = (children: ReactNode) => (
+    <section aria-labelledby="run-control-heading">
+      <h2 id="run-control-heading">Evaluation</h2>
+      {children}
+    </section>
+  );
+
   if (!control || control.state === "not_available") {
-    return (
-      <Card pad="lg" className="flex flex-col gap-4">
-        <div>
-          <h3 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">Create the Evidence Plan</h3>
-          <p className="mt-2 text-body-s text-runway-body">
-            Pipeline will decompose the approved task and select qualified claim-level methods from its immutable catalog. This interface cannot choose providers or qualifications.
-          </p>
-        </div>
-        <Button type="button" variant="action" iconLeft={<ListChecks />} disabled={busy} onClick={onPlan}>
-          {busy ? "Planning…" : "Plan Task Evaluation Run"}
-        </Button>
-      </Card>
-    );
+    return frame(<>
+      <p className="mt-2">Blueprint picks the test methods for the approved task. Nothing runs until you approve them.</p>
+      <button type="button" className="ws-primary mt-5" disabled={busy} onClick={onPlan}>{busy ? "Planning…" : "Plan the evaluation"}</button>
+    </>);
   }
 
   if (control.state === "pipeline_artifact_invalid") {
-    return <ProofBoundary level="block" title="Run control artifact invalid">Pipeline planning data failed an integrity or binding check. Execution remains blocked.</ProofBoundary>;
+    return frame(<div className="ws-alert mt-4" role="alert"><p>The evaluation plan failed an integrity check, so it can't run.</p></div>);
   }
 
   if (control.state === "planning" || control.state === "planning_failed") {
-    return (
-      <Card pad="lg">
-        <StatusChip tone={control.state === "planning_failed" ? "block" : "neutral"} square>
-          {control.state.replace(/_/g, " ")}
-        </StatusChip>
-        <p className="mt-3 text-body-s text-runway-body">
-          {control.blocker || "Pipeline is compiling the deterministic claim-level Evidence Plan."}
-        </p>
-        {control.state === "planning_failed" ? (
-          <Button className="mt-4" type="button" variant="secondary" disabled={busy} onClick={onPlan}>Retry planning</Button>
-        ) : null}
-      </Card>
-    );
+    return frame(<>
+      <p className="mt-2">{control.blocker || (control.state === "planning_failed" ? "Planning failed." : "Planning the evaluation…")}</p>
+      {control.state === "planning_failed" ? (
+        <button type="button" className="ws-secondary mt-5" disabled={busy} onClick={onPlan}>Try planning again</button>
+      ) : null}
+    </>);
   }
 
   if (!isPreparedControl(control)) return null;
 
   if (control.state === "authorized") {
-    return (
-      <Card pad="lg" className="flex flex-col gap-4">
-        <ProofBoundary level="proof" title="Local execution explicitly authorized" icon={LockKeyhole}>
-          The customer authorized {control.authorized_adapter_references.length} Pipeline-selected adapter(s) for this exact plan. This authorization does not qualify a method, approve paid or live-provider execution, permit a physical robot run, or establish physical success. Authorization digest: {control.authorization_digest}
-        </ProofBoundary>
-        <Button type="button" variant="action" disabled={busy} onClick={onExecute}>
-          {busy ? "Executing and aggregating…" : "Execute authorized local methods"}
-        </Button>
-      </Card>
-    );
+    return frame(<>
+      <p className="mt-2">You approved {control.authorized_adapter_references.length} method{control.authorized_adapter_references.length === 1 ? "" : "s"} for this plan.</p>
+      <button type="button" className="ws-primary mt-5" disabled={busy} onClick={onExecute}>{busy ? "Running…" : "Run the approved methods"}</button>
+      <p className="mt-3 break-all text-xs text-ink-500">Approval {control.authorization_digest}</p>
+    </>);
   }
 
   function toggle(reference: string) {
@@ -97,51 +81,44 @@ export function TaskEvaluationRunControl({
       : [...current, reference].sort());
   }
 
-  return (
-    <Card pad="lg" className="flex flex-col gap-5">
-      <div>
-        <StatusChip tone={control.state === "authorization_failed" ? "block" : "warn"} square>
-          {control.state.replace(/_/g, " ")}
-        </StatusChip>
-        <h3 className="mt-3 font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">Approve exact execution methods</h3>
-        <p className="mt-2 text-body-s text-runway-body">
-          Pipeline selected these candidates from catalog {control.method_catalog.catalog_id} {control.method_catalog.version}. Review cost and proof tier, then explicitly authorize the local methods you permit.
-        </p>
-      </div>
-
-      {candidates.length ? (
-        <div className="divide-y divide-runway-line-soft border border-runway-line bg-runway-panel">
-          {candidates.map((candidate) => (
-            <label key={candidate.adapter_reference} className="flex cursor-pointer items-start gap-3 p-4">
-              <input
-                className="mt-1"
-                type="checkbox"
-                checked={selected.includes(candidate.adapter_reference)}
-                onChange={() => toggle(candidate.adapter_reference)}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="runway-num block text-body-s font-semibold text-runway-text">{candidate.method_id} · {candidate.method_version}</span>
-                <span className="mt-1 block text-body-xs text-runway-mute">
-                  {candidate.method_family.replace(/_/g, " ")} · {candidate.proof_tier.replace(/_/g, " ")} · <span className="runway-num">${candidate.expected_cost_usd.toFixed(2)}</span> expected
-                </span>
-                <span className="runway-num mt-1 block break-all text-[0.67rem] text-runway-faint">{candidate.adapter_reference}</span>
+  return frame(<>
+    <p className="mt-2">
+      Choose which methods may run. Approving lets only these local methods run for this plan. It doesn't approve paid
+      compute, an outside provider, or a physical robot.
+    </p>
+    {control.state === "authorization_failed" ? <p className="mt-2 text-runway-red">The last approval didn't go through. Try again.</p> : null}
+    {candidates.length ? (
+      <fieldset className="mt-4">
+        <legend className="sr-only">Methods</legend>
+        {candidates.map((candidate) => (
+          <label key={candidate.adapter_reference} className="ws-check">
+            <input
+              type="checkbox"
+              checked={selected.includes(candidate.adapter_reference)}
+              onChange={() => toggle(candidate.adapter_reference)}
+            />
+            <span>
+              {candidate.method_id} · {candidate.method_version}
+              <span className="block text-sm text-ink-500">
+                {candidate.method_family.replace(/_/g, " ")} · {candidate.proof_tier.replace(/_/g, " ")} · ${candidate.expected_cost_usd.toFixed(2)} expected
               </span>
-            </label>
-          ))}
-        </div>
-      ) : (
-        <ProofBoundary level="warn" title="No executable local method selected">
-          The plan contains no authorized local adapter candidate. Authorizing an empty set cannot create physical or scientific evidence; the eventual run must abstain or request the next experiment.
-        </ProofBoundary>
-      )}
-
-      {control.blocker ? <p className="text-body-s text-runway-red">{control.blocker}</p> : null}
-      <ProofBoundary level="warn" title="Authorization boundary">
-        Authorization permits only the selected, already-qualified local adapters for this exact plan digest. It does not authorize paid compute, a live external provider, a physical robot, deployment, safety certification, or comparative policy ranking.
-      </ProofBoundary>
-      <Button type="button" variant="action" iconLeft={<LockKeyhole />} disabled={busy} onClick={() => onAuthorize(selected)}>
-        {busy ? "Authorizing…" : `Authorize ${selected.length} selected method${selected.length === 1 ? "" : "s"}`}
-      </Button>
-    </Card>
-  );
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    ) : (
+      <p className="mt-4">No method can run for this plan, so the evaluation will end without a decision and suggest the next step.</p>
+    )}
+    {control.blocker ? <p className="mt-3 text-runway-red">{control.blocker}</p> : null}
+    <button type="button" className="ws-primary mt-6" disabled={busy} onClick={() => onAuthorize(selected)}>
+      {busy ? "Approving…" : `Approve ${selected.length} method${selected.length === 1 ? "" : "s"}`}
+    </button>
+    <details className="mt-6">
+      <summary>Plan details</summary>
+      <p className="text-sm">Method catalog {control.method_catalog.catalog_id} {control.method_catalog.version}</p>
+      <ul className="mt-2 text-xs text-ink-500">
+        {candidates.map((candidate) => <li key={candidate.adapter_reference} className="break-all">{candidate.adapter_reference}</li>)}
+      </ul>
+    </details>
+  </>);
 }

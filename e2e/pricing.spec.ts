@@ -53,6 +53,7 @@ test("pricing defines an entry and shows the arithmetic behind a quote", async (
   await expect(row.getByText("6", { exact: true })).toBeVisible();
   await expect(row.getByText("$594", { exact: true })).toBeVisible();
   await expect(page.getByText(/Entries × tasks × \$99/)).toBeVisible();
+  await expect(page.getByText(/Entries × tasks ×/i)).toHaveCount(1);
 });
 
 test("pricing reaches the header on mobile without a horizontal scrollbar", async ({ page }) => {

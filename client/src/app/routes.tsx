@@ -102,10 +102,6 @@ const AppTaskEvaluationResultDetail = lazyRoute(
   () => import("../pages/app/TaskEvaluationResultDetail"),
 );
 const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
-const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
-const AppPolicies = lazyRoute(() => import("../pages/app/Policies"));
-const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
-const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
 const AppPilotOpportunities = lazyRoute(() => import("../pages/workspace/Openings"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
@@ -213,6 +209,11 @@ const LegacyLoginRedirect = () => (
 );
 
 const BuyerAppRedirect = () => <MarketingRedirect to="/app" />;
+// Retired buyer pages nothing links to: purchased access now sits on Runs,
+// account and robot settings on Settings, and each task on the Tasks list.
+const AppRunsRedirect = () => <MarketingRedirect to="/app/runs" />;
+const AppSettingsRedirect = () => <MarketingRedirect to="/settings" />;
+const AppTasksListRedirect = () => <MarketingRedirect to="/app/packs" />;
 
 const SiteOperatorCaptureRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
@@ -437,10 +438,10 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/:sourceLaunchId/evaluate", layout: "protected", shell: "bare", component: AppEvaluationRunSetup },
   { path: "/app/packs/:sourceLaunchId/policy-canary", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
-  { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppSiteDetail },
-  { path: "/app/policies", layout: "protected", shell: "bare", component: AppPolicies },
-  { path: "/app/data", layout: "protected", shell: "bare", component: AppDataPackages },
-  { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppEntitlements },
+  { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppTasksListRedirect },
+  { path: "/app/policies", layout: "protected", shell: "bare", component: AppSettingsRedirect },
+  { path: "/app/data", layout: "protected", shell: "bare", component: AppRunsRedirect },
+  { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppRunsRedirect },
 
   // Legacy ops aliases route to protected admin/operator truth surfaces.
   { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },

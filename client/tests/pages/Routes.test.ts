@@ -91,6 +91,26 @@ describe("Route registration", () => {
     }
   });
 
+  it("redirects retired buyer pages to where their content lives now", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    expect(source).toContain('const AppRunsRedirect = () => <MarketingRedirect to="/app/runs" />;');
+    expect(source).toContain('const AppSettingsRedirect = () => <MarketingRedirect to="/settings" />;');
+    expect(source).toContain('const AppTasksListRedirect = () => <MarketingRedirect to="/app/packs" />;');
+    expect(source).toContain('{ path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppTasksListRedirect }');
+    expect(source).toContain('{ path: "/app/policies", layout: "protected", shell: "bare", component: AppSettingsRedirect }');
+    expect(source).toContain('{ path: "/app/data", layout: "protected", shell: "bare", component: AppRunsRedirect }');
+    expect(source).toContain('{ path: "/app/entitlements", layout: "protected", shell: "bare", component: AppRunsRedirect }');
+    for (const page of ["SiteDetail", "Policies", "DataPackages", "Entitlements"]) {
+      expect(source).not.toContain(`import("../pages/app/${page}")`);
+    }
+    // A task's own setup pages still win over the retired pack-detail alias.
+    expect(matchAppRoute("/app/packs/source-one/evaluate")?.path).toBe("/app/packs/:sourceLaunchId/evaluate");
+    expect(matchAppRoute("/app/packs/source-one/policy-canary")?.path).toBe("/app/packs/:sourceLaunchId/policy-canary");
+    expect(matchAppRoute("/app/packs/legacy-pack")?.path).toBe("/app/packs/:siteId");
+  });
+
   it("keeps ops aliases protected and off the mock-data console", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");

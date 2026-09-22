@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Captures from "@/pages/app/Captures";
@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   create: vi.fn(),
   upload: vi.fn(),
   review: vi.fn(),
+  qa: vi.fn(),
   decide: vi.fn(),
   lifecycle: vi.fn(),
   reconstructionPlan: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock("@/lib/captureUploads", async (importOriginal) => {
     createCaptureUpload: state.create,
     uploadCaptureFile: state.upload,
     getCaptureTaskReview: state.review,
+    getCaptureQa: state.qa,
     submitTaskDecisionCommand: state.decide,
     applyCompletedCaptureLifecycle: state.lifecycle,
     planCaptureReconstruction: state.reconstructionPlan,
@@ -168,6 +170,7 @@ describe("app/Captures", () => {
     state.upload.mockReset();
     state.review.mockReset();
     state.review.mockResolvedValue(taskReview);
+    state.qa.mockReset();
     state.decide.mockReset();
     state.lifecycle.mockReset();
     state.lifecycle.mockResolvedValue({
@@ -200,41 +203,68 @@ describe("app/Captures", () => {
     });
   });
 
-  it("renders one coherent capture entry, honest proof boundaries, and owner history", async () => {
+  it("starts with the capture list; the upload form, optional details, and tips are one click away", async () => {
     render(<Captures />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "New Capture" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Captures" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tasks", exact: true })).toHaveAttribute("href", "/app/tasks");
-    expect(screen.getByText("What upload completion means")).toBeInTheDocument();
-    expect(screen.getByText(/Upload completion is not capture acceptance/i)).toBeInTheDocument();
-    expect(screen.getByText(/advisory hints, not reconstruction or task-success claims/i)).toBeInTheDocument();
     expect(await screen.findByText("warehouse-tour.mp4")).toBeInTheDocument();
-    expect(screen.getByText("Upload in progress")).toBeInTheDocument();
+    expect(screen.getByText("Upload not finished")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Capture file")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Upload a capture" }));
     expect(screen.getByLabelText("Capture file")).toHaveAttribute(
       "accept",
       ".mp4,.mov,video/mp4,video/quicktime",
     );
-    expect(screen.getByRole("button", { name: "Start secure upload" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Upload" })).toBeDisabled();
+    expect(screen.getAllByText(/Uploading isn't acceptance/)).toHaveLength(1);
+    const optional = screen.getByText("Optional details", { selector: "summary" }).closest("details")!;
+    expect(optional.open).toBe(false);
+    expect(within(optional).getByLabelText("Camera manufacturer")).toBeInTheDocument();
+    expect(screen.getByText("Capture tips", { selector: "summary" }).closest("details")!.open).toBe(false);
+
+    // The expert evaluation request is closed until someone asks for it.
+    const evaluation = screen.getByText("Request an evaluation on a completed scene", { selector: "summary" }).closest("details")!;
+    expect(evaluation.open).toBe(false);
+    expect(screen.queryByText(/thesis_not_supported|What upload completion means|advisory hints/i)).not.toBeInTheDocument();
   });
 
-  it("shows the reduced authority of ordinary video and an exact resumable file requirement", async () => {
+  it("shows the reduced authority of ordinary video and resumes with the exact file", async () => {
     render(<Captures />);
-    expect(await screen.findByText("warehouse-tour.mp4")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Upload a capture" }));
     fireEvent.change(screen.getByLabelText("Capture type"), {
       target: { value: "monocular_video" },
     });
-    expect(screen.getByText(/no inherent scale, poses, depth, collision truth, or physical outcome/i)).toBeInTheDocument();
+    expect(screen.getByText(/It has no built-in scale or depth/)).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Resume" }));
-    expect(screen.getByText((_, element) =>
-      element?.tagName === "P" &&
-      Boolean(element.textContent?.includes("Reselect exactly warehouse-tour.mp4")) &&
-      Boolean(element.textContent?.includes("Stored parts are checked against the reselected file")),
-    )).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Resume upload" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Resume upload" }));
+    expect(screen.getByRole("heading", { name: "Resume your upload" })).toBeInTheDocument();
+    expect(screen.getByText(/Choose warehouse-tour\.mp4 \(.+ bytes\) again to resume/)).toBeInTheDocument();
+    const submit = screen.getAllByRole("button", { name: "Resume upload" }).find((button) => button.getAttribute("type") === "submit");
+    expect(submit).toBeDisabled();
   });
 
-  it("renders Pipeline-authored candidates and records approval as pending Pipeline validation", async () => {
+  it("shows an upload problem inside the form, without a reload hint", async () => {
+    render(<Captures />);
+    fireEvent.click(await screen.findByRole("button", { name: "Upload a capture" }));
+    fireEvent.change(screen.getByLabelText("Scene ID"), { target: { value: "packing-line-a" } });
+    fireEvent.change(screen.getByLabelText("Capture file"), {
+      target: { files: [new File(["x"], "tiny.mp4", { type: "video/mp4" })] },
+    });
+    const upload = screen.getByRole("button", { name: "Upload" });
+    expect(upload).toBeEnabled();
+    // Submit the form directly; the DOM double doesn't run native file-input validation.
+    fireEvent.submit(upload.closest("form")!);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Videos must be larger than 5 MB and no larger than 50 GB.");
+    expect(alert.closest("form")).not.toBeNull();
+    expect(alert).not.toHaveTextContent(/Reload the page/);
+    expect(state.create).not.toHaveBeenCalled();
+  });
+
+  it("opens one capture on its own and records a task approval as pending", async () => {
     state.list.mockResolvedValue({
       sessions: [{
         ...pendingSession,
@@ -246,20 +276,35 @@ describe("app/Captures", () => {
         },
       }],
     });
+    state.review
+      .mockResolvedValueOnce(taskReview)
+      .mockResolvedValueOnce({
+        ...taskReview,
+        status: "decision_pending_pipeline_validation",
+        latest_decision_command: { action: "approve" } as unknown as CaptureTaskReview["latest_decision_command"],
+      });
     render(<Captures />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Review tasks" }));
-    expect(await screen.findByRole("heading", { name: "Review proposed tasks" })).toBeInTheDocument();
-    expect(screen.getByText("Direct observations")).toBeInTheDocument();
-    expect(screen.getByText("A blue tote is visible on the table.")).toBeInTheDocument();
-    expect(screen.getByText("Inferred objects and affordances")).toBeInTheDocument();
-    expect(screen.getByText(/WebApp records your exact command and digest binding/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve candidate" })).toBeDisabled();
+    expect(await screen.findByText("Review the proposed tasks")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(await screen.findByRole("heading", { name: "Proposed tasks" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "warehouse-tour.mp4" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "← All captures" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your captures" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText(/Why this task is correct/i), {
+    // The real-world boundary is stated once for the whole capture, in plain words.
+    expect(screen.getAllByText(/None of it shows a robot can do the task in the real world/)).toHaveLength(1);
+    expect(screen.queryByText(/physical_task_success|thesis_not_supported|WebApp records/)).not.toBeInTheDocument();
+    const seen = screen.getByText("What Blueprint saw in the capture", { selector: "summary" }).closest("details")!;
+    expect(seen.open).toBe(false);
+    expect(within(seen).getByText("A blue tote is visible on the table.")).toBeInTheDocument();
+
+    const approve = screen.getByRole("button", { name: "Approve this task" });
+    expect(approve).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Why"), {
       target: { value: "This is our exact task." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Approve candidate" }));
+    fireEvent.click(approve);
     await waitFor(() => expect(state.decide).toHaveBeenCalledWith(
       state.currentUser,
       "capture-upload-1",
@@ -273,6 +318,10 @@ describe("app/Captures", () => {
         idempotency_key: expect.stringMatching(/^web-task-decision-/),
       }),
     ));
+    expect(await screen.findByText(/Your decision \(approve\) is recorded and being checked/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "← All captures" }));
+    expect(screen.getByRole("heading", { name: "Your captures" })).toBeInTheDocument();
   });
 
   it("requires explicit confirmation before requesting completed-capture deletion", async () => {
@@ -288,6 +337,7 @@ describe("app/Captures", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<Captures />);
 
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete capture" }));
     await waitFor(() => expect(state.lifecycle).toHaveBeenCalledWith(
       state.currentUser,
@@ -296,10 +346,11 @@ describe("app/Captures", () => {
       "web-delete-capture-upload-1",
     ));
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Permanently delete"));
+    expect(await screen.findByRole("heading", { level: 1, name: "Captures" })).toBeInTheDocument();
     confirm.mockRestore();
   });
 
-  it("requests Pipeline planning for an accepted capture without selecting a provider", async () => {
+  it("shows the capture check and plans the 3D scene without selecting a provider", async () => {
     state.list.mockResolvedValue({
       sessions: [{
         ...pendingSession,
@@ -323,9 +374,24 @@ describe("app/Captures", () => {
         reconstruction: { state: "not_planned" },
       }],
     });
+    state.qa.mockResolvedValue({
+      schema_version: "capture_qa_inspection.v1",
+      session_id: "capture-upload-1",
+      intake_id: "intake-1",
+      status: "accepted",
+      state: "capture_accepted",
+      publication: {
+        qa_report_digest: `sha256:${"a".repeat(64)}`,
+        report: { checks: [], recapture_plan: [], missing_evidence: [], next_cheapest_experiment: null, claim_ceiling: {} },
+      },
+    });
     render(<Captures />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Plan reconstruction" }));
+    expect(await screen.findByText("Capture accepted")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(await screen.findByRole("heading", { name: "Capture check" })).toBeInTheDocument();
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Plan the 3D scene" }));
     await waitFor(() => expect(state.reconstructionPlan).toHaveBeenCalledWith(
       state.currentUser,
       "capture-upload-1",

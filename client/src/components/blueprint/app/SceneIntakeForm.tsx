@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { User } from "firebase/auth";
-import { Button, Card } from "@/components/blueprint";
+import { Field } from "@/components/workspace/WorkspaceUI";
 import {
   apiRequest,
   CaptureUploadRequestError,
@@ -107,7 +107,7 @@ export function SceneIntakeForm({
         }
       })
       .catch(() =>
-        setError("Provider terms and frozen policy catalog are unavailable."),
+        setError("Provider terms and the policy list couldn't be loaded."),
       );
     try {
       const retained = sessionStorage.getItem(
@@ -168,7 +168,7 @@ export function SceneIntakeForm({
       }
     } catch {
       setError(
-        "Unable to restore the prior submission. Review your retained run list before submitting again.",
+        "Your last submission couldn't be restored. Check your requests before submitting again.",
       );
     }
     void apiRequest<{ sources: typeof nativeSources }>(
@@ -181,10 +181,10 @@ export function SceneIntakeForm({
         setNativeSources(value.sources);
       })
       .catch(() =>
-        setError("Native source listing is unavailable. Refresh to retry."),
+        setError("Scenes couldn't be loaded. Reload to try again."),
       );
     void refresh().catch(() =>
-      setError("Unable to load run status. Refresh to retry."),
+      setError("Request status couldn't be loaded. Reload to try again."),
     );
     const interval = setInterval(
       () => void refresh().catch(() => undefined),
@@ -278,7 +278,7 @@ export function SceneIntakeForm({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Submission failed. Retry retains the same identity and consent.",
+          : "Submission failed. Retrying sends the same request.",
       );
     } finally {
       setBusy(false);
@@ -293,521 +293,268 @@ export function SceneIntakeForm({
       );
       await refresh();
     } catch {
-      setError("Revocation could not be retained. Retry for this same intent.");
+      setError("That couldn't be stopped. Try again.");
     }
   }
-  const field = "runway-input mt-1.5";
+  const successRows = [
+    { key: "control_frequency_hz", label: "Control frequency (Hz)", min: "1", step: "1" },
+    { key: "maximum_episode_seconds", label: "Maximum episode seconds", min: "0.01", step: "any" },
+    { key: "minimum_lift_m", label: "Minimum lift (m)", min: "0.001", step: "any" },
+    { key: "pregrasp_clearance_m", label: "Pre-grasp clearance (m)", min: "0.001", step: "any" },
+    { key: "minimum_planar_displacement_m", label: "Minimum planar displacement (m)", min: "0.001", step: "any" },
+    { key: "maximum_final_planar_target_error_m", label: "Maximum final planar target error (m)", min: "0.001", step: "any" },
+  ] as const;
+  const splatSource = sessions.some((session) => session.session_id === source && session.capture_authority_profile === "provided_scene_splat");
+  const humanize = (value: string) => value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
   return (
-    <Card pad="lg">
-      <h2 className="font-display text-xl font-semibold text-ink-900">
-        Start a Task Evaluation Run
-      </h2>
-      <p className="my-3 text-body-s text-ink-600">
-        Choose a completed scene or registered public scene, confirm one pick-and-place task, and bound
-        processing. Supplied geometry stays distinct from observed capture.
-        Results remain development-only simulation evidence.
+    <div className="ws-form">
+      <p className="text-ink-600">
+        Choose a completed or public scene and describe one pick-and-place task. Supplied geometry stays separate from
+        observed capture, and results are development-only simulation.
       </p>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="mt-6">
         {pendingCommand ? (
-          <p className="text-body-s">
-            Retained consent expires{" "}
+          <p className="ws-alert" role="status">
+            Your last submission is saved until{" "}
             {new Date(
               Number(
                 (pendingCommand.execution as { expires_at_epoch: number })
                   .expires_at_epoch,
               ) * 1000,
             ).toLocaleString()}
-            . Retrying preserves this expiry.
+            . Retrying sends the same request.
           </p>
         ) : null}
-        <fieldset
-          disabled={busy || Boolean(pendingCommand)}
-          className="grid gap-4 md:grid-cols-2"
-        >
-          <label>
-            Source
-            <select
-              className={field}
-              required
-              value={source}
-              onChange={(e) => {
-                setSource(e.target.value); setCollisionSource(""); setCollisionFrameConfirmed(false);
-                const choice = nativeSources.find((row) => row.id === e.target.value && row.kind === "public_scene");
-                const proposal = choice?.task_proposal;
-                if (proposal) {
-                  setTask({ subject: proposal.subject.description, support: proposal.support.description });
-                  setDestination({ relation: proposal.destination.relation, visible_label: proposal.destination.visible_label,
-                    x: proposal.destination.position_world_m[0], y: proposal.destination.position_world_m[1], z: proposal.destination.position_world_m[2] });
-                  setSuccess(proposal.success as typeof SUCCESS_DEFAULTS);
-                  setProvider(choice.required_providers?.[0] || "vast");
-                  setAdditionalProviders(choice.required_providers?.slice(1) || ["openai"]);
-                }
-              }}
-            >
-              <option value="">Choose a completed or public scene</option>
-              {nativeSources.filter((s) => ["mesh", "gaussian_splat", "public_scene"].includes(s.kind || "")).map((s) => (
-                <option key={s.id} value={s.id} disabled={!s.selectable}>
-                  {s.label} · {s.kind === "public_scene" ? "Public scene" : "Completed scene"} ·{" "}
-                  {s.validation_status.replace(/_/g, " ")}
-                </option>
-              ))}
-              {sessions
-                .filter(
-                  (s) =>
-                    s.pipeline_handoff?.status === "forwarded" &&
-                    s.capture_authority_profile.startsWith("provided_scene_") &&
-                    !["revoked", "revocation_in_progress"].includes(s.status),
-                )
-                .map((s) => (
-                  <option key={s.session_id} value={s.session_id}>
-                    {s.scene_id} ·{" "}
-                    {s.capture_authority_profile === "provided_scene_mesh"
-                      ? "Provided geometry"
-                      : s.capture_authority_profile === "provided_scene_splat" ? "Completed 3DGS"
-                      : "Capture"}
+        <fieldset disabled={busy || Boolean(pendingCommand)}>
+          <div className="ws-fields">
+            <Field label="Source" wide>
+              <select
+                required
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value); setCollisionSource(""); setCollisionFrameConfirmed(false);
+                  const choice = nativeSources.find((row) => row.id === e.target.value && row.kind === "public_scene");
+                  const proposal = choice?.task_proposal;
+                  if (proposal) {
+                    setTask({ subject: proposal.subject.description, support: proposal.support.description });
+                    setDestination({ relation: proposal.destination.relation, visible_label: proposal.destination.visible_label,
+                      x: proposal.destination.position_world_m[0], y: proposal.destination.position_world_m[1], z: proposal.destination.position_world_m[2] });
+                    setSuccess(proposal.success as typeof SUCCESS_DEFAULTS);
+                    setProvider(choice.required_providers?.[0] || "vast");
+                    setAdditionalProviders(choice.required_providers?.slice(1) || ["openai"]);
+                  }
+                }}
+              >
+                <option value="">Choose a completed or public scene</option>
+                {nativeSources.filter((s) => ["mesh", "gaussian_splat", "public_scene"].includes(s.kind || "")).map((s) => (
+                  <option key={s.id} value={s.id} disabled={!s.selectable}>
+                    {s.label} · {s.kind === "public_scene" ? "Public scene" : "Completed scene"} ·{" "}
+                    {s.validation_status.replace(/_/g, " ")}
                   </option>
                 ))}
-            </select>
-          </label>
-          {sessions.some((session) => session.session_id === source && session.capture_authority_profile === "provided_scene_splat") ? <>
-            <label>Collision mesh in the same frame
-              <select className={field} value={collisionSource} onChange={(event) => { setCollisionSource(event.target.value); setCollisionFrameConfirmed(false); }}>
-                <option value="">No mesh attached yet</option>
-                {sessions.filter((session) => session.capture_authority_profile === "provided_scene_mesh" && session.pipeline_handoff?.status === "forwarded" && !["revoked", "revocation_in_progress"].includes(session.status)).map((session) =>
-                  <option key={session.session_id} value={session.session_id}>{session.scene_id} · {session.original_filename}</option>)}
+                {sessions
+                  .filter(
+                    (s) =>
+                      s.pipeline_handoff?.status === "forwarded" &&
+                      s.capture_authority_profile.startsWith("provided_scene_") &&
+                      !["revoked", "revocation_in_progress"].includes(s.status),
+                  )
+                  .map((s) => (
+                    <option key={s.session_id} value={s.session_id}>
+                      {s.scene_id} ·{" "}
+                      {s.capture_authority_profile === "provided_scene_mesh"
+                        ? "Provided geometry"
+                        : s.capture_authority_profile === "provided_scene_splat" ? "Completed 3DGS"
+                        : "Capture"}
+                    </option>
+                  ))}
               </select>
+            </Field>
+            {splatSource ? (
+              <Field
+                label="Collision mesh in the same frame"
+                hint={collisionSource ? undefined : "A splat supplies appearance, not contact geometry. Attach the matching mesh if you have one; missing geometry is reported before any paid work."}
+                wide
+              >
+                <select value={collisionSource} onChange={(event) => { setCollisionSource(event.target.value); setCollisionFrameConfirmed(false); }}>
+                  <option value="">No mesh attached yet</option>
+                  {sessions.filter((session) => session.capture_authority_profile === "provided_scene_mesh" && session.pipeline_handoff?.status === "forwarded" && !["revoked", "revocation_in_progress"].includes(session.status)).map((session) =>
+                    <option key={session.session_id} value={session.session_id}>{session.scene_id} · {session.original_filename}</option>)}
+                </select>
+              </Field>
+            ) : null}
+            <Field label="Object to move">
+              <input required value={task.subject} readOnly={Boolean(publicChoice)} onChange={(e) => setTask({ ...task, subject: e.target.value })} />
+            </Field>
+            <Field label="Starting support surface">
+              <input required value={task.support} readOnly={Boolean(publicChoice)} onChange={(e) => setTask({ ...task, support: e.target.value })} />
+            </Field>
+          </div>
+          {splatSource && collisionSource ? (
+            <label className="ws-check">
+              <input type="checkbox" required checked={collisionFrameConfirmed} onChange={(event) => setCollisionFrameConfirmed(event.target.checked)} />
+              <span>I confirm these exports use the same declared coordinate frame. This doesn&apos;t certify physical scale or collision accuracy.</span>
             </label>
-            {collisionSource ? <label className="flex items-start gap-2 md:col-span-2"><input type="checkbox" required checked={collisionFrameConfirmed} onChange={(event) => setCollisionFrameConfirmed(event.target.checked)} />
-              I confirm these exports use the same declared coordinate frame. This does not certify physical scale or collision accuracy.
-            </label> : <p className="text-body-s text-ink-500 md:col-span-2">A splat supplies appearance, not contact geometry. Attach the matching mesh when available; missing geometry will be reported before paid work.</p>}
-          </> : null}
-          <label>
-            Object to move
-            <input
-              className={field}
-              required
-              value={task.subject}
-              readOnly={Boolean(publicChoice)}
-              onChange={(e) => setTask({ ...task, subject: e.target.value })}
-            />
-          </label>
-          <label>
-            Starting support surface
-            <input
-              className={field}
-              required
-              value={task.support}
-              readOnly={Boolean(publicChoice)}
-              onChange={(e) => setTask({ ...task, support: e.target.value })}
-            />
-          </label>
-          <fieldset className="space-y-2 md:col-span-2" disabled={Boolean(publicChoice)}>
-            <legend className="font-medium text-ink-800">
-              Destination placement
-            </legend>
-            <p className="text-body-s text-ink-500">
-              Where the object must end up. A structured pose is required — a
-              description alone cannot be simulated. Orientation defaults to
-              identity (level).
+          ) : null}
+
+          <fieldset className="mt-8" disabled={Boolean(publicChoice)}>
+            <legend className="text-sm font-medium">Where it should end up</legend>
+            <p className="mt-1 text-sm text-ink-500">
+              Use the scene&apos;s world coordinates. (0, 0, 0) is only a placeholder, so set the real drop point.
+              Orientation stays level.
             </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label>
-                Placement relation
-                <select
-                  className={field}
-                  value={destination.relation}
-                  onChange={(e) =>
-                    setDestination({
-                      ...destination,
-                      relation: e.target.value as "on" | "inside",
-                    })
-                  }
-                >
+            <div className="ws-fields mt-4">
+              <Field label="Placement relation">
+                <select value={destination.relation} onChange={(e) => setDestination({ ...destination, relation: e.target.value as "on" | "inside" })}>
                   <option value="on">On the surface</option>
                   <option value="inside">Inside the container</option>
                 </select>
-              </label>
-              <label>
-                Destination surface or container
-                <input
-                  className={field}
-                  required
-                  value={destination.visible_label}
-                  onChange={(e) =>
-                    setDestination({
-                      ...destination,
-                      visible_label: e.target.value,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Target X (m)
-                <input
-                  className={field}
-                  type="number"
-                  required
-                  step="any"
-                  value={destination.x}
-                  onChange={(e) =>
-                    setDestination({
-                      ...destination,
-                      x: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Target Y (m)
-                <input
-                  className={field}
-                  type="number"
-                  required
-                  step="any"
-                  value={destination.y}
-                  onChange={(e) =>
-                    setDestination({
-                      ...destination,
-                      y: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Target Z (m)
-                <input
-                  className={field}
-                  type="number"
-                  required
-                  step="any"
-                  value={destination.z}
-                  onChange={(e) =>
-                    setDestination({
-                      ...destination,
-                      z: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
+              </Field>
+              <Field label="Destination surface or container">
+                <input required value={destination.visible_label} onChange={(e) => setDestination({ ...destination, visible_label: e.target.value })} />
+              </Field>
+              <Field label="Target X (m)"><input type="number" required step="any" value={destination.x} onChange={(e) => setDestination({ ...destination, x: Number(e.target.value) })} /></Field>
+              <Field label="Target Y (m)"><input type="number" required step="any" value={destination.y} onChange={(e) => setDestination({ ...destination, y: Number(e.target.value) })} /></Field>
+              <Field label="Target Z (m)"><input type="number" required step="any" value={destination.z} onChange={(e) => setDestination({ ...destination, z: Number(e.target.value) })} /></Field>
             </div>
-            <p className="text-body-s text-ink-500">
-              Coordinates are in the scene&apos;s world frame. The default origin
-              (0, 0, 0) is a placeholder — set the real drop point.
-            </p>
           </fieldset>
-          <fieldset className="space-y-2 md:col-span-2" disabled={Boolean(publicChoice)}>
-            <legend className="font-medium text-ink-800">
-              Success criteria
-            </legend>
-            <p className="text-body-s text-ink-500">
-              Structured thresholds the run scores against. Defaults suit a
-              rigid-object pick-and-place; adjust only if the task needs it.
-              Retries and regrasps are fixed at zero.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              {(
-                [
-                  {
-                    key: "control_frequency_hz",
-                    label: "Control frequency (Hz)",
-                    min: "1",
-                    step: "1",
-                  },
-                  {
-                    key: "maximum_episode_seconds",
-                    label: "Maximum episode seconds",
-                    min: "0.01",
-                    step: "any",
-                  },
-                  {
-                    key: "minimum_lift_m",
-                    label: "Minimum lift (m)",
-                    min: "0.001",
-                    step: "any",
-                  },
-                  {
-                    key: "pregrasp_clearance_m",
-                    label: "Pre-grasp clearance (m)",
-                    min: "0.001",
-                    step: "any",
-                  },
-                  {
-                    key: "minimum_planar_displacement_m",
-                    label: "Minimum planar displacement (m)",
-                    min: "0.001",
-                    step: "any",
-                  },
-                  {
-                    key: "maximum_final_planar_target_error_m",
-                    label: "Maximum final planar target error (m)",
-                    min: "0.001",
-                    step: "any",
-                  },
-                ] as const
-              ).map((row) => (
-                <label key={row.key}>
-                  {row.label}
-                  <input
-                    className={field}
-                    type="number"
-                    required
-                    min={row.min}
-                    step={row.step}
-                    value={success[row.key]}
-                    onChange={(e) =>
-                      setSuccess({
-                        ...success,
-                        [row.key]: Number(e.target.value),
-                      } as typeof success)
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-            <p className="text-body-s text-ink-500">
-              Control frequency × maximum episode seconds must be a whole number
-              of steps (default 15 × 24 = 360).
-            </p>
-          </fieldset>
-          {policies.map((policy, index) => (
-            <div key={index} className="space-y-2">
-              <label>
-                Candidate {index + 1} ID
-                <input
-                  className={field}
-                  required
-                  value={policy.id}
-                  onChange={(e) =>
-                    setPolicies(
-                      policies.map((p, i) =>
-                        i === index ? { ...p, id: e.target.value } : p,
-                      ),
-                    )
-                  }
-                />
-              </label>
-              <label>
-                Frozen artifact SHA-256
-                <input
-                  className={field}
-                  required
-                  pattern="sha256:[0-9a-f]{64}"
-                  placeholder="sha256:…"
-                  value={policy.artifact_digest}
-                  onChange={(e) =>
-                    setPolicies(
-                      policies.map((p, i) =>
-                        i === index
-                          ? { ...p, artifact_digest: e.target.value }
-                          : p,
-                      ),
-                    )
-                  }
-                />
-              </label>
-            </div>
-          ))}
-          <label>
-            Total spending ceiling (USD)
-            <input
-              className={field}
-              type="number"
-              required
-              min="0.01"
-              max="1000"
-              step="any"
-              value={spend}
-              onChange={(e) => setSpend(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Stage attempt limit
-            <input
-              className={field}
-              type="number"
-              required
-              min="1"
-              max="32"
-              value={attempts}
-              onChange={(e) => setAttempts(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Maximum retries
-            <input
-              className={field}
-              type="number"
-              required
-              min="0"
-              max="3"
-              value={retries}
-              onChange={(e) => setRetries(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Authorization duration (hours)
-            <input
-              className={field}
-              type="number"
-              required
-              min="1"
-              max="168"
-              value={hours}
-              onChange={(e) => setHours(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Permitted provider
-            <select
-              className={field}
-              value={provider}
-              onChange={(e) => {
-                setProvider(e.target.value);
-                setAdditionalProviders([]);
-                setTerms(providerTerms[e.target.value]?.digest || "");
-                setConfirmed(false);
-              }}
-            >
-              <option value="vast">Vast</option>
-              <option value="runpod">RunPod</option>
-              <option value="openai">OpenAI</option>
-            </select>
-          </label>
-          {Object.entries(providerTerms)
-            .filter(
-              ([name, evidence]) =>
-                name !== provider && evidence.digest === terms,
-            )
-            .map(([name]) => (
-              <label key={name} className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={additionalProviders.includes(name)}
-                  onChange={(event) => {
-                    setAdditionalProviders((values) =>
-                      event.target.checked
-                        ? [...new Set([...values, name])]
-                        : values.filter((value) => value !== name),
-                    );
+
+          <div className="ws-fields mt-8">
+            <Field label="Total spending ceiling (USD)">
+              <input type="number" required min="0.01" max="1000" step="any" value={spend} onChange={(e) => setSpend(Number(e.target.value))} />
+            </Field>
+          </div>
+
+          <details className="mt-8">
+            <summary>Advanced settings</summary>
+            <fieldset disabled={Boolean(publicChoice)}>
+              <legend className="text-sm font-medium">Success criteria</legend>
+              <p className="mt-1 text-sm text-ink-500">
+                Defaults suit a rigid-object pick-and-place. Retries and regrasps are fixed at zero. Control frequency ×
+                maximum episode seconds must be a whole number of steps (default 15 × 24 = 360).
+              </p>
+              <div className="ws-fields mt-4">
+                {successRows.map((row) => (
+                  <Field key={row.key} label={row.label}>
+                    <input
+                      type="number"
+                      required
+                      min={row.min}
+                      step={row.step}
+                      value={success[row.key]}
+                      onChange={(e) => setSuccess({ ...success, [row.key]: Number(e.target.value) } as typeof success)}
+                    />
+                  </Field>
+                ))}
+              </div>
+            </fieldset>
+            <div className="ws-fields mt-6">
+              {policies.map((policy, index) => [
+                <Field key={`id-${index}`} label={`Candidate ${index + 1} ID`}>
+                  <input required value={policy.id} onChange={(e) => setPolicies(policies.map((p, i) => i === index ? { ...p, id: e.target.value } : p))} />
+                </Field>,
+                <Field key={`digest-${index}`} label="Frozen artifact SHA-256">
+                  <input required pattern="sha256:[0-9a-f]{64}" placeholder="sha256:…" value={policy.artifact_digest} onChange={(e) => setPolicies(policies.map((p, i) => i === index ? { ...p, artifact_digest: e.target.value } : p))} />
+                </Field>,
+              ])}
+              <Field label="Stage attempt limit"><input type="number" required min="1" max="32" value={attempts} onChange={(e) => setAttempts(Number(e.target.value))} /></Field>
+              <Field label="Maximum retries"><input type="number" required min="0" max="3" value={retries} onChange={(e) => setRetries(Number(e.target.value))} /></Field>
+              <Field label="Authorization duration (hours)"><input type="number" required min="1" max="168" value={hours} onChange={(e) => setHours(Number(e.target.value))} /></Field>
+              <Field label="Permitted provider">
+                <select
+                  value={provider}
+                  onChange={(e) => {
+                    setProvider(e.target.value);
+                    setAdditionalProviders([]);
+                    setTerms(providerTerms[e.target.value]?.digest || "");
                     setConfirmed(false);
                   }}
-                />
-                <span>
-                  Also permit {name} processing under the same retained terms
-                  evidence.
-                </span>
-              </label>
-            ))}
-          <p className="text-body-s">
-            Rights are bound to the retained source governance and your owner
-            attestation. Source and publisher restrictions still apply.
-          </p>
-          <label>
-            Accepted provider terms reference
-            <input className={field} required value={terms} readOnly />
+                >
+                  <option value="vast">Vast</option>
+                  <option value="runpod">RunPod</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+              </Field>
+              <Field label="Accepted provider terms reference" wide>
+                <input required value={terms} readOnly />
+              </Field>
+            </div>
+            {Object.entries(providerTerms)
+              .filter(([name, evidence]) => name !== provider && evidence.digest === terms)
+              .map(([name]) => (
+                <label key={name} className="ws-check">
+                  <input
+                    type="checkbox"
+                    checked={additionalProviders.includes(name)}
+                    onChange={(event) => {
+                      setAdditionalProviders((values) =>
+                        event.target.checked
+                          ? [...new Set([...values, name])]
+                          : values.filter((value) => value !== name),
+                      );
+                      setConfirmed(false);
+                    }}
+                  />
+                  <span>Also allow {name} under the same terms.</span>
+                </label>
+              ))}
             {providerTerms[provider] ? (
-              <a
-                className="text-body-s underline"
-                href={providerTerms[provider].url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {providerTerms[provider].label}
-              </a>
+              <a className="ws-link mt-4" href={providerTerms[provider].url} target="_blank" rel="noreferrer">{providerTerms[provider].label}</a>
             ) : (
-              <span className="text-body-s">
-                Provider terms evidence is not configured for this provider.
-              </span>
+              <p className="mt-4 text-sm">Terms aren&apos;t set up for this provider yet.</p>
             )}
-          </label>
-          <label className="flex items-start gap-3 md:col-span-2">
-            <input
-              type="checkbox"
-              required
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
+          </details>
+
+          <p className="ws-note">
+            Rights come from the source&apos;s own record and your confirmation as its owner. Source and publisher
+            restrictions still apply.
+          </p>
+          <label className="ws-check">
+            <input type="checkbox" required checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
             <span>
-              I confirm this task and rights to private processing by the
-              selected providers, without provider training, within these
-              spending, retry, and time limits. Execution also requires my
-              account's commercial authorization.
+              I confirm this task and my rights to private processing by the selected providers, without provider
+              training, within these spending, retry, and time limits. Running it also needs my account&apos;s
+              commercial authorization.
             </span>
           </label>
         </fieldset>
-        {error ? (
-          <p role="alert" className="text-body-s text-red-700">
-            {error}
-          </p>
-        ) : null}
-        <Button
-          type="submit"
-          variant="action"
-          disabled={busy || (!pendingCommand && (!confirmed || !terms))}
-        >
-          {busy
-            ? "Saving…"
-            : pendingCommand
-              ? "Retry same submission"
-              : "Confirm task and submit run"}
-        </Button>
+        {error ? <p role="alert" className="mt-4 text-runway-red">{error}</p> : null}
+        <div className="ws-form-actions">
+          <button type="submit" className="ws-primary" disabled={busy || (!pendingCommand && (!confirmed || !terms))}>
+            {busy ? "Saving…" : pendingCommand ? "Retry same submission" : "Confirm task and submit run"}
+          </button>
+        </div>
       </form>
-      <div aria-live="polite" className="mt-6 space-y-3">
+      <div aria-live="polite" className="mt-10">
+        {intakes.length ? <h3 className="text-lg">Your requests</h3> : null}
         {intakes.map((intake) => (
-          <div key={intake.id} className="border-t border-line pt-3">
-            <p className="font-semibold">{intake.submission_id}</p>
-            <p>
-              {String(
+          <div key={intake.id} className="border-t border-line py-3">
+            <p className="font-medium">
+              {humanize(String(
                 ["revoked", "revocation_pending"].includes(intake.state)
                   ? intake.state
                   : intake.pipeline_status?.status || intake.state,
-              ).replace(/_/g, " ")}
+              ))}
             </p>
-            {intake.pipeline_status?.phase ? (
-              <p>{intake.pipeline_status.phase}</p>
-            ) : null}
+            {intake.pipeline_status?.phase ? <p className="text-sm">{intake.pipeline_status.phase}</p> : null}
             {[intake.blocker, ...(intake.pipeline_status?.blockers || [])]
               .filter(Boolean)
-              .map((blocker, i) => (
-                <p key={i} className="text-body-s">
-                  {String(blocker).replace(/_/g, " ")}
-                </p>
-              ))}
-            <p className="text-body-xs text-ink-500">
-              {intake.receipt
-                ? "Pipeline intent receipt retained"
-                : "Durable intake retained; execution not yet accepted"}
+              .map((blocker, i) => <p key={i} className="text-sm text-ink-600">{humanize(String(blocker))}</p>)}
+            <p className="mt-1 break-all text-xs text-ink-500">
+              {intake.submission_id} · {intake.receipt ? "Received for processing" : "Saved; not yet accepted to run"}
             </p>
-            {![
-              "revoked",
-              "revocation_pending",
-              "closeout_pending",
-              "completed",
-              "expired",
-            ].includes(intake.state) ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void revoke(intake.id)}
-              >
-                Revoke future execution
-              </Button>
+            {!["revoked", "revocation_pending", "closeout_pending", "completed", "expired"].includes(intake.state) ? (
+              <button type="button" className="ws-link mt-2" onClick={() => void revoke(intake.id)}>Stop future runs</button>
             ) : null}
             {["revoked", "revocation_pending"].includes(intake.state) ? (
-              <p className="text-body-s">
-                Revocation stops future admissions. It does not assert teardown
-                of an already running resource.
-              </p>
+              <p className="mt-1 text-sm">Stopping prevents new runs. It doesn&apos;t stop one that&apos;s already going.</p>
             ) : null}
             {intake.state === "closeout_pending" ? (
-              <p className="text-body-s">
-                Future execution is closed; the existing attempt is still being
-                reconciled for a terminal result.
-              </p>
+              <p className="mt-1 text-sm">No new runs will start; the current one is still finishing.</p>
             ) : null}
           </div>
         ))}
       </div>
-    </Card>
+    </div>
   );
 }

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, CheckCircle2, UploadCloud } from "lucide-react";
 
-import { Button, Card, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
-import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
+import { BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { CaptureQaInspection } from "@/components/blueprint/app/CaptureQaInspection";
-import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
+import { SceneIntakeForm } from "@/components/blueprint/app/SceneIntakeForm";
 import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
-import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
+import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
 import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluationRunControl";
+import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
 import { TestbedCompilationControl } from "@/components/blueprint/app/TestbedCompilationControl";
+import { Field, Tag } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   applyCompletedCaptureLifecycle,
@@ -41,32 +41,42 @@ import {
   type WebCaptureAuthorityProfile,
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
-import { SceneIntakeForm } from "@/components/blueprint/app/SceneIntakeForm";
 
-const fieldClass = "runway-input mt-1.5";
-const labelClass = "text-body-s font-semibold text-ink-800";
 const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
 
-const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; detail: string; accept: string }> = {
-  provided_scene_splat: { label: "Completed 3D Gaussian splat", detail: "Standard binary PLY from your reconstruction provider. The asset is retained unchanged; collision, task physics, and physical accuracy require separate evidence.", accept: ".ply" },
-  provided_scene_mesh: { label: "Provided scene geometry", detail: "USD, GLB, or PLY supplied geometry. This is not observed capture, measured collision truth, or physical proof.", accept: ".usd,.usda,.usdc,.glb,.ply" },
+/** Each type's one-line hint states what that kind of file can and can't show. */
+const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; hint: string; accept: string }> = {
   camera_360_equirectangular: {
-    label: "360 equirectangular video",
-    detail: "Stitched MP4/MOV with camera metadata. Observation and task discovery only until scale or calibration is separately verified.",
+    label: "360° video",
+    hint: "A stitched MP4 or MOV from a 360° camera. Used to review the space and find tasks until its scale is checked.",
     accept: ".mp4,.mov,video/mp4,video/quicktime",
   },
   camera_360_native: {
-    label: "Insta360 native capture",
-    detail: "Original INSV container is retained. Any normalized derivative stays hash-bound and derived.",
+    label: "Insta360 original (.insv)",
+    hint: "The original file from the camera. We keep it unchanged.",
     accept: ".insv,application/octet-stream",
   },
   monocular_video: {
-    label: "Ordinary video",
-    detail: "Reduced-authority lane for observation review and task discovery; no inherent scale, poses, depth, collision truth, or physical outcome.",
+    label: "Phone or ordinary video",
+    hint: "Good for reviewing the space and finding tasks. It has no built-in scale or depth.",
     accept: ".mp4,.mov,video/mp4,video/quicktime",
   },
+  provided_scene_splat: {
+    label: "3D Gaussian splat (.ply)",
+    hint: "A binary PLY from your reconstruction provider, kept unchanged. It shows appearance only; contact geometry and physics need separate evidence.",
+    accept: ".ply",
+  },
+  provided_scene_mesh: {
+    label: "3D model (USD, GLB, or PLY)",
+    hint: "Geometry you supply. It's treated as provided, not as a measurement of the site.",
+    accept: ".usd,.usda,.usdc,.glb,.ply",
+  },
 };
+
+function profileLabel(profile: string) {
+  return profileCopy[profile as WebCaptureAuthorityProfile]?.label || profile.replace(/_/g, " ");
+}
 
 function newUploadIdentity() {
   const value = crypto.randomUUID();
@@ -76,148 +86,58 @@ function newUploadIdentity() {
   };
 }
 
-function statusTone(status: string): "proof" | "warn" | "block" | "neutral" {
-  if (status === "revoked") return "block";
-  if (status === "revocation_in_progress") return "warn";
-  if (["uploaded_verification_pending", "validating", "capture_accepted", "rejected_or_recapture_required"].includes(status)) return "warn";
-  if (["failed", "cancelled"].includes(status)) return "block";
-  if (["upload_pending", "uploading"].includes(status)) return "neutral";
-  return "neutral";
+function humanize(value: string) {
+  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    provider_start_pending: "Preparing storage",
-    upload_pending: "Ready to upload",
-    uploading: "Upload in progress",
-    uploaded_verification_pending: "Uploaded · verification pending",
-    validating: "Capture validation in progress",
-    capture_accepted: "Intake admitted · capture QA pending",
-    rejected_or_recapture_required: "Recapture review required",
-    cancelled: "Cancelled",
-    failed: "Failed",
-    revocation_in_progress: "Deletion in progress",
-    revoked: "Deleted and revoked",
-    authorization_required: "Reconstruction authorization required",
-    authorized: "Reconstruction authorized",
-    completed: "Reconstruction complete",
-    partial: "Partial reconstruction",
-    abstained: "Reconstruction abstained",
+const uploadLabels: Record<string, string> = {
+  provider_start_pending: "Preparing upload",
+  upload_pending: "Upload not started",
+  uploading: "Upload not finished",
+  uploaded_verification_pending: "Checking the file",
+  validating: "Checking the capture",
+  capture_accepted: "Capture accepted",
+  rejected_or_recapture_required: "Recapture needed",
+  cancelled: "Cancelled",
+  failed: "Failed",
+  revocation_in_progress: "Deleting",
+  revoked: "Deleted",
+};
+
+const reviewLabels: Record<string, string> = {
+  task_approval_required: "Review the proposed tasks",
+  decision_pending_pipeline_validation: "Task decision recorded",
+  task_approved: "Task approved",
+  task_rejected: "Task rejected",
+  recapture_requested: "More capture requested",
+};
+
+const decidedRunStates = ["decided", "partially_decided", "abstained"];
+
+/** One plain status per capture: what needs the owner first, otherwise the furthest stage reached. */
+function captureStatus(session: CaptureUploadSession): { label: string; tone: "green" | "red" | "neutral" } {
+  const lifecycle = session.completed_capture_lifecycle?.state;
+  if (session.status === "revoked" || lifecycle === "revoked") return { label: "Deleted", tone: "neutral" };
+  if (session.status === "revocation_in_progress" || lifecycle === "revocation_in_progress") return { label: "Deleting", tone: "neutral" };
+  if (decidedRunStates.includes(session.task_evaluation_run?.state || "")) return { label: "Result ready", tone: "green" };
+  if (session.site_task_testbed?.state === "testbed_ready") return { label: "Testbed ready", tone: "green" };
+  if (session.task_review?.status === "task_approval_required") return { label: reviewLabels.task_approval_required, tone: "neutral" };
+  if (session.capture_qa?.state === "rejected_or_recapture_required") return { label: "Recapture needed", tone: "red" };
+  if (session.reconstruction?.state === "authorization_required") return { label: "Approve the 3D scene plan", tone: "neutral" };
+  const review = reviewLabels[session.task_review?.status || ""];
+  if (review) return { label: review, tone: session.task_review.status === "task_approved" ? "green" : "neutral" };
+  if (session.capture_qa?.state === "failed") return { label: "Check failed", tone: "red" };
+  if (session.capture_qa?.state === "capture_accepted") return { label: "Capture accepted", tone: "green" };
+  if (session.capture_qa?.state === "validating") return { label: "Checking the capture", tone: "neutral" };
+  return {
+    label: uploadLabels[session.status] || humanize(session.status),
+    tone: ["failed", "cancelled"].includes(session.status) ? "red" : "neutral",
   };
-  return labels[status] || status.replace(/_/g, " ");
 }
 
-function SessionHistory({
-  sessions,
-  onResume,
-  onReview,
-  onRevoke,
-  lifecycleSubmitting,
-  onPlanReconstruction,
-  onAuthorizeReconstruction,
-  onExecuteReconstruction,
-  reconstructionSubmitting,
-}: {
-  sessions: CaptureUploadSession[];
-  onResume: (session: CaptureUploadSession) => void;
-  onReview: (session: CaptureUploadSession) => void;
-  onRevoke: (session: CaptureUploadSession) => void;
-  lifecycleSubmitting: string | null;
-  onPlanReconstruction: (session: CaptureUploadSession) => void;
-  onAuthorizeReconstruction: (session: CaptureUploadSession) => void;
-  onExecuteReconstruction: (session: CaptureUploadSession) => void;
-  reconstructionSubmitting: string | null;
-}) {
-  return (
-    <section className="flex flex-col gap-3" aria-label="Capture upload history">
-      <h2 className="font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">History</h2>
-      {sessions.length ? (
-        <div className="runway-panel relative overflow-x-auto">
-          <table className="w-full min-w-[48rem] border-collapse text-left">
-            <thead><tr className="border-b border-line">
-              <th className="runway-meta px-4 py-3">Capture</th>
-              <th className="runway-meta px-4 py-3">Profile</th>
-              <th className="runway-meta px-4 py-3">Status</th>
-              <th className="runway-meta px-4 py-3 text-right"><span className="sr-only">Action</span></th>
-            </tr></thead>
-            <tbody>{sessions.map((session) => (
-              <tr key={session.session_id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-3"><span className="block text-body-s font-semibold text-ink-900">{session.original_filename}</span><span className="runway-num text-[0.68rem] text-ink-400">{session.intake_id}</span></td>
-                <td className="px-4 py-3 text-body-s text-ink-600">{profileCopy[session.capture_authority_profile].label}</td>
-                <td className="px-4 py-3">
-                  <StatusChip tone={statusTone(session.status)} square>{statusLabel(session.status)}</StatusChip>
-                  {session.reconstruction?.state && session.reconstruction.state !== "not_planned" ? (
-                    <span className="mt-1 block text-body-xs text-ink-500">
-                      {statusLabel(session.reconstruction.state)}
-                      {session.reconstruction.missing_representations?.length
-                        ? ` · missing ${session.reconstruction.missing_representations.join(", ")}`
-                        : ""}
-                    </span>
-                  ) : null}
-                  {session.reconstruction?.authorization_candidates?.length ? (
-                    <span className="mt-1 block max-w-sm text-body-xs text-ink-500">
-                      Planned methods: {session.reconstruction.authorization_candidates
-                        .map((candidate) => `${candidate.method_id} (${candidate.adapter_reference})`)
-                        .join(", ")} · estimated ${Number(session.reconstruction.cost_usd || 0).toFixed(2)}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-2">
-                    {["task_approval_required", "decision_pending_pipeline_validation", "task_approved"].includes(session.task_review.status) || !["not_available", undefined].includes(session.capture_qa?.state) || session.site_task_testbed?.state === "testbed_ready" || ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => onReview(session)}>{["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "") ? "View decision" : session.site_task_testbed?.state === "testbed_ready" ? "Inspect testbed" : session.capture_qa?.state === "rejected_or_recapture_required" ? "View recapture" : session.capture_qa?.state && session.capture_qa.state !== "not_available" ? "View capture QA" : "Review tasks"}</Button>
-                    ) : null}
-                    {["upload_pending", "uploading"].includes(session.status) ? (
-                      <Button type="button" variant="secondary" size="sm" onClick={() => onResume(session)}>Resume</Button>
-                    ) : null}
-                    {session.pipeline_handoff?.status === "forwarded" && session.completed_capture_lifecycle?.state === "active" ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={lifecycleSubmitting === session.session_id}
-                        onClick={() => onRevoke(session)}
-                      >
-                        {lifecycleSubmitting === session.session_id ? "Deleting…" : "Delete capture"}
-                      </Button>
-                    ) : null}
-                    {session.capture_qa?.state === "capture_accepted" && session.reconstruction?.state === "not_planned" ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={reconstructionSubmitting === session.session_id}
-                        onClick={() => onPlanReconstruction(session)}
-                      >Plan reconstruction</Button>
-                    ) : null}
-                    {session.reconstruction?.state === "authorization_required" ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={reconstructionSubmitting === session.session_id}
-                        onClick={() => onAuthorizeReconstruction(session)}
-                      >Authorize reconstruction</Button>
-                    ) : null}
-                    {session.reconstruction?.state === "authorized" ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={reconstructionSubmitting === session.session_id}
-                        onClick={() => onExecuteReconstruction(session)}
-                      >Run reconstruction</Button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      ) : <Card pad="md"><p className="text-body-s text-ink-500">No capture upload sessions yet.</p></Card>}
-    </section>
-  );
-}
+const unfinishedUpload = (session: CaptureUploadSession) => ["upload_pending", "uploading"].includes(session.status);
+const deleted = (session: CaptureUploadSession) => ["revoked", "revocation_in_progress"].includes(session.status)
+  || ["revoked", "revocation_in_progress"].includes(session.completed_capture_lifecycle?.state || "");
 
 export default function Captures() {
   const { currentUser } = useAuth();
@@ -252,6 +172,7 @@ export default function Captures() {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
 
   const profileDetails = profileCopy[profile];
   const progressPercent = useMemo(() => progress
@@ -262,6 +183,10 @@ export default function Captures() {
     if (!currentUser) return;
     const result = await listCaptureUploads(currentUser);
     setSessions(result.sessions);
+    // Keep an open capture in step with the list after any action on it.
+    setReviewSession((current) => current
+      ? result.sessions.find((session) => session.session_id === current.session_id) || current
+      : current);
   }
 
   useEffect(() => {
@@ -282,6 +207,8 @@ export default function Captures() {
   }
 
   function resume(session: CaptureUploadSession) {
+    closeCapture();
+    setShowUpload(true);
     setActiveSession(session);
     setProfile(session.capture_authority_profile);
     setSceneId(session.scene_id);
@@ -291,7 +218,26 @@ export default function Captures() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function reviewTasks(session: CaptureUploadSession) {
+  function closeCapture() {
+    setReviewSession(null);
+    setTaskReview(null);
+    setCaptureQaInspection(null);
+    setTestbedInspection(null);
+    setRunInspection(null);
+    setError(null);
+  }
+
+  function startAnotherUpload() {
+    setActiveSession(null);
+    setFile(null);
+    setProgress(null);
+    setIdentity(newUploadIdentity());
+    setRightsAccepted(false);
+    setConsentAccepted(false);
+    setError(null);
+  }
+
+  async function openCapture(session: CaptureUploadSession) {
     if (!currentUser) return;
     setReviewSession(session);
     setReviewLoading(true);
@@ -317,9 +263,7 @@ export default function Captures() {
       setCaptureQaInspection(qa);
       setTestbedInspection(inspection);
       setRunInspection(run);
-      window.setTimeout(() => {
-        document.getElementById("task-review")?.scrollIntoView({ behavior: "smooth" });
-      }, 0);
+      window.scrollTo({ top: 0 });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -486,11 +430,11 @@ export default function Captures() {
     event.preventDefault();
     if (!currentUser || !file) return;
     if (file.size < (providedAsset ? 1 : MIN_RESUMABLE_BYTES) || file.size > MAX_CAPTURE_BYTES) {
-      setError(providedAsset ? "Provided scene assets must contain bytes and be no larger than 50 GiB." : "Capture video must be larger than 5 MiB and no larger than 50 GiB for this resumable lane.");
+      setError(providedAsset ? "The file is empty or larger than 50 GB." : "Videos must be larger than 5 MB and no larger than 50 GB.");
       return;
     }
     if (!activeSession && (!rightsAccepted || !consentAccepted)) {
-      setError("Rights and consent confirmation are required before upload.");
+      setError("Confirm the rights and consent statements before uploading.");
       return;
     }
     setSubmitting(true);
@@ -539,7 +483,7 @@ export default function Captures() {
   async function revokeCompletedCapture(session: CaptureUploadSession) {
     if (!currentUser) return;
     const confirmed = window.confirm(
-      "Permanently delete this completed capture and revoke future processing? Historical non-sensitive digests remain so prior decisions can still be explained.",
+      "Permanently delete this capture and stop any further processing? A record without sensitive data is kept so earlier decisions can still be explained.",
     );
     if (!confirmed) return;
     setLifecycleSubmitting(session.session_id);
@@ -551,6 +495,7 @@ export default function Captures() {
         "operator_deletion_request",
         `web-delete-${session.session_id}`,
       );
+      if (reviewSession?.session_id === session.session_id) closeCapture();
       await refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -587,7 +532,7 @@ export default function Captures() {
       ?.map((candidate) => candidate.adapter_reference)
       .filter(Boolean) || [];
     if (!reconstruction.plan_id || !reconstruction.reconstruction_plan_digest || !references.length) {
-      setError("Pipeline did not provide an executable reconstruction candidate.");
+      setError("Blueprint hasn't proposed a method to approve yet.");
       return;
     }
     setReconstructionSubmitting(session.session_id);
@@ -653,130 +598,290 @@ export default function Captures() {
     }
   }
 
+  const detail = reviewSession;
+  const detailStatus = detail ? captureStatus(detail) : null;
+  const reconstruction = detail?.reconstruction;
+  const reconstructionBusy = Boolean(detail && reconstructionSubmitting === detail.session_id);
+  const showCompile = Boolean(detail
+    && detail.task_review.status === "task_approved"
+    && ["completed", "partial", "abstained"].includes(detail.reconstruction.state)
+    && !testbedInspection);
+  const hasStageContent = Boolean(captureQaInspection || taskReview?.discovery || testbedInspection || runInspection || showCompile);
+  const canDelete = Boolean(detail
+    && detail.pipeline_handoff?.status === "forwarded"
+    && detail.completed_capture_lifecycle?.state === "active");
+  const uploadFinished = Boolean(activeSession && (
+    activeSession.pipeline_handoff?.status === "forwarded"
+    || activeSession.upload_status === "uploaded_verification_pending"
+  ));
+  const formVisible = !loading && (showUpload || Boolean(activeSession) || !sessions.length);
+  const errorAlert = error ? <div className="ws-alert" role="alert"><p>{error}</p></div> : null;
+
   return (
-    <AppShell active="captures" breadcrumb="captures">
-      <Helmet><title>Captures · Blueprint</title><meta name="description" content="Secure, resumable capture upload for Task Evaluation Runs." /></Helmet>
-      <div className="mx-auto flex max-w-[72rem] flex-col gap-7 px-4 py-8 lg:px-8">
-        <header className="flex flex-col gap-1.5">
-          <Eyebrow tone="brass" rule>Capture intake</Eyebrow>
-          <h1 className="font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">New Capture</h1>
-          <p className="max-w-3xl text-body-s text-ink-500">Upload one capture and attach its rights, consent, and allowed-use posture. Blueprint keeps the original file, validates it, and returns either a precise recapture request or a testbed-ready result.</p>
-        </header>
-
-        <ProofBoundary level="info" title="What upload completion means" icon={AlertTriangle}>
-          Upload completion is not capture acceptance. Server SHA-256, malware/content checks, media QA, metric authority, and task-critical coverage remain pending until Pipeline reports them.
-        </ProofBoundary>
-
-        <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <Card pad="lg" className="flex flex-col gap-5">
+    <AppShell active="captures" breadcrumb={detail ? "captures / capture" : "captures"}>
+      <Helmet><title>Captures · Blueprint</title><meta name="description" content="Upload capture files and follow each one through review." /></Helmet>
+      {detail && detailStatus ? (
+        <>
+          <button type="button" className="ws-back" onClick={closeCapture}>← All captures</button>
+          <header className="ws-heading">
             <div>
-              <label className={labelClass} htmlFor="capture-profile">Capture type</label>
-              <select id="capture-profile" className={fieldClass} value={profile} disabled={Boolean(activeSession)} onChange={(event) => { setProfile(event.target.value as WebCaptureAuthorityProfile); setFile(null); }}>
-                {Object.entries(profileCopy).map(([value, copy]) => <option key={value} value={value}>{copy.label}</option>)}
-              </select>
-              <p className="mt-2 text-body-s text-ink-500">{profileDetails.detail}</p>
+              <h1 className="break-all">{detail.original_filename}</h1>
+              <p className="mt-2">{detail.scene_id} · {profileLabel(detail.capture_authority_profile)}</p>
             </div>
+            <Tag tone={detailStatus.tone}>{detailStatus.label}</Tag>
+          </header>
+          {errorAlert}
+          {reviewLoading ? <BuyerAppLoadingState label="Loading this capture…" /> : (
+            <div className="flex max-w-4xl flex-col gap-14">
+              {hasStageContent ? (
+                <p className="text-ink-600">
+                  Everything here is a review of your capture or a simulation built from it. None of it shows a robot
+                  can do the task in the real world, and none of it approves safety.
+                </p>
+              ) : (
+                <p className="text-ink-600">Nothing to review yet. The capture check shows up here once it's done.</p>
+              )}
 
-            {providedAsset && !activeSession ? <fieldset className="grid gap-4 md:grid-cols-2">
-              <legend className={labelClass}>Asset coordinate frame</legend>
-              <label><span className={labelClass}>Asset units</span><select className={fieldClass} required disabled={Boolean(activeSession)} value={assetMetersPerUnit} onChange={(event) => setAssetMetersPerUnit(event.target.value)}>
-                <option value="">Choose the exported units</option><option value="1">Meters</option><option value="0.01">Centimeters</option><option value="0.001">Millimeters</option>
-              </select></label>
-              <label><span className={labelClass}>Up axis</span><select className={fieldClass} required disabled={Boolean(activeSession)} value={assetUpAxis} onChange={(event) => setAssetUpAxis(event.target.value)}>
-                <option value="">Choose the exported up axis</option><option value="Z">Z up</option><option value="Y">Y up</option>
-              </select></label>
-              <p className="text-body-s text-ink-500 md:col-span-2">Use the export settings from your provider. These are asset declarations, not measurements of the physical site.</p>
-            </fieldset> : null}
+              {captureQaInspection ? <CaptureQaInspection inspection={captureQaInspection} /> : null}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label><span className={labelClass}>Scene ID</span><input className={fieldClass} required disabled={Boolean(activeSession)} value={sceneId} onChange={(event) => setSceneId(event.target.value)} placeholder="warehouse-cell-a" /></label>
-              <label><span className={labelClass}>Camera manufacturer</span><input className={fieldClass} disabled={Boolean(activeSession)} value={deviceManufacturer} onChange={(event) => setDeviceManufacturer(event.target.value)} placeholder="Insta360, Apple, other" /></label>
-              <label><span className={labelClass}>Camera model</span><input className={fieldClass} disabled={Boolean(activeSession)} value={deviceModel} onChange={(event) => setDeviceModel(event.target.value)} placeholder="X5, iPhone 17 Pro, other" /></label>
+              {taskReview?.discovery ? (
+                <div id="task-review">
+                  <TaskCandidateReview review={taskReview} submitting={decisionSubmitting} onSubmit={submitTaskDecision} />
+                </div>
+              ) : null}
+
+              {reconstruction && (detail.capture_qa?.state === "capture_accepted" || reconstruction.state !== "not_planned") ? (
+                <section aria-labelledby="capture-reconstruction">
+                  <h2 id="capture-reconstruction">3D scene</h2>
+                  {reconstruction.state === "not_planned" ? (
+                    <>
+                      <p className="mt-2">Blueprint picks how to build a 3D scene from this capture. Nothing runs until you approve the plan.</p>
+                      <button type="button" className="ws-secondary mt-5" disabled={reconstructionBusy} onClick={() => void planReconstruction(detail)}>Plan the 3D scene</button>
+                    </>
+                  ) : null}
+                  {reconstruction.state === "authorization_required" ? (
+                    <>
+                      <p className="mt-2">
+                        Planned methods: {(reconstruction.authorization_candidates || []).map((candidate) => candidate.method_id).join(", ") || "none"}
+                        {" "}· estimated ${Number(reconstruction.cost_usd || 0).toFixed(2)}
+                      </p>
+                      <button type="button" className="ws-primary mt-5" disabled={reconstructionBusy} onClick={() => void authorizeReconstruction(detail)}>Approve the plan</button>
+                    </>
+                  ) : null}
+                  {reconstruction.state === "authorized" ? (
+                    <>
+                      <p className="mt-2">Plan approved.</p>
+                      <button type="button" className="ws-primary mt-5" disabled={reconstructionBusy} onClick={() => void executeReconstruction(detail)}>Build the 3D scene</button>
+                    </>
+                  ) : null}
+                  {["completed", "partial", "abstained"].includes(reconstruction.state) ? (
+                    <p className="mt-2">
+                      {reconstruction.state === "completed" ? "Built." : reconstruction.state === "partial" ? "Partly built." : "Not built: the capture wasn't enough to build it."}
+                      {reconstruction.missing_representations?.length ? ` Missing: ${reconstruction.missing_representations.map(humanize).join(", ")}.` : ""}
+                    </p>
+                  ) : null}
+                  {reconstruction.next_cheapest_experiments?.length ? (
+                    <p className="mt-2 text-sm text-ink-600">Next: {reconstruction.next_cheapest_experiments.map(humanize).join("; ")}</p>
+                  ) : null}
+                  {reconstruction.blocker ? <p className="mt-2 text-sm text-ink-500">Waiting on: {humanize(reconstruction.blocker)}</p> : null}
+                </section>
+              ) : null}
+
+              {showCompile ? (
+                <TestbedCompilationControl sceneId={detail.scene_id} busy={testbedCompiling} onCompile={compileTestbed} />
+              ) : null}
+
+              {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
+
+              {testbedInspection?.decision_evidence_request && !runInspection ? (
+                <TaskEvaluationRunControl
+                  control={detail.task_evaluation_run_control}
+                  busy={runControlSubmitting}
+                  onPlan={planTaskEvaluationRun}
+                  onAuthorize={authorizeTaskEvaluationRun}
+                  onExecute={executeTaskEvaluationRun}
+                />
+              ) : null}
+
+              {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
+
+              {canDelete ? (
+                <section aria-labelledby="capture-delete">
+                  <h2 id="capture-delete" className="sr-only">Delete</h2>
+                  <button type="button" className="ws-link" disabled={lifecycleSubmitting === detail.session_id} onClick={() => void revokeCompletedCapture(detail)}>
+                    {lifecycleSubmitting === detail.session_id ? "Deleting…" : "Delete capture"}
+                  </button>
+                </section>
+              ) : null}
             </div>
-
-            <label><span className={labelClass}>Exact task, if already known</span><textarea className={fieldClass} disabled={Boolean(activeSession)} rows={3} value={knownTask} onChange={(event) => setKnownTask(event.target.value)} placeholder="Leave blank to request task candidates. Inferred intent will require approval." /></label>
-            <label><span className={labelClass}>Operator notes</span><textarea className={fieldClass} disabled={Boolean(activeSession)} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Placement area, calibration board, occlusions, restrictions…" /></label>
-
+          )}
+        </>
+      ) : (
+        <>
+          <header className="ws-heading">
             <div>
-              <label className={labelClass} htmlFor="capture-file">Capture file</label>
-              <input id="capture-file" className={fieldClass} type="file" required accept={profileDetails.accept} onChange={(event) => selectFile(event.target.files?.[0] || null)} />
-              {activeSession ? <p className="mt-2 text-body-s text-ink-500">Reselect exactly <strong>{activeSession.original_filename}</strong> ({activeSession.size_bytes.toLocaleString()} bytes) to resume. Stored parts are checked against the reselected file.</p> : null}
+              <h1>Captures</h1>
+              <p className="mt-2">Upload capture files for your tasks, then follow each one through review.</p>
             </div>
+            {!formVisible && !loading ? (
+              <button type="button" className="ws-primary" onClick={() => setShowUpload(true)}>Upload a capture</button>
+            ) : null}
+          </header>
+          {formVisible ? null : errorAlert}
+          {loading ? <BuyerAppLoadingState /> : null}
 
-            {!activeSession ? <div className="space-y-3 rounded-md border border-line bg-inset p-4">
-              <label className="flex items-start gap-3 text-body-s text-ink-700"><input className="mt-1" type="checkbox" checked={rightsAccepted} onChange={(event) => setRightsAccepted(event.target.checked)} /><span>I have the right to upload this capture for the declared evaluation use.</span></label>
-              <label className="flex items-start gap-3 text-body-s text-ink-700"><input className="mt-1" type="checkbox" checked={consentAccepted} onChange={(event) => setConsentAccepted(event.target.checked)} /><span>Required site and bystander consent has been obtained.</span></label>
-              <label><span className={labelClass}>Privacy handling</span><select className={fieldClass} value={privacy} onChange={(event) => setPrivacy(event.target.value as typeof privacy)}><option value="cleared">Cleared for declared evaluation use</option><option value="restricted_local_only">Restricted to local-only processing</option></select></label>
-            </div> : null}
+          {formVisible ? (
+            activeSession && uploadFinished ? (
+              <section className="ws-section max-w-3xl" aria-labelledby="upload-received" aria-live="polite">
+                <h2 id="upload-received">Upload received</h2>
+                <p className="mt-2">
+                  {activeSession.pipeline_handoff?.status === "forwarded"
+                    ? "We checked the file and recorded it. The capture check comes next."
+                    : "We're still checking the file. This can take a few minutes."}
+                </p>
+                {activeSession.pipeline_handoff?.status !== "forwarded" && activeSession.pipeline_handoff?.blocker ? (
+                  <p className="mt-2 text-sm text-ink-500">Waiting on: {humanize(activeSession.pipeline_handoff.blocker)}</p>
+                ) : null}
+                {errorAlert ? <div className="mt-4">{errorAlert}</div> : null}
+                <div className="ws-form-actions">
+                  {activeSession.pipeline_handoff?.status !== "forwarded" ? (
+                    <button type="button" className="ws-secondary" onClick={() => void retryProcessing()} disabled={submitting}>Check again</button>
+                  ) : null}
+                  <button type="button" className="ws-link" onClick={() => void openCapture(activeSession)}>Open this capture</button>
+                  <button type="button" className="ws-link" onClick={startAnotherUpload}>Upload another</button>
+                </div>
+              </section>
+            ) : (
+              <form onSubmit={submit} className="ws-form ws-section" aria-labelledby="upload-heading">
+                <h2 id="upload-heading">{activeSession ? "Resume your upload" : "Upload a capture"}</h2>
+                <div className="ws-fields">
+                  <Field label="Capture type" hint={profileDetails.hint} wide>
+                    <select id="capture-profile" value={profile} disabled={Boolean(activeSession)} onChange={(event) => { setProfile(event.target.value as WebCaptureAuthorityProfile); setFile(null); }}>
+                      {Object.entries(profileCopy).map(([value, copy]) => <option key={value} value={value}>{copy.label}</option>)}
+                    </select>
+                  </Field>
+                  {providedAsset && !activeSession ? (
+                    <>
+                      <Field label="Asset units" hint="Use your provider's export settings.">
+                        <select required value={assetMetersPerUnit} onChange={(event) => setAssetMetersPerUnit(event.target.value)}>
+                          <option value="">Choose units</option><option value="1">Meters</option><option value="0.01">Centimeters</option><option value="0.001">Millimeters</option>
+                        </select>
+                      </Field>
+                      <Field label="Up axis">
+                        <select required value={assetUpAxis} onChange={(event) => setAssetUpAxis(event.target.value)}>
+                          <option value="">Choose the up axis</option><option value="Z">Z up</option><option value="Y">Y up</option>
+                        </select>
+                      </Field>
+                    </>
+                  ) : null}
+                  <Field label="Scene ID" hint="A short ID for the space, like warehouse-cell-a." wide>
+                    <input required disabled={Boolean(activeSession)} value={sceneId} onChange={(event) => setSceneId(event.target.value)} />
+                  </Field>
+                  <Field
+                    label="Capture file"
+                    hint={activeSession ? `Choose ${activeSession.original_filename} (${activeSession.size_bytes.toLocaleString()} bytes) again to resume. We check the parts already stored against it.` : undefined}
+                    wide
+                  >
+                    <input id="capture-file" type="file" required accept={profileDetails.accept} onChange={(event) => selectFile(event.target.files?.[0] || null)} />
+                  </Field>
+                </div>
 
-            {error ? <BuyerAppErrorState message={error} /> : null}
-            {progress ? <div aria-live="polite"><div className="mb-2 flex justify-between text-body-s text-ink-600"><span>Upload progress</span><span className="runway-num">{progress.complete}/{progress.total} parts · {progressPercent}%</span></div><div className="h-2 overflow-hidden bg-line-soft"><div className="h-full bg-action transition-all" style={{ width: `${progressPercent}%` }} /></div></div> : null}
-            <Button type="submit" variant="action" iconLeft={<UploadCloud />} disabled={submitting || !file}>{submitting ? "Uploading…" : activeSession ? "Resume upload" : "Start secure upload"}</Button>
-          </Card>
+                {!activeSession ? (
+                  <details className="mt-8">
+                    <summary>Optional details</summary>
+                    <div className="ws-fields">
+                      {!providedAsset ? (
+                        <>
+                          <Field label="Camera manufacturer"><input value={deviceManufacturer} onChange={(event) => setDeviceManufacturer(event.target.value)} placeholder="Insta360, Apple, other" /></Field>
+                          <Field label="Camera model"><input value={deviceModel} onChange={(event) => setDeviceModel(event.target.value)} placeholder="X5, iPhone 17 Pro, other" /></Field>
+                        </>
+                      ) : null}
+                      <Field label="The task, if you know it" hint="Leave blank and we'll propose tasks for you to approve." wide>
+                        <textarea rows={3} value={knownTask} onChange={(event) => setKnownTask(event.target.value)} />
+                      </Field>
+                      <Field label="Notes" wide>
+                        <textarea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Where the robot would stand, calibration board, blocked views, restrictions…" />
+                      </Field>
+                    </div>
+                  </details>
+                ) : null}
 
-          <aside className="flex flex-col gap-4">
-            <Card pad="md"><h2 className="font-display font-semibold uppercase tracking-[0.005em] text-ink-900">Capture guidance</h2><ul className="mt-3 list-disc space-y-2 pl-5 text-body-s text-ink-600"><li>Move slowly and use overlapping passes.</li><li>Show the robot placement area and access path.</li><li>Capture close orbits around task objects, including rear and underside views.</li><li>Keep people, screens, documents, and moving objects out when possible.</li><li>Include a measured calibration board when metric scale matters.</li></ul><p className="mt-3 text-body-s font-semibold text-ink-700">These are advisory hints, not reconstruction or task-success claims.</p></Card>
-            {activeSession?.upload_status === "uploaded_verification_pending" && activeSession.pipeline_handoff?.status !== "forwarded" ? <>
-              <ProofBoundary level="warn" title="Upload retained · Pipeline intake pending" icon={CheckCircle2}>The provider-listed parts are complete, but server SHA-256, malware/content validation, and immutable intake have not all completed. Capture QA and any recapture decision remain pending.</ProofBoundary>
-              <Button type="button" variant="secondary" onClick={retryProcessing} disabled={submitting}>Retry secure processing</Button>
-              {activeSession.pipeline_handoff?.blocker ? <p className="text-body-xs text-ink-500">Current blocker: {activeSession.pipeline_handoff.blocker.replace(/_/g, " ")}</p> : null}
-            </> : null}
-            {activeSession?.pipeline_handoff?.status === "forwarded" ? <ProofBoundary level="proof" title="Immutable intake and Capture QA recorded" icon={CheckCircle2}>Pipeline verified server-side size and SHA-256, received a clean malware-scanner result, content-addressed the raw input, and returned a separate deterministic Capture QA result. Reconstruction and task success remain separate gates.</ProofBoundary> : null}
-          </aside>
-        </form>
+                {!activeSession ? (
+                  <>
+                    <label className="ws-check"><input type="checkbox" checked={rightsAccepted} onChange={(event) => setRightsAccepted(event.target.checked)} /><span>I have the right to upload this capture for evaluation.</span></label>
+                    <label className="ws-check"><input type="checkbox" checked={consentAccepted} onChange={(event) => setConsentAccepted(event.target.checked)} /><span>The site and anyone in the capture have given the consent they need to.</span></label>
+                    <div className="ws-fields mt-6">
+                      <Field label="Privacy">
+                        <select value={privacy} onChange={(event) => setPrivacy(event.target.value as typeof privacy)}>
+                          <option value="cleared">Cleared for evaluation use</option>
+                          <option value="restricted_local_only">Local processing only</option>
+                        </select>
+                      </Field>
+                    </div>
+                  </>
+                ) : null}
 
-        {currentUser ? <SceneIntakeForm key={JSON.stringify([currentUser.uid, currentUser.tenantId || null])} currentUser={currentUser} sessions={sessions} /> : null}
-
-        {reviewLoading ? <BuyerAppLoadingState /> : taskReview?.discovery ? (
-          <div id="task-review">
-            <TaskCandidateReview
-              review={taskReview}
-              submitting={decisionSubmitting}
-              onSubmit={submitTaskDecision}
-            />
-          </div>
-        ) : null}
-
-        {captureQaInspection ? <CaptureQaInspection inspection={captureQaInspection} /> : null}
-
-        {reviewSession?.task_review.status === "task_approved"
-          && ["completed", "partial", "abstained"].includes(reviewSession.reconstruction.state)
-          && !testbedInspection ? (
-            <TestbedCompilationControl
-              sceneId={reviewSession.scene_id}
-              busy={testbedCompiling}
-              onCompile={compileTestbed}
-            />
+                {errorAlert ? <div className="mt-6">{errorAlert}</div> : null}
+                {progress ? (
+                  <div className="mt-6" aria-live="polite">
+                    <div className="h-1.5 overflow-hidden bg-inset" role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+                      <div className="h-full bg-[var(--ws-green)] transition-[width]" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <p className="mt-2 text-sm tabular-nums">{progress.complete} / {progress.total} parts · {progressPercent}%</p>
+                  </div>
+                ) : null}
+                <p className="ws-note">Uploading isn't acceptance. We check the file and tell you if anything needs recapturing.</p>
+                <div className="ws-form-actions">
+                  <button type="submit" className="ws-primary" disabled={submitting || !file}>{submitting ? "Uploading…" : activeSession ? "Resume upload" : "Upload"}</button>
+                  {sessions.length ? <button type="button" className="ws-link" onClick={() => { startAnotherUpload(); setShowUpload(false); }}>Cancel</button> : null}
+                </div>
+                <details className="mt-10">
+                  <summary>Capture tips</summary>
+                  <ul className="list-disc space-y-2 pl-5 text-sm">
+                    <li>Move slowly and overlap your passes.</li>
+                    <li>Show where the robot would stand and how it gets there.</li>
+                    <li>Circle the task objects closely, including the back and underside.</li>
+                    <li>Keep people, screens, documents, and moving things out of view when you can.</li>
+                    <li>Include a measured calibration board if exact size matters.</li>
+                  </ul>
+                </details>
+              </form>
+            )
           ) : null}
 
-        {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
+          {!loading && sessions.length ? (
+            <section className="ws-section" aria-labelledby="capture-list">
+              <h2 id="capture-list">Your captures</h2>
+              <div className="mt-4">
+                {sessions.map((session) => {
+                  const status = captureStatus(session);
+                  return (
+                    <article className="ws-task-row" key={session.session_id}>
+                      <div className="ws-task-copy">
+                        <h3 className="break-all">{session.original_filename}</h3>
+                        <p className="ws-muted">{session.scene_id} · {profileLabel(session.capture_authority_profile)}</p>
+                        <p><Tag tone={status.tone}>{status.label}</Tag></p>
+                      </div>
+                      {unfinishedUpload(session) ? (
+                        <button type="button" className="ws-link" onClick={() => resume(session)}>Resume upload</button>
+                      ) : !deleted(session) ? (
+                        <button type="button" className="ws-link" onClick={() => void openCapture(session)}>Open</button>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
-        {testbedInspection?.decision_evidence_request && !runInspection ? (
-          <TaskEvaluationRunControl
-            control={reviewSession?.task_evaluation_run_control}
-            busy={runControlSubmitting}
-            onPlan={planTaskEvaluationRun}
-            onAuthorize={authorizeTaskEvaluationRun}
-            onExecute={executeTaskEvaluationRun}
-          />
-        ) : null}
-
-        {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
-
-        {loading ? <BuyerAppLoadingState /> : (
-          <SessionHistory
-            sessions={sessions}
-            onResume={resume}
-            onReview={reviewTasks}
-            onRevoke={revokeCompletedCapture}
-            lifecycleSubmitting={lifecycleSubmitting}
-            onPlanReconstruction={planReconstruction}
-            onAuthorizeReconstruction={authorizeReconstruction}
-            onExecuteReconstruction={executeReconstruction}
-            reconstructionSubmitting={reconstructionSubmitting}
-          />
-        )}
-      </div>
+          {currentUser ? (
+            <details className="ws-section">
+              <summary>Request an evaluation on a completed scene</summary>
+              <SceneIntakeForm key={JSON.stringify([currentUser.uid, currentUser.tenantId || null])} currentUser={currentUser} sessions={sessions} />
+            </details>
+          ) : null}
+        </>
+      )}
     </AppShell>
   );
 }
