@@ -496,3 +496,54 @@ Worth recording about cost: after the first pass the whole search is retained.
 Grounding bindings are deterministic given the same failure sequence, so a
 repeated attempt replays from receipts and buys nothing. The search either
 finds a concept or fails identically and for free.
+
+## Step 6 failed honestly, and this capture is out of attempts
+
+The masks landed and the background review failed the run:
+
+> The entire desk and upper shelving were mistakenly removed, leaving phones
+> and wires floating in mid-air.
+
+It was right. Two of the five edited views had lost their desk. The concept was
+not at fault: `dresser` resolved the cabinet on the frame it was proved on, and
+across the clip the tracker walked onto the desk behind it, which is the same
+light wood. Measured on the views the editor was given, as a share of the frame:
+
+| view | tracked mask | single-frame segmentation | ratio | edited result |
+| --- | --- | --- | --- | --- |
+| 35 | 46.1% | 20.0% | 2.3 | desk erased |
+| 138 | 44.2% | 16.4% | 2.7 | desk erased |
+| 104 | 34.4% | 4.1% | 8.4 | not edited |
+| 173 | 25.4% | 20.9% | 1.2 | correct |
+| 0 | 12.9% | no instance | — | correct |
+| 208 | 9.7% | no instance | — | not edited |
+| 519 | 0.7% | no instance | — | correct |
+
+An overlay of the 16.4% mask covers the three drawers and nothing else, so the
+drifted views are a different object, not a harder angle.
+
+Pipeline #2103 adjudicates the biggest claims first and stops at the first one
+an independent single-frame look agrees with, because drift can only add area
+and everything smaller than a corroborated mask claims less than the target. On
+this scene that is four looks and it catches all three drifted views.
+
+### Why this capture cannot finish
+
+Read from the ledger rather than estimated:
+
+| | used | cap |
+| --- | --- | --- |
+| preparation requests | 25 | 30 |
+| preparation spend | $2.28 | $5.00 |
+
+Five requests remain. Finishing needs about nine: four corroboration looks, an
+image edit per retained view (the editor bills one request per view, not per
+batch), and the Marble generation. The amendment is one-shot by construction, a
+second one with different values is refused as
+`website_preparation_amendment_conflict`, and the schema ceiling is 32 anyway,
+so there is no larger number to ask for.
+
+This capture has therefore done its job: it found three real defects, all of
+them now fixed and two already deployed. Proving the lane end to end continues
+on a fresh capture of the same video, which starts with its own budget and runs
+on code that no longer has those defects.
