@@ -694,3 +694,28 @@ prompt. No live provider or scene record was changed by the replay, and the
 scratch video copy was removed. A canonical canary deploy of the pushed commit
 has started as `blueprint-drawer-partial-deploy-c7406bf.service`; deployment,
 live parser completion, selected task masks, and steps 5–14 remain unproven.
+
+### Task noun recovery, 2026-09-22 ~21:53 UTC
+
+The canonical canary deploy of `c7406bf430a82b96c6fe13a2cc228af0c7041fc5`
+completed with both surfaces recorded and live `commit_proven: true`; the
+controller claimed attempt 3. It reused the earlier cabinet and floor SAM
+responses, parsed the 462 floor observations, then admitted only the missing
+teal-backpack prompt. It retained and parsed that response too. The initial
+`cabinet` prompt still found no cabinet. Exact-frame grounding and four
+one-frame concept probes then tried `filing cabinet` (no instance), `desk
+drawers` (three fronts), `drawer unit` (three fronts), and `mobile pedestal`
+(no instance). None passed the whole-cabinet coverage gate. The stage stopped
+with `task_target_track_ambiguous:pedestal_cabinet`, without editing the desk
+or claiming step 5 complete. The job ledger is `failed_retryable`, attempt 3,
+and the listener timer is paused to avoid repeating the same paid search.
+
+Pipeline PR #2116 adds one task-supported `under-desk cabinet` probe ahead of
+free-form synonyms when the confirmed task itself uses that setting. The same
+fresh-scene single-frame coverage gate remains mandatory, and the total search
+stays at four probes. This phrase covered 0.983 of the whole-unit box in the
+earlier capture of these same video bytes, but that earlier result is only a
+candidate noun, never this capture's mask evidence or spending authority.
+Forty-six focused task-mask/grounding tests, changed-file Ruff and diff check
+passed. PR, deploy, fresh probe, full target clip, background recovery, and
+steps 5–14 remain pending.
