@@ -59,32 +59,27 @@ function show(value: TaskEvaluationResultSiteRecord) {
   render(<TaskEvaluationResultDetail />);
 }
 
-describe("Task Evaluation Result bound scene label", () => {
+describe("Task Evaluation Result canary header", () => {
   beforeEach(() => useResult.mockReset());
 
-  it("uses the V25 scoring contract scope when compact publication labels are absent", () => {
+  it("names the compared policies rather than machine scene and run identifiers", () => {
     const value = result();
     withoutDisplayMetadata(value);
     show(value);
-    expect(screen.getByText("interiorgs-841757 · scene-841757-book-to-marked-area · simulation")).toBeInTheDocument();
-    expect(screen.queryByText(/Scene 839873/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Head-to-head policy test" })).toBeInTheDocument();
+    expect(screen.getByText("pi05_droid vs groot_n17_droid · Simulation")).toBeInTheDocument();
+    // Scene, task, and run identifiers live in the run details drawer, not the header.
+    expect(screen.queryByText(/interiorgs-841757/)).not.toBeInTheDocument();
+    expect(screen.queryByText(value.publication.run_id)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Scene not specified|Internal policy canary/)).not.toBeInTheDocument();
   });
 
-  it("preserves explicit publication display labels", () => {
+  it("adds a human task label when the publication carries one", () => {
     const value = result();
     value.publication.scene = { id: "interiorgs-841757", revision_digest: `sha256:${"a".repeat(64)}` };
     value.publication.task = { id: "scene-841757-book-to-marked-area", label: "Place the book in the marked area" };
     show(value);
-    expect(screen.getByText("interiorgs-841757 · Place the book in the marked area · simulation")).toBeInTheDocument();
-  });
-
-  it("does not invent a scene when all bound scene identifiers are absent", () => {
-    const value = result();
-    withoutDisplayMetadata(value);
-    delete value.publication.policy_canary_result!.task_success_contract;
-    show(value);
-    expect(screen.getByText("Scene not specified · Policy canary · simulation")).toBeInTheDocument();
-    expect(screen.queryByText(/Scene 839873/)).not.toBeInTheDocument();
+    expect(screen.getByText("pi05_droid vs groot_n17_droid · Place the book in the marked area · Simulation")).toBeInTheDocument();
   });
 });
 

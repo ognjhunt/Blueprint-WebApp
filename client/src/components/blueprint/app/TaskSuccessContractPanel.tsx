@@ -20,18 +20,15 @@ export function TaskSuccessContractPanel({
   proposalConfirmed = false,
   onProposalConfirmed,
   title = "Task success criteria",
-  resultReview = false,
 }: {
   contract: AnyTaskSuccessContract;
   confirmationTeamId?: string;
   proposalConfirmed?: boolean;
   onProposalConfirmed?: (confirmed: boolean) => void;
   title?: string;
-  resultReview?: boolean;
 }) {
   const rows = describeTaskSuccessContract(contract);
   const headingId = useId();
-  const registryDefault = contract.provenance.author_source === "compatibility_default";
   const isProposal = contract.provenance.confirmation_status === "proposal_only";
   return <section className="runway-panel p-5" aria-labelledby={headingId}>
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -40,8 +37,8 @@ export function TaskSuccessContractPanel({
         <h2 id={headingId} className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">{title}</h2>
         <p className="mt-2 max-w-3xl text-body-s text-ink-500">These task- and site-bound rules decide completion. Terminal state and whole-episode events are evaluated separately, so a later recovery does not erase a prohibited earlier event.</p>
       </div>
-      <StatusChip tone={isProposal || (resultReview && registryDefault) ? "warn" : "proof"} square>
-        {isProposal ? "Proposal — team confirmation required" : resultReview && registryDefault ? "Registry default · not team-confirmed" : "Confirmed"}
+      <StatusChip tone={isProposal ? "warn" : "proof"} square>
+        {isProposal ? "Proposal — team confirmation required" : "Confirmed"}
       </StatusChip>
     </div>
 
@@ -60,7 +57,7 @@ export function TaskSuccessContractPanel({
       <p><span className="font-semibold text-ink-700">Confirmed by:</span> {contract.provenance.confirmed_by_team_id || (isProposal ? "Pending team confirmation" : "Registry-owned compatibility default")}</p>
     </div>
 
-    {isProposal && onProposalConfirmed && !resultReview ? <div className="mt-5">
+    {isProposal && onProposalConfirmed ? <div className="mt-5">
       <ProofBoundary level="warn" title="Agent interpretation is a proposal, not scoring authority" icon={Bot}>
         The agent-authored criteria cannot launch or grade an episode by themselves. Confirmation creates a new immutable document bound to the proposal digest and team identity.
       </ProofBoundary>
@@ -73,6 +70,6 @@ export function TaskSuccessContractPanel({
         />
         <span><span className="font-semibold">Confirm these exact criteria for this run.</span> I am acting for team <span className="runway-num">{confirmationTeamId || "unavailable"}</span>, and I understand this seals a new digest-bound contract.</span>
       </label>
-    </div> : !isProposal ? <p className="mt-4 flex items-center gap-2 text-caption text-ink-600"><CheckCircle2 className="size-4 text-runway-signal" />{resultReview ? "Recorded scoring criteria; this panel grants no execution or field-trial authorization." : "This immutable contract is already confirmed and may be submitted unchanged."}</p> : null}
+    </div> : !isProposal ? <p className="mt-4 flex items-center gap-2 text-caption text-ink-600"><CheckCircle2 className="size-4 text-runway-signal" />This immutable contract is already confirmed and may be submitted unchanged.</p> : null}
   </section>;
 }

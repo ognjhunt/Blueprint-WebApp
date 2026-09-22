@@ -573,3 +573,14 @@ export function humanBytes(bytes: number) {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
+
+/** Save the sealed publication record exactly as served. */
+export function downloadTaskEvaluationPublication(result: TaskEvaluationResultSiteRecord) {
+  const blob = new Blob([`${JSON.stringify(result.publication, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${result.publication.run_id}-sealed-result.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

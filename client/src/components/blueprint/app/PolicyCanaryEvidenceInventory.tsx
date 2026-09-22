@@ -4,13 +4,15 @@ import { canaryEvidenceManifestArtifact, loadCanaryEvidenceManifest } from "@/li
 import type { User as FirebaseUser } from "firebase/auth";
 import { PrimaryDownload } from "./PolicyCanaryPrimarySummary";
 
-import { Button, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Button, ProofBoundary } from "@/components/blueprint";
 import {
   buildCanaryArtifactInventory,
+  canaryRunLabels,
   normalizedArtifact,
   resolvedCanaryCandidates,
 } from "@/lib/policyCanaryResultPortal";
 import {
+  downloadTaskEvaluationPublication,
   humanBytes,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultSiteRecord,
@@ -104,7 +106,7 @@ function PolicyCanaryEvidenceInventoryContent({
     ["Producer notification snapshot", normalizedArtifact(producerNotification?.receipt) || undefined, producerNotification ? `${producerNotification.status} · publication-time snapshot` : "Unavailable — not delivered"],
   ];
   const roleSet = new Set(artifacts.map((artifact) => artifact.role));
-  const requiredRoles = [
+  const missingRoles = [
     "summary_csv",
     "episode_csv",
     "full_json_report",
@@ -114,10 +116,14 @@ function PolicyCanaryEvidenceInventoryContent({
     "returned_action_sequence",
     "state_trace",
     "contact_force_trace",
-  ];
+  ].filter((role) => !roleSet.has(role));
   const origin = typeof window !== "undefined" ? window.location.origin : "https://tryblueprint.io";
+  const labels = canaryRunLabels(result);
   const provenanceRows = [
     ["Run ID", publication.run_id],
+    ["Scene", labels.scene || "Not specified"],
+    ["Task", labels.taskLabel && labels.task ? `${labels.taskLabel} · ${labels.task}` : labels.taskLabel || labels.task || "Not specified"],
+    ["Result status", reported(publication.result_status?.replaceAll("_", " "))],
     ["Request digest", reported(publication.request_digest)],
     ["Configuration digest", reported(publication.configuration_digest)],
     ["Matrix digest", reported(canary.matrix_digest || publication.result_delivery?.matrix_digest)],
@@ -140,20 +146,15 @@ function PolicyCanaryEvidenceInventoryContent({
     ["Schemas", `${publication.schema_version} · ${publication.result_delivery?.schema_version || "delivery unavailable"} · ${canary.schema_version || "result unavailable"}`],
   ];
 
-  return <details className="runway-panel p-5">
-    <summary className="cursor-pointer list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="runway-meta">Advanced evidence</p>
-          <h2 className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Evidence and provenance</h2>
-        </div>
-        <span className="runway-num text-caption text-ink-500">{artifacts.length} {fullArtifacts ? "manifest-listed" : "inline"} descriptors · expand to inspect</span>
-      </div>
-    </summary>
+  return <details>
+    <summary>Run details and all files</summary>
 
-    <div className="mt-6 flex flex-col gap-8 border-t border-line pt-6">
+    <div className="flex flex-col gap-8">
       <section aria-labelledby="canary-provenance-title">
-        <h3 id="canary-provenance-title" className="font-display text-body font-semibold uppercase text-ink-900">Exact run bindings</h3>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h3 id="canary-provenance-title" className="font-display text-body font-semibold uppercase text-ink-900">Exact run bindings</h3>
+          <button type="button" className="ws-link" onClick={() => downloadTaskEvaluationPublication(result)}>Download the exact result record (JSON)</button>
+        </div>
         <dl className="mt-3 grid gap-x-8 md:grid-cols-2">
           {provenanceRows.map(([label, value]) => <div key={label} className="min-w-0 border-b border-line-soft py-2">
             <dt className="runway-meta">{label}</dt>
@@ -191,15 +192,9 @@ function PolicyCanaryEvidenceInventoryContent({
       </section>
 
       <section aria-labelledby="canary-artifact-inventory-title">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Published artifact inventory</h3>
-            <p className="mt-1 text-caption text-ink-500">{artifacts.length} artifact descriptors carry reported digests and sizes · {humanBytes(totalArtifactBytes)} reported total. Availability and readable bytes are checked when requested.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">{requiredRoles.map((role) => <StatusChip key={role} tone={roleSet.has(role) ? "proof" : "warn"} square>
-            {role.replaceAll("_", " ")} · {roleSet.has(role) ? "delivered" : "typed gap"}
-          </StatusChip>)}</div>
-        </div>
+        <h3 id="canary-artifact-inventory-title" className="font-display text-body font-semibold uppercase text-ink-900">Published artifact inventory</h3>
+        <p className="mt-1 text-caption text-ink-500">{artifacts.length} artifact descriptors carry reported digests and sizes · {humanBytes(totalArtifactBytes)} reported total. Availability and readable bytes are checked when requested.</p>
+        {missingRoles.length ? <p className="mt-1 text-caption text-ink-600">Not delivered: {missingRoles.map((role) => role.replaceAll("_", " ")).join(", ")}.</p> : null}
         {omittedArtifactCount > 0 && !fullArtifacts ? <p className="mt-3 text-caption text-ink-600">
           The compact publication omits {omittedArtifactCount.toLocaleString()} additional descriptors. Load the digest-bound manifest to inspect its full inventory.
         </p> : null}
@@ -209,12 +204,12 @@ function PolicyCanaryEvidenceInventoryContent({
         </Button> : null}
         {manifestState === "failed" ? <p role="status" className="mt-2 text-caption text-runway-red">The full manifest could not be loaded or verified. Inline descriptors remain available.</p> : null}
         {manifestState === "verified" ? <p role="status" className="mt-2 text-caption text-ink-600">Full manifest bytes and run binding verified. Individual artifact availability is checked when requested.</p> : null}
-        <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
-          {roleSummary.map((entry) => <div key={entry.role} className="bg-paper-0 p-3">
-            <p className="text-caption font-semibold text-ink-800">{entry.role.replaceAll("_", " ")}</p>
-            <p className="runway-num mt-1 text-body-s text-ink-700">{entry.count} file{entry.count === 1 ? "" : "s"} · {humanBytes(entry.bytes)}</p>
+        <dl className="mt-4 grid gap-x-8 text-caption sm:grid-cols-2 lg:grid-cols-3">
+          {roleSummary.map((entry) => <div key={entry.role} className="flex justify-between gap-4 border-t border-line py-2">
+            <dt>{entry.role.replaceAll("_", " ")}</dt>
+            <dd className="runway-num text-ink-500">{entry.count} file{entry.count === 1 ? "" : "s"} · {humanBytes(entry.bytes)}</dd>
           </div>)}
-        </div>
+        </dl>
         <details className="mt-4">
           <summary className="cursor-pointer text-caption font-semibold text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">View all {artifacts.length} files with digests</summary>
           <div className="mt-3 max-h-[38rem] overflow-auto border border-line">

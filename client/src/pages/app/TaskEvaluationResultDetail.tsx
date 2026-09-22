@@ -9,24 +9,16 @@ import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { EvaluationResultOverview } from "@/components/blueprint/app/EvaluationResultOverview";
 import { PolicyCanaryResultPortal } from "@/components/blueprint/app/PolicyCanaryResultPortal";
+import { canaryRunLabels, resolvedCanaryCandidates } from "@/lib/policyCanaryResultPortal";
 import {
   createTaskEvaluationResultArtifactTicket,
+  downloadTaskEvaluationPublication,
   humanBytes,
   useTaskEvaluationResult,
   type TaskEvaluationResultArtifact,
   type TaskEvaluationResultEpisode,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
-
-function downloadJson(result: TaskEvaluationResultSiteRecord) {
-  const blob = new Blob([`${JSON.stringify(result.publication, null, 2)}\n`], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${result.publication.run_id}-sealed-result.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
 
 async function downloadArtifact(
   user: FirebaseUser | null,
@@ -128,34 +120,32 @@ export function ResultContent({ result, user }: { result: TaskEvaluationResultSi
   const delivery = result.publication.result_delivery;
   const envelope = result.publication.decision_envelope;
   const canary = result.publication.run_kind === "internal_policy_canary";
-  const canaryReproducibility = delivery?.reproducibility;
-  const canaryScope = result.publication.policy_canary_result?.task_success_contract?.scope;
-  const canaryScene = result.publication.scene?.id
-    || canaryReproducibility?.scene_id
-    || canaryScope?.site_id
-    || "Scene not specified";
-  const canaryTask = result.publication.task?.label
-    || canaryReproducibility?.task_id
-    || canaryScope?.task_id
-    || "Policy canary";
-  const developmentSurface = /-development(?:-configured)?$/.test(canaryScene);
+  const labels = canaryRunLabels(result);
+  const developmentSurface = /-development(?:-configured)?$/.test(labels.scene || "");
   const packages = delivery?.artifacts.filter((artifact) => artifact.content_type === "application/zip") || [];
   return (
     <>
-      {developmentSurface && (
-        <p className="mb-4 text-body-s text-ink-700">Development test on an authored surface; captured scene integration pending.</p>
-      )}
-      <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
-        <div>
-          <Eyebrow tone="brass" rule>{canary ? "Internal policy canary" : "Sealed Task Evaluation Result"}</Eyebrow>
-          {canary ? <>
-            <h1 className="mt-2 font-display text-[1.65rem] font-semibold tracking-[0.005em] text-ink-900">Head-to-head policy test</h1>
-            <p className="mt-1 text-body-s text-ink-600">{canaryScene} · {canaryTask} · simulation</p>
-          </> : <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{envelope?.decision_question || result.publication.run_id}</h1>}
-          <p className="runway-num mt-2 break-all text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
-        </div>
-        <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadJson(result)}>Exact result JSON</Button>
-      </header>
+      {canary ? <header className="mb-4">
+        <h1>Head-to-head policy test</h1>
+        <p className="mt-3 text-ink-600">{[
+          resolvedCanaryCandidates(result).map((candidate) => candidate.display_name).join(" vs "),
+          labels.taskLabel,
+          "Simulation",
+        ].filter(Boolean).join(" · ")}</p>
+        {developmentSurface ? <p className="mt-1 text-sm text-ink-500">Development test on an authored surface; captured scene integration pending.</p> : null}
+      </header> : <>
+        {developmentSurface && (
+          <p className="mb-4 text-body-s text-ink-700">Development test on an authored surface; captured scene integration pending.</p>
+        )}
+        <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-start">
+          <div>
+            <Eyebrow tone="brass" rule>Sealed Task Evaluation Result</Eyebrow>
+            <h1 className="mt-2 font-display text-[1.65rem] font-semibold uppercase tracking-[0.005em] text-ink-900">{envelope?.decision_question || result.publication.run_id}</h1>
+            <p className="runway-num mt-2 break-all text-[0.72rem] text-ink-500">{result.publication.run_id}</p>
+          </div>
+          <Button type="button" variant="secondary" iconLeft={<Download />} onClick={() => downloadTaskEvaluationPublication(result)}>Exact result JSON</Button>
+        </header>
+      </>}
 
       {!canary ? <ProofBoundary level="warn" title="Bounded evidence, not a leaderboard" icon={ShieldAlert}>
         {result.access_visibility === "unlisted_public" ? "Anyone with this unlisted link can view this result and its published evidence. " : `This result belongs to ${result.access_visibility === "organization_members" ? "this verified team" : "the run owner"}. It is not published across teams. `}Simulation is not physical success, the overview is review-only, and this record does not approve deployment or safety.
@@ -172,18 +162,7 @@ export function ResultContent({ result, user }: { result: TaskEvaluationResultSi
         <PolicyCanaryResultPortal result={result} user={user} />
       ) : null}
 
-      {delivery && canary ? (
-        <details className="runway-panel p-4">
-          <summary className="cursor-pointer font-display text-body-s font-semibold uppercase tracking-[0.005em] text-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">Delivery pipeline</summary>
-          <div className="mt-4 flex flex-wrap gap-2" aria-label="Result delivery stages">
-            {delivery.stages.map((stage, index) => <StatusChip
-              key={stage.stage}
-              tone={stage.status === "complete" || stage.status === "ready" ? "proof" : stage.status === "blocked" ? "block" : "neutral"}
-              square
-            >{index + 1}. {stage.stage} · {stage.status}</StatusChip>)}
-          </div>
-        </details>
-      ) : delivery ? (
+      {delivery && !canary ? (
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Result delivery stages">
           {delivery.stages.map((stage, index) => (
             <Card key={stage.stage} pad="sm">

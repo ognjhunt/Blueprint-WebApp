@@ -1,106 +1,104 @@
-import { controlsVerified } from "@/lib/policyCanaryControls";
-import { PolicyCanaryControls } from "./PolicyCanaryControls";
-import type { ReactNode } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
-import { Check, ShieldAlert, X } from "lucide-react";
 
 import type { TaskEvaluationResultSiteRecord } from "@/lib/taskEvaluationResults";
-import { ProofBoundary, StatusChip } from "@/components/blueprint";
 import {
   applyPolicyCanaryEpisodeInterpretation,
   applyPolicyCanaryScoreCorrection,
+  canaryCandidateSummaries,
+  formatCanaryPValue,
   pairedCanaryComparison,
 } from "@/lib/policyCanaryResultPortal";
-import { findPublishedTaskSuccessContract } from "@/lib/rigidTaskSuccessContract";
+import {
+  describeTaskSuccessContract,
+  findPublishedTaskSuccessContract,
+  type AnyTaskSuccessContract,
+} from "@/lib/articulatedTaskSuccessContract";
+import { PolicyCanaryControls } from "./PolicyCanaryControls";
 import { PolicyCanaryEvidenceInventory } from "./PolicyCanaryEvidenceInventory";
 import { PolicyCanaryEpisodeExplorer } from "./PolicyCanaryEpisodeExplorer";
 import { PolicyCanaryPrimarySummary } from "./PolicyCanaryPrimarySummary";
-import { PolicyCanaryReportOverview } from "./PolicyCanaryReportOverview";
-import { TaskSuccessContractPanel } from "./TaskSuccessContractPanel";
 
-function ReadingPoint({ tone, children }: { tone: "proof" | "block"; children: ReactNode }) {
-  const Icon = tone === "proof" ? Check : X;
-  return <li className="flex gap-2 text-body-s text-ink-700">
-    <Icon
-      className={`mt-0.5 size-4 shrink-0 ${tone === "proof" ? "text-runway-green" : "text-runway-red"}`}
-      strokeWidth={2}
-      aria-hidden="true"
-    />
-    <span className="min-w-0">{children}</span>
-  </li>;
+const authorLabels: Record<AnyTaskSuccessContract["provenance"]["author_source"], string> = {
+  compatibility_default: "Task registry default",
+  site_robot_team: "Site / robot team",
+  task_owner: "Task owner",
+  agent_proposal: "Agent proposal",
+};
+
+/** "cleared" reads as "Cleared"; identifiers such as robot_background stay as recorded. */
+function sentenceCase(value: string) {
+  return !value || value.includes("_") ? value : value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function HowToReadCanary({ result }: { result: TaskEvaluationResultSiteRecord }) {
+function CriteriaList({ contract }: { contract: AnyTaskSuccessContract }) {
+  const provenance = contract.provenance;
+  const confirmation = provenance.confirmation_status === "proposal_only"
+    ? "proposal, not confirmed by a team"
+    : provenance.author_source === "compatibility_default"
+      ? "registry default, not confirmed by your team"
+      : `confirmed by team ${provenance.confirmed_by_team_id || "(not recorded)"}`;
+  return <>
+    <dl className="grid gap-x-8 sm:grid-cols-2">
+      {describeTaskSuccessContract(contract).map((row) => <div key={row.label} className="border-t border-line py-2.5">
+        <dt className="text-ink-500">{row.label}</dt>
+        <dd>{sentenceCase(row.value)}<span className="block text-ink-500">{row.detail}</span></dd>
+      </div>)}
+    </dl>
+    <p className="break-all text-xs text-ink-500">
+      Set by {authorLabels[provenance.author_source]} ({provenance.author_id}) · {confirmation} · contract {contract.contract_digest}
+    </p>
+  </>;
+}
+
+function ScoringDetails({
+  result,
+  contract,
+  correctedContract,
+}: {
+  result: TaskEvaluationResultSiteRecord;
+  contract: AnyTaskSuccessContract | null;
+  correctedContract: NonNullable<TaskEvaluationResultSiteRecord["corrected_scoring_contract"]> | null;
+}) {
   const comparison = pairedCanaryComparison(result);
-  const matched = comparison?.comparablePairs ?? 0;
-  const correction = result.score_correction;
-  const interpretation = result.episode_interpretation;
-  const controls = result.publication.policy_canary_result || result.publication.result_delivery || {};
-  const verifiedControls = controlsVerified({ ...controls, scene_controls_status: result.publication.scene_controls_status });
-  const visibility = result.access_visibility === "unlisted_public"
-    ? "Anyone with this unlisted link can view this result and its published evidence."
-    : result.access_visibility === "organization_members"
-      ? "This result is scoped to your verified team and is not published across teams."
-      : "This result is scoped to the run owner and is not published across teams.";
-
-  return <section className="runway-panel p-5" aria-labelledby="how-to-read-canary">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="flex gap-3">
-        <ShieldAlert className="mt-0.5 size-5 shrink-0 text-runway-signal" strokeWidth={1.75} aria-hidden="true" />
-        <div>
-          <p className="runway-meta text-runway-signal">Read before deciding</p>
-          <h2 id="how-to-read-canary" className="mt-1 font-display text-title-m font-semibold uppercase tracking-[0.005em] text-ink-900">
-            How to read this canary
-          </h2>
-        </div>
-      </div>
-      <StatusChip tone="warn" square>Diagnostic · unqualified simulation</StatusChip>
-    </div>
-
-    <div className="mt-5 grid gap-x-8 gap-y-5 border-t border-line pt-5 md:grid-cols-2">
-      <div>
-        <p className="runway-meta mb-2">What this establishes</p>
-        <ul className="flex flex-col gap-2">
-          <ReadingPoint tone="proof">Overall rates use each policy’s explicitly scorable delivered episodes.</ReadingPoint>
-          <ReadingPoint tone="proof">{matched ? `The observed paired difference across ${matched} mutually scorable cells, with a paired sign test.` : "No paired comparison is available without mutually scorable cells."}</ReadingPoint>
-          <ReadingPoint tone="proof">Available episode artifacts can be requested below. Missing manifests, frames, or incomplete episodes remain evidence gaps.</ReadingPoint>
-        </ul>
-      </div>
-      <div>
-        <p className="runway-meta mb-2">What it does not establish</p>
-        <ul className="flex flex-col gap-2">
-          <ReadingPoint tone="block">Physical-world success. This is simulation, and a sim ranking can invert on real hardware.</ReadingPoint>
-          <ReadingPoint tone="block">A deployment or safety approval of either policy.</ReadingPoint>
-          <ReadingPoint tone="block">An official ranking or scene promotion. {verifiedControls ? "The controls are verified for this simulation matrix; the result remains development-only." : "Control evidence has not been verified for this matrix."}</ReadingPoint>
-        </ul>
-      </div>
-    </div>
-
-    <div className="mt-5 flex flex-col gap-2 border-t border-line pt-4 text-caption text-ink-500">
-      <p>{visibility}</p>
+  const intervals = canaryCandidateSummaries(result).filter((summary) => summary.wilson);
+  const [first, second] = comparison?.leader
+    ? [comparison.leader, comparison.candidates.find((candidate) => candidate !== comparison.leader)!]
+    : comparison?.candidates || [];
+  const pText = comparison?.pValue === null || comparison?.pValue === undefined
+    ? ""
+    : ` (two-sided exact sign test ${formatCanaryPValue(comparison.pValue)})`;
+  return <details>
+    <summary>How this was scored</summary>
+    <div className="flex max-w-4xl flex-col gap-4 text-sm text-ink-700">
       <p>
-        <span className="font-semibold text-ink-700">To advance this pair to physical trials,</span>{" "}
-        the decision still needs an approved prospective protocol and physical outcome adjudication.
-        Simulation controls do not provide physical evidence.
+        An episode counts as completed only when it meets every rule below. Episodes that stop before
+        they can be scored, for example on a run error, are left out of the counts rather than treated
+        as failures.
       </p>
-      {correction || interpretation ? <details className="mt-1">
-        <summary className="cursor-pointer font-semibold text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action">
-          Post-publication adjustments applied
-        </summary>
-        <div className="mt-2 flex flex-col gap-2">
-          {correction ? <p>
-            Scoring was corrected after publication (a scoring-logic fix, not a re-run). It was applied
-            identically to both policies, the original score receipts are preserved, and no winner is declared.
-          </p> : null}
-          {interpretation ? <p>
-            An independent, learned interpretation was added for each episode after publication. It never
-            changes the deterministic score, the ranking, or the promotion state, and remains bound to this
-            exact run.
-          </p> : null}
-        </div>
-      </details> : null}
+      {comparison?.comparablePairs && first && second ? <p>
+        Both policies were scored on {comparison.comparablePairs} of the same
+        scenario{comparison.comparablePairs === 1 ? "" : "s"}. {comparison.discordantPairs
+          ? `${first.display_name} alone succeeded on ${comparison.leaderOnlyWins} and ${second.display_name} alone on ${comparison.laggardOnlyWins}${pText}.`
+          : "Neither succeeded where the other failed."}
+      </p> : null}
+      {intervals.length ? <p>
+        95% confidence intervals for the completion rate: {intervals.map((summary) => (
+          `${summary.display_name} ${Math.round(summary.wilson!.lower * 100)}–${Math.round(summary.wilson!.upper * 100)}%`
+        )).join(", ")}.
+      </p> : null}
+      {contract ? <CriteriaList contract={contract} /> : <p>Success criteria weren't delivered with this result.</p>}
+      {correctedContract ? <>
+        <h3 className="mt-2 text-base font-medium">Criteria used for corrected scores</h3>
+        <p>
+          {correctedContract.team_confirmation_recorded
+            ? "These criteria record a team confirmation."
+            : "These criteria are a registry default without team confirmation."}{" "}
+          They explain the corrected scores and don't replace the original request's authorization.
+        </p>
+        <CriteriaList contract={correctedContract.contract} />
+      </> : null}
     </div>
-  </section>;
+  </details>;
 }
 
 export function PolicyCanaryResultPortal({
@@ -122,28 +120,21 @@ export function PolicyCanaryResultPortal({
     && correctedCandidate.source_projection_digest === projectedResult.publication.policy_canary_result?.projection_digest
     && correctedCandidate.source_delivery_digest === projectedResult.publication.result_delivery?.delivery_digest
     && correctedCandidate.original_request_authorization === false
+    && correctedCandidate.contract.contract_digest !== successContract?.contract_digest
     ? correctedCandidate : null;
-  const correctionRejected = Boolean(result.score_correction && !projectedResult.score_correction);
-  return <div className="flex flex-col gap-6">
-    <PolicyCanaryPrimarySummary result={projectedResult} user={user} />
-    <HowToReadCanary result={projectedResult} />
-    {successContract ? <TaskSuccessContractPanel
-      contract={successContract}
-      title="Success criteria used for this result"
-      resultReview
-    /> : <ProofBoundary level="block" title="Success criteria not verified">
-      A verified success contract was not delivered in the original publication, so the success rates
-      above cannot yet serve as an acceptance test. Corrected scoring criteria, when shown below,
-      explain the rescore and do not create task or execution authorization.
-    </ProofBoundary>}
-    {correctionRejected ? <ProofBoundary level="warn" title="Score adjustment not applied">The adjustment did not match this result. Original scores remain visible.</ProofBoundary> : null}
-    {correctedContract && correctedContract.contract.contract_digest !== successContract?.contract_digest ? <>
-      <p className="text-body-s text-ink-600">These criteria were bound to the verified score correction. {correctedContract.team_confirmation_recorded ? "The contract records a team confirmation." : "They are a registry compatibility default, without team confirmation."} They do not replace the original request authorization.</p>
-      <TaskSuccessContractPanel contract={correctedContract.contract} title="Criteria used for corrected scores" resultReview />
-    </> : null}
-    <PolicyCanaryControls result={projectedResult} user={user} />
+  return <div className="flex flex-col gap-14">
+    <PolicyCanaryPrimarySummary
+      result={projectedResult}
+      user={user}
+      contractDelivered={Boolean(successContract)}
+      correctionApplied={Boolean(projectedResult.score_correction)}
+      correctionRejected={Boolean(result.score_correction && !projectedResult.score_correction)}
+    />
     <PolicyCanaryEpisodeExplorer result={projectedResult} user={user} />
-    <PolicyCanaryReportOverview result={projectedResult} />
-    <PolicyCanaryEvidenceInventory result={projectedResult} user={user} />
+    <div>
+      <ScoringDetails result={projectedResult} contract={successContract} correctedContract={correctedContract} />
+      <PolicyCanaryControls result={projectedResult} user={user} />
+      <PolicyCanaryEvidenceInventory result={projectedResult} user={user} />
+    </div>
   </div>;
 }
