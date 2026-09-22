@@ -9,6 +9,7 @@ import {
   humanCanaryCellLabel,
   pairedCanaryComparison,
   resolvedCanaryCandidates,
+  runtimeCanaryCoverage,
   wilson95,
   type EpisodeFilters,
 } from "@/lib/policyCanaryResultPortal";
@@ -43,6 +44,7 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
     ? canary.candidate_results
     : delivery?.candidate_results || [];
   const coverageGaps = Array.isArray(canary.coverage_gaps) ? canary.coverage_gaps : [];
+  const runtimeCoverage = runtimeCanaryCoverage(canary.episodes || []);
   const correctedFailureCriteria = Object.entries(
     (result.score_correction?.correction.score_updates || []).reduce<Record<string, number>>(
       (counts, update) => {
@@ -102,7 +104,11 @@ export function PolicyCanaryReportOverview({ result }: { result: TaskEvaluationR
       </div>
       <p className="mt-3 text-caption text-ink-500">Filters select cells; both candidates remain visible. The headline uses all mutually scorable cells.</p>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[54rem] border-collapse text-left text-caption"><thead><tr className="border-b border-line bg-runway-black"><th className="runway-meta px-3 py-2">Cell / seed</th><th className="runway-meta px-3 py-2">Family</th><th className="runway-meta px-3 py-2">Partition</th>{candidates.map((candidate) => <th key={candidate.candidate_id} className="runway-meta px-3 py-2">{candidate.display_name}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={row.key} className="border-b border-line-soft"><td className="px-3 py-3"><span className="font-semibold text-ink-800">{humanCanaryCellLabel(row, index, rows)}</span><br /><span className="runway-num text-[0.65rem] text-ink-400">{row.cellId} · {row.seed ?? "seed unavailable"}</span></td><td className="px-3 py-3">{row.familyId.replaceAll("_", " ")}</td><td className="px-3 py-3"><StatusChip tone={row.partition === "held_out" ? "warn" : "neutral"} square>{row.partition.replaceAll("_", " ")}</StatusChip></td>{candidates.map((candidate) => { const episode = row.episodesByCandidate[candidate.candidate_id]; return <td key={candidate.candidate_id} className="px-3 py-3">{episode ? <a className="font-semibold text-ink-800 underline-offset-2 hover:underline" href={`#episode-${episode.episode_id}`}>{episode.score?.policy_outcome_interpretable !== true ? (episode.score?.policy_outcome_interpretable === false ? "Uninterpretable" : "Interpretability unknown") : episode.score?.task_succeeded === true ? "Success" : episode.score?.task_succeeded === false ? "Failure" : episode.score?.status}</a> : <span className="text-ink-400">{row.duplicateEpisodesByCandidate[candidate.candidate_id]?.length ? "Ambiguous duplicate episodes" : "Typed gap — episode absent"}</span>}</td>; })}</tr>)}{!rows.length ? <tr><td className="px-3 py-6 text-ink-500" colSpan={3 + candidates.length}>No delivered episode matches these filters.</td></tr> : null}</tbody></table></div>
-      {coverageGaps.length ? <ProofBoundary level="warn" title="Coverage gaps">{coverageGaps.map((gap: Record<string, any>) => `${gap.family}: ${gap.explanation} Fallback: ${gap.deterministic_fallback_family}.`).join(" ")}</ProofBoundary> : <p className="mt-3 text-caption text-ink-500">No typed coverage gaps were reported.</p>}
+      {coverageGaps.length ? <ProofBoundary level="warn" title="Planned coverage gaps">{coverageGaps.map((gap: Record<string, any>) => `${gap.family}: ${gap.explanation} Fallback: ${gap.deterministic_fallback_family}.`).join(" ")}</ProofBoundary> : null}
+      {runtimeCoverage.gaps.length ? <ProofBoundary level="warn" title="Runtime coverage gaps">{runtimeCoverage.gaps.map((gap) => `${gap.label} (${gap.count} episodes).`).join(" ")}</ProofBoundary> : null}
+      <p className="mt-3 text-caption text-ink-500">{runtimeCoverage.reported === 0
+        ? "Runtime variation coverage was not included in this result summary."
+        : `Runtime coverage reported for ${runtimeCoverage.reported} of ${runtimeCoverage.total} episode records.${runtimeCoverage.gaps.length ? "" : " No runtime gaps reported."}`}</p>
     </section>
 
     {result.score_correction ? <section className="runway-panel p-5" aria-labelledby="corrected-failure-criteria-title"><p className="runway-meta">Verified correction overlay</p><h2 id="corrected-failure-criteria-title" className="mt-1 font-display text-title-m font-semibold uppercase text-ink-900">Corrected failed criteria</h2>{correctedFailureCriteria.length ? <dl className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">{correctedFailureCriteria.map(([criterion, count]) => <div key={criterion} className="bg-paper-0 p-3"><dt className="text-caption font-semibold text-ink-800">{criterion.replaceAll("_", " ")}</dt><dd className="runway-num mt-1 text-title-m font-semibold">{count}</dd></div>)}</dl> : <p className="mt-3 text-body-s text-ink-500">No corrected episode failed a task criterion.</p>}</section> : null}

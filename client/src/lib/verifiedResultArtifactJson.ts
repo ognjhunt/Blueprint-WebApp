@@ -30,8 +30,11 @@ export async function readVerifiedResultArtifactJson(
   try {
     signal?.throwIfAborted();
     const length = response.headers.get("content-length");
+    const encoding = response.headers.get("content-encoding")?.trim().toLowerCase();
+    // Fetch exposes decoded bytes; an encoded Content-Length measures the wire body.
+    const decodedLength = !encoding || encoding === "identity";
     const digest = response.headers.get("x-blueprint-artifact-sha256");
-    if (response.status !== 200 || (length !== null && Number(length) !== expected.size)
+    if (response.status !== 200 || (decodedLength && length !== null && Number(length) !== expected.size)
       || (digest !== null && digest !== expected.digest)) throw new Error("Artifact response does not match its receipt");
     // Allocate only after the descriptor's bound has passed; never read text first.
     const bytes = new Uint8Array(expected.size);

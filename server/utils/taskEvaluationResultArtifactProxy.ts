@@ -78,12 +78,14 @@ export async function probeTaskEvaluationResultArtifactMetadata(params: Artifact
   if (params.signal?.aborted) abort();
   let response: globalThis.Response | undefined;
   try {
+    // A sealed zero-byte telemetry file has no satisfiable first-byte range.
+    const range = params.expected?.size_bytes === 0 ? undefined : "bytes=0-0";
     response = await fetch(endpoint, {
       method: "GET", redirect: "error", signal: controller.signal,
-      headers: { ...signed, range: "bytes=0-0", "accept-encoding": "identity" },
+      headers: { ...signed, ...(range ? { range } : {}), "accept-encoding": "identity" },
     });
     if (response.status === 404) return { status: "not_found" };
-    const integrity = artifactResponseIntegrity(response, "bytes=0-0", params.expected);
+    const integrity = artifactResponseIntegrity(response, range, params.expected);
     if (!response.ok || !response.body || !integrity) return { status: "unavailable" };
     return { status: "admitted", metadata: integrity.totalSize !== null
       ? { sha256: integrity.sourceDigest, size_bytes: integrity.totalSize } : null };

@@ -114,6 +114,22 @@ describe("policy canary result portal data", () => {
     expect(failures.find((row) => row.cohort === "action_delivery")).toMatchObject({ count: 1 });
   });
 
+  it("keeps a typed action execution failure out of the no-motion cohort", () => {
+    const failures = buildFailureAnalysis([
+      episode("policy-a", "cell-1", 101, {
+        action_delivery: { actions_reached_robot: true, arm_moved: false },
+        failure: { code: "DroidActionExecutionError", summary: "DroidActionExecutionError" },
+      }),
+      episode("policy-b", "cell-1", 101, {
+        action_delivery: { actions_reached_robot: true, arm_moved: false },
+      }),
+    ]);
+    expect(failures.find((row) => row.cohort === "action_delivery"))
+      .toMatchObject({ count: 1, representativeEpisodeIds: ["policy-a-cell-1"] });
+    expect(failures.find((row) => row.cohort === "no_motion"))
+      .toMatchObject({ count: 1, representativeEpisodeIds: ["policy-b-cell-1"] });
+  });
+
   it("deduplicates the complete artifact inventory across report and episode references", () => {
     const shared = artifact("e", "evidence_manifest");
     const result = {

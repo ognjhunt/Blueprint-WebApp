@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Writable } from 'node:stream';
 import {createHash} from 'node:crypto';
 const sha=(value:string)=>'sha256:'+createHash('sha256').update(value).digest('hex');
-import { ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS, ARTIFACT_ORIGIN_IDLE_TIMEOUT_MS, streamTaskEvaluationResultArtifact } from '../utils/taskEvaluationResultArtifactProxy';
+import { ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS, ARTIFACT_ORIGIN_IDLE_TIMEOUT_MS, probeTaskEvaluationResultArtifactMetadata, streamTaskEvaluationResultArtifact } from '../utils/taskEvaluationResultArtifactProxy';
 
 class ResponseSink extends Writable {
   code = 200; headers = new Map<string,string>(); chunks: Buffer[] = []; headersSent = false;
@@ -22,6 +22,24 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers();
 const invoke = (res:ResponseSink, range='bytes=0-2') => streamTaskEvaluationResultArtifact({runId:'fixture',artifactId:'artifact',req:{headers:{range}} as any,res:res as any});
 
 describe('controlled media streams', () => {
+  it('probes and fully verifies a zero-byte telemetry response', async () => {
+    const expected = { sha256: sha(''), size_bytes: 0 };
+    const fetcher = vi.fn(async () => new Response('', { headers: {
+      'content-length': '0', 'x-blueprint-artifact-sha256': expected.sha256,
+    } }));
+    vi.stubGlobal('fetch', fetcher);
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: 'fixture', artifactId: 'empty', expected }))
+      .resolves.toEqual({ status: 'admitted', metadata: expected });
+    const res = new ResponseSink();
+    await streamTaskEvaluationResultArtifact({ runId: 'fixture', artifactId: 'empty', expected,
+      req: { headers: {} } as any, res: res as any });
+    await flush();
+    expect(res.writableFinished).toBe(true);
+    expect(res.code).toBe(200);
+    expect(res.headers.get('x-blueprint-artifact-verification')).toBe('sha256-on-completion');
+    expect(Buffer.concat(res.chunks).length).toBe(0);
+  });
+
   it('streams 206 bytes and Range metadata without buffering the whole origin', async () => {
     const fetcher=vi.fn().mockResolvedValue(new Response('abc',{status:206,headers:{'content-range':'bytes 0-2/9','content-length':'3','accept-ranges':'bytes','x-blueprint-artifact-sha256':sha('abcdefghi')}}));
     vi.stubGlobal('fetch',fetcher); const res=new ResponseSink(); await invoke(res); await flush();

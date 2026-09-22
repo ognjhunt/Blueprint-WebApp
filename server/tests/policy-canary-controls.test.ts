@@ -71,7 +71,7 @@ describe("per-cell control result contract", () => {
     expect(status.warning).toBe(controlsWarnings.controls_omitted_by_user);
     expect(status.claim_ceiling).toBe("diagnostic_policy_execution");
   });
-  it.each(["valid", "missing-authority", "required-controls", "missing-artifact", "wrong-count", "missing-registration"])("keeps explicit omitted controls diagnostic: %s", (fault) => {
+  it.each(["valid", "website-submission", "missing-authority", "required-controls", "missing-artifact", "wrong-count", "missing-registration"])("keeps explicit omitted controls diagnostic: %s", (fault) => {
     const value: any = structuredClone(fixture);
     const p = value.policy_canary_result;
     const contract: any = structuredClone(diagnosticTaskContract);
@@ -96,7 +96,11 @@ describe("per-cell control result contract", () => {
     if (fault === "missing-artifact") value.result_delivery.artifacts = [];
     if (fault === "wrong-count") p.counts.diagnostic_control_rollout_count = 20;
     if (fault === "missing-registration") delete value.operator_registration_digest;
-    expect(parsePipelinePolicyCanaryPublication(reseal(value)).ok).toBe(fault === "valid");
+    if (fault === "website-submission") {
+      delete value.operator_registration_digest;
+      delete value.plan_digest;
+    }
+    expect(parsePipelinePolicyCanaryPublication(reseal(value)).ok).toBe(["valid", "website-submission"].includes(fault));
   });
   it("accepts 20 delivered controls without upgrading diagnostic result claims", () => {
     const result = parsePipelinePolicyCanaryPublication(publication());

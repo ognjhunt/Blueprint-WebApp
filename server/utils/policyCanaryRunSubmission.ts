@@ -19,6 +19,7 @@ import {
 } from "./taskEvaluationLaunchContract";
 import { forwardStoredPolicyCanaryRun } from "./taskEvaluationLaunchForwardWorker";
 import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
+import { policyCanaryEvaluationOwner } from "./policyCanaryEvaluationOwner";
 
 export const CONFIGURED_SCENE_LAUNCH_COLLECTION = "taskEvaluationLaunches";
 export const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
@@ -192,6 +193,18 @@ export async function submitPolicyCanaryRun(params: {
     selected.details,
   ));
   const now = new Date().toISOString();
+  let evaluationOwner;
+  try {
+    evaluationOwner = params.submissionChannel === "production_webapp_service_api"
+      && access.uid === "blueprint-production-runner"
+      ? await policyCanaryEvaluationOwner(db, { runId: selection.run_id,
+        sourceLaunchId: launchId, setupDigest: selection.setup_digest,
+        revisionDigest: selection.scene_revision_digest, taskId: offering.task.identity.id }) : null;
+  } catch {
+    return res.status(409).json(policyCanaryError("POLICY_CANARY_EVALUATION_OWNER_UNBOUND",
+      "The controller run must match one admitted robot-team evaluation."));
+  }
+  const ownerUserId = evaluationOwner?.owner_user_id ?? access.uid;
   const actor = { id: access.uid || "", role: actorRole(access) };
   const freshRequest = buildInternalPolicyCanaryLaunchRequest({
     selection,
@@ -214,7 +227,8 @@ export async function submitPolicyCanaryRun(params: {
     task_success_contract_digest: selection.task_success_contract.contract_digest,
     scene_revision_digest: selection.scene_revision_digest,
     scene_controls_status_at_submission: "configured_controls_pending",
-    owner_user_id: access.uid,
+    owner_user_id: ownerUserId,
+    ...(evaluationOwner ? { evaluation_owner_binding: evaluationOwner.evaluation_owner_binding } : {}),
     firebase_tenant_id: String(res.locals.firebaseUser?.tenantId || res.locals.firebaseUser?.tenant_id || res.locals.firebaseUser?.firebase?.tenant || "") || null,
     team_namespace: offering.team_namespace,
     state: "forward_pending",
@@ -253,7 +267,7 @@ export async function submitPolicyCanaryRun(params: {
     completed_learned_episode_count: 0,
     completed_control_episode_count: 0,
     notification: selection.notification,
-    notification_recipient_user_id: access.uid,
+    notification_recipient_user_id: ownerUserId,
     notification_source_event_id: freshRequest.request_digest,
     ...(params.submissionChannel ? { submission_channel: params.submissionChannel } : {}),
     request: freshRequest,
