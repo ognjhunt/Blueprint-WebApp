@@ -27,7 +27,7 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | Pending by explicit owner decision: Marble collider lacks support beneath the registered object. No contact tolerance was relaxed or support fabricated. Development-surface assembly is separate evidence. |
 | 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Development-surface physics verified: Isaac 6.0.1 passed three 180-step contact/settle/reset repeats. Controller run `3de56f9357e3` completed both previously interrupted friction cells after deployed Pipeline #2110–#2112. Cell 06 requested 0.45 and read back 0.44999998807907104; cell 09 requested 0.55 and read back 0.550000011920929, both within 1e-6. Both cells reached policy commands and retained outcomes. These are simulator settings, not measured physical friction; captured-room integration remains pending in step 11. |
 | 13 | Real simulator loads, steps, observes, resets and scores; controls omitted by owner instruction | Native preflight, actual policy actions, media and scoring receipts; diagnostic claim ceiling retained | Controller run `3de56f9357e3` executed all ten cells and retained all 20 outcomes: ten completed GR00T evaluations, two completed π0.5 evaluations, and eight π0.5 joint-bound rejections. No cells were left unstarted. Neither policy succeeded at the task. Controls remain omitted, policies unchanged, and the result remains diagnostic and unqualified. |
-| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Original result page, all 20 records and video playback verified. Original `bad838ad8bb2` and follow-up `ce9a4d63f245` both have verified owner artifact readback and terminal dispatch receipts. Latest `3de56f9357e3` published all 20 outcomes successfully; its 1,753-artifact owner readback is still in progress. Latest authenticated browser rendering is not reverified because the available browser is signed out. |
+| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Original result page, all 20 records and video playback verified. Original `bad838ad8bb2` and follow-up `ce9a4d63f245` both have verified owner artifact readback and terminal dispatch receipts. Latest `3de56f9357e3` published all 20 outcomes successfully; all 1,753 artifacts were downloaded and hashed, owner-index membership was verified, and the terminal dispatch receipt exists. Policy failures remain diagnostic failures. Latest authenticated browser rendering is not reverified because the available browser is signed out. |
 
 ## Execution constraints
 
@@ -106,9 +106,22 @@ and delivery digest
 `1dc10502b356aa6df16b4de28b81a96eddbf07efceb2c272007d720f84c107cb`.
 The private result page is
 [the latest controller run](https://tryblueprint.io/app/results/capture-run-aa4e6032d2821a287b9e043002710cab).
-Full owner downloaded-byte readback remains in progress. No additional GPU run
-is needed to reprove these conversion fixes. This does not close owner-deferred
-step 11 or establish captured-room or physical task performance.
+Full owner downloaded-byte readback completed: all 1,753 artifacts have HTTP
+200, matching byte counts and hashes, and verified owner-index membership.
+`artifacts/result_delivery/owner_delivery_readback.json` has readback digest
+`f199238574e67f30e3fba203d7c4250a5e1e659c0dfc1bc84c4936fe1193520b`.
+`dispatch_receipt.json` has receipt digest
+`b91a9245835daec750f83c041a49503d9d1763be8b9324f8738a477930d3c226`.
+The controller resumed bounded download batches automatically without another
+allocation or manual restart. The dispatch status remains `blocked` because of
+the retained policy failures; delivery itself is verified. A retained
+`dispatch_pending.json` is historical once the terminal receipt exists.
+The separate transactional email notification failed with
+`email_transport_unavailable`; no delivered email is claimed.
+
+No additional GPU run is needed to reprove these conversion fixes. This does
+not close owner-deferred step 11 or establish captured-room or physical task
+performance. Latest authenticated browser rendering has not been reverified.
 
 2026-09-22 follow-up closeout: the control plane retained the original run under
 `/var/lib/blueprint/pipeline-control-plane/task-evaluation-policy-canaries/team-eval-7b5d46d97dae6175714134ada374a7d2-policy-canary-bad838ad8bb2-activation`.
