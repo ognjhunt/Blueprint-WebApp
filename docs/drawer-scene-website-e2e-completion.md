@@ -97,8 +97,8 @@ centred on the middle drawer front.
 
 | Step | Required behaviour | Evidence required to close | State |
 | --- | --- | --- | --- |
-| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | unproven |
-| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | unproven |
+| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | WebApp side done: HTTP 201 inbound request, brief confirmed HTTP 200, rights + US region attested by the owner. Pipeline consumption not yet observed |
+| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | Upload accepted HTTP 201 against the verified original bytes; stored-object digest readback still pending |
 | 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | unproven |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | unproven |
 | 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | unproven |
@@ -119,7 +119,26 @@ Completion states tracked separately:
 
 ## Identities (new scene only)
 
-None created yet. The blue-object identities (`team-eval-5aea93d1…`,
+Created 2026-09-22 03:31 UTC through the live website, browser-driven:
+
+| Identity | Value |
+| --- | --- |
+| Inbound request / site submission | `capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Capture | `walkthrough-capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Scene | `site-capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Capture upload link scope | `owner`, expires epoch 1790652693 |
+| Confirmed task text | "Open the middle drawer of the three-drawer wood-front cabinet with silver bar handles (the mobile pedestal under the desk)." |
+| Confirmed by | Nijel Hunt, 2026-09-22 03:32 UTC, consent statement `2026-09-18.v1` |
+| Capture region | `us`, from the Austin, Texas address; corroborated by the clip's own GPS tag `+30.4261-097.7177` and `creationdate 2026-09-21T10:23:57-0500` |
+| Upload response | HTTP 201, `eligibility: unscreened` |
+| Live WebApp commit at submission | `6a6f2e3bd8019b645138f99d2db73376761082a5` |
+| Live control-plane release at submission | `ba6072c262e645c2fda9aec3a2e8236cdf71a895` |
+
+The uploaded bytes are the original file: the staged upload copy was verified
+`d63aa286…d130` (same SHA-256 and size as `~/Downloads/IMG_4170.MOV`) before the
+browser read it, and deleted afterwards.
+
+The blue-object identities (`team-eval-5aea93d1…`,
 `setup-c660b4f6…`, `team-eval-7b5d46d9…-policy-canary-765ceba44410`,
 Vast instance 51991469) are reference only and must never be reused, cancelled,
 rebound, or debited by this lane.
@@ -158,6 +177,17 @@ the reusable Gemini/SAM/edit/Marble/MapAnything stages run for the new scene.
 
 - 2026-09-22 02:30 UTC: worktrees created, video fully inspected, evidence
   folder written.
-- 2026-09-22 03:05 UTC: Batch 1 implemented and tested locally (Pipeline 110
-  focused tests + sentinels; WebApp intake/team-selection 61 tests, typecheck
-  clean). Not yet merged or deployed; no upload has been made.
+- 2026-09-22 03:05 UTC: Batch 1 implemented and tested (Pipeline 110 focused
+  tests + sentinels; WebApp intake/team-selection 61 tests, typecheck clean).
+- 2026-09-22 03:15 UTC: Batch 1 merged. Pipeline PR #2092 ->
+  `ba6072c262e645c2fda9aec3a2e8236cdf71a895`; WebApp PR #658 ->
+  `6a6f2e3bd8019b645138f99d2db73376761082a5`, Render deploy green. Canonical
+  control-plane deploy (`--iteration --canary --preserve-configured-controls-state`)
+  started after checking no deploy was running, the Vast paid-launch lock was
+  free and the GPU guard reported zero live instances. Active release link
+  switched to `ba6072c2`.
+- 2026-09-22 03:31 UTC: **real browser-origin submission and upload done** (see
+  Identities). Steps 1 and 2 are done on the WebApp side; Pipeline consumption
+  is the next thing to observe.
+- 2026-09-22 03:35 UTC: Batch 2 (articulated authoring + static qualification)
+  pushed as Pipeline PR #2094, 98 focused tests passing, auto-merge armed.
