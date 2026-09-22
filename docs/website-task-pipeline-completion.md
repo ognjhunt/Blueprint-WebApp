@@ -25,9 +25,9 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live website-origin verified: eight-view Marble operation completed; collider and full-resolution splat downloaded with digests |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | Live website-origin controller authoring verified on `3141d2f3`: CPU stages 1–4 completed before GPU rental; exported replacement USDZ and static qualification published. Dimensions remain estimates. |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | Pending by explicit owner decision: Marble collider lacks support beneath the registered object. No contact tolerance was relaxed or support fabricated. Development-surface assembly is separate evidence. |
-| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Partially verified: Isaac 6.0.1 imported the authored asset and passed three 180-step contact/settle/reset repeats on the development surface. The bounded-physics cell executed but explicitly retained canonical material: native reset readback stayed at dynamic friction 0.25. Pipeline #2106 fixes the missing rigid-material application; exact-asset CPU replay passes, native proof remains open. Captured-room integration remains deferred. |
-| 13 | Real simulator loads, steps, observes, resets and scores; controls omitted by owner instruction | Native preflight, actual policy actions, media and scoring receipts; diagnostic claim ceiling retained | All ten scenarios executed on `bad838ad8bb2`: 20 retained episode outcomes, including ten completed GR00T episodes, one completed π0.5 episode and nine rejected π0.5 episodes. Diagnostic continuation passed with unchanged action admission. Final publication/readback is in progress. Controls qualification and task success are not implied. |
-| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Full matrix result page verified: all 20 episode records, deterministic scores, failures and camera controls render for the robot team; actual video playback passed. Final verification of all 1,721 artifacts and the original task's automatic terminal-result join remain open. |
+| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Partially verified: Isaac 6.0.1 imported the authored asset and passed three 180-step contact/settle/reset repeats on the development surface. Follow-up `ce9a4d63f245` stopped in both friction cells before policy queries because Warp material arrays lack `tolist()`. Pipeline #2110 fixes that conversion; #2111 exposes rigid friction through the existing native no-policy preflight. Both are merged; actual PhysX readback of 0.45 remains unproven. Captured-room integration remains deferred. |
+| 13 | Real simulator loads, steps, observes, resets and scores; controls omitted by owner instruction | Native preflight, actual policy actions, media and scoring receipts; diagnostic claim ceiling retained | Original `bad838ad8bb2` completed its ten-cell campaign: 20 retained outcomes, including ten scored GR00T episodes, one scored π0.5 episode and nine π0.5 joint-bound rejections. Follow-up `ce9a4d63f245` retains ten scored outcomes, six π0.5 joint-bound rejections and four explicit not-started outcomes from the two friction cells. Neither run proves task success or resolves the π0.5 failures. Controls remain omitted. |
+| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Original result page, all 20 records and video playback verified. All 1,721 original artifacts were downloaded and hashed; owner readback is verified and the terminal dispatch receipt exists. The blocked policy outcome was preserved. Follow-up publication also succeeded with all 20 records, including explicit not-started outcomes; its full artifact readback remains in progress. |
 
 ## Execution constraints
 
@@ -76,6 +76,42 @@ requires its existing paid-resource checks and deployment configuration.
 The approved development run retains its existing scoped allocator authority.
 
 ## Evidence log
+
+2026-09-22 follow-up closeout: the control plane retained the original run under
+`/var/lib/blueprint/pipeline-control-plane/task-evaluation-policy-canaries/team-eval-7b5d46d97dae6175714134ada374a7d2-policy-canary-bad838ad8bb2-activation`.
+Its `artifacts/result_delivery/owner_delivery_readback.json` reports
+`status: verified` and `every_artifact_downloaded_and_hashed: true`, digest
+`cd99ea873c3c1443b5d9c317f7c19fddcdfadde9aa48fabe5b9eac1b9c88405d`.
+The verified-download journal has 1,721 entries and `dispatch_receipt.json`
+exists. The receipt remains blocked by policy failures; successful delivery
+does not convert those failures into successful evaluations.
+
+The follow-up `ce9a4d63f245` terminal digest is
+`f109633170b21b576d2545af568eb8d61d4f71a30db05f772daca636be7a3e67`.
+Existing controller partial recovery preserved all 20 episode entries after
+the worker's aggregate failed: ten scored, six rejected and four not started.
+Website sync succeeded. GPU teardown completed, provider inventory was empty,
+and posted cost was $1.25. Full owner artifact verification is still running.
+
+π0.5 diagnosis remains incomplete. Digest-checked request/response replay for
+the six follow-up failures shows that observed joints reached the policy
+unchanged and executable absolute targets were not altered by our adapter.
+The rejected targets were already outside joint 4's native lower limit in the
+policy responses. Retained first/final camera inputs for the canonical cell
+show the blue object and green destination marker. These checks rule out those
+specific input/command defects; they do not establish policy/configuration
+correctness or justify clipping the outputs.
+
+Pipeline #2110 (merge `3543978fc`) handles Warp material buffers through their
+`numpy()` conversion. Pipeline #2111 (merge `ba4415cd`) compiles rigid friction
+into the existing native preflight and reads it back after reset. The latter
+passed 99 focused tests and impacted CI. A separate, unscored preflight packet
+compiled from the real retained asset has receipt digest
+`12f1f1b010ee0264265943070bd90d60244ce7857ae09db6d084bda7677b6283`;
+it requests dynamic friction 0.45 from source value 0.25 without changing source
+bytes. Compilation and CPU conversion tests are not native physics proof.
+The development preflight does not replace the required controller-owned
+website execution or resolve the owner-deferred captured-scene integration.
 
 2026-09-19: clean starting points WebApp `2e646087` and Pipeline `56cc0a913`.
 Observed website adapter requested ordinary inline video; Pipeline removal
