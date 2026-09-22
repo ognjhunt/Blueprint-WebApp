@@ -728,3 +728,37 @@ The canonical isolated canary deploy of pushed source
 `258ee26f2d7ad5bfe2ba3f768abb6732b50c222b` has started under
 `blueprint-drawer-concept-deploy-258ee26f.service`. The listener remains
 paused pending a completed deploy receipt and live version proof.
+
+### Fresh capture attempt 4: cabinet tracked, corroboration blocked, 2026-09-22 ~22:23 UTC
+
+The canonical deploy of source `258ee26f2d7ad5bfe2ba3f768abb6732b50c222b`
+completed with two verified surfaces and `commit_proven: true`; the normal
+controller claimed attempt 4. Its `under-desk cabinet` one-frame probe found the
+whole pedestal. The refined hosted SAM video result was retained and decoded:
+`task_masks.object_removal.json` reports `object_removal_ready` and the selected
+cabinet source track contains 186 original-frame observations. This is evidence
+of the cabinet task mask, not a completed step 5 or a clean background.
+
+The next stage began an independent single-frame look at selected view 173,
+then stopped with `clean_plate: KeyError`. The selected target record omitted
+`segmentation_prompt`, which the corroboration stage needs to ask SAM for the
+same object. There is no completed corroboration or image edit. The controller
+ledger is `failed_retryable`, attempt 4; the listener timer and service were
+stopped to avoid repeated paid retries. Pipeline PR #2117 propagates the exact
+chosen SAM noun into the target manifest. Its 43 focused tests, changed-file
+Ruff/diff checks and hosted impacted/sentinel gate passed; it merged to main.
+A canonical canary deploy of pushed commit
+`1022228cf65ac717b9003552eee853db71951633` has started with GPU guard
+showing zero live instances. The listener stays paused until that deploy's
+receipt and live version prove the source commit.
+
+The owner also requested a faster view-first masking path. Draft Pipeline PR
+#2118 implements a separate, default-off development canary: select original
+views first, prove the text concept on one frame, then track across a short
+lossless selected-view clip. A no-provider scratch replay on the exact drawer
+video selected original frames 0, 30, 35, 138, 150, 242, 346 and 519 and
+prepared the clip in 19.32 seconds. This measures input preparation only;
+there is no hosted-SAM speed or end-to-end result claim for that path. The
+current fresh capture remains on the verified continuous-video path. Fresh
+step 5 has a retained cabinet mask but awaits corroboration and clean-plate
+completion; steps 6–14 and both room/fixture outcomes remain unproven.
