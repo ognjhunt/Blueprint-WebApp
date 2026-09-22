@@ -103,13 +103,26 @@ export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
   const object=(value:unknown):Record<string,unknown>=>value && typeof value === "object" && !Array.isArray(value) ? value as Record<string,unknown> : {};
   const label=(value:unknown)=>typeof value === "string" ? value.trim().slice(0,1000) : "";
   const subject=object(task.subject), destination=object(task.destination), success=object(task.success);
+  const articulation=object(task.articulation);
+  const articulated=task.strategy === "articulated_open_close";
   const objectLabel=label(subject.visible_label) || label(subject.description) || label(subject.name);
-  const title=label(task.description) || label(task.title) || (task.strategy === "pick_and_place" ? "Pick and place" : "Task evaluation");
+  const partLabel=label(articulation.part_label);
+  const title=label(task.description) || label(task.title)
+    || (task.strategy === "pick_and_place" ? "Pick and place"
+      : articulated ? `Open the ${partLabel || "moving part"}` : "Task evaluation");
   const requirements:Array<{label:string;value:string}>=[];
-  if (objectLabel) requirements.push({label:"Object",value:objectLabel});
+  if (objectLabel) requirements.push({label:articulated ? "Assembly" : "Object",value:objectLabel});
+  if (articulated && partLabel) requirements.push({label:"Part to open",value:partLabel});
+  if (articulated && label(articulation.joint_type)) requirements.push({label:"Mechanism",
+    value:articulation.joint_type === "prismatic" ? "sliding (prismatic joint)" : "hinged (revolute joint)"});
+  if (articulated && typeof articulation.estimated_usable_stroke_m === "number" && Number.isFinite(articulation.estimated_usable_stroke_m))
+    requirements.push({label:"Estimated usable stroke",value:`${articulation.estimated_usable_stroke_m} m (estimate, not measured)`});
+  if (articulated && label(articulation.lock_status)) requirements.push({label:"Lock status",value:label(articulation.lock_status)});
   if (label(destination.visible_label)) requirements.push({label:"Destination",value:label(destination.visible_label)});
   for (const [key,name,unit] of [
     ["maximum_episode_seconds","Time limit","seconds"],
+    ["minimum_opening_fraction_of_estimated_stroke","Minimum opening","of usable stroke"],
+    ["minimum_hold_seconds","Hold open","seconds"],
     ["minimum_lift_m","Minimum lift","m"],
     ["minimum_planar_displacement_m","Minimum travel","m"],
     ["maximum_final_planar_target_error_m","Placement tolerance","m"],
@@ -117,7 +130,8 @@ export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
     ["maximum_regrasps","Regrasps",""],
   ]) {
     const value=success[key];
-    if (typeof value === "number" && Number.isFinite(value)) requirements.push({label:name,value:`${value} ${unit}`.trim()});
+    if (typeof value === "number" && Number.isFinite(value)) requirements.push({label:name,
+      value:key === "minimum_opening_fraction_of_estimated_stroke" ? `${Math.round(value * 100)}% ${unit}` : `${value} ${unit}`.trim()});
   }
   return {title,description:label(task.instructions) || objectLabel,requirements};
 }

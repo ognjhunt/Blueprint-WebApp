@@ -998,6 +998,46 @@ describe("same-owner collision-mesh companion binding", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+describe("articulated open/close task intake", () => {
+  const articulatedTask = () => ({
+    task_id: "task-drawer",
+    strategy: "articulated_open_close" as const,
+    subject: { description: "three-drawer cabinet" },
+    support: { description: "floor" },
+    articulation: {
+      assembly_label: "three-drawer cabinet",
+      part_label: "middle drawer",
+      joint_type: "prismatic" as const,
+      estimated_usable_stroke_m: 0.32,
+      travel_authority: "object_prior_estimate_from_estimated_visible_bounds",
+      estimated_front_normal_world: [0, -1, 0],
+      lock_status: "unknown" as const,
+      part_observed_open_in_footage: false as const,
+      physical_measurement_proven: false as const,
+    },
+    success: {
+      control_frequency_hz: 15,
+      maximum_episode_seconds: 30,
+      minimum_opening_fraction_of_estimated_stroke: 0.6,
+      minimum_hold_seconds: 1,
+      maximum_retries: 0,
+    },
+  });
+  it("accepts a mechanism instead of a destination and forwards it unchanged", () => {
+    const parsed = sceneIntakeCommand.parse({ ...command(), task: articulatedTask() });
+    expect(parsed.task.strategy).toBe("articulated_open_close");
+    expect(parsed.task).toEqual(articulatedTask());
+  });
+  it("refuses a destination, a driven joint, or a travel estimate that mismatches the joint", () => {
+    const withTask = (task: unknown) => sceneIntakeCommand.safeParse({ ...command(), task }).success;
+    expect(withTask({ ...articulatedTask(), destination: command().task.destination })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...articulatedTask().articulation, joint_type: "position_drive" } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...articulatedTask().articulation, joint_type: "revolute" } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), success: { ...articulatedTask().success, minimum_opening_fraction_of_estimated_stroke: 1.5 } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), success: { ...articulatedTask().success, maximum_retries: 1 } })).toBe(false);
+  });
+});
+
 describe("structured task destination and success contract", () => {
   // The completed-scene factory requires a real destination pose and structured
   // success criteria. The website must supply and validate these; a
