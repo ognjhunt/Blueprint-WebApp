@@ -719,3 +719,12 @@ candidate noun, never this capture's mask evidence or spending authority.
 Forty-six focused task-mask/grounding tests, changed-file Ruff and diff check
 passed. PR, deploy, fresh probe, full target clip, background recovery, and
 steps 5–14 remain pending.
+
+The read-only website reservation ledger after attempt 3 shows 14 of the
+amended 32 preparation requests used and $0.576 reserved against the $5
+preparation cap. Pipeline PR #2116 passed its impacted/sentinel CI gate and
+merged to `main` as `7829d4b443b51c00f98828aeb99cd0f2b6c3607f`.
+The canonical isolated canary deploy of pushed source
+`258ee26f2d7ad5bfe2ba3f768abb6732b50c222b` has started under
+`blueprint-drawer-concept-deploy-258ee26f.service`. The listener remains
+paused pending a completed deploy receipt and live version proof.
