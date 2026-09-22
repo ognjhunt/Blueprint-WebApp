@@ -403,3 +403,36 @@ the same video would hit the same wall rather than route around it. Raising that
 policy value would break every in-flight scene's sealed sponsorship
 (`website_scene_sponsorship_changed` compares the policy digest), so it is a
 change to make deliberately between scenes, not now.
+
+### A concept that does resolve the whole cabinet exists
+
+Before asking anyone to spend a one-shot budget amendment on a scene that might
+still fail, the question worth answering was whether *any* concept resolves the
+cabinet as one object. Five candidates, one single-frame request each, about a
+penny and a quarter in total:
+
+| concept | instances | best coverage of the grounded box | whole target? |
+| --- | --- | --- | --- |
+| `under-desk cabinet` | 1 | 0.983 | yes |
+| `drawer unit` | 3 | 0.422 | no, the three fronts again |
+| `mobile pedestal` | 0 | — | no |
+| `wooden cabinet` | 0 | — | no |
+| `pedestal` | 0 | — | no |
+
+`under-desk cabinet` returns a single instance whose mask spans
+(0, 838, 614, 1590) against a grounded box of (0, 844, 604, 1603). That is the
+cabinet, not a drawer front, and the deployed coverage rule accepts it at 0.983
+while still refusing `drawer unit` at 0.422. So the amendment buys a scene that
+can finish, and the rule discriminates correctly on real data in both
+directions.
+
+This diagnostic was run **outside the scene's preparation ledger**, on purpose
+and recorded as such: that ledger is exhausted, which is the very thing being
+diagnosed, and the alternative was to ask for an irreversible amendment on a
+guess. Five image requests at $0.0025, receipt at
+`/tmp/drawer-concept-diagnostic/concept_diagnostic.json` on the control-plane
+host. No capture artifact was touched and no scene budget was charged.
+
+What it does not tell us is whether the grounding model will propose that noun.
+It has been told to name the whole object rather than the part that moves, which
+points the right way, but the proposal is still the model's.
