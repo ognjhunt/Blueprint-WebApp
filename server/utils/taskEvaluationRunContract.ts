@@ -7,7 +7,7 @@ import {
   nativeDecisionEvidenceRequestSchema,
 } from "./siteTaskTestbedContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
+import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -345,7 +345,7 @@ export const policyCanaryResultProjectionSchema = z.object({
   request_digest: digest,
   configuration_digest: digest,
   matrix_digest: digest,
-  task_success_contract: confirmedRigidTaskSuccessContractSchema.optional(),
+  task_success_contract: confirmedTaskSuccessContractSchema.optional(),
   task_success_contract_digest: digest.optional(),
   episode_interpretation: episodeInterpretationSummarySchema.optional(),
   candidate_results: z.array(z.object({

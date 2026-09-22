@@ -97,11 +97,11 @@ centred on the middle drawer front.
 
 | Step | Required behaviour | Evidence required to close | State |
 | --- | --- | --- | --- |
-| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | unproven |
-| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | unproven |
-| 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | unproven |
-| 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | unproven |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | unproven |
+| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | **done** — HTTP 201 inbound request, brief confirmed HTTP 200, rights and US region attested by the owner; Pipeline consumed the handoff at 03:39 UTC and wrote `website_task_context.json` and `website_scene_sponsorship.json` |
+| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
+| 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
+| 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **resolved, decoding** — `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal` returned no instance; `drawers` and `drawer unit` returned the three drawer fronts at 0.42 coverage and were refused; `dresser` returned one instance at 0.981 coverage and is the cabinet. Only that concept bought a clip |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
@@ -119,7 +119,26 @@ Completion states tracked separately:
 
 ## Identities (new scene only)
 
-None created yet. The blue-object identities (`team-eval-5aea93d1…`,
+Created 2026-09-22 03:31 UTC through the live website, browser-driven:
+
+| Identity | Value |
+| --- | --- |
+| Inbound request / site submission | `capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Capture | `walkthrough-capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Scene | `site-capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153` |
+| Capture upload link scope | `owner`, expires epoch 1790652693 |
+| Confirmed task text | "Open the middle drawer of the three-drawer wood-front cabinet with silver bar handles (the mobile pedestal under the desk)." |
+| Confirmed by | Nijel Hunt, 2026-09-22 03:32 UTC, consent statement `2026-09-18.v1` |
+| Capture region | `us`, from the Austin, Texas address; corroborated by the clip's own GPS tag `+30.4261-097.7177` and `creationdate 2026-09-21T10:23:57-0500` |
+| Upload response | HTTP 201, `eligibility: unscreened` |
+| Live WebApp commit at submission | `6a6f2e3bd8019b645138f99d2db73376761082a5` |
+| Live control-plane release at submission | `ba6072c262e645c2fda9aec3a2e8236cdf71a895` |
+
+The uploaded bytes are the original file: the staged upload copy was verified
+`d63aa286…d130` (same SHA-256 and size as `~/Downloads/IMG_4170.MOV`) before the
+browser read it, and deleted afterwards.
+
+The blue-object identities (`team-eval-5aea93d1…`,
 `setup-c660b4f6…`, `team-eval-7b5d46d9…-policy-canary-765ceba44410`,
 Vast instance 51991469) are reference only and must never be reused, cancelled,
 rebound, or debited by this lane.
@@ -158,6 +177,373 @@ the reusable Gemini/SAM/edit/Marble/MapAnything stages run for the new scene.
 
 - 2026-09-22 02:30 UTC: worktrees created, video fully inspected, evidence
   folder written.
-- 2026-09-22 03:05 UTC: Batch 1 implemented and tested locally (Pipeline 110
-  focused tests + sentinels; WebApp intake/team-selection 61 tests, typecheck
-  clean). Not yet merged or deployed; no upload has been made.
+- 2026-09-22 03:05 UTC: Batch 1 implemented and tested (Pipeline 110 focused
+  tests + sentinels; WebApp intake/team-selection 61 tests, typecheck clean).
+- 2026-09-22 03:15 UTC: Batch 1 merged. Pipeline PR #2092 ->
+  `ba6072c262e645c2fda9aec3a2e8236cdf71a895`; WebApp PR #658 ->
+  `6a6f2e3bd8019b645138f99d2db73376761082a5`, Render deploy green. Canonical
+  control-plane deploy (`--iteration --canary --preserve-configured-controls-state`)
+  started after checking no deploy was running, the Vast paid-launch lock was
+  free and the GPU guard reported zero live instances. Active release link
+  switched to `ba6072c2`.
+- 2026-09-22 03:31 UTC: **real browser-origin submission and upload done** (see
+  Identities). Steps 1 and 2 are done on the WebApp side; Pipeline consumption
+  is the next thing to observe.
+- 2026-09-22 03:35 UTC: Batch 2 (articulated authoring + static qualification)
+  pushed as Pipeline PR #2094, 98 focused tests passing, auto-merge armed.
+- 2026-09-22 03:39–04:22 UTC: capture pipeline ran intake → Gemini removal
+  analysis → MapAnything source geometry → SAM 3.1 video tracking. Gemini in
+  production returned the cabinet as **one manipulated assembly**
+  (`pedestal_cabinet`, "three-drawer wood-front cabinet", `articulated_part:
+  "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, task text
+  quoted verbatim) and kept the teal backpack as a `static_obstacle` with
+  `collision_required: true`. The articulated hint shipped in Batch 1 is
+  therefore live and working on a real capture.
+
+### Blocker found and fixed: the segmenter could not resolve "cabinet"
+
+SAM 3.1 processed all 520 decoded frames three times and returned **no track at
+all** for the cabinet:
+
+| prompt | source | frames processed | tracks |
+| --- | --- | --- | --- |
+| `cabinet` | video-analysis noun | 520 | 0 |
+| `file cabinet` | one allowed refinement | 520 | 0 |
+| `teal backpack` | same clip, same call | 520 | 228 |
+
+The run refused with `clean_plate: task_target_track_ambiguous:pedestal_cabinet`
+and retried on that same refusal five times. The cabinet is the same light wood
+as the desk and the hutch above it and is cut off at the frame edge, so the
+generic noun never resolved; the backpack, visually distinct, tracked fine.
+
+The defect was not the noun but the spending rule around it. The old path let
+the grounding model propose exactly one alternative and spent a second
+full-clip call on it unverified. A wrong noun costs one frame price per decoded
+frame; proving a noun costs one image price.
+
+`fix(task-masks): prove a segmentation concept on one frame before buying the
+clip` now proves each candidate concept on the exact frame the grounding model
+verified, and spends on the whole clip only for a concept that resolved the
+target there. The search is bounded at three concepts, each a new proposal the
+model supported after being shown the crop and every noun already rejected;
+repeating a rejected noun ends the search. A surface the task only rests on
+keeps its single-frame rescue and now reaches it without buying a second clip.
+An object that must leave every frame still has no single-frame rescue.
+
+**Replayed on CPU against this scene's saved inputs before any deploy**
+(scratch root, live capture tree untouched):
+
+| step | concept | result |
+| --- | --- | --- |
+| grounding 1 | `cabinet` | already rejected, re-grounded |
+| grounding 2 | `filing cabinet` | probe returned 0 tracks |
+| grounding 3 | `drawers` | probe returned 3 tracks; selected against the verified box |
+
+Resolved concept `drawers`, box `[0.0, 0.44, 0.56, 0.395]`. Replay cost about
+$0.045 (two grounding calls, two single-frame probes), all through the scene's
+own preparation-spend ledger.
+
+- 2026-09-22 04:53 UTC: Codex's paid Vast instance `52007050` torn down
+  (`vast_instances_destroyed_by_adapter`), paid-launch lock free. Branch merged
+  with `origin/main` `3ad70e6d4` first so the deploy carries Codex's delivery
+  and intake-capacity fixes (#2093, #2095, #2096) rather than dropping them.
+
+### My replay consumed the live run's one-dispatch grant (and how it was repaired)
+
+The CPU replay above ran through the scene's own preparation-spend ledger, which
+is keyed by `allocation_binding_digest`. A single-frame probe's binding is the
+frame plus the concept text and nothing else, so the replay's probe for
+`filing cabinet` produced **the same digest** the live run computed later:
+`ecc7bb50c60d29491e959add88e696e32747addaf064794f2eeca43be91cf299`. The WebApp
+correctly answered `already_reserved` — only the first transaction may dispatch —
+and attempts 12 and 13 refused with `clean_plate: PaidResourceAdmissionBlocked`.
+
+The guard is right and was not weakened. What was missing was the artifact: the
+call had been paid for, but its response sat under the replay's scratch root
+instead of the directory its own binding names. Both replay probe responses were
+installed into the live binding directories, owned `blueprint:blueprint`, mode
+0600, with no existing file overwritten:
+
+| probe | concept | binding digest | clip digest | tracks |
+| --- | --- | --- | --- | --- |
+| 01 | `filing cabinet` | `ecc7bb50…f299` | `4a6a2d9f…1c67` | 0 |
+| 02 | `drawers` | `40a22cc6…a5f9` | `4a6a2d9f…1c67` | 3 |
+
+The clip digests were byte-identical to the ones the live worker had already
+re-encoded in place, so `run_meta_sam31` admitted them through its own retained
+path (`binding_digest` and `clip_digest` both verified) rather than through any
+relaxed check. Nothing was hand-written: these are the provider's own responses
+for those exact bindings.
+
+**Lesson for the next replay:** a replay of a paid stage must not share the live
+scene's spend ledger. Use a scratch task context, or accept that the replay is
+the dispatch and place its artifacts in the real tree deliberately.
+
+- 2026-09-22 05:59 UTC: attempt 14 running on release `91887b222`. Probe
+  `filing cabinet` returned 0 tracks and was rejected; probe `drawers` returned
+  3 tracks and was selected against the verified box; the run then bought the
+  full-clip SAM call for `drawers`. Decoding those masks is the pure-Python
+  per-pixel stage that took 34 minutes for the backpack.
+
+### The proven concept was still the wrong object
+
+`drawers` passed the probe and the clip call was bought. It returned exactly
+three instances across 520 frames, and none of them is the cabinet:
+
+| instance | frame-150 box | height | overlap with the grounded cabinet box |
+| --- | --- | --- | --- |
+| 0 | (0, 1235, 547, 1591) | 356 | 0.42 |
+| 1 | (0, 870, 564, 1109) | 239 | 0.30 |
+| 2 | (0, 1066, 555, 1283) | 217 | 0.27 |
+
+The grounded cabinet box is (0, 844, 604, 1603), height 759. Track selection
+would have taken instance 0 on overlap, cleared the bottom drawer front from the
+plate, and rebuilt an assembly sized like one drawer.
+
+The probe was too weak. A sub-part always overlaps the whole, so overlap alone
+cannot tell a cabinet from its drawer. The probe now also asks how much of the
+grounded box the selected mask spans and refuses a concept that covers less than
+most of it. The two failures are reported to the grounding model differently:
+one found no instance, the other found a part, and only the second is told that
+the task acts on the whole assembly.
+
+Checked against this scene's own retained probe: `drawers` covers 0.421 and is
+refused, so the clip is not bought for it.
+
+**The capture listener was stopped at 06:15 UTC** rather than let that run reach
+paid image completion and Marble generation on the wrong target. Nothing
+downstream had started: no `image_completion`, no `website_reconstruction`, no
+`task_masks.json`. Sunk cost is the one `drawers` clip call, about $0.10. The
+timer goes back on as soon as the fix is deployed.
+
+Pipeline PR #2098 carries the coverage rule, the task-kind argument at two
+dispatch call sites, and two modules brought back inside their source line
+budgets. Three test files were already failing on `origin/main` before any of
+this work (materializer reachability, live-pipeline import isolation, and the
+scene-configuration budget profiles); they are tracked separately and are not
+regressions from this branch.
+
+### Step 7's provider ceiling is configured, not hardcoded
+
+Checked against the requirement that the view count follow the provider's
+verified capability rather than a global constant.
+`client`-side nothing is involved; the ceiling lives in
+`website_reconstruction_profile.py`, whose first line is "Provider-specific
+image capacity; never a global reconstruction frame cap." The profile comes from
+`BLUEPRINT_WEBSITE_RECONSTRUCTION_PROFILE_JSON` or an explicit argument, and
+defaults to Marble's own `{"provider": "world_labs", "model": "marble-1.1-plus",
+"max_input_images": 8}`. Selecting a different model without supplying its
+profile refuses with `website_reconstruction_profile_required_for_selected_model`,
+and the module comment says plainly that Atlas is not assigned an invented limit
+before its API exists. The adapter-side equality check in `website_worldlabs.py`
+is a provider-binding check, not a ceiling: a different profile needs a matching
+adapter and says so.
+
+Nothing to change here for this scene.
+
+## Blocked on one owner action: the preparation attempt cap, not the money
+
+The fix deployed cleanly (release `fc5b748ee64a5bd68a6e5881096e9661b0a20513`,
+receipt `iteration_fc5b748ee64a.json`, intake reports the same commit, both
+surfaces clean). The capture resumed, ran the new concept search, and then hit a
+different wall:
+
+```
+clean_plate: website_control_preparation-spend_http_409:website_scene_preparation_budget_exhausted
+```
+
+That refusal has two limbs, and it is **not** the money one:
+
+| guard | configured | used |
+| --- | --- | --- |
+| preparation spend | $5.00 | about $1.20 |
+| preparation requests | 16 | 17 |
+
+The concept search trades one expensive call for several cheap ones. Six
+grounding calls and three single-frame probes cost 13 cents together and nine of
+the sixteen attempts. For comparison, the completed blue-object scene spent
+$3.16 across seven retained reservations. So this scene has roughly 76% of its
+dollars left and no attempts.
+
+Four of the consumed attempts are mine: the pre-deploy CPU replay ran two
+grounding calls and two probes through this scene's ledger. That was the wrong
+place to replay a paid stage.
+
+### What unblocks it
+
+`amendWebsitePreparationRequestLimit` is deliberately operator-only, exposed
+through no public route and no Pipeline API, and it requires the scene owner's
+own user id as `approved_by`. It cannot be run from this host: the Pipeline
+service account reaches the Website over the signed HTTP API precisely so it
+cannot write these records directly, and nothing here holds the Website's
+Firebase credentials. So this is the owner's action, not an automation's.
+
+From the Blueprint-WebApp checkout, with the Website's own environment. It
+previews by default and only writes with `--apply`:
+
+```bash
+node --env-file=.env --import tsx scripts/amend-website-preparation-limit.ts capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153 sha256:d16ea102acd75849992a23c1b9f6d4eb3e62c454410f4b94f8b05accb9df8c98 f8LpkurhpsNmAJhMaSnts8Y3Dkt2 30 "drawer scene concept recovery: 16 attempts spent at about \$1.20 of the \$5 preparation cap, 4 of them by a diagnostic replay; dollar cap unchanged"
+```
+
+Re-run the same command with `--apply` appended to write it. 30 is derived, not
+picked: 16 already spent, about 10 to finish (concept search, one clip, image
+completion, Marble, fidelity review), and four spare for one retry. The schema
+ceiling is 32 and the $5 spend cap is untouched, so money remains the binding
+control.
+
+**The amendment is one-shot.** A second one with different values is refused as
+`website_preparation_amendment_conflict`, which is why the number above is
+generous rather than exact.
+
+### The product finding underneath
+
+`max_paid_attempts` comes from `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` and is
+16. A scene that needs concept recovery cannot fit in 16, so a fresh capture of
+the same video would hit the same wall rather than route around it. Raising that
+policy value would break every in-flight scene's sealed sponsorship
+(`website_scene_sponsorship_changed` compares the policy digest), so it is a
+change to make deliberately between scenes, not now.
+
+### A concept that does resolve the whole cabinet exists
+
+Before asking anyone to spend a one-shot budget amendment on a scene that might
+still fail, the question worth answering was whether *any* concept resolves the
+cabinet as one object. Five candidates, one single-frame request each, about a
+penny and a quarter in total:
+
+| concept | instances | best coverage of the grounded box | whole target? |
+| --- | --- | --- | --- |
+| `under-desk cabinet` | 1 | 0.983 | yes |
+| `drawer unit` | 3 | 0.422 | no, the three fronts again |
+| `mobile pedestal` | 0 | — | no |
+| `wooden cabinet` | 0 | — | no |
+| `pedestal` | 0 | — | no |
+
+`under-desk cabinet` returns a single instance whose mask spans
+(0, 838, 614, 1590) against a grounded box of (0, 844, 604, 1603). That is the
+cabinet, not a drawer front, and the deployed coverage rule accepts it at 0.983
+while still refusing `drawer unit` at 0.422. So the amendment buys a scene that
+can finish, and the rule discriminates correctly on real data in both
+directions.
+
+This diagnostic was run **outside the scene's preparation ledger**, on purpose
+and recorded as such: that ledger is exhausted, which is the very thing being
+diagnosed, and the alternative was to ask for an irreversible amendment on a
+guess. Five image requests at $0.0025, receipt at
+`/tmp/drawer-concept-diagnostic/concept_diagnostic.json` on the control-plane
+host. No capture artifact was touched and no scene budget was charged.
+
+What it does not tell us is whether the grounding model will propose that noun.
+It has been told to name the whole object rather than the part that moves, which
+points the right way, but the proposal is still the model's.
+
+## Where this stands
+
+Steps 1 to 4 are done on real evidence. Step 5 is one owner command away from
+resuming, and the two defects it exposed are fixed and deployed:
+
+- Pipeline #2094 added the concept probe, so a noun is proved on one frame
+  before a whole clip is bought for it.
+- Pipeline #2098 made the probe require the concept to *cover* the target
+  rather than overlap part of it, told the grounding model which of the two
+  failures happened, spent the budget on probes rather than turns, and brought
+  two modules back inside their source line budgets.
+- Pipeline #2103 (open) carries the measured naming hint. It briefly carried a
+  parallel mask decode too; measured on a real clip that pool ran at 0.89x and
+  then 0.04x against serial, because the host is four cores under a load average
+  near ten and the decode there is contention-bound rather than
+  parallelism-bound. The code and the claim both came out. The number that
+  survives is that a real clip decodes in twelve to twenty-seven minutes serial,
+  depending on what else the host is doing.
+- WebApp #662 (open) carries the articulated success contract end to end, so a
+  drawer run has something to submit and something to show.
+
+Two commands resume it, and nothing else is waiting on a person. The amendment
+above, and then the capture listener, which a later control-plane deploy
+quiesced while a paid GPU run was in flight:
+
+```bash
+systemctl start blueprint-pubsub-handoff-listener.timer
+```
+
+The fix is live either way: the active release `41d9ce6cb` carries it, having
+been cut from a commit that descends from the one it shipped in.
+
+## The amendment landed and the lane unblocked itself
+
+The owner authorized raising the preparation attempt cap. Applied through the
+sanctioned operator script with their own admin credentials, previewed first:
+`max_requests` 16 to 30, amendment digest
+`sha256:5bc3a580c2d7d46257d3ce1628cbca09609dff5852c82dea68cb1f0a6b3d9b8c`. The
+$5 spend cap was not touched and money remains the binding control.
+
+The capture listener was restarted at 10:10 UTC with the paid launch lock free
+and no deploy in flight. Attempt 19 recovered the lease and ran the concept
+search on the deployed rule. It behaved exactly as designed:
+
+| concept | instances | coverage of the grounded box | outcome |
+| --- | --- | --- | --- |
+| `file cabinet` | 0 | — | refused, no clip bought |
+| `drawers` | 3 | 0.421 | refused as a part, no clip bought |
+| `dresser` | 1 | 0.981 | accepted, one clip bought |
+
+`dresser` matches the independent diagnostic almost exactly, where
+`under-desk cabinet` measured 0.983. Two different whole-object nouns, the same
+mask. The run is now decoding that clip, which is the twelve-to-twenty-seven
+minute serial stage.
+
+Worth recording about cost: after the first pass the whole search is retained.
+Grounding bindings are deterministic given the same failure sequence, so a
+repeated attempt replays from receipts and buys nothing. The search either
+finds a concept or fails identically and for free.
+
+## Step 6 failed honestly, and this capture is out of attempts
+
+The masks landed and the background review failed the run:
+
+> The entire desk and upper shelving were mistakenly removed, leaving phones
+> and wires floating in mid-air.
+
+It was right. Two of the five edited views had lost their desk. The concept was
+not at fault: `dresser` resolved the cabinet on the frame it was proved on, and
+across the clip the tracker walked onto the desk behind it, which is the same
+light wood. Measured on the views the editor was given, as a share of the frame:
+
+| view | tracked mask | single-frame segmentation | ratio | edited result |
+| --- | --- | --- | --- | --- |
+| 35 | 46.1% | 20.0% | 2.3 | desk erased |
+| 138 | 44.2% | 16.4% | 2.7 | desk erased |
+| 104 | 34.4% | 4.1% | 8.4 | not edited |
+| 173 | 25.4% | 20.9% | 1.2 | correct |
+| 0 | 12.9% | no instance | — | correct |
+| 208 | 9.7% | no instance | — | not edited |
+| 519 | 0.7% | no instance | — | correct |
+
+An overlay of the 16.4% mask covers the three drawers and nothing else, so the
+drifted views are a different object, not a harder angle.
+
+Pipeline #2103 adjudicates the biggest claims first and stops at the first one
+an independent single-frame look agrees with, because drift can only add area
+and everything smaller than a corroborated mask claims less than the target. On
+this scene that is four looks and it catches all three drifted views.
+
+### Why this capture cannot finish
+
+Read from the ledger rather than estimated:
+
+| | used | cap |
+| --- | --- | --- |
+| preparation requests | 25 | 30 |
+| preparation spend | $2.28 | $5.00 |
+
+Five requests remain. Finishing needs about nine: four corroboration looks, an
+image edit per retained view (the editor bills one request per view, not per
+batch), and the Marble generation. The amendment is one-shot by construction, a
+second one with different values is refused as
+`website_preparation_amendment_conflict`, and the schema ceiling is 32 anyway,
+so there is no larger number to ask for.
+
+This capture has therefore done its job: it found three real defects, all of
+them now fixed and two already deployed. Proving the lane end to end continues
+on a fresh capture of the same video, which starts with its own budget and runs
+on code that no longer has those defects.

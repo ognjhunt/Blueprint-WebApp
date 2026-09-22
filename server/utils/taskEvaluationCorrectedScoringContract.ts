@@ -1,4 +1,4 @@
-import { rigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
+import { taskSuccessContractSchema } from "./articulatedTaskSuccessContract";
 import type { VerifiedPolicyCanaryScoreCorrectionSidecar } from "./policyCanaryScoreCorrectionContract";
 import { stableJson } from "./taskCandidateContract";
 
@@ -12,7 +12,7 @@ export function projectCorrectedScoringContract(
     || sidecar.source_binding.source_delivery_digest !== publication.result_delivery?.delivery_digest) return null;
   const updates = sidecar.correction.score_updates;
   if (updates.length !== 20) return null;
-  const parsed = updates.map((update) => rigidTaskSuccessContractSchema.safeParse(update.new_score.task_success_contract));
+  const parsed = updates.map((update) => taskSuccessContractSchema.safeParse(update.new_score.task_success_contract));
   if (parsed.some((value) => !value.success)) return null;
   const contract = parsed[0].success ? parsed[0].data : null;
   if (!contract || updates.some((update, index) => !parsed[index].success

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { anyTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
+
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1);
 const nonnegative = z.number().finite().nonnegative();
@@ -116,7 +118,7 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-async function canonicalDigest(value: Record<string, unknown>, digestField: string) {
+export async function canonicalDigest(value: Record<string, unknown>, digestField: string) {
   const normalized = structuredClone(value);
   delete normalized[digestField];
   const bytes = new TextEncoder().encode(stableJson(normalized));
@@ -269,7 +271,9 @@ export function findPublishedTaskSuccessContract(value: unknown) {
     publication.result_delivery?.reproducibility?.task_success_contract,
   ];
   for (const candidate of candidates) {
-    const parsed = rigidTaskSuccessContractSchema.safeParse(candidate);
+    // Either admitted kind: an articulated result would otherwise render no
+    // criteria panel at all, which reads as "no scoring authority published".
+    const parsed = anyTaskSuccessContractSchema.safeParse(candidate);
     if (parsed.success) return parsed.data;
   }
   return null;

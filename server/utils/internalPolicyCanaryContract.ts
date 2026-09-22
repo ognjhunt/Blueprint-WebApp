@@ -4,9 +4,15 @@ import { z } from "zod";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import {
   confirmedRigidTaskSuccessContractSchema,
-  rigidTaskSuccessContractMatchesSelection,
   rigidTaskSuccessContractSchema,
 } from "./rigidTaskSuccessContract";
+// Either admitted task kind can publish a contract here; the match below only
+// reads the envelope, so a selection that swaps the kind can never pass.
+import {
+  confirmedTaskSuccessContractSchema,
+  taskSuccessContractMatchesSelection,
+  taskSuccessContractSchema,
+} from "./articulatedTaskSuccessContract";
 
 export const INTERNAL_POLICY_CANARY_RUN_KIND = "internal_policy_canary" as const;
 export const INTERNAL_POLICY_CANARY_CLAIM_CEILING =
@@ -207,7 +213,7 @@ export const internalPolicyCanarySetupSchema = z.object({
     zero_action: z.enum(["nonblocking", "not_configured"]),
     deterministic_scripted_positive: z.enum(["nonblocking", "not_configured"]),
   }).strict(),
-  task_success_contract: rigidTaskSuccessContractSchema.optional(),
+  task_success_contract: taskSuccessContractSchema.optional(),
   task_success_contract_digest: digest.optional(),
   setup_digest: digest,
 }).strict().superRefine((setup, context) => {
@@ -252,7 +258,7 @@ export const internalPolicyCanarySelectionSchema = z.object({
   policy_candidate_ids: z.tuple([identifier, identifier]),
   episode_preset_id: z.literal("quick_10"),
   variation_matrix_digest: digest,
-  task_success_contract: confirmedRigidTaskSuccessContractSchema,
+  task_success_contract: confirmedTaskSuccessContractSchema,
   notification: z.object({
     email: z.string().trim().email(),
     notify_on: z.tuple([
@@ -402,7 +408,7 @@ export function resolveInternalPolicyCanarySelection(
     code: "TASK_SUCCESS_CONTRACT_NOT_PUBLISHED",
     message: "The task/site team has not published an exact success contract for this run.",
   };
-  if (!rigidTaskSuccessContractMatchesSelection({
+  if (!taskSuccessContractMatchesSelection({
       published: setup.task_success_contract,
       selected: selection.task_success_contract,
       expectedSiteId: expectedScope?.siteId || setup.task_success_contract.scope.site_id,
