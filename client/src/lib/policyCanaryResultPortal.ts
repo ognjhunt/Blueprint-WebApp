@@ -348,6 +348,7 @@ function failureCohort(episode: TaskEvaluationResultEpisode): typeof canaryFailu
     episode.evidence?.typed_media_gap?.code,
   ].filter(Boolean).join(" ").toLowerCase();
   if (episode.score?.collision === true || material.includes("collision")) return "collision";
+  if (material.includes("droidactionexecutionerror")) return "action_delivery";
   if (material.includes("no_motion") || material.includes("no motion") || (
     episode.action_delivery?.actions_reached_robot === true
     && episode.action_delivery.arm_moved === false
