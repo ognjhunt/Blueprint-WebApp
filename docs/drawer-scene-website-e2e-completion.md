@@ -340,3 +340,66 @@ is a provider-binding check, not a ceiling: a different profile needs a matching
 adapter and says so.
 
 Nothing to change here for this scene.
+
+## Blocked on one owner action: the preparation attempt cap, not the money
+
+The fix deployed cleanly (release `fc5b748ee64a5bd68a6e5881096e9661b0a20513`,
+receipt `iteration_fc5b748ee64a.json`, intake reports the same commit, both
+surfaces clean). The capture resumed, ran the new concept search, and then hit a
+different wall:
+
+```
+clean_plate: website_control_preparation-spend_http_409:website_scene_preparation_budget_exhausted
+```
+
+That refusal has two limbs, and it is **not** the money one:
+
+| guard | configured | used |
+| --- | --- | --- |
+| preparation spend | $5.00 | about $1.20 |
+| preparation requests | 16 | 17 |
+
+The concept search trades one expensive call for several cheap ones. Six
+grounding calls and three single-frame probes cost 13 cents together and nine of
+the sixteen attempts. For comparison, the completed blue-object scene spent
+$3.16 across seven retained reservations. So this scene has roughly 76% of its
+dollars left and no attempts.
+
+Four of the consumed attempts are mine: the pre-deploy CPU replay ran two
+grounding calls and two probes through this scene's ledger. That was the wrong
+place to replay a paid stage.
+
+### What unblocks it
+
+`amendWebsitePreparationRequestLimit` is deliberately operator-only, exposed
+through no public route and no Pipeline API, and it requires the scene owner's
+own user id as `approved_by`. It cannot be run from this host: the Pipeline
+service account reaches the Website over the signed HTTP API precisely so it
+cannot write these records directly, and nothing here holds the Website's
+Firebase credentials. So this is the owner's action, not an automation's.
+
+From the Blueprint-WebApp checkout, with the Website's own environment. It
+previews by default and only writes with `--apply`:
+
+```bash
+node --env-file=.env --import tsx scripts/amend-website-preparation-limit.ts capture-1eccb098-d39c-4bc9-b7d0-9ff59a18c153 sha256:d16ea102acd75849992a23c1b9f6d4eb3e62c454410f4b94f8b05accb9df8c98 f8LpkurhpsNmAJhMaSnts8Y3Dkt2 30 "drawer scene concept recovery: 16 attempts spent at about \$1.20 of the \$5 preparation cap, 4 of them by a diagnostic replay; dollar cap unchanged"
+```
+
+Re-run the same command with `--apply` appended to write it. 30 is derived, not
+picked: 16 already spent, about 10 to finish (concept search, one clip, image
+completion, Marble, fidelity review), and four spare for one retry. The schema
+ceiling is 32 and the $5 spend cap is untouched, so money remains the binding
+control.
+
+**The amendment is one-shot.** A second one with different values is refused as
+`website_preparation_amendment_conflict`, which is why the number above is
+generous rather than exact.
+
+### The product finding underneath
+
+`max_paid_attempts` comes from `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` and is
+16. A scene that needs concept recovery cannot fit in 16, so a fresh capture of
+the same video would hit the same wall rather than route around it. Raising that
+policy value would break every in-flight scene's sealed sponsorship
+(`website_scene_sponsorship_changed` compares the policy digest), so it is a
+change to make deliberately between scenes, not now.
