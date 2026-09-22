@@ -24,6 +24,7 @@ import {
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
 import { persistOperatorPolicyCanaryPreproviderBlocked } from "../utils/operatorPolicyCanaryPreproviderBlocked";
+import { isControllerPolicyRun, policyCanaryEvaluationOwner } from "../utils/policyCanaryEvaluationOwner";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
   policyCanaryScoreCorrectionTransition,
@@ -211,6 +212,22 @@ async function handlePolicyCanaryPublication(
       ]);
       if (!policyRunSnapshot.exists) return { outcome: "policy_run_not_found" as const, policyRun: null };
       const policyRun = policyRunSnapshot.data() as Record<string, any>;
+      const priorOwner = policyRun.owner_user_id;
+      let ownerRecovery = false;
+      if (policyRun.operator_registration === undefined && isControllerPolicyRun(policyRun)) {
+        const owner = await policyCanaryEvaluationOwner(db!, {
+          runId: publication.run_id, sourceLaunchId: publication.capture_session_id,
+          setupDigest: policyRun.setup_digest, revisionDigest: policyRun.scene_revision_digest,
+          taskId: policyRun.task?.id,
+        }, transaction);
+        if (owner) {
+          if (!["blueprint-production-runner", owner.owner_user_id].includes(priorOwner)) {
+            return { outcome: "owner_team_mismatch" as const, policyRun: null };
+          }
+          ownerRecovery = priorOwner !== owner.owner_user_id;
+          Object.assign(policyRun, owner);
+        }
+      }
       let scope;
       if (policyRun.operator_registration !== undefined) {
         scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
@@ -246,7 +263,8 @@ async function handlePolicyCanaryPublication(
       const now = new Date().toISOString();
       if (runSnapshot.exists) {
         const retained = runSnapshot.data() as Record<string, any>;
-        if (retained.owner_user_id !== scope.ownerUserId
+        if ((retained.owner_user_id !== scope.ownerUserId
+            && !(ownerRecovery && retained.owner_user_id === priorOwner))
           || retained.organization_id !== scope.organizationId) {
           return { outcome: "owner_team_mismatch" as const, policyRun: null };
         }
@@ -296,6 +314,12 @@ async function handlePolicyCanaryPublication(
           outcome = "recovered";
         } else {
           outcome = "replayed";
+          if (ownerRecovery) transaction.set(runRef, {
+            owner_user_id: scope.ownerUserId,
+            evaluation_owner_binding: policyRun.evaluation_owner_binding,
+            prior_service_owner_user_id: priorOwner,
+            updated_at_iso: now,
+          }, { merge: true });
         }
       } else {
         transaction.create(runRef, record);
@@ -305,6 +329,11 @@ async function handlePolicyCanaryPublication(
         : publication.result_status;
       const projection = publication.policy_canary_result;
       const update = {
+        ...(policyRun.evaluation_owner_binding ? {
+          owner_user_id: scope.ownerUserId,
+          notification_recipient_user_id: scope.ownerUserId,
+          evaluation_owner_binding: policyRun.evaluation_owner_binding,
+        } : {}),
         state,
         phase: "published",
         stage: "terminal",
