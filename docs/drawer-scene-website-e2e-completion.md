@@ -191,3 +191,59 @@ the reusable Gemini/SAM/edit/Marble/MapAnything stages run for the new scene.
   is the next thing to observe.
 - 2026-09-22 03:35 UTC: Batch 2 (articulated authoring + static qualification)
   pushed as Pipeline PR #2094, 98 focused tests passing, auto-merge armed.
+- 2026-09-22 03:39–04:22 UTC: capture pipeline ran intake → Gemini removal
+  analysis → MapAnything source geometry → SAM 3.1 video tracking. Gemini in
+  production returned the cabinet as **one manipulated assembly**
+  (`pedestal_cabinet`, "three-drawer wood-front cabinet", `articulated_part:
+  "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, task text
+  quoted verbatim) and kept the teal backpack as a `static_obstacle` with
+  `collision_required: true`. The articulated hint shipped in Batch 1 is
+  therefore live and working on a real capture.
+
+### Blocker found and fixed: the segmenter could not resolve "cabinet"
+
+SAM 3.1 processed all 520 decoded frames three times and returned **no track at
+all** for the cabinet:
+
+| prompt | source | frames processed | tracks |
+| --- | --- | --- | --- |
+| `cabinet` | video-analysis noun | 520 | 0 |
+| `file cabinet` | one allowed refinement | 520 | 0 |
+| `teal backpack` | same clip, same call | 520 | 228 |
+
+The run refused with `clean_plate: task_target_track_ambiguous:pedestal_cabinet`
+and retried on that same refusal five times. The cabinet is the same light wood
+as the desk and the hutch above it and is cut off at the frame edge, so the
+generic noun never resolved; the backpack, visually distinct, tracked fine.
+
+The defect was not the noun but the spending rule around it. The old path let
+the grounding model propose exactly one alternative and spent a second
+full-clip call on it unverified. A wrong noun costs one frame price per decoded
+frame; proving a noun costs one image price.
+
+`fix(task-masks): prove a segmentation concept on one frame before buying the
+clip` now proves each candidate concept on the exact frame the grounding model
+verified, and spends on the whole clip only for a concept that resolved the
+target there. The search is bounded at three concepts, each a new proposal the
+model supported after being shown the crop and every noun already rejected;
+repeating a rejected noun ends the search. A surface the task only rests on
+keeps its single-frame rescue and now reaches it without buying a second clip.
+An object that must leave every frame still has no single-frame rescue.
+
+**Replayed on CPU against this scene's saved inputs before any deploy**
+(scratch root, live capture tree untouched):
+
+| step | concept | result |
+| --- | --- | --- |
+| grounding 1 | `cabinet` | already rejected, re-grounded |
+| grounding 2 | `filing cabinet` | probe returned 0 tracks |
+| grounding 3 | `drawers` | probe returned 3 tracks; selected against the verified box |
+
+Resolved concept `drawers`, box `[0.0, 0.44, 0.56, 0.395]`. Replay cost about
+$0.045 (two grounding calls, two single-frame probes), all through the scene's
+own preparation-spend ledger.
+
+- 2026-09-22 04:53 UTC: Codex's paid Vast instance `52007050` torn down
+  (`vast_instances_destroyed_by_adapter`), paid-launch lock free. Branch merged
+  with `origin/main` `3ad70e6d4` first so the deploy carries Codex's delivery
+  and intake-capacity fixes (#2093, #2095, #2096) rather than dropping them.
