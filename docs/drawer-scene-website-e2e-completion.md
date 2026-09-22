@@ -247,3 +247,40 @@ own preparation-spend ledger.
   (`vast_instances_destroyed_by_adapter`), paid-launch lock free. Branch merged
   with `origin/main` `3ad70e6d4` first so the deploy carries Codex's delivery
   and intake-capacity fixes (#2093, #2095, #2096) rather than dropping them.
+
+### My replay consumed the live run's one-dispatch grant (and how it was repaired)
+
+The CPU replay above ran through the scene's own preparation-spend ledger, which
+is keyed by `allocation_binding_digest`. A single-frame probe's binding is the
+frame plus the concept text and nothing else, so the replay's probe for
+`filing cabinet` produced **the same digest** the live run computed later:
+`ecc7bb50c60d29491e959add88e696e32747addaf064794f2eeca43be91cf299`. The WebApp
+correctly answered `already_reserved` — only the first transaction may dispatch —
+and attempts 12 and 13 refused with `clean_plate: PaidResourceAdmissionBlocked`.
+
+The guard is right and was not weakened. What was missing was the artifact: the
+call had been paid for, but its response sat under the replay's scratch root
+instead of the directory its own binding names. Both replay probe responses were
+installed into the live binding directories, owned `blueprint:blueprint`, mode
+0600, with no existing file overwritten:
+
+| probe | concept | binding digest | clip digest | tracks |
+| --- | --- | --- | --- | --- |
+| 01 | `filing cabinet` | `ecc7bb50…f299` | `4a6a2d9f…1c67` | 0 |
+| 02 | `drawers` | `40a22cc6…a5f9` | `4a6a2d9f…1c67` | 3 |
+
+The clip digests were byte-identical to the ones the live worker had already
+re-encoded in place, so `run_meta_sam31` admitted them through its own retained
+path (`binding_digest` and `clip_digest` both verified) rather than through any
+relaxed check. Nothing was hand-written: these are the provider's own responses
+for those exact bindings.
+
+**Lesson for the next replay:** a replay of a paid stage must not share the live
+scene's spend ledger. Use a scratch task context, or accept that the replay is
+the dispatch and place its artifacts in the real tree deliberately.
+
+- 2026-09-22 05:59 UTC: attempt 14 running on release `91887b222`. Probe
+  `filing cabinet` returned 0 tracks and was rejected; probe `drawers` returned
+  3 tracks and was selected against the verified box; the run then bought the
+  full-clip SAM call for `drawers`. Decoding those masks is the pure-Python
+  per-pixel stage that took 34 minutes for the backpack.
