@@ -589,7 +589,7 @@ The active Pipeline release was verified as
 `b1aed954b08e5cee8c143640ab6d1b5776b45db1` with `commit_proven: true`
 and no identity blockers. WebApp main `e0078966de77a27558c2028bed940a85f14d455b`
 has a successful CI-gated Render deploy. Its articulated contract from PR #669
-supersedes the open, conflicted PR #662; no code from #662 was deployed for this
+superseded the then-open, conflicted PR #662; no code from #662 was deployed for this
 continuation. The unrelated policy result-delivery worker was active, so no
 control-plane deployment or paid launch was started.
 
@@ -603,3 +603,28 @@ Step 4 is **done**: this scene's completed Gemini removal analysis names
 and retains `teal_backpack` as a collision-required obstacle. Steps 5–14 are
 **unproven**. Captured-room integration and development-fixture execution are
 both **unproven**.
+
+### Live continuation, 2026-09-22 ~20:40 UTC
+
+The controller service still owns this capture's `capture_pipeline` stage.
+Its live main process (PID 69739) was consuming CPU at the last check, the
+stage ledger remained `running` with no `failed_stage`, and only the first of
+two retained SAM 3.1 responses had a parsed-response receipt. The second
+whole-video response is retained and being converted into source-frame mask
+runs. No image-completion receipt exists. Step 5 therefore remains unproven;
+steps 6–14 have not been credited from this CPU activity.
+
+Pipeline PR #2113 merged as `1bb21d0c70ac88f578f9e33894c5af78c6023522`
+after an exact saved-response comparison of the same 462-mask response. It
+provides a faster official parser path, but the current process is on the
+older deployed release `b1aed954b08e5cee8c143640ab6d1b5776b45db1`.
+It was not restarted or deployed over this healthy run. The speed measurement
+is not evidence that the live mask stage completed.
+
+WebApp PR #669 already merged the articulated success/results contract as
+`a7a1093bd06ef35fba5ae329a5e00c58723a7c37`. The live website
+`/version.json` reports descendant commit
+`38de39ab809d4315e6eabe3ea065d76503fa86a8`. The older PR #662 had zero
+remaining file changes after reconciliation and was closed as superseded.
+This proves deployed code availability, not that this scene has policy
+episodes or visible results; step 14 still needs its own readback.
