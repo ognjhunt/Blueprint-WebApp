@@ -284,3 +284,41 @@ the dispatch and place its artifacts in the real tree deliberately.
   3 tracks and was selected against the verified box; the run then bought the
   full-clip SAM call for `drawers`. Decoding those masks is the pure-Python
   per-pixel stage that took 34 minutes for the backpack.
+
+### The proven concept was still the wrong object
+
+`drawers` passed the probe and the clip call was bought. It returned exactly
+three instances across 520 frames, and none of them is the cabinet:
+
+| instance | frame-150 box | height | overlap with the grounded cabinet box |
+| --- | --- | --- | --- |
+| 0 | (0, 1235, 547, 1591) | 356 | 0.42 |
+| 1 | (0, 870, 564, 1109) | 239 | 0.30 |
+| 2 | (0, 1066, 555, 1283) | 217 | 0.27 |
+
+The grounded cabinet box is (0, 844, 604, 1603), height 759. Track selection
+would have taken instance 0 on overlap, cleared the bottom drawer front from the
+plate, and rebuilt an assembly sized like one drawer.
+
+The probe was too weak. A sub-part always overlaps the whole, so overlap alone
+cannot tell a cabinet from its drawer. The probe now also asks how much of the
+grounded box the selected mask spans and refuses a concept that covers less than
+most of it. The two failures are reported to the grounding model differently:
+one found no instance, the other found a part, and only the second is told that
+the task acts on the whole assembly.
+
+Checked against this scene's own retained probe: `drawers` covers 0.421 and is
+refused, so the clip is not bought for it.
+
+**The capture listener was stopped at 06:15 UTC** rather than let that run reach
+paid image completion and Marble generation on the wrong target. Nothing
+downstream had started: no `image_completion`, no `website_reconstruction`, no
+`task_masks.json`. Sunk cost is the one `drawers` clip call, about $0.10. The
+timer goes back on as soon as the fix is deployed.
+
+Pipeline PR #2098 carries the coverage rule, the task-kind argument at two
+dispatch call sites, and two modules brought back inside their source line
+budgets. Three test files were already failing on `origin/main` before any of
+this work (materializer reachability, live-pipeline import isolation, and the
+scene-configuration budget profiles); they are tracked separately and are not
+regressions from this branch.
