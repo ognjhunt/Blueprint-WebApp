@@ -16,14 +16,13 @@ import {
   type PipelinePolicyCanaryPublication,
 } from "../utils/policyCanaryWebappSyncContract";
 import { buildPolicyCanaryTerminalEmail } from "../utils/policyCanaryNotification";
-import { configuredOfferingForTerminalSync, offeringScope, policyRunBelongsToOffering } from "../utils/taskEvaluationPublicationScope";
+import { configuredOfferingForTerminalSync, normalOwnerControlOmissionMatches, offeringScope, policyRunBelongsToOffering } from "../utils/taskEvaluationPublicationScope";
 import {
   encodeTaskEvaluationRunPublication,
   publicationFromResultRecord,
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
 import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
-import { confirmedRigidTaskSuccessContractSchema } from "../utils/rigidTaskSuccessContract";
 import { persistOperatorPolicyCanaryPreproviderBlocked } from "../utils/operatorPolicyCanaryPreproviderBlocked";
 import {
   verifyPolicyCanaryScoreCorrectionIngest,
@@ -220,14 +219,8 @@ async function handlePolicyCanaryPublication(
         if (publication.operator_registration_digest || publication.plan_digest) {
           return { outcome: "owner_team_mismatch" as const, policyRun: null };
         }
-        if (publication.policy_canary_result.control_omission) {
-          const savedTask = confirmedRigidTaskSuccessContractSchema.safeParse(policyRun.task_success_contract);
-          if (!savedTask.success
-            || savedTask.data.criteria.controls?.mode === "required_per_cell"
-            || policyRun.task_success_contract_digest !== savedTask.data.contract_digest
-            || stableJson(savedTask.data) !== stableJson(publication.policy_canary_result.task_success_contract)) {
-            return { outcome: "binding_mismatch" as const, policyRun: null };
-          }
+        if (!normalOwnerControlOmissionMatches(policyRun, publication)) {
+          return { outcome: "binding_mismatch" as const, policyRun: null };
         }
         const offeringSnapshot = await transaction.get(offeringRef);
         if (!offeringSnapshot.exists) return { outcome: "offering_not_found" as const, policyRun: null };

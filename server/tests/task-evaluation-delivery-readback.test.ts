@@ -356,8 +356,10 @@ describe("private unpublished operator result links", () => {
 });
 
 describe("normal owner delivery readback", () => {
-  function normalOwnerRun(teamNamespace = "team-1") {
-    const publication = structuredClone(fixture) as Record<string, any>;
+  function normalOwnerRun(teamNamespace = "team-1", controlsOmitted = false) {
+    const publication = structuredClone(controlsOmitted ? seeded.publication : fixture) as Record<string, any>;
+    delete publication.operator_registration_digest;
+    delete publication.plan_digest;
     publication.policy_canary_result.report.machine_readable_report.digest = artifactDigest;
     publication.result_delivery.delivery_digest = canonicalArtifactDigest(publication.result_delivery, "delivery_digest");
     publication.policy_canary_result.result_delivery_digest = publication.result_delivery.delivery_digest;
@@ -383,6 +385,12 @@ describe("normal owner delivery readback", () => {
     });
     delete seeded.policyRun.operator_registration;
     delete seeded.policyRun.task_success_contract_digest;
+    if (controlsOmitted) {
+      Object.assign(seeded.policyRun, {
+        task_success_contract: publication.policy_canary_result.task_success_contract,
+        task_success_contract_digest: publication.policy_canary_result.task_success_contract.contract_digest,
+      });
+    }
     delete seeded.policyRun.submission_channel;
     return { parent, publication, body: {
       schema_version: "task_evaluation_delivery_readback_request.v2", capture_session_id: publication.capture_session_id,
@@ -410,6 +418,24 @@ describe("normal owner delivery readback", () => {
     expect(download.status).toBe(200);
     expect(Buffer.from(await download.arrayBuffer())).toEqual(payload);
     expect(state.writes).not.toHaveBeenCalled();
+  });
+
+  it("delivers a normal owner's confirmed task when controls were omitted", async () => {
+    const { body } = normalOwnerRun("team-1", true);
+    const response = await readback(body);
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    const download = await fetch(`${url}${value.ephemeral_downloads[0].download_url}`);
+    expect(download.status).toBe(200);
+    expect(Buffer.from(await download.arrayBuffer())).toEqual(payload);
+    expect(state.writes).not.toHaveBeenCalled();
+  });
+
+  it.each(["task_success_contract", "task_success_contract_digest"])("refuses omitted controls without the saved %s", async (field) => {
+    const { body } = normalOwnerRun("team-1", true);
+    delete (seeded.policyRun as Record<string, any>)[field];
+    expect((await readback(body)).status).toBe(409);
+    expect(state.probes).not.toHaveBeenCalled();
   });
 
   it.each(["owner_user_id", "team_namespace", "request_digest", "configuration_digest"])("refuses a mismatched requested %s", async (field) => {
