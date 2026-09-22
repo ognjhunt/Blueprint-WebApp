@@ -84,7 +84,7 @@ describe("app/Runs", () => {
     expect(await screen.findByText("Can the current policy service the cafe task?")).toBeInTheDocument();
     expect(screen.getByText("Is the warehouse task compatible with this robot?")).toBeInTheDocument();
     expect(screen.getByText("job-newer")).toBeInTheDocument();
-    expect(screen.getAllByText("planning").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Planning").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Decision available").length).toBeGreaterThan(0);
 
     const detailLinks = screen.getAllByRole("link", { name: /view run/i });
@@ -101,16 +101,16 @@ describe("app/Runs", () => {
     ).toMatchObject({ Authorization: "Bearer token-1" });
   });
 
-  it("renders an honest empty state with a link to the shared intake when no runs exist", async () => {
+  it("renders an honest empty state that points to real tasks when no runs exist", async () => {
     stubBuyerApi({ runs: [] });
 
     renderWithQueryClient(<Runs />);
 
-    expect(await screen.findByText("No evaluation runs yet")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /request a task evaluation run/i })[0]).toHaveAttribute(
-      "href",
-      "/app/runs/new",
-    );
+    expect(await screen.findByText("No runs yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /find a task/i })).toHaveAttribute("href", "/app/opportunities");
+    // The old button pointed at /app/runs/new, which only redirects away.
+    expect(screen.queryByRole("link", { name: /request a task evaluation run/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /view run/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pipeline-owned|Authorization through aggregation|Stripe webhook/)).not.toBeInTheDocument();
   });
 });

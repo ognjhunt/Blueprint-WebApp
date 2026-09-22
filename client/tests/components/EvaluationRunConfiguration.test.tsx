@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { EvaluationRunConfiguration } from "@/components/blueprint/app/EvaluationRunConfiguration";
@@ -31,35 +31,39 @@ const setup: EvaluationReadySetupView = {
 };
 
 describe("EvaluationRunConfiguration", () => {
-  it("keeps robot, candidates, controls, and cells locked while exposing only depth presets", () => {
+  it("shows the fixed robot and policies and offers only a depth choice", () => {
     render(<EvaluationRunConfiguration setup={setup} submitting={false} onSubmit={vi.fn()} />);
 
-    expect(screen.getByText("Franka + DROID")).toBeInTheDocument();
-    expect(screen.getByText("π0.5 DROID")).toBeInTheDocument();
-    expect(screen.getByText("GR00T N1.7 DROID")).toBeInTheDocument();
-    expect(screen.getByText(/zero-action \+ scripted-positive per cell/i)).toBeInTheDocument();
+    expect(screen.getByText("Franka Panda + Robotiq 2F-85")).toBeInTheDocument();
+    expect(screen.getByText("π0.5 DROID and GR00T N1.7 DROID")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /quick test/i })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: /standard/i })).toBeDisabled();
     expect(screen.getByRole("radio", { name: /deep/i })).toBeDisabled();
-    expect(screen.getByText(/10 cells means 20 learned-policy episodes \+ 20 control episodes = 40 total/i)).toBeInTheDocument();
-    expect(screen.getByText(/outcome-independent compiler/i)).toBeInTheDocument();
+    expect(screen.getByText(/20 policy episodes \+ 20 control\s+episodes = 40 total\./)).toBeInTheDocument();
+
+    // How scenarios are chosen and what the controls do sits in a closed drawer, in plain words.
+    const coverage = screen.getByText("What the scenarios cover", { selector: "summary" }).closest("details")!;
+    expect(coverage.open).toBe(false);
+    expect(within(coverage).getByText("Placement and approach: 2")).toBeInTheDocument();
+    expect(within(coverage).getByText(/fixed rule before anything runs, never from results/)).toBeInTheDocument();
+    expect(within(coverage).getByText(/a robot that does nothing, which must fail/)).toBeInTheDocument();
+    expect(screen.queryByText(/preregistered|nested subset|outcome-independent compiler|Provider execution remains false/i)).not.toBeInTheDocument();
+
     expect(screen.queryByRole("button", { name: /pay|checkout/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/credit card|provider choice/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
   });
 
-  it("reviews the transparent 10-scenario episode count and server estimate before submit", () => {
+  it("shows the server estimate on the same page and starts the chosen depth", () => {
     const onSubmit = vi.fn();
     render(<EvaluationRunConfiguration setup={setup} submitting={false} onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Review run" }));
-    expect(screen.getAllByText("20")).toHaveLength(2);
-    expect(screen.getByText("learned-policy episodes")).toBeInTheDocument();
-    expect(screen.getByText("control episodes")).toBeInTheDocument();
-    expect(screen.getByText("40")).toBeInTheDocument();
-    expect(screen.getByText("total episodes")).toBeInTheDocument();
     expect(screen.getByText("18–25 min")).toBeInTheDocument();
     expect(screen.getByText("$2.00–$4.00")).toBeInTheDocument();
+    expect(screen.getByText(/We'll email n•••@example\.com when the results are ready\./)).toBeInTheDocument();
+    const details = screen.getByText("Setup details", { selector: "summary" }).closest("details")!;
+    expect(within(details).getByText(`sha256:${"b".repeat(64)}`)).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Start evaluation" }));
     expect(onSubmit).toHaveBeenCalledWith({ presetId: "quick_10" });
   });

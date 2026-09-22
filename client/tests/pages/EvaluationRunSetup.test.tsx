@@ -65,9 +65,10 @@ describe("EvaluationRunSetup", () => {
 
   it("submits the locked policy pair and routes the teammate to progress", async () => {
     render(<EvaluationRunSetup />);
-    await screen.findByText("Franka + DROID");
+    await screen.findByText("Franka Panda + Robotiq 2F-85");
+    expect(screen.getByRole("heading", { level: 1, name: "Set up an evaluation" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "← Tasks" })).toHaveAttribute("href", "/app/packs");
 
-    fireEvent.click(screen.getByRole("button", { name: "Review run" }));
     fireEvent.click(screen.getByRole("button", { name: "Start evaluation" }));
 
     await waitFor(() => expect(createEvaluationReadyRun).toHaveBeenCalledTimes(1));

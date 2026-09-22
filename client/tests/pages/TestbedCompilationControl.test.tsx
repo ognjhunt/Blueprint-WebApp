@@ -10,12 +10,15 @@ describe("TestbedCompilationControl", () => {
 
     fireEvent.change(screen.getByLabelText("Robot ID"), { target: { value: "fixture-arm" } });
     fireEvent.change(screen.getByLabelText("Embodiment version"), { target: { value: "1" } });
-    fireEvent.change(screen.getByLabelText("Circular footprint radius (m)"), { target: { value: "0.4" } });
+    fireEvent.change(screen.getByLabelText("Footprint radius (m)"), { target: { value: "0.4" } });
     fireEvent.change(screen.getByLabelText("Primary sensor ID"), { target: { value: "rgb-v1" } });
     fireEvent.change(screen.getByLabelText("Controller ID"), { target: { value: "joint-position-v1" } });
     fireEvent.change(screen.getByLabelText("End effector ID"), { target: { value: "parallel-gripper-v1" } });
     fireEvent.change(screen.getByLabelText("Maximum reach (m)"), { target: { value: "1.0" } });
-    fireEvent.click(screen.getByRole("button", { name: "Compile testbed" }));
+    // Decision limits keep their defaults in a closed drawer.
+    const limits = screen.getByText("Decision limits", { selector: "summary" }).closest("details")!;
+    expect(limits.open).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Build the testbed" }));
 
     expect(onCompile).toHaveBeenCalledTimes(1);
     const command = onCompile.mock.calls[0]?.[0];

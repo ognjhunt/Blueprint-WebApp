@@ -1,6 +1,4 @@
-import { ShieldCheck } from "lucide-react";
-
-import { ProofBoundary, StatusChip } from "@/components/blueprint";
+import { StatusChip } from "@/components/blueprint";
 import {
   externalScopeLabel,
   formatBenchmarkMetric,
@@ -159,59 +157,26 @@ function ExternalComparison({ benchmark }: { benchmark: BenchmarkProjection }) {
 
 export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjection }) {
   return (
-    <section className="flex flex-col gap-4" aria-label="Benchmark report">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">
-            Benchmark-grade evaluation
-          </h2>
-          <p className="runway-num mt-1 text-body-s text-runway-mute">
-            {benchmark.benchmark_id} · {benchmark.benchmark_version}
-          </p>
-        </div>
-        <StatusChip tone={benchmark.status === "complete" ? "proof" : benchmark.status === "blocked" ? "block" : "warn"} square>
-          {benchmark.status}
-        </StatusChip>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="runway-panel p-4">
-          <div className="runway-meta">Fixed rollouts</div>
-          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">
-            {benchmark.rollout_protocol.fixed_rollouts_per_scenario_policy}
-          </div>
-          <div className="text-body-xs text-runway-mute">per policy and scenario</div>
-        </div>
-        <div className="runway-panel p-4">
-          <div className="runway-meta">Hidden test</div>
-          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">
-            {benchmark.split_summary.counts.hidden_test}
-          </div>
-          <div className="text-body-xs text-runway-mute">identifiers redacted</div>
-        </div>
-        <div className="runway-panel p-4">
-          <div className="runway-meta">Uncertainty</div>
-          <div className="runway-num mt-2 text-title-m font-semibold text-runway-text">95% CI</div>
-          <div className="text-body-xs text-runway-mute">10,000 bootstrap replicates</div>
-        </div>
-        <div className="runway-panel p-4">
-          <div className="runway-meta">Benchmark card</div>
-          <code className="runway-num mt-2 block text-body-s font-semibold text-runway-text" title={benchmark.benchmark_card_sha256}>
-            {shortDigest(benchmark.benchmark_card_sha256)}
-          </code>
-          <div className="text-body-xs text-runway-mute">content-addressed</div>
-        </div>
+    <section className="flex flex-col gap-5 text-sm" aria-label="Benchmark report">
+      <div>
+        <h3 className="text-lg">Benchmark-grade evaluation</h3>
+        <p className="mt-1 text-ink-500">
+          {benchmark.benchmark_id} · {benchmark.benchmark_version} · {benchmark.status} ·{" "}
+          {benchmark.rollout_protocol.fixed_rollouts_per_scenario_policy} rollouts per policy and scenario ·{" "}
+          {benchmark.split_summary.counts.hidden_test} hidden test scenarios · 95% intervals from 10,000 bootstrap samples ·
+          card <code title={benchmark.benchmark_card_sha256}>{shortDigest(benchmark.benchmark_card_sha256)}</code>
+        </p>
       </div>
 
       {benchmark.environment_summary ? (
-        <div className="runway-panel p-4">
-          <h3 className="font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Environment binding</h3>
-          <p className="mt-2 text-body-s text-runway-body">
+        <div>
+          <h4 className="font-medium">Environment binding</h4>
+          <p className="mt-1">
             {benchmark.environment_summary.site_id} ·{" "}
             {benchmark.environment_summary.representation_type.replace(/_/g, " ")} ·
             physics authority {benchmark.environment_summary.physics_authority}
           </p>
-          <p className="mt-1 text-body-xs text-runway-mute">
+          <p className="mt-1 text-ink-500">
             {benchmark.environment_summary.same_site_capture
               ? "Bound to the captured target site."
               : "Cross-site environment."}{" "}
@@ -226,34 +191,30 @@ export function BenchmarkReportPanel({ benchmark }: { benchmark: BenchmarkProjec
       <PolicyResults benchmark={benchmark} />
 
       {benchmark.evidence_summary ? (
-        <div className="runway-panel p-4">
-          <h3 className="font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Evidence completeness</h3>
-          <p className="mt-2 text-body-s text-runway-body">
-            {benchmark.evidence_summary.video_count} videos ·{" "}
-            {benchmark.evidence_summary.action_trace_count} action traces ·{" "}
-            {benchmark.evidence_summary.evaluator_output_count} evaluator outputs
-            across {benchmark.evidence_summary.attempt_count} scheduled attempts
-          </p>
-          <p className="mt-1 text-body-xs text-runway-mute">
+        <p>
+          {benchmark.evidence_summary.video_count} videos ·{" "}
+          {benchmark.evidence_summary.action_trace_count} action traces ·{" "}
+          {benchmark.evidence_summary.evaluator_output_count} evaluator outputs
+          across {benchmark.evidence_summary.attempt_count} scheduled attempts.{" "}
+          <span className="text-ink-500">
             {benchmark.evidence_summary.all_attempts_digest_bound
               ? "Every scheduled attempt is digest-bound."
               : "Evidence coverage is incomplete."}
-          </p>
-        </div>
+          </span>
+        </p>
       ) : null}
 
       <div>
-        <h3 className="mb-3 font-display uppercase text-title-s font-semibold tracking-[0.005em] text-runway-text">Seen / unseen generalization</h3>
+        <h4 className="mb-3 font-medium">Seen / unseen generalization</h4>
         <GeneralizationResults benchmark={benchmark} />
       </div>
 
       <ExternalComparison benchmark={benchmark} />
 
-      <ProofBoundary level="info" title="Benchmark proof boundary" icon={ShieldCheck}>
-        Hidden scenario identities remain in the Pipeline. Simulation and cross-site
-        agreement do not prove real-world performance at the target site, and this
-        report cannot upgrade a public claim automatically.
-      </ProofBoundary>
+      <p className="text-ink-500">
+        Hidden scenarios stay private. Simulation and cross-site agreement don't prove real-world
+        performance at the target site.
+      </p>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SitePacks from "@/pages/app/SitePacks";
@@ -12,11 +12,6 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/components/blueprint/app/AppShell", () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
 }));
-
-vi.mock("@/lib/buyerAppData", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/buyerAppData")>();
-  return { ...actual, useBuyerAppEntitlements: () => ({ entitlements: [], isLoading: false, error: null }) };
-});
 
 vi.mock("@/lib/firebaseAuthHeaders", () => ({
   withFirebaseAuthHeaders: vi.fn().mockResolvedValue({ Authorization: "Bearer token" }),
@@ -51,7 +46,7 @@ const offering = (status: "evaluation_ready" | "configured_controls_pending", so
   },
 });
 
-describe("SitePacks configured offering", () => {
+describe("Tasks page (/app/packs)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
@@ -62,22 +57,45 @@ describe("SitePacks configured offering", () => {
     }), { status: 200, headers: { "content-type": "application/json" } }));
   });
 
-  it("keeps qualified evaluation strict while exposing the separate controls-pending canary", async () => {
+  it("is titled Tasks and gives each task one status and one next step", async () => {
     render(<SitePacks />);
 
-    const configureLink = await screen.findByRole("link", { name: /configure evaluation/i });
-    expect(configureLink).toHaveAttribute("href", "/app/packs/scene-839873-launch/evaluate");
-    const canaryLink = screen.getByRole("link", { name: /run policy canary/i });
-    expect(canaryLink).toHaveAttribute("href", "/app/packs/scene-pending-launch/policy-canary");
-    expect(screen.getByText("Controls pending")).toBeInTheDocument();
-    expect(screen.getByText(/Results will be marked unqualified until controls pass/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText(/prepare task evaluation run/i)).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { level: 1, name: "Tasks" })).toBeInTheDocument();
+    const setupLink = await screen.findByRole("link", { name: /set up an evaluation/i });
+    expect(setupLink).toHaveAttribute("href", "/app/packs/scene-839873-launch/evaluate");
+    const policyTestLink = screen.getByRole("link", { name: /run a policy test/i });
+    expect(policyTestLink).toHaveAttribute("href", "/app/packs/scene-pending-launch/policy-canary");
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Scene checks pending")).toBeInTheDocument();
+    expect(screen.getAllByText("Results stay unqualified until the scene's checks pass.")).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 2, name: "Rigid relocation" })).toHaveLength(2);
+
+    // The image caveat is stated once for the page, not repeated on every card.
+    expect(screen.getAllByText(/rendered images of the prepared scene, not photos/)).toHaveLength(1);
+    expect(screen.queryByText(/digest-bound renders|derived appearance evidence|Maintained site-task substrate|compatibility-backed/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /request a task evaluation run/i })).not.toBeInTheDocument();
     expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
+  });
+
+  it("does not offer an evaluation for a task that is still being prepared", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      offerings: [offering("launch_ready" as any, "launch-only")],
+    }), { status: 200 }));
+    render(<SitePacks />);
+    expect(await screen.findByText("Being prepared")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /set up an evaluation|run a policy test|view task/i })).not.toBeInTheDocument();
+  });
+
+  it("shows a plain empty state when the team has no tasks", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [] }), { status: 200 }));
+    render(<SitePacks />);
+    expect(await screen.findByText("No tasks yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See openings" })).toHaveAttribute("href", "/app/opportunities");
   });
 });
 
 
-it("labels the authored-surface development test separately from captured-scene readiness", async () => {
+it("keeps the authored-surface development label on its task", async () => {
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [{
     ...offering("configured_controls_pending", "development-launch"),
     proof_boundary: { test_environment: {
@@ -87,16 +105,17 @@ it("labels the authored-surface development test separately from captured-scene 
   }] }), { status: 200, headers: { "content-type": "application/json" } }));
   render(<SitePacks />);
   expect(await screen.findByText("Development test on an authored surface; captured scene integration pending.")).toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: /configure evaluation/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /set up an evaluation/i })).not.toBeInTheDocument();
 });
 
 
-it("labels the generated object thumbnail without implying reviewed scene appearance", async () => {
+it("sends a generated-object preview to the team task page without implying reviewed appearance", async () => {
   const value = offering("configured_controls_pending", "website-launch");
   value.presentation.appearance_review_status = "prepared_scene_ungraded";
   value.presentation.selected_from_exact_reviewed_frame_count = 0;
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [value] }), { status: 200 }));
   render(<SitePacks />);
-  expect(await screen.findByText("Generated task-object preview; scene appearance ungraded")).toBeInTheDocument();
-  expect(screen.queryByText(/Visual review paused/)).not.toBeInTheDocument();
+  expect(await screen.findByText("Scene appearance not reviewed yet.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /view task · \$25/i })).toHaveAttribute("href", "/app/packs/website-launch/evaluate?select=team");
+  expect(screen.queryByRole("link", { name: /run a policy test/i })).not.toBeInTheDocument();
 });

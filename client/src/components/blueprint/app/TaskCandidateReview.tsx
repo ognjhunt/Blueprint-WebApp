@@ -1,15 +1,11 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Pencil, RotateCcw, XCircle } from "lucide-react";
 
-import { Button, Card, ProofBoundary, StatusChip } from "@/components/blueprint";
+import { Field, Tag } from "@/components/workspace/WorkspaceUI";
 import type {
   CaptureTaskReview,
   TaskCandidate,
   TaskDecisionCommandRequest,
 } from "@/lib/captureUploads";
-
-const fieldClass = "runway-input mt-1.5";
-const labelClass = "text-body-s font-semibold text-runway-text";
 
 function displayRows(rows: Array<Record<string, unknown>>) {
   return rows.map((row) => String(row.description || row.label || row.object_id || row.region_id || ""))
@@ -20,15 +16,24 @@ function EvidenceList({ title, rows }: { title: string; rows: Array<Record<strin
   const items = displayRows(rows);
   return (
     <div>
-      <h3 className="runway-meta font-semibold">{title}</h3>
+      <h3 className="text-sm font-medium">{title}</h3>
       {items.length ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-body-s text-runway-body">
+        <ul className="mt-1 list-disc pl-5 text-sm">
           {items.map((item) => <li key={item}>{item}</li>)}
         </ul>
-      ) : <p className="mt-2 text-body-s text-runway-faint">None reported.</p>}
+      ) : <p className="mt-1 text-sm text-ink-500">None reported.</p>}
     </div>
   );
 }
+
+const operatorLabels: Record<string, string> = { "<=": "≤", ">=": "≥", "==": "=" };
+
+const actionLabels: Record<string, string> = {
+  approve: "approve",
+  edit_and_approve: "edit and approve",
+  reject: "reject",
+  request_more_capture: "ask for more capture",
+};
 
 function CandidateActionPanel({
   candidate,
@@ -67,32 +72,33 @@ function CandidateActionPanel({
 
   const actionDisabled = submitting || !rationale.trim();
   return (
-    <div className="mt-5 border-t border-line-soft pt-5">
-      <label>
-        <span className={labelClass}>Decision rationale</span>
-        <textarea
-          className={fieldClass}
-          rows={2}
-          value={rationale}
-          onChange={(event) => setRationale(event.target.value)}
-          placeholder="Why this task is correct, incorrect, or needs more capture"
-        />
-      </label>
+    <div className="mt-6">
+      <div className="ws-fields">
+        <Field label="Why" wide>
+          <textarea
+            rows={2}
+            value={rationale}
+            onChange={(event) => setRationale(event.target.value)}
+            placeholder="Why this task is correct, incorrect, or needs more capture"
+          />
+        </Field>
+      </div>
 
       {editing ? (
-        <div className="mt-4 grid gap-3 border border-runway-line bg-runway-black p-4 md:grid-cols-2">
-          <label className="md:col-span-2"><span className={labelClass}>Exact task</span><textarea className={fieldClass} rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
-          <label><span className={labelClass}>Task family</span><input className={fieldClass} value={taskFamily} onChange={(event) => setTaskFamily(event.target.value)} /></label>
-          <label><span className={labelClass}>Metric</span><input className={fieldClass} value={metric} onChange={(event) => setMetric(event.target.value)} /></label>
-          <label><span className={labelClass}>Operator</span><input className={fieldClass} value={operator} onChange={(event) => setOperator(event.target.value)} /></label>
-          <label><span className={labelClass}>Threshold</span><input className={fieldClass} value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
-          <label><span className={labelClass}>Units</span><input className={fieldClass} value={units} onChange={(event) => setUnits(event.target.value)} /></label>
-          <label className="md:col-span-2"><span className={labelClass}>Reset instructions</span><textarea className={fieldClass} rows={2} value={reset} onChange={(event) => setReset(event.target.value)} /></label>
-          <div className="flex flex-wrap gap-2 md:col-span-2">
-            <Button
+        <>
+          <div className="ws-fields mt-6">
+            <Field label="Exact task" wide><textarea rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
+            <Field label="Task family"><input value={taskFamily} onChange={(event) => setTaskFamily(event.target.value)} /></Field>
+            <Field label="Metric"><input value={metric} onChange={(event) => setMetric(event.target.value)} /></Field>
+            <Field label="Operator"><input value={operator} onChange={(event) => setOperator(event.target.value)} /></Field>
+            <Field label="Threshold"><input value={threshold} onChange={(event) => setThreshold(event.target.value)} /></Field>
+            <Field label="Units"><input value={units} onChange={(event) => setUnits(event.target.value)} /></Field>
+            <Field label="Reset instructions" wide><textarea rows={2} value={reset} onChange={(event) => setReset(event.target.value)} /></Field>
+          </div>
+          <div className="ws-form-actions">
+            <button
               type="button"
-              variant="action"
-              size="sm"
+              className="ws-primary"
               disabled={actionDisabled || !description.trim() || !taskFamily.trim() || !metric.trim() || !operator.trim() || !threshold.trim() || !units.trim() || !reset.trim()}
               onClick={() => command("edit_and_approve", {
                 description: description.trim(),
@@ -108,22 +114,23 @@ function CandidateActionPanel({
                 target_regions: candidate.target_regions,
                 required_robot_capabilities: candidate.required_robot_capabilities,
               })}
-            >Submit edited task</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancel edit</Button>
+            >Approve edited task</button>
+            <button type="button" className="ws-link" onClick={() => setEditing(false)}>Cancel</button>
           </div>
-        </div>
+        </>
       ) : (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" variant="action" size="sm" iconLeft={<CheckCircle2 />} disabled={actionDisabled} onClick={() => command("approve")}>Approve candidate</Button>
-          <Button type="button" variant="secondary" size="sm" iconLeft={<Pencil />} disabled={submitting} onClick={() => setEditing(true)}>Edit exact task</Button>
-          <Button type="button" variant="secondary" size="sm" iconLeft={<XCircle />} disabled={actionDisabled} onClick={() => command("reject")}>Reject</Button>
-          <Button type="button" variant="secondary" size="sm" iconLeft={<RotateCcw />} disabled={actionDisabled} onClick={() => command("request_more_capture")}>Request more capture</Button>
+        <div className="ws-form-actions">
+          <button type="button" className="ws-primary" disabled={actionDisabled} onClick={() => command("approve")}>Approve this task</button>
+          <button type="button" className="ws-secondary" disabled={submitting} onClick={() => setEditing(true)}>Edit the task</button>
+          <button type="button" className="ws-link" disabled={actionDisabled} onClick={() => command("reject")}>Reject</button>
+          <button type="button" className="ws-link" disabled={actionDisabled} onClick={() => command("request_more_capture")}>Ask for more capture</button>
         </div>
       )}
     </div>
   );
 }
 
+/** Proposed tasks with one decision each; what the capture showed stays one click away. */
 export function TaskCandidateReview({
   review,
   submitting,
@@ -135,82 +142,66 @@ export function TaskCandidateReview({
 }) {
   const discovery = review.discovery;
   if (!discovery) return null;
-  const pending = review.status === "decision_pending_pipeline_validation";
-  const approved = review.status === "task_approved";
-  const rejected = review.status === "task_rejected";
-  const recaptureRequested = review.status === "recapture_requested";
   const actionsAvailable = review.status === "task_approval_required";
+  const latest = review.latest_decision_command;
+  const statusLine = review.status === "decision_pending_pipeline_validation" && latest
+    ? `Your decision (${actionLabels[latest.action] || latest.action.replace(/_/g, " ")}) is recorded and being checked. Nothing has started from it yet.`
+    : review.status === "task_approved" && latest
+      ? "Task approved. Next, build its testbed."
+      : review.status === "task_rejected"
+        ? "You rejected this task, so it won't be evaluated."
+        : review.status === "recapture_requested"
+          ? "You asked for more capture. The proposal stays unapproved."
+          : null;
   return (
-    <section className="flex flex-col gap-5" aria-labelledby="task-candidate-heading">
-      <div>
-        <StatusChip tone="warn" square>Customer intent required</StatusChip>
-        <h2 id="task-candidate-heading" className="mt-3 font-display uppercase text-title-l font-semibold tracking-[0.005em] text-runway-text">Review proposed tasks</h2>
-        <p className="mt-2 max-w-3xl text-body-s text-runway-mute">These are Pipeline-authored hypotheses grounded in the capture. Approving one records your intent; it does not prove the task succeeds.</p>
+    <section aria-labelledby="task-candidate-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="task-candidate-heading">Proposed tasks</h2>
+        {actionsAvailable ? <Tag>Needs your review</Tag> : null}
       </div>
+      <p className="mt-2 text-ink-600">
+        Blueprint found these tasks in your capture. Approving one records what you want tested; it doesn't show the
+        task will succeed.
+      </p>
+      {statusLine ? <p className="ws-alert mt-4" role="status">{statusLine}</p> : null}
 
-      <ProofBoundary level="info" title="Approval command boundary" icon={AlertTriangle}>
-        WebApp records your exact command and digest binding. Pipeline must still validate it and compile an approved task before any Decision/Evidence Request exists.
-      </ProofBoundary>
+      {discovery.task_candidates.map((candidate) => {
+        const condition = candidate.proposed_measurable_success_condition;
+        return (
+          <article key={candidate.task_candidate_id} className="mt-8 border-t border-line pt-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h3 className="text-lg">{candidate.description}</h3>
+              <Tag>{Math.round(candidate.confidence * 100)}% confidence</Tag>
+            </div>
+            <dl className="ws-facts">
+              <div><dt>Success means</dt><dd>{condition.metric.replace(/_/g, " ")} {operatorLabels[condition.operator] || condition.operator} {String(condition.threshold)} {condition.units}</dd></div>
+              <div><dt>Objects</dt><dd>{displayRows(candidate.observed_objects).join(", ") || "None listed"}</dd></div>
+              <div><dt>Where</dt><dd>{displayRows(candidate.target_regions).join(", ") || "None listed"}</dd></div>
+              <div><dt>Reset between tries</dt><dd>{candidate.required_site_reset}</dd></div>
+              <div><dt>Estimated cost to evaluate</dt><dd>${candidate.estimated_evaluation_cost_usd.toFixed(2)}</dd></div>
+            </dl>
+            {candidate.missing_evidence.length ? <p className="mt-3 text-sm">Still missing: {candidate.missing_evidence.join(" ")}</p> : null}
+            <details className="mt-4">
+              <summary>More about this task</summary>
+              <p className="text-sm">Task family: {candidate.likely_task_family}</p>
+              {candidate.prohibited_claims.length ? <p className="mt-1 text-sm">Can't be used to claim: {candidate.prohibited_claims.map((claim) => claim.replace(/_/g, " ")).join(", ")}</p> : null}
+              <p className="mt-1 break-all text-xs text-ink-500">{candidate.task_candidate_id}</p>
+            </details>
+            {actionsAvailable ? <CandidateActionPanel candidate={candidate} submitting={submitting} onSubmit={onSubmit} /> : null}
+          </article>
+        );
+      })}
 
-      {pending && review.latest_decision_command ? (
-        <ProofBoundary level="proof" title="Decision command recorded" icon={CheckCircle2}>
-          Your “{review.latest_decision_command.action.replace(/_/g, " ")}” command is pending Pipeline validation. No evaluation has started from this command yet.
-        </ProofBoundary>
-      ) : null}
-
-      {approved && review.latest_decision_command ? (
-        <ProofBoundary level="proof" title="Task intent approved by Pipeline" icon={CheckCircle2}>
-          Pipeline validated the exact customer command and emitted an approved task definition. No Decision/Evidence Request or task-success result exists until the immutable testbed is compiled.
-        </ProofBoundary>
-      ) : null}
-
-      {rejected ? (
-        <ProofBoundary level="info" title="Candidate rejected" icon={XCircle}>
-          Pipeline recorded the rejection. This candidate will not become a customer decision request.
-        </ProofBoundary>
-      ) : null}
-
-      {recaptureRequested ? (
-        <ProofBoundary level="info" title="More capture requested" icon={RotateCcw}>
-          Pipeline recorded the request for supplemental capture. The current proposal remains unapproved.
-        </ProofBoundary>
-      ) : null}
-
-      <Card pad="lg" className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        <EvidenceList title="Direct observations" rows={discovery.scene_analysis.observed_site_facts} />
-        <EvidenceList title="Inferred objects and affordances" rows={discovery.scene_analysis.inferred_objects_and_affordances} />
-        <EvidenceList title="Unsupported or occluded" rows={discovery.scene_analysis.unsupported_or_occluded_regions} />
-        <EvidenceList title="Hazards" rows={discovery.scene_analysis.hazards} />
-        <EvidenceList title="Privacy-sensitive areas" rows={discovery.scene_analysis.privacy_sensitive_areas} />
-      </Card>
-
-      <div className="grid gap-4">
-        {discovery.task_candidates.map((candidate) => {
-          const condition = candidate.proposed_measurable_success_condition;
-          return (
-            <Card key={candidate.task_candidate_id} pad="lg">
-              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                <div>
-                  <h3 className="font-display uppercase text-title-m font-semibold tracking-[0.005em] text-runway-text">{candidate.description}</h3>
-                  <p className="runway-num mt-1 text-[0.68rem] text-runway-faint">{candidate.task_candidate_id}</p>
-                </div>
-                <StatusChip tone="neutral" square>{Math.round(candidate.confidence * 100)}% proposal confidence</StatusChip>
-              </div>
-              <dl className="mt-5 grid gap-4 text-body-s md:grid-cols-2 lg:grid-cols-3">
-                <div><dt className="runway-meta font-semibold">Task family</dt><dd className="mt-1 text-runway-body">{candidate.likely_task_family}</dd></div>
-                <div><dt className="runway-meta font-semibold">Proposed success condition</dt><dd className="runway-num mt-1 text-runway-text">{condition.metric} {condition.operator} {String(condition.threshold)} {condition.units}</dd></div>
-                <div><dt className="runway-meta font-semibold">Estimated evaluation cost</dt><dd className="runway-num mt-1 text-runway-text">${candidate.estimated_evaluation_cost_usd.toFixed(2)}</dd></div>
-                <div><dt className="runway-meta font-semibold">Observed objects</dt><dd className="mt-1 text-runway-body">{displayRows(candidate.observed_objects).join(", ")}</dd></div>
-                <div><dt className="runway-meta font-semibold">Target regions</dt><dd className="mt-1 text-runway-body">{displayRows(candidate.target_regions).join(", ")}</dd></div>
-                <div><dt className="runway-meta font-semibold">Required reset</dt><dd className="mt-1 text-runway-body">{candidate.required_site_reset}</dd></div>
-              </dl>
-              {candidate.missing_evidence.length ? <p className="mt-4 text-body-s text-runway-signal"><strong>Missing evidence:</strong> {candidate.missing_evidence.join(" ")}</p> : null}
-              {candidate.prohibited_claims.length ? <p className="mt-2 text-body-s text-runway-mute"><strong>Prohibited claims:</strong> {candidate.prohibited_claims.join(", ")}</p> : null}
-              {actionsAvailable ? <CandidateActionPanel candidate={candidate} submitting={submitting} onSubmit={onSubmit} /> : null}
-            </Card>
-          );
-        })}
-      </div>
+      <details className="mt-8">
+        <summary>What Blueprint saw in the capture</summary>
+        <div className="grid gap-5 md:grid-cols-2">
+          <EvidenceList title="Direct observations" rows={discovery.scene_analysis.observed_site_facts} />
+          <EvidenceList title="Inferred objects and affordances" rows={discovery.scene_analysis.inferred_objects_and_affordances} />
+          <EvidenceList title="Hidden or not covered" rows={discovery.scene_analysis.unsupported_or_occluded_regions} />
+          <EvidenceList title="Hazards" rows={discovery.scene_analysis.hazards} />
+          <EvidenceList title="Privacy-sensitive areas" rows={discovery.scene_analysis.privacy_sensitive_areas} />
+        </div>
+      </details>
     </section>
   );
 }

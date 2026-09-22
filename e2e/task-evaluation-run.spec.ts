@@ -115,22 +115,18 @@ test("authenticated intake progresses from planning to a partial decision", asyn
 
   await fillIntake(page, "Should candidate A receive field time?");
   await expect(page).toHaveURL(/\/app\/runs\/request-/);
-  await expect(page.getByText("Decision not available yet")).toBeVisible();
-  await page.getByText("Decision not available yet", { exact: true }).click();
-  await expect(page.getByText(/current state is planning/i)).toBeVisible();
+  await expect(page.getByText("No decision yet. Current status: planning.", { exact: true })).toBeVisible();
   expect(JSON.stringify(api.submitted())).not.toMatch(/mujoco|isaac|cosmos|oscar/i);
 
   api.makeDecisionAvailable();
   await page.reload();
-  await expect(page.getByText("Partial decision")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Partly answered" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Next step" })).toBeVisible();
 
-  // The decision envelope is split across Decision / Evidence / Limits tabs,
-  // with Decision first so the outcome leads. Everything asserted below is the
-  // envelope's bounding: what the result does not cover and what would settle
-  // it. That lives under Limits, so open it before asserting on it.
-  await page.getByRole("tab", { name: "Limits" }).click();
-  await expect(page.getByRole("heading", { name: "Validation envelope and unsupported conditions" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Next cheapest experiment" })).toBeVisible();
+  // What the result does not cover sits in a closed drawer under the decision.
+  await expect(page.getByText(/safe for autonomous production deployment/i)).toBeHidden();
+  await page.getByText("Limits of this result", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Not covered" })).toBeVisible();
   await expect(page.getByText(/safe for autonomous production deployment/i)).toBeVisible();
 });
 
@@ -145,7 +141,7 @@ test("authenticated intake can end in explicit abstention without a winner", asy
   // instead of the result. Anchor on the URL, then match the outcome label
   // exactly so only the envelope's own title can satisfy it.
   await expect(page).toHaveURL(/\/app\/runs\/request-/);
-  await expect(page.getByText("Explicit abstention", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No decision: the evidence couldn't decide" })).toBeVisible();
   await expect(page.getByText(/No candidate or winner is inferred/i)).toBeVisible();
   await expect(page.getByText(/Selected winner/i)).toHaveCount(0);
 });

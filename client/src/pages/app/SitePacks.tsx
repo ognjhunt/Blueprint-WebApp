@@ -1,241 +1,117 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "@/lib/helmet";
 import { Link } from "wouter";
-import { ArrowRight, Plus, ShieldCheck } from "lucide-react";
 
-import { Button, Eyebrow, ProofBoundary, StatusChip } from "@/components/blueprint";
 import { AppShell } from "@/components/blueprint/app/AppShell";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  BuyerAppEmptyState,
-  BuyerAppErrorState,
-  BuyerAppLoadingState,
-} from "@/components/blueprint/app/BuyerAppStates";
-import {
-  entitlementDisplayName,
-  entitlementScope,
-  entitlementStateLabel,
-  entitlementStateTone,
-  formatEntitlementDate,
-  useBuyerAppEntitlements,
-} from "@/lib/buyerAppData";
-import {
-  type ConfiguredSceneOfferingCard,
-} from "@/lib/configuredSceneOffering";
+import { BuyerAppEmptyState, BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
+import { ActionLink, Tag } from "@/components/workspace/WorkspaceUI";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ConfiguredSceneOfferingCard } from "@/lib/configuredSceneOffering";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
+function humanize(value: string) {
+  return value.replace(/[-_]+/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+/** One status and one next step per task; the offering's own state decides both. */
+function taskState(offering: ConfiguredSceneOfferingCard) {
+  const base = `/app/packs/${encodeURIComponent(offering.source_launch_id)}`;
+  if (offering.presentation.appearance_review_status === "prepared_scene_ungraded") {
+    return { action: { label: "View task · $25", href: `${base}/evaluate?select=team` } };
+  }
+  if (offering.status === "configured_controls_pending") {
+    return {
+      tag: "Scene checks pending",
+      note: "Results stay unqualified until the scene's checks pass.",
+      action: { label: "Run a policy test", href: `${base}/policy-canary` },
+    };
+  }
+  if (offering.status === "evaluation_ready") {
+    return { tag: "Ready", tone: "green" as const, action: { label: "Set up an evaluation", href: `${base}/evaluate` } };
+  }
+  return { tag: "Being prepared" };
+}
+
+function appearanceNote(offering: ConfiguredSceneOfferingCard) {
+  switch (offering.presentation.appearance_review_status) {
+    case "prepared_scene_ungraded":
+    case "paused_ungraded":
+      return "Scene appearance not reviewed yet.";
+    case "human_accepted_with_known_artifacts":
+      return "Owner accepted known visual flaws.";
+    default:
+      return null;
+  }
+}
 
 export default function SitePacks() {
-  const { entitlements, isLoading, error } = useBuyerAppEntitlements();
-  const { currentUser } = useAuth();
-  const [offerings, setOfferings] = useState<ConfiguredSceneOfferingCard[]>([]);
-  const [offeringError, setOfferingError] = useState<string | null>(null);
+  const { currentUser, userData } = useAuth();
+  const siteOperator = userData?.buyerType === "site_operator";
+  const [offerings, setOfferings] = useState<ConfiguredSceneOfferingCard[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
     void withFirebaseAuthHeaders(currentUser)
-      .then((headers) => fetch("/api/configured-scene-offerings", {
-        headers,
-        credentials: "include",
-      }))
+      .then((headers) => fetch("/api/configured-scene-offerings", { headers, credentials: "include" }))
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || "Configured scene offerings are unavailable");
+        if (!response.ok) throw new Error(payload.error || "Tasks couldn't be loaded.");
         setOfferings(payload.offerings || []);
       })
-      .catch((reason) => setOfferingError(reason instanceof Error ? reason.message : String(reason)));
+      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
   }, [currentUser]);
 
   return (
-    <AppShell active="packs" breadcrumb="packs">
+    <AppShell active="packs" breadcrumb="tasks">
       <Helmet>
-        <title>Testbeds · Blueprint</title>
-        <meta
-          name="description"
-          content="Protected buyer access to Blueprint site, task, scene, and dataset entitlements."
-        />
+        <title>Tasks · Blueprint</title>
+        <meta name="description" content="Tasks your team can test a robot on." />
       </Helmet>
-
-      <div className="mx-auto flex max-w-[80rem] flex-col gap-8 px-4 py-8 lg:px-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-1.5">
-            <Eyebrow tone="brass" rule>
-              Maintained site-task substrate
-            </Eyebrow>
-            <h1 className="font-display text-[1.65rem] font-semibold uppercase leading-tight tracking-[0.005em] text-ink-900">
-              Testbeds
-            </h1>
-            <p className="max-w-[44rem] text-body-s text-ink-500">
-              Existing site, task, scene, and access records remain readable here
-              as compatibility-backed testbed references.
-            </p>
-          </div>
-          <Button asChild variant="action" iconLeft={<Plus />}>
-            <Link href="/app/runs/new">Request a Task Evaluation Run</Link>
-          </Button>
-        </header>
-
-        {offerings.length ? (
-          <section aria-label="Configured site-task testbeds" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <header className="ws-heading"><div><h1>Tasks</h1></div></header>
+      {error ? <BuyerAppErrorState message={error} /> : null}
+      {!error && !offerings ? <BuyerAppLoadingState /> : null}
+      {offerings && !offerings.length ? (
+        <BuyerAppEmptyState
+          title="No tasks yet"
+          body="Tasks prepared for your team show up here."
+          action={siteOperator
+            ? <Link className="ws-link" href="/app/tasks">Your tasks</Link>
+            : <Link className="ws-link" href="/app/opportunities">See openings</Link>}
+        />
+      ) : null}
+      {offerings?.length ? (
+        <>
+          <div className="ws-openings" role="list" aria-label="Tasks">
             {offerings.map((offering) => {
-              const controlsPending = offering.status === "configured_controls_pending";
-              const appearanceUngraded = offering.presentation.appearance_review_status
-                === "paused_ungraded";
-              const objectPreview = offering.presentation.appearance_review_status
-                === "prepared_scene_ungraded";
-              const ownerAccepted = offering.presentation.appearance_review_status
-                === "human_accepted_with_known_artifacts";
-              return <article key={offering.offering_digest} className="runway-panel overflow-hidden">
-                <OfferingThumbnail thumbnailUrl={offering.presentation.thumbnail_url} label={`Selected configured-scene view for ${offering.scene_identity.id}`} currentUser={currentUser} />
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="runway-num font-semibold text-ink-900">{offering.scene_identity.id}</h2>
-                      {offering.proof_boundary?.test_environment && (
-                        <p className="mt-2 text-sm text-ink-700">{offering.proof_boundary.test_environment.label}</p>
-                      )}
-                      <p className="runway-num mt-1 text-caption text-ink-500">
-                        {offering.task.identity.id} · {offering.task.strategy.replaceAll("_", " ")}
-                      </p>
-                    </div>
-                    <StatusChip tone={controlsPending ? "warn" : "proof"} square>
-                      {objectPreview ? "Choose your robot" : controlsPending ? "Controls pending" : "Evaluation ready"}
-                    </StatusChip>
-                  </div>
-                  <p className="mt-3 text-caption leading-5 text-ink-500">
-                    Exact configured revision and bundle. The thumbnail is one unchanged frame selected from
-                    digest-bound renders; it is derived appearance evidence, not physical proof.
+              const state = taskState(offering);
+              const appearance = appearanceNote(offering);
+              return (
+                <article className="ws-opening" role="listitem" key={offering.offering_digest}>
+                  <OfferingThumbnail
+                    thumbnailUrl={offering.presentation.thumbnail_url}
+                    label={`Preview of ${offering.scene_identity.id}`}
+                    currentUser={currentUser}
+                  />
+                  <h2>{humanize(offering.task.identity.id)}</h2>
+                  <p>
+                    {offering.scene_identity.id}
+                    {state.tag ? <> · <Tag tone={state.tone}>{state.tag}</Tag></> : null}
                   </p>
-                  {ownerAccepted ? (
-                    <p className="mt-3 text-caption text-ink-700" title={`Owner-acknowledged artifacts: ${offering.presentation.known_artifacts?.join("; ") ?? ""}`}>
-                      Owner accepted; AI review rejected
-                    </p>
+                  {offering.proof_boundary?.test_environment ? <p>{offering.proof_boundary.test_environment.label}</p> : null}
+                  {state.note ? <p>{state.note}</p> : null}
+                  {appearance ? (
+                    <p title={offering.presentation.known_artifacts?.join("; ") || undefined}>{appearance}</p>
                   ) : null}
-                  {objectPreview ? (
-                    <p className="mt-3 text-caption text-ink-700">
-                      Generated task-object preview; scene appearance ungraded
-                    </p>
-                  ) : null}
-                  {appearanceUngraded ? (
-                    <p className="mt-3 border border-runway-signal/40 bg-runway-signal/[0.08] px-3 py-2 text-caption font-semibold text-runway-signal">
-                      Visual review paused — appearance ungraded
-                    </p>
-                  ) : null}
-                  {objectPreview ? (
-                    <Button asChild variant="action" className="mt-4 w-full">
-                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate?select=team`}>
-                        View task · $25 <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </Button>
-                  ) : controlsPending ? (
-                    <Button asChild variant="action" className="mt-4 w-full">
-                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/policy-canary`}>
-                        Run policy canary <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button asChild variant="action" className="mt-4 w-full">
-                      <Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate`}>
-                        Configure evaluation <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </Button>
-                  )}
-                  <p className="mt-2 text-[0.7rem] leading-4 text-ink-400">
-                    {objectPreview ? "Choose a saved robot and policy to start a development evaluation." : controlsPending
-                      ? "Run real learned policies now. Results will be marked unqualified until controls pass."
-                      : "Choose episode depth, review the exact two-policy matrix, and start. No JSON upload, provider choice, payment, or team field is required."}
-                  </p>
-                </div>
-              </article>;
-            })}
-          </section>
-        ) : null}
-        {offeringError ? <BuyerAppErrorState message={offeringError} /> : null}
-
-        {isLoading ? <BuyerAppLoadingState /> : null}
-        {error ? <BuyerAppErrorState message={error.message} /> : null}
-        {!isLoading && !error ? (
-          entitlements.length ? (
-            <section
-              aria-label="Available testbed records"
-              className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {entitlements.map((entitlement) => (
-                <article
-                  key={entitlement.id}
-                  className="runway-panel flex flex-col p-5 transition-colors hover:border-runway-line-strong"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="text-body font-semibold leading-snug text-ink-900">
-                        {entitlementDisplayName(entitlement)}
-                      </h2>
-                      <StatusChip tone={entitlementStateTone(entitlement.access_state)} square>
-                        {entitlementStateLabel(entitlement.access_state)}
-                      </StatusChip>
-                    </div>
-                    <div className="runway-num flex flex-col gap-1 text-[0.72rem] text-ink-500">
-                      <span>{entitlement.id}</span>
-                      <span>{entitlement.sku || "sku pending"}</span>
-                    </div>
-                  </div>
-
-                  <dl className="my-4 flex flex-col gap-2 border-y border-line-soft py-3 text-caption">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="runway-meta">Delivery</dt>
-                      <dd className="runway-num text-ink-700">
-                        {entitlement.delivery_mode || "manual review"}
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="runway-meta">Granted</dt>
-                      <dd className="runway-num text-ink-700">
-                        {formatEntitlementDate(entitlement.granted_at)}
-                      </dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-3">
-                      <dt className="runway-meta">Scope</dt>
-                      <dd className="max-w-[12rem] text-right text-ink-700">
-                        {entitlementScope(entitlement)}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <div className="mt-auto flex items-center gap-2 pt-1">
-                    <Button
-                      asChild
-                      variant="secondary"
-                      size="sm"
-                      className="flex-1"
-                      iconRight={<ArrowRight />}
-                    >
-                      <Link href={`/app/packs/${encodeURIComponent(entitlement.id)}`}>
-                        View testbed record
-                      </Link>
-                    </Button>
-                  </div>
+                  {state.action ? <ActionLink href={state.action.href}>{state.action.label}</ActionLink> : null}
                 </article>
-              ))}
-            </section>
-          ) : (
-            <BuyerAppEmptyState
-              title="No testbed records yet"
-              body="A maintained site-task testbed record appears here after its capture and access records are linked to this account."
-            />
-          )
-        ) : null}
-
-        <ProofBoundary
-          level="info"
-          title="Compatibility and access source"
-          icon={ShieldCheck}
-        >
-          Legacy entitlement and pack records are retained without turning them
-          into separate products. Task Evaluation Runs reference exact testbed
-          versions and digests.
-        </ProofBoundary>
-      </div>
+              );
+            })}
+          </div>
+          <p className="ws-note">Previews are rendered images of the prepared scene, not photos of the site.</p>
+        </>
+      ) : null}
     </AppShell>
   );
 }
