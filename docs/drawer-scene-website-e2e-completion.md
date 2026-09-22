@@ -101,7 +101,7 @@ centred on the middle drawer front.
 | 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
 | 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **blocked, fix built** — the backpack tracked over 228 frames on the first call; the cabinet resolved to nothing for `cabinet`, `file cabinet` and `filing cabinet`, and to the three drawer fronts for `drawers`. Pipeline PR #2098 makes a concept prove it covers the target before a clip is bought; waiting on deploy |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **blocked on the owner** — the backpack tracked over 228 frames on the first call. The cabinet resolved to nothing for `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal`, and to the three drawer fronts for `drawers` and `drawer unit`. `under-desk cabinet` resolves it whole at 0.983 coverage, so the lane can finish. The deployed coverage rule accepts that and refuses the part matches. The scene has no preparation attempts left and needs the one-shot amendment below; roughly 76% of its dollar cap is unused |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
@@ -436,3 +436,23 @@ host. No capture artifact was touched and no scene budget was charged.
 What it does not tell us is whether the grounding model will propose that noun.
 It has been told to name the whole object rather than the part that moves, which
 points the right way, but the proposal is still the model's.
+
+## Where this stands
+
+Steps 1 to 4 are done on real evidence. Step 5 is one owner command away from
+resuming, and the two defects it exposed are fixed and deployed:
+
+- Pipeline #2094 added the concept probe, so a noun is proved on one frame
+  before a whole clip is bought for it.
+- Pipeline #2098 made the probe require the concept to *cover* the target
+  rather than overlap part of it, told the grounding model which of the two
+  failures happened, spent the budget on probes rather than turns, and brought
+  two modules back inside their source line budgets.
+- Pipeline #2103 (open) carries the measured naming hint and a parallel mask
+  decode.
+- WebApp #662 (open) carries the articulated success contract end to end, so a
+  drawer run has something to submit and something to show.
+
+The capture listener is running and will keep refusing cheaply on the spend
+guard, which means the scene resumes by itself within minutes of the amendment
+landing. Nothing is waiting on a person except that one command.
