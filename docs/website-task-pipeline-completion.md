@@ -25,9 +25,9 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 | 9 | One owner submits prepared views to the admitted reconstruction provider and collects completion | Actual Marble request, operation receipt, terminal assets; capability/readiness errors visible; Atlas remains capability-gated | Live website-origin verified: eight-view Marble operation completed; collider and full-resolution splat downloaded with digests |
 | 10 | Reuse CAD, then parameterized geometry, then bounded agent authoring | Real exports with source, dimensions, kernel/tool version and deterministic validators | Live website-origin controller authoring verified on `3141d2f3`: CPU stages 1–4 completed before GPU rental; exported replacement USDZ and static qualification published. Dimensions remain estimates. |
 | 11 | Register base to original references and compose independent assets | Multi-view pose checks, contacts, no duplicate baked objects | Pending by explicit owner decision: Marble collider lacks support beneath the registered object. No contact tolerance was relaxed or support fabricated. Development-surface assembly is separate evidence. |
-| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Partially verified: Isaac 6.0.1 imported the authored asset and passed three 180-step contact/settle/reset repeats on the development surface. Full grasp/physics sensitivity and captured-room integration remain open. |
-| 13 | Real simulator loads, steps, controls, observes, resets and scores | Native preflight and positive/negative controls, media and receipts | Unproven for robot episodes: native asset import is verified, but the selected Franka/two-policy evaluation has not produced episode/scoring receipts yet. |
-| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | Partially verified: signed task/thumbnail offering and one-page $25/no-charge development UI are live; a real browser-origin selected evaluation is admitted. Actual robot result delivery remains open. |
+| 12 | Task-relevant physics with uncertainty and measurement escalation | Sensitivity checks and measured/estimated provenance | Partially verified: Isaac 6.0.1 imported the authored asset and passed three 180-step contact/settle/reset repeats on the development surface. The full policy matrix also executed a bounded-physics scenario (GR00T completed; π0.5 rejected an invalid action). This does not establish grasp robustness across all estimated mass/friction bounds; captured-room integration remains open. |
+| 13 | Real simulator loads, steps, observes, resets and scores; controls omitted by owner instruction | Native preflight, actual policy actions, media and scoring receipts; diagnostic claim ceiling retained | All ten scenarios executed on `bad838ad8bb2`: 20 retained episode outcomes, including ten completed GR00T episodes, one completed π0.5 episode and nine rejected π0.5 episodes. Diagnostic continuation passed with unchanged action admission. Final publication/readback is in progress. Controls qualification and task success are not implied. |
+| 14 | Signed publication of task, thumbnail and supported robot evaluations | Website browser readback plus actual compatible robot-team run and result | First scenario delivery verified: 194 artifacts read back; actual website video playback and deterministic score rendering passed. Full matrix delivery and the original task's automatic terminal-result join remain open. |
 
 ## Execution constraints
 
@@ -930,3 +930,60 @@ The original browser-selected evaluation is `team-eval-5aea93d1-ab8a-4fe5-995a-4
 The simple setup registration from WebApp #650/#651 is live on `e9ee53b4b30b49c45ac3f2d724349e843bbf1804`. Physical URDF/USD/MJCF references are separate from policy references. Custom models remain unqualified: automatic model analysis, generic placement adapters and arbitrary private-policy execution are still required work and are not implied by the saved-setup UI.
 
 These receipts prove the CAD/Blender path and the resulting USD asset; they do not establish that the separate NVIDIA USD Content Agents package executed. That named-agent integration remains a distinct unverified boundary.
+
+## First native policy execution and browser result verified — 2026-09-22 UTC
+
+The original website-selected evaluation reached native policy execution in
+`team-eval-7b5d46d97dae6175714134ada374a7d2-policy-canary-73fddfcf5584`,
+on Pipeline `95e76b0a2e61a378e512737188cd6281df12bd31`. Both candidates
+provisioned and the camera gate passed. This uses the owner-authorized authored
+surface, not a repaired or qualified Marble room.
+
+- π0.5 DROID made 21 queries and applied 160 valid actions. Its next action was
+  rejected: joint 3 was `-3.07964056`, below the native limit `-3.07179999`.
+  The rejected action was not clamped or applied and the episode was unscored.
+- GR00T N1.7 made 45 queries and applied 360 actions. Its native embodiment
+  parity check passed and its episode completed. Deterministic scoring reported
+  `outcome:never_moved`, with approximately 0.0007654 m translation and
+  0.0000283 m maximum lift. Completion of execution is not task success.
+- The first-cell parity gate stopped the remaining nine cells because the
+  rejected π0.5 episode lacked a completed parity diagnostic. Pipeline #2102
+  binds the existing diagnostic continuation protocol when controls are
+  explicitly omitted. It preserves action admission, paired reset checks and
+  the diagnostic-only claim ceiling. Its live continuation is still pending.
+
+Vast instance `52023590` was destroyed at 07:33:17 UTC; a subsequent provider
+read returned no live instances. The terminal result digest is
+`sha256:cb53b64339473ecca7efe9b8a90b2b9f5addc58b295107f89645a9b1429aeea8`;
+projection digest is
+`sha256:d5294ed1961676f4223506839dc26dce4408ac339cbd1a576b558207e155279d`.
+The normal owner delivery readback verified 194 artifacts, with receipt digest
+`sha256:8e5f0823782e82580600a61b709a95b2f985beab837f6c2ba71981ac3cc5512e`.
+
+Authenticated browser verification opened
+`/app/results/capture-run-d8e48d85ae4c97ea190891f553494ff8` and played the actual
+GR00T recording (23.25 seconds, 1280 by 720). WebApp #663, deployed as
+`b984aa033d4756f2fc333100904bf2467391f9ef`, corrects compressed HTTP receipt
+handling: decoded bytes retain their exact size and SHA-256 checks, while a
+compressed Content-Length is not mistaken for the decoded file size. After
+deployment the browser rendered the actual deterministic score and failed
+criteria. Full CI and Render deployment were green. Graphify refreshed using
+the existing isolated graphifyy interpreter.
+
+This is one executed scenario with truthful partial-result delivery. It does
+not close the full ten-scenario run, captured-room integration, measured physics,
+or independent NVIDIA USD Content Agents execution.
+
+## Full controller-owned policy matrix executed — 2026-09-22 UTC
+
+Pipeline #2102 (`41d9ce6cb5cf914f9d3f48867cd4ce47c283fc05`) bound the existing diagnostic continuation protocol into the website-origin activation. The controller generated `team-eval-7b5d46d97dae6175714134ada374a7d2-policy-canary-bad838ad8bb2` without another website submission. Its actual sealed input bundle carried the protocol before GPU allocation.
+
+Vast `52034505` executed all ten scenarios on one RTX 6000 Ada. The runtime aggregate has 20 episode outcomes and digest `sha256:4d2ca074ad02968f3eba18e8c43cae5e465fdbcbeff95d9869ff622b2b4423bc`: GR00T completed ten episodes; π0.5 completed one and had nine joint-limit rejections. The first-cell continuation gate passed while retaining the diagnostic-only claim ceiling. The output archive was 1,031,383,939 bytes. The adapter destroyed the instance at 09:55:02 UTC; fresh provider enumeration returned zero instances. Runtime completion remains distinct from task success and final website publication.
+
+Pipeline #2104 (`6b7b861fd614ae2049b23e24857a21b1bdda9fbd`) fixes the original task's terminal-result index for repeated attempts. It preserves the first flat record and stores subsequent runs under immutable run-specific directories, selecting by the owner's reserved attempt order. Seventy-two focused tests passed. An isolated replay as the real service user against the actual `73fddfcf5584` and `bad838ad8bb2` requests selected the newer attempt and left production records unchanged. Canonical deployment of this fix together with #2105 was started after GPU teardown. Original-task browser verification remains pending that deployment and owner-delivery completion.
+
+The full matrix is published at [the website result](https://tryblueprint.io/app/results/capture-run-c98b8b0ea805580b62bd8e90892ce179). Authenticated browser readback rendered all 20 episode records and the deterministic scores; the GR00T external-camera recording decoded and played at 1280×720 for 23.25 seconds. None of the eleven scored episodes met the task-success criteria. Official posted GPU cost is $1.243 (`sha256:6d62efd183f4a7063c8b6ecbf455baaa1036b19f12920afb499ea8df8d265374`); post-teardown provider-zero receipt is `sha256:d86119358030287f02c2db15cede7fa62560a41bdd699957c132dced8257a434`.
+
+WebApp #664 (`4c6d7f0da0d9b35bed0729b3e981f53584d841cd`) corrects failure grouping: an explicit `DroidActionExecutionError` is action delivery, rather than the fallback no-motion category. Full CI passed, Render serves that commit, and the live browser now reports action delivery 9 / no motion 0. The producer outcomes and rejection checks are unchanged.
+
+Pipeline #2105 (`76a2f3a003d22f609594a3a52fd29a9e4b85fb0b`) increases the existing resumable owner download verification to 64 twelve-file batches per pass. Exact size/SHA-256 checks remain in place. Sixty-three focused tests and CI passed. The full delivery has 1,721 artifacts; its terminal verified-readback receipt remains required before row 14 closes.
