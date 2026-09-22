@@ -669,3 +669,28 @@ lower drawer, and the teal backpack on the floor in front. Frame 150 shows the
 same three-front pedestal under the desk from a wider angle. These references
 identify the middle drawer and an observed obstacle; they do not measure the
 drawer stroke, cabinet dimensions, friction, or clearance.
+
+### Partial SAM request recovery, 2026-09-22 ~21:28 UTC
+
+After the old job lease expired, the normal controller claimed attempt 2 under
+the verified `1bb21d0c` release. It failed before parsing the second retained
+response: `clean_plate` reported `task_masks_blocked` with
+`PaidResourceAdmissionBlocked`. The exact request has three prompts: cabinet,
+carpet/floor, and teal backpack. Responses 0 and 1 are durable; response 2 and
+its intent are absent. The existing code requested the already reserved
+three-prompt spend grant again, so the spending guard correctly refused it.
+No new hosted SAM request occurred on attempt 2. The job ledger is
+`failed_retryable`, attempt 2, and the listener timer is paused while the
+resume defect is repaired.
+
+Pipeline PR #2115, commit `c7406bf430a82b96c6fe13a2cc228af0c7041fc5`,
+validates and reuses existing responses, refuses uncertain or altered retained
+evidence before spend, and requests a new bounded grant only for prompts with
+no response. Seventy-one focused tests and 27 impacted tests passed. A scratch
+replay of the exact saved 520-frame clip and 462-mask response, with a fake
+grant/provider response for the missing backpack prompt, completed in 41.7
+seconds using the official fast parser. It requested only that fake missing
+prompt. No live provider or scene record was changed by the replay, and the
+scratch video copy was removed. A canonical canary deploy of the pushed commit
+has started as `blueprint-drawer-partial-deploy-c7406bf.service`; deployment,
+live parser completion, selected task masks, and steps 5–14 remain unproven.
