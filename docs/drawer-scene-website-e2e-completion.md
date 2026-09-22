@@ -547,3 +547,55 @@ This capture has therefore done its job: it found three real defects, all of
 them now fixed and two already deployed. Proving the lane end to end continues
 on a fresh capture of the same video, which starts with its own budget and runs
 on code that no longer has those defects.
+
+## Fresh capture continuation, 2026-09-22
+
+The owner reconfirmed that the office is in the United States and that Blueprint
+may use the recording for this drawer evaluation. The original local file was
+rechecked at SHA-256
+`d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+The owner chose `ohstnhunt@gmail.com` for this new submission.
+
+The unsigned website form at `/contact/site-operator` returned its generic save
+error twice. Firestore had no new inbound request after either attempt. The same
+form fields were then submitted to the website's existing
+`POST /api/inbound-request` route, with the route's normal CSRF cookie and
+header. It returned HTTP 201 and created the independent request
+`capture-7d655e25-34f2-4961-ae9c-6da11621ce8f`. This proves website API
+intake, **not** a completed browser form submission or video upload. The owner
+capture link was issued. The owner then directed us to use the website upload
+API without waiting for email delivery. The new owner link authorized the
+existing `POST /api/self-capture/uploads/:token` route; it returned HTTP 201 for
+`walkthrough-capture-7d655e25-34f2-4961-ae9c-6da11621ce8f`. The uploaded
+storage object was read back independently at 34,699,478 bytes and SHA-256
+`d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+This was a website API upload, not a browser file-picker action. The owner task
+brief was confirmed for the exact middle-drawer sentence; its unrelated site
+planning questions remained unresolved. The normal raw manifest and completion
+marker are present. No old capture's authority or remaining budget was reused.
+
+New scene `site-capture-7d655e25-34f2-4961-ae9c-6da11621ce8f` reached the
+host's `capture_pipeline` stage with preflight and materialization completed.
+The independent sponsorship digest is
+`sha256:5d09032a0fd359a7f7378b71dd0bbe45a991b62f352c54d17d08fefac61396b7`.
+The one-time preparation request-limit amendment was previewed and applied to
+32 requests for this request alone. The sponsorship still binds a $5 upstream
+provider budget and $20 native simulation budget; its
+`preparation_max_total_spend_usd: 25` field is the combined scene ceiling, not
+a new $25 upstream allowance. One preparation reservation existed when the
+amendment was verified.
+
+The active Pipeline release was verified as
+`b1aed954b08e5cee8c143640ab6d1b5776b45db1` with `commit_proven: true`
+and no identity blockers. WebApp main `e0078966de77a27558c2028bed940a85f14d455b`
+has a successful CI-gated Render deploy. Its articulated contract from PR #669
+supersedes the open, conflicted PR #662; no code from #662 was deployed for this
+continuation. The unrelated policy result-delivery worker was active, so no
+control-plane deployment or paid launch was started.
+
+Fresh-capture evidence matrix: step 1 is **partial** (website API intake and
+confirmed task, but the browser form failed); step 2 is **done via the website
+upload API** with exact storage readback, though no browser file-picker claim is
+made. Capture review artifacts for step 3 are present but not yet adjudicated.
+Steps 4–14 are **unproven**. Captured-room integration and development-fixture
+execution are both **unproven**.
