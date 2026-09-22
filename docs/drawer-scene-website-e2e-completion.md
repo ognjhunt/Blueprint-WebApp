@@ -648,3 +648,15 @@ instances. The canonical deploy started as
 receipt target `iteration_1bb21d0c_dwr.json`. The existing listener continued
 running while the deployment started. Deployment, listener restart, parser
 completion, masks, and all subsequent steps remain pending proof.
+
+At 20:58 UTC, with the new release files staged and no parsed second response,
+the old listener was stopped through systemd. Its durable job ledger remained
+on attempt 1 with lease expiry 21:12:45 UTC. The canonical deploy then
+completed with `status: deployed` for commit
+`1bb21d0c70ac88f578f9e33894c5af78c6023522`; both release surfaces were
+recorded, and the live intake version endpoint reported that commit with
+`commit_proven: true` and no blockers. The deploy briefly restored the queue
+timer; it and the new listener were stopped before the old lease expired. The
+timer will be restored after that lease expires so normal controller redelivery
+can resume from the retained response without repeated active-lease nacks.
+There is still no parsed-response-1 receipt or completed step 5.
