@@ -101,7 +101,7 @@ centred on the middle drawer front.
 | 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
 | 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **blocked on the owner** — the backpack tracked over 228 frames on the first call. The cabinet resolved to nothing for `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal`, and to the three drawer fronts for `drawers` and `drawer unit`. `under-desk cabinet` resolves it whole at 0.983 coverage, so the lane can finish. The deployed coverage rule accepts that and refuses the part matches. The scene has no preparation attempts left and needs the one-shot amendment below; roughly 76% of its dollar cap is unused |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **resolved, decoding** — `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal` returned no instance; `drawers` and `drawer unit` returned the three drawer fronts at 0.42 coverage and were refused; `dresser` returned one instance at 0.981 coverage and is the cabinet. Only that concept bought a clip |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
@@ -468,3 +468,31 @@ systemctl start blueprint-pubsub-handoff-listener.timer
 
 The fix is live either way: the active release `41d9ce6cb` carries it, having
 been cut from a commit that descends from the one it shipped in.
+
+## The amendment landed and the lane unblocked itself
+
+The owner authorized raising the preparation attempt cap. Applied through the
+sanctioned operator script with their own admin credentials, previewed first:
+`max_requests` 16 to 30, amendment digest
+`sha256:5bc3a580c2d7d46257d3ce1628cbca09609dff5852c82dea68cb1f0a6b3d9b8c`. The
+$5 spend cap was not touched and money remains the binding control.
+
+The capture listener was restarted at 10:10 UTC with the paid launch lock free
+and no deploy in flight. Attempt 19 recovered the lease and ran the concept
+search on the deployed rule. It behaved exactly as designed:
+
+| concept | instances | coverage of the grounded box | outcome |
+| --- | --- | --- | --- |
+| `file cabinet` | 0 | — | refused, no clip bought |
+| `drawers` | 3 | 0.421 | refused as a part, no clip bought |
+| `dresser` | 1 | 0.981 | accepted, one clip bought |
+
+`dresser` matches the independent diagnostic almost exactly, where
+`under-desk cabinet` measured 0.983. Two different whole-object nouns, the same
+mask. The run is now decoding that clip, which is the twelve-to-twenty-seven
+minute serial stage.
+
+Worth recording about cost: after the first pass the whole search is retained.
+Grounding bindings are deterministic given the same failure sequence, so a
+repeated attempt replays from receipts and buys nothing. The search either
+finds a concept or fails identically and for free.
