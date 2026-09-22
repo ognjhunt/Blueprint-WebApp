@@ -2,8 +2,29 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCanaryArtifactInventory,
+  runtimeCanaryCoverage,
   resolvedCanaryCandidates,
 } from "./policyCanaryResultPortal";
+
+describe("runtimeCanaryCoverage", () => {
+  it("keeps absent evidence distinct from a reported empty gap list", () => {
+    expect(runtimeCanaryCoverage([{}, { runtime_coverage_gaps: [] }])).toEqual({
+      reported: 1, total: 2, gaps: [],
+    });
+    expect(runtimeCanaryCoverage([])).toEqual({ reported: 0, total: 0, gaps: [] });
+  });
+
+  it("counts episodes whose runtime could not apply a variation", () => {
+    expect(runtimeCanaryCoverage([
+      { runtime_coverage_gaps: ["unapplied_scenario:bounded_physics", "unapplied_scenario:bounded_physics"] },
+      { runtime_coverage_gaps: ["unapplied_scenario:bounded_physics"] },
+      { runtime_coverage_gaps: [] },
+    ])).toEqual({ reported: 3, total: 3, gaps: [{
+      code: "unapplied_scenario:bounded_physics", count: 2,
+      label: "bounded physics: variation not applied",
+    }] });
+  });
+});
 
 function resultWithArtifacts(delivered: unknown[], billingReceipt: unknown) {
   return {

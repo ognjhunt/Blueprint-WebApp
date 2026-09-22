@@ -168,6 +168,7 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     arm_moved: z.boolean(),
     policy_outcome_interpretable: z.boolean(),
     failure_taxonomy: z.string().trim().max(128).nullable(),
+    runtime_coverage_gaps: z.array(z.string().min(1).max(256)).max(64).optional(),
     interpretation: pipelineEpisodeInterpretationSchema.nullable().optional(),
     evidence: pipelineEpisodeEvidenceSchema,
   }).strict()).max(20),

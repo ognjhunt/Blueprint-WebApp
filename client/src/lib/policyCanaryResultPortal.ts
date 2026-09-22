@@ -11,6 +11,27 @@ export type EpisodeFilters = {
   interpretability: "all" | "interpretable" | "uninterpretable" | "unknown";
 };
 
+export function runtimeCanaryCoverage(episodes: Array<{ runtime_coverage_gaps?: string[] }>) {
+  const counts = new Map<string, number>();
+  let reported = 0;
+  for (const episode of episodes) {
+    if (!Array.isArray(episode.runtime_coverage_gaps)) continue;
+    reported += 1;
+    for (const code of new Set(episode.runtime_coverage_gaps)) {
+      counts.set(code, (counts.get(code) || 0) + 1);
+    }
+  }
+  return {
+    reported, total: episodes.length,
+    gaps: [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([code, count]) => ({
+      code, count,
+      label: code.startsWith("unapplied_scenario:")
+        ? `${code.slice("unapplied_scenario:".length).replaceAll("_", " ")}: variation not applied`
+        : code.replaceAll("_", " "),
+    })),
+  };
+}
+
 export type AlignedCanaryCell = {
   key: string;
   cellId: string;
