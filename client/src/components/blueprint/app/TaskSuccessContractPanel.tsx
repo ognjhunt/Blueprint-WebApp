@@ -3,11 +3,11 @@ import { Bot, CheckCircle2 } from "lucide-react";
 
 import { ProofBoundary, StatusChip } from "@/components/blueprint";
 import {
-  describeRigidTaskSuccessContract,
-  type RigidTaskSuccessContract,
-} from "@/lib/rigidTaskSuccessContract";
+  describeTaskSuccessContract,
+  type AnyTaskSuccessContract,
+} from "@/lib/articulatedTaskSuccessContract";
 
-const sourceLabels: Record<RigidTaskSuccessContract["provenance"]["author_source"], string> = {
+const sourceLabels: Record<AnyTaskSuccessContract["provenance"]["author_source"], string> = {
   compatibility_default: "Task registry default",
   site_robot_team: "Site / robot team",
   task_owner: "Task owner",
@@ -22,14 +22,14 @@ export function TaskSuccessContractPanel({
   title = "Task success criteria",
   resultReview = false,
 }: {
-  contract: RigidTaskSuccessContract;
+  contract: AnyTaskSuccessContract;
   confirmationTeamId?: string;
   proposalConfirmed?: boolean;
   onProposalConfirmed?: (confirmed: boolean) => void;
   title?: string;
   resultReview?: boolean;
 }) {
-  const rows = describeRigidTaskSuccessContract(contract);
+  const rows = describeTaskSuccessContract(contract);
   const headingId = useId();
   const registryDefault = contract.provenance.author_source === "compatibility_default";
   const isProposal = contract.provenance.confirmation_status === "proposal_only";

@@ -18,9 +18,11 @@ import {
   type PolicyCanarySetupView,
 } from "@/lib/policyCanaryRuns";
 import {
-  confirmRigidTaskSuccessContractProposal,
-  type RigidTaskSuccessContract,
 } from "@/lib/rigidTaskSuccessContract";
+import {
+  confirmTaskSuccessContractProposal,
+  type AnyTaskSuccessContract,
+} from "@/lib/articulatedTaskSuccessContract";
 
 type WizardStep = "setup" | "run_size" | "confirm";
 const steps: Array<{ id: WizardStep; label: string }> = [
@@ -145,7 +147,7 @@ export default function PolicyCanarySetup() {
   const [confirmed, setConfirmed] = useState(false);
   const [interpretationConfirmed, setInterpretationConfirmed] = useState(false);
   const [proposalConfirmed, setProposalConfirmed] = useState(false);
-  const [confirmedSuccessContract, setConfirmedSuccessContract] = useState<RigidTaskSuccessContract | null>(null);
+  const [confirmedSuccessContract, setConfirmedSuccessContract] = useState<AnyTaskSuccessContract | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const runId = useMemo(() => stableRunId(decodedLaunchId), [decodedLaunchId]);
@@ -180,7 +182,7 @@ export default function PolicyCanarySetup() {
       return;
     }
     let cancelled = false;
-    void confirmRigidTaskSuccessContractProposal(
+    void confirmTaskSuccessContractProposal(
       setup.task_success_contract,
       setup.task_success_contract_confirmation_team_id,
     ).then((contract) => {

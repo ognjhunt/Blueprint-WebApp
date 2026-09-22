@@ -53,7 +53,14 @@ type Projection = {
   controls_gate?: { status: string; required_control_episode_count: number; candidate_policies_loaded_during_controls: boolean };
   counts?: { diagnostic_control_rollout_count: number; completed_diagnostic_control_rollout_count: number };
   control_omission?: { task_success_contract_digest: string };
-  task_success_contract?: { contract_digest: string; criteria: { controls?: { mode: string } } };
+  // Either admitted contract kind. An articulated contract carries no
+  // per-cell controls block at all, which reads the same here as controls not
+  // being required; the index signature keeps that a valid shape rather than
+  // a weak-type mismatch.
+  task_success_contract?: {
+    contract_digest: string;
+    criteria: Record<string, unknown> & { controls?: { mode: string } };
+  };
   episodes?: Array<{ cell_id: string; candidate_id: string; seed: number }>;
   result_status?: string;
 };
