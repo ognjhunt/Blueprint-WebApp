@@ -97,11 +97,11 @@ centred on the middle drawer front.
 
 | Step | Required behaviour | Evidence required to close | State |
 | --- | --- | --- | --- |
-| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | WebApp side done: HTTP 201 inbound request, brief confirmed HTTP 200, rights + US region attested by the owner. Pipeline consumption not yet observed |
-| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | Upload accepted HTTP 201 against the verified original bytes; stored-object digest readback still pending |
-| 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | unproven |
-| 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | unproven |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | unproven |
+| 1 | Website task intake, rights/task confirmation, task = open the selected drawer | Browser submission and immutable confirmed task consumed by Pipeline | **done** — HTTP 201 inbound request, brief confirmed HTTP 200, rights and US region attested by the owner; Pipeline consumed the handoff at 03:39 UTC and wrote `website_task_context.json` and `website_scene_sponsorship.json` |
+| 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
+| 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
+| 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **blocked, fix built** — the backpack tracked over 228 frames on the first call; the cabinet resolved to nothing for `cabinet`, `file cabinet` and `filing cabinet`, and to the three drawer fronts for `drawers`. Pipeline PR #2098 makes a concept prove it covers the target before a clip is bought; waiting on deploy |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
@@ -322,3 +322,21 @@ budgets. Three test files were already failing on `origin/main` before any of
 this work (materializer reachability, live-pipeline import isolation, and the
 scene-configuration budget profiles); they are tracked separately and are not
 regressions from this branch.
+
+### Step 7's provider ceiling is configured, not hardcoded
+
+Checked against the requirement that the view count follow the provider's
+verified capability rather than a global constant.
+`client`-side nothing is involved; the ceiling lives in
+`website_reconstruction_profile.py`, whose first line is "Provider-specific
+image capacity; never a global reconstruction frame cap." The profile comes from
+`BLUEPRINT_WEBSITE_RECONSTRUCTION_PROFILE_JSON` or an explicit argument, and
+defaults to Marble's own `{"provider": "world_labs", "model": "marble-1.1-plus",
+"max_input_images": 8}`. Selecting a different model without supplying its
+profile refuses with `website_reconstruction_profile_required_for_selected_model`,
+and the module comment says plainly that Atlas is not assigned an invented limit
+before its API exists. The adapter-side equality check in `website_worldlabs.py`
+is a provider-binding check, not a ceiling: a different profile needs a matching
+adapter and says so.
+
+Nothing to change here for this scene.
