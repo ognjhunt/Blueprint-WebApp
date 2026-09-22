@@ -448,8 +448,13 @@ resuming, and the two defects it exposed are fixed and deployed:
   rather than overlap part of it, told the grounding model which of the two
   failures happened, spent the budget on probes rather than turns, and brought
   two modules back inside their source line budgets.
-- Pipeline #2103 (open) carries the measured naming hint and a parallel mask
-  decode.
+- Pipeline #2103 (open) carries the measured naming hint. It briefly carried a
+  parallel mask decode too; measured on a real clip that pool ran at 0.89x and
+  then 0.04x against serial, because the host is four cores under a load average
+  near ten and the decode there is contention-bound rather than
+  parallelism-bound. The code and the claim both came out. The number that
+  survives is that a real clip decodes in twelve to twenty-seven minutes serial,
+  depending on what else the host is doing.
 - WebApp #662 (open) carries the articulated success contract end to end, so a
   drawer run has something to submit and something to show.
 
