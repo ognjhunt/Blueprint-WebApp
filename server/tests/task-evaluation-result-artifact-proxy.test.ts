@@ -26,6 +26,22 @@ afterEach(() => {
 });
 
 describe("Task Evaluation Result artifact origin", () => {
+  it("probes a sealed empty telemetry file without requesting a nonexistent byte", async () => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/{run_id}/{artifact_id}";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "fixture-key";
+    const expected = { sha256: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", size_bytes: 0 };
+    const fetchMock = vi.fn(async (_url, options) => options.headers.range
+      ? { status: 416, ok: false, headers: new Headers({ "content-range": "bytes */0" }) }
+      : { status: 200, ok: true, body: { cancel: vi.fn() },
+        headers: new Headers({ "content-length": "0", "x-blueprint-artifact-sha256": expected.sha256 }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "empty-telemetry", expected }))
+      .resolves.toEqual({ status: "admitted", metadata: expected });
+    expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("range");
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "empty-telemetry",
+      expected: { ...expected, sha256: `sha256:${"f".repeat(64)}` } })).resolves.toEqual({ status: "unavailable" });
+  });
+
   it("exposes digest and total size for registry-only artifacts without buffering their bodies", async () => {
     process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/runs/{run_id}/artifacts/{artifact_id}";
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-token";
