@@ -817,3 +817,28 @@ The pushed source `5d7bcdb8b` is in canonical canary deployment. Listener
 service/timer remain inactive; GPU guard reports zero live instances. No
 Marble operation or provider spend was admitted on attempt 6. Steps 8–14 and
 captured-room/fixture outcomes remain unproven.
+
+### Fresh capture attempt 7: World Labs account credit blocker
+
+The clone-release admission fix deployed as
+`5d7bcdb8bc0096022dd71c24eda835a2167a0aea`; its canonical deploy
+receipt reports `deployed`, the live version endpoint proves the exact commit,
+and the paid-release inspector as the `blueprint` service user reports
+`verified_active_release`, no blockers, `development_iteration`, and no
+promotion eligibility. The controller claimed attempt 7 and admitted one
+World Labs request with a $2.48 maximum under this scene's preparation
+sponsorship. It uploaded the prepared input views and sent the generation
+request for `marble-1.1-plus`.
+
+World Labs rejected generation with HTTP 402: insufficient API credits. The
+provider returned no operation ID or world ID. The provider-run manifest is
+`failed` with that exact reason; the submission intent remains
+`status: submitting`, so the current controller correctly refuses an automatic
+repeat until the explicit rejection is reconciled in code. The listener timer
+and service are inactive. This is an external provider-account blocker, not a
+geometry or mask mismatch. No Marble reconstruction, captured-room integration,
+CPU articulated asset or GPU episode is proved. The five reviewed clean-plate
+views remain retained. A named development drawer fixture is permitted by the
+owner contract, but the existing authored-surface fixture path is for rigid
+pick-and-place and is not an articulated drawer controller path; it cannot be
+claimed as completed or used to fabricate website results.
