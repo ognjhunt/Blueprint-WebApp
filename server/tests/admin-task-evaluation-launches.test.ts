@@ -1600,7 +1600,7 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
-  it("fires a controls-pending policy canary through the signed service channel", async () => {
+  it.each([false, true])("fires a controls-pending policy canary through the signed service channel (team owner: %s)", async (teamOwned) => {
     // The progression worker owns the hand-off from passing controls into the
     // Quick-10 canary. It has no browser session, so the same immutable
     // selection the offering page sends must be accepted over the HMAC channel
@@ -1612,7 +1612,11 @@ describe("admin Task Evaluation launch route", () => {
     const offering = pausedUngradedConfiguredSceneOffering();
     const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
     const setup = canaryProfile.internal_policy_canary_setup;
-    const runId = "policy-canary-service-001";
+    const { evaluationOwnerFixture } = await import("./fixtures/policy-canary-evaluation-owner");
+    const owner = evaluationOwnerFixture(sourceLaunchId, setup.scene_revision_digest,
+      offering.task.identity.id, setup.setup_digest);
+    if (teamOwned) state.records.set(owner.id, owner.record);
+    const runId = teamOwned ? owner.runId : "policy-canary-service-001";
     const body = internalPolicyCanarySelection(runId, setup);
     body.notification.email = "owner@example.com";
     state.launchProfiles = [canaryProfile];
@@ -1640,7 +1644,7 @@ describe("admin Task Evaluation launch route", () => {
         run: {
           run_id: runId,
           run_kind: "internal_policy_canary",
-          owner_user_id: TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
+          owner_user_id: teamOwned ? "buyer-1" : TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID,
           team_namespace: offering.team_namespace,
           scene_controls_status_at_submission: "configured_controls_pending",
           notification: { email: "owner@example.com" },
