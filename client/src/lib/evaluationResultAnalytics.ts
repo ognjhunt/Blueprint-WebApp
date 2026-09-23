@@ -1,9 +1,11 @@
-export const CANONICAL_POLICY_CANDIDATE_IDS = [
+/** The Pipeline candidate registry's order; any two of these can be compared. */
+export const POLICY_CANDIDATE_ORDER = [
   "pi05_droid",
   "groot_n17_droid",
+  "cosmos3_nano_policy_droid",
+  "molmoact2_droid",
+  "flux3_action_droid",
 ] as const;
-
-export type CanonicalPolicyCandidateId = typeof CANONICAL_POLICY_CANDIDATE_IDS[number];
 
 export type EvaluationEpisodeForAnalytics = {
   episode_id: string;
@@ -71,10 +73,8 @@ function summarizeCandidate(
 }
 
 function candidateOrder(candidateId: string) {
-  const canonicalIndex = CANONICAL_POLICY_CANDIDATE_IDS.indexOf(
-    candidateId as CanonicalPolicyCandidateId,
-  );
-  return canonicalIndex === -1 ? Number.MAX_SAFE_INTEGER : canonicalIndex;
+  const index = (POLICY_CANDIDATE_ORDER as readonly string[]).indexOf(candidateId);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
 function orderedCandidateIds(episodes: EvaluationEpisodeForAnalytics[]) {
@@ -113,19 +113,21 @@ export function buildEvaluationResultAnalytics(episodes: EvaluationEpisodeForAna
     outcomes.set(episode.subject_id, episode.score.task_succeeded);
     pairs.set(key, outcomes);
   }
+  // Paired outcomes compare the run's first two policies, whichever they are.
+  const [firstId = null, secondId = null] = candidateIds;
   let comparablePairs = 0;
   let discordantPairs = 0;
-  let pi05Wins = 0;
-  let grootWins = 0;
+  let firstWins = 0;
+  let secondWins = 0;
   for (const outcomes of pairs.values()) {
-    const pi05 = outcomes.get("pi05_droid");
-    const groot = outcomes.get("groot_n17_droid");
-    if (typeof pi05 !== "boolean" || typeof groot !== "boolean") continue;
+    const first = firstId === null ? undefined : outcomes.get(firstId);
+    const second = secondId === null ? undefined : outcomes.get(secondId);
+    if (typeof first !== "boolean" || typeof second !== "boolean") continue;
     comparablePairs += 1;
-    if (pi05 === groot) continue;
+    if (first === second) continue;
     discordantPairs += 1;
-    if (pi05) pi05Wins += 1;
-    else grootWins += 1;
+    if (first) firstWins += 1;
+    else secondWins += 1;
   }
 
   return {
@@ -149,8 +151,10 @@ export function buildEvaluationResultAnalytics(episodes: EvaluationEpisodeForAna
       comparablePairs,
       discordantPairs,
       ties: comparablePairs - discordantPairs,
-      pi05Wins,
-      grootWins,
+      firstId,
+      secondId,
+      firstWins,
+      secondWins,
     },
   };
 }

@@ -265,6 +265,9 @@ async function handlePolicyCanaryPublication(
         || (policyRun.task_success_contract_digest
           && policyRun.task_success_contract_digest
             !== publication.policy_canary_result.task_success_contract?.contract_digest)
+        || (Array.isArray(policyRun.policy_candidate_ids)
+          && [...policyRun.policy_candidate_ids].sort().join("\0")
+            !== [...publication.policy_canary_result.candidate_ids].sort().join("\0"))
       ) return { outcome: "binding_mismatch" as const, policyRun: null };
       const now = new Date().toISOString();
       if (runSnapshot.exists) {

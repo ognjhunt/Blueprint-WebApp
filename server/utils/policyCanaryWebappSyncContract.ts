@@ -97,6 +97,15 @@ const pipelineEpisodeEvidenceSchema = z.object({
   typed_media_gap: z.string().trim().min(1).max(512).optional(),
 }).strict();
 
+const policyCandidateResultSchema = z.object({
+  candidate_id: identifier,
+  episodes_completed: z.number().int().min(0).max(10),
+  interpretable_episode_count: z.number().int().min(0).max(10),
+  actions_delivered_episode_count: z.number().int().min(0).max(10),
+  metrics: z.record(z.string(), z.unknown()),
+  failure_counts: z.record(z.string(), z.number().int().nonnegative()),
+}).strict();
+
 export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   schema_version: z.literal("task_evaluation_policy_canary_result_projection.v1"),
   run_id: identifier,
@@ -138,28 +147,14 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     completed_diagnostic_control_rollout_count: z.number().int().min(0).max(20),
   }).strict(),
   episode_interpretation: pipelineEpisodeInterpretationSummarySchema.optional(),
-  candidate_ids: z.tuple([z.literal("pi05_droid"), z.literal("groot_n17_droid")]),
-  candidate_results: z.tuple([
-    z.object({
-      candidate_id: z.literal("pi05_droid"),
-      episodes_completed: z.number().int().min(0).max(10),
-      interpretable_episode_count: z.number().int().min(0).max(10),
-      actions_delivered_episode_count: z.number().int().min(0).max(10),
-      metrics: z.record(z.string(), z.unknown()),
-      failure_counts: z.record(z.string(), z.number().int().nonnegative()),
-    }).strict(),
-    z.object({
-      candidate_id: z.literal("groot_n17_droid"),
-      episodes_completed: z.number().int().min(0).max(10),
-      interpretable_episode_count: z.number().int().min(0).max(10),
-      actions_delivered_episode_count: z.number().int().min(0).max(10),
-      metrics: z.record(z.string(), z.unknown()),
-      failure_counts: z.record(z.string(), z.number().int().nonnegative()),
-    }).strict(),
-  ]),
+  // Any two policies from the Pipeline's candidate registry, in the order the
+  // run was booked. Which two is bound by request_digest and checked against
+  // the run record when the publication is stored.
+  candidate_ids: z.tuple([identifier, identifier]),
+  candidate_results: z.tuple([policyCandidateResultSchema, policyCandidateResultSchema]),
   episodes: z.array(z.object({
     episode_id: identifier,
-    candidate_id: z.enum(["pi05_droid", "groot_n17_droid"]),
+    candidate_id: identifier,
     cell_id: identifier,
     seed: z.number().int().min(0).max(2_147_483_647),
     terminal_state: z.enum(["completed", "failed", "blocked", "cancelled"]),
@@ -196,6 +191,17 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
   projection_digest: digest,
 }).strict().superRefine((projection, context) => {
   for (const message of controlsProjectionBlockers(projection)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["controls"], message });
+  const [first, second] = projection.candidate_ids;
+  if (
+    first === second
+    || projection.candidate_results[0].candidate_id !== first
+    || projection.candidate_results[1].candidate_id !== second
+    || projection.episodes.some((episode) => episode.candidate_id !== first && episode.candidate_id !== second)
+  ) context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["candidate_ids"],
+    message: "results must cover exactly the two distinct candidates in candidate_ids",
+  });
   if (
     Boolean(projection.task_success_contract)
       !== Boolean(projection.task_success_contract_digest)

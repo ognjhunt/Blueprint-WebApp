@@ -137,3 +137,48 @@ describe("per-cell control result contract", () => {
     expect(parsePipelinePolicyCanaryPublication(reseal(structuredClone(fixture))).ok).toBe(true);
   });
 });
+
+describe("any two policies from the candidate registry", () => {
+  function withPair(second: string) {
+    const value = publication();
+    const p = value.policy_canary_result;
+    p.candidate_ids = ["pi05_droid", second];
+    p.candidate_results[1].candidate_id = second;
+    for (const episode of p.episodes) {
+      if (episode.candidate_id === "groot_n17_droid") {
+        episode.candidate_id = second;
+        episode.episode_id = episode.episode_id.replace("groot_n17_droid", second);
+      }
+    }
+    return value;
+  }
+
+  it("accepts a run of π0.5 against Cosmos 3 Nano with verified controls", () => {
+    const result = parsePipelinePolicyCanaryPublication(reseal(withPair("cosmos3_nano_policy_droid")));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.publication.policy_canary_result.controls_summary?.verified_cell_count).toBe(10);
+  });
+
+  it.each(["duplicate", "results", "episode"])("refuses results that do not cover exactly the booked pair: %s", (fault) => {
+    const value = withPair("cosmos3_nano_policy_droid");
+    const p = value.policy_canary_result;
+    if (fault === "duplicate") p.candidate_ids = ["pi05_droid", "pi05_droid"];
+    if (fault === "results") p.candidate_results[1].candidate_id = "flux3_action_droid";
+    if (fault === "episode") p.episodes[1].candidate_id = "molmoact2_droid";
+    expect(parsePipelinePolicyCanaryPublication(reseal(value))).toEqual({
+      ok: false, blockers: ["policy_canary_publication_schema_invalid"],
+    });
+  });
+
+  it("maps the running policy to the first or second step by the run's own pair", () => {
+    const record = (phase: string) => ({ schema_version: "task_evaluation_policy_run_web_record.v1" as const,
+      run_id: "run-1", source_launch_id: "launch-1", offering_digest: sha, owner_user_id: "owner",
+      team_namespace: "team", state: "running" as const, configuration_digest: sha,
+      created_at_iso: "2026-09-05T00:00:00Z", updated_at_iso: "2026-09-05T01:00:00Z",
+      run_kind: "internal_policy_canary", policy_candidate_ids: ["groot_n17_droid", "cosmos3_nano_policy_droid"],
+      pipeline_progress: { phase } });
+    expect(projectEvaluationReadyRun(record("policy_groot_n17_droid_episode_3"))).toMatchObject({ stage: "policy_a_running" });
+    expect(projectEvaluationReadyRun(record("policy_cosmos3_nano_policy_droid_episode_1"))).toMatchObject({ stage: "policy_b_running" });
+  });
+});

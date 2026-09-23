@@ -70,8 +70,34 @@ describe("evaluation result analytics", () => {
       comparablePairs: 1,
       discordantPairs: 1,
       ties: 0,
-      pi05Wins: 1,
-      grootWins: 0,
+      firstId: "pi05_droid",
+      secondId: "groot_n17_droid",
+      firstWins: 1,
+      secondWins: 0,
+    });
+  });
+
+  it("compares whichever two policies the run used", () => {
+    const pair = episodes
+      .filter((episode) => episode.subject_id !== "pi05_droid")
+      .map((episode) => ({ ...episode }));
+    pair.push({
+      ...episodes[0],
+      episode_id: "cosmos-canonical-1",
+      subject_id: "cosmos3_nano_policy_droid",
+    });
+    const analytics = buildEvaluationResultAnalytics(pair);
+
+    expect(analytics.candidates.map((candidate) => candidate.candidateId)).toEqual([
+      "groot_n17_droid",
+      "cosmos3_nano_policy_droid",
+    ]);
+    expect(analytics.paired).toMatchObject({
+      comparablePairs: 1,
+      firstId: "groot_n17_droid",
+      secondId: "cosmos3_nano_policy_droid",
+      firstWins: 0,
+      secondWins: 1,
     });
   });
 

@@ -197,4 +197,37 @@ describe("PolicyCanarySetup", () => {
     });
     expect(navigate).toHaveBeenCalledWith("/app/evaluation-runs/scene-839873-launch-policy-canary-1");
   });
+
+  it("lists policies that aren't offered yet with the reason, and books the pair in list order", async () => {
+    const value = setup();
+    const [pi05] = value.robot_presets[0].policy_candidates;
+    value.robot_presets[0].policy_candidates.push(
+      { ...pi05, candidate_id: "cosmos3_nano_policy_droid", display_name: "Cosmos 3 Nano Policy DROID",
+        readiness: { status: "unavailable", receipt: null, reason: "Coming soon. It is being connected to our simulator and checked on a reference task before it can run." } },
+      { ...pi05, candidate_id: "molmoact2_droid", display_name: "MolmoAct 2 DROID",
+        readiness: { status: "unavailable", receipt: null, reason: "Not offered yet. Its license is being reviewed for use in a paid service." } },
+    );
+    fetchPolicyCanarySetup.mockResolvedValue(value);
+    const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
+    vi.mocked(createPolicyCanaryRun).mockReset().mockResolvedValue({ run: { run_id: "run-2" } } as any);
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+
+    const cosmos = await screen.findByRole("checkbox", { name: /Cosmos 3 Nano Policy DROID/ });
+    expect(cosmos).toHaveProperty("disabled", true);
+    expect(screen.getByText(/^Coming soon\./)).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: /MolmoAct 2 DROID/ })).toHaveProperty("disabled", true);
+    expect(screen.getByText(/license is being reviewed/)).toBeTruthy();
+
+    // Untick and re-tick π0.5: the run is still booked in list order.
+    const pi = screen.getByRole("checkbox", { name: "PI 0.5 DROID" });
+    fireEvent.click(pi);
+    fireEvent.click(pi);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I approve one simulator run/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /I allow an AI review/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start policy test" }));
+    await waitFor(() => expect(createPolicyCanaryRun).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPolicyCanaryRun).mock.calls[0][0].input.policy_candidate_ids)
+      .toEqual(["pi05_droid", "groot_n17_droid"]);
+  });
 });

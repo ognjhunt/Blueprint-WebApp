@@ -214,7 +214,7 @@ export type PolicyCanaryEpisodeInterpretationSidecar = {
   };
   episodes: Array<{
     episode_id: string;
-    candidate_id: "pi05_droid" | "groot_n17_droid";
+    candidate_id: string;
     cell_id: string;
     seed: number;
     interpretation: NonNullable<TaskEvaluationResultEpisode["interpretation"]>;

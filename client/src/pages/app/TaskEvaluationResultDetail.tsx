@@ -18,11 +18,7 @@ import {
   type TaskEvaluationResultEpisode,
   type TaskEvaluationResultSiteRecord,
 } from "@/lib/taskEvaluationResults";
-
-const candidateLabels: Record<string, string> = {
-  pi05_droid: "π0.5 DROID",
-  groot_n17_droid: "GR00T N1.7 DROID",
-};
+import { policyCandidateLabel } from "@/lib/policyCandidateLabels";
 
 function humanize(value: string) {
   return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
@@ -109,7 +105,7 @@ function EpisodeRow({
     <details>
       <summary>
         <span className="inline-flex flex-wrap items-center gap-3">
-          <span>{candidateLabels[episode.subject_id] || humanize(episode.subject_id)}</span>
+          <span>{episode.episode_kind === "learned_candidate" ? policyCandidateLabel(episode.subject_id) : humanize(episode.subject_id)}</span>
           <span className="text-ink-500">{episode.episode_kind === "control" ? "Control" : "Policy"}{episode.variation?.label ? ` · ${episode.variation.label}` : ""}</span>
           <Tag tone={tone}>{outcome}</Tag>
         </span>

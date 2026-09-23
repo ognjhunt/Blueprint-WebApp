@@ -62,6 +62,7 @@ type Projection = {
     criteria: Record<string, unknown> & { controls?: { mode: string } };
   };
   episodes?: Array<{ cell_id: string; candidate_id: string; seed: number }>;
+  candidate_ids?: readonly string[];
   result_status?: string;
 };
 
@@ -94,7 +95,7 @@ export function controlsProjectionBlockers(value: Projection): string[] {
   const verifiedCells = [...cells].filter(([cell, pair]) => pair.length === 2
     && new Set(pair.map((row) => row.control_id)).size === 2 && pair[0].seed === pair[1].seed
     && pair.every((row) => row.control_passed && row.terminal_state === "completed" && !row.evidence_gaps.length)
-    && ["pi05_droid", "groot_n17_droid"].every((candidate) => value.episodes?.some((episode) => episode.candidate_id === candidate && episode.cell_id === cell && episode.seed === pair[0].seed))).length;
+    && (value.candidate_ids || []).length === 2 && (value.candidate_ids || []).every((candidate) => value.episodes?.some((episode) => episode.candidate_id === candidate && episode.cell_id === cell && episode.seed === pair[0].seed))).length;
   const expected = { expected_count: 20, recorded_count: rows.length,
     completed_count: rows.filter((row) => row.terminal_state === "completed").length,
     passed_count: rows.filter((row) => row.control_passed).length, verified_cell_count: verifiedCells };

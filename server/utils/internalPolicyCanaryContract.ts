@@ -442,7 +442,12 @@ export function resolveInternalPolicyCanarySelection(
     code: "POLICY_NOT_FOUND",
     message: "A selected policy is no longer in the canonical registry for this robot.",
   };
-  const selectedCandidates = [selected[0], selected[1]] as const;
+  // The pair is an unordered choice; catalog order is the one canonical
+  // order, so ticking the same two policies in either order makes one run.
+  const [first, second] = robot.policy_candidates.indexOf(selected[0])
+    <= robot.policy_candidates.indexOf(selected[1])
+    ? [selected[0], selected[1]] : [selected[1], selected[0]];
+  const selectedCandidates = [first, second] as const;
   for (const candidate of selectedCandidates) {
     if (candidate.readiness.status !== "verified_runnable") return {
       ok: false,
@@ -603,7 +608,7 @@ export function buildInternalPolicyCanaryLaunchRequest(params: {
     ...interpretationFields,
     team_namespace: params.teamNamespace,
     robot_preset_id: resolved.robot.robot_preset_id,
-    policy_candidate_ids: params.selection.policy_candidate_ids,
+    policy_candidate_ids: resolved.candidates.map((candidate) => candidate.candidate_id),
     episode_plan: {
       preset: resolved.preset.preset_id,
       episodes_per_policy: resolved.preset.episodes_per_policy,

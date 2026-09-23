@@ -335,6 +335,56 @@ describe("internal policy canary contract", () => {
     expect(confirmed.provenance.proposal_digest).toBe(setupValue.task_success_contract.contract_digest);
   });
 
+  it("runs any two runnable policies, in catalog order, and never one that is not offered yet", () => {
+    const setupValue = setup();
+    const candidates = setupValue.robot_presets[0].policy_candidates;
+    candidates.push(
+      { ...candidates[0], candidate_id: "cosmos3_nano_policy_droid", display_name: "Cosmos 3 Nano Policy DROID", checkpoint: ref("7") },
+      {
+        ...candidates[0],
+        candidate_id: "molmoact2_droid",
+        display_name: "MolmoAct 2 DROID",
+        checkpoint: ref("8"),
+        readiness: { status: "unavailable", receipt: null, reason: "Not offered yet. Its license is being reviewed for use in a paid service." },
+      },
+    );
+    setupValue.setup_digest = canonicalArtifactDigest(setupValue, "setup_digest");
+    const picked = { ...selection(setupValue), policy_candidate_ids: ["cosmos3_nano_policy_droid", "pi05_droid"] as [string, string] };
+
+    const resolved = resolveInternalPolicyCanarySelection(setupValue, picked);
+    expect(resolved.ok && resolved.candidates.map((candidate) => candidate.candidate_id))
+      .toEqual(["pi05_droid", "cosmos3_nano_policy_droid"]);
+    const request = buildInternalPolicyCanaryLaunchRequest({
+      selection: picked,
+      setup: setupValue,
+      profile: { profile_id: "scene-839873-policy-canary", profile_digest: sha("3"), required_controls: {} },
+      actor: { id: "team-user-1", role: "team_member" },
+      teamNamespace: "blueprint",
+      controlsStatusAtSubmission: "configured_controls_pending",
+      authorizedAt: "2026-08-31T12:00:00.000Z",
+    });
+    const reversed = buildInternalPolicyCanaryLaunchRequest({
+      selection: { ...picked, policy_candidate_ids: ["pi05_droid", "cosmos3_nano_policy_droid"] },
+      setup: setupValue,
+      profile: { profile_id: "scene-839873-policy-canary", profile_digest: sha("3"), required_controls: {} },
+      actor: { id: "team-user-1", role: "team_member" },
+      teamNamespace: "blueprint",
+      controlsStatusAtSubmission: "configured_controls_pending",
+      authorizedAt: "2026-08-31T12:00:00.000Z",
+    });
+    expect(request.policy_candidate_ids).toEqual(["pi05_droid", "cosmos3_nano_policy_droid"]);
+    expect(reversed.request_digest).toBe(request.request_digest);
+
+    expect(resolveInternalPolicyCanarySelection(
+      setupValue,
+      { ...picked, policy_candidate_ids: ["pi05_droid", "molmoact2_droid"] },
+    )).toMatchObject({
+      ok: false,
+      code: "POLICY_NOT_RUNNABLE",
+      message: "Not offered yet. Its license is being reviewed for use in a paid service.",
+    });
+  });
+
   it("rejects a policy whose action schema does not match the selected embodiment", () => {
     const setupValue = setup();
     setupValue.robot_presets[0].policy_candidates[0].compatibility.action_schema_ids = ["franka-joint-v2"];
