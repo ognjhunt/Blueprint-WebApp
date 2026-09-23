@@ -83,7 +83,7 @@ export function buildCampaignDraftPayload(form: CampaignKitFormState, kit: Campa
     name: `${form.skuName} ${form.assetGoal}`.trim(),
     subject: kit?.emailDraft.subjectOptions[0] || `${form.skuName} follow-up`,
     body: kit?.emailDraft.body || "",
-    channel: "sendgrid",
+    channel: "resend",
     recipientEmails: parseLineList(form.recipientEmails),
   };
 }

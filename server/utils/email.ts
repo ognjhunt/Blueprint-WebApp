@@ -1,4 +1,7 @@
-import nodemailer from "nodemailer";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { Resend, type Attachment, type Tag } from "resend";
 import { logger } from "../logger";
 
 interface SendEmailOptions {
@@ -11,17 +14,15 @@ interface SendEmailOptions {
   fromName?: string;
   sendGridCategories?: string[];
   sendGridCustomArgs?: Record<string, string>;
-  attachments?: nodemailer.SendMailOptions["attachments"];
+  attachments?: Attachment[];
 }
 
 export type SendEmailResult = {
   sent: boolean;
-  provider: "sendgrid" | "smtp" | null;
+  provider: "resend" | null;
   messageId: string | null;
   error?: unknown;
 };
-
-let cachedTransporter: nodemailer.Transporter | null = null;
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
@@ -57,7 +58,7 @@ function buildEmailLogContext({
   attachments,
   sendGridCategories,
   sendGridCustomArgs,
-}: SendEmailOptions & { event: string; provider: "sendgrid" | "smtp" | "none" }) {
+}: SendEmailOptions & { event: string; provider: "resend" | "none" }) {
   return {
     event,
     provider,
@@ -69,8 +70,8 @@ function buildEmailLogContext({
     hasText: text.length > 0,
     hasHtml: Boolean(html),
     attachmentCount: attachments?.length ?? 0,
-    sendGridCategoryCount: sendGridCategories?.length ?? 0,
-    sendGridCustomArgKeys: Object.keys(sendGridCustomArgs ?? {}).sort(),
+    categoryCount: sendGridCategories?.length ?? 0,
+    tagKeys: Object.keys(sendGridCustomArgs ?? {}).sort(),
   };
 }
 
@@ -84,7 +85,7 @@ export type CityLaunchSenderStatus = {
   fromEmail: string | null;
   fromName: string;
   replyTo: string | null;
-  source: "blueprint_city_launch" | "sendgrid_default" | null;
+  source: "blueprint_city_launch" | "resend_default" | null;
   verificationStatus: CityLaunchSenderVerificationStatus;
 };
 
@@ -96,10 +97,26 @@ export type CityLaunchSenderOperationalState = {
   warnings: string[];
 };
 
-function getSendGridConfig() {
-  const apiKey = process.env.SENDGRID_API_KEY?.trim() || "";
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL?.trim() || "";
-  const fromName = process.env.SENDGRID_FROM_NAME?.trim() || "Blueprint";
+function getResendApiKey() {
+  const configured = process.env.RESEND_API_KEY?.trim();
+  if (configured) return configured;
+
+  const secretFile = process.env.RESEND_API_KEY_FILE?.trim()
+    || (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test"
+      ? join(homedir(), ".blueprint-secrets", "resend_api_key")
+      : "");
+  if (!secretFile) return "";
+  try {
+    return readFileSync(secretFile, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+function getResendConfig() {
+  const apiKey = getResendApiKey();
+  const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || "";
+  const fromName = process.env.RESEND_FROM_NAME?.trim() || "Blueprint";
 
   return {
     enabled: Boolean(apiKey || fromEmail),
@@ -110,58 +127,23 @@ function getSendGridConfig() {
   };
 }
 
-function getTransporter() {
-  if (cachedTransporter) {
-    return cachedTransporter;
-  }
-
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !port || !user || !pass) {
-    logger.warn(
-      { event: "email_smtp_config_unavailable", provider: "smtp" },
-      "SMTP environment variables are not fully configured.",
-    );
-    return null;
-  }
-
-  cachedTransporter = nodemailer.createTransport({
-    host,
-    port: Number(port),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user,
-      pass,
-    },
-  });
-
-  return cachedTransporter;
-}
-
 export function getEmailTransportStatus() {
-  const sendGrid = getSendGridConfig();
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const resend = getResendConfig();
 
   return {
-    enabled: sendGrid.enabled || Boolean(host || port || user || pass),
-    configured: sendGrid.configured || Boolean(host && port && user && pass),
-    provider: sendGrid.configured ? "sendgrid" : host && port && user && pass ? "smtp" : null,
+    enabled: resend.enabled,
+    configured: resend.configured,
+    provider: resend.configured ? "resend" : null,
   };
 }
 
 export function getCityLaunchSenderStatus(): CityLaunchSenderStatus {
   const configuredCityFromEmail = process.env.BLUEPRINT_CITY_LAUNCH_FROM_EMAIL?.trim() || "";
-  const sendGridDefaultFromEmail = process.env.SENDGRID_FROM_EMAIL?.trim() || "";
-  const fromEmail = configuredCityFromEmail || sendGridDefaultFromEmail || null;
+  const resendDefaultFromEmail = process.env.RESEND_FROM_EMAIL?.trim() || "";
+  const fromEmail = configuredCityFromEmail || resendDefaultFromEmail || null;
   const fromName =
     process.env.BLUEPRINT_CITY_LAUNCH_FROM_NAME?.trim()
-    || process.env.SENDGRID_FROM_NAME?.trim()
+    || process.env.RESEND_FROM_NAME?.trim()
     || "Blueprint City Launch";
   const replyTo =
     process.env.BLUEPRINT_CITY_LAUNCH_REPLY_TO?.trim()
@@ -185,8 +167,8 @@ export function getCityLaunchSenderStatus(): CityLaunchSenderStatus {
     replyTo: replyTo || null,
     source: configuredCityFromEmail
       ? "blueprint_city_launch"
-      : sendGridDefaultFromEmail
-        ? "sendgrid_default"
+      : resendDefaultFromEmail
+        ? "resend_default"
         : null,
     verificationStatus,
   };
@@ -204,7 +186,7 @@ export function getCityLaunchSenderOperationalState(): CityLaunchSenderOperation
 
   if (!sender.fromEmail) {
     blockers.push(
-      "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
+      "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or RESEND_FROM_EMAIL.",
     );
   }
 
@@ -227,7 +209,24 @@ export function getCityLaunchSenderOperationalState(): CityLaunchSenderOperation
   };
 }
 
-async function sendViaSendGrid({
+function resendTags(categories?: string[], customArgs?: Record<string, string>): Tag[] {
+  const values = new Map<string, string>();
+  if (categories?.length) values.set("category", categories[0]);
+  for (const [name, value] of Object.entries(customArgs ?? {})) values.set(name, value);
+  // Resend only accepts ASCII alphanumerics, underscores, and dashes in tags.
+  // Do not silently alter correlation IDs: omit invalid tags and log their keys.
+  const tags: Tag[] = [];
+  for (const [name, value] of values) {
+    if (/^[A-Za-z0-9_-]{1,256}$/.test(name) && /^[A-Za-z0-9_-]{1,256}$/.test(value)) {
+      tags.push({ name, value });
+    } else {
+      logger.warn({ event: "email_tag_omitted", tagKey: name }, "Invalid Resend tag omitted");
+    }
+  }
+  return tags;
+}
+
+async function sendViaResend({
   to,
   subject,
   text,
@@ -239,60 +238,31 @@ async function sendViaSendGrid({
   sendGridCustomArgs,
   attachments,
 }: SendEmailOptions): Promise<SendEmailResult> {
-  const config = getSendGridConfig();
+  const config = getResendConfig();
   if (!config.configured) {
     return { sent: false, provider: null, messageId: null };
   }
 
   try {
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: {
-          email: fromEmail || config.fromEmail,
-          name: fromName || config.fromName,
-        },
-        reply_to: replyTo ? { email: replyTo } : undefined,
-        subject,
-        categories: sendGridCategories?.filter(Boolean) || undefined,
-        custom_args:
-          sendGridCustomArgs && Object.keys(sendGridCustomArgs).length > 0
-            ? sendGridCustomArgs
-            : undefined,
-        content: [
-          { type: "text/plain", value: text },
-          ...(html ? [{ type: "text/html", value: html }] : []),
-        ],
-        attachments:
-          attachments?.map((attachment) => ({
-            content:
-              typeof attachment.content === "string"
-                ? attachment.content
-                : Buffer.isBuffer(attachment.content)
-                  ? attachment.content.toString("base64")
-                  : "",
-            filename: attachment.filename,
-            type: attachment.contentType,
-            disposition: attachment.contentDisposition ?? "attachment",
-            content_id: attachment.cid,
-          })) || undefined,
-      }),
+    const resend = new Resend(config.apiKey);
+    const { data, error } = await resend.emails.send({
+      from: `${fromName || config.fromName} <${fromEmail || config.fromEmail}>`,
+      to,
+      replyTo,
+      subject,
+      text,
+      html,
+      attachments,
+      tags: resendTags(sendGridCategories, sendGridCustomArgs),
     });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`SendGrid returned ${response.status}: ${body}`);
+    if (error || !data?.id) {
+      throw new Error(`Resend rejected email: ${error?.message || "missing email ID"}`);
     }
 
     logger.info(
       buildEmailLogContext({
         event: "email_dispatched",
-        provider: "sendgrid",
+        provider: "resend",
         to,
         subject,
         text,
@@ -302,19 +272,19 @@ async function sendViaSendGrid({
         sendGridCategories,
         sendGridCustomArgs,
       }),
-      "Email dispatched via SendGrid",
+      "Email accepted by Resend",
     );
     return {
       sent: true,
-      provider: "sendgrid",
-      messageId: response.headers.get("x-message-id"),
+      provider: "resend",
+      messageId: data.id,
     };
   } catch (error) {
     logger.error(
       {
         ...buildEmailLogContext({
           event: "email_dispatch_failed",
-          provider: "sendgrid",
+          provider: "resend",
           to,
           subject,
           text,
@@ -326,9 +296,9 @@ async function sendViaSendGrid({
         }),
         err: serializeEmailError(error),
       },
-      "Failed to send email via SendGrid",
+      "Failed to send email via Resend",
     );
-    return { sent: false, provider: "sendgrid", messageId: null, error };
+    return { sent: false, provider: "resend", messageId: null, error };
   }
 }
 
@@ -464,25 +434,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       }
     : options;
 
-  const sendGridResult = await sendViaSendGrid({
-    to,
-    subject,
-    text,
-    html,
-    replyTo,
-    fromEmail,
-    fromName,
-    sendGridCategories,
-    sendGridCustomArgs,
-    attachments,
-  });
-  if (sendGridResult.sent) {
-    return sendGridResult;
-  }
-
-  const transporter = getTransporter();
-
-  if (!transporter) {
+  if (!getEmailTransportStatus().configured) {
     logger.info(
       buildEmailLogContext({
         event: "email_transport_unconfigured",
@@ -501,71 +453,16 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { sent: false, provider: null, messageId: null };
   }
 
-  try {
-    // Gmail, and most authenticated relays, reject or silently rewrite a From
-    // that is not the authenticated mailbox. Falling back to the SMTP user is
-    // both what those servers will accept and better than the alternative here,
-    // which is a message with no From header at all.
-    const smtpFrom =
-      process.env.SMTP_FROM?.trim()
-      || fromEmail
-      || process.env.SMTP_USER?.trim()
-      || "";
-    const info = await transporter.sendMail({
-      from: smtpFrom
-        ? fromName
-          ? `${fromName} <${smtpFrom}>`
-          : smtpFrom
-        : undefined,
-      to,
-      subject,
-      text,
-      html,
-      replyTo,
-      attachments,
-    });
-
-    logger.info(
-      buildEmailLogContext({
-        event: "email_dispatched",
-        provider: "smtp",
-        to,
-        subject,
-        text,
-        html,
-        replyTo,
-        attachments,
-        sendGridCategories,
-        sendGridCustomArgs,
-      }),
-      "Email dispatched",
-    );
-    return {
-      sent: true,
-      provider: "smtp",
-      messageId: typeof info.messageId === "string" && info.messageId.trim()
-        ? info.messageId.trim()
-        : null,
-    };
-  } catch (error) {
-    logger.error(
-      {
-        ...buildEmailLogContext({
-          event: "email_dispatch_failed",
-          provider: "smtp",
-          to,
-          subject,
-          text,
-          html,
-          replyTo,
-          attachments,
-          sendGridCategories,
-          sendGridCustomArgs,
-        }),
-        err: serializeEmailError(error),
-      },
-      "Failed to send email",
-    );
-    return { sent: false, provider: "smtp", messageId: null, error };
-  }
+  return sendViaResend({
+    to,
+    subject,
+    text,
+    html,
+    replyTo,
+    fromEmail,
+    fromName,
+    sendGridCategories,
+    sendGridCustomArgs,
+    attachments,
+  });
 }

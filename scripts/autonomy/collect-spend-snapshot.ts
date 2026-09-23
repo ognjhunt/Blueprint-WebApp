@@ -289,6 +289,7 @@ function sanitizeMessage(value: unknown, sensitiveNames: string[]) {
   }
   return text
     .replace(/SG\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[redacted:sendgrid]")
+    .replace(/re_[A-Za-z0-9_-]{16,}/g, "[redacted:resend]")
     .replace(/github_pat_[A-Za-z0-9_]+/g, "[redacted:github_pat]")
     .replace(/ghp_[A-Za-z0-9_]+/g, "[redacted:github_pat]")
     .replace(/dop_v1_[A-Za-z0-9]+/g, "[redacted:digitalocean]")
@@ -521,33 +522,6 @@ async function collectRenderInventory(source: SourceConfig): Promise<Partial<Sou
       service_types: [...new Set(serviceTypes)],
     },
     missing_to_verify: ["Render billing endpoint, invoice export, or dashboard proof"],
-    notes: source.notes ?? [],
-  };
-}
-
-async function collectSendGridCredits(source: SourceConfig): Promise<Partial<SourceSnapshot>> {
-  const url = "https://api.sendgrid.com/v3/user/credits";
-  const payload = await fetchJson(url, {
-    headers: {
-      Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
-  const record = asRecord(payload);
-  const remaining = asNumber(record.remain ?? record.remaining ?? record.credits ?? record.credit_balance);
-  const used = asNumber(record.used ?? record.total_usage);
-  return {
-    status: "live_credit_balance_verified",
-    proof_level: "live-credit-balance",
-    can_count_toward_budget_actuals: false,
-    credit_balance_usd: null,
-    endpoint_host: new URL(url).hostname,
-    summary: {
-      remaining_credits: remaining,
-      used_credits: used,
-      reset_frequency: record.reset_frequency ?? record.reset ?? null,
-    },
-    missing_to_verify: ["SendGrid plan cost or billing export"],
     notes: source.notes ?? [],
   };
 }
@@ -863,8 +837,6 @@ async function dispatchLiveRead(
       return collectDigitalOceanBilling(source);
     case "render_inventory":
       return collectRenderInventory(source);
-    case "sendgrid_credits":
-      return collectSendGridCredits(source);
     case "github_billing_usage":
       return collectGithubBilling(source);
     case "backblaze_b2_authorize":

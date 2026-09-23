@@ -50,6 +50,7 @@ function hasFlag(name: string) {
 function trimTail(value: string, maxLength = 5000) {
   const sanitized = value
     .replace(/SG\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[redacted:sendgrid]")
+    .replace(/re_[A-Za-z0-9_-]{16,}/g, "[redacted:resend]")
     .replace(/github_pat_[A-Za-z0-9_]+/g, "[redacted:github_pat]")
     .replace(/ghp_[A-Za-z0-9_]+/g, "[redacted:github_pat]")
     .replace(/dop_v1_[A-Za-z0-9]+/g, "[redacted:digitalocean]")

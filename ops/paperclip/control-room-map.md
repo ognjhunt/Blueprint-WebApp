@@ -178,7 +178,7 @@ Guardrail tests now assert that every goal-enabled lane is Codex, has the standa
 
 Require explicit human/live approval before any of these actions:
 
-- live sends, outreach, Slack/Gmail sends, SendGrid sends, or human-reply polling
+- live sends, outreach, Slack/Gmail sends, Resend sends, or human-reply polling
 - Stripe, Stripe Connect, payouts, payment, refund, invoice, subscription, or pricing exceptions
 - Notion mutation or workspace restructuring
 - Render deploys, production env changes, public-url/webhook changes, or VPS repair/restart work

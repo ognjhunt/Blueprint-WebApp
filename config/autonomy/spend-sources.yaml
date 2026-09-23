@@ -109,19 +109,19 @@ sources:
     notes:
       - Render API service inventory is not billing proof until a billing or invoice export endpoint is attached.
 
-  - id: sendgrid_credits
-    label: SendGrid email credits
-    provider: SendGrid
-    ownerSystem: Twilio SendGrid account
+  - id: resend_email
+    label: Resend email
+    provider: Resend
+    ownerSystem: Resend account
     budgetLine: Email / human reply / Slack
-    adapter: sendgrid_credits
+    adapter: credential_presence
     targetUsd: 7
-    proofKind: live_credit_balance_not_invoice
+    proofKind: credential_presence_not_billing
     requiredEnv:
-      - SENDGRID_API_KEY
+      - RESEND_API_KEY
     staleAfterHours: 24
     notes:
-      - Credit balance proves email credit state; plan and invoice spend may still need dashboard/export proof.
+      - API key presence is not billing proof. Reconcile usage and charges from the Resend dashboard or invoice export.
 
   - id: github_billing_usage
     label: GitHub billing usage

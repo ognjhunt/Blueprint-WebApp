@@ -62,7 +62,7 @@ export const openAiResponsesOperatorTools: any[] = [
   {
     type: "function" as const,
     name: "queue_growth_campaign_send",
-    description: "Queue a SendGrid-backed growth campaign send for human approval.",
+    description: "Queue a Resend-backed growth campaign send for human approval.",
     strict: true,
     parameters: {
       type: "object",
@@ -90,7 +90,7 @@ export const openAiResponsesOperatorTools: any[] = [
   {
     type: "function" as const,
     name: "verify_growth_integrations",
-    description: "Verify analytics, SendGrid, ElevenLabs, and Google creative configuration.",
+    description: "Verify analytics, Resend, ElevenLabs, and Google creative configuration.",
     strict: true,
     parameters: {
       type: "object",
@@ -135,7 +135,7 @@ export async function runOperatorTool(
         subject: String(args.subject || ""),
         body: String(args.body || ""),
         audienceQuery: typeof args.audienceQuery === "string" ? args.audienceQuery : null,
-        channel: typeof args.channel === "string" ? args.channel : "sendgrid",
+        channel: typeof args.channel === "string" ? args.channel : "resend",
         recipientEmails: Array.isArray(args.recipientEmails)
           ? args.recipientEmails.filter((value): value is string => typeof value === "string")
           : null,

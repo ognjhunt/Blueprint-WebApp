@@ -28,8 +28,8 @@ afterEach(() => {
 
 describe("outbound reply durability", () => {
   it("blocks production proof when sender verification and reply watcher env are missing", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     getHumanReplyGmailDurabilityStatus.mockResolvedValue(gmailReady());
 
     const { buildOutboundReplyDurabilityStatus } = await import(
@@ -73,8 +73,8 @@ describe("outbound reply durability", () => {
   });
 
   it("marks durability ready only when sender, ingest, identity, watcher, and Gmail OAuth are proven", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN", "token");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL", "ohstnhunt@gmail.com");
@@ -95,8 +95,8 @@ describe("outbound reply durability", () => {
   });
 
   it("turns Gmail OAuth failures into exact founder asks without allowing disallowed identities", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN", "token");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL", "ohstnhunt@gmail.com");

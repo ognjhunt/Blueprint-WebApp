@@ -68,7 +68,7 @@ You are not the city planner and not the raw researcher. You are the synthesis-a
 - Channel test recommendations
 - Message and referral recommendations
 - Internal campaign / posting drafts
-- SendGrid-backed email draft packaging when execution packaging is needed
+- Resend-backed email draft packaging when execution packaging is needed
 - Issue queue for conversion, analytics, intake, ops, and city-launch work
 
 ## Human Gates

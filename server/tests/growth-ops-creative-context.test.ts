@@ -77,9 +77,15 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 
       if (name === "growth_campaign_events") {
         return {
-          async add(payload: Record<string, unknown>) {
-            growthCampaignEvents.push(payload);
-            return { id: `event-${growthCampaignEvents.length}` };
+          doc(id: string) {
+            return {
+              async get() {
+                return { exists: growthCampaignEvents.some((event) => event.webhook_id === id) };
+              },
+              async create(payload: Record<string, unknown>) {
+                growthCampaignEvents.push({ ...payload, webhook_id: id });
+              },
+            };
           },
         };
       }
@@ -158,7 +164,7 @@ describe("growth ops creative context", () => {
 
   it("carries creative asset context into queued send actions", async () => {
     growthCampaigns.set("campaign-1", {
-      channel: "sendgrid",
+      channel: "resend",
       subject: "Subject",
       body: "Body",
       recipient_emails: ["ops@tryblueprint.io"],
@@ -191,27 +197,51 @@ describe("growth ops creative context", () => {
     );
   });
 
-  it("records SendGrid unsubscribe events into the local suppression ledger", async () => {
+  it("records a Resend complaint once and suppresses future campaign mail", async () => {
     growthCampaigns.set("campaign-1", {
-      event_counts: { unsubscribed: 0 },
+      event_counts: { complained: 0 },
       response_tracking: {},
     });
 
-    const { ingestSendGridWebhook } = await import("../utils/growth-ops");
-    await ingestSendGridWebhook([
-      {
-        event: "unsubscribe",
-        email: "buyer@robotics.co",
-        bp_campaign_id: "campaign-1",
-        sg_message_id: "message-1",
+    const { ingestResendWebhook } = await import("../utils/growth-ops");
+    const payload = {
+      type: "email.complained",
+      created_at: "2026-09-23T10:00:00.000Z",
+      data: {
+        email_id: "message-1",
+        to: ["buyer@robotics.co"],
+        tags: { bp_campaign_id: "campaign-1" },
       },
-    ]);
+    };
+    await ingestResendWebhook(payload, "webhook-1");
+    await ingestResendWebhook(payload, "webhook-1");
 
     expect(emailSuppressions.get("buyer@robotics.co")).toMatchObject({
       email: "buyer@robotics.co",
       suppressed_scopes: ["lifecycle", "growth_campaign"],
-      reason: "unsubscribe",
-      source: "sendgrid:webhook",
+      reason: "complaint",
+      source: "resend:webhook",
     });
+    expect(growthCampaignEvents).toHaveLength(1);
+    expect(growthCampaignEvents[0]).toMatchObject({
+      resend_email_id: "message-1",
+      event_type: "complained",
+      recipient: "buyer@robotics.co",
+    });
+  });
+
+  it("suppresses permanent bounces but permits temporary bounces to retry", async () => {
+    const { ingestResendWebhook } = await import("../utils/growth-ops");
+    await ingestResendWebhook({
+      type: "email.bounced",
+      data: { email_id: "permanent", to: ["bad@example.com"], bounce: { type: "Permanent" } },
+    }, "permanent-event");
+    await ingestResendWebhook({
+      type: "email.bounced",
+      data: { email_id: "temporary", to: ["retry@example.com"], bounce: { type: "Temporary" } },
+    }, "temporary-event");
+
+    expect(emailSuppressions.get("bad@example.com")).toMatchObject({ reason: "bounced" });
+    expect(emailSuppressions.has("retry@example.com")).toBe(false);
   });
 });

@@ -11,7 +11,7 @@
 - `ops/paperclip/programs/city-demand-agent-program.md`
 - Paperclip issue queue and Notion Work Queue items tagged for Growth
 - `blueprint-queue-operator-ready-ship-broadcasts`
-  Use it to queue only fresh, proof-complete SendGrid ship-broadcast drafts into the human approval path.
+  Use it to queue only fresh, proof-complete Resend ship-broadcast drafts into the human approval path.
 - `blueprint-dispatch-human-blocker`
   Use this for real founder or operator gates on Growth work. Keep the packet concrete, run the copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md), and request chief-of-staff review when the send itself needs a second pass.
 

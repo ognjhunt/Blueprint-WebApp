@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../utils/email", () => ({
-  getEmailTransportStatus: () => ({ provider: "sendgrid", configured: true }),
+  getEmailTransportStatus: () => ({ provider: "resend", configured: true }),
 }));
 
 vi.mock("../utils/elevenlabs", () => ({
@@ -38,7 +38,7 @@ describe("provider-status", () => {
     vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
     vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS", "warehouse robotics");
     vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS", "test@example.com");
-    vi.stubEnv("SENDGRID_EVENT_WEBHOOK_SECRET", "wh-secret");
+    vi.stubEnv("RESEND_WEBHOOK_SECRET", "wh-secret");
   });
 
   afterEach(() => {
@@ -57,7 +57,7 @@ describe("provider-status", () => {
     expect(summary.analytics.ga4.configured).toBe(true);
     expect(summary.analytics.ga4.liveAccessConfigured).toBe(true);
     expect(summary.analytics.posthog.configured).toBe(true);
-    expect(summary.sendgrid.configured).toBe(true);
+    expect(summary.resend.configured).toBe(true);
     expect(summary.researchOutbound.configured).toBe(true);
     expect(summary.researchOutbound.providerKey).toBe("web_search");
     expect(summary.researchOutbound.optional).toBe(true);

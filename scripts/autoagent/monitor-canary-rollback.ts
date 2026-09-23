@@ -204,7 +204,7 @@ const HIGH_RISK_OUTPUT_PATTERNS: Array<{ rule: string; label: string; pattern: R
   {
     rule: "high_risk_claim_in_canary_output",
     label: "live send or outbound execution",
-    pattern: /\b(live_send|send_email|outbound_send|sendgrid|gmail_send|dispatch_email)\b/i,
+    pattern: /\b(live_send|send_email|outbound_send|sendgrid|resend|gmail_send|dispatch_email)\b/i,
   },
   {
     rule: "high_risk_claim_in_canary_output",

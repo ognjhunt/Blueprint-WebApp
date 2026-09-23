@@ -27,7 +27,7 @@ Authority stays split deliberately: repo docs define doctrine and policy drafts,
 
 - Frontend: React, Vite, TypeScript, Wouter, TanStack Query, Tailwind-style utility classes, Radix UI, lucide-react, Remotion surfaces.
 - Backend: Express, TypeScript, Firebase Admin, Firestore, Stripe and Stripe Connect, Redis for live hosted-session state when configured.
-- Runtime and ops: Render deployment, Paperclip autonomous org/control plane, Notion as workspace/review surface, SendGrid/Gmail/Slack integrations where explicitly configured.
+- Runtime and ops: Render deployment, Paperclip autonomous org/control plane, Notion as workspace/review surface, Resend/Gmail/Slack integrations where explicitly configured.
 - AI/runtime lanes: DeepSeek/OpenAI/Anthropic/ACP-compatible paths modeled in repo code and env; Codex is the default implementation lane.
 
 Do not introduce a new primary service, auth stack, datastore, deployment platform, payment system, or ops record without explicit `blueprint-cto` approval.

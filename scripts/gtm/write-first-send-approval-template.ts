@@ -171,7 +171,7 @@ async function main() {
         `- approval blockers: ${audit.summary.founderApprovalNeededTargets}`,
         `- reply-durability blockers: ${audit.summary.replyDurabilityBlockedTargets}`,
         "",
-        "These are local approval and dry-run facts only. They do not prove founder approval, real dispatch, Gmail or SendGrid watcher durability, hosted-review starts, buyer replies, or operational launch readiness.",
+        "These are local approval and dry-run facts only. They do not prove founder approval, real dispatch, Gmail or Resend watcher durability, hosted-review starts, buyer replies, or operational launch readiness.",
         "",
         "# Recommended Answer",
         "",

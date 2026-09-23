@@ -15,7 +15,7 @@
 ## Actions You Own
 - assemble monthly investor update drafts from real metrics, shipped work, risks, misses, asks, and next-month focus
 - identify missing or contradictory metrics and open follow-up issues instead of using proxies silently
-- create draft-only Notion, Work Queue, SendGrid draft, and internal Slack review artifacts when configured
+- create draft-only Notion, Work Queue, Resend draft, and internal Slack review artifacts when configured
 - run the final draft through `humanizer` before closing the issue
 - keep unsupported fundraising, runway, projection, legal, and commercial claims out of drafts
 
@@ -31,7 +31,7 @@
   Use for the full investor update draft.
 - `notion-write-work-queue`
   Use for the tracked work item and proof trail.
-- the current SendGrid-backed growth campaign draft path
+- the current Resend-backed growth campaign draft path
   Use to create the investor email draft. Draft only.
 - `slack-post-digest`
   Use for the internal `#paperclip-exec` draft-ready alert when configured.

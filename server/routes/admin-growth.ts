@@ -1,11 +1,12 @@
 import crypto from "node:crypto";
+import { Resend } from "resend";
 import { Request, Response, Router } from "express";
 import { getConfiguredEnvValue } from "../config/env";
 import { hasAnyRole, resolveAccessContext } from "../utils/access-control";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import {
   createGrowthCampaignDraft,
-  ingestSendGridWebhook,
+  ingestResendWebhook,
   listGrowthCampaigns,
   queueGrowthCampaignSend,
   runBuyerLifecycleCheck,
@@ -522,7 +523,7 @@ router.post("/campaigns", requireOps, async (req, res) => {
     const subject = normalizeString(req.body?.subject);
     const body = normalizeString(req.body?.body);
     const audienceQuery = normalizeString(req.body?.audienceQuery);
-    const channel = normalizeString(req.body?.channel) || "sendgrid";
+    const channel = normalizeString(req.body?.channel) || "resend";
     const recipientEmails = Array.isArray(req.body?.recipientEmails)
       ? req.body.recipientEmails.filter((value: unknown): value is string => typeof value === "string")
       : typeof req.body?.recipientEmails === "string"
@@ -1685,34 +1686,41 @@ router.get("/integrations/verify", requireOps, async (_req, res) => {
   }
 });
 
-export async function sendgridWebhookHandler(req: Request, res: Response) {
-  const configuredSecret = getConfiguredEnvValue("SENDGRID_EVENT_WEBHOOK_SECRET");
-  const providedSecret =
-    normalizeString(req.header("x-blueprint-growth-secret"))
-    || normalizeString(req.query.secret);
-
-  // Fail closed in production when the secret is unset; never accept
-  // unauthenticated webhook ingestion. Local/dev keeps the bypass.
-  if (!configuredSecret && process.env.NODE_ENV === "production") {
+export async function resendWebhookHandler(req: Request & { rawBody?: string }, res: Response) {
+  const configuredSecret = getConfiguredEnvValue("RESEND_WEBHOOK_SECRET");
+  if (!configuredSecret) {
     return res.status(503).json({ error: "Webhook secret not configured" });
   }
+  if (!req.rawBody) {
+    return res.status(400).json({ error: "Raw webhook body unavailable" });
+  }
+  const webhookId = req.header("svix-id");
+  if (!webhookId) {
+    return res.status(401).json({ error: "Invalid webhook signature" });
+  }
 
-  if (configuredSecret) {
-    const expected = Buffer.from(configuredSecret, "utf8");
-    const provided = Buffer.from(providedSecret ?? "", "utf8");
-    const matches =
-      expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
-    if (!matches) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+  let event;
+  try {
+    const resend = new Resend(getConfiguredEnvValue("RESEND_API_KEY") || "re_webhook_verification");
+    event = resend.webhooks.verify({
+      payload: req.rawBody,
+      headers: {
+        id: webhookId,
+        timestamp: req.header("svix-timestamp") || "",
+        signature: req.header("svix-signature") || "",
+      },
+      webhookSecret: configuredSecret,
+    });
+  } catch {
+    return res.status(401).json({ error: "Invalid webhook signature" });
   }
 
   try {
-    await ingestSendGridWebhook(req.body ?? []);
+    await ingestResendWebhook(event, webhookId);
     return res.status(202).json({ ok: true });
   } catch (error) {
-    logger.error({ err: error }, "Failed to ingest SendGrid webhook");
-    return res.status(500).json({ error: "Failed to ingest SendGrid webhook" });
+    logger.error({ err: error }, "Failed to ingest Resend webhook");
+    return res.status(500).json({ error: "Failed to ingest Resend webhook" });
   }
 }
 

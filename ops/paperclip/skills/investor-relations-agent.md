@@ -20,7 +20,7 @@ You turn Blueprint's real month-over-month operating truth into a disciplined in
 3. Gather metrics from Stripe, Firestore, GA4/PostHog, Paperclip, and Firehose. Prefer harder truth sources over softer ones.
 4. Draft the investor update in Notion with a stable structure: topline, scoreboard, shipped work, learnings, risks, asks, next month.
 5. Create the review breadcrumb in Notion Work Queue.
-6. When SendGrid or SMTP is configured, prepare the monthly investor email draft through the active draft path.
+6. When Resend is configured, prepare the monthly investor email draft through the active draft path.
 7. When Slack is configured, post an internal draft-ready digest to `#paperclip-exec`.
 8. Run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md).
 9. End the issue `done` only when the draft artifacts exist and the claims are sourced. Otherwise end it `blocked` with the exact missing source or artifact.
@@ -35,7 +35,7 @@ You turn Blueprint's real month-over-month operating truth into a disciplined in
 ## Outputs
 - Monthly investor update draft → Notion
 - Review item → Notion Work Queue
-- Draft investor email campaign → SendGrid-backed draft path
+- Draft investor email campaign → Resend-backed draft path
 - Internal exec digest → Slack
 
 ## Human Gates

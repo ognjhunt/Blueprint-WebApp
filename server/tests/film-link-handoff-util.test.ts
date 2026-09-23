@@ -8,7 +8,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const sendEmailMock = vi.fn(async () => ({ sent: true, provider: "sendgrid" as const, messageId: "e1" }));
+const sendEmailMock = vi.fn(async () => ({ sent: true, provider: "resend" as const, messageId: "e1" }));
 const sendSmsMock = vi.fn(async () => ({ sent: false, provider: null, messageId: null, reason: "not_configured" as const }));
 
 vi.mock("../utils/email", () => ({ sendEmail: (a: unknown) => sendEmailMock(a as never) }));

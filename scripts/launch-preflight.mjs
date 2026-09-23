@@ -175,18 +175,10 @@ requireCheckWithWaiver(
 );
 requireCheckWithWaiver("post_signup", Boolean(envValue("SLACK_WEBHOOK_URL")), "SLACK_WEBHOOK_URL is required for autonomous post-signup notifications.");
 
-const smtpEnabled = Boolean(
-  envValue("SMTP_HOST") || envValue("SMTP_PORT") || envValue("SMTP_USER") || envValue("SMTP_PASS"),
-);
-requireCheckWithWaiver(
-  "post_signup",
-  !smtpEnabled || Boolean(envValue("SMTP_HOST") && envValue("SMTP_PORT") && envValue("SMTP_USER") && envValue("SMTP_PASS")),
-  "SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS must all be set when SMTP delivery is enabled.",
-);
 requireCheckWithWaiver(
   "post_signup",
   getEmailTransportStatus(),
-  "A configured SendGrid or SMTP transport is required for autonomous post-signup email.",
+  "RESEND_API_KEY and RESEND_FROM_EMAIL are required for autonomous post-signup email.",
 );
 
 const experimentAutorolloutEnabled = automationFlags.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED;
@@ -206,14 +198,14 @@ if (researchOutboundEnabled) {
     "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS is required for full autonomous research outbound functionality.",
   );
 
-  const outboundChannel = (envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "sendgrid").toLowerCase();
+  const outboundChannel = (envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "resend").toLowerCase();
   requireCheck(
-    outboundChannel === "sendgrid",
-    "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be sendgrid when autonomous research outbound is enabled.",
+    outboundChannel === "resend",
+    "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be resend when autonomous research outbound is enabled.",
   );
 
   warnCheck(Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")), "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for full autonomous research outbound functionality.");
-  warnCheck(getEmailTransportStatus(), "A configured SendGrid or SMTP transport is required for full autonomous research outbound functionality.");
+  warnCheck(getEmailTransportStatus(), "Resend is required for full autonomous research outbound functionality.");
 }
 
 const creativeFactoryEnabled = automationFlags.BLUEPRINT_CREATIVE_FACTORY_ENABLED;
@@ -228,7 +220,7 @@ const buyerLifecycleEnabled = automationFlags.BLUEPRINT_BUYER_LIFECYCLE_ENABLED;
 if (buyerLifecycleEnabled) {
   requireCheck(
     getEmailTransportStatus(),
-    "A configured SendGrid or SMTP transport is required when buyer lifecycle automation is enabled.",
+    "Resend is required when buyer lifecycle automation is enabled.",
   );
   warnCheck(
     Boolean(envValue("BLUEPRINT_VOICE_BOOKING_URL")),
@@ -276,14 +268,11 @@ if (envValue("RATE_LIMIT_REDIS_URL")) {
 }
 
 function getEmailTransportStatus() {
-  return Boolean(
-    (envValue("SENDGRID_API_KEY") && envValue("SENDGRID_FROM_EMAIL"))
-    || (envValue("SMTP_HOST") && envValue("SMTP_PORT") && envValue("SMTP_USER") && envValue("SMTP_PASS")),
-  );
+  return Boolean(envValue("RESEND_API_KEY") && envValue("RESEND_FROM_EMAIL"));
 }
 
 function getCityLaunchSenderStatus() {
-  const fromEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "SENDGRID_FROM_EMAIL");
+  const fromEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "RESEND_FROM_EMAIL");
   const verificationStatus = envValue("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION").toLowerCase();
   return {
     fromEmail,
@@ -295,7 +284,7 @@ const cityLaunchSender = getCityLaunchSenderStatus();
 requireCheckWithWaiver(
   "city_launch_outbound",
   Boolean(cityLaunchSender.fromEmail),
-  "A city-launch sender email is required for real outbound city-launch sends. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
+  "A city-launch sender email is required for real outbound city-launch sends. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or RESEND_FROM_EMAIL.",
 );
 requireCheckWithWaiver(
   "city_launch_outbound",

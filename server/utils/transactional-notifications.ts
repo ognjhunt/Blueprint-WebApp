@@ -39,7 +39,7 @@ export type TransactionalNotificationRecord = {
   skip_reason: string | null;
   failure_reason: string | null;
   provider_message_id: string | null;
-  delivery_provider: "sendgrid" | "smtp" | "firebase" | null;
+  delivery_provider: "resend" | "firebase" | null;
   preference_key: string | null;
   data: Record<string, string>;
   created_at: string;

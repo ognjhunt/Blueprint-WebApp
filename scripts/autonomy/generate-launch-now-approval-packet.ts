@@ -140,7 +140,7 @@ function purposeForLine(line: string) {
     return "Cover cache/runtime support for launch flows within the cap.";
   }
   if (line.includes("Email") || line.includes("Slack")) {
-    return "Cover sender readiness, human reply path, and Slack/Gmail/SendGrid support costs without authorizing live sends.";
+    return "Cover sender readiness, human reply path, and Slack/Gmail/Resend support costs without authorizing live sends.";
   }
   if (line.includes("Search")) {
     return "Cover search/research API usage for proof-backed GTM and city-launch research.";

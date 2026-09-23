@@ -12,7 +12,7 @@ const ITEM_SOURCE_MAP: Record<string, string[]> = {
   "digitalocean-cloudflare-billing": ["digitalocean_billing", "cloudflare_billing_profile"],
   "firebase-gcp-billing-export": ["gcp_firebase_billing_export", "firebase_project_config"],
   "redis-upstash-billing": ["upstash_redis_usage"],
-  "email-human-reply-slack-billing-readiness": ["sendgrid_credits", "slack_billing"],
+  "email-human-reply-slack-billing-readiness": ["resend_credits", "slack_billing"],
   "analytics-billing-kpi-proof": ["posthog_usage"],
   "search-research-api-billing": ["search_research_api_spend"],
   "recipient-evidence-enrichment-receipts": ["recipient_evidence_enrichment"],

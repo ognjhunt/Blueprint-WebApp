@@ -189,7 +189,7 @@ vi.mock("../utils/cityLaunchSendExecutor", () => {
         approvalNeeded: approvalNeeded.length,
         sent: sent.length,
       },
-      emailTransport: { configured: true, provider: "sendgrid" },
+      emailTransport: { configured: true, provider: "resend" },
       sender: { verificationStatus: "verified" },
       blockers,
       warnings,
@@ -289,8 +289,8 @@ beforeEach(() => {
   resolveHistoricalRecipientEvidence.mockReset();
   appendOperatingGraphEvent.mockReset();
   materializeCityLaunchResearch.mockReset();
-  vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-  vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+  vi.stubEnv("RESEND_API_KEY", "sg-key");
+  vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
   vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
   vi.stubEnv("NOTION_API_TOKEN", "");
   vi.stubEnv("NOTION_API_KEY", "");
