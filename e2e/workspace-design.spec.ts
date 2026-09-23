@@ -369,9 +369,10 @@ for (const role of ["site_operator", "robot_team"] as const) {
       if (width === 390) {
         await page.getByRole("button", { name: "Open navigation" }).click();
         await expect(page.getByRole("navigation")).toBeVisible();
+        // Robot teams also get the task library and their runs and balance.
         await expect(
           page.getByRole("navigation").getByRole("link"),
-        ).toHaveCount(4);
+        ).toHaveCount(role === "robot_team" ? 5 : 4);
       }
     });
   }

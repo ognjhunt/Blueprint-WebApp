@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 for (const width of [1440, 390]) {
   test(`auth routes share the minimal theme at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
-    for (const [path, heading] of [["/sign-in", "Sign in"], ["/signup/business", "Create an account"], ["/signup/business?buyerType=site_operator", "Create an account"], ["/signup/capturer", "Create your account"], ["/forgot-password", "Reset your password"]]) {
+    for (const [path, heading] of [["/sign-in", "Sign in"], ["/signup/business", "Create an account"], ["/signup/business?buyerType=site_operator", "Create an account"], ["/forgot-password", "Reset your password"]]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
       await expect(page.locator(".auth-shell")).toHaveCSS("background-color", "rgb(246, 245, 239)");

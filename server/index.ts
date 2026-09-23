@@ -447,7 +447,7 @@ app.use((req, res, next) => {
     { from: "/for-capturers", to: "/contact/site-operator" },
     { from: "/earn", to: "/contact/site-operator" },
     { from: "/sample-deliverables", to: "/proof" },
-    { from: "/launch-map", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
+    { from: "/launch-map", to: "/contact/site-operator" },
     { from: "/updates", to: "/" },
     { from: "/careers", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/help", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },

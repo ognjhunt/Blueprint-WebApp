@@ -186,7 +186,7 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   await page.getByRole("button", { name: "Queue these runs from your balance" }).click();
   await expect(page.getByRole("button", { name: "Check results" })).toBeVisible();
   await page.reload();
-  await page.getByText("Already have a robot setup to evaluate?", { exact: true }).click();
+  await page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true }).click();
   await page.getByRole("button", { name: "Check results" }).click();
   await expect(page.getByRole("list", { name: "Run results" })).toContainText("41 of 50 episodes");
   expect(confirmations).toBe(1);
