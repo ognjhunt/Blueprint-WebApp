@@ -317,6 +317,9 @@ jobs:
 
       - name: Upload deployment evidence
         if: always()
+        # The exact-SHA and readiness checks above remain required; artifact
+        # storage quota must not turn a verified deployment into a red run.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: deploy-verification
