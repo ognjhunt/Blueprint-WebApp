@@ -61,7 +61,7 @@ export function syntheticDeviceBundle(options: {
     "reconstruction_qualification_request.json", "arkit/session_intrinsics.json", "arkit/intrinsics.json"]) {
     files.set(name, json({ schema_version: "v1", coordinate_frame_session_id: cfs, name }));
   }
-  files.set("semantic_anchors.json", Buffer.from("[]\n"));
+  files.set("semantic_anchors.json", json({ schema_version: "v1", semantic_anchors: [] }));
   files.set("video_frame_retention.jsonl", jsonl(frames.map((frame, index) => ({ write_attempt_index: index, frame_id: frame.frame_id }))));
   files.set("sync_map.jsonl", jsonl(frames));
   files.set("semantic_anchor_observations.jsonl", Buffer.alloc(0));
