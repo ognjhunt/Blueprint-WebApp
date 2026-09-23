@@ -323,7 +323,8 @@ it("binds a future capture's explicit Claude choice to its signed grant and keep
   expect(grant.consent.provider_terms_reference).toBe(terms);
   await expect(acceptWebsiteAnthropicAuthoring({ requestId: "req1", captureId: "walkthrough-req1",
     acceptedBy: "Site owner", providerTermsReference: terms })).rejects.toThrow("choice_closed");
-  const request = { submission_id: grant.capture_id, owner: grant.owner, consent: grant.consent,
+  const request = { schema_version: "task_evaluation_scene_intake_request.v1",
+    submission_id: grant.capture_id, owner: grant.owner, consent: grant.consent,
     source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
     task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
       subject: { description: "drawer", geometry_origin: "removed_before_reconstruction" } },
@@ -335,6 +336,14 @@ it("binds a future capture's explicit Claude choice to its signed grant and keep
   expect(() => validateSceneProviderTerms(request)).toThrow("provider_terms_not_configured_or_changed");
   expect(() => validateWebsiteSponsoredIntake({ ...request, execution: { ...request.execution,
     allowed_providers: ["vast", "openai"] } }, grant)).toThrow("sponsorship_binding_invalid");
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const submitted = await realFetch(`${base}/prepared-scene`, { method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", request }) });
+  expect(submitted.status).toBe(202);
+  const rows = [...store.rows.entries()].filter(([key]) => key.startsWith("taskEvaluationSceneIntakes/"));
+  expect(rows).toHaveLength(1);
+  expect(rows[0][1].website_preparation_provider_terms_reference).toBe(sha("e"));
 });
 
 it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site our screen has not cleared (%s)", async (disposition) => {
