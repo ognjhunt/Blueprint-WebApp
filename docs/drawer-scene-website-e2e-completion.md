@@ -1323,3 +1323,18 @@ checks passed. Hosted impact-plan upload was blocked by GitHub Actions artifact
 quota before its dependent checks ran. A canonical deployment has started but
 is not yet claimed complete here. Matrix step 11 remains partial; steps 10 and
 12–14 remain unproven.
+
+## 2026-09-23: exact-ID repair deployed; execution authority still expired
+
+The canonical iteration receipt
+`/var/lib/blueprint/pipeline-control-plane/deploy-receipts/iteration_44fdc9b_drawer_id_retry.json`
+reports `deployed` with both active-release and source-checkout heads at
+`44fdc9b98a6f6bf5331b24a123ae57b876784be6`. The live pipeline version
+endpoint reports that exact commit, `commit_proven=true`, and no blockers.
+Listener, scene-progression, and launch-reconciler timers are active. The
+20:05 UTC global GPU guard passed with zero live instances and verified
+provider zero. This is code deployment evidence only. A service-user status
+read still reports `scene_intake_authority_expired`; the effective cumulative
+budget is $52, and the last $13 quote is retained. The owner has been asked
+for a bounded same-scene time and spend extension. No extension, new paid
+attempt, native qualification, or GPU policy episode is claimed here.
