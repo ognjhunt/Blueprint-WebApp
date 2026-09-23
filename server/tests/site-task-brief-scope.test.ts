@@ -75,6 +75,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  delete process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON;
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
@@ -136,4 +137,33 @@ describe("only an owner link can mint a record-only link", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("film")}/film-link`);
     expect(response.status).toBe(403);
   });
+});
+
+it("never lets a film-only link select Anthropic authoring", async () => {
+  const response = await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("film")}/authoring-provider`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authoring_provider: "anthropic", accepted: true,
+      accepted_by: "Someone", provider_terms_reference: "anthropic:example" }),
+  });
+  expect(response.status).toBe(403);
+  expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")?.website_scene_authoring_choice).toBeUndefined();
+});
+
+it("records an exact Anthropic choice through the owner website link before sponsorship", async () => {
+  const terms = "anthropic:opus-5-5-private-processing-v1";
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
+    anthropic: { digest: terms, label: "Anthropic API terms", url: "https://example.com/terms" },
+  });
+  const url = `${baseUrl}/api/site-task-brief/${tokenFor("owner")}/authoring-provider`;
+  const offer = await (await fetch(url)).json();
+  expect(offer).toMatchObject({ available: true, terms: { digest: terms }, accepted: null });
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authoring_provider: "anthropic", accepted: true,
+      accepted_by: "Dana Okafor", provider_terms_reference: terms }) });
+  expect(response.status).toBe(201);
+  const choice = (await response.json()).accepted;
+  expect(choice).toMatchObject({ capture_id: "cap-1", provider_terms_reference: terms,
+    accepted_by: "Dana Okafor" });
+  expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")?.website_scene_authoring_choice).toEqual(choice);
+  expect((await (await fetch(url)).json()).accepted).toEqual(choice);
 });

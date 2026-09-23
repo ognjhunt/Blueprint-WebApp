@@ -19,6 +19,63 @@ const policySchema = z.object({
   provider_terms_reference: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 }).strict().refine(p => p.upstream_max_spend_usd + p.native_max_spend_usd <= p.max_total_spend_usd);
 
+const anthropicTermsReference = z.string().regex(/^anthropic:[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/);
+const authoringChoice = z.object({
+  schema_version: z.literal("website_scene_authoring_choice.v1"),
+  request_id: z.string().min(1), capture_id: z.string().min(1),
+  authoring_provider: z.literal("anthropic"),
+  provider_terms_reference: anthropicTermsReference,
+  accepted_by: z.string().trim().min(1).max(200),
+  accepted_at_epoch: z.number().finite().positive(),
+  choice_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+}).strict();
+
+function acceptedAnthropicChoice(record: Record<string, any>, requestId: string, captureId: string) {
+  const raw = record.website_scene_authoring_choice;
+  if (!raw) return null;
+  const parsed = authoringChoice.safeParse(raw);
+  if (!parsed.success) throw new Error("website_scene_authoring_choice_invalid");
+  const choice = parsed.data;
+  const { choice_digest, ...payload } = choice;
+  if (digest(payload) !== choice_digest || choice.request_id !== requestId
+      || choice.capture_id !== captureId
+      || sceneProviderTerms().anthropic?.digest !== choice.provider_terms_reference)
+    throw new Error("website_scene_authoring_choice_invalid");
+  return choice;
+}
+
+/** Owner-link choice for one future capture; no provider work or grant is issued here. */
+export async function acceptWebsiteAnthropicAuthoring(input: {
+  requestId: string; captureId: string; acceptedBy: string; providerTermsReference: string;
+}) {
+  const terms = sceneProviderTerms().anthropic;
+  if (!terms || !anthropicTermsReference.safeParse(terms.digest).success
+      || input.providerTermsReference !== terms.digest)
+    throw new Error("website_anthropic_provider_terms_not_configured_or_changed");
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  return storeTimeout(db.runTransaction(async transaction => {
+    const ref = db!.collection("inboundRequests").doc(input.requestId);
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new Error("task_brief_missing");
+    const record = snapshot.data()!;
+    if (record.website_scene_sponsorship || record.website_preparation_reservations)
+      throw new Error("website_scene_authoring_choice_closed");
+    const previous = acceptedAnthropicChoice(record, input.requestId, input.captureId);
+    if (previous) {
+      if (previous.accepted_by !== input.acceptedBy || previous.provider_terms_reference !== input.providerTermsReference)
+        throw new Error("website_scene_authoring_choice_changed");
+      return previous;
+    }
+    const value = { schema_version: "website_scene_authoring_choice.v1" as const,
+      request_id: input.requestId, capture_id: input.captureId, authoring_provider: "anthropic" as const,
+      provider_terms_reference: input.providerTermsReference, accepted_by: input.acceptedBy,
+      accepted_at_epoch: Date.now() / 1000 };
+    const choice = { ...value, choice_digest: digest(value) };
+    transaction.update(ref, { website_scene_authoring_choice: choice });
+    return choice;
+  }));
+}
+
 function policy() {
   try { return policySchema.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON || "null")); }
   catch { throw new Error("website_scene_sponsorship_not_configured"); }
@@ -32,10 +89,15 @@ export function websiteSceneSponsorship(input: {
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   const context = projectWebsiteTaskContext(input.brief, rights);
   if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
+  const authoringChoice = acceptedAnthropicChoice(input.record, input.requestId, context.capture_id);
+  if (authoringChoice && (configured.upstream_max_spend_usd !== 5
+      || configured.native_max_spend_usd !== 20 || configured.max_total_spend_usd !== 25))
+    throw new Error("website_scene_anthropic_fixed_price_required");
   const previous = input.record.website_scene_sponsorship;
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
     if (digest(payload) !== retainedDigest || previous.policy_digest !== digest(configured)
+      || (previous.authoring_choice_digest || null) !== (authoringChoice?.choice_digest || null)
       || previous.request_id !== input.requestId || previous.task_context_digest !== context.context_digest)
       throw new Error("website_scene_sponsorship_changed");
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
@@ -60,6 +122,10 @@ export function websiteSceneSponsorship(input: {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
     task_context_digest: context.context_digest, policy_digest: digest(configured),
+    authoring_provider: authoringChoice ? "anthropic" : "openai",
+    ...(authoringChoice ? { authoring_choice_digest: authoringChoice.choice_digest,
+      anthropic_provider_terms_reference: authoringChoice.provider_terms_reference,
+      authoring_accepted_by: authoringChoice.accepted_by } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.
     preparation_max_total_spend_usd: configured.max_total_spend_usd,
@@ -68,7 +134,8 @@ export function websiteSceneSponsorship(input: {
     max_paid_attempts: configured.max_paid_attempts,
     expires_at_epoch: input.now + configured.ttl_seconds,
     consent: {
-      rights_reference: digest(rights), provider_terms_reference: configured.provider_terms_reference,
+      rights_reference: digest(rights),
+      provider_terms_reference: authoringChoice?.provider_terms_reference || configured.provider_terms_reference,
       accepted_by: configured.owner.user_id, accepted_at_epoch: input.now,
       private_processing_authorized: true, provider_training_authorized: false,
       task_confirmed: true, spend_authorized: true,
@@ -256,7 +323,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
-    if (sceneProviderTerms()[command.provider]?.digest !== authority.consent.provider_terms_reference)
+    if (sceneProviderTerms()[command.provider]?.digest !== policy().provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");
     const reservations: Record<string, any> = record.website_preparation_reservations || {};
     const key = command.allocation_binding_digest.slice(7);
@@ -283,6 +350,14 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
 }
 
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
+  if (authority.authoring_provider === "anthropic") {
+    const terms = sceneProviderTerms();
+    const configured = policy();
+    if (terms.anthropic?.digest !== authority.anthropic_provider_terms_reference
+        || terms.vast?.digest !== configured.provider_terms_reference
+        || terms.openai?.digest !== configured.provider_terms_reference)
+      throw new Error("provider_terms_not_configured_or_changed");
+  }
   const test = request.task?.subject?.test_environment;
   const development = test !== undefined;
   if (development) {
@@ -310,6 +385,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
     || request.execution?.max_retries !== 0
     || request.execution?.claim_scope !== "development_only"
-    || digest(request.execution?.allowed_providers) !== digest(["vast", "openai"]))
+    || digest(request.execution?.allowed_providers) !== digest(authority.authoring_provider === "anthropic"
+      ? ["vast", "openai", "anthropic"] : ["vast", "openai"]))
     throw new Error("website_scene_sponsorship_binding_invalid");
 }

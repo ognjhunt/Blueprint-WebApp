@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { acceptWebsiteAnthropicAuthoring, loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend, validateWebsiteSponsoredIntake } from "../utils/websiteSceneSponsorship";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -301,6 +301,36 @@ it("retains one Blueprint cap and expiry per upload and refuses changed, expired
   const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_total_spend_usd: 24 });
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
+it("binds a future capture's explicit Claude choice to its signed grant and keeps spend fixed", async () => {
+  sponsoredCapture();
+  const terms = "anthropic:opus-5-5-private-processing-v1";
+  const configured = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...configured,
+    anthropic: { digest: terms, label: "Anthropic API terms", url: "https://www.anthropic.com/legal/commercial-terms" } });
+  await expect(acceptWebsiteAnthropicAuthoring({ requestId: "req1", captureId: "walkthrough-req1",
+    acceptedBy: "Site owner", providerTermsReference: "anthropic:other" })).rejects.toThrow("provider_terms_not_configured");
+  const choice = await acceptWebsiteAnthropicAuthoring({ requestId: "req1", captureId: "walkthrough-req1",
+    acceptedBy: "Site owner", providerTermsReference: terms });
+  expect(choice.choice_digest).toBe(sceneDigest(Object.fromEntries(Object.entries(choice).filter(([key]) => key !== "choice_digest"))));
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(grant).toMatchObject({ capture_id: "walkthrough-req1", authoring_provider: "anthropic",
+    anthropic_provider_terms_reference: terms, authoring_choice_digest: choice.choice_digest,
+    preparation_max_total_spend_usd: 25, upstream_max_spend_usd: 5, max_total_spend_usd: 20 });
+  expect(grant.consent.provider_terms_reference).toBe(terms);
+  await expect(acceptWebsiteAnthropicAuthoring({ requestId: "req1", captureId: "walkthrough-req1",
+    acceptedBy: "Site owner", providerTermsReference: terms })).rejects.toThrow("choice_closed");
+  const request = { submission_id: grant.capture_id, owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "drawer", geometry_origin: "removed_before_reconstruction" } },
+    execution: { ...command().execution, max_total_spend_usd: 20, max_paid_attempts: grant.max_paid_attempts,
+      expires_at_epoch: grant.expires_at_epoch, purpose: "scene_preparation", policy_candidates: [],
+      allowed_providers: ["vast", "openai", "anthropic"], claim_scope: "development_only" } };
+  expect(() => validateWebsiteSponsoredIntake(request, grant)).not.toThrow();
+  expect(() => validateWebsiteSponsoredIntake({ ...request, execution: { ...request.execution,
+    allowed_providers: ["vast", "openai"] } }, grant)).toThrow("sponsorship_binding_invalid");
 });
 
 it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site our screen has not cleared (%s)", async (disposition) => {

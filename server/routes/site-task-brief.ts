@@ -59,8 +59,53 @@ import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { sceneProviderTerms } from "../utils/taskEvaluationSceneIntake";
+import { acceptWebsiteAnthropicAuthoring } from "../utils/websiteSceneSponsorship";
 
 const router = Router();
+
+/** Optional, fresh-scene authoring choice. Film-only links cannot grant disclosure. */
+router.get("/:token/authoring-provider", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload || payload.scope !== "owner") return res.status(404).json({ code: "capture_token_invalid" });
+  if (!db) return res.status(503).json({ code: "website_capture_rights_store_unavailable" });
+  try {
+    const snapshot = await db.collection("inboundRequests").doc(payload.requestId).get();
+    if (!snapshot.exists) return res.status(404).json({ code: "task_brief_missing" });
+    const record = snapshot.data()!;
+    const terms = sceneProviderTerms().anthropic;
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ available: Boolean(terms?.digest.startsWith("anthropic:")
+      && !record.website_scene_sponsorship && !record.website_preparation_reservations),
+      terms: terms?.digest.startsWith("anthropic:") ? terms : null,
+      accepted: record.website_scene_authoring_choice?.capture_id === payload.captureId
+        ? record.website_scene_authoring_choice : null });
+  } catch {
+    return res.status(503).json({ code: "website_scene_authoring_choice_unavailable" });
+  }
+});
+
+router.post("/:token/authoring-provider", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload || payload.scope !== "owner") return res.status(403).json({ code: "capture_token_owner_required" });
+  const parsed = z.object({ authoring_provider: z.literal("anthropic"), accepted: z.literal(true),
+    accepted_by: z.string().trim().min(1).max(200),
+    provider_terms_reference: z.string().regex(/^anthropic:[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "website_scene_authoring_choice_invalid" });
+  try {
+    const choice = await acceptWebsiteAnthropicAuthoring({ requestId: payload.requestId,
+      captureId: payload.captureId, acceptedBy: parsed.data.accepted_by,
+      providerTermsReference: parsed.data.provider_terms_reference });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ accepted: choice });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "website_scene_authoring_choice_unavailable";
+    const known = code.startsWith("website_scene_authoring_choice_")
+      || code === "website_anthropic_provider_terms_not_configured_or_changed";
+    return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_authoring_choice_unavailable" });
+  }
+});
 
 function safeSceneViewUrl(value: unknown): string | null {
   try {
