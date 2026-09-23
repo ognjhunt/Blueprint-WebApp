@@ -19,8 +19,8 @@ beforeEach(() => {
   loggerMock.warn.mockReset();
   loggerMock.error.mockReset();
   process.env = { ...originalEnv };
-  delete process.env.SENDGRID_API_KEY;
-  delete process.env.SENDGRID_FROM_EMAIL;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.RESEND_FROM_EMAIL;
   delete process.env.SMTP_HOST;
   delete process.env.SMTP_PORT;
   delete process.env.SMTP_USER;

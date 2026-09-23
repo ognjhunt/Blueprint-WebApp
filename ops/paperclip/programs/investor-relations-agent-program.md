@@ -63,7 +63,7 @@ Translate shipped work into business consequence:
 ## Draft Artifact Workflow
 1. Create the long-form draft with `notion-write-knowledge`.
 2. Create the review artifact with `notion-write-work-queue`.
-3. If SendGrid or SMTP is configured, prepare the monthly investor email draft through the active growth-campaign draft path.
+3. If Resend is configured, prepare the monthly investor email draft through the active growth-campaign draft path.
 5. If Slack is configured, post an internal `#paperclip-exec` draft-ready digest with `slack-post-digest`.
 
 ## Human Gates

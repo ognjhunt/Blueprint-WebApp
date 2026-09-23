@@ -26,7 +26,7 @@ export function GrowthTruthBoundary() {
         <div className="border-t border-runway-line pt-3">
           <p className="text-sm font-semibold text-runway-text">Runtime proof</p>
           <p className="mt-1 text-sm leading-6 text-runway-mute">
-            Integration truth comes from WebApp verification, SendGrid, Meta, Notion, and provider endpoints.
+            Integration truth comes from WebApp verification, Resend, Meta, Notion, and provider endpoints.
           </p>
         </div>
       </div>

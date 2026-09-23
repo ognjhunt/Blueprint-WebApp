@@ -27,7 +27,7 @@ function sampleSummary() {
       budgetLine("Paperclip VPS / tunnel", 30, "DigitalOcean / Cloudflare / Paperclip host"),
       budgetLine("Firebase / Firestore / storage", 25, "Firebase / Firestore / GCS"),
       budgetLine("Redis / cache", 10, "Redis / Upstash"),
-      budgetLine("Email / human reply / Slack", 7, "SendGrid, Gmail, Slack"),
+      budgetLine("Email / human reply / Slack", 7, "Resend, Gmail, Slack"),
       budgetLine("Analytics", 0, "PostHog / GA4 / Firestore mirror"),
       budgetLine("Search / research APIs", 45, "Parallel Search MCP / configured search"),
       budgetLine("Recipient evidence enrichment", 35, "GTM evidence / enrichment providers"),

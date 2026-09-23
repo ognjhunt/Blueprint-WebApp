@@ -40,7 +40,7 @@ vi.mock("../utils/captureOutbox", () => ({
   deliverOutbox: vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })),
 }));
 
-const sendEmailMock = vi.fn(async () => ({ sent: true, provider: "sendgrid" as const, messageId: "e1" }));
+const sendEmailMock = vi.fn(async () => ({ sent: true, provider: "resend" as const, messageId: "e1" }));
 vi.mock("../utils/email", () => ({ sendEmail: (args: unknown) => sendEmailMock(args as never) }));
 
 const sendSmsMock = vi.fn(async () => ({ sent: false, provider: null, messageId: null, reason: "not_configured" as const }));

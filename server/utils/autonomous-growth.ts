@@ -79,7 +79,7 @@ export async function runAutonomousResearchOutboundLoop(params?: {
     throw new Error("Database not available");
   }
 
-  const channel = "sendgrid";
+  const channel = "resend";
   const recipients = outboundRecipientsFromEnv();
   const operatorEmail = params?.operatorEmail || "autonomous-growth@tryblueprint.io";
   const today = startOfUtcDay();

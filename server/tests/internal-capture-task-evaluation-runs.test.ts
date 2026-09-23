@@ -631,7 +631,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
   it("registers an existing operator run without forwarding or rewriting its source offering, then delivers once", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
-    state.sendEmail.mockResolvedValue({ sent: true, provider: "sendgrid", messageId: "operator-email-1" });
+    state.sendEmail.mockResolvedValue({ sent: true, provider: "resend", messageId: "operator-email-1" });
     const body = policyCanaryPublication();
     const parent = configuredOfferingRecord({ configurationRunId: "original-configuration" });
     const registration = operatorRegistration(body, parent);
@@ -845,7 +845,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
     state.sendEmail.mockResolvedValue({
       sent: true,
-      provider: "sendgrid",
+      provider: "resend",
       messageId: "message-canary-1",
     });
     let body = variant === "mixed-case"
@@ -950,7 +950,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
           terminal_state: "blocked",
           status: "accepted",
           attempts: 1,
-          provider: "sendgrid",
+          provider: "resend",
           message_id: "message-canary-1",
           delivered_at: null,
           run_result_digest: body.policy_canary_result.projection_digest,

@@ -89,8 +89,8 @@ type GrowthScorecardResponse = {
         topicsConfigured?: boolean;
         recipientsConfigured?: boolean;
       };
-      sendgrid?: { configured?: boolean; provider?: string | null };
-      sendgridWebhook?: { configured?: boolean };
+      resend?: { configured?: boolean; provider?: string | null };
+      resendWebhook?: { configured?: boolean };
       googleImage?: {
         configured?: boolean;
         executionState?: string;
@@ -458,8 +458,8 @@ export default function AdminGrowthOpsScorecard() {
                   </div>
                   <div className="border border-runway-line p-4 text-sm text-runway-body">
                     <p className="font-medium text-runway-text">Email and outbound</p>
-                    <p>SendGrid: {String(Boolean(scorecard.operatorStatus.providers.sendgrid?.configured))}</p>
-                    <p>SendGrid webhook: {String(Boolean(scorecard.operatorStatus.providers.sendgridWebhook?.configured))}</p>
+                    <p>Resend: {String(Boolean(scorecard.operatorStatus.providers.resend?.configured))}</p>
+                    <p>Resend webhook: {String(Boolean(scorecard.operatorStatus.providers.resendWebhook?.configured))}</p>
                   </div>
                   <div className="border border-runway-line p-4 text-sm text-runway-body">
                     <p className="font-medium text-runway-text">Creative</p>

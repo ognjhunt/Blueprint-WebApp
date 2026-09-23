@@ -27,8 +27,8 @@ afterEach(() => {
 const generatedAt = "2026-05-06T12:00:00.000Z";
 
 function stubReadySender() {
-  vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-  vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+  vi.stubEnv("RESEND_API_KEY", "sg-key");
+  vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
   vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
 }
 
@@ -215,12 +215,12 @@ function replyDurability(
     sender: {
       capability: "ready",
       productionProven: true,
-      transport: { enabled: true, configured: true, provider: "sendgrid" },
+      transport: { enabled: true, configured: true, provider: "resend" },
       sender: {
         fromEmail: "launches@tryblueprint.io",
         fromName: "Blueprint City Launch",
         replyTo: "launches@tryblueprint.io",
-        source: "sendgrid_default",
+        source: "resend_default",
         verificationStatus: "verified",
       },
       blockers: [],

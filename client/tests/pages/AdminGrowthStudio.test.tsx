@@ -146,7 +146,7 @@ describe("AdminGrowthStudio", () => {
     expect(await screen.findByText(/Growth truth boundary/i)).toBeInTheDocument();
     expect(screen.getByText(/Campaign kits and creative runs are draft-only until an approval ledger changes state/i)).toBeInTheDocument();
     expect(screen.getByText(/Notion is visibility, not execution ownership/i)).toBeInTheDocument();
-    expect(screen.getByText(/Integration truth comes from WebApp verification, SendGrid, Meta, Notion, and provider endpoints/i)).toBeInTheDocument();
+    expect(screen.getByText(/Integration truth comes from WebApp verification, Resend, Meta, Notion, and provider endpoints/i)).toBeInTheDocument();
     expect(await screen.findByText(/Ship-broadcast approval queue/i)).toBeInTheDocument();
     expect(screen.getByText(/Approving a queued item can dispatch through the configured delivery provider/i)).toBeInTheDocument();
     expect(await screen.findByText(/Asset key: ship-broadcast:webapp:abc1234/i)).toBeInTheDocument();

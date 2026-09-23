@@ -39,27 +39,18 @@ jobs:
           # the call that flaked with GitHub 503s on 2026-07-16.
           ref: main
           path: BlueprintCapture
-          token: ${{ secrets.BLUEPRINT_CAPTURE_CHECKOUT_TOKEN || github.token }}
+          ssh-key: ${{ secrets.BLUEPRINT_CAPTURE_DEPLOY_KEY }}
+          persist-credentials: false
 
       - name: Checkout BlueprintContracts for shared robot-eval contract
-        env:
-          CONTRACTS_REPOSITORY: ognjhunt/BlueprintContracts
+        uses: actions/checkout@v4
+        with:
+          repository: ognjhunt/BlueprintContracts
           # Keep this aligned with BlueprintCapturePipeline's blueprint-contracts pin.
-          CONTRACTS_REF: 7708a4e4c5dedeeb39cc73d3f6869304de295b81
-          CONTRACTS_TOKEN: ${{ secrets.BLUEPRINT_CONTRACTS_CHECKOUT_TOKEN || github.token }}
-        run: |
-          set -euo pipefail
-          git init BlueprintContracts
-          cd BlueprintContracts
-          git remote add origin "https://x-access-token:${CONTRACTS_TOKEN}@github.com/${CONTRACTS_REPOSITORY}.git"
-          fetch_ref="${CONTRACTS_REF:-main}"
-          if git fetch --depth=1 origin "${fetch_ref}"; then
-            echo "Using BlueprintContracts ref ${fetch_ref}"
-          else
-            echo "::error::BlueprintContracts ref '${fetch_ref}' was not available. Push a matching Contracts branch/ref or set CONTRACTS_REF; refusing to validate against an implicit fallback."
-            exit 1
-          fi
-          git checkout --detach FETCH_HEAD
+          ref: 7708a4e4c5dedeeb39cc73d3f6869304de295b81
+          path: BlueprintContracts
+          ssh-key: ${{ secrets.BLUEPRINT_CONTRACTS_DEPLOY_KEY }}
+          persist-credentials: false
 
       - name: Verify shared robot-eval job request contract
         run: npm run pipeline:robot-eval-contract:verify -- --contracts-module BlueprintContracts/js/robot-eval-job-request.mjs
@@ -71,6 +62,8 @@ jobs:
         run: npm run rules:parity
 
       - name: Typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run check
 
       - name: Claims guard (public-claims truthfulness gate)

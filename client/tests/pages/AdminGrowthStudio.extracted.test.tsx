@@ -153,7 +153,7 @@ describe("AdminGrowthStudio extracted model and panels", () => {
       />,
     );
 
-    expect(screen.getByText(/Fresh SendGrid ship-broadcast drafts already queued/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fresh Resend ship-broadcast drafts already queued/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Approve and Send/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Reject$/i })).toBeDisabled();
 

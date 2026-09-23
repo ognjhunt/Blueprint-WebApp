@@ -41,7 +41,7 @@ export function ShipBroadcastApprovalQueuePanel({
             Ship-broadcast approval queue
           </p>
           <p className="mt-1 text-sm text-runway-mute">
-            Fresh SendGrid ship-broadcast drafts already queued for human approval.
+            Fresh Resend ship-broadcast drafts already queued for human approval.
           </p>
           <p className="mt-1 text-xs leading-5 text-runway-faint">
             Approving a queued item can dispatch through the configured delivery provider;

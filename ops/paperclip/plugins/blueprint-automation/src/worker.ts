@@ -823,7 +823,7 @@ type CommunityUpdatesOutputProof = {
   report: CommunityUpdatesStructuredReport;
   growthCampaignDraft?: {
     id: string;
-    channel: "sendgrid";
+    channel: "resend";
     recipientCount: number;
   };
   notion?: {
@@ -9790,7 +9790,7 @@ function evaluateOperatorReadyShipBroadcast(
     return { eligible: false, reason: "asset output is not complete" };
   }
   if (!asset.growthCampaignDraftId) {
-    return { eligible: false, reason: "missing SendGrid draft id" };
+    return { eligible: false, reason: "missing Resend draft id" };
   }
   const generatedAt = Date.parse(asset.generatedAt);
   if (!Number.isFinite(generatedAt) || now - generatedAt > 48 * 60 * 60 * 1000) {
@@ -9936,7 +9936,7 @@ function formatCommunityUpdatesIssueComment(result: CommunityUpdatesOutputProof)
     `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
-    `- SendGrid draft: ${result.growthCampaignDraft ? `${result.growthCampaignDraft.id} (${result.growthCampaignDraft.recipientCount} recipients)` : "not created"}`,
+    `- Resend draft: ${result.growthCampaignDraft ? `${result.growthCampaignDraft.id} (${result.growthCampaignDraft.recipientCount} recipients)` : "not created"}`,
     `- Slack digest: ${slackStatus}`,
   ];
   return lines.join("\n");
@@ -10164,7 +10164,7 @@ async function buildCommunityUpdatesOutputProof(
         subject: emailDraftSubject,
         body: emailDraftBody,
         audienceQuery: `asset-key:${assetKey}`,
-        channel: "sendgrid",
+        channel: "resend",
         recipientEmails: draftRecipients,
         automationContext: {
           asset_key: assetKey,
@@ -10177,11 +10177,11 @@ async function buildCommunityUpdatesOutputProof(
       });
       result.growthCampaignDraft = {
         id: campaign.id,
-        channel: "sendgrid",
+        channel: "resend",
         recipientCount: draftRecipients.length,
       };
     } catch (error) {
-      errors.push(`SendGrid draft creation failed: ${error instanceof Error ? error.message : String(error)}`);
+      errors.push(`Resend draft creation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -10200,7 +10200,7 @@ async function buildCommunityUpdatesOutputProof(
     failureReasons.push("Missing Notion Knowledge artifact.");
   }
   if (shouldCreateGrowthCampaignDraft && !result.growthCampaignDraft?.id) {
-    failureReasons.push("Missing SendGrid growth campaign draft.");
+    failureReasons.push("Missing Resend growth campaign draft.");
   }
   if (result.slack?.configured && !result.slack.ok) {
     failureReasons.push(
@@ -14807,7 +14807,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Queue Operator-Ready Ship Broadcasts",
       description:
-        "Queue fresh SendGrid ship-broadcast drafts for human approval when they meet the narrow operator-ready rule set.",
+        "Queue fresh Resend ship-broadcast drafts for human approval when they meet the narrow operator-ready rule set.",
       parametersSchema: {
         type: "object",
         properties: {

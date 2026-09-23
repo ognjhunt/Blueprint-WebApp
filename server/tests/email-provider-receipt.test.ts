@@ -1,13 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ sendMail: vi.fn() }));
-
-vi.mock("nodemailer", () => ({
-  default: {
-    createTransport: () => ({ sendMail: state.sendMail }),
-  },
-}));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -15,15 +8,9 @@ vi.mock("../logger", () => ({
 const originalEnv = { ...process.env };
 
 beforeEach(() => {
-  vi.resetModules();
-  state.sendMail.mockReset();
   process.env = { ...originalEnv };
-  delete process.env.SENDGRID_API_KEY;
-  delete process.env.SENDGRID_FROM_EMAIL;
-  delete process.env.SMTP_HOST;
-  delete process.env.SMTP_PORT;
-  delete process.env.SMTP_USER;
-  delete process.env.SMTP_PASS;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.RESEND_FROM_EMAIL;
 });
 
 afterEach(() => {
@@ -32,42 +19,53 @@ afterEach(() => {
 });
 
 describe("email provider receipts", () => {
-  it("returns SendGrid transport acceptance and x-message-id", async () => {
-    process.env.SENDGRID_API_KEY = "sendgrid-test-key";
-    process.env.SENDGRID_FROM_EMAIL = "blueprint@example.com";
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, {
-      status: 202,
-      headers: { "x-message-id": "sendgrid-message-1" },
-    })));
+  it("returns a Resend acceptance ID and passes sender, reply-to, and correlation tags", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "email-123" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
     const { sendEmail } = await import("../utils/email");
 
     await expect(sendEmail({
       to: "team@example.com",
       subject: "Canary ready",
       text: "Open the authenticated result.",
+      replyTo: "hello@tryblueprint.io",
+      sendGridCategories: ["transactional"],
+      sendGridCustomArgs: { bp_campaign_id: "campaign-123" },
     })).resolves.toEqual({
       sent: true,
-      provider: "sendgrid",
-      messageId: "sendgrid-message-1",
+      provider: "resend",
+      messageId: "email-123",
+    });
+    const [url, request] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      from: "Blueprint <noreply@tryblueprint.io>",
+      to: "team@example.com",
+      reply_to: "hello@tryblueprint.io",
+      tags: [
+        { name: "category", value: "transactional" },
+        { name: "bp_campaign_id", value: "campaign-123" },
+      ],
     });
   });
 
-  it("returns SMTP transport acceptance and Nodemailer messageId", async () => {
+  it("does not use legacy SMTP credentials when Resend is unavailable", async () => {
     process.env.SMTP_HOST = "smtp.example.com";
-    process.env.SMTP_PORT = "587";
-    process.env.SMTP_USER = "blueprint";
-    process.env.SMTP_PASS = "test-only";
-    state.sendMail.mockResolvedValue({ messageId: "smtp-message-1" });
-    const { sendEmail } = await import("../utils/email");
+    process.env.SMTP_USER = "legacy";
+    process.env.SMTP_PASS = "legacy";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendEmail, getEmailTransportStatus } = await import("../utils/email");
 
+    expect(getEmailTransportStatus().configured).toBe(false);
     await expect(sendEmail({
-      to: "team@example.com",
-      subject: "Canary ready",
-      text: "Open the authenticated result.",
-    })).resolves.toEqual({
-      sent: true,
-      provider: "smtp",
-      messageId: "smtp-message-1",
-    });
+      to: "team@example.com", subject: "Canary ready", text: "Test",
+    })).resolves.toMatchObject({ sent: false, provider: null });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

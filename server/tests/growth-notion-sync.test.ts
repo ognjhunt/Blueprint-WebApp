@@ -112,8 +112,8 @@ describe("growth Notion sync", () => {
       doc("campaign-1", {
         send_status: "draft",
         name: "Launch sequence",
-        channel: "sendgrid",
-        delivery_provider: "sendgrid",
+        channel: "resend",
+        delivery_provider: "resend",
         recipient_count: 12,
         created_at: new Date("2026-04-01T01:00:00.000Z"),
         updated_at: new Date("2026-04-01T01:10:00.000Z"),
@@ -144,7 +144,7 @@ describe("growth Notion sync", () => {
           runway: { configured: true },
           elevenlabs: { configured: true },
           telephony: { configured: false },
-          sendgrid: { configured: true },
+          resend: { configured: true },
           googleImage: { executionState: "configured_unverified" },
         },
       }),
@@ -186,7 +186,7 @@ describe("growth Notion sync", () => {
       rich_text: [{ text: { content: "campaign-1" } }],
     });
     expect(campaignCreate?.properties["Authoritative Source"]).toEqual({
-      select: { name: "WebApp API / SendGrid" },
+      select: { name: "WebApp API / Resend" },
     });
     expect(campaignCreate?.properties["Last Synced At"]).toEqual({
       date: { start: expect.any(String) },

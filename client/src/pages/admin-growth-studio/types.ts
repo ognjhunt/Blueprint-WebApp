@@ -156,8 +156,8 @@ export type VerifyResponse = {
   };
   runway?: { configured?: boolean; baseUrl?: string; version?: string };
   elevenlabs?: { configured?: boolean; agentConfigured?: boolean; modelId?: string | null };
-  sendgrid?: { enabled?: boolean; configured?: boolean; provider?: string | null };
-  sendgridWebhook?: { configured?: boolean };
+  resend?: { enabled?: boolean; configured?: boolean; provider?: string | null };
+  resendWebhook?: { configured?: boolean };
   googleImage?: ProviderStatus;
 };
 

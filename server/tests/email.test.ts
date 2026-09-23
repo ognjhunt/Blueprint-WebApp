@@ -7,8 +7,8 @@ afterEach(() => {
 
 describe("city launch sender operational state", () => {
   it("returns ready when transport and sender verification are both ready", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
 
     const { getCityLaunchSenderOperationalState } = await import("../utils/email");
@@ -20,8 +20,8 @@ describe("city launch sender operational state", () => {
   });
 
   it("returns warning when sender verification cannot be proven programmatically", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "");
 
     const { getCityLaunchSenderOperationalState } = await import("../utils/email");
@@ -34,8 +34,8 @@ describe("city launch sender operational state", () => {
   });
 
   it("returns blocked when transport or sender verification is explicitly invalid", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "unverified");
 
     const { getCityLaunchSenderOperationalState } = await import("../utils/email");
