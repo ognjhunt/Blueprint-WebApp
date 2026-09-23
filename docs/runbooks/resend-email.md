@@ -77,5 +77,21 @@ not an automated outbound transport.
 - The web service has masked `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
   `RESEND_FROM_NAME`, and `RESEND_WEBHOOK_SECRET` entries saved in Render.
   The webhook is enabled at the production URL for sent, delivered, bounced,
-  complained, failed, and suppressed events. End-to-end webhook delivery awaits
-  the application release.
+  complained, failed, and suppressed events.
+
+## Production cutover evidence (2026-09-23)
+
+- PR #684 merged as `9ca5f3d07ae5a702ab8acda75056efdff913ecd7`.
+  The exact `main` CI run `35893255893` passed check, build, tests, e2e,
+  and Firebase rules. The CI-gated Render run `35894105989` succeeded, and
+  `https://tryblueprint.io/version.json` reported that exact SHA.
+- A controlled message from `Blueprint <noreply@tryblueprint.io>` to the owner
+  was accepted as Resend email `01a0cf45-438d-72c8-a4af-0749515658ab` and
+  showed **Delivered**. The signed `email.sent` and `email.delivered` webhook
+  records for that email ID each received HTTP 202 with `{ "ok": true }` from
+  the live route. An unsigned request to the route received HTTP 401.
+- Render's saved web-service environment now has the three `SENDGRID_*`
+  entries removed and `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified` set
+  against the provider-verified default sender. A subsequent CI-gated deploy
+  applies this saved environment to the running process. Verify that deploy
+  before claiming the runtime environment is clean.
