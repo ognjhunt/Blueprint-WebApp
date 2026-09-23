@@ -104,7 +104,7 @@ centred on the middle drawer front.
 | 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **done** — whole-cabinet `under-desk cabinet` track retained 186 observations; 14 candidate views, independent same-frame corroboration passed on original frame 173 (tracked share 0.213993, fresh SAM share 0.207911). The whole-video path was used for this capture; the separately merged view-first canary remains off for it |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | **done** — configured `gpt-image-2.5-sunburst` backend edited five views. First review identified the unedited, unmasked original frame 0; controller excluded exactly that view and a second Gemini review passed. Clean-plate manifest is `objects_removed`, `prepared_images`, five reviewed views, no blockers. Originals and failed review retained |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
-| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **Marble complete; geometry pending** — the controller settled the initial 402 at zero, then World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized, and website visual publication was written. Attempt 9 launched a bounded MapAnything GPU worker, but an old input bundle was staged; the worker rejected its digest, and the attempt ended without geometry. GPU teardown and provider-zero passed. PR #2123 fixes the exact bundle binding and permits one new-release retry after verified teardown; merged release deployment is in progress. Marble's scale factor and ground plane are estimates; source-frame camera poses remain unproven. |
+| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **Marble complete; geometry pending** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized, and website visual publication was written. Attempt 9 used an old input bundle; PR #2123 fixed that and is deployed. Attempt 11 used the exact bundle, but its GPU worker exited without output. Both rentals have teardown `PASS` and provider-zero `PASS`. Diagnostic, billing and one further bounded retry changes are under review. Marble's scale and ground plane are estimates; source-frame camera poses remain unproven. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
 | 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | unproven |
@@ -907,5 +907,29 @@ the earlier execution failure, teardown and provider-zero receipts validate;
 the same release and an uncertain allocation remain blocked. Twenty-five
 impacted tests and nineteen MapAnything/Vast tests passed. The retry predicate
 also passed against this capture's retained terminal receipts. Canonical canary
-deployment of the merged commit is in progress. Step 8 remains incomplete until
-MapAnything returns source-frame camera/depth estimates and the GPU tears down.
+deployment of the merged commit completed with exact live source proof. Step 8
+remains incomplete until MapAnything returns source-frame camera/depth estimates
+and the GPU tears down.
+
+### MapAnything second rental: exact bundle, worker ended without output
+
+Controller attempt 11 staged the precise receipt-named MapAnything bundle.
+Both staged bytes and the transport digest matched
+`sha256:f1eeb3ad7ec73054295b1e77a368b0cf2d0103b287d1e0803629f58456f8e62f`.
+The Vast instance exited after about 193 seconds without a geometry result.
+The execution receipt is `failed`, teardown is `PASS`, and provider-zero is
+`PASS`. The controller did not accept an image or a static validator as a
+policy episode. The listener timer and service were stopped after this failed
+attempt, with no live GPU instance. The worker's exact exception was not
+retained before destruction, so its cause remains open.
+
+Vast's per-instance charges API reports $0.228 for the first failed rental
+and $0.010 for the second, including GPU, disk, and bandwidth. The WebApp
+still holds each $0.50 reservation because it lacks a Vast settlement route;
+the scene has 29/32 requests and $4.555/$5 reserved or settled. The owner has
+authorized more requests, while the fixed $5 preparation spend cap remains.
+Candidate Pipeline and WebApp changes now retain typed worker failure evidence,
+allow one more new-release retry only after failed execution plus teardown and
+provider-zero proof, reconcile exact provider charges, and support one
+append-only request-limit extension. Focused local tests pass; these changes
+are not yet merged or deployed. Steps 8–14 remain unproved.

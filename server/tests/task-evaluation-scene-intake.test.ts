@@ -1323,12 +1323,22 @@ it("amends only preparation request count while retaining money, native authorit
   expect(store.rows.get("inboundRequests/req1").website_preparation_limit_amendment).toBeUndefined();
   const receipt = await amendWebsitePreparationRequestLimit("req1", input, true);
   expect(await amendWebsitePreparationRequestLimit("req1", input, true)).toEqual(receipt);
+  const extension = { ...input, max_requests: 48, approval_reference: "owner-reply:test-48" };
+  expect(await amendWebsitePreparationRequestLimit("req1", extension)).toMatchObject({
+    max_requests: 48, prior_amendment_digest: receipt.amendment_digest });
+  expect(store.rows.get("inboundRequests/req1").website_preparation_limit_extension).toBeUndefined();
+  const extended = await amendWebsitePreparationRequestLimit("req1", extension, true);
+  expect(await amendWebsitePreparationRequestLimit("req1", extension, true)).toEqual(extended);
+  await expect(amendWebsitePreparationRequestLimit("req1", { ...extension, max_requests: 64 }, true))
+    .rejects.toThrow("amendment_conflict");
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
   expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
-  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+  expect(await reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+    request_count: 32 })).toMatchObject({ status: "admitted" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("4"),
     request_count: 32 })).rejects.toThrow("budget_exhausted");
-  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("5"),
     maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
 });
 
@@ -1339,7 +1349,7 @@ it("rejects stale, unauthorized, revoked and tampered preparation amendments", a
     approved_by: grant.owner.user_id, approval_reference: "owner-reply:test-32" };
   await expect(amendWebsitePreparationRequestLimit("req1", { ...input, authority_digest: sha("f") }, true)).rejects.toThrow("binding_invalid");
   await expect(amendWebsitePreparationRequestLimit("req1", { ...input, approved_by: "stranger" }, true)).rejects.toThrow("binding_invalid");
-  await expect(amendWebsitePreparationRequestLimit("req1", { ...input, max_requests: 33 }, true)).rejects.toThrow();
+  await expect(amendWebsitePreparationRequestLimit("req1", { ...input, max_requests: 65 }, true)).rejects.toThrow();
   const row = store.rows.get("inboundRequests/req1");
   row.consent_revoked = true;
   await expect(amendWebsitePreparationRequestLimit("req1", input, true)).rejects.toThrow("source_revoked");
@@ -1399,6 +1409,31 @@ it("cannot release a reservation using missing, mismatched or excessive provider
   await expect(settleWebsitePreparationSpend("req1", { ...settlement, total_credits: 3101 })).rejects.toThrow("settlement_invalid");
   await expect(settleWebsitePreparationSpend("req1", { ...settlement, operation_done: false as any })).rejects.toThrow();
   expect(store.rows.get("inboundRequests/req1").website_preparation_reservations["1".repeat(64)].settlement).toBeUndefined();
+});
+
+it("releases only provider charged Vast capacity after a bound terminal rental", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, vast: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const admission = { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha("1"), resource_class: "gpu_render" as const,
+    provider: "vast" as const, maximum_cost_usd: .5, request_count: 1 };
+  await reserveWebsitePreparationSpend("req1", admission);
+  const settlement = { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: admission.allocation_binding_digest, provider: "vast" as const,
+    instance_id: "52151169", provider_charge_source: "instance-52151169",
+    provider_charge_amount_usd: .01, provider_charge_receipt_digest: sha("2"),
+    execution_result_digest: sha("3"), teardown_receipt_digest: sha("4"), provider_zero_digest: sha("5") };
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement,
+    provider_charge_source: "instance-9" })).rejects.toThrow();
+  const receipt = await settleWebsitePreparationSpend("req1", settlement);
+  expect(receipt).toMatchObject({ status: "settled", actual_cost_usd: .01 });
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toEqual(receipt);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement,
+    provider_charge_amount_usd: .011 })).rejects.toThrow("idempotency_conflict");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement,
+    provider_charge_amount_usd: .51 })).rejects.toThrow("settlement_invalid");
 });
 
 
