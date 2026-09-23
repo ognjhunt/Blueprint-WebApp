@@ -1276,3 +1276,15 @@ covering exactly one more $13 guarded attempt. The attempt count stays 16 and
 the $7 CPU/$6 GPU per-attempt limits and fixed $25 website development-test
 price stay unchanged. This grant is not evidence of actual provider billing or
 of a new launch. Steps 10 and 12–14 remain unproven; step 11 remains partial.
+
+## 2026-09-23: Astra retry admitted on the same scene
+
+After the deployed Astra release and fresh provider-zero check, the durable
+controller completed source preparation and activation for the same fixture
+intent. It submitted launch
+`website-52ff463bc7855063836d5861-f4c2b87e-20260923t181453z-activation-auto-launch`
+through the canonical dispatcher. The allocator admission is `admitted` with
+no blockers; its result is pending. No CPU authoring acceptance, native
+qualification, GPU episode, or website result is claimed yet. Keep the evidence
+matrix at step 11 partial and steps 10 and 12–14 unproven while this guarded
+attempt runs.
