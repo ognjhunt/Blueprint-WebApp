@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; construction pending** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The production construction envelope is queued but no authored asset or native import receipt exists. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring blocked** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. Two CPU attempts reached articulated asset authoring but neither produced a complete cabinet-and-drawer asset or native import receipt. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1045,3 +1045,44 @@ PR #2128 passed its hosted gate and merged as
 `abf84fe18f761087dad58d4272d20d38d3855c5f`; its exact-commit canary
 deployment is running. Step 10 remains unproven until the controller actually
 authors and validates the asset.
+
+## 2026-09-23: development fixture CPU attempts
+
+The durable controller admitted the separate `development_drawer_fixture` and
+launched it on Pipeline release `24af68312b73a6a6a4b7cd3b7fea9cd0751eff23`.
+CPU stages 1 and 2 checkpointed. Stage 3 authored both carcass and drawer
+candidate geometry, but the model-spend gate stopped the next Astra call:
+14 completed calls had estimated usage of $3.74245, and the next $1.40
+worst-case reservation would exceed that attempt's $5 authoring cap. The
+allocator reported zero GPU provider mutations and no Vast instance. Pipeline
+PR #2131 raised the articulated website attempt's authoring allowance to $7
+while leaving the $20 scene simulation limit unchanged. It also projects
+that failed pre-GPU attempt at its full $5 model cap, based on the retained,
+digest-bound CPU archive, rather than retaining its unused GPU allowance.
+PR #2131 merged as `1c7c617c7060f11df35fd668c4449094b579575b` and was
+canonically deployed with a proven live commit.
+
+The next controller attempt,
+`website-52ff463bc7855063836d5861-1c7c617c-20260923t085718z-activation-auto-launch`,
+passed paid admission and the CPU preflight, then failed stage 3 with
+`authoring_independent_review_limit_reached`. Its archived tool sequence shows
+two valid carcass renders, each followed by `observe_object`, which cleared the
+rendered candidate before the independent visual reviewer could inspect it.
+No appearance review ran, no complete drawer link was authored, and no GPU
+provider mutation occurred. Thirteen completed model calls carried estimated
+usage of $3.69448; the provider's official completion receipt still says
+`official_cost_reporting_pending` and `cost_is_final: false`. The signed
+settlement retains the full $13 attempt allowance pending a narrower verified
+budget projection or final billing. Those estimates are not final charges.
+
+Pipeline PR #2132 makes each completed `render_candidate` tool call hand off
+immediately to independent review, records digest-bound render artifacts for
+resume, and keeps older inspected-render checkpoints readable. The focused
+session, resume and scene-configuration tests passed 64/64; the two-part runtime
+tests passed 6/6. PR #2132 merged as
+`ac39dabb9af5b46dbb2f90a73d2edf1a3fee32bf`; its canonical deployment is
+in progress at the time of this entry. The current scene's conservative
+simulation holds are $5 plus $13 against its fixed $20 limit, while another
+full articulated attempt is quoted at $13. No further paid attempt is implied
+by the code merge. Steps 10 and 12–14 remain unproven; step 11 remains a
+separately labeled development fixture handoff, not captured-room readiness.
