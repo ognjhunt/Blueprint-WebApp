@@ -278,8 +278,11 @@ export async function discoverAgentExecutionAdmissionsForSelection(
   }>
 > {
   if (!db) return [];
+  // Only prepared records can be admitted, so read only those; an unfiltered
+  // window would miss a prepared record once the collection passed the limit.
   const snapshot = await db
     .collection("robotEvalJobRequests")
+    .where("status", "==", "prepared_agent_execution")
     .limit(Math.max(1, Math.min(limit, 100)))
     .get();
   const admitted = await Promise.all(
@@ -310,6 +313,65 @@ export async function discoverAgentExecutionAdmissionsForSelection(
   );
 }
 
+export interface SceneExecutionFacts {
+  ok: true;
+  taskId: string;
+  taskFamily: string;
+  captureDigest: string;
+  testbedDigest: string;
+  testbedId: string;
+  testbedVersion: string;
+  siteId: string;
+  captureId: string;
+}
+
+/**
+ * What the Pipeline's published testbed says about a site's scene: the approved
+ * task, the capture it was built from, and the digests that bind them. Read
+ * from records, never constructed; anything missing is a blocker.
+ */
+export async function sceneExecutionFacts(
+  scene: Record<string, unknown>,
+): Promise<SceneExecutionFacts | { ok: false; blockers: string[] }> {
+  if (!db) return { ok: false, blockers: ["agent_execution_store_unavailable"] };
+  const pipeline = objectValue(scene.pipeline);
+  const captureJobId = String(pipeline.capture_job_id || "").trim();
+  if (!captureJobId) return { ok: false, blockers: ["agent_execution_capture_session_missing"] };
+  const captureSnapshot = await db.collection("captureUploadSessions").doc(captureJobId).get();
+  if (!captureSnapshot.exists) {
+    return { ok: false, blockers: ["agent_execution_capture_session_missing"] };
+  }
+  const capture = objectValue(captureSnapshot.data());
+  const testbedPublication = objectValue(capture.pipeline_site_task_testbed);
+  const testbed = objectValue(testbedPublication.testbed);
+  const approvedTask = objectValue(testbed.approved_task_definition);
+  const sourceCapture = objectValue(approvedTask.source_capture);
+  const task = objectValue(approvedTask.task);
+  const taskDistribution = objectValue(testbed.task_distribution);
+  const compiledCards = objectValue(testbed.compiled_cards);
+  const siteCard = objectValue(compiledCards.site_card);
+  const sourceCaptureBundles = Array.isArray(testbed.source_capture_bundles)
+    ? testbed.source_capture_bundles.map(objectValue)
+    : [];
+  const facts = {
+    ok: true as const,
+    taskId: String(approvedTask.approved_task_id || "").trim(),
+    taskFamily: String(task.task_family || taskDistribution.task_family || "").trim(),
+    captureDigest: String(sourceCapture.capture_digest || sourceCaptureBundles[0]?.digest || "").trim(),
+    testbedDigest: String(testbedPublication.testbed_digest || "").trim(),
+    testbedId: String(testbedPublication.testbed_id || testbed.testbed_id || "").trim(),
+    testbedVersion: String(testbedPublication.version || testbed.version || "").trim(),
+    siteId: String(siteCard.id || testbed.site_id || "").trim(),
+    captureId: String(pipeline.capture_id || capture.capture_id || captureJobId).trim(),
+  };
+  const blockers: string[] = [];
+  if (!facts.taskId || !facts.taskFamily) blockers.push("agent_execution_approved_task_missing");
+  if (!facts.captureDigest) blockers.push("agent_execution_capture_digest_missing");
+  if (!facts.testbedDigest) blockers.push("agent_execution_testbed_digest_missing");
+  if (!facts.siteId || !facts.captureId) blockers.push("agent_execution_scene_identity_missing");
+  return blockers.length ? { ok: false, blockers } : facts;
+}
+
 export async function discoverAgentExecutionAdmission(params: {
   teamId: string;
   checkpointId: string;
@@ -332,45 +394,11 @@ export async function discoverAgentExecutionAdmission(params: {
     return { admitted: false, blockers: ["agent_execution_scene_missing"] };
   }
   const checkpoint = objectValue(checkpointSnapshot.data());
-  const scene = objectValue(sceneSnapshot.data());
-  const pipeline = objectValue(scene.pipeline);
-  const captureJobId = String(pipeline.capture_job_id || "").trim();
-  if (!captureJobId) {
-    return { admitted: false, blockers: ["agent_execution_capture_session_missing"] };
-  }
-  const captureSnapshot = await db
-    .collection("captureUploadSessions")
-    .doc(captureJobId)
-    .get();
-  if (!captureSnapshot.exists) {
-    return { admitted: false, blockers: ["agent_execution_capture_session_missing"] };
-  }
-  const capture = objectValue(captureSnapshot.data());
-  const testbedPublication = objectValue(capture.pipeline_site_task_testbed);
-  const testbed = objectValue(testbedPublication.testbed);
-  const approvedTask = objectValue(testbed.approved_task_definition);
-  const sourceCapture = objectValue(approvedTask.source_capture);
-  const task = objectValue(approvedTask.task);
-  const taskDistribution = objectValue(testbed.task_distribution);
-  const compiledCards = objectValue(testbed.compiled_cards);
-  const siteCard = objectValue(compiledCards.site_card);
-  const sourceCaptureBundles = Array.isArray(testbed.source_capture_bundles)
-    ? testbed.source_capture_bundles.map(objectValue)
-    : [];
-  const taskId = String(approvedTask.approved_task_id || "").trim();
-  const taskFamily = String(task.task_family || taskDistribution.task_family || "").trim();
-  const captureDigest = String(
-    sourceCapture.capture_digest || sourceCaptureBundles[0]?.digest || "",
-  ).trim();
-  const testbedDigest = String(testbedPublication.testbed_digest || "").trim();
-  const siteId = String(siteCard.id || testbed.site_id || "").trim();
-  const captureId = String(pipeline.capture_id || capture.capture_id || captureJobId).trim();
+  const facts = await sceneExecutionFacts(objectValue(sceneSnapshot.data()));
+  if (!facts.ok) return { admitted: false, blockers: facts.blockers };
+  const { taskId, taskFamily, captureDigest, testbedDigest, siteId, captureId } = facts;
   const blockers: string[] = [];
   if (checkpoint.teamId !== params.teamId) blockers.push("agent_execution_checkpoint_team_mismatch");
-  if (!taskId || !taskFamily) blockers.push("agent_execution_approved_task_missing");
-  if (!captureDigest) blockers.push("agent_execution_capture_digest_missing");
-  if (!testbedDigest) blockers.push("agent_execution_testbed_digest_missing");
-  if (!siteId || !captureId) blockers.push("agent_execution_scene_identity_missing");
   if (!Number.isInteger(params.quotedEpisodes) || params.quotedEpisodes <= 0) {
     blockers.push("agent_execution_episode_quote_invalid");
   }

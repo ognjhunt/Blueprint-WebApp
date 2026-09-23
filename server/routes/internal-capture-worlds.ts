@@ -233,6 +233,60 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
   },
 );
 
+/**
+ * The Pipeline's execution offer for a website scene: where its capture lives
+ * on the executor's partition, the one scenario it runs, and how many episodes.
+ *
+ * Published once the scene's episode specs exist. It is the last fact a
+ * self-serve robot-team purchase needs (`selfServeAgentExecution`), and it is
+ * only a fact: the executor re-checks the capture root and episode count
+ * before it claims a run, so a stale or wrong offer blocks a run rather than
+ * running the wrong thing.
+ */
+const agentExecutionOfferBody = z.object({
+  request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+  scene_id: z.string().trim().min(1).max(220),
+  offer: z.object({
+    schema_version: z.literal("blueprint.agent_execution_offer.v1"),
+    scene_id: z.string().trim().min(1).max(220),
+    capture_id: z.string().trim().min(1).max(220),
+    capture_root: z.string().trim().min(2).max(1000),
+    scenario_id: z.string().trim().min(1).max(200),
+    episode_count: z.number().int().min(1).max(100_000),
+    episode_specs_sha256: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  }).strict(),
+}).strict();
+
+router.post(
+  "/creator-captures/:captureId/agent-execution-offer",
+  createPipelineSyncRateLimiter(),
+  guard,
+  async (req: Request, res: Response) => {
+    const parsed = agentExecutionOfferBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "agent_execution_offer_invalid" });
+    const { request_id: requestId, scene_id: sceneId, offer } = parsed.data;
+    const captureId = String(req.params.captureId || "");
+    if (
+      captureId !== `walkthrough-${requestId}` || sceneId !== `site-${requestId}`
+      || offer.capture_id !== captureId || offer.scene_id !== sceneId
+      || !offer.capture_root.startsWith("/")
+      || !offer.capture_root.endsWith(`/scenes/${sceneId}/captures/${captureId}`)
+      || offer.capture_root.split("/").some((part) => part === "..")
+    ) {
+      return res.status(409).json({ code: "agent_execution_offer_binding_mismatch" });
+    }
+    if (!db) return res.status(503).json({ code: "agent_execution_offer_store_unavailable" });
+    try {
+      const ref = db.collection("inboundRequests").doc(requestId);
+      if (!(await ref.get()).exists) return res.status(404).json({ code: "task_request_missing" });
+      await ref.set({ agent_execution_offer: { ...offer, received_at_iso: new Date().toISOString() } }, { merge: true });
+      return res.json({ ok: true });
+    } catch {
+      return res.status(503).json({ code: "agent_execution_offer_store_unavailable" });
+    }
+  },
+);
+
 // Read at preparation time: the owner may have confirmed after uploading.
 // The raw upload manifest remains immutable historical capture evidence.
 router.post(

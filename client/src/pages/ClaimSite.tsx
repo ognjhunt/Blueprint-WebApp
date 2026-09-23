@@ -26,7 +26,8 @@ import {
 } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
-import { WorkspaceRequestError, workspaceRequest } from "@/lib/workspace";
+import { WorkspaceRequestError } from "@/lib/workspace";
+import { attachSiteClaim, claimVerificationUrl } from "@/lib/siteClaim";
 
 interface ClaimSummary {
   ok: boolean;
@@ -49,31 +50,17 @@ type Stage =
   | { status: "verify"; summary: ClaimSummary; user: User }
   | { status: "claimed"; summary: ClaimSummary };
 
-async function attachClaim(token: string, user: import("firebase/auth").User, summary: ClaimSummary, terms: boolean) {
-  try {
-    return await workspaceRequest(user, "/claim", "POST", { token });
-  } catch (error) {
-    if (
-      error instanceof WorkspaceRequestError &&
-      error.code === "workspace_setup_required"
-    ) {
-      // A fresh account: finish the workspace setup the claim implies, then
-      // attach. The site is the organization context, so it seeds the name.
-      const name = summary.claimEmail?.split("@")[0] || "Site operator";
-      await workspaceRequest(user, "/setup", "POST", {
-        name,
-        organization: summary.site.siteName || "My site",
-        workspaceType: "site_operator",
-        acceptedTerms: terms,
-      });
-      return workspaceRequest(user, "/claim", "POST", { token });
-    }
-    throw error;
-  }
+function attachClaim(token: string, user: User, summary: ClaimSummary, terms: boolean) {
+  // A fresh account gets the workspace setup the claim implies; the site is
+  // the organization context, so it seeds the name.
+  return attachSiteClaim(token, user, { email: summary.claimEmail, siteName: summary.site.siteName }, terms);
 }
 
-function verificationActionUrl(token: string) {
-  return new URL(`/claim/${encodeURIComponent(token)}`, window.location.origin).toString();
+const verificationActionUrl = claimVerificationUrl;
+
+/** Set by the verification email the brief confirmation sends. */
+function autoClaimRequested() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auto") === "1";
 }
 
 export function ClaimSite() {
@@ -140,6 +127,32 @@ export function ClaimSite() {
       live = false;
     };
   }, [token]);
+
+  // Arriving from the verification email with the verified account signed in:
+  // the account and terms were set up at brief confirmation, so the click is
+  // the whole step. Anything that fails falls back to the form below.
+  useEffect(() => {
+    if (stage.status !== "ready" || stage.summary.alreadyClaimed || !autoClaimRequested()) return;
+    const user = authUser;
+    const claimEmail = stage.summary.claimEmail?.toLowerCase();
+    if (!user || !claimEmail || user.email?.toLowerCase() !== claimEmail) return;
+    let live = true;
+    const summary = stage.summary;
+    (async () => {
+      try {
+        await user.reload();
+        if (!user.emailVerified) return;
+        await user.getIdToken(true);
+        await attachClaim(token, user, summary, false);
+        if (live) setStage({ status: "claimed", summary });
+      } catch {
+        // The form stays available; claiming by hand shows the real error.
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [stage, authUser, token]);
 
   async function claim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

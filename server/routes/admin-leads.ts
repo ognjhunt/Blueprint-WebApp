@@ -51,6 +51,8 @@ import type {
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
+import { CallOutcomeError, recordSiteTaskCallOutcome } from "../utils/siteTaskBrief";
+import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { runWaitlistAutomationLoop } from "../utils/waitlistAutomation";
 import { buildGrowthIntegrationSummary } from "../utils/provider-status";
 import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
@@ -1353,6 +1355,9 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       pipeline: decrypted.pipeline,
       derived_assets: decrypted.derived_assets,
       evaluation_readiness: decrypted.evaluation_readiness,
+      site_task_triage: decrypted.site_task_triage ?? null,
+      site_task_gates_on_file: gateAnswersOnFile(decrypted),
+      site_task_brief_confirmed: Boolean(decrypted.site_task_brief_confirmed_at),
       events: {
         confirmationEmailSentAt:
           decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
@@ -2063,6 +2068,41 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
   } catch (error) {
     logger.error({ error, requestId: req.params.requestId }, "Error updating request ops");
     return res.status(500).json({ error: "Failed to update request ops" });
+  }
+});
+
+/**
+ * POST /api/admin/leads/:requestId/site-task-call
+ * Record what a screening call settled for a `needs_conversation` site and
+ * re-screen it. A `qualified` result is what lets Blueprint fund its scene.
+ */
+router.post("/:requestId/site-task-call", requireAdmin, async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const note = typeof body.note === "string" ? body.note.trim() : "";
+  if (note.length < 10 || note.length > 2000) {
+    return res.status(400).json({ error: "Say what the call settled, in at least a sentence." });
+  }
+  const answers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers)
+    ? Object.fromEntries(Object.entries(body.answers as Record<string, unknown>)
+      .filter(([, value]) => typeof value === "string" && value))
+    : {};
+  const clearedFieldIds = Array.isArray(body.clearedFieldIds)
+    ? body.clearedFieldIds.filter((value): value is string => typeof value === "string").slice(0, 40)
+    : [];
+  const user = res.locals.firebaseUser!;
+  try {
+    const result = await recordSiteTaskCallOutcome({
+      requestId: req.params.requestId,
+      answers: answers as Record<string, string>,
+      clearedFieldIds,
+      note,
+      resolvedBy: String(user.email || user.uid),
+    });
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    if (error instanceof CallOutcomeError) return res.status(409).json({ error: error.message });
+    logger.error({ error, requestId: req.params.requestId }, "Error recording site screening call");
+    return res.status(500).json({ error: "Failed to record the call outcome" });
   }
 });
 

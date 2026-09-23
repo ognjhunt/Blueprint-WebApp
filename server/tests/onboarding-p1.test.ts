@@ -66,45 +66,34 @@ describe("public task disclosure", () => {
   });
 });
 
-describe("communication deadlines", () => {
-  it("removes an orphaned deadline so deleted tasks cannot consume the due queue", async () => {
+describe("timed check-ins are retired", () => {
+  // Every real event now sends its own email, so nothing is scheduled. What
+  // the timer left behind is cleared without sending anything.
+  it("removes a scheduled check-in, orphaned or not, and sends nothing", async () => {
     state.docs.set(`${TASK_STATUS_UPDATES}/removed`, { requestId: "removed", dueAtIso: "2020-01-01T00:00:00Z", dueAtMs: 0 });
+    state.docs.set("inboundRequests/req1", record({ site_task_next_update_iso: "2026-09-21T10:00:00.000Z" }) as never);
+    state.docs.set(`${TASK_STATUS_UPDATES}/req1`, { requestId: "req1", dueAtIso: "2026-09-21T10:00:00.000Z", dueAtMs: 1 });
     await deliverOutbox();
     expect(state.docs.has(`${TASK_STATUS_UPDATES}/removed`)).toBe(false);
-    expect(sendEmail).not.toHaveBeenCalled();
-  });
-  it("persists a 48 hour deadline and never moves it on repeated polls", async () => {
-    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-19T10:00:00Z"));
-    state.docs.set("inboundRequests/req1", record() as never);
-    const first = await ensureTaskStatusUpdate("req1");
-    expect(first).toBe("2026-09-21T10:00:00.000Z");
-    vi.setSystemTime(new Date("2026-09-20T10:00:00Z"));
-    expect(await ensureTaskStatusUpdate("req1")).toBe(first);
-    await deliverOutbox(); expect(sendEmail).not.toHaveBeenCalled();
-  });
-  it("sends from the worker without a page poll; failed sends leave the commitment overdue", async () => {
-    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-19T10:00:00Z"));
-    state.docs.set("inboundRequests/req1", record() as never);
-    const due = await ensureTaskStatusUpdate("req1");
-    vi.setSystemTime(new Date("2026-09-21T10:01:00Z"));
-    sendEmail.mockResolvedValueOnce({ sent: false, error: "offline" });
-    await deliverOutbox();
-    expect(state.docs.get("inboundRequests/req1")?.site_task_next_update_iso).toBe(due);
-    await deliverOutbox();
-    expect(sendEmail).toHaveBeenCalledTimes(2);
-    expect(sendEmail.mock.calls[1][0].text).toContain("/capture-upload/");
-    expect(state.docs.get("inboundRequests/req1")?.site_task_next_update_iso).toBe("2026-09-23T10:01:00.000Z");
-    await deliverOutbox(); expect(sendEmail).toHaveBeenCalledTimes(2);
-  });
-  it("cancels the scheduled check-in when a terminal assessment clears the commitment", async () => {
-    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-19T10:00:00Z"));
-    state.docs.set("inboundRequests/req1", record() as never);
-    await ensureTaskStatusUpdate("req1");
-    state.docs.set("inboundRequests/req1", record({ site_task_next_update_iso: null, site_task_last_decision: { kind: "assessment_ready" } }) as never);
-    vi.setSystemTime(new Date("2026-09-22T10:00:00Z"));
-    await deliverOutbox();
-    expect(sendEmail).not.toHaveBeenCalled();
     expect(state.docs.has(`${TASK_STATUS_UPDATES}/req1`)).toBe(false);
+    expect(state.docs.get("inboundRequests/req1")?.site_task_next_update_iso).toBeNull();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+  it("promises no next-update time", async () => {
+    state.docs.set("inboundRequests/req1", record() as never);
+    expect(await ensureTaskStatusUpdate("req1")).toBeNull();
+    expect(state.docs.has(`${TASK_STATUS_UPDATES}/req1`)).toBe(false);
+  });
+  it("cancels a check-in that was already queued in the outbox", async () => {
+    state.docs.set("inboundRequests/req1", record() as never);
+    state.docs.set("captureOutbox/req1:progress_update:1", {
+      idempotencyKey: "req1:progress_update:1", requestId: "req1", kind: "progress_update",
+      to: "owner@example.test", subject: "Your Blueprint task — scheduled update", body: "check-in",
+      status: "pending", attempts: 0,
+    });
+    await deliverOutbox();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(state.docs.get("captureOutbox/req1:progress_update:1")?.status).toBe("cancelled");
   });
 });
 
@@ -124,6 +113,19 @@ describe("owner authorization and durable demand", () => {
     expect((await post("owner", { enabled: true, details, consent: false })).status).toBe(400);
     expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
     expect(await listTaskBrowseCards()).toHaveLength(0);
+  });
+  it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
+    const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });
+    const live = () => [...state.docs.keys()].filter(key => key.startsWith("captureOutbox/req1:listing_live:"));
+    state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
+    expect((await post(true)).status).toBe(200);
+    expect(live()).toHaveLength(1);
+    expect((await post(true)).status).toBe(200);
+    expect(live()).toHaveLength(1);
+    await post(false);
+    await new Promise(resolve => setTimeout(resolve, 2));
+    await post(true);
+    expect(live()).toHaveLength(2);
   });
   it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

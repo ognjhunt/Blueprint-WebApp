@@ -914,6 +914,18 @@ export interface SiteTaskTriageSummary {
   unanswered_field_ids: string[];
   incomplete: boolean;
   evaluated_at: string;
+  /**
+   * Present when a screening call re-scored the site (`recordSiteTaskCallOutcome`):
+   * which marginal answers the call settled, which answers it added, who
+   * recorded it and why. Absent means the verdict is the form's alone.
+   */
+  call_resolution?: {
+    cleared_field_ids: string[];
+    answered_field_ids: string[];
+    resolved_by: string;
+    resolved_at: string;
+    note: string;
+  } | null;
 }
 
 /**
@@ -981,6 +993,12 @@ export interface InboundRequest {
    * trip: `contact` and `request` are rebuilt field by field, the rest is spread.
    */
   site_task_gate_sources?: GateAnswerSources | null;
+  /**
+   * The gate answers the operator confirmed with the brief (`confirmBrief`).
+   * Read through `gateAnswersOnFile`, never directly: before confirmation the
+   * answers on file are `request.siteTaskGates`.
+   */
+  siteTaskGates?: Record<string, string> | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
   /** The last match run against the robot-team registry. Derived, like the triage. */
   site_match?: SiteMatchSummaryRecord | null;

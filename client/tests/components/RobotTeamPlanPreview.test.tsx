@@ -13,6 +13,27 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const accountMocks = vi.hoisted(() => ({
+  currentUser: null as unknown,
+  signInWithGoogle: vi.fn(),
+  createAccount: vi.fn(),
+  sendVerification: vi.fn(async () => undefined),
+  connect: vi.fn(async () => undefined),
+  setUp: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/accountAuth", () => ({
+  currentAuthUser: async () => accountMocks.currentUser,
+  signInWithGoogleAccount: accountMocks.signInWithGoogle,
+  createPasswordAccount: accountMocks.createAccount,
+  signInPasswordAccount: vi.fn(),
+  sendAccountVerification: accountMocks.sendVerification,
+}));
+vi.mock("@/lib/robotTeamAccount", () => ({
+  connectRobotTeam: accountMocks.connect,
+  setUpRobotTeamWorkspace: accountMocks.setUp,
+  robotTeamVerificationUrl: () => "https://tryblueprint.io/contact/robot-team?connect=1",
+}));
+
 import { RobotTeamPlanPreview } from "@/components/site/RobotTeamPlanPreview";
 
 const fetchMock = vi.fn();
@@ -20,7 +41,19 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
+  accountMocks.currentUser = null;
+  for (const mock of [accountMocks.signInWithGoogle, accountMocks.createAccount,
+    accountMocks.sendVerification, accountMocks.connect, accountMocks.setUp]) mock.mockClear();
 });
+
+/** Paying needs a verified account: connect one through Google, which is verified. */
+async function connectAccount() {
+  accountMocks.signInWithGoogle.mockResolvedValueOnce({ email: "eng@alpha.example", emailVerified: true });
+  fireEvent.click(screen.getByLabelText(/accept the/i));
+  fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+  await waitFor(() => expect(screen.queryByText(/create your account to run these/i)).toBeNull());
+  await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url === "/api/agent-team/plan").length).toBeGreaterThanOrEqual(2));
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -214,12 +247,13 @@ describe("RobotTeamPlanPreview", () => {
     fillAndSubmit();
 
     await screen.findByText(/you are in/i);
-    expect(screen.queryByText("bpk_only_chance")).toBeNull();
+    expect(document.body.textContent).not.toContain("bpk_only_chance");
 
-    // Available to the teams that want it, behind the disclosure where agent
-    // things live.
-    fireEvent.click(screen.getByRole("button", { name: /reveal key/i }));
-    expect(screen.getByText("bpk_only_chance")).toBeInTheDocument();
+    // An agent's key comes from the account that owns the team, not from here.
+    expect(screen.getByRole("link", { name: /settings → agent access/i })).toHaveAttribute(
+      "href",
+      "/settings?tab=agent",
+    );
   });
 
   it("never claims to have sent an email, because nothing sends one", async () => {
@@ -299,19 +333,23 @@ describe("funding and queueing the plan", () => {
 
   it("funds only the actual shortfall without enabling autonomous spend", async () => {
     jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
-    jsonOnce(200, {
+    const planned = {
       selected: [row("s1"), row("s2"), row("s3")],
       totalCostUsd: 75,
       planToken: "signed-plan",
       availableBalanceUsd: 55,
       fundingNeededUsd: 20,
-    });
+    };
+    jsonOnce(200, { ...planned, planToken: null, accountBound: false });
+    // Connecting the account re-plans; the payable plan comes back signed.
+    jsonOnce(200, { ...planned, accountBound: true });
     jsonOnce(201, { ok: true, checkoutUrl: "https://checkout.stripe.test/s1" });
     const onCheckout = vi.fn();
 
     render(<RobotTeamPlanPreview onCheckout={onCheckout} />);
     fillAndSubmit();
     await screen.findByText(/3 sites we would run this against/i);
+    await connectAccount();
 
     // The old ending: "we will be in touch to start them". A queue with a person in it.
     expect(document.body.textContent).not.toMatch(/be in touch/i);
@@ -319,7 +357,7 @@ describe("funding and queueing the plan", () => {
 
     await waitFor(() => expect(onCheckout).toHaveBeenCalledWith("https://checkout.stripe.test/s1"));
     expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/agent-team/policy");
-    const [fundingUrl, fundingInit] = fetchMock.mock.calls[2];
+    const [fundingUrl, fundingInit] = fetchMock.mock.calls[3];
     expect(fundingUrl).toBe("/api/agent-team/funding");
     expect(JSON.parse(String(fundingInit.body))).toEqual({ amountUsd: 50 });
     expect(screen.getByText(/amount above the \$20 shortfall remains in your balance/i)).toBeInTheDocument();
@@ -333,23 +371,26 @@ describe("funding and queueing the plan", () => {
 
   it("uses existing balance to confirm the signed one-time plan directly", async () => {
     jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
-    jsonOnce(200, {
+    const planned = {
       selected: [row("s1"), row("s2")],
       totalCostUsd: 50,
       planToken: "signed-direct",
       availableBalanceUsd: 80,
       fundingNeededUsd: 0,
-    });
+    };
+    jsonOnce(200, { ...planned, planToken: null, accountBound: false });
+    jsonOnce(200, { ...planned, accountBound: true });
     jsonOnce(202, { started: [], refused: [], reservedUsd: 50 });
 
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
     await screen.findByText(/2 sites we would run this against/i);
+    await connectAccount();
     fireEvent.click(screen.getByRole("button", { name: /queue these runs from your balance/i }));
 
     await screen.findByText(/queued 0 runs/i);
     expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/agent-team/funding");
-    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toMatchObject({
+    expect(JSON.parse(String(fetchMock.mock.calls[3][1].body))).toMatchObject({
       checkpointId: "ckpt_1",
       confirm: true,
       spendMode: "one_time",
@@ -443,19 +484,22 @@ describe("funding and queueing the plan", () => {
 
   it("requires explicit re-review when the signed plan expires", async () => {
     jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
-    jsonOnce(200, {
+    const planned = {
       selected: [row("s1")], totalCostUsd: 25, planToken: "expired-plan",
       availableBalanceUsd: 25, fundingNeededUsd: 0,
-    });
+    };
+    jsonOnce(200, { ...planned, planToken: null, accountBound: false });
+    jsonOnce(200, { ...planned, accountBound: true });
     jsonOnce(409, { code: "eval_plan_invalid", error: "expired" });
 
     render(<RobotTeamPlanPreview />);
     fillAndSubmit();
     await screen.findByText(/1 site we would run this against/i);
+    await connectAccount();
     fireEvent.click(screen.getByRole("button", { name: /queue these runs from your balance/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/review a fresh plan before spending/i);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
   it("recovers an expired Stripe-return plan with the same account and explicit review", async () => {
     window.sessionStorage.setItem("bp-plan-queue", JSON.stringify({ agentKey: "bpk_saved", checkpointId: "ckpt_saved", totalCostUsd: 25, planToken: "expired", idempotencyKey: "saved-key", email: "team@example.test", sceneId: "s1" }));
@@ -466,11 +510,72 @@ describe("funding and queueing the plan", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/review a fresh plan/i);
     expect(screen.queryByRole("form", { name: "Tell us about your robot" })).not.toBeInTheDocument();
     jsonOnce(200, { selected: [row("s1")], teamId: "saved-team", totalCostUsd: 25, planToken: "renewed", availableBalanceUsd: 50, fundingNeededUsd: 0 });
+    jsonOnce(200, { accountBound: true, balance: { availableUsd: 50 } });
     fireEvent.click(screen.getByRole("button", { name: "Review updated plan" }));
     await screen.findByRole("button", { name: /queue these runs from your balance/i });
-    expect(fetchMock.mock.calls.map(call => call[0])).toEqual(["/api/agent-team/me", "/api/agent-team/runs", "/api/agent-team/plan"]);
+    // The team already paid once, so its account is on file and nothing is asked again.
+    expect(screen.queryByText(/create your account to run these/i)).toBeNull();
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual(["/api/agent-team/me", "/api/agent-team/runs", "/api/agent-team/plan", "/api/agent-team/me"]);
     expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual({ checkpointId: "ckpt_saved", sceneId: "s1" });
     expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe("Bearer bpk_saved");
   });
 
+});
+
+describe("paying needs a verified account", () => {
+  const row = (sceneId: string) => ({
+    sceneId, siteLabel: "Warehouse", costUsd: 99, rationale: "Payload band unknown for this checkpoint.",
+  });
+  afterEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  function planWithRows() {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    const planned = { selected: [row("s1")], totalCostUsd: 99, availableBalanceUsd: 0, fundingNeededUsd: 99 };
+    // Unbound: priced but unsigned. After connecting, the re-plan is signed.
+    jsonOnce(200, { ...planned, planToken: null, accountBound: false });
+    jsonOnce(200, { ...planned, planToken: "signed", accountBound: true });
+  }
+
+  it("shows the plan free, and holds the pay button until an account owns the team", async () => {
+    planWithRows();
+    render(<RobotTeamPlanPreview />);
+    fillAndSubmit();
+    await screen.findByText(/1 site we would run this against/i);
+
+    expect(screen.getByText(/create your account to run these/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add \$99 and queue these runs/i })).toBeDisabled();
+
+    await connectAccount();
+    expect(accountMocks.connect).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "eng@alpha.example" }),
+      "bpk_x",
+      expect.objectContaining({ teamName: "Alpha Robotics" }),
+    );
+    // Connecting re-plans with the same key, which is what makes it payable.
+    await waitFor(() => expect(screen.getByRole("button", { name: /add \$99 and queue these runs/i })).toBeEnabled());
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/agent-team/plan");
+    expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe("Bearer bpk_x");
+  });
+
+  it("sends one verification click for a password account and keeps the plan for the return trip", async () => {
+    planWithRows();
+    const user = { email: "eng@alpha.example", emailVerified: false, reload: vi.fn(), getIdToken: vi.fn() };
+    accountMocks.createAccount.mockResolvedValueOnce(user);
+    render(<RobotTeamPlanPreview />);
+    fillAndSubmit();
+    await screen.findByText(/1 site we would run this against/i);
+
+    fireEvent.change(screen.getByLabelText(/choose a password/i), { target: { value: "hunter22" } });
+    fireEvent.click(screen.getByLabelText(/accept the/i));
+    fireEvent.click(screen.getByRole("button", { name: /create account and continue/i }));
+
+    await screen.findByText(/check your inbox/i);
+    expect(accountMocks.setUp).toHaveBeenCalledWith(user, { teamName: "Alpha Robotics", acceptedTerms: true });
+    expect(accountMocks.sendVerification).toHaveBeenCalledWith(user, expect.stringContaining("connect=1"));
+    expect(accountMocks.connect).not.toHaveBeenCalled();
+    expect(JSON.parse(window.sessionStorage.getItem("bp-plan-account")!).plan.agentKey).toBe("bpk_x");
+    expect(screen.getByRole("button", { name: /add \$99 and queue these runs/i })).toBeDisabled();
+  });
 });

@@ -34,6 +34,7 @@ import type {
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { selfCaptureObjectPath } from "./captureUploadToken";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import {
   bindingGateFieldIds,
   defaultCaptureMode,
@@ -115,7 +116,7 @@ async function loadOperatorContext(requestId: string): Promise<{
   }
 
   return {
-    operatorAnswers: (request.request?.siteTaskGates as Record<string, string>) || {},
+    operatorAnswers: gateAnswersOnFile(request),
     taskDescription: request.request?.taskDescription ?? null,
     whatGoesWrong: request.request?.whatGoesWrong ?? null,
     bindingFieldIds,

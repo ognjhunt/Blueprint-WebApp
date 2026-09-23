@@ -541,17 +541,25 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
   };
 }
 
-// WEB-02: require an authenticated buyer to submit an eval job. Previously
-// unauthenticated, which let anyone inject robot_eval_job_request records and
-// trigger pipeline forwarding. The buyer's uid is attributed to the record so the
-// status route can enforce ownership. (The machine-only /:jobId/pipeline-status
-// callback keeps its HMAC guard instead of a Firebase token.)
-router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
-  const submittedJobRequest = req.body;
+/**
+ * Accept a Task Evaluation Run request for an authenticated buyer.
+ *
+ * The body of `POST /api/task-evaluation-runs`, as a function, so the
+ * self-serve robot-team path prepares an agent execution through exactly the
+ * same validation, normalization, beta-cohort gate, entitlement verification
+ * and persistence a person's request goes through (`selfServeAgentExecution`).
+ */
+export async function submitTaskEvaluationRunRequest(params: {
+  submitted: unknown;
+  firebaseUser: unknown;
+  sourceRoute: string;
+}): Promise<{ status: number; body: Record<string, unknown> }> {
+  const reply = (status: number, body: Record<string, unknown>) => ({ status, body });
+  const submittedJobRequest = params.submitted;
   const buyerUserId = String(
-    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
+    (params.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
-  const firebaseUser = res.locals.firebaseUser as
+  const firebaseUser = params.firebaseUser as
     | { uid?: string; tenantId?: string; tenant_id?: string; localRouteProof?: boolean }
     | undefined;
   const receivedAtIso = new Date().toISOString();
@@ -603,7 +611,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
         : "execution_scope_mismatch",
     ].filter((value): value is string => Boolean(value));
     if (blockers.length) {
-      return res.status(400).json({
+      return reply(400, {
         ok: false,
         status: "blocked",
         code: "agent_execution_preparation_invalid",
@@ -617,11 +625,11 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     authenticatedTenantId: stringValue(
       firebaseUser?.tenantId || firebaseUser?.tenant_id,
     ) || null,
-    sourceRoute: req.baseUrl || "/api/task-evaluation-runs",
+    sourceRoute: params.sourceRoute,
     receivedAtIso,
   });
   if (!normalizedRequest.ok) {
-    return res.status(400).json({
+    return reply(400, {
       ok: false,
       status: "blocked",
       code: normalizedRequest.code,
@@ -653,7 +661,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
         source: "robot_eval_job_request_intake",
       });
   if (betaCohortDecision && !betaCohortDecision.allowed) {
-    return res.status(betaCohortDecision.statusCode).json({
+    return reply(betaCohortDecision.statusCode, {
       ok: false,
       status: "beta_cohort_denied",
       code: betaCohortDecision.reason,
@@ -678,7 +686,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
         existing.idempotency_key || asObject(existingRequest.idempotency).key,
       );
       if (stringValue(existing.buyer_user_id) !== buyerUserId) {
-        return res.status(409).json({
+        return reply(409, {
           ok: false,
           status: "blocked",
           code: "decision_request_id_conflict",
@@ -686,14 +694,14 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
         });
       }
       if (existingKey && existingKey !== idempotencyKey) {
-        return res.status(409).json({
+        return reply(409, {
           ok: false,
           status: "blocked",
           code: "decision_request_idempotency_conflict",
           error: "The request id was already submitted with a different idempotency key.",
         });
       }
-      return res.status(200).json({
+      return reply(200, {
         ...statusResponse(requestId, existing),
         ok: true,
         already_exists: true,
@@ -712,7 +720,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
       jobRequest: decisionRequest,
     });
     if (!entitlementCheck.ok) {
-      return res.status(entitlementCheck.status).json({
+      return reply(entitlementCheck.status, {
         ok: false,
         status: "awaiting_authorization",
         code: entitlementCheck.code,
@@ -724,7 +732,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     entitlementProof = publicEntitlementProof(entitlementCheck.entitlement);
   }
   if (prepareForAgentExecution && !verifiedEntitlement) {
-    return res.status(403).json({
+    return reply(403, {
       ok: false,
       status: "awaiting_authorization",
       code: "agent_execution_entitlement_required",
@@ -735,7 +743,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     stringValue(verifiedEntitlement?.team_id || verifiedEntitlement?.robot_team_id) !==
       stringValue(asObject(submittedObject.customer).id)
   ) {
-    return res.status(403).json({
+    return reply(403, {
       ok: false,
       status: "awaiting_authorization",
       code: "agent_execution_team_entitlement_mismatch",
@@ -873,7 +881,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
         durable_store: durableStore,
       },
     });
-    return res.status(502).json({
+    return reply(502, {
       ok: false,
       status: "blocked",
       error: robotEvalJobRequestForwardErrorMessage(pipelineForward),
@@ -923,7 +931,7 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     });
   }
 
-  return res.status(202).json({
+  return reply(202, {
     ok: true,
     status: recordStatus,
     durableStore,
@@ -932,6 +940,20 @@ router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
     entitlementProof,
     decisionRequest: jobRequest,
   });
+}
+
+// WEB-02: require an authenticated buyer to submit an eval job. Previously
+// unauthenticated, which let anyone inject robot_eval_job_request records and
+// trigger pipeline forwarding. The buyer's uid is attributed to the record so the
+// status route can enforce ownership. (The machine-only /:jobId/pipeline-status
+// callback keeps its HMAC guard instead of a Firebase token.)
+router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
+  const result = await submitTaskEvaluationRunRequest({
+    submitted: req.body,
+    firebaseUser: res.locals.firebaseUser,
+    sourceRoute: req.baseUrl || "/api/task-evaluation-runs",
+  });
+  return res.status(result.status).json(result.body);
 });
 
 // Restore persisted buyer run history without requiring a composite Firestore

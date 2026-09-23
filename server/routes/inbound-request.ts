@@ -1,4 +1,4 @@
-import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import fs from "node:fs";
@@ -1867,9 +1867,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    if (buyerType === "site_operator") {
-      try { await ensureTaskStatusUpdate(payload.requestId, "received"); }
-      catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule initial status update"); }
+    // The first event email: the site's private link, so it is in their inbox
+    // and not only on the success screen. Only where a link exists at all.
+    if (buyerType === "site_operator" && siteCaptureUrl(buyerType, payload.requestId, captureRegion)) {
+      try { await enqueueTaskLifecycleNotification({ requestId: payload.requestId, milestone: "task_received" }); }
+      catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not queue the task-received email"); }
     }
 
     // 8a. Draft the task brief, so there is something for the operator to

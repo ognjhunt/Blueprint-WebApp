@@ -59,6 +59,24 @@ describe("task lifecycle notifications", () => {
     expect(screening.body).toMatch(/not an observed episode or result/i);
   });
 
+  it("sends each run or request its own email, and a retry of one event none", async () => {
+    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_a", detail: "12 of 50 simulated episodes succeeded" });
+    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_b" });
+    expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_a" })).enqueued).toBe(false);
+
+    const first = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a") as Record<string, string>;
+    expect(first.body).toContain("12 of 50 simulated episodes succeeded");
+    expect(first.body).toMatch(/not a physical test/i);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_b")).toBe(true);
+  });
+
+  it("puts the private task link in the first email, so it is not only on the success screen", async () => {
+    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
+    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
+    expect(row.body).toMatch(/\/capture-upload\//);
+    expect(row.body).toMatch(/each time something happens/i);
+  });
+
   it("does not enqueue without an authoritative owner contact", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-2", { contact: {} });
     await expect(enqueueTaskLifecycleNotification({ requestId: "req-2", milestone: "scene_ready" }))

@@ -34,6 +34,7 @@ import { entryPrice, screeningRound } from "../../client/src/lib/evaluationPrici
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { coverageEvidenceFrom } from "./captureCoverageReview";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 /**
  * What one entry costs: one policy on one embodiment, against one task.
@@ -219,7 +220,7 @@ export function isRunnableTask(request: InboundRequest): boolean {
   // "does not cover", because that would silently drop supply.
   const measured = coverageEvidenceFrom(request as never);
   const readiness = assessReadiness({
-    answers: (request.request?.siteTaskGates as Record<string, string> | null) ?? {},
+    answers: gateAnswersOnFile(request),
     captureMode: request.request?.capture_mode ?? null,
     briefDrafted: true,
     briefConfirmed: Boolean(request.site_task_brief_confirmed_at),

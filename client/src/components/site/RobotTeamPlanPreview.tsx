@@ -33,8 +33,16 @@ import { TaskThumbnail } from "./TaskThumbnail";
  * The email is what makes this an account rather than a token: it is how we
  * come back to them when a matching site lands, which is the honest answer when
  * the library has nothing for them yet.
+ *
+ * ## Paying needs an account
+ *
+ * The plan is free and needs nothing. Running it does: before the pay button,
+ * the team is connected to a verified Blueprint account (`RobotTeamAccountStep`),
+ * so we know who we are working with. The key this page holds is only what it
+ * uses to plan; an agent's key is issued from that account's settings.
  */
 import { TaskFacts } from "./TaskFacts";
+import { RobotTeamAccountStep } from "./RobotTeamAccountStep";
 import type { TaskListingDetails } from "@/types/taskBrowse";
 import { useEffect, useState } from "react";
 
@@ -59,6 +67,10 @@ type PlanResult = {
   availableBalanceUsd: number;
   fundingNeededUsd: number;
   email: string;
+  /** The team name from the form, used to seed a new account's workspace. */
+  teamName?: string;
+  /** Whether a verified account owns this team. Paying waits on it. */
+  accountBound?: boolean;
   taskFamilyLabel: string;
   /**
    * Whether the empty list is our outage rather than our library.
@@ -116,6 +128,17 @@ type QueueState =
   | { status: "failed"; message: string };
 
 const QUEUE_STASH_KEY = "bp-plan-queue";
+/** The plan waiting on a verification email, so the return trip can connect it. */
+const ACCOUNT_STASH_KEY = "bp-plan-account";
+
+function readAccountStash(): { plan: PlanResult; sceneId?: string } | null {
+  try {
+    const raw = window.sessionStorage.getItem(ACCOUNT_STASH_KEY);
+    return raw ? (JSON.parse(raw) as { plan: PlanResult; sceneId?: string }) : null;
+  } catch {
+    return null;
+  }
+}
 /** Mirrors the server's smallest self-serve top-up. */
 const MIN_TOPUP_USD = 50;
 /** How long the return trip waits for Stripe's webhook to credit the balance. */
@@ -197,7 +220,6 @@ export function RobotTeamPlanPreview({
 } = {}) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
-  const [showKey, setShowKey] = useState(false);
   const [queue, setQueue] = useState<QueueState>({ status: "idle" });
   const [results, setResults] = useState<{ status: "idle" | "loading" | "failed"; rows: ResultReceipt[] }>({
     status: "idle",
@@ -269,6 +291,13 @@ export function RobotTeamPlanPreview({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = readQueueStash();
+    // Back from the verification email: show the plan again so the account
+    // step can connect the team and the person can pay for what they saw.
+    const awaiting = new URLSearchParams(window.location.search).get("connect") === "1" ? readAccountStash() : null;
+    if (awaiting && (!sceneId || awaiting.sceneId === sceneId)) {
+      setState({ status: "done", plan: awaiting.plan });
+      return;
+    }
     // A checkout/receipt belongs to its selected task, including on return.
     // Preserve another task's saved access without displaying or buying it here.
     if (sceneId && saved && saved.sceneId !== sceneId) return;
@@ -476,6 +505,7 @@ export function RobotTeamPlanPreview({
       let availableBalanceUsd = 0;
       let fundingNeededUsd = 0;
       let planUnavailable = false;
+      let accountBound = false;
       const checkpointId = account.checkpoint?.checkpointId ?? null;
 
       if (checkpointId) {
@@ -494,6 +524,7 @@ export function RobotTeamPlanPreview({
           availableBalanceUsd?: number;
           spendableNowUsd?: number;
           fundingNeededUsd?: number;
+          accountBound?: boolean;
         };
         if (planned.ok) {
           rows = Array.isArray(plan.selected) ? plan.selected : [];
@@ -501,6 +532,7 @@ export function RobotTeamPlanPreview({
           planToken = typeof plan.planToken === "string" ? plan.planToken : null;
           availableBalanceUsd = Number(plan.availableBalanceUsd ?? plan.spendableNowUsd ?? 0);
           fundingNeededUsd = Number(plan.fundingNeededUsd ?? totalCostUsd);
+          accountBound = plan.accountBound === true;
         } else {
           planUnavailable = true;
         }
@@ -518,12 +550,44 @@ export function RobotTeamPlanPreview({
           availableBalanceUsd,
           fundingNeededUsd,
           email,
+          teamName,
+          accountBound,
           taskFamilyLabel: familyLabel(taskFamily),
           planUnavailable,
         },
       });
     } catch {
       setState({ status: "failed", message: "We could not reach Blueprint. Try again shortly." });
+    }
+  }
+
+  /** Re-plan with the same key: connecting an account is what makes a plan payable. */
+  async function refreshPlan(plan: PlanResult) {
+    try {
+      const response = await fetch("/api/agent-team/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${plan.agentKey}` },
+        body: JSON.stringify({ checkpointId: plan.checkpointId, ...(sceneId ? { sceneId } : {}) }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        selected?: Row[]; totalCostUsd?: number; planToken?: string; availableBalanceUsd?: number;
+        fundingNeededUsd?: number; accountBound?: boolean;
+      };
+      if (!response.ok) throw new Error("Plan unavailable");
+      setState({
+        status: "done",
+        plan: {
+          ...plan,
+          rows: Array.isArray(body.selected) ? body.selected : plan.rows,
+          totalCostUsd: Number(body.totalCostUsd ?? plan.totalCostUsd),
+          planToken: typeof body.planToken === "string" ? body.planToken : null,
+          availableBalanceUsd: Number(body.availableBalanceUsd ?? plan.availableBalanceUsd),
+          fundingNeededUsd: Number(body.fundingNeededUsd ?? plan.fundingNeededUsd),
+          accountBound: body.accountBound !== false,
+        },
+      });
+    } catch {
+      setState({ status: "done", plan: { ...plan, accountBound: true, planToken: null } });
     }
   }
 
@@ -536,7 +600,10 @@ export function RobotTeamPlanPreview({
         body: JSON.stringify({ checkpointId: stash.checkpointId, ...(stash.sceneId ? { sceneId: stash.sceneId } : {}) }) });
       if (!response.ok) throw new Error("Plan unavailable");
       const body = await response.json();
+      const me = await fetch("/api/agent-team/me", { headers: { Authorization: `Bearer ${stash.agentKey}` } })
+        .then((reply) => (reply.ok ? reply.json() : null)).catch(() => null) as { accountBound?: boolean } | null;
       const plan: PlanResult = { teamId: body.teamId || stash.plan?.teamId || "", agentKey: stash.agentKey,
+        teamName: stash.plan?.teamName, accountBound: Boolean(me?.accountBound),
         checkpointId: stash.checkpointId, rows: Array.isArray(body.selected) ? body.selected : [],
         totalCostUsd: Number(body.totalCostUsd || 0), planToken: body.planToken || null,
         availableBalanceUsd: Number(body.availableBalanceUsd || 0), fundingNeededUsd: Number(body.fundingNeededUsd || 0),
@@ -661,13 +728,29 @@ export function RobotTeamPlanPreview({
               <strong>${plan.totalCostUsd} to run all of them.</strong> Nothing is charged until you
               confirm this signed plan.
             </p>
+            {/* Paying needs a known customer: connect the team to a verified
+                account first. The plan above stays free to read either way. */}
+            {!plan.accountBound && (
+              <RobotTeamAccountStep
+                agentKey={plan.agentKey}
+                email={plan.email}
+                teamName={plan.teamName ?? ""}
+                onAwaitingVerification={() => {
+                  try { window.sessionStorage.setItem(ACCOUNT_STASH_KEY, JSON.stringify({ plan, sceneId })); } catch { /* The page still works; the return trip asks again. */ }
+                }}
+                onConnected={() => {
+                  try { window.sessionStorage.removeItem(ACCOUNT_STASH_KEY); } catch { /* Nothing to clear. */ }
+                  void refreshPlan(plan);
+                }}
+              />
+            )}
             {/* The action that replaced "we will be in touch": the same three
                 calls an agent makes, with a person holding the card. */}
             <button
               className="ms-button ms-button-large"
               type="button"
               onClick={() => void fundAndQueue(plan)}
-              disabled={queue.status === "funding" || !plan.planToken}
+              disabled={queue.status === "funding" || !plan.planToken || !plan.accountBound}
             >
               {queue.status === "funding"
                 ? "Opening checkout…"
@@ -681,7 +764,7 @@ export function RobotTeamPlanPreview({
                 : `Your existing $${plan.availableBalanceUsd} balance covers this one-time plan.`}
               {" "}The signed selection expires after 15 minutes; if it expires, you will review a fresh plan before spending.
             </p>
-            {!plan.planToken && <p role="status">This task needs an authorized execution setup before payment. Review the task with us to continue.</p>}
+            {plan.accountBound && !plan.planToken && <p role="status">This site is not ready for paid runs yet. Nothing is charged; check back soon.</p>}
 
           </>
         ) : (
@@ -715,28 +798,10 @@ export function RobotTeamPlanPreview({
           </>
         )}
 
-        <details style={{ marginTop: "28px" }}>
-          <summary style={{ cursor: "pointer" }}>API access for your agent</summary>
-          <p className="ms-field-hint" style={{ marginTop: "12px" }}>
-            Your team key. Store it somewhere safe — we keep only a hash, so we cannot show it
-            again. Lost it?{" "}
-            <code>POST /api/agent-team/keys/reissue</code> with your contact email and a new key
-            is emailed to that address.
-          </p>
-          <button
-            type="button"
-            className="ms-text-link"
-            onClick={() => setShowKey(true)}
-            style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}
-          >
-            {showKey ? "Key shown below" : "Reveal key"}
-          </button>
-          {showKey && (
-            <code style={{ display: "block", wordBreak: "break-all", marginTop: "10px" }}>
-              {plan.agentKey}
-            </code>
-          )}
-        </details>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>
+          Want your agent to plan and run evaluations on its own? Once your account is set up, issue
+          it a key from <a className="ms-text-link" href="/settings?tab=agent">Settings → Agent access</a>.
+        </p>
       </div>
     );
   }

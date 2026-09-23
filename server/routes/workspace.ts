@@ -1,5 +1,4 @@
 import { logger } from "../logger";
-import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 import {
   Router,
   type Request,
@@ -47,6 +46,12 @@ import type {
 } from "../../client/src/types/workspace";
 
 import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
+import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
+import { bookingUrl } from "../utils/bookingLink";
+import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
+import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
+import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 
 const router = Router();
 const id = z
@@ -481,7 +486,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
     if (brief) {
       stage = assessReadiness({
-        answers: (object(record.request).siteTaskGates as Record<string, string> | null) ?? {},
+        answers: gateAnswersOnFile(record),
         captureMode: text(object(record.request).capture_mode) || null,
         briefDrafted: true,
         briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
@@ -511,10 +516,12 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         scenePreviewReady,
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
+        site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+        bookingUrl: bookingUrl(),
       }),
     );
-    try { task.readiness.nextUpdateIso = await ensureTaskStatusUpdate(requestId, task.readiness.decision) ?? task.readiness.nextUpdateIso; }
-    catch (error) { logger.warn({ error, requestId }, "Could not schedule workspace status update"); }
+    // Updates follow events by email; no timed check-in is promised.
+    task.readiness.nextUpdateIso = null;
   } catch {
     task.readiness = null;
   }
@@ -779,6 +786,117 @@ router.post(
     return res.json({ ok: true, requestId: payload.requestId });
   }),
 );
+/* ------------------------------------------------ robot-team agent access */
+
+/** A key's public handle: enough of its hash to revoke it, none of the key. */
+const keyIdOf = (keyHash: string) => keyHash.slice(0, 16);
+
+/**
+ * The teams this account owns and their live keys.
+ *
+ * The account is where a team's agent access lives: a person with a verified
+ * email owns the team, issues its keys and revokes them. The agent then works
+ * on its own, inside the team's policy.
+ */
+router.get(
+  "/robot-team/agent-access",
+  handle(async (_req, res) => {
+    requireRole(res, "robot_team");
+    const caller = identity(res);
+    const teams = await teamsForAccount(caller.uid);
+    return res.json({
+      verified: caller.verified,
+      teams: await Promise.all(teams.map(async (team) => ({
+        teamId: team.id,
+        name: team.name,
+        connectedAtIso: team.accountBoundAtIso ?? null,
+        keys: (await listAgentKeys(team.id))
+          .filter((key) => !key.revokedAtIso)
+          .map((key) => ({
+            keyId: keyIdOf(key.keyHash),
+            label: key.label,
+            createdAtIso: key.createdAtIso,
+            lastUsedAtIso: key.lastUsedAtIso,
+          })),
+      }))),
+    });
+  }),
+);
+
+/**
+ * Connect the team a person registered on the public plan page. Holding that
+ * team's key is the proof of custody; the account's verified email is the
+ * identity it binds to.
+ */
+router.post(
+  "/robot-team/connect",
+  handle(async (req, res) => {
+    requireRole(res, "robot_team");
+    const caller = identity(res);
+    const { agentKey } = z.object({ agentKey: z.string().trim().min(8).max(200) }).parse(req.body);
+    const teamId = await resolveAgentKey(agentKey);
+    if (!teamId) refuse(400, "That team key is not valid any more.", "agent_key_invalid");
+    await bindTeamToAccount(teamId, caller);
+    return res.json({ ok: true, teamId });
+  }),
+);
+
+/**
+ * Issue an agent key from the account. Creates the team on first use, so a
+ * team that never used the public plan page starts here.
+ */
+router.post(
+  "/robot-team/agent-keys",
+  handle(async (req, res) => {
+    requireRole(res, "robot_team");
+    const caller = identity(res);
+    if (!caller.verified)
+      refuse(403, "Verify your email before issuing an agent key.", "account_email_unverified");
+    const input = z.object({
+      teamId: z.string().trim().min(1).max(200).optional(),
+      label: z.string().trim().max(60).optional(),
+    }).parse(req.body ?? {});
+    const teams = await teamsForAccount(caller.uid);
+    let teamId = input.teamId ? teams.find((team) => team.id === input.teamId)?.id : teams[0]?.id;
+    if (input.teamId && !teamId)
+      refuse(404, "That team is not connected to this account.", "team_not_found");
+    if (!teamId) {
+      const created = await registerSelfServeTeam({
+        name: text(caller.user.organizationName || caller.user.company) || caller.email.split("@")[1] || "Robot team",
+        contactEmail: caller.email,
+      });
+      if (!created) refuse(503, "The registry is unavailable, so no team was created.", "registry_unavailable");
+      await bindTeamToAccount(created.id, caller);
+      teamId = created.id;
+    }
+    const issued = await issueAgentKey({ teamId, label: input.label || "account" });
+    if (!issued) refuse(503, "No key could be issued right now.", "agent_key_unavailable");
+    return res.status(201).json({
+      teamId,
+      agentKey: issued.key,
+      keyId: keyIdOf(issued.record.keyHash),
+      note: "Store this now. We keep only a hash and cannot show it again.",
+    });
+  }),
+);
+
+router.post(
+  "/robot-team/agent-keys/:keyId/revoke",
+  handle(async (req, res) => {
+    requireRole(res, "robot_team");
+    const caller = identity(res);
+    const keyId = text(req.params.keyId);
+    for (const team of await teamsForAccount(caller.uid)) {
+      const key = (await listAgentKeys(team.id)).find((candidate) => keyIdOf(candidate.keyHash) === keyId);
+      if (key) {
+        await revokeAgentKey(key.keyHash);
+        return res.json({ ok: true, keyId });
+      }
+    }
+    refuse(404, "That key is not on a team this account owns.", "agent_key_not_found");
+  }),
+);
+
 /**
  * Operator listing control: pause or resume the site's public availability.
  *
@@ -969,7 +1087,14 @@ router.post(
       existingStackReviewWorkflow: JSON.stringify(setup),
       details: `Evaluation request for opening ${input.opportunityId}. ${input.notes}`,
     };
-    return submitInboundRequest(req, res);
+    await submitInboundRequest(req, res);
+    // The site hears that a team asked about its task, once per request.
+    if (res.statusCode < 300)
+      await enqueueTaskLifecycleNotification({
+        requestId: input.opportunityId,
+        milestone: "pilot_request",
+        eventId: input.id,
+      }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
   }),
 );
 router.patch(

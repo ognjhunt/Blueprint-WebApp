@@ -23,6 +23,13 @@
  * goes through `authorizeAgentSpend`, which reserves before it runs and refuses
  * with a named reason an agent can act on rather than a generic failure.
  *
+ * ## Paying needs a verified account
+ *
+ * Funding, switching agent spend on, and confirming runs require the team to
+ * be bound to a verified Blueprint account (`robotTeamAccounts`). A person does
+ * that once; the agent then acts on its own inside the team's policy. Planning
+ * and dry runs stay open to anyone with a key.
+ *
  * ## Dry run by default is deliberate
  *
  * `POST /runs` requires `confirm: true`. An agent that forgets it gets the plan
@@ -59,6 +66,8 @@ import {
   resolveAgentKey,
 } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
+import { TEAM_ACCOUNT_REQUIRED, teamAccountUid } from "../utils/robotTeamAccounts";
+import { ensureSelfServeAgentExecution } from "../utils/selfServeAgentExecution";
 import {
   MAX_TOPUP_USD,
   MIN_TOPUP_USD,
@@ -242,16 +251,21 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     grants: {
       balanceUsd: 0,
       agentSpendEnabled: false,
-      note: "A key is an identity, not a credit line. Fund a balance and set a policy before an agent can spend.",
+      accountBound: false,
+      note:
+        "This key can plan and dry-run. Paying and running need the team connected to a verified "
+        + "Blueprint account; after that, fund a balance and set a policy before an agent can spend.",
     },
     next: parsed.data.checkpoint
       ? [
+          "POST /api/agent-team/plan to see what your checkpoint should run against. Free.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
           "POST /api/agent-team/funding to add balance (Stripe, face value).",
           "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
-          "POST /api/agent-team/plan to see what your checkpoint should run against. Free.",
         ]
       : [
           "POST /api/agent-team/checkpoints with something we can run.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
           "POST /api/agent-team/funding to add balance (Stripe, face value).",
           "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
         ],
@@ -330,15 +344,22 @@ router.post("/keys/reissue", reissueRateLimiter, async (req: Request, res: Respo
   }
 
   const issued: { teamId: string; teamName: string; key: string }[] = [];
+  // A team bound to an account issues keys from that account's settings, so
+  // an email to a contact address never mints a key that can spend.
+  const managed: { teamId: string; teamName: string }[] = [];
   for (const doc of snap.docs) {
     const team = doc.data() as RobotTeamRecord;
+    if (team.accountUid) {
+      managed.push({ teamId: doc.id, teamName: team.name });
+      continue;
+    }
     const result = await issueAgentKey({ teamId: doc.id, label: "reissue" });
     if (result) {
       issued.push({ teamId: doc.id, teamName: team.name, key: result.key });
     }
   }
 
-  if (issued.length === 0) {
+  if (issued.length === 0 && managed.length === 0) {
     return res.status(503).json({
       error: "No key could be issued right now.",
       code: "agent_key_unavailable",
@@ -346,11 +367,23 @@ router.post("/keys/reissue", reissueRateLimiter, async (req: Request, res: Respo
   }
 
   const body = [
-    "A new Blueprint agent key was issued for:",
-    ...issued.map((entry) => `- ${entry.teamName} (${entry.teamId}): ${entry.key}`),
-    "",
-    "Each key works from now on. Store them somewhere safe — we cannot show them again.",
-    "If you did not request this, revoke the new key or contact hello@tryblueprint.io.",
+    ...(issued.length
+      ? [
+          "A new Blueprint agent key was issued for:",
+          ...issued.map((entry) => `- ${entry.teamName} (${entry.teamId}): ${entry.key}`),
+          "",
+          "Each key works from now on. Store them somewhere safe — we cannot show them again.",
+        ]
+      : []),
+    ...(managed.length
+      ? [
+          ...(issued.length ? [""] : []),
+          "These teams are connected to a Blueprint account, so their keys are issued from that account:",
+          ...managed.map((entry) => `- ${entry.teamName} (${entry.teamId})`),
+          "Sign in and open Settings → Agent access to issue or revoke a key.",
+        ]
+      : []),
+    "If you did not request this, revoke any new key or contact hello@tryblueprint.io.",
   ].join("\n");
 
   // A provider throw must answer 503, not hang the response or leak the key
@@ -410,6 +443,46 @@ async function requireTeam(req: Request, res: Response): Promise<string | null> 
   return teamId;
 }
 
+/**
+ * Refuse money-moving calls for a team no verified account has claimed.
+ * Answers 403 with the steps to fix it and returns false; true lets it through.
+ */
+async function requireAccountBoundTeam(teamId: string, res: Response): Promise<boolean> {
+  if (await teamAccountUid(teamId)) return true;
+  res.status(403).json(TEAM_ACCOUNT_REQUIRED);
+  return false;
+}
+
+/**
+ * The admission for each selected line, preparing it first when a verified
+ * account owns the team. Preparation is what used to be done by hand; it
+ * builds nothing the records do not already establish, and a line it cannot
+ * prepare stays unpayable with the reason attached.
+ */
+async function admissionsFor(params: {
+  teamId: string;
+  checkpointId: string;
+  lines: EvalCandidate[];
+}) {
+  const bound = Boolean(await teamAccountUid(params.teamId));
+  const lines = await Promise.all(params.lines.map(async (candidate) => {
+    const quote = {
+      teamId: params.teamId, checkpointId: params.checkpointId, sceneId: candidate.sceneId,
+      quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+    };
+    const preparation = bound ? await ensureSelfServeAgentExecution(quote).catch((error) => {
+      logger.warn({ error, teamId: params.teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed");
+      return { prepared: false as const, blockers: ["agent_execution_preparation_unavailable"] };
+    }) : { prepared: false as const, blockers: ["team_account_required"] };
+    const admission = await discoverAgentExecutionAdmission(quote);
+    return {
+      admission,
+      blockers: admission.admitted ? [] : preparation.prepared ? admission.blockers : preparation.blockers,
+    };
+  }));
+  return { bound, lines };
+}
+
 /* ------------------------------------------------------------ who am i */
 
 /**
@@ -422,11 +495,12 @@ router.get("/me", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
 
-  const [balance, policy, spentToday, checkpoints] = await Promise.all([
+  const [balance, policy, spentToday, checkpoints, accountUid] = await Promise.all([
     getTeamBalance(teamId),
     getSpendPolicy(teamId),
     getSpendToday(teamId),
     listCheckpoints(teamId),
+    teamAccountUid(teamId),
   ]);
 
   const remainingToday = policy.dailyLimitUsd > 0
@@ -446,7 +520,8 @@ router.get("/me", async (req: Request, res: Response) => {
       status: item.status,
       unrunnableReason: item.unrunnableReason,
     })),
-    canSpendNow: policy.agentSpendEnabled && remainingToday > 0 && balance.availableUsd > 0,
+    accountBound: Boolean(accountUid),
+    canSpendNow: Boolean(accountUid) && policy.agentSpendEnabled && remainingToday > 0 && balance.availableUsd > 0,
   });
 });
 
@@ -579,22 +654,26 @@ router.post("/plan", async (req: Request, res: Response) => {
     maxRuns: parsed.data.maxRuns,
   });
 
-  const admissions = await Promise.all(selection.selected.map(candidate => discoverAgentExecutionAdmission({
-    teamId, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
-    quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
-  })));
-  const executable = admissions.every(admission => admission.admitted);
+  const { bound, lines } = await admissionsFor({ teamId, checkpointId: parsed.data.checkpointId, lines: selection.selected });
+  const admissions = lines.map((line) => line.admission);
+  // Paying needs a known customer, so an unbound team's plan is never signed.
+  const executable = bound && selection.selected.length > 0 && admissions.every(admission => admission.admitted);
   const planToken = executable ? createEvalPlanToken({ teamId, checkpointId: parsed.data.checkpointId,
     lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
       executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined })) }) : null;
   const fundingNeededUsd = Math.round(Math.max(0, selection.totalCostUsd - balance.availableUsd) * 100) / 100;
+  const accountRequired = !bound;
   return res.json({
     teamId, checkpointId: parsed.data.checkpointId, committed: false, plannedAgainstUsd: budgetUsd,
     spendableNowUsd, availableBalanceUsd: balance.availableUsd, fundingNeededUsd, planToken,
     executionReady: executable,
-    blockedBy: !executable ? "execution_preparation_required" : fundingNeededUsd > 0 ? "insufficient_balance" : null,
-    next: !executable ? "The selected task needs an authorized execution setup before payment."
+    accountBound: !accountRequired,
+    blockedBy: accountRequired ? "team_account_required"
+      : !executable ? "execution_preparation_required" : fundingNeededUsd > 0 ? "insufficient_balance" : null,
+    next: accountRequired ? TEAM_ACCOUNT_REQUIRED.error
+      : !executable ? "A selected site is not ready for paid runs yet; see lineBlockers."
       : "Confirm this signed plan once with spendMode:one_time. Autonomous spending stays unchanged.",
+    lineBlockers: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, blockers: lines[index].blockers })),
     ...selection,
   });
 });
@@ -643,6 +722,8 @@ router.post("/runs", async (req: Request, res: Response) => {
   if (parsed.data.confirm && parsed.data.spendMode === "one_time" && !parsed.data.planToken) {
     return res.status(400).json({ error: "Review a signed plan before confirming a one-time purchase.", code: "eval_plan_required" });
   }
+  // A dry run stays open; starting a run spends, so it needs a known customer.
+  if (parsed.data.confirm && !(await requireAccountBoundTeam(teamId, res))) return;
 
   const [policy, spentToday, balance] = await Promise.all([
     getSpendPolicy(teamId),
@@ -679,10 +760,9 @@ router.post("/runs", async (req: Request, res: Response) => {
   if (!parsed.data.confirm) {
     // Sign the plan we are showing, so a later confirm can reserve exactly
     // this and not whatever supply looks like by then.
-    const admissions = await Promise.all(selection.selected.map(candidate => discoverAgentExecutionAdmission({
-      teamId, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
-      quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
-    })));
+    const prepared = await admissionsFor({ teamId, checkpointId: parsed.data.checkpointId, lines: selection.selected });
+    const admissions = prepared.lines.map((line) => line.admission.admitted && prepared.bound
+      ? line.admission : { admitted: false as const, blockers: prepared.bound ? line.blockers : ["team_account_required"] });
     const planToken = admissions.every(admission => admission.admitted) ? createEvalPlanToken({
       teamId, checkpointId: parsed.data.checkpointId,
       lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
@@ -774,6 +854,13 @@ router.post("/runs", async (req: Request, res: Response) => {
   }
 
   for (const candidate of toReserve) {
+    // An autonomous confirm has no dry run behind it, so prepare here too.
+    // Idempotent: a planned line's record already exists and is reused.
+    if (!parsed.data.planToken) {
+      await ensureSelfServeAgentExecution({ teamId, checkpointId: parsed.data.checkpointId,
+        sceneId: candidate.sceneId, quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd })
+        .catch((error) => logger.warn({ error, teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed"));
+    }
     const admission = await discoverAgentExecutionAdmission({ teamId, checkpointId: parsed.data.checkpointId,
       sceneId: candidate.sceneId, quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd });
     if (!admission.admitted || (parsed.data.planToken && plannedDigests.get(candidate.sceneId) !== admission.digestSha256)) {
@@ -1043,6 +1130,7 @@ const fundingSchema = z
 router.post("/funding", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
+  if (!(await requireAccountBoundTeam(teamId, res))) return;
 
   const parsed = fundingSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -1104,6 +1192,9 @@ router.put("/policy", async (req: Request, res: Response) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Policy is invalid", code: "policy_invalid" });
   }
+  // Switching spend on is spend authority. Switching it off is always allowed,
+  // so a team can stop its agent whatever state its account is in.
+  if (parsed.data.agentSpendEnabled && !(await requireAccountBoundTeam(teamId, res))) return;
 
   return res.json({ ok: true, policy: await setSpendPolicy({ teamId, ...parsed.data }) });
 });

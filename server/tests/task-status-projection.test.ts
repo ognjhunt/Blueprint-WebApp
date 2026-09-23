@@ -267,3 +267,74 @@ it("shows a completed visual preview while keeping simulation readiness separate
     headline: "Your scene preview is ready. We are preparing the task for simulation."});
   expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).decision).toBe("results");
 });
+
+describe("a confirmed site our screen has not cleared", () => {
+  // Blueprint builds a scene only for `qualified`, so these must never read as
+  // "we are preparing it", however complete the footage looks.
+  it("says no scene is coming for not_now, and what the operator can do", () => {
+    const status = projectTaskStatus(
+      base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "not_now" }),
+    );
+    expect(status.decision).toBe("not_now");
+    expect(status.headline).toMatch(/not building a scene/);
+    expect(status.operatorAction).toMatch(/update the brief/);
+  });
+
+  it("asks for the call for needs_conversation, with the booking link", () => {
+    const status = projectTaskStatus(
+      base({
+        briefDrafted: true,
+        briefConfirmed: true,
+        coversScene: true,
+        disposition: "needs_conversation",
+        bookingUrl: "https://calendly.example/30min",
+      }),
+    );
+    expect(status.decision).toBe("call_needed");
+    expect(status.headline).not.toMatch(/preparing/);
+    expect(status.operatorAction).toContain("https://calendly.example/30min");
+  });
+
+  it("proceeds as before once qualified", () => {
+    const status = projectTaskStatus(
+      base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "qualified" }),
+    );
+    expect(status.decision).toBe("assessing");
+  });
+
+  it("reads the verdict off a stored request", () => {
+    const input = taskStatusInputFrom({
+      site_task_brief_confirmed_at: "2026-09-23T00:00:00.000Z",
+      briefDrafted: true,
+      stage: null,
+      site_task_triage: { disposition: "needs_conversation" },
+    });
+    expect(input.disposition).toBe("needs_conversation");
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).disposition).toBeNull();
+  });
+});
+
+describe("a cleared site that is not saved to an account yet", () => {
+  it("asks the operator to save it, because no scene is built until then", () => {
+    const status = projectTaskStatus(
+      base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "qualified", claimed: false }),
+    );
+    expect(status.decision).toBe("save_account");
+    expect(status.operatorAction).toMatch(/Save this site to your account/);
+  });
+
+  it("proceeds once claimed, and is skipped by callers that cannot tell", () => {
+    expect(
+      projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "qualified", claimed: true })).decision,
+    ).toBe("assessing");
+    expect(
+      projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "qualified" })).decision,
+    ).toBe("assessing");
+  });
+
+  it("reads the owner off a stored request only when the caller passed it", () => {
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null, account_owner_uid: null }).claimed).toBe(false);
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null, account_owner_uid: "uid" }).claimed).toBe(true);
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).claimed).toBeUndefined();
+  });
+});

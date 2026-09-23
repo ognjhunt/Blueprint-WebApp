@@ -41,10 +41,18 @@ export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
 /** What the message is about. Drives nothing here; for the record and metrics. */
 export type OutboxKind =
+  /** Retired: the timed check-in. Kept so stored rows still type-check. */
   | "progress_update"
+  | "task_received"
   | "video_received"
   | "scene_ready"
+  | "listing_live"
+  | "screening_cleared"
+  | "screening_not_now"
   | "screening_started"
+  | "results_ready"
+  | "run_no_result"
+  | "pilot_request"
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"

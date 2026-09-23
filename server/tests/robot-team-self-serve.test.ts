@@ -37,6 +37,14 @@ const sendEmail = vi.hoisted(() =>
   vi.fn(async () => ({ sent: true, provider: "test" as const, messageId: "test" })),
 );
 
+// Paying needs an account-bound team; that gate has its own suite
+// (robot-team-account-gate.test.ts). These suites exercise what happens after
+// a verified account has claimed the team.
+vi.mock("../utils/robotTeamAccounts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/robotTeamAccounts")>()),
+  teamAccountUid: async () => "account-uid",
+}));
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   return {

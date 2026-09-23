@@ -277,7 +277,8 @@ function sponsoredCapture() {
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(Object.fromEntries(
     ["vast", "openai", "meta"].map(provider => [provider, { digest: sha("e"), label: "terms", url: "https://example.com/terms" }])));
   store.rows.set("inboundRequests/req1", { request: { consent_attestation: { granted: true,
-    statement_version: "2026-09-18.v1", recorded_at_iso: new Date().toISOString() } } });
+    statement_version: "2026-09-18.v1", recorded_at_iso: new Date().toISOString() } },
+    site_task_triage: { disposition: "qualified" }, account_owner_uid: "site-owner-uid" });
   store.rows.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Pick the box",
     confirmedAtIso: new Date().toISOString(), confirmedBy: "private site owner", operatorAnswers: {}, unresolved: [] });
   // No site account, balance or ops role is required for Blueprint sponsorship.
@@ -300,6 +301,38 @@ it("retains one Blueprint cap and expiry per upload and refuses changed, expired
   const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_total_spend_usd: 24 });
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
+it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site our screen has not cleared (%s)", async (disposition) => {
+  sponsoredCapture();
+  store.rows.get("inboundRequests/req1").site_task_triage = disposition ? { disposition } : undefined;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toBeUndefined();
+  // The Pipeline reads the refusal as a typed hold and retries the capture.
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const response = await realFetch(`${base}/scene-sponsorship`, { method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1" }) });
+  expect(response.status).toBe(409);
+  expect((await response.json()).code).toBe("website_scene_site_not_qualified");
+});
+
+it("funds no scene until the site is saved to an account", async () => {
+  sponsoredCapture();
+  delete store.rows.get("inboundRequests/req1").account_owner_uid;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
+  store.rows.get("inboundRequests/req1").account_owner_uid = "site-owner-uid";
+  await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ sponsor: "blueprint" });
+});
+
+it("builds after the call clears the site, and a later downgrade does not strand authorized spend", async () => {
+  sponsoredCapture();
+  store.rows.get("inboundRequests/req1").site_task_triage = { disposition: "needs_conversation" };
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
+  store.rows.get("inboundRequests/req1").site_task_triage = { disposition: "qualified" };
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  store.rows.get("inboundRequests/req1").site_task_triage = { disposition: "not_now" };
+  expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(grant);
 });
 
 it.each([false, true])("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent (preparation only: %s)", async (preparationOnly) => {

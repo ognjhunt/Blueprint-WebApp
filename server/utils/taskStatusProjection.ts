@@ -15,13 +15,11 @@
  *
  * ## What it draws on, and what it does not claim
  *
- * The Tier 2 brief (drafted, confirmed), the readiness ladder, and the coverage
- * finding. Deliberately *not* the pilot or evaluation state, because those are
- * downstream of the Pipeline reporting run outcomes — which it does not yet.
- * Surfacing "we can proceed with candidate evaluation" or "this merits a pilot"
- * would be advertising a loop that does not close, the same objection that kept
- * the robot-team route off equal homepage billing. So this projects the two
- * decisions we can actually stand behind and stops there.
+ * The Tier 2 brief (drafted, confirmed), our screen's verdict on it, the
+ * readiness ladder, the coverage finding, and the robot-team runs queued or
+ * reported against the scene. Deliberately *not* a pilot recommendation:
+ * nothing produces one yet, and surfacing "this merits a pilot" would be
+ * advertising a loop that does not close.
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
@@ -43,6 +41,12 @@ export type TaskDecision =
   | "footage_received"
   /** Footage is short of what a scene needs, and we can name the views. */
   | "add_views"
+  /** Confirmed, but our screen needs a short call before we fund a scene. */
+  | "call_needed"
+  /** Confirmed, and an answer only the site can change blocks evaluation. */
+  | "not_now"
+  /** Cleared, and waiting on the operator to save the site to an account. */
+  | "save_account"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
   | "assessing"
   /** Robot teams have runs queued or running against the scene. */
@@ -99,6 +103,19 @@ interface TaskStatusInput {
   scenePreviewReady?: boolean;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
+  /**
+   * Our screen's verdict once the brief is confirmed. Blueprint builds a scene
+   * only for `qualified`, so the other two must never read as "preparing".
+   * Absent on older callers, which keeps their ladder unchanged.
+   */
+  disposition?: "qualified" | "needs_conversation" | "not_now" | null;
+  /** Where the site books the screening call, when one is needed. */
+  bookingUrl?: string | null;
+  /**
+   * Whether the site is saved to an account. A scene is built only for a
+   * claimed site. Absent on callers that cannot tell, which skips the rung.
+   */
+  claimed?: boolean;
   nextUpdateIso: string | null;
 }
 
@@ -175,6 +192,40 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // No scene is built for a site our screen has not cleared, so neither of
+  // these may fall through to a rung that says we are preparing one.
+  if (input.disposition === "not_now") {
+    return {
+      ...base,
+      decision: "not_now",
+      headline:
+        "Not yet. One of your answers means a robot evaluation would not hold up at this site today, so we are not building a scene.",
+      operatorAction: "Open your task brief to see what is in the way. When it changes, update the brief.",
+    };
+  }
+  if (input.disposition === "needs_conversation") {
+    return {
+      ...base,
+      decision: "call_needed",
+      headline:
+        "A short call settles the last questions before we build your scene. The agenda is already written.",
+      operatorAction: input.bookingUrl
+        ? `Book a 30-minute call: ${input.bookingUrl}`
+        : "We will reach out to book a 30-minute call.",
+    };
+  }
+
+  // Cleared, but Blueprint builds the scene only for a site saved to an
+  // account. Until then "we are preparing it" would not be true.
+  if (input.disposition === "qualified" && input.claimed === false && !input.scenePreviewReady) {
+    return {
+      ...base,
+      decision: "save_account",
+      headline: "Your task clears our screen. Save it to your account and we start building your scene.",
+      operatorAction: "Save this site to your account and verify your email.",
+    };
+  }
+
   if (input.scenePreviewReady) {
     return {
       ...base,
@@ -234,6 +285,10 @@ export function taskStatusInputFrom(record: {
   scenePreviewReady?: boolean;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
+  site_task_triage?: { disposition?: string | null } | null;
+  bookingUrl?: string | null;
+  /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
+  account_owner_uid?: string | null;
 }): TaskStatusInput {
   const coverage = record.capture_coverage;
   return {
@@ -247,5 +302,12 @@ export function taskStatusInputFrom(record: {
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     nextUpdateIso: record.site_task_next_update_iso ?? null,
     screening: record.screening ?? null,
+    disposition: dispositionFrom(record.site_task_triage?.disposition),
+    bookingUrl: record.bookingUrl ?? null,
+    ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
   };
+}
+
+function dispositionFrom(value: unknown): TaskStatusInput["disposition"] {
+  return value === "qualified" || value === "needs_conversation" || value === "not_now" ? value : null;
 }

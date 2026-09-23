@@ -41,6 +41,21 @@ export function websiteSceneSponsorship(input: {
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
     return previous;
   }
+  // Blueprint pays for a scene only when our own screen says the site clears:
+  // a `not_now` site is blocked by an answer only the site can change, and a
+  // `needs_conversation` site builds after the call records its outcome. The
+  // refusal is typed so the Pipeline holds the capture and retries rather than
+  // failing it. Checked when the grant is first made, never on an existing
+  // grant, so spend already authorized still settles.
+  if (input.record.site_task_triage?.disposition !== "qualified") {
+    throw new Error("website_scene_site_not_qualified");
+  }
+  // And only once the site is saved to an account, so we know who we are
+  // building it for. Saving happens when the operator confirms the brief; the
+  // Pipeline holds and retries the capture until then.
+  if (typeof input.record.account_owner_uid !== "string" || !input.record.account_owner_uid) {
+    throw new Error("website_scene_site_unclaimed");
+  }
   const value = {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,

@@ -25,6 +25,7 @@ import {
 import { logger } from "../logger";
 import type { InboundRequest } from "../types/inbound-request";
 import { listMatchableRobotTeams, toMatchCandidate } from "./robotTeamRegistry";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 /** A compact, storable record of a match run, for a reviewer and for the email. */
 export interface SiteMatchSummaryRecord {
@@ -40,7 +41,7 @@ export interface SiteMatchSummaryRecord {
 export function toSiteRequirement(request: InboundRequest): SiteRequirement {
   return {
     spec: (request.request.siteTaskSpec || {}) as Record<string, string>,
-    serviceArea: request.request.siteTaskGates?.serviceArea ?? null,
+    serviceArea: gateAnswersOnFile(request).serviceArea ?? null,
     // The site intake has no task-family dropdown, only prose, so this stays
     // null rather than being inferred. `compareTaskFamily` treats it as unknown
     // and ranks on it only when both sides have actually answered.

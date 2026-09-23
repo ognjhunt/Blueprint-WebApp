@@ -86,7 +86,8 @@ test("desktop capture has one status, adjacent upload, brand and owner-reviewed 
   await page.goto("/capture-upload/owner-fixture");
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
-  await expect(page.getByText(/Next status update by/)).toHaveCount(1);
+  // Updates follow events by email; the page promises that, not a deadline.
+  await expect(page.getByText("We email you each time something happens on this task. You do not need to check back.")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
@@ -112,12 +113,14 @@ test("desktop capture has one status, adjacent upload, brand and owner-reviewed 
   await expect.poll(() => mutations.at(-1)?.body.thumbnailPng).toBe(null);
 });
 
-test("phone capture prioritizes the camera and shows overdue dates honestly", async ({ browser }) => {
+test("phone capture prioritizes the camera and promises event emails, not a deadline", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true });
   const page = await context.newPage(); await fixtures(page);
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: { status: { decision: "assessing", headline: "Preparing your scene", nextUpdateIso: "2020-01-01T12:00:00Z" } } }));
   await page.goto("/capture-upload/phone-fixture");
-  await expect(page.getByText(/Update overdue/)).toBeVisible();
+  // A stale deadline left on the record is ignored: timed check-ins are retired.
+  await expect(page.getByText(/We email you each time something happens/)).toBeVisible();
+  await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
   await screenshot(page, "phone-capture"); await context.close();
@@ -162,6 +165,8 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   await page.route("**/api/agent-team/plan", route => route.fulfill({ json: {
     selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Prepared execution", details: card }],
     totalCostUsd: 25, planToken: "signed-fixture-plan", availableBalanceUsd: 50, fundingNeededUsd: 0,
+    // A team whose verified account is already connected: paying needs one.
+    accountBound: true,
   } }));
   let confirmations = 0;
   await page.route("**/api/agent-team/runs", async route => {

@@ -35,6 +35,7 @@ import type {
 } from "../agents/tasks/site-video-evidence";
 import { logger } from "../logger";
 import type { InboundRequest, SiteVideoEvidenceSummary } from "../types/inbound-request";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isSiteVideoEvidenceApplied, isSiteVideoEvidenceEnabled } from "../config/env";
 
 function nowIso() {
@@ -186,7 +187,7 @@ export async function runSiteVideoEvidenceForRequest(
   }
 
   const operatorAnswers = resolveOperatorAnswerLabels({
-    ...(request.request.siteTaskGates || {}),
+    ...gateAnswersOnFile(request),
     ...(request.request.siteTaskSpec || {}),
   });
 
