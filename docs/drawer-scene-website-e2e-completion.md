@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring repair deploying** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded fix merged as `15c94f6f` and its deploy is running; no controller retry has completed. No articulated asset or room integration is proved. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring retry awaiting deployed accounting fix** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded context fix deployed as `15c94f6f`; controller recovery reached a spend-cap refusal before another paid call. The archive-bound accounting fix merged as `83f5277a` and its deploy is running. No articulated asset or room integration is proved. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1194,3 +1194,36 @@ its receipt, live commit proof, controller recovery and next paid attempt remain
 unverified. The 14-step matrix remains unchanged except for this status note:
 step 10 and steps 12–14 are unproven, step 11 is partial, and captured-room
 registration remains unqualified.
+
+## 2026-09-23: verified deployment and unused GPU hold projection
+
+The `15c94f6f` canonical deploy receipt reports `deployed`; the live pipeline
+endpoint reported that exact commit with `commit_proven=true` and no blockers.
+After a fresh global provider-zero check, the durable controller advanced this
+same scene through event 84 `source_preparation/running`. Event 85 then stopped
+before a new paid launch with `scene_intake_spend_cap_exhausted`. No new model
+call, GPU rental, or policy episode occurred.
+
+The signed $44 cumulative exposure was fully held. A read-only service-user
+projection found three terminal CPU stage-3 attempts each holding the full $13
+CPU-plus-GPU quote although their complete, digest-bound archives show only
+stages 1–3, zero Vast provider mutations, completed no-GPU teardown, and a
+$7 OpenAI authoring reservation. Another terminal authoring attempt held $5;
+other settled rows held zero. This is conservative authorization accounting,
+not a claim that $44 was billed. The original signed settlements remain intact.
+
+Pipeline PR [#2137](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2137)
+merged as `83f5277ab367bfe9a7c6b9763ca8ed7232842fc1`. It extends the existing
+archive-bound projection to the observed rate-limit and asset-authoring failure
+forms, retaining the full $7 CPU model ceiling for each and releasing only the
+never-started GPU allowance. Unrecognized or tampered evidence retains the
+original hold. The 93 focused tests, Ruff, diff check, and hosted impacted and
+sentinel checks passed. A read-only service-user replay against the exact
+retained scene records projects $26 held, so the next $13 quote fits within the
+existing $44 owner grant. This is a cap projection, not final provider billing.
+
+The canonical deploy unit `blueprint-drawer-hold-deploy-83f5277.service` started
+after a fresh global guard passed with zero live instances and no active paid
+allocator. Its receipt and live commit proof are pending. The controller owns
+any retry after deployment. Steps 10 and 12–14 remain unproven; step 11 remains
+partial, and the original captured-room registration remains unqualified.
