@@ -19,7 +19,7 @@
 .ms-container { width: min(100% - 116px, 1420px); margin-inline: auto; }
 .ms-header { position: relative; z-index: 10; height: 87px; display: flex; align-items: center; justify-content: space-between; }
 .ms-brand { display: inline-flex; align-items: center; gap: 18px; font-size: 30px; font-weight: 500; letter-spacing: -1.6px; }
-.ms-brand-mark { display: block; width: 35px; height: 35px; border: 3px solid currentColor; }
+.ms-brand-mark { display: block; flex-shrink: 0; width: 35px; height: 35px; background: url("/brand/mark.svg") center / contain no-repeat; }
 .ms-desktop-nav { display: flex; align-items: center; gap: 36px; font-size: 14px; }
 .ms-desktop-nav > a:not(.ms-button), .ms-footer a, .ms-back { transition: color 160ms ease; }
 .ms-desktop-nav > a:not(.ms-button):hover, .ms-footer a:hover, .ms-back:hover { color: #46705a; }
@@ -101,6 +101,15 @@
 .ms-legal section { border-top: 1px solid #d7dbd0; padding-top: 27px; margin-top: 32px; }
 .ms-legal ul { list-style: disc; padding-left: 20px; }
 .ms-legal a { text-decoration: underline; text-underline-offset: 4px; }
+.ms-about h1 { margin-top: 14px; }
+.ms-about .ms-about-lead { font-size: 19px; line-height: 1.6; color: #53594e; max-width: 62ch; }
+.ms-about ol { list-style: decimal; padding-left: 20px; }
+.ms-about ol li { margin-bottom: 6px; }
+.ms-about-facts { display: grid; gap: 12px; margin: 0; }
+.ms-about-facts > div { display: grid; grid-template-columns: 170px 1fr; gap: 16px; border-bottom: 1px solid #e3e5dd; padding-bottom: 10px; font-size: 14px; line-height: 1.6; }
+.ms-about-facts dt { color: var(--ms-ink); font-weight: 500; }
+.ms-about-facts dd { margin: 0; color: var(--ms-muted); }
+@media (max-width: 600px) { .ms-about-facts > div { grid-template-columns: 1fr; gap: 2px; } }
 .ms-legal table { border-collapse: collapse; width: 100%; }
 .ms-legal td, .ms-legal th { padding: 12px 10px; border-bottom: 1px solid #d7dbd0; vertical-align: top; text-align: left; }
 .ms-legal-table { overflow-x: auto; }
@@ -121,7 +130,7 @@
   .ms-container { width: calc(100% - 40px); }
   .ms-header { height: 81px; }
   .ms-brand { font-size: 26px; gap: 13px; }
-  .ms-brand-mark { width: 28px; height: 28px; border-width: 2px; }
+  .ms-brand-mark { width: 28px; height: 28px; }
   .ms-desktop-nav { display: none; }
   .ms-menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; }
   .ms-mobile-nav { position: absolute; top: 72px; left: -20px; right: -20px; padding: 22px 20px 26px; background: var(--ms-paper); border-bottom: 1px solid var(--ms-rule); display: flex; flex-direction: column; gap: 8px; }

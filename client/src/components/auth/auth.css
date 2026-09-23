@@ -77,7 +77,7 @@
   .auth-header, .auth-footer { width: calc(100% - 40px); }
   .auth-header { height: 85px; }
   .auth-header .ms-brand { font-size: 25px; gap: 13px; }
-  .auth-header .ms-brand-mark { width: 27px; height: 27px; border-width: 2px; }
+  .auth-header .ms-brand-mark { width: 27px; height: 27px; }
   .auth-body, .auth-shell-wide .auth-body { width: min(100% - 40px, 540px); grid-template-columns: minmax(0, 1fr); min-height: calc(100svh - 170px); }
   .auth-content { padding-block: 37px 55px; }
   .auth-art { display: none; }

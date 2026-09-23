@@ -62,7 +62,7 @@ export default function Contact() {
         title="Start a task assessment | Blueprint"
         description="Describe a repetitive job, then share footage of the work area."
         canonical="/contact/site-operator"
-        image="https://tryblueprint.io/images/site-led/workcell.webp"
+       
       />
       <section className="ms-inquiry ms-container">
         <div className="ms-inquiry-intro">

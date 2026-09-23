@@ -50,21 +50,31 @@ describe("build output", () => {
       "how-it-works/index.html",
       "pricing/index.html",
       "sites/index.html",
-      "capture/index.html",
+      "about/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
-      "capture-app/index.html",
-      "capture-app/launch-access/index.html",
       "sign-in/index.html",
       "signup/index.html",
       "signup/business/index.html",
-      "signup/capturer/index.html",
       "forgot-password/index.html",
       "privacy/index.html",
       "terms/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(true);
     });
+  });
+
+  it("ships the retired capture-app pages no more, and the current brand's icons and share image", () => {
+    for (const file of ["capture/index.html", "capture-app/index.html", "capture-app/launch-access/index.html", "signup/capturer/index.html"]) {
+      expect(fs.existsSync(distPath(file))).toBe(false);
+    }
+    for (const file of ["favicon.ico", "favicon.svg", "apple-touch-icon.png", "brand/mark.svg", "brand/og-default.png"]) {
+      expect(fs.existsSync(distPath(file))).toBe(true);
+    }
+    const home = fs.readFileSync(distPath("index.html"), "utf8");
+    expect(home).toContain('content="https://tryblueprint.io/brand/og-default.png"');
+    expect(home).not.toContain("blueprint-og-hosted-review");
+    expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
   it("ships the recorded evaluation example and all six episode videos", () => {
@@ -149,10 +159,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(7);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
 
     [
       "https://tryblueprint.io/product",

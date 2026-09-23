@@ -7,7 +7,7 @@ const description = "Turn a qualified site opportunity into robot-team evaluatio
 
 export default function HowItWorks() {
   return <>
-    <SEO title="How it works | Blueprint" description={description} canonical="/how-it-works" image="https://tryblueprint.io/images/site-led/embodiments/humanoid.webp" jsonLd={webPageJsonLd({ path: "/how-it-works", name: "How Blueprint works", description })} />
+    <SEO title="How it works | Blueprint" description={description} canonical="/how-it-works" jsonLd={webPageJsonLd({ path: "/how-it-works", name: "How Blueprint works", description })} />
     <article className="ms-how ms-container">
       <header className="ms-how-intro"><p className="ms-eyebrow">How it works</p><h1>Start with the task.<br />Find the right fit.</h1><p>Different robots. Different policies. One question: what will work for your site?</p></header>
       <div className="ms-how-steps ms-how-preparation">

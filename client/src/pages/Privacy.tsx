@@ -131,7 +131,7 @@ export const betaResidencyTransferRows = [
 
 export default function Privacy() {
   return <>
-    <SEO title="Privacy Policy | Blueprint" description="How Blueprint handles information across its website, capture workflows, and Task Evaluation Runs." canonical="/privacy" image="https://tryblueprint.io/images/site-led/workcell.webp" />
+    <SEO title="Privacy Policy | Blueprint" description="How Blueprint handles information across its website, capture workflows, and Task Evaluation Runs." canonical="/privacy" />
     <article className="ms-legal ms-container">
       <h1>Privacy Policy</h1>
       <p>Effective March 23, 2026</p>

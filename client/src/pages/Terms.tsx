@@ -56,7 +56,7 @@ const roleTerms = [
 
 export default function Terms() {
   return <>
-    <SEO title="Terms of Service | Blueprint" description="Terms for Blueprint Task Evaluation Runs, capture workflows, and related services." canonical="/terms" image="https://tryblueprint.io/images/site-led/workcell.webp" />
+    <SEO title="Terms of Service | Blueprint" description="Terms for Blueprint Task Evaluation Runs, capture workflows, and related services." canonical="/terms" />
     <article className="ms-legal ms-container">
       <h1>Terms of Service</h1><p>Effective March 23, 2026</p><p>Agreement to use Blueprint services and site products.</p>
       {sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}

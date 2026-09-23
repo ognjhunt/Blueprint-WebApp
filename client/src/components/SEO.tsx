@@ -13,7 +13,10 @@ interface SEOProps {
 }
 
 const BASE_URL = "https://tryblueprint.io";
-const DEFAULT_IMAGE = `${BASE_URL}/generated/2026-05-13-brand-system/blueprint-og-hosted-review-gpt-image-2.png`;
+// The one share image: current brand, 1200x630 PNG, which LinkedIn, Slack,
+// Outlook and X all render. Pages use it unless they have a better one.
+const DEFAULT_IMAGE = `${BASE_URL}/brand/og-default.png`;
+const DEFAULT_IMAGE_ALT = "Blueprint — Your site. The right robot. A pilot worth running.";
 const SITE_NAME = "Blueprint";
 
 export function SEO({
@@ -56,7 +59,9 @@ export function SEO({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
-      <meta property="og:image:alt" content="Blueprint" />
+      {image === DEFAULT_IMAGE && <meta property="og:image:width" content="1200" />}
+      {image === DEFAULT_IMAGE && <meta property="og:image:height" content="630" />}
+      <meta property="og:image:alt" content={image === DEFAULT_IMAGE ? DEFAULT_IMAGE_ALT : "Blueprint"} />
       <meta property="og:site_name" content={SITE_NAME} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
 
@@ -65,6 +70,7 @@ export function SEO({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+      <meta name="twitter:image:alt" content={image === DEFAULT_IMAGE ? DEFAULT_IMAGE_ALT : "Blueprint"} />
 
       {jsonLdItems.map((item, index) => (
         <script key={`json-ld-${index}`} type="application/ld+json">

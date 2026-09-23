@@ -8,7 +8,7 @@ const description = "Blueprint turns your site task into a qualified opportunity
 export default function Home() {
   return (
     <>
-      <SEO title="Blueprint | A pilot worth running." description={description} canonical="/" image="https://tryblueprint.io/images/site-led/workcell.webp" jsonLd={webPageJsonLd({ path: "/", name: "Blueprint", description })} />
+      <SEO title="Blueprint | A pilot worth running." description={description} canonical="/" jsonLd={webPageJsonLd({ path: "/", name: "Blueprint", description })} />
       <EmbodimentHero>
           <div className="ms-hero-copy">
             <h1 id="hero-title">Your site.<br />The right robot.<br />A pilot worth running.</h1>

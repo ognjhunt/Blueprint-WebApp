@@ -1,130 +1,71 @@
-import { Check } from "lucide-react";
-
 import { SEO } from "@/components/SEO";
-import { StructuralCompareFigure } from "@/components/site/runway/figures";
-import { Reveal } from "@/components/site/motion";
-import {
-  Band,
-  ClosingCta,
-  Inner,
-  PageHero,
-  SectionHeader,
-} from "@/components/site/publicSections";
-import { aboutHero } from "@/data/publicSiteCopy";
+import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
+const description =
+  "Blueprint Robotics, Inc. makes the first months of a robot deployment fast: a site films one task, and robot teams are tested against it before anyone commits to a pilot.";
+
 const principles = [
-  "Capture the real workflow before choosing the evaluation method.",
-  "Build only the part of the site the robot task actually needs.",
-  "Keep raw site data controlled and permission every use.",
+  "Start from the real task at a real site, not a demo.",
+  "Keep a site's footage and details private unless the site chooses to share them.",
+  "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Use real hardware to settle physical performance and safety claims.",
+  "Charge robot teams one flat, published price, and sites nothing to find out.",
 ] as const;
 
 export default function About() {
   return (
     <>
       <SEO
-        title="About Blueprint | We evaluate robots for sites ready to buy"
-        description="Blueprint turns the discovery and fit-testing every robot vendor repeats into one Task Evaluation Run, for sites that have a job and a budget."
+        title="About | Blueprint"
+        description={description}
         canonical="/about"
         jsonLd={[
-          webPageJsonLd({
-            path: "/about",
-            name: "About Blueprint",
-            description:
-              "Why Blueprint automates the preparation work before onsite robot deployment.",
-          }),
+          webPageJsonLd({ path: "/about", name: "About Blueprint", description }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             { name: "About", path: "/about" },
           ]),
         ]}
       />
+      <article className="ms-legal ms-about ms-container">
+        <p className="ms-eyebrow">About</p>
+        <h1>We make the first months of a robot deployment fast.</h1>
+        <p className="ms-about-lead">
+          Robots can already do a great deal of real work. What slows a deployment is the work
+          before a pilot: understanding one site's task, recreating its conditions, and finding out
+          which robot actually fits. Blueprint does that work once per site, so every robot team can
+          be tested against the same real task.
+        </p>
 
-      <PageHero
-        eyebrow={aboutHero.eyebrow}
-        title={aboutHero.title}
-        body={aboutHero.body}
-        chips={aboutHero.chips}
-        ctaHref="/how-it-works"
-        ctaLabel="See the four steps"
-        secondaryHref="/proof"
-        secondaryLabel="Read the evidence"
-        imageSrc="/redesign/robot-hero.png"
-        imageAlt="Robot inside a real industrial workflow"
-        imageCaption="Illustrative context · not customer proof"
-      />
+        <section>
+          <h2>How it works</h2>
+          <ol>
+            <li>A site films one repeated task on a phone. It costs the site nothing.</li>
+            <li>We rebuild the work area as a simulated scene and check whether a robot evaluation would hold up there.</li>
+            <li>Robot teams run their policies against the scene. The site sees who fits, and why, before anyone commits to a physical pilot.</li>
+          </ol>
+          <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
+        </section>
 
-      <Band tone="ink">
-        <Inner className="py-20 lg:py-28">
-          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
-            <div>
-              <p className="text-micro font-semibold uppercase tracking-eyebrow text-runway-signal">
-                The thesis
-              </p>
-              <h2 className="mt-5 font-display uppercase text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[0.95] tracking-[0.005em] text-runway-text">
-                Robot supply is scaling. The work of matching one to a job is not.
-              </h2>
-            </div>
-            <p className="max-w-[40rem] text-body-l leading-8 text-runway-mute">
-              Every new site still needs someone to understand the task,
-              recreate the conditions, test fit, define success, protect the
-              data, and prepare the onsite team. Blueprint makes that work
-              reusable across robot providers.
-            </p>
-          </div>
-        </Inner>
-      </Band>
-
-      <Band tone="canvas">
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="01"
-            eyebrow="Why a shared layer"
-            title="Every robot company should not rebuild the same site from scratch."
-          />
-          <Reveal className="mt-14">
-            <StructuralCompareFigure />
-          </Reveal>
-        </Inner>
-      </Band>
-
-      <Band tone="paper" rule>
-        <Inner className="py-20 lg:py-28">
-          <SectionHeader
-            index="02"
-            eyebrow="Five rules"
-            title="Fast is useful only when the result stays honest."
-          />
-          <ul className="mt-14 divide-y divide-line border-y border-runway-line">
-            {principles.map((principle, index) => (
-              <Reveal key={principle} delay={index * 0.04}>
-                <li className="grid gap-4 py-5 sm:grid-cols-[auto_1fr] sm:items-start">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-runway-signal/[0.08] text-runway-signal">
-                    <Check className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  <p className="text-body-l leading-8 text-runway-text">
-                    {principle}
-                  </p>
-                </li>
-              </Reveal>
-            ))}
+        <section>
+          <h2>What we hold ourselves to</h2>
+          <ul>
+            {principles.map((principle) => <li key={principle}>{principle}</li>)}
           </ul>
-        </Inner>
-      </Band>
+        </section>
 
-      <ClosingCta
-        eyebrow="One public product"
-        title="One evaluation. One handoff to the install."
-        body="The capture, testbed, simulation, permissions, and results are support layers inside the run—not separate products a buyer has to assemble."
-        primaryHref="/how-it-works"
-        primaryLabel="See how it works"
-        secondaryHref="/pricing"
-        secondaryLabel="See pricing"
-        imageSrc="/redesign/pov/factory-conveyor.jpg"
-        imageAlt="Factory conveyor workflow prepared for robot evaluation"
-      />
+        <section>
+          <h2>The company</h2>
+          <dl className="ms-about-facts">
+            <div><dt>Company</dt><dd>{COMPANY.legalName}</dd></div>
+            <div><dt>Mailing address</dt><dd>{COMPANY.mailingAddress}</dd></div>
+            <div><dt>Where we work</dt><dd>Sites in the United States film their own task. In-person capture visits: {COMPANY.visitServiceArea}.</dd></div>
+            <div><dt>Contact</dt><dd><a href={`mailto:${COMPANY.emails.hello}`}>{COMPANY.emails.hello}</a></dd></div>
+            <div><dt>Privacy</dt><dd><a href={`mailto:${COMPANY.emails.privacy}`}>{COMPANY.emails.privacy}</a></dd></div>
+          </dl>
+        </section>
+      </article>
     </>
   );
 }

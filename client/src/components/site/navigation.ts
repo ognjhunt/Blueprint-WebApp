@@ -12,46 +12,33 @@ export const primaryNavLinks = [
   { href: "/pricing", label: "Pricing" },
 ];
 
-// Utility links sit between the primary nav and the auth controls. Capture is paid
-// supply the company recruits — framed as an earn opportunity, not a product to buy.
-export const headerUtilityLinks = [
-  { href: "/capture", label: "Capture network" },
-];
+// Utility links sit between the primary nav and the auth controls. The capture
+// network is retired for now (sites film their own task), so there are none.
+export const headerUtilityLinks: Array<{ href: string; label: string }> = [];
 
-// Primary header CTA — white-fill "Request evaluation" button.
+// Primary header CTA.
 export const headerRequestEvaluation = {
-  href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",
-  label: "Prepare a deployment",
+  href: "/contact/site-operator",
+  label: "Start a task assessment",
 };
 
-// Footer columns: Product / Evidence / Company.
+// Footer columns for the legacy layout. Every link resolves to a live page.
 export const footerProductLinks = [
-  { href: "/for-site-operators", label: "For Site Operators" },
-  { href: "/for-robot-teams", label: "For Robot Teams" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/capture-visit", label: "The capture visit" },
-  { href: "/site-task", label: "Site-task intake" },
-  { href: "/robot-intake", label: "Robot-team intake" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/contact/site-operator", label: "Start a task assessment" },
+  { href: "/contact/robot-team", label: "Robot teams" },
+  { href: "/sites", label: "Task library" },
 ];
 
 export const footerEvidenceLinks = [
-  { href: "/proof", label: "Proof" },
-  { href: "/governance", label: "Site data controls" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/sites", label: "Sites" },
+  { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
 ];
 
 export const footerCompanyLinks = [
-  { href: "/vision", label: "Vision" },
-  {
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=footer",
-    label: "Request a Task Evaluation Run",
-  },
-  // Demoted: capture is paid supply the company recruits.
-  { href: "/capture", label: "Get paid to capture" },
+  { href: "mailto:hello@tryblueprint.io", label: "hello@tryblueprint.io" },
 ];
 
 // Retained for backward compatibility (legacy Footer import); now points at evidence/legal links.
