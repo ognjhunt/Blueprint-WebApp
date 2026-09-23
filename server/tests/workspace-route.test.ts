@@ -333,6 +333,39 @@ describe("workspace access and projections", () => {
     expect(response.evaluations[0].targetsMet).toBeNull();
   });
 });
+describe("a site finds its way back to its own task", () => {
+  it("mints a fresh private task link for the owner only", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    const response = await api("/tasks/task-1/task-link", "site-1", {});
+    expect(response.status).toBe(200);
+    expect((await response.json()).url).toMatch(/\/capture-upload\//);
+    expect((await api("/tasks/task-1/task-link", "site-2", {})).status).toBe(404);
+  });
+
+  it("projects the listing, the capture mode, and takes a closed task off the library", async () => {
+    const { operatorListingPaused } = await import("../utils/operatorListing");
+    const record = {
+      ...task(),
+      request: { ...task().request, capture_mode: "self_capture" },
+      public_task_listing: { enabled: true },
+    };
+    state.records.set("inboundRequests/task-1", record);
+    const listed = (await (await api("/", "site-1")).json()).tasks[0];
+    expect(listed).toMatchObject({
+      captureMode: "self_capture",
+      paused: false,
+      listing: { approved: true, live: true, cardUrl: "/sites?sceneId=task-1" },
+    });
+    expect(operatorListingPaused(record)).toBe(false);
+    expect(operatorListingPaused({ ...record, workspace_task: { archived: true } })).toBe(true);
+    expect(operatorListingPaused({ ...record, workspace_task: { paused: true } })).toBe(true);
+
+    state.records.set("inboundRequests/task-1", { ...record, workspace_task: { archived: true } });
+    const closed = (await (await api("/", "site-1")).json()).tasks[0];
+    expect(closed.listing).toMatchObject({ approved: true, live: false });
+  });
+});
+
 describe("workspace requests and lifecycle", () => {
   it("can record a decision when the source task prose is encrypted", async () => {
     const source: any = task();

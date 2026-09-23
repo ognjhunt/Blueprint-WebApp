@@ -59,6 +59,8 @@ export type OutboxKind =
   | "coverage_shortfall"
   | "assessment_ready"
   | "input_needed"
+  /** A fresh private task link, asked for from an expired one. */
+  | "fresh_link"
   /** To the robot team that bought a run, when it reports. */
   | "team_run_result"
   | "team_run_no_result";

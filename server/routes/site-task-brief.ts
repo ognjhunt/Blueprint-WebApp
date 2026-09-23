@@ -24,7 +24,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 
 import { logger } from "../logger";
-import { captureUploadUrlFor, verifyCaptureUploadToken } from "../utils/captureUploadToken";
+import { captureUploadUrlFor, requestIdFromExpiredCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import {
   confirmBrief,
   getBrief,
@@ -47,7 +47,9 @@ import {
 } from "../utils/taskStatusProjection";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
-import { deliverOutbox } from "../utils/captureOutbox";
+import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
+import { decryptFieldValue } from "../utils/field-encryption";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
@@ -89,14 +91,24 @@ async function readRequestForStatus(requestId: string): Promise<{
   const snap = await db.collection("inboundRequests").doc(requestId).get();
   if (!snap.exists) return null;
   const data = snap.data() as Record<string, unknown>;
-  const contact = data.contact as { email?: string; firstName?: string } | undefined;
+  const contact = data.contact as { email?: unknown; firstName?: unknown } | undefined;
+  // Contact fields may be stored encrypted. Reading only plain strings meant an
+  // encrypted address came back null and every email from this route was
+  // silently skipped; decrypt first, as the lifecycle notices already do.
+  const plain = async (value: unknown) => {
+    if (value === null || value === undefined || value === "") return null;
+    try { return String(await decryptFieldValue(value as never)).trim() || null; }
+    catch { return null; }
+  };
+  const contactEmail = await plain(contact?.email);
+  const contactFirstName = await plain(contact?.firstName);
   return {
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
     site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
-    contactEmail: typeof contact?.email === "string" ? contact.email : null,
-    contactFirstName: typeof contact?.firstName === "string" ? contact.firstName : null,
+    contactEmail,
+    contactFirstName,
     account_owner_uid:
       typeof data.account_owner_uid === "string" && data.account_owner_uid
         ? data.account_owner_uid
@@ -242,6 +254,10 @@ function presentBrief(brief: SiteTaskBriefRecord) {
     unresolved: brief.unresolved,
     draftedFrom: brief.draftedFrom,
     confirmedAtIso: brief.confirmedAtIso,
+    // What the operator stated last time, so editing starts from their own
+    // answers rather than from our draft.
+    operatorAnswers: brief.operatorAnswers ?? null,
+    operatorUnknown: brief.operatorUnknown ?? null,
   };
 }
 
@@ -445,6 +461,46 @@ router.post("/:token/film-link/send", async (req: Request, res: Response) => {
     error: messages[result.code ?? ""] || "That could not be sent. Copy the link and share it directly.",
     filmUrl: result.filmUrl,
   });
+});
+
+/**
+ * Email a fresh private link, from an expired one.
+ *
+ * Links last seven days, and the expired page used to say "reply to the
+ * email". Now it offers a button. The answer is the same whatever the token
+ * holds, so it reveals nothing; a genuine link gets one fresh link per hour,
+ * sent to the address the task was submitted from.
+ */
+router.post("/:token/fresh-link", async (req: Request, res: Response) => {
+  const requestId = requestIdFromExpiredCaptureUploadToken(String(req.params.token || ""));
+  const reply = () => res.status(202).json({
+    ok: true,
+    message: "If this link was one of ours, a fresh one is on its way to the email address the task was sent from.",
+  });
+  if (!requestId || !db) return reply();
+  try {
+    const request = await readRequestForStatus(requestId).catch(() => null);
+    if (!request?.contactEmail) return reply();
+    const hour = new Date().toISOString().slice(0, 13);
+    await enqueueOutbox({
+      idempotencyKey: `${requestId}:fresh_link:${hour}`,
+      requestId,
+      kind: "fresh_link",
+      to: request.contactEmail,
+      subject: "Your new Blueprint task link",
+      body: [
+        emailGreeting(request.contactFirstName),
+        "Here is a fresh private link to your task. It opens your task without a password, so please don't forward it.",
+        `Open your task:\n${captureUploadUrlFor(requestId, "owner")}`,
+        EMAIL_SIGN_OFF,
+      ].join("\n\n"),
+      replyTo: "ops@tryblueprint.io",
+    });
+    void deliverOutbox({ limit: 5 }).catch(() => undefined);
+  } catch (error) {
+    logger.warn({ error, requestId }, "Could not queue a fresh task link");
+  }
+  return reply();
 });
 
 router.post("/:token/confirm", async (req: Request, res: Response) => {
@@ -663,6 +719,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture,
+        footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         stage,
         screening,
@@ -694,6 +751,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // The completion marker, as a fact: the laptop that showed the QR code
       // reads this to know the phone's recording landed.
       captureReceived: hasStoredCapture,
+      // Whether coverage is checked automatically or by a person, so the page
+      // says which one happens.
+      footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: brief?.summary ?? null,
       claimUrl,
       sceneViewUrl,

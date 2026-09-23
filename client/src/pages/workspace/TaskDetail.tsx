@@ -39,8 +39,22 @@ export default function TaskDetail() {
     [pilotAction, setPilotAction] = useState<string | null>(null),
     [selection, setSelection] = useState<WorkspaceResult | null>(null),
     [details, setDetails] = useState<WorkspaceResult | null>(null),
-    [editing, setEditing] = useState(false);
+    [editing, setEditing] = useState(false),
+    [linkState, setLinkState] = useState<"idle" | "working" | "failed">("idle");
   const endpoint = `/tasks/${encodeURIComponent(taskId || "")}`;
+  // The task page is where the brief is reviewed or edited, footage is added
+  // and the scene is opened. The emailed link expires; the account mints a
+  // fresh one on demand.
+  async function openTaskPage() {
+    if (linkState === "working") return;
+    setLinkState("working");
+    try {
+      const { url } = await query.request<{ url: string }>(`${endpoint}/task-link`, "POST", {});
+      window.location.assign(url);
+    } catch {
+      setLinkState("failed");
+    }
+  }
   return (
     <Frame
       query={query}
@@ -87,6 +101,27 @@ export default function TaskDetail() {
                 )}
                 <NextTaskUpdate nextUpdateIso={task.readiness.nextUpdateIso} />
               </div>
+            </div>
+          )}
+
+          {!task.archived && (
+            <div className="ws-section" aria-label="Your task page">
+              <p>
+                <strong>Your task page.</strong>{" "}
+                Review or edit your answers, add footage
+                {task.sceneReady ? ", and open your scene" : ""}.
+              </p>
+              <button
+                className="ws-primary"
+                type="button"
+                onClick={() => void openTaskPage()}
+                disabled={linkState === "working"}
+              >
+                {linkState === "working" ? "Opening…" : "Open your task page"}
+              </button>
+              {linkState === "failed" && (
+                <p role="alert">The task page could not be opened. Try again.</p>
+              )}
             </div>
           )}
 
@@ -163,6 +198,45 @@ export default function TaskDetail() {
                   {task.nextStep ||
                     "Blueprint will review the task and confirm the next step."}
                 </p>
+              </section>
+              <section aria-label="Robot-team library">
+                <h2>Robot-team library</h2>
+                {task.archived ? (
+                  <p className="ws-muted">Closed. The task is off the library and no new runs can start.</p>
+                ) : !task.listing?.approved ? (
+                  <p className="ws-muted">
+                    Not listed. You choose on your task page whether robot teams can see a card for this task.
+                  </p>
+                ) : task.listing.live ? (
+                  <>
+                    <p>Listed. Robot teams can see the card you approved and start evaluation runs.</p>
+                    <div className="ws-form-actions">
+                      <button
+                        className="ws-link"
+                        type="button"
+                        disabled={action.pending}
+                        onClick={() => void action.perform(`${endpoint}/listing`, { paused: true })}
+                      >
+                        Hide from robot teams
+                      </button>
+                      {task.listing.cardUrl && (
+                        <a className="ws-link" href={task.listing.cardUrl}>View the card →</a>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>Hidden. Robot teams cannot see the card or start new runs.</p>
+                    <button
+                      className="ws-link"
+                      type="button"
+                      disabled={action.pending}
+                      onClick={() => void action.perform(`${endpoint}/listing`, { paused: false })}
+                    >
+                      Show to robot teams again
+                    </button>
+                  </>
+                )}
               </section>
             </div>
           )}
@@ -327,7 +401,24 @@ export default function TaskDetail() {
               )}
             </>
           )}
-          {tab === "capture" && (
+          {tab === "capture" && task.captureMode === "self_capture" && (
+            <section className="ws-section" aria-label="Your recording">
+              <h2>Your recording</h2>
+              <p>
+                You film this task yourself on your phone. Your task page shows what has been
+                received, what is still needed, and lets you add more footage.
+              </p>
+              {task.readiness?.missingViews?.length ? (
+                <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
+              ) : null}
+              {!task.archived && (
+                <button className="ws-primary" type="button" onClick={() => void openTaskPage()} disabled={linkState === "working"}>
+                  {linkState === "working" ? "Opening…" : "Add or review footage"}
+                </button>
+              )}
+            </section>
+          )}
+          {tab === "capture" && task.captureMode !== "self_capture" && (
             <>
               <div className="ws-section-title">
                 <h2>Capture visit</h2>

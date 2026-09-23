@@ -27,6 +27,7 @@ import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/componen
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
+import { withCsrfHeader } from "@/lib/csrf";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
@@ -47,6 +48,8 @@ type TaskStatus = {
   sceneViewUrl?: string | null;
   /** The server holds a recording, whichever device sent it. */
   captureReceived?: boolean;
+  /** Coverage is checked automatically; false means a person reviews it. */
+  footageReviewAutomated?: boolean;
 };
 import { useRoute } from "wouter";
 
@@ -215,6 +218,24 @@ export default function SelfCaptureUpload() {
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
+  // Links expire after a week; the expired page asks for a new one itself.
+  const [freshLink, setFreshLink] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  async function requestFreshLink() {
+    setFreshLink("sending");
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token ?? "")}/fresh-link`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: "{}",
+      });
+      setFreshLink(response.ok ? "sent" : "failed");
+    } catch {
+      setFreshLink("failed");
+    }
+  }
+  // A confirmed brief can be reopened: emails tell a site that was not cleared
+  // to update its answers when something changes, so the answers stay editable.
+  const [editingBrief, setEditingBrief] = useState(false);
   const [siteAccount, setSiteAccount] = useState<SiteAccount | null>(null);
   /**
    * What this link may do. A film-only colleague link never shows the brief
@@ -295,6 +316,8 @@ export default function SelfCaptureUpload() {
           captureMode: data.brief.captureMode,
           proposed: data.brief.proposed ?? [],
           unresolved: data.brief.unresolved ?? [],
+          operatorAnswers: data.brief.operatorAnswers ?? null,
+          operatorUnknown: data.brief.operatorUnknown ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);
@@ -433,6 +456,7 @@ export default function SelfCaptureUpload() {
           claimUrl: data.claimUrl ?? null,
           sceneViewUrl: data.sceneViewUrl ?? null,
           captureReceived: data.captureReceived === true,
+          footageReviewAutomated: data.footageReviewAutomated !== false,
         });
       } catch { /* The capture remains usable during a status outage. */ }
       if (alive) timer = setTimeout(poll, 6000);
@@ -568,10 +592,28 @@ export default function SelfCaptureUpload() {
       )}
 
       {link.status === "invalid" && (
-        <p style={{ color: "var(--ms-muted)" }}>
-          {link.message} If you were sent this by email, reply to that message and we will send a
-          fresh one.
-        </p>
+        <div>
+          <p style={{ color: "var(--ms-muted)" }}>{link.message}</p>
+          {token && freshLink !== "sent" && (
+            <button
+              type="button"
+              className="ms-button"
+              disabled={freshLink === "sending"}
+              onClick={() => void requestFreshLink()}
+            >
+              {freshLink === "sending" ? "Sending…" : "Email me a fresh link"}
+            </button>
+          )}
+          {freshLink === "sent" && (
+            <p role="status">
+              If this link was one of ours, a fresh one is on its way to the email address your
+              task was sent from.
+            </p>
+          )}
+          {freshLink === "failed" && (
+            <p role="alert">We could not send that just now. Try again shortly.</p>
+          )}
+        </div>
       )}
 
       {link.status === "valid" && (
@@ -618,9 +660,9 @@ export default function SelfCaptureUpload() {
                   {scope === "owner" && brief && !briefConfirmed
                     ? "One thing left for you: check the task brief below and confirm it. "
                     : "Nothing more is needed from you right now. "}
-                  We check whether the video covers the work area well enough to build the scene,
-                  and we will come back to you either way, including if one more view would finish
-                  the job.
+                  {status?.footageReviewAutomated === false
+                    ? "Our team reviews whether the video covers the work area well enough to build the scene, and emails you with the next step, including if one more view would finish the job."
+                    : "We check whether the video covers the work area well enough to build the scene, and we will come back to you either way, including if one more view would finish the job."}
                 </p>
               </div>
               {/* Saved is not finished. The brief confirmation is the site's
@@ -630,21 +672,31 @@ export default function SelfCaptureUpload() {
                   qualification undone, recoverable only by knowing to reload. */}
               {statusCard}
 
-              {scope === "owner" && brief && !briefConfirmed && (
+              {scope === "owner" && brief && briefConfirmed && !editingBrief && (
+                <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
+                  Your task brief is confirmed.{" "}
+                  <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
+                    Edit your answers
+                  </button>
+                </p>
+              )}
+              {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
                 /* Open, not collapsed: this is the one step left, and a closed
                    disclosure under a "you can close this page" card read as
                    optional. */
                 <details open style={{ marginBottom: "8px" }}>
-                  <summary>Next: check your task brief</summary>
+                  <summary>{editingBrief ? "Edit your task brief" : "Next: check your task brief"}</summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. Correct anything wrong, then confirm. That
-                    is what lets a robot team be matched to your site.
+                    {brief.proposed.some((answer) => answer.basis !== "assumption")
+                      ? "We drafted this from what you sent. Correct anything wrong, then confirm."
+                      : "Answer a few questions about the task, then confirm."}{" "}
+                    That is what lets a robot team be matched to your site.
                   </p>
                   <TaskBriefReview
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => setBriefConfirmed(true)}
+                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}
@@ -785,22 +837,33 @@ export default function SelfCaptureUpload() {
                   not a gate. Confirming it is the attestation that turns the site
                   into supply, before or after filming. A film-only link never
                   sees it: attestation is not theirs to make. */}
-              {scope === "owner" && brief && !briefConfirmed && (
-                <details style={{ marginTop: "28px", marginBottom: "8px" }}>
+              {scope === "owner" && brief && briefConfirmed && !editingBrief && (
+                <p className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
+                  Your task brief is confirmed.{" "}
+                  <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
+                    Edit your answers
+                  </button>
+                </p>
+              )}
+              {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
+                <details open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
                       : "Review your task brief"}
                   </summary>
                   <p className="ms-field-hint">
-                    We drafted this from what you sent. Film whenever you like — confirming the brief
+                    {brief.proposed.some((answer) => answer.basis !== "assumption")
+                      ? "We drafted this from what you sent."
+                      : "A few questions about the task."}{" "}
+                    Film whenever you like — confirming the brief
                     is what lets a robot team be matched to your site, before or after you film.
                   </p>
                   <TaskBriefReview
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => setBriefConfirmed(true)}
+                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}
